@@ -59,7 +59,7 @@ archiving</li>
 
 <h2>REQUIREMENTS</h2>
 
-<p>EasyBuild requires Python 2.4 (or a more recent 2.x version) to be available,
+<p>EasyBuild requires <a href="http://www.python.org">Python</a> 2.4 (or a more recent 2.x version) to be available,
 as well as the <a href="http://modules.sourceforge.net/">environment-modules</a> software package.  Furthermore, a working C and C++ compiler must be installed on the system.</p>
 
 <p>The <a href="http://gitorious.org/git-python">GitPython</a> Python module is recommended, especially when EasyBuild is being used from a git repository.</p>
@@ -72,8 +72,7 @@ as well as the <a href="http://modules.sourceforge.net/">environment-modules</a>
 running the following (bash/sh syntax):</p>
 
 <pre><code>export EBHOME="&lt;path to where you unpacked EasyBuild&gt;"
-${EBHOME}/easybuild.sh --robot ${EBHOME}/easybuild/easyconfigs \
-    ${EBHOME}/easybuild/easyconfigs/h/HPL/HPL-2.0-goalf-1.1.0.eb
+${EBHOME}/easybuild.sh --robot ${EBHOME}/easybuild/easyconfigs ${EBHOME}/easybuild/easyconfigs/h/HPL/HPL-2.0-goalf-1.1.0.eb
 </code></pre>
 
 <p>This will build and install HPL, after building and installing a GCC-based
