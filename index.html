@@ -34,12 +34,12 @@ that allows you to install software in a structured, repeatable and robust way.<
 
 <ul>
 <li>independently install multiple versions of a software package side-by-side</li>
-<li>support multiple compilers and libraries for building a software package 
+<li>support multiple compilers and libraries for building a software package
 and its dependencies</li>
 <li>keep the package configuration simple</li>
 <li>divert from the standard configure / make / make install with custom
 procedures (which is often necessary for scientific packages)</li>
-<li>use environment modules for dependency resolution and making the software
+<li>use <a href="http://modules.sourceforge.net/">environment modules</a> for dependency resolution and making the software
 available to users in a transparent way</li>
 <li>keep record of the installation logs</li>
 <li>keep track of installation configuration in version control</li>
@@ -52,7 +52,7 @@ plugged into the EasyBuild framework</li>
 <li>the generation of the module files to easily make the software available to users</li>
 <li>the dependencies for installation are resolved using environment modules and can
 be automatically installed using the robot feature</li>
-<li>after the installation, the specification files can be sent to a repository for 
+<li>after the installation, the specification files can be sent to a repository for
 archiving</li>
 </ul><p>For more information on EasyBuild, see <a href="https://github.com/hpcugent/easybuild/wiki/Home">the documentation wiki on github</a>.</p>
 
@@ -63,7 +63,7 @@ as well as the <a href="http://modules.sourceforge.net/">environment-modules</a>
 
 <p>The <a href="http://gitorious.org/git-python">GitPython</a> Python module is recommended, especially when EasyBuild is being used from a git repository.</p>
 
-<p>See <a href="https://github.com/hpcugent/easybuild/wiki/Dependencies">dependencies</a>for more information.</p>
+<p>See <a href="https://github.com/hpcugent/easybuild/wiki/Dependencies">dependencies</a> for more information.</p>
 
 <h2>QUICK DEMO FOR THE IMPATIENT</h2>
 
@@ -107,7 +107,7 @@ file, and providing it to the framework:</p>
 <p>To add support for a particular software package that requires a custom
 installation procedure, you will need to<a href="https://github.com/hpcugent/easybuild/wiki/Development-guide"> implement an easyblock</a> that can be plugged into the EasyBuild framework.</p>
 
-<p>A step-by-step guide to getting started with EasyBuild is provided on 
+<p>A step-by-step guide to getting started with EasyBuild is provided on
 the <a href="https://github.com/hpcugent/easybuild/wiki/Step-by-step-guide">github wiki</a>.</p>
 
 <h2>DISCLAIMER</h2>
@@ -126,6 +126,6 @@ systems is pending.</p>
       <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
     </footer>
     <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
-    
+
   </body>
 </html>
