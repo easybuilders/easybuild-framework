@@ -77,6 +77,9 @@ def init(filename, **kwargs):
         log.warn('The %s directory %s does not exist or does not have proper permissions' % strs)
         create_dir('repositoryPath', variables['repositoryPath'])
 
+    if not test_load_repo():
+        log.error("you have configured EasyBuild to use a %s repo but it failed to load!" % repositoryType() )
+
     # update MODULEPATH if required
     ebmodpath = os.path.join(installPath(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
@@ -86,6 +89,30 @@ def init(filename, **kwargs):
         else:
             os.environ['MODULEPATH'] = ebmodpath
         log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
+
+def test_load_repo():
+    """
+    TODO: because we call this method inside init we cannot depend on methods inside Repository,
+          this should be cleaned up
+    """
+    repo_type = repositoryType()
+    if repo_type == "fs":
+        return True
+    elif repo_type == "git":
+        try:
+            import git
+        except ImportError:
+            return False
+    elif repo_type == "svn":
+        try:
+            import pysvn
+        except ImportError:
+            return False
+    else:
+        # unknown repo type -> could not load
+        return False
+
+    return True
 
 def readConfiguration(filename):
     """
@@ -102,7 +129,7 @@ def readConfiguration(filename):
 def readEnvironment(envVars, strict=False):
     """
     Read variables from the environment
-        - strict=True enforces that all possible environment variables are found 
+        - strict=True enforces that all possible environment variables are found
     """
     result = {}
     for key in envVars.keys():
