@@ -34,21 +34,27 @@ import time
 import easybuild
 from easybuild.tools.build_log import getLog, EasyBuildError
 from easybuild.tools.config import repositoryPath, repositoryType
-# try and load git (GitPython), OK if it fails if we don't use it
-try:
-    import git
-    from git import GitCommandError
-except ImportError:
-    pass
-# try and load pysvn, OK if it fails if we don't use it
-try:
-    import pysvn
-    from pysvn import ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
-except ImportError:
-    pass
-
 
 log = getLog('repo')
+
+def load_dependencies():
+    if repositoryType() == "fs":
+        pass
+    elif repositoryType() == "git":
+        try:
+            import git
+            from git import GitCommandError
+        except ImportError:
+            log.exception("Failed to load GitPython. Make sure it is installed "
+                          "properly. Run 'python -c \"import git\"' to test.")
+    elif repositoryType() == "svn":
+        try:
+            import pysvn
+            from pysvn import ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
+        except ImportError:
+            log.exception("Failed to load pysvn. Make sure it is installed "
+                          "properly. Run 'python -c \"import pysvn\"' to test.")
+
 
 class Repository:
     """
@@ -178,12 +184,6 @@ class GitRepository(Repository):
         self.path = None
         Repository.__init__(self)
 
-        try:
-            import git
-        except ImportError:
-            log.exception("Failed to load GitPython. Make sure it is installed "
-                          "properly. Run 'python -c \"import git\"' to test.")
-
     def setupRepo(self):
         """
         Set up git repository.
@@ -283,9 +283,7 @@ class SvnRepository(Repository):
     def __init__(self):
         Repository.__init__(self)
 
-        if not 'pysvn' in sys.modules or not locals()['pysvn'] == sys.modules['pysvn']:
-            log.exception("Failed to load pysvn. Make sure it is installed "
-                          "properly. Run 'python -c \"import pysvn\"' to test.")
+
 
     def setupRepo(self):
         """
@@ -384,6 +382,7 @@ def getRepository():
     """
     Factory method, returning a repository depending on the configuration file
     """
+    load_dependencies()
     typ = repositoryType()
     if typ == 'fs':
         return Repository()
