@@ -77,6 +77,10 @@ def init(filename, **kwargs):
         log.warn('The %s directory %s does not exist or does not have proper permissions' % strs)
         create_dir('repositoryPath', variables['repositoryPath'])
 
+    # load the dependencies of the repository
+    import easybuild.tools.repository as repository
+    repository.load_dependencies()
+
     # update MODULEPATH if required
     ebmodpath = os.path.join(installPath(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
@@ -102,7 +106,7 @@ def readConfiguration(filename):
 def readEnvironment(envVars, strict=False):
     """
     Read variables from the environment
-        - strict=True enforces that all possible environment variables are found 
+        - strict=True enforces that all possible environment variables are found
     """
     result = {}
     for key in envVars.keys():
