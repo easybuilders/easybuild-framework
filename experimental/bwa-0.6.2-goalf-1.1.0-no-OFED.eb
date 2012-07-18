@@ -21,9 +21,6 @@ sources=['%s-%s.tar.bz2' % (name.lower(),version)]
 sourceURLs=['http://sourceforge.net/projects/bio-bwa/files/', 'download']  #N.B. the download option -> required for sourceforge
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }

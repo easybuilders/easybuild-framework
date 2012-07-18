@@ -18,9 +18,6 @@ sources=['%s-%s.tar.gz' % (name[:-1],version)]
 sourceURLs=['ftp://ftp.ebi.ac.uk/pub/software/%s/%s' % (name,version)]
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }

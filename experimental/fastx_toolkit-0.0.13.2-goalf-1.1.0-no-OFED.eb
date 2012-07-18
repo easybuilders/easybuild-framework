@@ -24,9 +24,6 @@ dependencies=[('libgtextutils','0.6.1')];
 ## preconfigopts='LDSHARED="$CC -shared"'
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }

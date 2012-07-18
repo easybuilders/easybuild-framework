@@ -20,9 +20,6 @@ sources=['guest.php']
 sourceURLs=['http://i.cs.hku.hk/~alse/hkubrg']
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }

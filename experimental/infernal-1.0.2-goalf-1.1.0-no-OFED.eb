@@ -20,9 +20,6 @@ sources=['%s-%s.tar.gz' % (name,version)]
 sourceURLs=['ftp://selab.janelia.org/pub/software/%s' % name]
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }

@@ -21,9 +21,6 @@ sources=['%s-%s-source.zip' % (name.lower(),version)]
 sourceURLs=['http://sourceforge.net/projects/bowtie-bio/files/%s/%s' % (name.lower(),version), 'download']  #N.B. the download option -> required for sourceforge
 
 sanityCheckPaths={
-                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
-                  ## 'dirs':[]
-                  # Keep it simple;
                   'files':[],
                   'dirs':['.']
                  }:
