@@ -1,0 +1,59 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+eb()
+{
+    ${EBHOME}/eb --robot ${CFGS} "$@" ;
+}
+
+ebfind()
+{
+    find $CFGS -iname *"$@"*.eb
+}
+
+ebput()
+{
+    filename=$(basename $1)
+    extension="${filename##*.}"
+    filename="${filename%.*}"
+
+    if [ ! "${extension}" = "eb" ]; then
+      echo "ERROR: Specified file is not an .eb file!"
+      return 1
+    fi
+
+    if [ ! "x${CFGS}" = "x" ]; then
+        name="$(echo $filename | cut -d"-" -f1)"
+        start_letter="$(echo ${name} | cut -b1 | tr '[:upper:]' '[:lower:]')"
+
+        if [ -d ${CFGS}/${start_letter}/ ]; then
+          if [ ! -d ${CFGS}/${start_letter}/${name} ]; then
+            mkdir -v ${CFGS}/${start_letter}/${name}
+          fi
+        else
+          mkdir -v ${CFGS}/${start_letter}
+          mkdir -v ${CFGS}/${start_letter}/${name}
+        fi
+
+        if [ ! -f ${CFGS}/${start_letter}/${name}/${filename}.${extension} ]; then
+          cp -v $1 ${CFGS}/${start_letter}/${name}
+        else
+          echo -e "File already exists.\nYou may want to manually do \"cp -f $1 ${CFGS}/${start_letter}/${name}\""
+          return 1
+        fi
+    else
+      echo "ERROR: \$CFGS variable is NOT set!"
+      return 1
+    fi
+
+    if [ $? ]; then
+      echo ""
+      echo "Succefully put "$1" into your easybuild tree."
+      echo -e "You may want to execute\n\teb ${CFGS}/${start_letter}/${name}/${filename}.${extension}\nnow to build and install your package."
+    fi
+}
+
