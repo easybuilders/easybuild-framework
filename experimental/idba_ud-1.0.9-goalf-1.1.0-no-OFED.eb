@@ -1,0 +1,26 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+name='idba_ud'
+version='1.0.9'
+
+homepage='http://i.cs.hku.hk/~alse/hkubrg/projects/idba_ud/'
+description="""IDBA-UD is a iterative De Bruijn Graph De Novo Assembler for Short Reads Sequencing data with Highly Uneven Sequencing Depth."""
+
+toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
+toolkitopts={'optarch':True, 'pic':True}
+
+sources=['guest.php']
+sourceURLs=['http://i.cs.hku.hk/~alse/hkubrg']
+
+sanityCheckPaths={
+                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
+                  ## 'dirs':[]
+                  # Keep it simple;
+                  'files':[],
+                  'dirs':['.']
+                 }

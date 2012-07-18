@@ -1,0 +1,26 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+name='clustalw2'
+version='2.1'
+
+homepage='http://www.ebi.ac.uk/Tools/msa/clustalw2/'
+description="""ClustalW2 is a general purpose multiple sequence alignment program for DNA or proteins."""
+
+toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
+toolkitopts={'optarch':True, 'pic':True}
+
+sources=['%s-%s.tar.gz' % (name[:-1],version)]
+sourceURLs=['ftp://ftp.ebi.ac.uk/pub/software/%s/%s' % (name,version)]
+
+sanityCheckPaths={
+                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
+                  ## 'dirs':[]
+                  # Keep it simple;
+                  'files':[],
+                  'dirs':['.']
+                 }

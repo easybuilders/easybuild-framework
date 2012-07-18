@@ -1,0 +1,26 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+name='infernal'
+version='1.1rc1'
+
+homepage='http://infernal.janelia.org/'
+description="""Infernal ("INFERence of RNA ALignment") is for searching DNA sequence databases for RNA structure and sequence similarities."""
+
+toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
+toolkitopts={'optarch':True, 'pic':True}
+
+sources=['%s-%s.tar.gz' % (name,version)]
+sourceURLs=['ftp://selab.janelia.org/pub/software/%s' % name]
+
+sanityCheckPaths={
+                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
+                  ## 'dirs':[]
+                  # Keep it simple;
+                  'files':[],
+                  'dirs':['.']
+                 }

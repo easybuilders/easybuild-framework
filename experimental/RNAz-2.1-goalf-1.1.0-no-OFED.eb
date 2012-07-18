@@ -1,0 +1,26 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+name='RNAz'
+version='2.1'
+
+homepage='http://www.tbi.univie.ac.at/~wash/RNAz/'
+description="""RNAz is a program for predicting structurally conserved and thermodynamically stable RNA secondary structures in multiple sequence alignments."""
+
+toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
+toolkitopts={'optarch':True, 'pic':True}
+
+sources=['%s-%s.tar.gz' % (name,version)]
+sourceURLs=['http://www.tbi.univie.ac.at/~wash/%s' % name]
+
+sanityCheckPaths={
+                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
+                  ## 'dirs':[]
+                  # Keep it simple;
+                  'files':[],
+                  'dirs':['.']
+                 }

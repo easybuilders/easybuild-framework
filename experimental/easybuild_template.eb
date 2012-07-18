@@ -1,0 +1,33 @@
+# File::      $File$ 
+# Author::    $Author$ <cedric.laczny@uni.lu>
+# Copyright:: Copyright (c) 2012 University of Luxembourg
+# License::   GPL/MIT
+# Date::      $Date$
+
+
+name='RNAz'
+version='2.1'
+
+homepage='http://www.tbi.univie.ac.at/~wash/RNAz/'
+description="""HPL is a software package that solves a (random) dense linear system in double precision (64 bits) arithmetic 
+on distributed-memory computers. It can thus be regarded as a portable as well as freely available implementation of the 
+High Performance Computing Linpack Benchmark."""
+
+toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
+#toolkitopts={'optarch':True, 'usempi':True}
+toolkitopts={'optarch':True, 'pic':True}
+
+sources=['%s-%s.tar.gz'%(name,version)]
+sourceURLs=['http://www.tbi.univie.ac.at/~wash/%s' % name]
+
+## preconfigopts='LDSHARED="$CC -shared"'
+
+sanityCheckPaths={
+                  ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
+                  ## 'dirs':[]
+                  # Keep it simple;
+                  'files':[],
+                  'dirs':['.']
+                 }
+
+
