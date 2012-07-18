@@ -14,8 +14,9 @@ description="""Bowtie 2 is an ultrafast and memory-efficient tool for aligning s
 toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
 toolkitopts={'optarch':True, 'pic':True}
 
-sources=['%s-%s-linux-x86_64.zip/download' % (name,version)]
-sourceURLs=['http://sourceforge.net/projects/bowtie-bio/files/%s/%s' % (name,version)]
+
+sources=['%s-%s-source.zip' % (name.lower(),version)]
+sourceURLs=['http://sourceforge.net/projects/bowtie-bio/files/%s/%s' % (name.lower(),version), 'download']  #N.B. the download option -> required for sourceforge
 
 sanityCheckPaths={
                   ## 'files':["include/zconf.h", "include/zlib.h", "lib/libz.a", "lib/libz.so"],
@@ -23,4 +24,4 @@ sanityCheckPaths={
                   # Keep it simple;
                   'files':[],
                   'dirs':['.']
-                 }
+                 }:
