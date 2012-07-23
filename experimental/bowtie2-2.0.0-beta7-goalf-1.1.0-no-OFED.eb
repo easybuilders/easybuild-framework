@@ -3,7 +3,7 @@
 # Copyright:: Copyright (c) 2012 University of Luxembourg / LCSB
 # Author::    Cedric Laczny <cedric.laczny@uni.lu>, Fotis Georgatos <fotis.georgatos@uni.lu>
 # License::   MIT/GPL
-# File::      $File$
+# File::      $File$ 
 # Date::      $Date$
 
 
@@ -16,11 +16,10 @@ description="""Bowtie 2 is an ultrafast and memory-efficient tool for aligning s
 toolkit={'name':'goalf','version':'1.1.0-no-OFED'}
 toolkitopts={'optarch':True, 'pic':True}
 
-
 sources=['%s-%s-source.zip' % (name.lower(),version)]
-sourceURLs=['http://sourceforge.net/projects/bowtie-bio/files/%s/%s' % (name.lower(),version), 'download']  #N.B. the download option -> required for sourceforge
+sourceURLs=[('http://sourceforge.net/projects/bowtie-bio/files/%s/%s' % (name.lower(),version), 'download')]  #N.B. the download option -> required for sourceforge
 
 sanityCheckPaths={
                   'files':[],
                   'dirs':['.']
-                 }:
+                 }
