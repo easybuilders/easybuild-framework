@@ -189,7 +189,10 @@ class Modules:
 
         else:
             # Change the environment
-            exec stdout
+            try:
+                exec stdout
+            except Exception, err:
+                raise EasyBuildError("Changing environment as dictated by module failed: %s" % err)
 
             # Process stderr
             result = []
@@ -252,7 +255,7 @@ class Modules:
 
         deps = [{'name':modname, 'version':modversion} for (modname, modversion) in mods]
 
-        # add dependencies of dependency modules only if they're not there yet 
+        # add dependencies of dependency modules only if they're not there yet
         for moddepdeps in moddeps:
             for dep in moddepdeps:
                 if not dep in deps:

@@ -26,7 +26,15 @@ from easybuild.tools.build_log import getLog
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools import systemtools
 
+import easybuild.tools.environment as env
+
 log = getLog('Toolkit')
+
+# constant used for recognizing compilers, MPI libraries, ...
+GCC = "GCC"
+INTEL = "Intel"
+OPENMPI = "OpenMPI"
+QLOGIC = "QLogic"
 
 class Toolkit:
     """
@@ -203,13 +211,13 @@ class Toolkit:
                 continue
 
             log.debug("Setting environment variable %s to %s" % (key, val))
-            os.environ[key] = val
+            env.set(key, val)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(SOFTVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            os.environ["SOFTVAR%s" % key] = val
+            env.set("SOFTVAR%s" % key, val)
 
 
     def _getOptimalArchitecture(self):
@@ -307,10 +315,10 @@ class Toolkit:
 
         self._addDependencyVariables(['ACML'])
 
-        if os.getenv('SOFTROOTGCC'):
+        if self.toolkit_comp_family() == GCC:
             compiler = 'gfortran'
-        elif os.getenv('SOFTROOTIFORT'):
-            compiler = 'ifort' 
+        elif self.toolkit_comp_family() == INTEL:
+            compiler = 'ifort'
         else:
             log.error("Don't know which compiler-specific subdir for ACML to use.")
         self.vars['LDFLAGS'] += " -L%(acml)s/%(comp)s64/lib/ " % {
@@ -318,7 +326,7 @@ class Toolkit:
                                                 'comp':compiler,
                                                 'acml':os.environ['SOFTROOTACML']
                }
-        self.vars['LIBBLAS'] = " -lacml_mv -lacml " #-lpthread" 
+        self.vars['LIBBLAS'] = " -lacml_mv -lacml " #-lpthread"
 
         self.vars['LIBBLAS_MT'] = self.vars['LIBBLAS']
 
@@ -570,19 +578,16 @@ class Toolkit:
         self._flagsForSubdirs(mklRoot, mklld, flag="-L%s", varskey="LDFLAGS")
         self._flagsForSubdirs(mklRoot, mklcpp, flag="-I%s", varskey="CPPFLAGS")
 
-        if os.getenv('SOFTROOTGCC'):
-            if not (os.getenv('SOFTROOTICC') or os.getenv('SOFTROOTIFORT')):
-                for var in ['LIBLAPACK', 'LIBLAPACK_MT', 'LIBSCALAPACK', 'LIBSCALAPACK_MT']:
-                    self.vars[var] = self.vars[var].replace('mkl_intel_lp64', 'mkl_gf_lp64')
-            else:
-                log.error("Toolkit preparation with both GCC and Intel compilers loaded is not supported.")
+        if self.toolkit_comp_family() == GCC:
+            for var in ['LIBLAPACK', 'LIBLAPACK_MT', 'LIBSCALAPACK', 'LIBSCALAPACK_MT']:
+                self.vars[var] = self.vars[var].replace('mkl_intel_lp64', 'mkl_gf_lp64')
 
     def prepareIMPI(self):
         """
         Prepare for Intel MPI library
         """
 
-        if os.getenv('SOFTROOTICC') and os.getenv('SOFTROOTIFORT') and not os.getenv('SOFTROOTGCC'):
+        if self.toolkit_comp_family() == INTEL:
             # Intel-based toolkit
 
             self.vars['MPICC'] = 'mpiicc %s' % self.m32flag
@@ -761,8 +766,8 @@ class Toolkit:
         """Determine compiler family based on toolkit dependencies."""
         comp_families = {
                          # always use tuples as keys!
-                         ('icc', 'ifort'):'Intel', # Intel toolkit has both icc and ifort
-                         ('GCC', ):'GCC' # GCC toolkit uses GCC as compiler suite
+                         ('icc', 'ifort'):INTEL, # Intel toolkit has both icc and ifort
+                         ('GCC', ):GCC # GCC toolkit uses GCC as compiler suite
                          }
 
         return self.det_toolkit_type("compiler family", comp_families)
@@ -770,9 +775,9 @@ class Toolkit:
     def get_openmp_flag(self):
         """Determine compiler flag for OpenMP"""
 
-        if self.toolkit_comp_family() == "Intel":
+        if self.toolkit_comp_family() == INTEL:
             return "-openmp"
-        elif self.toolkit_comp_family() == "GCC":
+        elif self.toolkit_comp_family() == GCC:
             return "-fopenmp"
         else:
             log.error("Can't determine compiler flag for OpenMP.")
@@ -781,8 +786,9 @@ class Toolkit:
         """Determine type of MPI library based on toolkit dependencies."""
         mpi_types = {
                       # always use tuples as keys!
-                      ('impi', ):'Intel', # Intel MPI
-                      ('OpenMPI', ):'OpenMPI' # OpenMPI
+                      ('impi', ):INTEL, # Intel MPI
+                      ('OpenMPI', ):OPENMPI, # OpenMPI
+                      ('QLogicMPI', ):QLOGIC # QLogic MPI
                       }
 
         return self.det_toolkit_type("type of mpi library", mpi_types)
@@ -795,20 +801,20 @@ class Toolkit:
 
         # different known mpirun commands
         mpi_cmds = {
-                    "OpenMPI":"mpirun -n %(nr_ranks)d %(cmd)s",
-                    "Intel":"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
+                    OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",
+                    INTEL:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
                     }
 
         mpi_type = self.toolkit_mpi_type()
 
         # Intel MPI mpirun needs more work
-        if mpi_type == "Intel":
+        if mpi_type == INTEL:
 
             # set temporary dir for mdp
-            os.environ['I_MPI_MPD_TMPDIR'] = "/tmp"
+            env.set('I_MPI_MPD_TMPDIR', "/tmp")
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
-            os.environ['PBS_ENVIRONMENT'] = "PBS_BATCH_MPI"
+            env.set('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
 
             # create mpdboot file
             fn = "/tmp/mpdboot"

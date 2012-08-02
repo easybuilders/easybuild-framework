@@ -27,12 +27,13 @@ import tempfile
 import time
 import copy
 import platform
+import easybuild # required for VERBOSE_VERSION
 from easybuild.framework.application import Application, get_instance
 from easybuild.tools.build_log import EasyBuildError, initLogger, \
     removeLogHandler, print_msg
 from easybuild.tools.class_dumper import dumpClasses
 from easybuild.tools.modules import Modules, searchModule
-from easybuild.tools.repository import getRepository
+from easybuild.tools.config import getRepository
 from optparse import OptionParser
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
@@ -85,6 +86,9 @@ def add_build_options(parser):
     parser.add_option("-v", "--version", action="store_true", help="show version")
     parser.add_option("--regtest", action="store_true", help="enable regression test mode")
     parser.add_option("--regtest-online", action="store_true", help="enable online regression test mode")
+    strictness_options = ['ignore', 'warn', 'error']
+    parser.add_option("--strict", type="choice", choices=strictness_options, help="set strictness \
+                        level (possible levels: %s" % ', '.join(strictness_options))
 
 def main():
     """
@@ -171,6 +175,11 @@ def main():
             os.remove(logFile)
         sys.exit(0)
 
+    # set strictness of filetools module
+    if options.strict:
+        filetools.strictness = options.strict
+
+
     ## Read easyconfig files
     packages = []
     if len(paths) == 0:
@@ -224,6 +233,7 @@ def main():
 
     print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log)
 
+    getRepository().cleanup()
     ## Cleanup tmp log file (all is well, all modules have their own log file)
     try:
         removeLogHandler(hn)
@@ -605,7 +615,7 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
         except OSError, err:
             log.error("Failed to determine install size: %s" % err)
 
-        currentbuildstats = bool(app.getcfg('buildstats'))
+        currentbuildstats = app.getcfg('buildstats')
         buildstats = {'build_time' : buildtime,
                  'platform' : platform.platform(),
                  'core_count' : systemtools.get_core_count(),

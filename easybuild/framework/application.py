@@ -20,6 +20,7 @@
 ##
 from difflib import get_close_matches
 from distutils.version import LooseVersion
+import copy
 import glob
 import grp #@UnresolvedImport
 import os
@@ -29,6 +30,8 @@ import time
 import urllib
 
 import easybuild
+import easybuild.tools.config as config
+import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, initLogger, removeLogHandler,print_msg
 from easybuild.tools.config import source_path, buildPath, installPath
 from easybuild.tools.filetools import unpack, patch, run_cmd, convertName
@@ -62,6 +65,8 @@ class Application:
         self.installdir = None
 
         self.pkgs = None
+        # keep the objects inside an array as well
+        self.instance_pkgs = []
         self.skip = None
 
         ## final version
@@ -148,11 +153,16 @@ class Application:
           'patches': [[], "List of patches to apply"],
           'tests': [[], "List of test-scripts to run after install. A test script should return a non-zero exit status to fail"],
           'sanityCheckPaths': [{}, "List of files and directories to check (format: {'files':<list>, 'dirs':<list>}, default: {})"],
+          'sanityCheckCommand': [None, "format: (name, options) e.g. ('gzip','-h') . If set to True it will use (name, '-h')"],
           'buildstats' : [None, "A list of dicts with buildstats: build_time, platform, core_count, cpu_model, install_size, timestamp"],
         }
 
         # mandatory config entries
         self.mandatory = ['name', 'version', 'homepage', 'description', 'toolkit']
+
+        # original environ will be set later
+        self.orig_environ = {}
+        self.loaded_modules = []
 
     def autobuild(self, ebfile, runTests, regtest_online):
         """
@@ -496,10 +506,18 @@ class Application:
                 check = [check]
 
             # find at least one element of check
-            # - using rpm -q for now --> can be run as non-root!!
+            # - using rpm -q and dpkg -s --> can be run as non-root!!
+            # - fallback on which
             # - should be extended to files later?
             for d in check:
-                cmd = "rpm -q %s" % d
+                if run_cmd('which rpm', simple=True):
+                    cmd = "rpm -q %s" % d
+                elif run_cmd('which dpkg', simple=True):
+                    cmd = "dpkg -s %s" % d
+                else:
+                    # fallback for when os-Dependency is a binary
+                    cmd = "which %s" % d
+
                 (rpmout, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
                 if ec == 0:
                     self.log.debug("Found osdep %s" % d)
@@ -827,6 +845,11 @@ class Application:
             self.gen_installdir()
             self.make_builddir()
 
+            self.print_environ()
+
+            # reset tracked changes
+            env.reset_changes()
+
             ## SOURCE
             print_msg("unpacking...", self.log)
             self.runstep('source', [self.unpack_src], skippable=True)
@@ -861,11 +884,18 @@ class Application:
             ## POSTPROC
             self.runstep('postproc', [self.postproc], skippable=True)
 
-            ## CLEANUP
-            self.runstep('cleanup', [self.cleanup])
-
             ## SANITY CHECK
-            self.runstep('sanity check', [self.sanitycheck], skippable=False)
+            try:
+                self.runstep('sanity check', [self.sanitycheck], skippable=False)
+            finally:
+                self.runstep('cleanup', [self.cleanup])
+
+            # write changes to the environment to logdir
+            logdir = os.path.join(self.installdir, config.logPath())
+            if not os.path.isdir(logdir):
+                os.makedirs(logdir)
+
+            env.write_changes(os.path.join(logdir, "easybuild-env-vars.sh"))
 
         except StopException:
             pass
@@ -878,11 +908,42 @@ class Application:
             self.log.info("Skipping %s" % step)
         else:
             for m in methods:
+                self.print_environ()
                 m()
 
         if self.getcfg('stop') == step:
             self.log.info("Stopping after %s step." % step)
             raise StopException(step)
+
+    def print_environ(self):
+        """
+        Prints the environment changes and loaded modules to the debug log
+        - pretty prints the environment for easy copy-pasting
+        """
+        mods = [(mod['name'], mod['version']) for mod in Modules().loaded_modules()]
+        mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
+        self.loaded_modules = mods
+
+        env = copy.deepcopy(os.environ)
+
+        changed = [(k,env[k]) for k in env if k not in self.orig_environ]
+        for k in env:
+            if k in self.orig_environ and env[k] != self.orig_environ[k]:
+                changed.append((k, env[k]))
+
+        unset = [key for key in self.orig_environ if key not in env]
+
+        text = "\n".join(['export %s="%s"' % change for change in changed])
+        unset_text = "\n".join(['unset %s' % key for key in unset])
+
+        if mods:
+            self.log.debug("Loaded modules:\n%s" % mods_text)
+        if changed:
+            self.log.debug("Added to environment:\n%s" % text)
+        if unset:
+            self.log.debug("Removed from environment:\n%s" % unset_text)
+
+        self.orig_environ = env
 
     def postproc(self):
         """
@@ -985,6 +1046,61 @@ class Application:
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
+        # make fake module
+        self.make_module(True)
+
+        # load the module
+        mod_path = [self.moduleGenerator.module_path]
+        mod_path.extend(Modules().modulePath)
+        m = Modules(mod_path)
+        self.log.debug("created module instance")
+        m.addModule([(self.name(), self.installversion)])
+        try:
+            m.load()
+        except EasyBuildError, err:
+            self.log.debug("Loading module failed: %s" % err)
+            self.sanityCheckOK = False
+
+        # clean up path for fake module
+        self.moduleGenerator.cleanup()
+
+        # chdir to installdir (beter environment for running tests)
+        os.chdir(self.installdir)
+
+        # run sanity check command
+        command = self.getcfg('sanityCheckCommand')
+        if command:
+
+            # set command to default. This allows for config files with
+            # sanityCheckCommand = True
+            if not isinstance(command, tuple):
+                self.log.debug("Setting sanity check command to default")
+                command = (None, None)
+
+            # Build substition dictionary
+            check_cmd = { 'name': self.name().lower(), 'options': '-h' }
+
+            if command[0] != None:
+                check_cmd['name'] = command[0]
+
+            if command[1] != None:
+                check_cmd['options'] = command[1]
+
+            cmd = "%(name)s %(options)s" % check_cmd
+
+            out, ec = run_cmd(cmd, simple=False)
+            if ec != 0:
+                self.sanityCheckOK = False
+                self.log.debug("sanityCheckCommand %s exited with code %s (output: %s)" % (cmd, ec, out))
+            else:
+                self.log.debug("sanityCheckCommand %s ran successfully! (output: %s)" % (cmd, out))
+
+        failed_pkgs = [pkg.name for pkg in self.instance_pkgs if not pkg.sanitycheck()]
+
+        if failed_pkgs:
+            self.log.info("Sanity check for packages %s failed!" % failed_pkgs)
+            self.sanityCheckOK = False
+
         # pass or fail
         if not self.sanityCheckOK:
             self.log.error("Sanity check failed!")
@@ -1068,8 +1184,6 @@ class Application:
 
             extra = "%s%s-%s%s" % (self.getcfg('versionprefix'), self.tk.name, tkversion, self.getcfg('versionsuffix'))
             localdir = os.path.join(buildPath(), self.name(), self.version(), extra)
-            if not self.tk.name == 'dummy':
-                localdir = os.path.join(localdir, extra)
 
             ald = os.path.abspath(localdir)
             tmpald = ald
@@ -1430,6 +1544,8 @@ class Application:
             if txt:
                 self.moduleExtraPackages += txt
             p.postrun()
+            # Append so we can make us of it later (in sanity_check)
+            self.instance_pkgs.append(p)
 
     def filter_packages(self):
         """
@@ -1673,3 +1789,36 @@ class ApplicationPackage:
         Stuff to do after installing a package.
         """
         pass
+
+    def sanitycheck(self):
+        """
+        sanity check to run after installing
+        """
+        try:
+            cmd, inp = self.master.getcfg('pkgfilter')
+        except:
+            self.log.debug("no pkgfilter setting found, skipping sanitycheck")
+            return
+
+        if self.name in self.master.getcfg('pkgmodulenames'):
+            modname = self.master.getcfg('pkgmodulenames')[self.name]
+        else:
+            modname = self.name
+        template = {'name': modname,
+                    'version': self.version,
+                    'src': self.src
+                   }
+        cmd = cmd % template
+
+        if inp:
+            stdin = inp % template
+            # set log_ok to False so we can catch the error instead of run_cmd
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, inp=stdin, regexp=False)
+        else:
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+        if ec:
+            self.log.warn("package: %s failed to install! (output: %s)" % (self.name, output))
+            return False
+        else:
+            return True
+
