@@ -18,17 +18,25 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from difflib import get_close_matches
-from distutils.version import LooseVersion
+"""
+Generic EasyBuild support for building and installing software,
+using the 'standard' configure/make/make install procedure.
+"""
+
+import copy
 import glob
-import grp #@UnresolvedImport
+import grp  #@UnresolvedImport
 import os
 import re
 import shutil
 import time
 import urllib
+from difflib import get_close_matches
+from distutils.version import LooseVersion
 
 import easybuild
+import easybuild.tools.config as config
+import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, initLogger, removeLogHandler,print_msg
 from easybuild.tools.config import source_path, buildPath, installPath
 from easybuild.tools.filetools import unpack, patch, run_cmd, convertName
@@ -37,10 +45,10 @@ from easybuild.tools.modules import Modules
 from easybuild.tools.toolkit import Toolkit
 from easybuild.tools.systemtools import get_core_count
 
+
 class Application:
     """
-    This is the dummy Application class.
-    All other Application classes should be inherited from this one
+    Support for building and installing applications with configure/make/make install
     """
 
     ## INIT
@@ -62,6 +70,8 @@ class Application:
         self.installdir = None
 
         self.pkgs = None
+        # keep the objects inside an array as well
+        self.instance_pkgs = []
         self.skip = None
 
         ## final version
@@ -148,11 +158,16 @@ class Application:
           'patches': [[], "List of patches to apply"],
           'tests': [[], "List of test-scripts to run after install. A test script should return a non-zero exit status to fail"],
           'sanityCheckPaths': [{}, "List of files and directories to check (format: {'files':<list>, 'dirs':<list>}, default: {})"],
+          'sanityCheckCommand': [None, "format: (name, options) e.g. ('gzip','-h') . If set to True it will use (name, '-h')"],
           'buildstats' : [None, "A list of dicts with buildstats: build_time, platform, core_count, cpu_model, install_size, timestamp"],
         }
 
         # mandatory config entries
         self.mandatory = ['name', 'version', 'homepage', 'description', 'toolkit']
+
+        # original environ will be set later
+        self.orig_environ = {}
+        self.loaded_modules = []
 
     def autobuild(self, ebfile, runTests, regtest_online):
         """
@@ -253,16 +268,20 @@ class Application:
             for patchFile in listOfPatches:
 
                 ## check if the patches can be located
+                copy = False
                 suff = None
                 level = None
-                if type(patchFile) == list:
+                if type(patchFile) in [list, tuple]:
                     if not len(patchFile) == 2:
-                        self.log.error("Unknown patch specification '%s', only two-element lists are supported!" % patchFile)
+                        self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
                     pf = patchFile[0]
 
                     if type(patchFile[1]) == int:
                         level = patchFile[1]
                     elif type(patchFile[1]) == str:
+                        # non-patch files are assumed to be files to copy
+                        if not patchFile[0].endswith('.patch'):
+                            copy = True
                         suff = patchFile[1]
                     else:
                         self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patchFile)
@@ -274,7 +293,10 @@ class Application:
                     self.log.debug('File %s found for patch %s' % (path, patchFile))
                     tmppatch = {'name':pf, 'path':path}
                     if suff:
-                        tmppatch['copy'] = suff
+                        if copy:
+                            tmppatch['copy'] = suff
+                        else:
+                            tmppatch['sourcepath'] = suff
                     if level:
                         tmppatch['level'] = level
                     self.patches.append(tmppatch)
@@ -496,10 +518,18 @@ class Application:
                 check = [check]
 
             # find at least one element of check
-            # - using rpm -q for now --> can be run as non-root!!
+            # - using rpm -q and dpkg -s --> can be run as non-root!!
+            # - fallback on which
             # - should be extended to files later?
             for d in check:
-                cmd = "rpm -q %s" % d
+                if run_cmd('which rpm', simple=True):
+                    cmd = "rpm -q %s" % d
+                elif run_cmd('which dpkg', simple=True):
+                    cmd = "dpkg -s %s" % d
+                else:
+                    # fallback for when os-Dependency is a binary
+                    cmd = "which %s" % d
+
                 (rpmout, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
                 if ec == 0:
                     self.log.debug("Found osdep %s" % d)
@@ -827,6 +857,11 @@ class Application:
             self.gen_installdir()
             self.make_builddir()
 
+            self.print_environ()
+
+            # reset tracked changes
+            env.reset_changes()
+
             ## SOURCE
             print_msg("unpacking...", self.log)
             self.runstep('source', [self.unpack_src], skippable=True)
@@ -861,11 +896,18 @@ class Application:
             ## POSTPROC
             self.runstep('postproc', [self.postproc], skippable=True)
 
-            ## CLEANUP
-            self.runstep('cleanup', [self.cleanup])
-
             ## SANITY CHECK
-            self.runstep('sanity check', [self.sanitycheck], skippable=False)
+            try:
+                self.runstep('sanity check', [self.sanitycheck], skippable=False)
+            finally:
+                self.runstep('cleanup', [self.cleanup])
+
+            # write changes to the environment to logdir
+            logdir = os.path.join(self.installdir, config.logPath())
+            if not os.path.isdir(logdir):
+                os.makedirs(logdir)
+
+            env.write_changes(os.path.join(logdir, "easybuild-env-vars.sh"))
 
         except StopException:
             pass
@@ -877,12 +919,44 @@ class Application:
         if skippable and self.skip:
             self.log.info("Skipping %s" % step)
         else:
+            self.log.info("Starting %s" % step)
             for m in methods:
+                self.print_environ()
                 m()
 
         if self.getcfg('stop') == step:
             self.log.info("Stopping after %s step." % step)
             raise StopException(step)
+
+    def print_environ(self):
+        """
+        Prints the environment changes and loaded modules to the debug log
+        - pretty prints the environment for easy copy-pasting
+        """
+        mods = [(mod['name'], mod['version']) for mod in Modules().loaded_modules()]
+        mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
+        self.loaded_modules = mods
+
+        env = copy.deepcopy(os.environ)
+
+        changed = [(k,env[k]) for k in env if k not in self.orig_environ]
+        for k in env:
+            if k in self.orig_environ and env[k] != self.orig_environ[k]:
+                changed.append((k, env[k]))
+
+        unset = [key for key in self.orig_environ if key not in env]
+
+        text = "\n".join(['export %s="%s"' % change for change in changed])
+        unset_text = "\n".join(['unset %s' % key for key in unset])
+
+        if mods:
+            self.log.debug("Loaded modules:\n%s" % mods_text)
+        if changed:
+            self.log.debug("Added to environment:\n%s" % text)
+        if unset:
+            self.log.debug("Removed from environment:\n%s" % unset_text)
+
+        self.orig_environ = env
 
     def postproc(self):
         """
@@ -985,6 +1059,57 @@ class Application:
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
+        # make fake module
+        mod_path = [self.make_module(True)]
+
+        # load the module
+        mod_path.extend(Modules().modulePath)
+        m = Modules(mod_path)
+        self.log.debug("created module instance")
+        m.addModule([(self.name(), self.installversion)])
+        try:
+            m.load()
+        except EasyBuildError, err:
+            self.log.debug("Loading module failed: %s" % err)
+            self.sanityCheckOK = False
+
+        # chdir to installdir (beter environment for running tests)
+        os.chdir(self.installdir)
+
+        # run sanity check command
+        command = self.getcfg('sanityCheckCommand')
+        if command:
+
+            # set command to default. This allows for config files with
+            # sanityCheckCommand = True
+            if not isinstance(command, tuple):
+                self.log.debug("Setting sanity check command to default")
+                command = (None, None)
+
+            # Build substition dictionary
+            check_cmd = { 'name': self.name().lower(), 'options': '-h' }
+
+            if command[0] != None:
+                check_cmd['name'] = command[0]
+
+            if command[1] != None:
+                check_cmd['options'] = command[1]
+
+            cmd = "%(name)s %(options)s" % check_cmd
+
+            out, ec = run_cmd(cmd, simple=False)
+            if ec != 0:
+                self.sanityCheckOK = False
+                self.log.debug("sanityCheckCommand %s exited with code %s (output: %s)" % (cmd, ec, out))
+            else:
+                self.log.debug("sanityCheckCommand %s ran successfully! (output: %s)" % (cmd, out))
+
+        failed_pkgs = [pkg.name for pkg in self.instance_pkgs if not pkg.sanitycheck()]
+
+        if failed_pkgs:
+            self.log.info("Sanity check for packages %s failed!" % failed_pkgs)
+            self.sanityCheckOK = False
+
         # pass or fail
         if not self.sanityCheckOK:
             self.log.error("Sanity check failed!")
@@ -1068,8 +1193,6 @@ class Application:
 
             extra = "%s%s-%s%s" % (self.getcfg('versionprefix'), self.tk.name, tkversion, self.getcfg('versionsuffix'))
             localdir = os.path.join(buildPath(), self.name(), self.version(), extra)
-            if not self.tk.name == 'dummy':
-                localdir = os.path.join(localdir, extra)
 
             ald = os.path.abspath(localdir)
             tmpald = ald
@@ -1174,7 +1297,7 @@ class Application:
         Generate a module file.
         """
         self.moduleGenerator = ModuleGenerator(self, fake)
-        self.moduleGenerator.createFiles()
+        modpath = self.moduleGenerator.createFiles()
 
         txt = ''
         txt += self.make_module_description()
@@ -1193,6 +1316,8 @@ class Application:
             self.log.error("Writing to the file %s failed: %s" % (self.moduleGenerator.filename, err))
 
         self.log.info("Added modulefile: %s" % (self.moduleGenerator.filename))
+
+        return modpath
 
     def make_module_description(self):
         """
@@ -1247,6 +1372,7 @@ class Application:
         return {
             'PATH': ['bin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
+            'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig'],
         }
@@ -1290,14 +1416,14 @@ class Application:
             return
 
         if not self.skip:
-            self.make_module(fake=True)
-        # set MODULEPATH to self.builddir/all and load module
+            modpath = self.make_module(fake=True)
+        # adjust MODULEPATH tand load module
         if self.getcfg('pkgloadmodule'):
-            self.log.debug(' '.join(["self.builddir/all: ", os.path.join(self.builddir, 'all')]))
+            self.log.debug("Adding %s to MODULEPATH" % modpath)
             if self.skip:
                 m = Modules()
             else:
-                m = Modules([os.path.join(self.builddir, 'all')] + os.environ['MODULEPATH'].split(':'))
+                m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
             if m.exists(self.name(), self.installversion):
                 m.addModule([[self.name(), self.installversion]])
@@ -1430,6 +1556,8 @@ class Application:
             if txt:
                 self.moduleExtraPackages += txt
             p.postrun()
+            # Append so we can make us of it later (in sanity_check)
+            self.instance_pkgs.append(p)
 
     def filter_packages(self):
         """
@@ -1633,9 +1761,10 @@ def get_instance(easyblock, log, name=None):
         log.error("Can't process provided module and class pair %s: %s" % (easyblock, err))
         raise EasyBuildError(str(err))
 
+
 class ApplicationPackage:
     """
-    Class for packages.
+    Support for installing packages.
     """
     def __init__(self, mself, pkg, pkginstalldeps):
         """
@@ -1673,3 +1802,36 @@ class ApplicationPackage:
         Stuff to do after installing a package.
         """
         pass
+
+    def sanitycheck(self):
+        """
+        sanity check to run after installing
+        """
+        try:
+            cmd, inp = self.master.getcfg('pkgfilter')
+        except:
+            self.log.debug("no pkgfilter setting found, skipping sanitycheck")
+            return
+
+        if self.name in self.master.getcfg('pkgmodulenames'):
+            modname = self.master.getcfg('pkgmodulenames')[self.name]
+        else:
+            modname = self.name
+        template = {'name': modname,
+                    'version': self.version,
+                    'src': self.src
+                   }
+        cmd = cmd % template
+
+        if inp:
+            stdin = inp % template
+            # set log_ok to False so we can catch the error instead of run_cmd
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, inp=stdin, regexp=False)
+        else:
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+        if ec:
+            self.log.warn("package: %s failed to install! (output: %s)" % (self.name, output))
+            return False
+        else:
+            return True
+

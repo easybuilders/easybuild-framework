@@ -18,11 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing Python, implemented as an easyblock
+"""
+
+import os
+import shutil
 
 from easybuild.framework.application import ApplicationPackage, Application
 from easybuild.tools.filetools import unpack, patch, run_cmd
-import os
-import shutil
+import easybuild.tools.toolkit as toolkit
+
 
 class Python(Application):
     """Support for building/installing Python
@@ -192,16 +198,16 @@ class FortranPythonPackage(DefaultPythonPackage):
     def make(self):
         comp_fam = self.tk.toolkit_comp_family()
 
-        if comp_fam == "Intel":
+        if comp_fam == toolkit.INTEL:
             cmd = "python setup.py build --compiler=intel --fcompiler=intelem"
 
-        elif comp_fam == "GCC":
+        elif comp_fam == toolkit.GCC:
             cmdprefix = ""
             ldflags = os.getenv('LDFLAGS')
             if ldflags:
                 # LDFLAGS should not be set when building numpy/scipy, because it overwrites whatever numpy/scipy sets
                 # see http://projects.scipy.org/numpy/ticket/182
-                ## don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4 (see http://bugs.python.org/issue1287)
+                # don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4 (see http://bugs.python.org/issue1287)
                 cmdprefix = "unset LDFLAGS && "
                 self.log.debug("LDFLAGS was %s, will be cleared before numpy build with '%s'" % (ldflags, cmdprefix))
 

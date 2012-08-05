@@ -19,32 +19,36 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Main entry point for EasyBuild: build software from .eb input file
+"""
+
+import copy
+import platform
 import os
 import re
 import shutil
 import sys
 import tempfile
 import time
-import copy
-import platform
+from datetime import datetime
+from optparse import OptionParser
+
+import easybuild  # required for VERBOSE_VERSION
+import easybuild.tools.config as config
+import easybuild.tools.filetools as filetools
 from easybuild.framework.application import Application, get_instance
 from easybuild.tools.build_log import EasyBuildError, initLogger, \
     removeLogHandler, print_msg
 from easybuild.tools.class_dumper import dumpClasses
 from easybuild.tools.modules import Modules, searchModule
-from easybuild.tools.repository import getRepository
-from optparse import OptionParser
-import easybuild.tools.config as config
-import easybuild.tools.filetools as filetools
+from easybuild.tools.config import getRepository
 from easybuild.tools import systemtools
-
-"""
-Main entry point for EasyBuildBuild: build software from .eb input file
-"""
+from easybuild.tools.pbs_job import PbsJob
 
 
 # applications use their own logger, we need to tell them to debug or not
-# so this global var is used.
+# so this global variable is used.
 LOGDEBUG = False
 
 def add_build_options(parser):
@@ -85,6 +89,12 @@ def add_build_options(parser):
     parser.add_option("-v", "--version", action="store_true", help="show version")
     parser.add_option("--regtest", action="store_true", help="enable regression test mode")
     parser.add_option("--regtest-online", action="store_true", help="enable online regression test mode")
+    strictness_options = ['ignore', 'warn', 'error']
+    parser.add_option("--strict", type="choice", choices=strictness_options, help="set strictness \
+                        level (possible levels: %s" % ', '.join(strictness_options))
+    # only allow --job so we can filter it afterwards
+    parser.add_option("--job" , action="store_true", help="will submit the build as a job")
+
 
 def main():
     """
@@ -171,6 +181,15 @@ def main():
             os.remove(logFile)
         sys.exit(0)
 
+    # set strictness of filetools module
+    if options.strict:
+        filetools.strictness = options.strict
+
+    if options.job:
+        submit_build_job(log)
+        log.info("submitted job, exiting now")
+        sys.exit(0)
+
     ## Read easyconfig files
     packages = []
     if len(paths) == 0:
@@ -224,6 +243,7 @@ def main():
 
     print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log)
 
+    getRepository().cleanup()
     ## Cleanup tmp log file (all is well, all modules have their own log file)
     try:
         removeLogHandler(hn)
@@ -605,7 +625,7 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
         except OSError, err:
             log.error("Failed to determine install size: %s" % err)
 
-        currentbuildstats = bool(app.getcfg('buildstats'))
+        currentbuildstats = app.getcfg('buildstats')
         buildstats = {'build_time' : buildtime,
                  'platform' : platform.platform(),
                  'core_count' : systemtools.get_core_count(),
@@ -690,6 +710,24 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
             return (False, applicationLog)
     else:
         return (True, applicationLog)
+
+def submit_build_job(log):
+    """
+    will submit the current command (sys.argv) without the --job paramater as a job
+    any environment variable that is been set that starts with EASYBUILD will be passed on the job
+    """
+    command = " ".join([arg for arg in sys.argv if arg != '--job'])
+
+    easybuild_vars = {}
+    for name in os.environ:
+        if name.startswith("EASYBUILD"):
+            easybuild_vars[name] = os.environ[name]
+
+    name = "easybuild-%s" % datetime.now().strftime("%m-%d-%Y-%H:%M:%S")
+    job = PbsJob(command, name, easybuild_vars)
+    job.submit()
+    log.info("job submitted. info: %s", job.info())
+
 
 if __name__ == "__main__":
     try:

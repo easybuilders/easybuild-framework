@@ -18,9 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing netCDF, implemented as an easyblock
+"""
+
 import os
 from distutils.version import LooseVersion
+
+import easybuild.tools.environment as env
+import easybuild.tools.toolkit as toolkit
 from easybuild.framework.application import Application
+
 
 class NetCDF(Application):
     """Support for building/installing netCDF"""
@@ -39,8 +47,8 @@ class NetCDF(Application):
                                                                        ))
 
         # add -DgFortran to CPPFLAGS when building with GCC
-        if self.tk.toolkit_comp_family() == "GCC":
-            os.environ['CPPFLAGS'] = "%s -DgFortran" % os.getenv('CPPFLAGS')
+        if self.tk.toolkit_comp_family() == toolkit.GCC:
+            env.set('CPPFLAGS', "%s -DgFortran" % os.getenv('CPPFLAGS'))
 
         Application.configure(self)
 
@@ -78,7 +86,7 @@ def set_netcdf_env_vars(log):
     if not netcdf:
         log.error("netCDF module not loaded?")
     else:
-        os.environ['NETCDF'] = netcdf
+        env.set('NETCDF', netcdf)
         log.debug("Set NETCDF to %s" % netcdf)
         netcdff = os.getenv('SOFTROOTNETCDFMINFORTRAN')
         netcdf_ver = os.getenv('SOFTVERSIONNETCDF')
@@ -86,7 +94,7 @@ def set_netcdf_env_vars(log):
             if LooseVersion(netcdf_ver) >= LooseVersion("4.2"):
                 log.error("netCDF v4.2 no longer supplies Fortran library, also need netCDF-Fortran")
         else:
-            os.environ['NETCDFF'] = netcdff
+            env.set('NETCDFF', netcdff)
             log.debug("Set NETCDFF to %s" % netcdff)
 
 def get_netcdf_module_set_cmds(log):

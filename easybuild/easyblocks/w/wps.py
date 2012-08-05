@@ -18,16 +18,24 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from distutils.version import LooseVersion
+"""
+EasyBuild support for building and installing WPS, implemented as an easyblock
+"""
+
 import fileinput
 import os
 import re
 import shutil
 import sys
 import tempfile
+from distutils.version import LooseVersion
+
+import easybuild.tools.environment as env
+import easybuild.tools.toolkit as toolkit
 from easybuild.framework.application import Application
 from easybuild.tools.filetools import patch_perl_script_autoflush, run_cmd, run_cmd_qa, unpack
 from easybuild.easyblocks.n.netcdf import set_netcdf_env_vars, get_netcdf_module_set_cmds
+
 
 class WPS(Application):
     """Support for building/installing WPS."""
@@ -53,7 +61,7 @@ class WPS(Application):
                          })
 
     def configure(self):
-        """Configure build: 
+        """Configure build:
         - set required environment variables (for netCDF, JasPer)
         - patch compile script and ungrib Makefile for non-default install paths of WRF and JasPer
         - run configure script and figure how to select desired build option
@@ -91,8 +99,8 @@ class WPS(Application):
         jasper = os.getenv('SOFTROOTJASPER')
         jasperlibdir = os.path.join(jasper, "lib")
         if jasper:
-            os.environ['JASPERINC'] = os.path.join(jasper, "include")
-            os.environ['JASPERLIB'] = jasperlibdir
+            env.set('JASPERINC', os.path.join(jasper, "include"))
+            env.set('JASPERLIB', jasperlibdir)
         else:
             self.log.error("JasPer module not loaded?")
 
@@ -123,10 +131,10 @@ class WPS(Application):
                                'dmpar':'dmpar'
                                }
 
-            if self.comp_fam == "Intel":
+            if self.comp_fam == toolkit.INTEL:
                 build_type_option = " Linux x86_64, Intel compiler"
 
-            elif self.comp_fam == "GCC":
+            elif self.comp_fam == toolkit.GCC:
                 build_type_option = "Linux x86_64 g95 compiler"
 
             else:
@@ -139,10 +147,10 @@ class WPS(Application):
                                'dmpar':'DM parallel'
                                }
 
-            if self.comp_fam == "Intel":
+            if self.comp_fam == toolkit.INTEL:
                 build_type_option = "PC Linux x86_64, Intel compiler"
 
-            elif self.comp_fam == "GCC":
+            elif self.comp_fam == toolkit.GCC:
                 build_type_option = "PC Linux x86_64, gfortran compiler,"
                 knownbuildtypes['dmpar'] = knownbuildtypes['dmpar'].upper()
 
@@ -243,7 +251,7 @@ class WPS(Application):
                     line = re.sub(r"^(\s*geog_data_path\s*=\s*).*$", r"\1 '%s'" % tmpdir, line)
                     sys.stdout.write(line)
 
-                ## GEOGRID.TBL
+                # GEOGRID.TBL
                 geogrid_dir = os.path.join(tmpdir, "geogrid")
                 os.mkdir(geogrid_dir)
                 os.symlink(os.path.join(wpsdir, "geogrid", "GEOGRID.TBL.ARW"),
@@ -298,6 +306,7 @@ class WPS(Application):
 
     # installing is done in make, so we can run tests
     def make_install(self):
+        """Building was done in install dir, so just do some cleanup here."""
 
         # make sure JASPER environment variables are unset
         env_vars = ['JASPERINC', 'JASPERLIB']

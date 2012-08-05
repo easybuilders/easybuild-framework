@@ -18,11 +18,17 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing LAPACK, implemented as an easyblock
+"""
+
 import glob
 import os
 import shutil
+
 from easybuild.framework.application import Application
 from easybuild.tools.filetools import run_cmd
+
 
 # also used for e.g. ScaLAPACK
 def get_blas_lib(log):
@@ -47,6 +53,7 @@ def get_blas_lib(log):
         log.error("No or unknown BLAS lib loaded; known BLAS libs: %s" % known_blas_libs.keys())
 
     return blaslib
+
 
 class LAPACK(Application):
     """
@@ -146,14 +153,14 @@ class LAPACK(Application):
         try:
             os.makedirs(destdir)
 
-            ## copy all .a files
+            # copy all .a files
             os.chdir(srcdir)
             for lib in glob.glob('*.a'):
                 srcfile = os.path.join(srcdir, lib)
                 self.log.debug("Copying file %s to dir %s" % (srcfile, destdir))
                 shutil.copy2(srcfile, destdir)
 
-            ## symlink libraries to sensible names, if they aren't renamed already
+            # symlink libraries to sensible names, if they aren't renamed already
             for (fromfile, tofile) in [('liblapack_LINUX.a', 'liblapack.a'),
                                        ('tmglib_LINUX.a', 'libtmglib.a')]:
                 frompath = os.path.join(destdir, fromfile)
@@ -187,7 +194,7 @@ class LAPACK(Application):
             Application.test(self)
 
     # don't create a module if we're only testing
-    def make_module(self):
+    def make_module(self, fake=False):
         """
         Only make LAPACK module when we're not testing.
         """
@@ -195,7 +202,7 @@ class LAPACK(Application):
             pass
 
         else:
-            Application.make_module(self)
+            Application.make_module(self, fake)
 
     def sanitycheck(self):
         """

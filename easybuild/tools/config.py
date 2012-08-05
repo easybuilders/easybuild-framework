@@ -21,14 +21,17 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 """
+
 import os
 
 from easybuild.tools.build_log import getLog
+import easybuild.tools.repository as repo
+
 
 log = getLog('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repositoryType', 'repositoryPath']
+requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
 environmentVariables = {
     'buildPath': 'EASYBUILDBUILDPATH',
     'installPath': 'EASYBUILDINSTALLPATH'
@@ -72,11 +75,6 @@ def init(filename, **kwargs):
                     create_dir(key, d)
                     continue
 
-    if variables['repositoryType'] == 'fs' and not os.path.isdir(variables['repositoryPath']):
-        strs = ('repositoryPath', variables['repositoryPath'])
-        log.warn('The %s directory %s does not exist or does not have proper permissions' % strs)
-        create_dir('repositoryPath', variables['repositoryPath'])
-
     # update MODULEPATH if required
     ebmodpath = os.path.join(installPath(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
@@ -91,7 +89,10 @@ def readConfiguration(filename):
     """
     Read variables from the config file
     """
-    fileVariables = {}
+    fileVariables = {'FileRepository': repo.FileRepository,
+                     'GitRepository': repo.GitRepository,
+                     'SvnRepository': repo.SvnRepository
+                    }
     try:
         execfile(filename, {}, fileVariables)
     except (IOError, SyntaxError), err:
@@ -102,7 +103,7 @@ def readConfiguration(filename):
 def readEnvironment(envVars, strict=False):
     """
     Read variables from the environment
-        - strict=True enforces that all possible environment variables are found 
+        - strict=True enforces that all possible environment variables are found
     """
     result = {}
     for key in envVars.keys():
@@ -139,11 +140,11 @@ def installPath(typ=None):
 
     return os.path.join(variables['installPath'], suffix)
 
-def repositoryType():
+def getRepository():
     """
-    Return the repository type (e.g. fs, git, svn)
+    Return the repository (git, svn or file)
     """
-    return variables['repositoryType']
+    return variables['repository']
 
 def repositoryPath():
     """
