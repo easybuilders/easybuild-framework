@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,10 +22,17 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing g2clib, implemented as an easyblock
+"""
+
 import glob
 import os
 import shutil
+
 from easybuild.framework.application import Application
+from easybuild.tools.modules import get_software_root
+
 
 class G2clib(Application):
     """Support for building g2clib GRIB2 C library."""
@@ -33,13 +44,12 @@ class G2clib(Application):
     def make(self):
         """Build by supplying required make options, and running make."""
 
-        if not os.getenv('SOFTROOTJASPER'):
+        jasper = get_software_root('JASPER')
+        if not jasper:
             self.log.error("JasPer module not loaded?")
 
         # beware: g2clib uses INC, while g2lib uses INCDIR !
-        makeopts = 'CC="%s" FC="%s" INC="-I%s/include"' % (os.getenv('CC'),
-                                                           os.getenv('F90'),
-                                                           os.getenv('SOFTROOTJASPER'))
+        makeopts = 'CC="%s" FC="%s" INC="-I%s/include"' % (os.getenv('CC'), os.getenv('F90'), jasper)
         self.updatecfg('makeopts', makeopts)
 
         Application.make(self)
@@ -69,8 +79,9 @@ class G2clib(Application):
         """Custom sanity check for g2clib."""
 
         if not self.getcfg('sanityCheckPaths'):
-            self.setcfg('sanityCheckPaths', {'files':["lib/libgrib2c.a"],
-                                            'dirs':["include"]
+            self.setcfg('sanityCheckPaths', {
+                                             'files': ["lib/libgrib2c.a"],
+                                             'dirs': ["include"]
                                             })
 
         Application.sanitycheck(self)

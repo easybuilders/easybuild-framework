@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,19 +22,29 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing ScaLAPACK, implemented as an easyblock
+"""
+
 import os
 import shutil
 from distutils.version import LooseVersion
-from easybuild.framework.application import Application
+
+import easybuild.tools.toolkit as toolkit
 from easybuild.easyblocks.b.blacs import det_interface
 from easybuild.easyblocks.l.lapack import get_blas_lib
+from easybuild.framework.application import Application
+from easybuild.tools.modules import get_software_root
+
 
 class ScaLAPACK(Application):
     """
     Support for building and installing ScaLAPACK, both versions 1.x and 2.x
-    - configure: copy SLmake.inc.example to SLmake.inc
     """
+
     def configure(self):
+        """Configure ScaLAPACK build by copying SLmake.inc.example to SLmake.inc and checking dependencies."""
+
         src = os.path.join(self.getcfg('startfrom'), 'SLmake.inc.example')
         dest = os.path.join(self.getcfg('startfrom'), 'SLmake.inc')
 
@@ -49,21 +63,22 @@ class ScaLAPACK(Application):
 
         # make sure required dependencies are available
         deps = ["LAPACK"]
-        ## BLACS is only a dependency for ScaLAPACK versions prior to v2.0.0
+        # BLACS is only a dependency for ScaLAPACK versions prior to v2.0.0
         if self.loosever < LooseVersion("2.0.0"):
             deps.append("BLACS")
         for dep in deps:
-            if not os.getenv('SOFTROOT%s' % dep.upper()):
+            if not get_software_root(dep):
                 self.log.error("Dependency %s not available/loaded." % dep)
 
     def make(self):
+        """Build ScaLAPACK using make after setting make options."""
 
         # MPI compiler commands
         if os.getenv('MPICC') and os.getenv('MPIF77') and os.getenv('MPIF90'):
             mpicc = os.getenv('MPICC')
             mpif77 = os.getenv('MPIF77')
             mpif90 = os.getenv('MPIF90')
-        elif os.getenv('SOFTROOTOPENMPI') or os.getenv('SOFTROOTMVAPICH'):
+        elif self.toolkit().mpi_type() in [toolkit.OPENMPI, toolkit.MVAPICH2]:
             mpicc = 'mpicc'
             mpif77 = 'mpif77'
             mpif90 = 'mpif90'
@@ -71,39 +86,36 @@ class ScaLAPACK(Application):
             self.log.error("Don't know which compiler commands to use.")
 
         # set BLAS and LAPACK libs
-        extra_makeopts = 'BLASLIB="%s -lpthread" LAPACKLIB=%s/lib/liblapack.a ' % (
-                                                                                   get_blas_lib(self.log),
-                                                                                   os.getenv('SOFTROOTLAPACK')
-                                                                                   )
+        extra_makeopts = 'BLASLIB="%s -lpthread"' % get_blas_lib(self.log)
+        extra_makeopts += ' LAPACKLIB=%s/lib/liblapack.a ' % get_software_root('LAPACK')
 
         # build procedure changed in v2.0.0
         if self.loosever < LooseVersion("2.0.0"):
 
-            # determine interface
-            interface = det_interface(self.log, os.path.join(os.getenv('SOFTROOTBLACS'),'bin'))
+            blacs = get_software_root('BLACS')
 
-            blacsroot = os.getenv('SOFTROOTBLACS')
+            # determine interface
+            interface = det_interface(self.log, os.path.join(blacs, 'bin'))
 
             # set build and BLACS dir correctly
-            extra_makeopts += 'home=%s BLACSdir=%s ' % (self.getcfg('startfrom'), blacsroot)
+            extra_makeopts += 'home=%s BLACSdir=%s ' % (self.getcfg('startfrom'), blacs)
 
             # set BLACS libs correctly
-            for (var, lib) in [('BLACSFINIT', "F77init"), 
-                               ('BLACSCINIT', "Cinit"), 
+            for (var, lib) in [('BLACSFINIT', "F77init"),
+                               ('BLACSCINIT', "Cinit"),
                                ('BLACSLIB', "")]:
-                extra_makeopts += '%s=%s/lib/libblacs%s.a ' % (var, blacsroot, lib)
+                extra_makeopts += '%s=%s/lib/libblacs%s.a ' % (var, blacs, lib)
 
             # set compilers and options
             noopt = ''
-            if self.tk.opts['noopt']:
+            if self.toolkit().opts['noopt']:
                 noopt += " -O0"
-            if self.tk.opts['pic']:
+            if self.toolkit().opts['pic']:
                 noopt += " -fPIC"
-            extra_makeopts += 'F77="%(f77)s" CC="%(cc)s" NOOPT="%(noopt)s" CCFLAGS="-O3" ' % {
-                                                                                              'f77':mpif77,
-                                                                                              'cc':mpicc,
-                                                                                              'noopt':noopt
-                                                                                              }
+            extra_makeopts += 'F77="%(f77)s"' %  mpif77
+            extra_makeopts += ' CC="%(cc)s"' % mpicc
+            extra_makeopts += ' NOOPT="%(noopt)s"' % noopt
+            extra_makeopts += ' CCFLAGS="-O3" '
 
             # set interface
             extra_makeopts += "CDEFS='-D%s -DNO_IEEE $(USEMPI)' " % interface
@@ -111,16 +123,16 @@ class ScaLAPACK(Application):
         else:
 
             # determine interface
-            if os.getenv('SOFTROOTOPENMPI') or os.getenv('SOFTROOTMVAPICH2'):
+            if self.toolkit().mpi_type() in [toolkit.OPENMPI, toolkit.MVAPICH2]:
                 interface = 'Add_'
             else:
                 self.log.error("Don't know which interface to pick for the MPI library being used.")
 
             # set compilers and options
             extra_makeopts += 'FC="%(fc)s" CC="%(cc)s" ' % {
-                                                            'fc':mpif90,
-                                                            'cc':mpicc,
-                                                            }
+                                                            'fc': mpif90,
+                                                            'cc': mpicc,
+                                                           }
 
             # set interface
             extra_makeopts += 'CDEFS="-D%s" ' % interface
@@ -131,6 +143,7 @@ class ScaLAPACK(Application):
         Application.make(self)
 
     def make_install(self):
+        """Install by copying files to install dir."""
 
         src = os.path.join(self.getcfg('startfrom'), 'libscalapack.a')
         dest = os.path.join(self.installdir, 'lib')
@@ -139,15 +152,17 @@ class ScaLAPACK(Application):
             os.makedirs(dest)
             shutil.copy2(src,dest)
         except OSError, err:
-            self.log.error("Copying %s to installation dir %s failed: %s"%(src, dest, err))
+            self.log.error("Copying %s to installation dir %s failed: %s" % (src, dest, err))
 
     def sanitycheck(self):
+        """Custom sanity check for ScaLAPACK."""
 
         if not self.getcfg('sanityCheckPaths'):
-            self.setcfg('sanityCheckPaths',{'files':["lib/libscalapack.a"],
-                                            'dirs':[]
+            self.setcfg('sanityCheckPaths',{
+                                            'files': ["lib/libscalapack.a"],
+                                            'dirs': []
                                            })
 
-            self.log.info("Customized sanity check paths: %s"%self.getcfg('sanityCheckPaths'))
+            self.log.info("Customized sanity check paths: %s" % self.getcfg('sanityCheckPaths'))
 
         Application.sanitycheck(self)
