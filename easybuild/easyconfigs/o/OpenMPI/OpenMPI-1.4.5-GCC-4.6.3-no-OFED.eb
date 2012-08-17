@@ -12,11 +12,17 @@ sourceURLs=['http://www.open-mpi.org/software/ompi/v%s/downloads' % '.'.join(ver
 
 configopts='--with-threads=posix --enable-shared --enable-mpi-threads'
 
+patches=[
+		'pax_disable.patch',
+		]
+
 moduleclass='lib'
 
 sanityCheckPaths = {
                     'files':["bin/%s" % binfile for binfile in ["ompi_info", "opal_wrapper", "orterun"]] +
-                            ["lib/lib%s.so" % libfile for libfile in ["mca_common_sm", "mpi_cxx", "mpi_f77" ,"mpi_f90", "mpi", 
-                                                                      "openmpi_malloc", "open-pal", "open-rte"]],
+                            ["lib/lib%s.%s" % (libfile, shared_lib_ext) for libfile in ["mca_common_sm", "mpi_cxx",
+                                                                                        "mpi_f77" ,"mpi_f90", "mpi",
+                                                                                        "openmpi_malloc", "open-pal",
+                                                                                        "open-rte"]],
                     'dirs':["include/openmpi/ompi/mpi/cxx"]
                    }
