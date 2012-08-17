@@ -52,6 +52,9 @@ from easybuild.tools.toolkit import Toolkit
 from easybuild.tools.systemtools import get_core_count
 
 
+EBCLASSPREFIX = 'eb_'
+
+
 class Application:
     """
     Support for building and installing applications with configure/make/make install
@@ -1401,7 +1404,7 @@ class Application:
         allclassmodule = pkgdefaultclass[0]
         defaultClass = pkgdefaultclass[1]
         for pkg in self.pkgs:
-            name = pkg['name'][0].upper() + pkg['name'][1:] # classnames start with a capital
+            name = EBCLASSPREFIX + encoding(pkg['name']) # Use the same encoding as get_class
             self.log.debug("Starting package %s" % name)
 
             try:
@@ -1575,8 +1578,8 @@ def get_class(easyblock, log, name=None):
                 name = "UNKNOWN"
 
             modulepath = module_path_for_easyblock(name)
-            # don't use capitalize, as it changes 'GCC' into 'Gcc', we want to keep the capitals that are there already
-            class_name = name[0].upper() + name[1:].replace('-','_')
+            # The following is a generic way to calculate unique class names for any funny package title
+            class_name = EBCLASSPREFIX + encode_string(name)
 
             # try and find easyblock
             easyblock_found = False
