@@ -717,3 +717,40 @@ def patch_perl_script_autoflush(path):
 
     except IOError, err:
         log.error("Failed to patch Perl configure script: %s" % err)
+
+def encode_string(whichstring):
+# Here is an encoding function to handle funky package names ad infinitum
+# it is inspired by http://celldesigner.org/help/CDH_Species_01.html
+# and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names, as long as they are described in _CamelCase_ style: 
+# http://www.unicode.org/versions/Unicode6.1.0/ 
+# So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *can* indeed be a fully valid package name; package "electron" in the original spelling anyone? ;-)
+# 
+    remap={
+      '-':'_minus_',
+      '+':'_plus_',
+      '=':'_equal_',
+      '/':'_slash_',
+      ' ':'_space_',
+      '_':'_underscore_',
+      '!':'_exclamation_',
+      '@':'_at_',
+      '#':'_hash_',
+      '$':'_dollar_',
+      '%':'_percent_',
+      '^':'_carret_',
+      '&':'_ampersand_',
+      '*':'_star_',
+      '(':'_LeftParenthesis_',
+      ')':'_RightParenthesis_',
+      '[':'_LeftBracket_',
+      ']':'_RightBracket_'
+      }
+
+    def encoding(what):
+      if what in remap:
+       return remap[what]
+      else:
+       return what
+
+    result=''.join(map(encoding, whichstring))
+    return result
