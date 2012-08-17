@@ -227,11 +227,11 @@ class eb_FortranPythonPackage(eb_DefaultPythonPackage):
         run_cmd(cmd, log_all=True, simple=True)
 
 
-class eb_Numpy(FortranPythonPackage):
+class eb_Numpy(eb_FortranPythonPackage):
     """numpy package"""
 
     def __init__(self, mself, pkg, pkginstalldeps):
-        FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
+        eb_FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
 
         self.pkgcfgs = mself.getcfg('pkgcfgs')
         if self.pkgcfgs.has_key('numpysitecfglibsubdirs'):
@@ -302,7 +302,7 @@ libraries = %s
         """Install numpy package
         We remove the numpy build dir here, so scipy doesn't find it by accident
         """
-        FortranPythonPackage.make_install(self)
+        eb_FortranPythonPackage.make_install(self)
         builddir = os.path.join(self.builddir, "numpy")
         if os.path.isdir(builddir):
             shutil.rmtree(builddir)
@@ -310,11 +310,11 @@ libraries = %s
             self.log.debug("build dir %s already clean" % builddir)
 
 
-class eb_Scipy(FortranPythonPackage):
+class eb_Scipy(eb_FortranPythonPackage):
     """scipy package"""
 
     def __init__(self, mself, pkg, pkginstalldeps):
-        FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
+        eb_FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
 
         # disable testing
         test = False
