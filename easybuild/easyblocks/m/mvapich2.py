@@ -32,7 +32,7 @@ import easybuild.tools.environment as env
 from easybuild.framework.application import Application
 
 
-class MVAPICH2(Application):
+class eb_MVAPICH2(Application):
     """
     Support for building the MVAPICH2 MPI library.
     - some compiler dependent configure options

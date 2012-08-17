@@ -34,7 +34,7 @@ from easybuild.framework.application import Application
 from easybuild.tools.filetools import run_cmd
 
 
-class IntelBase(Application):
+class eb_intelBase(Application):
     """
     Base class for Intel software
     - no configure/make : binary release
