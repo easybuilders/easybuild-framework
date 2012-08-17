@@ -265,7 +265,7 @@ class Application:
         Subclasses should call this method with a dict
         """
         if extra == None:
-            return {}
+            return []
         else:
             return extra
 
@@ -1091,7 +1091,7 @@ class Application:
         txt += self.make_module_extra()
         if self.getcfg('pkglist'):
             txt += self.make_module_extra_packages()
-        txt += '\n# built with EasyBuild version %s' % easybuild.VERBOSE_VERSION
+        txt += '\n# built with EasyBuild version %s\n' % easybuild.VERBOSE_VERSION
 
         try:
             f = open(self.moduleGenerator.filename, 'w')
@@ -1293,10 +1293,10 @@ class Application:
             modpath = self.make_module(fake=True)
         # adjust MODULEPATH tand load module
         if self.getcfg('pkgloadmodule'):
-            self.log.debug("Adding %s to MODULEPATH" % modpath)
             if self.skip:
                 m = Modules()
             else:
+                self.log.debug("Adding %s to MODULEPATH" % modpath)
                 m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
             if m.exists(self.name(), self.installversion()):
@@ -1496,15 +1496,6 @@ class Application:
         Shortcut the get the module version.
         """
         return self.getcfg('version')
-
-    def dump_cfg_options(self):
-        """
-        Print a list of available configuration options.
-        """
-        for key in sorted(self.cfg):
-            tabs = "\t" * (3 - (len(key) + 1) / 8)
-            print "%s:%s%s" % (key, tabs, self.cfg[key][1])
-
 
 
 class StopException(Exception):

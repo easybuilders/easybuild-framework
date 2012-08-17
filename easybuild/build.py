@@ -40,6 +40,7 @@ from datetime import datetime
 from optparse import OptionParser
 
 import easybuild  # required for VERBOSE_VERSION
+import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
@@ -157,8 +158,9 @@ def main():
     # - then, check command line option
     # - last, use default config file easybuild_config.py in build.py directory
     config_file = options.config
-    if not config_file and os.getenv('EASYBUILDCONFIG'):
-        config_file = os.getenv('EASYBUILDCONFIG')
+
+    if not config_file and os.getenv(config.environmentVariables['configFile']):
+        config_file = os.getenv(config.environmentVariables['configFile'])
     else:
         appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
         config_file = os.path.join(appPath, "easybuild_config.py")
@@ -166,20 +168,7 @@ def main():
 
     # Dump possible options
     if options.avail_easyconfig_params:
-        app = get_class(options.easyblock, log)
-        extra = app.extra_options()
-        default = EasyConfig.default_config
-
-        print "DEFAULT OPTIONS:"
-        for key in sorted(default):
-            tabs = "\t" * (3 - (len(key) + 1) / 8)
-            print "%s:%s%s" % (key, tabs, default[key][1])
-
-        if extra:
-            print "EXTRA OPTIONS:"
-            for key in sorted(extra):
-                tabs = "\t" * (3 - (len(key) + 1) / 8)
-                print "%s:%s%s" % (key, tabs, extra[key][1])
+        print_avail_params(options.easyblock, log)
 
     ## Dump available classes
     if options.dump_classes:
@@ -742,6 +731,20 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
             return (False, applicationLog)
     else:
         return (True, applicationLog)
+
+def print_avail_params(easyblock, log):
+    app = get_class(easyblock, log)
+    extra = app.extra_options()
+    mapping = easyconfig.convert_to_help(EasyConfig.default_config + extra)
+
+    for key, values in mapping.items():
+        print "%s" % key.upper()
+        print '-' * len(key)
+        for name, value in values:
+            tabs = "\t" * (3 - (len(name) + 1) / 8)
+            print "%s:%s%s" % (name, tabs, value)
+
+        print
 
 
 if __name__ == "__main__":
