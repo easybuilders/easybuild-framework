@@ -128,6 +128,7 @@ class EasyConfig:
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
         self.config.update(extra_options)
+        self.path = path
         self.mandatory = ['name', 'version', 'homepage', 'description', 'toolkit']
 
         # extend mandatory keys
@@ -145,13 +146,13 @@ class EasyConfig:
 
         self.validations = {'moduleclass': self.validmoduleclasses, 'stop': self.validstops }
 
-        self.parse(path)
+        self.parse(path, validate)
 
         # perform validations
         if validate:
             self.validate()
 
-    def parse(self, path):
+    def parse(self, path, validate=True):
         """
         Parse the file and set options
         mandatory requirements are checked here
@@ -167,22 +168,33 @@ class EasyConfig:
             self.log.exception("SyntaxError in easyblock %s" % path)
 
         # validate mandatory keys
-        for key in self.mandatory:
-            if key not in local_vars:
-                self.log.error("mandatory variable %s not provided" % key)
+        if validate:
+            missing_keys = [key for key in self.mandatory if key not in local_vars]
+            if missing_keys:
+                self.log.error("mandatory variables %s not provided" % missing_keys)
 
-        # provide suggestions for typos
-        for key in local_vars:
-            if key not in self.config:
-                guesses = difflib.get_close_matches(key, self.config.keys(), 1, 0.85)
-                if len(guesses) == 1:
-                    self.log.error("You set invalid variable %s, possible suggestions: %s" % (key, guesses[0]))
+            # provide suggestions for typos
+            possible_typos = [(key, difflib.get_close_matches(key, self.config.keys(), 1, 0.85))
+                              for key in local_vars if key not in self.config]
+
+            typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
+            if typos:
+                self.log.error("You may have some typos in your easyconfig file: %s" %
+                                ', '.join(["%s -> %s" % typo for typo in typos]))
 
         for key in local_vars:
+            # validations are skipped, just set in the config
+            if not validate:
+                if key in self.config:
+                    self[key] = local_vars[key]
+                else:
+                    self.config[key] = [local_vars[key], ""]
+
             # do not store variables we don't need
-            if key in self.config:
+            elif key in self.config:
                 self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s" % (key, self[key]))
+
 
     def validate(self):
         """
