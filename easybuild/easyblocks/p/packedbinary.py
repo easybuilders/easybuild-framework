@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -19,18 +19,20 @@
 # along with EasyBuild. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBlock for binary applications that need unpacking
-E.g., binary applications shipped as a .tar.gz file.
+EasyBlock for binary applications that need unpacking,
+e.g., binary applications shipped as a .tar.gz file
 """
-from easybuild.framework.application import Application
-from easybuild.easyblocks.b.binary import Binary
 
-class PackedBinary(Binary, Application):
-    """Support for installing a binary package.
-    Just copy it's sources to the installdir"""
+from easybuild.framework.application import Application
+from easybuild.easyblocks.b.binary import EB_Binary
+
+
+class EB_PackedBinary(EB_Binary, Application):
+    """Support for installing a packed binary package.
+    Just unpack its source in the installdir
+    """
 
     def unpack_src(self):
         """Unpack the source"""
         Application.unpack_src(self)
-
 

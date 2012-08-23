@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman, Toon Willems
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,34 +23,40 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from difflib import get_close_matches
-from distutils.version import LooseVersion
+"""
+Generic EasyBuild support for building and installing software,
+using the 'standard' configure/make/make install procedure.
+"""
+
 import copy
 import glob
-import grp #@UnresolvedImport
+import grp  #@UnresolvedImport
 import os
 import re
 import shutil
 import time
 import urllib
+from distutils.version import LooseVersion
 
 import easybuild
+import easybuild.tools.config as config
+import easybuild.tools.environment as env
+from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, initLogger, removeLogHandler,print_msg
 from easybuild.tools.config import source_path, buildPath, installPath
-from easybuild.tools.filetools import unpack, patch, run_cmd, convertName
+from easybuild.tools.filetools import unpack, patch, run_cmd, convertName, encode_class_name
 from easybuild.tools.module_generator import ModuleGenerator
-from easybuild.tools.modules import Modules
-from easybuild.tools.toolkit import Toolkit
+from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
+
 
 class Application:
     """
-    This is the dummy Application class.
-    All other Application classes should be inherited from this one
+    Support for building and installing applications with configure/make/make install
     """
 
     ## INIT
-    def __init__(self, name=None, version=None, newBuild=True, debug=False):
+    def __init__(self, path, debug=False):
         """
         Initialize the Application instance.
         """
@@ -56,8 +67,6 @@ class Application:
 
         self.patches = []
         self.src = []
-        self.dep = []
-        self.tk = None
 
         self.builddir = None
         self.installdir = None
@@ -67,14 +76,8 @@ class Application:
         self.instance_pkgs = []
         self.skip = None
 
-        ## final version
-        self.installversion = 'NOT_VALID'
-
-        ## valid moduleclasses
-        self.validmoduleclasses = ['base', 'compiler', 'lib']
-
-        ## vaild stop options
-        self.validstops = ['cfg', 'source', 'patch', 'configure', 'make', 'install', 'test', 'postproc', 'cleanup', 'packages']
+        # Easyblock for this Application
+        self.cfg = EasyConfig(path, self.extra_options())
 
         # module generator
         self.moduleGenerator = None
@@ -82,94 +85,28 @@ class Application:
         # extra stuff for module file required by packages
         self.moduleExtraPackages = ''
 
-        # sanity check paths and result
-        self.sanityCheckPaths = None
         self.sanityCheckOK = False
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = False
 
-        # set name and version if they're provided
-        if name and version:
-            self.set_name_version(name, version, newBuild)
-
         # allow a post message to be set, which can be shown as last output
         self.postmsg = ''
-
-        # generic configuration parameters
-        self.cfg = {
-          'name':[None, "Name of software"],
-          'version':[None, "Version of software"],
-          'easybuildVersion': [None, "EasyBuild-version this spec-file was written for"],
-          'group':[None, "Name of the user group for which the software should be available"],
-          'versionsuffix':['', 'Additional suffix for software version (placed after toolkit name)'],
-          'versionprefix':['', 'Additional prefix for software version (placed before version and toolkit name)'],
-          'runtest':[None, 'Indicates if a test should be run after make; should specify argument after make (for e.g., "test" for make test) (Default: None)'],
-          'preconfigopts':['', 'Extra options pre-passed to configure.'],
-          'configopts':['', 'Extra options passed to configure (Default already has --prefix)'],
-          'premakeopts':['', 'Extra options pre-passed to make.'],
-          'makeopts':['', 'Extra options passed to make (Default already has -j X)'],
-          'installopts':['', 'Extra options for installation (Default: nothing)'],
-          'moduleclass':['base', 'Module class to be used for this software (Default: base) (Valid: %s)' % self.validmoduleclasses],
-          'moduleforceunload':[False, 'Force unload of all modules when loading the package (Default: False)'],
-          'moduleloadnoconflict':[False, "Don't check for conflicts, unload other versions instead (Default: False)"],
-          'startfrom':[None, 'Path to start the make in. If the path is absolute, use that path. If not, this is added to the guessed path.'],
-          'onlytkmod':[False, 'Boolean/string to indicate if the toolkit should only load the enviornment with module (True) or also set all other variables (False) like compiler CC etc (If string: comma separated list of variables that will be ignored). (Default: False)'],
-          'stop':[None, 'Keyword to halt the buildprocess at certain points. Valid are %s' % self.validstops],
-          'homepage':[None, 'The homepage of the software'],
-          'description':[None, 'A short description of the software'],
-          'parallel':[None, 'Degree of parallelism for e.g. make (default: based on the number of cores and restrictions in ulimit)'],
-          'maxparallel':[None, 'Max degree of parallelism (default: None)'],
-          'keeppreviousinstall':[False, 'Boolean to keep the previous installation with identical name. Default False, expert s only!'],
-          'cleanupoldbuild':[True, 'Boolean to remove (True) or backup (False) the previous build directory with identical name or not. Default True'],
-          'cleanupoldinstall':[True, 'Boolean to remove (True) or backup (False) the previous install directory with identical name or not. Default True'],
-          'dontcreateinstalldir':[False, 'Boolean to create (False) or not create (True) the install directory (Default False)'],
-          'toolkit':[None, 'Name and version of toolkit'],
-          'toolkitopts':['', 'Extra options for compilers'],
-          'keepsymlinks':[False, 'Boolean to determine whether symlinks are to be kept during copying or if the content of the files pointed to should be copied'],
-          'licenseServer':[None, 'License server for software'],
-          'licenseServerPort':[None, 'Port for license server'],
-          'key':[None, 'Key for installing software'],
-          'pkglist':[[], 'List with packages added to the baseinstallation (Default: [])'],
-          'pkgmodulenames':[{}, 'Dictionary with real modules names for packages, if they are different from the package name (Default: {})'],
-          'pkgloadmodule':[True, 'Load the to-be installed software using temporary module (Default: True)'],
-          'pkgtemplate':["%s-%s.tar.gz", "Template for package source file names (Default: %s-%s.tar.gz)"],
-          'pkgfindsource':[True, "Find sources for packages (Default: True)"],
-          'pkginstalldeps':[True, "Install dependencies for specified packages if necessary (Default: True)"],
-          'pkgdefaultclass':[None, "List of module for and name of the default package class (Default: None)"],
-          'skip':[False, "Skip existing software (Default: False)"],
-          'pkgfilter':[None, "Package filter details. List with template for cmd and input to cmd (templates for name, version and src). (Default: None)"],
-          'pkgpatches':[[], 'List with patches for packages (default: [])'],
-          'pkgcfgs':[{}, 'Dictionary with config parameters for packages (default: {})'],
-          'dependencies':[[], "List of dependencies (default: [])"],
-          'builddependencies':[[], "List of build dependencies (default: [])"],
-          'unpackOptions':[None, "Extra options for unpacking source (default: None)"],
-          'modextravars':[{}, "Extra environment variables to be added to module file (default: {})"],
-          'osdependencies':[[], "Packages that should be present on the system"],
-          'sources': [[], "List of source files"],
-          'sourceURLs' : [[], "List of URLs for source files"],
-          'patches': [[], "List of patches to apply"],
-          'tests': [[], "List of test-scripts to run after install. A test script should return a non-zero exit status to fail"],
-          'sanityCheckPaths': [{}, "List of files and directories to check (format: {'files':<list>, 'dirs':<list>}, default: {})"],
-          'sanityCheckCommand': [None, "format: (name, options) e.g. ('gzip','-h') . If set to True it will use (name, '-h')"],
-          'buildstats' : [None, "A list of dicts with buildstats: build_time, platform, core_count, cpu_model, install_size, timestamp"],
-        }
-
-        # mandatory config entries
-        self.mandatory = ['name', 'version', 'homepage', 'description', 'toolkit']
+        self.setlogger()
 
         # original environ will be set later
         self.orig_environ = {}
+        self.loaded_modules = []
 
     def autobuild(self, ebfile, runTests, regtest_online):
         """
         Build the software package described by cfg.
         """
-        self.process_ebfile(ebfile, regtest_online)
-
         if self.getcfg('stop') and self.getcfg('stop') == 'cfg':
             return True
         self.log.info('Read easyconfig %s' % ebfile)
+
+        self.prepare_build()
 
         self.ready2build()
         self.build()
@@ -260,16 +197,20 @@ class Application:
             for patchFile in listOfPatches:
 
                 ## check if the patches can be located
+                copy = False
                 suff = None
                 level = None
-                if type(patchFile) == list:
+                if type(patchFile) in [list, tuple]:
                     if not len(patchFile) == 2:
-                        self.log.error("Unknown patch specification '%s', only two-element lists are supported!" % patchFile)
+                        self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
                     pf = patchFile[0]
 
                     if type(patchFile[1]) == int:
                         level = patchFile[1]
                     elif type(patchFile[1]) == str:
+                        # non-patch files are assumed to be files to copy
+                        if not patchFile[0].endswith('.patch'):
+                            copy = True
                         suff = patchFile[1]
                     else:
                         self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patchFile)
@@ -281,7 +222,10 @@ class Application:
                     self.log.debug('File %s found for patch %s' % (path, patchFile))
                     tmppatch = {'name':pf, 'path':path}
                     if suff:
-                        tmppatch['copy'] = suff
+                        if copy:
+                            tmppatch['copy'] = suff
+                        else:
+                            tmppatch['sourcepath'] = suff
                     if level:
                         tmppatch['level'] = level
                     self.patches.append(tmppatch)
@@ -308,83 +252,25 @@ class Application:
 
             self.log.info("Added sources: %s" % self.src)
 
-    def settoolkit(self, name, version):
+    # turn this into a class method. This makes it easy to access the information without needing an instance
+    @staticmethod
+    def extra_options(extra=None):
         """
-        Add the build toolkit to be used.
+        Extra options method which will be passed to the EasyConfig constructor.
+        Subclasses should call this method with a dict
         """
-        self.tk = Toolkit(name, version)
-        self.log.info("Added toolkit: name %s version %s" % (self.tk.name, self.tk.version))
-
-    def add_dependency(self, dependencies=None):
-        """
-        Add application dependencies. A dependency should be specified as a dictionary
-        or as a list of the following form: (name, version, suffix, dummy_boolean)
-        (suffix and dummy_boolean are optional)
-        """
-        if dependencies and len(dependencies) > 0:
-            self.log.info("Adding dependencies: %s" % dependencies)
-            self.dep.extend([self.parse_dependency(d) for d in dependencies])
-
-    def parse_dependency(self, dep):
-        """
-        Read a dependency declaration and transform it to a common format.
-        """
-        result = {'name': '', 'version': '', 'prefix': '', 'suffix': ''}
-
-        if type(dep) == dict:
-            ## check for name and version key
-            if not 'name' in dep:
-                self.log.error('Dependency without name.')
-                return
-            result.update(dep)
-        elif type(dep) in [list, tuple]:
-            result['name'] = dep[0]
-            if len(dep) >= 2:
-                result['version'] = dep[1]
-            if len(dep) >= 3:
-                result['suffix'] = dep[2]
-            if len(dep) >= 4:
-                result['dummy'] = dep[3]
+        if extra == None:
+            return []
         else:
-            self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
-            return
+            return extra
 
-        if not 'version' in result:
-            self.log.warning('Dependency without version.')
-
-        if not 'tk' in result:
-            result['tk'] = self.tk.getDependencyVersion(result)
-
-        return result
-
-    ## process EasyBuild spec file
-
-    def process_ebfile(self, fn, regtest_online=False):
+    def prepare_build(self):
         """
-        Read file fn, eval and add info
-        - assume certain predefined variable names
+        prepare for building
         """
-        if not os.path.isfile(fn) and self.log:
-            self.log.error("Can't import config from unknown filename %s" % fn)
-
-        try:
-            locs = {"self": self}
-            execfile(fn, {}, locs)
-        except (IOError, SyntaxError), err:
-            msg = "Parsing eb file %s failed: %s" % (fn, err)
-            if self.log:
-                self.log.exception(msg)
-            else:
-                raise EasyBuildError("%s: %s" % (msg, err))
-
-        ## initialize logger
-        if 'name' in locs and 'version' in locs:
-            self.set_name_version(locs['name'], locs['version'])
-        else:
-            self.setlogger()
 
         ## check EasyBuild version
-        easybuildVersion = locs.get('easybuildVersion', None)
+        easybuildVersion = self.getcfg('easybuildVersion')
         if not easybuildVersion:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuildVersion')! Assuming the latest version")
         else:
@@ -392,26 +278,6 @@ class Application:
                 self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!" % easybuildVersion)
             elif LooseVersion(easybuildVersion) > easybuild.VERSION:
                 self.log.error("EasyBuild-version %s is newer than the currently running one. Aborting!" % easybuildVersion)
-
-        ## check for typos in eb file
-        for variable in locs.keys():
-            guess = get_close_matches(variable, self.cfg.keys(), 1, 0.85)
-            if len(guess) == 1 and variable not in self.cfg.keys():
-                # We might have a typo here
-                self.log.error("Don't you mean '%s' instead of '%s' as eb file variable." % (guess[0], variable))
-
-        for k in self.cfg.keys():
-            if k in locs:
-                self.setcfg(k, locs[k])
-                self.log.info("Using cfg option %s: value %s" % (k, self.getcfg(k)))
-
-        # NOTE: this option ('cfg') cannot be provided on the commandline because it will not yet be set by Easybuild
-        if self.getcfg('stop') == 'cfg':
-            self.log.info("Stopping in parsing cfg")
-            return
-
-        if self.getcfg('osdependencies'):
-            self.check_osdeps(self.getcfg('osdependencies'))
 
         if self.getcfg('sources'):
             self.addsource(self.getcfg('sources'))
@@ -423,62 +289,19 @@ class Application:
         else:
             self.log.info('no patches provided')
 
-        if self.getcfg('toolkit'):
-            self.log.debug("toolkit: %s" % self.getcfg('toolkit'))
-            tk = self.getcfg('toolkit')
-            self.settoolkit(tk['name'], tk['version'])
-
-        if self.getcfg('toolkitopts'):
-            self.tk.setOptions(self.getcfg('toolkitopts'))
-
-        if self.getcfg('dependencies'):
-            self.add_dependency(self.getcfg('dependencies'))
-        else:
-            self.log.info('no dependencies provided')
-
-        # Build dependencies
-        builddeps = [self.parse_dependency(d) for d in self.getcfg('builddependencies')]
-        self.add_dependency(builddeps)
-        self.setcfg('builddependencies', builddeps)
-
         self.setparallelism()
-
-        self.make_installversion()
-        self.verify_config(regtest_online)
-
-    def verify_config(self, regtest_online=False):
-        """
-        verify the config settings
-        """
-        for k in self.mandatory:
-            if not self.getcfg(k):
-                self.log.error("No cfg option %s provided" % k)
-
-        if self.getcfg('stop') and not (self.getcfg('stop') in self.validstops):
-            self.log.error("Stop provided %s is not valid: %s" % (self.cfg['stop'], self.validstops))
-
-        if not (self.getcfg('moduleclass') in self.validmoduleclasses):
-            self.log.error("Moduleclass provided %s is not valid: %s" % (self.cfg['moduleclass'], self.validmoduleclasses))
-
-        if not self.getcfg('toolkit'):
-            self.log.error('no toolkit defined')
-
-        if regtest_online and not self.verify_homepage():
-            self.log.error("Homepage (%s) does not seem to contain anything relevant to %s" % (self.getcfg("homepage"),
-                                                                                               self.name()))
-
 
     def getcfg(self, key):
         """
         Get a configuration item.
         """
-        return self.cfg[key][0]
+        return self.cfg[key]
 
     def setcfg(self, key, value):
         """
         Set configuration key to value.
         """
-        self.cfg[key][0] = value
+        self.cfg[key] = value
 
     def updatecfg(self, key, value):
         """
@@ -492,41 +315,6 @@ class Application:
 
         self.setcfg(key, new_value)
 
-    def check_osdeps(self, osdeps):
-        """
-        Check if packages are available from OS. osdeps should be a list of dependencies.
-        If an element of osdeps is a list, checks will pass if one of the elements of the list is found
-        """
-        not_found = []
-        for check in osdeps:
-            if type(check) != list:
-                check = [check]
-
-            # find at least one element of check
-            # - using rpm -q and dpkg -s --> can be run as non-root!!
-            # - fallback on which
-            # - should be extended to files later?
-            for d in check:
-                if run_cmd('which rpm', simple=True):
-                    cmd = "rpm -q %s" % d
-                elif run_cmd('which dpkg', simple=True):
-                    cmd = "dpkg -s %s" % d
-                else:
-                    # fallback for when os-Dependency is a binary
-                    cmd = "which %s" % d
-
-                (rpmout, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
-                if ec == 0:
-                    self.log.debug("Found osdep %s" % d)
-                else:
-                    not_found.append(d)
-                    self.log.info("Couldn't find OS dependency check %s: %s" % (check, rpmout))
-
-        if not not_found:
-            self.log.info("OS dependencies ok: %s" % osdeps)
-        else:
-            self.log.error("One or more OS dependencies were not found: %s" % not_found)
-
     ## BUILD
 
     def ready2build(self):
@@ -539,25 +327,28 @@ class Application:
             self.log.warning("Loaded modules detected: %s" % loadedmods)
 
         # Do all dependencies have a toolkit version
-        self.tk.addDependencies(self.dep)
-        if not len(self.dep) == len(self.tk.dependencies):
-            self.log.debug("dep %s (%s)\ntk.dep %s (%s)" % (len(self.dep), self.dep, len(self.tk.dependencies), self.tk.dependencies))
+        self.toolkit().add_dependencies(self.cfg.dependencies())
+        if not len(self.cfg.dependencies()) == len(self.toolkit().dependencies):
+            self.log.debug("dep %s (%s)" % (len(self.cfg.dependencies()), self.cfg.dependencies()))
+            self.log.debug("tk.dep %s (%s)" % (len(self.toolkit().dependencies), self.toolkit().dependencies))
             self.log.error('Not all dependencies have a matching toolkit version')
 
         # Check if the application is not loaded at the moment
-        envName = "SOFTROOT%s" % convertName(self.name(), upper=True)
-        if envName in os.environ:
-            self.log.error("Module is already loaded (%s is set), installation cannot continue." % envName)
+        (root, env_var) = get_software_root(self.name(), with_env_var=True)
+        if root:
+            self.log.error("Module is already loaded (%s is set), installation cannot continue." % env_var)
 
         # Check if main install needs to be skipped
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.getcfg('skip'):
-            if Modules().exists(self.name(), self.installversion):
+            if Modules().exists(self.name(), self.installversion()):
                 self.skip = True
-                self.log.info("Current version (name: %s, version: %s) found. Going to skip actually main build and potential exitsing packages. Expert only." % (self.name(), self.installversion))
+                self.log.info("Current version (name: %s, version: %s) found." % (self.name(), self.installversion))
+                self.log.info("Going to skip actually main build and potential exitsing packages. Expert only.")
             else:
-                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name(), self.installversion))
+                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name(),
+                    self.installversion()))
 
 
     def file_locate(self, filename, pkg=False):
@@ -844,6 +635,9 @@ class Application:
 
             self.print_environ()
 
+            # reset tracked changes
+            env.reset_changes()
+
             ## SOURCE
             print_msg("unpacking...", self.log)
             self.runstep('source', [self.unpack_src], skippable=True)
@@ -851,8 +645,8 @@ class Application:
             ## PATCH
             self.runstep('patch', [self.apply_patch], skippable=True)
 
-            self.tk.prepare(self.getcfg('onlytkmod'))
-            self.startfrom()
+            # PREPARE
+            self.runstep('prepare', [self.prepare], skippable=True)
 
             ## CONFIGURE
             print_msg("configuring...", self.log)
@@ -894,6 +688,7 @@ class Application:
         if skippable and self.skip:
             self.log.info("Skipping %s" % step)
         else:
+            self.log.info("Starting %s" % step)
             for m in methods:
                 self.print_environ()
                 m()
@@ -907,9 +702,11 @@ class Application:
         Prints the environment changes and loaded modules to the debug log
         - pretty prints the environment for easy copy-pasting
         """
-        mods = "\n".join(["module load %s/%s" % (m['name'], m['version']) for m in Modules().loaded_modules()])
+        mods = [(mod['name'], mod['version']) for mod in Modules().loaded_modules()]
+        mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
+        self.loaded_modules = mods
 
-        env = os.environ
+        env = copy.deepcopy(os.environ)
 
         changed = [(k,env[k]) for k in env if k not in self.orig_environ]
         for k in env:
@@ -921,16 +718,14 @@ class Application:
         text = "\n".join(['export %s="%s"' % change for change in changed])
         unset_text = "\n".join(['unset %s' % key for key in unset])
 
-
         if mods:
-            self.log.debug("Loaded modules:\n%s" % mods)
+            self.log.debug("Loaded modules:\n%s" % mods_text)
         if changed:
             self.log.debug("Added to environment:\n%s" % text)
         if unset:
             self.log.debug("Removed from environment:\n%s" % unset_text)
 
-        self.orig_environ = copy.deepcopy(os.environ)
-
+        self.orig_environ = env
 
     def postproc(self):
         """
@@ -942,7 +737,7 @@ class Application:
             gid = grp.getgrnam(self.getcfg('group'))[2]
             chngsuccess = []
             chngfailure = []
-            for root, _, files in os.walk(self.installdir):
+            for (root, _, files) in os.walk(self.installdir):
                 try:
                     os.chown(root, -1, gid)
                     os.chmod(root, 0750)
@@ -1034,28 +829,30 @@ class Application:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
         # make fake module
-        self.make_module(True)
+        mod_path = [self.make_module(True)]
 
         # load the module
-        mod_path = [self.moduleGenerator.module_path].extend(Modules().modulePath)
+        mod_path.extend(Modules().modulePath)
         m = Modules(mod_path)
         self.log.debug("created module instance")
-        m.addModule([[self.name(), self.installversion]])
-        m.load()
+        m.addModule([[self.name(), self.installversion()]])
+        try:
+            m.load()
+        except EasyBuildError, err:
+            self.log.debug("Loading module failed: %s" % err)
+            self.sanityCheckOK = False
 
-        # chdir to installdir (beter environment for running tests)
+        # chdir to installdir (better environment for running tests)
         os.chdir(self.installdir)
 
-        # run sanity check command
-        command = self.getcfg('sanityCheckCommand')
-        if command:
-
+        # run sanity check commands
+        commands = self.getcfg('sanityCheckCommands')
+        for command in commands:
             # set command to default. This allows for config files with
-            # sanityCheckCommand = True
+            # non-tuple commands
             if not isinstance(command, tuple):
                 self.log.debug("Setting sanity check command to default")
                 command = (None, None)
-
 
             # Build substition dictionary
             check_cmd = { 'name': self.name().lower(), 'options': '-h' }
@@ -1071,7 +868,9 @@ class Application:
             out, ec = run_cmd(cmd, simple=False)
             if ec != 0:
                 self.sanityCheckOK = False
-                self.log.debug("sanityCheckCommand exited with code %s (output: %s)" % (ec, out))
+                self.log.warning("sanityCheckCommand %s exited with code %s (output: %s)" % (cmd, ec, out))
+            else:
+                self.log.info("sanityCheckCommand %s ran successfully! (output: %s)" % (cmd, out))
 
         failed_pkgs = [pkg.name for pkg in self.instance_pkgs if not pkg.sanitycheck()]
 
@@ -1110,44 +909,84 @@ class Application:
         except OSError, err:
             self.log.exception("Can't change to real build directory %s: %s" % (self.getcfg('startfrom'), err))
 
+    def prepare(self):
+        """
+        Pre-configure step. Set's up the builddir just before starting configure
+        """
+        self.toolkit().prepare(self.getcfg('onlytkmod'))
+        self.startfrom()
+
+
     def configure(self, cmd_prefix=''):
         """
         Configure step
         - typically ./configure --prefix=/install/path style
         """
+
         cmd = "%s %s./configure --prefix=%s %s" % (self.getcfg('preconfigopts'), cmd_prefix,
                                                     self.installdir, self.getcfg('configopts'))
-        run_cmd(cmd, log_all=True, simple=True)
+
+        (out, _) = run_cmd(cmd, log_all=True, simple=False)
+
+        return out
 
     def make(self, verbose=False):
         """
         Start the actual build
         - typical: make -j X
         """
+
         paracmd = ''
         if self.getcfg('parallel'):
             paracmd = "-j %s" % self.getcfg('parallel')
 
         cmd = "%s make %s %s" % (self.getcfg('premakeopts'), paracmd, self.getcfg('makeopts'))
 
-        run_cmd(cmd, log_all=True, simple=True, log_output=verbose)
+        (out, _) = run_cmd(cmd, log_all=True, simple=False, log_output=verbose)
+
+        return out
 
     def test(self):
         """
         Test the compilation
         - default: None
         """
+
         if self.getcfg('runtest'):
             cmd = "make %s" % (self.getcfg('runtest'))
-            run_cmd(cmd, log_all=True, simple=True)
+            (out, _) = run_cmd(cmd, log_all=True, simple=False)
+
+            return out
+
+    def toolkit(self):
+        """
+        Toolkit used to build this Application
+        """
+        return self.cfg.toolkit()
+
+    def toolkit_name(self):
+        """
+        Name of toolkit used to build this Application
+        """
+        return self.cfg.toolkit_name()
+
+    def toolkit_version(self):
+        """
+        Version of toolkit used to build this Application
+        """
+        return self.cfg.toolkit_version()
 
     def make_install(self):
         """
         Create the installation in correct location
         - typical: make install
         """
+
         cmd = "make install %s" % (self.getcfg('installopts'))
-        run_cmd(cmd, log_all=True, simple=True)
+
+        (out, _) = run_cmd(cmd, log_all=True, simple=False)
+
+        return out
 
     def make_builddir(self):
         """
@@ -1156,11 +995,11 @@ class Application:
         if not self.build_in_installdir:
             # make a unique build dir
             ## if a tookitversion starts with a -, remove the - so prevent a -- in the path name
-            tkversion = self.tk.version
+            tkversion = self.toolkit_version()
             if tkversion.startswith('-'):
                 tkversion = tkversion[1:]
 
-            extra = "%s%s-%s%s" % (self.getcfg('versionprefix'), self.tk.name, tkversion, self.getcfg('versionsuffix'))
+            extra = "%s%s-%s%s" % (self.getcfg('versionprefix'), self.toolkit_name(), tkversion, self.getcfg('versionsuffix'))
             localdir = os.path.join(buildPath(), self.name(), self.version(), extra)
 
             ald = os.path.abspath(localdir)
@@ -1196,24 +1035,10 @@ class Application:
         basepath = installPath()
 
         if basepath:
-            installdir = os.path.join(basepath, self.name(), self.installversion)
+            installdir = os.path.join(basepath, self.name(), self.installversion())
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
-
-    def make_installversion(self):
-        """
-        Generate the installation version name.
-        """
-        vpf, vsf = self.getcfg('versionprefix'), self.getcfg('versionsuffix')
-
-        if self.tk.name == 'dummy':
-            name = "%s%s%s" % (vpf, self.version(), vsf)
-        else:
-            extra = "%s-%s" % (self.tk.name, self.tk.version)
-            name = "%s%s-%s%s" % (vpf, self.version(), extra, vsf)
-
-        self.installversion = name
 
     def make_installdir(self):
         """
@@ -1266,7 +1091,7 @@ class Application:
         Generate a module file.
         """
         self.moduleGenerator = ModuleGenerator(self, fake)
-        self.moduleGenerator.createFiles()
+        modpath = self.moduleGenerator.createFiles()
 
         txt = ''
         txt += self.make_module_description()
@@ -1275,7 +1100,7 @@ class Application:
         txt += self.make_module_extra()
         if self.getcfg('pkglist'):
             txt += self.make_module_extra_packages()
-        txt += '\n# built with EasyBuild version %s' % easybuild.VERBOSE_VERSION
+        txt += '\n# built with EasyBuild version %s\n' % easybuild.VERBOSE_VERSION
 
         try:
             f = open(self.moduleGenerator.filename, 'w')
@@ -1285,6 +1110,72 @@ class Application:
             self.log.error("Writing to the file %s failed: %s" % (self.moduleGenerator.filename, err))
 
         self.log.info("Added modulefile: %s" % (self.moduleGenerator.filename))
+
+        if not fake:
+            self.make_devel_module()
+
+        return modpath
+
+    def make_devel_module(self, create_in_builddir=False):
+        """
+        Create a develop module file which sets environment based on the build
+        Usage: module load name, which loads the module you want to use. $EBDEVELNAME should then be the full path
+        to the devel module file. So now you can module load $EBDEVELNAME.
+
+        WARNING: you cannot unload using $EBDEVELNAME (for now: use module unload `basename $EBDEVELNAME`)
+        """
+        # first try loading the fake module (might have happened during sanity check, doesn't matter anyway
+        # make fake module
+        mod_path = [self.make_module(True)]
+
+        # load the module
+        mod_path.extend(Modules().modulePath)
+        m = Modules(mod_path)
+        self.log.debug("created module instance")
+        m.addModule([[self.name(), self.installversion()]])
+        try:
+            m.load()
+        except EasyBuildError, err:
+            self.log.debug("Loading module failed: %s" % err)
+            self.log.debug("loaded modules: %s" % Modules().loaded_modules())
+
+        mod_gen = ModuleGenerator(self)
+        header = "#%Module\n"
+
+        env_txt = ""
+        for (key, val) in env.changes.items():
+            # check if non-empty string
+            # TODO: add unset for empty vars?
+            if val.strip():
+                env_txt += mod_gen.setEnvironment(key, val)
+
+        load_txt = ""
+        # capture all the EBDEVEL vars
+        # these should be all the dependencies and we should load them
+        for key in os.environ:
+            # legacy support
+            if key.startswith("EBDEVEL") or key.startswith("SOFTDEVEL"):
+                if not key.endswith(convertName(self.name(), upper=True)):
+                    path = os.environ[key]
+                    if os.path.isfile(path):
+                        name, version =  path.rsplit('/', 1)
+                        load_txt += mod_gen.loadModule(name, version)
+
+        if create_in_builddir:
+            output_dir = self.builddir
+        else:
+            output_dir = os.path.join(self.installdir, config.logPath())
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+        filename = os.path.join(output_dir, "%s-%s-easybuild-devel" % (self.name(), self.installversion()))
+        self.log.debug("Writing devel module to %s" % filename)
+
+        devel_module = open(filename, "w")
+        devel_module.write(header)
+        devel_module.write(load_txt)
+        devel_module.write(env_txt)
+        devel_module.close()
 
     def make_module_description(self):
         """
@@ -1299,13 +1190,13 @@ class Application:
         load = unload = ''
 
         # Load toolkit
-        if self.tk.name != 'dummy':
-            load += self.moduleGenerator.loadModule(self.tk.name, self.tk.version)
-            unload += self.moduleGenerator.unloadModule(self.tk.name, self.tk.version)
+        if self.toolkit_name() != 'dummy':
+            load += self.moduleGenerator.loadModule(self.toolkit_name(), self.toolkit_version())
+            unload += self.moduleGenerator.unloadModule(self.toolkit_name(), self.toolkit_version())
 
         # Load dependencies
-        builddeps = self.getcfg('builddependencies')
-        for dep in self.tk.dependencies:
+        builddeps = self.cfg.builddependencies()
+        for dep in self.toolkit().dependencies:
             if not dep in builddeps:
                 self.log.debug("Adding %s/%s as a module dependency" % (dep['name'], dep['tk']))
                 load += self.moduleGenerator.loadModule(dep['name'], dep['tk'])
@@ -1339,23 +1230,27 @@ class Application:
         return {
             'PATH': ['bin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
+            'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig'],
         }
 
     def make_module_extra(self):
         """
-        Sets optional variables (SOFTROOT, MPI tuning variables).
+        Sets optional variables (EBROOT, MPI tuning variables).
         """
         txt = "\n"
 
-        ## SOFTROOT + SOFTVERSION
-        environmentName = convertName(self.name(), upper=True)
-        txt += self.moduleGenerator.setEnvironment("SOFTROOT" + environmentName, "$root")
-        txt += self.moduleGenerator.setEnvironment("SOFTVERSION" + environmentName, self.version())
+        # EBROOT + EBVERSION + EBDEVEL
+        environment_name = convertName(self.name(), upper=True)
+        txt += self.moduleGenerator.setEnvironment("EBROOT" + environment_name, "$root")
+        txt += self.moduleGenerator.setEnvironment("EBVERSION" + environment_name, self.version())
+        devel_path = os.path.join("$root", config.logPath(), "%s-%s-easybuild-devel" % (self.name(),
+            self.installversion()))
+        txt += self.moduleGenerator.setEnvironment("EBDEVEL" + environment_name, devel_path)
 
         txt += "\n"
-        for key, value in self.getcfg('modextravars').items():
+        for (key, value) in self.getcfg('modextravars').items():
             txt += self.moduleGenerator.setEnvironment(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
@@ -1367,6 +1262,28 @@ class Application:
         Sets optional variables for packages.
         """
         return self.moduleExtraPackages
+
+    def installversion(self):
+        return self.cfg.installversion()
+
+    def installsize(self):
+        installsize = 0
+        try:
+            # change to home dir, to avoid that cwd no longer exists
+            os.chdir(os.getenv('HOME'))
+
+            # walk install dir to determine total size
+            for (dirpath, _, filenames) in os.walk(self.installdir):
+                for filename in filenames:
+                    fullpath = os.path.join(dirpath, filename)
+                    if os.path.exists(fullpath):
+                        installsize += os.path.getsize(fullpath)
+        except OSError, err:
+            self.log.warn("Could not determine install size: %s" % err)
+
+        return installsize
+
+
 
     def packages(self):
         """
@@ -1382,20 +1299,20 @@ class Application:
             return
 
         if not self.skip:
-            self.make_module(fake=True)
-        # set MODULEPATH to self.builddir/all and load module
+            modpath = self.make_module(fake=True)
+        # adjust MODULEPATH tand load module
         if self.getcfg('pkgloadmodule'):
-            self.log.debug(' '.join(["self.builddir/all: ", os.path.join(self.builddir, 'all')]))
             if self.skip:
                 m = Modules()
             else:
-                m = Modules([os.path.join(self.builddir, 'all')] + os.environ['MODULEPATH'].split(':'))
+                self.log.debug("Adding %s to MODULEPATH" % modpath)
+                m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
-            if m.exists(self.name(), self.installversion):
-                m.addModule([[self.name(), self.installversion]])
+            if m.exists(self.name(), self.installversion()):
+                m.addModule([[self.name(), self.installversion()]])
                 m.load()
             else:
-                self.log.error("module %s version %s doesn't exist" % (self.name(), self.installversion))
+                self.log.error("module %s version %s doesn't exist" % (self.name(), self.installversion()))
 
         self.extra_packages_pre()
 
@@ -1496,7 +1413,7 @@ class Application:
         allclassmodule = pkgdefaultclass[0]
         defaultClass = pkgdefaultclass[1]
         for pkg in self.pkgs:
-            name = pkg['name'][0].upper() + pkg['name'][1:] # classnames start with a capital
+            name = encode_class_name(pkg['name']) # Use the same encoding as get_class
             self.log.debug("Starting package %s" % name)
 
             try:
@@ -1589,15 +1506,6 @@ class Application:
         """
         return self.getcfg('version')
 
-    def dump_cfg_options(self):
-        """
-        Print a list of available configuration options.
-        """
-        for key in sorted(self.cfg):
-            tabs = "\t" * (3 - (len(key) + 1) / 8)
-            print "%s:%s%s" % (key, tabs, self.cfg[key][1])
-
-
 
 class StopException(Exception):
     """
@@ -1605,9 +1513,9 @@ class StopException(Exception):
     """
     pass
 
-def get_instance_for(modulepath, class_name):
+def get_class_for(modulepath, class_name):
     """
-    Get instance for a given class and easyblock module path.
+    Get class for a given class name and easyblock module path.
     """
     # >>> import pkgutil
     # >>> loader = pkgutil.find_loader('easybuild.apps.Base')
@@ -1616,7 +1524,7 @@ def get_instance_for(modulepath, class_name):
     # >>> c()
     m = __import__(modulepath, globals(), locals(), [''])
     c = getattr(m, class_name)
-    return c()
+    return c
 
 def module_path_for_easyblock(easyblock):
     """
@@ -1631,6 +1539,12 @@ def module_path_for_easyblock(easyblock):
 
     if not easyblock:
         return None
+
+    # FIXME: we actually need a decoding function here,
+    # i.e. from encoded class name to module name
+    class_prefix = encode_class_name("")
+    if easyblock.startswith(class_prefix):
+        easyblock = easyblock[len(class_prefix):]
 
     modname = easyblock.replace('-','_')
 
@@ -1658,11 +1572,14 @@ def get_paths_for(log, subdir="easyblocks"):
 
     return paths
 
-def get_instance(easyblock, log, name=None):
+def get_class(easyblock, log, name=None):
     """
     Get instance for a particular application class (or Application)
     """
-    #TODO: create proper factory for this, as explained here
+
+    app_mod_class = ("easybuild.framework.application", "Application")
+
+    #TODO: create proper factory for this, as explained here 
     #http://stackoverflow.com/questions/456672/class-factory-in-python
     try:
         if not easyblock:
@@ -1670,8 +1587,8 @@ def get_instance(easyblock, log, name=None):
                 name = "UNKNOWN"
 
             modulepath = module_path_for_easyblock(name)
-            # don't use capitalize, as it changes 'GCC' into 'Gcc', we want to keep the capitals that are there already
-            class_name = name[0].upper() + name[1:].replace('-','_')
+            # The following is a generic way to calculate unique class names for any funny package title
+            class_name = encode_class_name(name)
 
             # try and find easyblock
             easyblock_found = False
@@ -1694,21 +1611,25 @@ def get_instance(easyblock, log, name=None):
 
                 try:
 
-                    inst = get_instance_for(modulepath, class_name)
+                    cls = get_class_for(modulepath, class_name)
 
                     log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
 
-                    return inst
+                    return cls
 
                 except Exception, err:
                     log.error("Failed to use easyblock at %s for class %s: %s" % (modulepath, class_name, err))
                     raise EasyBuildError(str(err))
 
             else:
-                modulepath = "easybuild.framework.application"
-                class_name = "Application"
+                (modulepath, class_name) = app_mod_class
                 log.debug("Easyblock path %s does not exist, so falling back to default %s class from %s" % (easyblock_path, class_name, modulepath))
 
+        elif easyblock == "Application":
+            (modulepath, class_name) = app_mod_class
+            log.debug("Easyblock %s specified, so using default class %s from %s" % (easyblock,
+                                                                                     class_name,
+                                                                                     modulepath))
         else:
             class_name = easyblock.split('.')[-1]
             # figure out if full path was specified or not
@@ -1719,17 +1640,18 @@ def get_instance(easyblock, log, name=None):
                 modulepath = module_path_for_easyblock(easyblock).lower()
                 log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
 
-        inst = get_instance_for(modulepath, class_name)
+        cls = get_class_for(modulepath, class_name)
         log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-        return inst
+        return cls
 
     except Exception, err:
         log.error("Can't process provided module and class pair %s: %s" % (easyblock, err))
         raise EasyBuildError(str(err))
 
+
 class ApplicationPackage:
     """
-    Class for packages.
+    Support for installing packages.
     """
     def __init__(self, mself, pkg, pkginstalldeps):
         """
@@ -1738,7 +1660,6 @@ class ApplicationPackage:
         self.master = mself
         self.log = self.master.log
         self.cfg = self.master.cfg
-        self.tk = self.master.tk
         self.pkg = pkg
         self.pkginstalldeps = pkginstalldeps
 
@@ -1767,6 +1688,24 @@ class ApplicationPackage:
         Stuff to do after installing a package.
         """
         pass
+
+    def toolkit(self):
+        """
+        Toolkit used to build this package
+        """
+        return self.master.toolkit()
+
+    def toolkit_name(self):
+        """
+        Name of toolkit used to build this package
+        """
+        return self.master.toolkit_name()
+
+    def toolkit_version(self):
+        """
+        Version of toolkit used to build this package
+        """
+        return self.master.toolkit_version()
 
     def sanitycheck(self):
         """

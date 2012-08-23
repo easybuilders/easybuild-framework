@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -24,9 +28,11 @@ Modules functionality: loading modules, checking for available modules, ...
 import os
 import re
 import subprocess
+import sys
 
-from easybuild.tools.build_log import getLog, initLogger, EasyBuildError
+from easybuild.tools.build_log import getLog, EasyBuildError
 from easybuild.tools.filetools import convertName, run_cmd
+
 
 log = getLog('Modules')
 outputMatchers = {
@@ -162,7 +168,7 @@ class Modules:
             modinfo = self.show(name, version)
 
             # second line of module show output contains full path of module file
-            return modinfo.split('\n')[1].replace(':','')
+            return modinfo.split('\n')[1].replace(':', '')
 
     def runModule(self, *args, **kwargs):
         """
@@ -185,11 +191,14 @@ class Modules:
         os.environ['MODULEPATH'] = originalModulePath
 
         if kwargs.get('return_output', False):
-            return (stdout+stderr)
+            return (stdout + stderr)
 
         else:
             # Change the environment
-            exec stdout
+            try:
+                exec stdout
+            except Exception, err:
+                raise EasyBuildError("Changing environment as dictated by module failed: %s" % err)
 
             # Process stderr
             result = []
@@ -221,6 +230,8 @@ class Modules:
         else:
             log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
 
+        # filter devel modules, since they cannot be split like this
+        mods = [mod for mod in mods if not mod.endswith("easybuild-devel")]
         for mod in mods:
             (mod_name, mod_version) = mod.split('/')
             loaded_modules.append({
@@ -230,9 +241,10 @@ class Modules:
 
         return loaded_modules
 
-    def dependencies_for(self, name, version):
+    # depth=sys.maxint should be equivalent to infinite recursion depth
+    def dependencies_for(self, name, version, depth=sys.maxint):
         """
-        Obtain a list of dependencies for the given module (recursively)
+        Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
         """
         modfilepath = self.modulefile_path(name, version)
         log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
@@ -247,12 +259,16 @@ class Modules:
         loadregex = re.compile("^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
 
-        # recursively determine dependencies for dependency modules
-        moddeps = [self.dependencies_for(modname, modversion) for (modname, modversion) in mods]
+        if depth > 0:
+            # recursively determine dependencies for these dependency modules, until depth is non-positive
+            moddeps = [self.dependencies_for(modname, modversion, depth=depth-1) for (modname, modversion) in mods]
+        else:
+            # ignore any deeper dependencies
+            moddeps = []
 
         deps = [{'name':modname, 'version':modversion} for (modname, modversion) in mods]
 
-        # add dependencies of dependency modules only if they're not there yet 
+        # add dependencies of dependency modules only if they're not there yet
         for moddepdeps in moddeps:
             for dep in moddepdeps:
                 if not dep in deps:
@@ -287,26 +303,49 @@ def searchModule(path, query):
         except ValueError:
             pass
 
-def get_software_root(name):
+def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular package.
     """
-    environmentKey = "SOFTROOT%s" % convertName(name, upper=True)
-    return os.getenv(environmentKey)
+    name = convertName(name, upper=True)
+    environment_key = "EBROOT%s" % name
+    legacy_key = "SOFTROOT%s" % name
 
-if __name__ == '__main__':
-    # Run some tests, run as python -m easybuild.tools.modules
-    initLogger(debug=True, typ=None)
-
-    testmods = Modules()
-    ms = testmods.available('', None)
-    ## pick one
-    if len(ms) == 0:
-        print "No modules found"
+    # keep on supporting legacy installations
+    if environment_key in os.environ:
+        env_var = environment_key
     else:
-        import random
-        m = random.choice(ms)
-        print "selected module %s" % m
-        testmods.addModule([m])
-        testmods.load()
+        env_var = legacy_key
 
+    root = os.getenv(env_var)
+
+    if with_env_var:
+        return (root, env_var)
+    else:
+        return root
+
+def get_software_version(name):
+    """
+    Return the software version set for a particular package.
+    """
+    name = convertName(name, upper=True)
+    environment_key = "EBVERSION%s" % name
+    legacy_key = "SOFTVERSION%s" % name
+
+    # keep on supporting legacy installations
+    if environment_key in os.environ:
+        return os.getenv(environment_key)
+    else:
+        return os.getenv(legacy_key)
+
+def curr_module_paths():
+    """
+    Return a list of current module paths.
+    """
+    return os.environ['MODULEPATH'].split(':')
+
+def mk_module_path(paths):
+    """
+    Create a string representing the list of module paths.
+    """
+    return ':'.join(paths)

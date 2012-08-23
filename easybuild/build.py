@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman, Toon Willems
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -19,32 +24,58 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Main entry point for EasyBuild: build software from .eb input file
+"""
+
+import copy
+import platform
 import os
 import re
 import shutil
 import sys
 import tempfile
 import time
-import copy
-import platform
-from easybuild.framework.application import Application, get_instance
+from optparse import OptionParser
+
+# optional Python packages, these might be missing
+# failing imports are just ignored
+# a NameError should be catched where these are used
+
+# PyGraph (used for generating dependency graphs)
+try:
+    import  pygraph.readwrite.dot as dot
+    from pygraph.classes.digraph import digraph
+except ImportError, err:
+    pass
+
+# graphviz (used for creating dependency graph images)
+try:
+    sys.path.append('..')
+    sys.path.append('/usr/lib/graphviz/python/')
+    sys.path.append('/usr/lib64/graphviz/python/')
+    import gv
+except ImportError, err:
+    pass
+
+import easybuild  # required for VERBOSE_VERSION
+import easybuild.framework.easyconfig as easyconfig
+import easybuild.tools.config as config
+import easybuild.tools.filetools as filetools
+import easybuild.tools.parallelbuild as parbuild
+from easybuild.framework.application import get_class
+from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, initLogger, \
     removeLogHandler, print_msg
 from easybuild.tools.class_dumper import dumpClasses
-from easybuild.tools.modules import Modules, searchModule
+from easybuild.tools.modules import Modules, searchModule, \
+    curr_module_paths, mk_module_path
 from easybuild.tools.config import getRepository
-from optparse import OptionParser
-import easybuild.tools.config as config
-import easybuild.tools.filetools as filetools
 from easybuild.tools import systemtools
-
-"""
-Main entry point for EasyBuildBuild: build software from .eb input file
-"""
 
 
 # applications use their own logger, we need to tell them to debug or not
-# so this global var is used.
+# so this global variable is used.
 LOGDEBUG = False
 
 def add_build_options(parser):
@@ -67,11 +98,9 @@ def add_build_options(parser):
                         help="does the build/installation in a test directory " \
                                "located in $HOME/easybuildinstall")
 
-    stop_options = ['cfg', 'source', 'patch', 'configure', 'make', 'install',
-                   'test', 'postproc', 'cleanup', 'packages']
-    parser.add_option("-s", "--stop", type="choice", choices=stop_options,
-                        help="stop the installation after certain step" \
-                               "(valid: %s)" % ', '.join(stop_options))
+    parser.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
+                        help="stop the installation after certain step " \
+                               "(valid: %s)" % ', '.join(EasyConfig.validstops))
     parser.add_option("-b", "--only-blocks", metavar="blocks", help="Only build blocks blk[,blk2]")
     parser.add_option("-k", "--skip", action="store_true",
                         help="skip existing software (useful for installing additional packages)")
@@ -88,6 +117,9 @@ def add_build_options(parser):
     strictness_options = ['ignore', 'warn', 'error']
     parser.add_option("--strict", type="choice", choices=strictness_options, help="set strictness \
                         level (possible levels: %s" % ', '.join(strictness_options))
+    parser.add_option("--job", action="store_true", help="submit the build as job(s)")
+    parser.add_option("--dep-graph", metavar="depgraph.<ext>", help="create dependency graph")
+
 
 def main():
     """
@@ -136,7 +168,7 @@ def main():
         blocks = None
 
     ## Initialize logger
-    logFile, log, hn = initLogger(filename=logFile, debug=options.debug, typ=None)
+    logFile, log, hn = initLogger(filename=logFile, debug=options.debug, typ="build")
 
     ## Show version
     if options.version:
@@ -147,17 +179,24 @@ def main():
     # - then, check command line option
     # - last, use default config file easybuild_config.py in build.py directory
     config_file = options.config
-    if not config_file and os.getenv('EASYBUILDCONFIG'):
-        config_file = os.getenv('EASYBUILDCONFIG')
-    else:
-        appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
-        config_file = os.path.join(appPath, "easybuild_config.py")
+
+    if not config_file:
+        log.debug("No config file specified on command line, trying other options.")
+
+        config_env_var = config.environmentVariables['configFile']
+        if os.getenv(config_env_var):
+            log.debug("Environment variable %s, so using that as config file." % config_env_var)
+            config_file = os.getenv(config_env_var)
+        else:
+            appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
+            config_file = os.path.join(appPath, "easybuild_config.py")
+            log.debug("Falling back to default config: %s" % config_file)
+
     config.init(config_file, **configOptions)
 
-    ## Dump possible options
+    # Dump possible options
     if options.avail_easyconfig_params:
-        app = get_instance(options.easyblock, log)
-        app.dump_cfg_options()
+        print_avail_params(options.easyblock, log)
 
     ## Dump available classes
     if options.dump_classes:
@@ -178,6 +217,15 @@ def main():
     if options.strict:
         filetools.strictness = options.strict
 
+    # building a dependency graph implies force, so that all dependencies are retained
+    # and also skips validation of easyconfigs (e.g. checking os dependencies)
+    validate_easyconfigs = True
+    retain_all_deps = False
+    if options.dep_graph:
+        log.info("Enabling force to generate dependency graph.")
+        options.force = True
+        validate_easyconfigs = False
+        retain_all_deps = True
 
     ## Read easyconfig files
     packages = []
@@ -190,7 +238,9 @@ def main():
             error("Can't find path %s" % path)
 
         try:
-            packages.extend(findEasyconfigs(path, log, blocks, options.regtest_online))
+            files = findEasyconfigs(path, log)
+            for eb_file in files:
+                packages.extend(processEasyconfig(eb_file, log, blocks, validate=validate_easyconfigs))
         except IOError, err:
             log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
@@ -205,21 +255,71 @@ def main():
         for package in checkPackages:
             module = package['module']
             mod = "%s (version %s)" % (module[0], module[1])
-            modspath = os.path.join(config.installPath("mod"), 'all')
+            modspath = mk_module_path(curr_module_paths() + [os.path.join(config.installPath("mod"), 'all')])
             if m.exists(module[0], module[1], modspath):
                 msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
                 print_msg(msg, log)
                 log.info(msg)
             else:
+                log.debug("%s is not installed yet, so retaining it" % mod)
                 packages.append(package)
 
     ## Determine an order that will allow all specs in the set to build
     if len(packages) > 0:
         print_msg("resolving dependencies ...", log)
-        orderedSpecs = resolveDependencies(packages, options.robot, log)
+        # force all dependencies to be retained and validation to be skipped for building dep graph
+        force = retain_all_deps and not validate_easyconfigs
+        orderedSpecs = resolveDependencies(packages, options.robot, log, force=force)
     else:
         print_msg("No packages left to be built.", log)
         orderedSpecs = []
+
+    # create dependency graph and exit
+    if options.dep_graph:
+        log.info("Creating dependency graph %s" % options.dep_graph)
+        try:
+            dep_graph(options.dep_graph, orderedSpecs, log)
+        except NameError, err:
+            log.error("At least one optional Python packages (pygraph, dot, graphviz) required to " \
+                      "generate dependency graphs is missing: %s" % err)
+        sys.exit(0)
+
+    # submit build as job(s) and exit
+    if options.job:
+        curdir = os.getcwd()
+        easybuild_basedir = os.path.dirname(os.path.dirname(sys.argv[0]))
+        eb_path = os.path.join(easybuild_basedir, "eb")
+
+        # Reverse option parser -> string
+
+        # the options to ignore
+        ignore = map(parser.get_option, ['--robot', '--help', '--job'])
+
+        # loop over all the different options.
+        result_opts = []
+        relevant_opts = [o for o in parser.option_list if o not in ignore]
+        for opt in relevant_opts:
+            value = getattr(options, opt.dest)
+            # explicit check for None (some option are store_false)
+            if value != None:
+                # get_opt_string is not documented (but is a public method)
+                name = opt.get_opt_string()
+                if opt.action == 'store':
+                    result_opts.append("%s %s" % (name, value))
+                else:
+                    result_opts.append(name)
+
+        opts = ' '.join(result_opts)
+
+        command = "cd %s && %s %%s %s" % (curdir, eb_path, opts)
+        jobs = parbuild.build_packages_in_parallel(command, orderedSpecs, "easybuild-build", log)
+        print "List of submitted jobs:"
+        for job in jobs:
+            print "%s: %s" % (job.name, job.jobid)
+        print "(%d jobs submitted)" % len(jobs)
+
+        log.info("Submitted parallel build jobs, exiting now")
+        sys.exit(0)
 
     ## Build software, will exit when errors occurs (except when regtesting)
     correct_built_cnt = 0
@@ -256,12 +356,12 @@ def error(message, exitCode=1, optparser=None):
         optparser.print_help()
     sys.exit(exitCode)
 
-def findEasyconfigs(path, log, onlyBlocks=None, regtest_online=False):
+def findEasyconfigs(path, log):
     """
-    Find .eb easyconfig files in path and process them
+    Find .eb easyconfig files in path
     """
     if os.path.isfile(path):
-        return processEasyconfig(path, log, onlyBlocks, regtest_online)
+        return [path]
 
     ## Walk through the start directory, retain all files that end in .eb
     files = []
@@ -275,12 +375,9 @@ def findEasyconfigs(path, log, onlyBlocks=None, regtest_online=False):
             log.debug("Found easyconfig %s" % spec)
             files.append(spec)
 
-    packages = []
-    for filename in files:
-        packages.extend(processEasyconfig(filename, log, onlyBlocks, regtest_online))
-    return packages
+    return files
 
-def processEasyconfig(path, log, onlyBlocks=None, regtest_online=False):
+def processEasyconfig(path, log, onlyBlocks=None, regtest_online=False, validate=True):
     """
     Process easyconfig, returning some information for each block
     """
@@ -292,55 +389,59 @@ def processEasyconfig(path, log, onlyBlocks=None, regtest_online=False):
         ## - use mod? __init__ and importCfg are ignored.
         log.debug("Processing easyconfig %s" % spec)
 
+        # create easyconfig
         try:
-            app = Application(debug=LOGDEBUG)
-            app.process_ebfile(spec, regtest_online)
+            eb = EasyConfig(spec, validate=validate)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             log.exception(msg)
-            raise EasyBuildError(msg)
+
+        name = eb['name']
 
         ## this app will appear as following module in the list
         package = {
             'spec': spec,
-            'module': (app.name(), app.installversion),
+            'module': (eb.name(), eb.installversion()),
             'dependencies': []
         }
         if len(blocks) > 1:
             package['originalSpec'] = path
 
-        for d in app.dep:
+        for d in eb.dependencies():
             dep = (d['name'], d['tk'])
-            log.debug("Adding dependency %s for app %s." % (dep, app.name()))
+            log.debug("Adding dependency %s for app %s." % (dep, name))
             package['dependencies'].append(dep)
 
-        if app.tk.name != 'dummy':
-            dep = (app.tk.name, app.tk.version)
-            log.debug("Adding toolkit %s as dependency for app %s." % (dep, app.name()))
+        if eb.toolkit_name() != 'dummy':
+            dep = (eb.toolkit_name(), eb.toolkit_version())
+            log.debug("Adding toolkit %s as dependency for app %s." % (dep, name))
             package['dependencies'].append(dep)
 
-        try:
-            app.closelog()
-            os.remove(app.logfile)
-        except:
-            msg = "Failed to remove log file %s" % app.logfile
-            log.exception(msg)
-            raise EasyBuildError(msg)
-        del app
+        del eb
+
+        # this is used by the parallel builder
+        package['unresolvedDependencies'] = copy.copy(package['dependencies'])
 
         packages.append(package)
 
     return packages
 
-def resolveDependencies(unprocessed, robot, log):
+def resolveDependencies(unprocessed, robot, log, force=False):
     """
     Work through the list of packages to determine an optimal order
+    enabling force results in retaining all dependencies and skipping validation of easyconfigs
     """
 
-    ## Get a list of all available modules (format: [(name, installversion), ...])
-    availableModules = Modules().available()
-    if len(availableModules) == 0:
-        log.warning("No installed modules. Your MODULEPATH is probably incomplete.")
+    if force:
+        # assume that no modules are available when forced
+        availableModules = []
+        log.info("Forcing all dependencies to be retained.")
+    else:
+        # Get a list of all available modules (format: [(name, installversion), ...])
+        availableModules = Modules().available()
+
+        if len(availableModules) == 0:
+            log.warning("No installed modules. Your MODULEPATH is probably incomplete.")
 
     orderedSpecs = []
     # All available modules can be used for resolving dependencies except
@@ -361,7 +462,6 @@ def resolveDependencies(unprocessed, robot, log):
         if loopcnt > maxloopcnt:
             msg = "Maximum loop cnt %s reached, so quitting." % maxloopcnt
             log.error(msg)
-            raise EasyBuildError(msg)
 
         ## First try resolving dependencies without using external dependencies
         lastProcessedCount = -1
@@ -389,13 +489,12 @@ def resolveDependencies(unprocessed, robot, log):
                 if path:
                     log.info("Robot: resolving dependency %s with %s" % (candidates[0], path))
 
-                    processedSpecs = processEasyconfig(path, log)
+                    processedSpecs = processEasyconfig(path, log, validate=(not force))
+
+                    # ensure the pathname is equal to the module
                     mods = [spec['module'] for spec in processedSpecs]
                     if not candidates[0] in mods:
-                        msg = "Expected easyconfig %s to resolve dependency for %s, but it does not" % (path, candidates[0])
-                        msg += " (list of obtained modules after processing easyconfig: %s)" % mods
-                        log.error(msg)
-                        raise EasyBuildError(msg)
+                        log.error("easyconfig file %s does not contain module %s" % (path, candidates[0]))
 
                     unprocessed.extend(processedSpecs)
                     robotAddedDependency = True
@@ -411,7 +510,6 @@ def resolveDependencies(unprocessed, robot, log):
 
         msg = "Dependencies not met. Cannot resolve %s" % missingDependencies.keys()
         log.error(msg)
-        raise EasyBuildError(msg)
 
     log.info("Dependency resolution complete, building as follows:\n%s" % orderedSpecs)
     return orderedSpecs
@@ -477,7 +575,6 @@ def retrieveBlocksInSpec(spec, log, onlyBlocks):
             if blockName in [b['name'] for b in blocks]:
                 msg = "Found block %s twice in %s." % (blockName, spec)
                 log.error(msg)
-                raise EasyBuildError(msg)
 
             block = {'name': blockName, 'contents': blockContents}
 
@@ -512,7 +609,6 @@ def retrieveBlocksInSpec(spec, log, onlyBlocks):
                         if not dep in [b['name'] for b in blocks]:
                             msg = "Block %s depends on %s, but block was not found." % (name, dep)
                             log.error(msg)
-                            raise EasyBuildError(msg)
 
                         dep = [b for b in blocks if b['name'] == dep][0]
                         f.write("\n## Dependency block %s" % (dep['name']))
@@ -525,7 +621,6 @@ def retrieveBlocksInSpec(spec, log, onlyBlocks):
             except Exception:
                 msg = "Failed to write block %s to easyconfig %s" % (name, spec)
                 log.exception(msg)
-                raise EasyBuildError(msg)
 
             specs.append(blockPath)
 
@@ -564,7 +659,8 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
 
     name = module['module'][0]
     try:
-        app = get_instance(easyblock, log, name=name)
+        app_class = get_class(easyblock, log, name=name)
+        app = app_class(spec, debug=options.debug)
         log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg))
@@ -577,8 +673,6 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
     if options.skip:
         log.debug("Skip set to %s" % options.skip)
         app.setcfg('skip', options.skip)
-
-    app.logdebug = options.debug
 
     ## Build easyconfig
     errormsg = '(no error)'
@@ -635,9 +729,9 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
                 ## Upload spec to central repository
                 repo = getRepository()
                 if 'originalSpec' in module:
-                    repo.addEasyconfig(module['originalSpec'], app.name(), app.installversion + ".block", buildstats, currentbuildstats)
-                repo.addEasyconfig(spec, app.name(), app.installversion, buildstats, currentbuildstats)
-                repo.commit("Built %s/%s" % (app.name(), app.installversion))
+                    repo.addEasyconfig(module['originalSpec'], app.name(), app.installversion() + ".block", buildstats, currentbuildstats)
+                repo.addEasyconfig(spec, app.name(), app.installversion(), buildstats, currentbuildstats)
+                repo.commit("Built %s/%s" % (app.name(), app.installversion()))
                 del repo
             except EasyBuildError, err:
                 log.warn("Unable to commit easyconfig to repository (%s)", err)
@@ -657,7 +751,7 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
             error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
 
         try:
-            shutil.copy(spec, os.path.join(newLogDir, "%s-%s.eb" % (app.name(), app.installversion)))
+            shutil.copy(spec, os.path.join(newLogDir, "%s-%s.eb" % (app.name(), app.installversion())))
         except IOError, err:
             error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
 
@@ -699,6 +793,70 @@ def build(module, options, log, origEnviron, exitOnFailure=True):
             return (False, applicationLog)
     else:
         return (True, applicationLog)
+
+def print_avail_params(easyblock, log):
+    app = get_class(easyblock, log)
+    extra = app.extra_options()
+    mapping = easyconfig.convert_to_help(EasyConfig.default_config + extra)
+
+    for key, values in mapping.items():
+        print "%s" % key.upper()
+        print '-' * len(key)
+        for name, value in values:
+            tabs = "\t" * (3 - (len(name) + 1) / 8)
+            print "%s:%s%s" % (name, tabs, value)
+
+        print
+
+
+def dep_graph(fn, specs, log):
+    """
+    Create a dependency graph for the given easyconfigs.
+    """
+
+    # check whether module names are unique
+    # if so, we can omit versions in the graph 
+    names = set()
+    for spec in specs:
+        names.add(spec['module'][0])
+    omit_versions = len(names) == len(specs)
+
+    def mk_node_name(mod):
+        if omit_versions:
+            return mod[0]
+        else:
+            return '-'.join(mod)
+
+    # enhance list of specs
+    for spec in specs:
+        spec['module'] = mk_node_name(spec['module'])
+        spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']] #[s[0] for s in spec['unresolvedDependencies']]
+
+    # build directed graph
+    dgr = digraph()
+    dgr.add_nodes([spec['module'] for spec in specs])
+    for spec in specs:
+        for dep in spec['unresolvedDependencies']:
+            dgr.add_edge((spec['module'], dep))
+
+    # write to file
+    dottxt = dot.write(dgr)
+    if fn.endswith(".dot"):
+        # create .dot file
+        try:
+            f = open(fn, "w")
+            f.write(dottxt)
+            f.close()
+        except IOError, err:
+            log.error("Failed to create file %s: %s" % (fn, err))
+    else:
+        # try and render graph in specified file format
+        gvv = gv.readstring(dottxt)
+        gv.layout(gvv, 'dot')
+        gv.render(gvv, fn.split('.')[-1], fn)
+
+    print "Wrote dependency graph to %s" % fn
+
 
 if __name__ == "__main__":
     try:

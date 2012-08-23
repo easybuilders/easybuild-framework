@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman, Toon Willems
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,7 +23,12 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild configuration file.
+"""
+
 import os
+import tempfile
 
 from easybuild.tools.build_log import getLog
 import easybuild.tools.config as config
@@ -59,11 +69,14 @@ sourcePath = os.path.join(prefix, sourceDir)
 ## optionally a subdir argument can be specified:
 ## `repository = FileRepository(repositoryPath, subdir)`
 repositoryPath = os.path.join(prefix, 'ebfiles_repo')
-repository = FileRepository(repositoryPath)
+repository = FileRepository(repositoryPath)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
 
 # log format: (dir, filename template)
 # supported in template: name, version, data, time
-logFormat = ("easybuildlog", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+logFormat = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+
+# set the path where log files will be stored
+logDir = tempfile.gettempdir()
 
 # general cleanliness
 del os, getLog, config, log, prefix, buildDir, installDir, sourceDir

@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -21,18 +26,24 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 """
+
 import os
+import tempfile
 
 from easybuild.tools.build_log import getLog
 import easybuild.tools.repository as repo
+
 
 log = getLog('config')
 
 variables = {}
 requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH',
-    'installPath': 'EASYBUILDINSTALLPATH'
+    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
+    'installPath': 'EASYBUILDINSTALLPATH', # final install path
+    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
+    'configFile': 'EASYBUILDCONFIG', # path to the config file
+    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
 }
 
 def init(filename, **kwargs):
@@ -164,3 +175,10 @@ def logPath():
     Return the log path
     """
     return variables['logFormat'][0]
+
+def get_build_log_path():
+    """
+    return temporary log directory
+    """
+    return variables.get('logDir', tempfile.gettempdir())
+

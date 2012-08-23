@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -27,25 +32,34 @@ import getpass
 import os
 import shutil
 import socket
-import sys
 import tempfile
 import time
 
-import easybuild
-from easybuild.tools.build_log import getLog, EasyBuildError
+# optional Python packages, these might be missing
+# failing imports are just ignored
+# a NameError should be catched where these are used
 
-log = getLog('repo')
+# GitPython
 try:
     import git
     from git import GitCommandError
 except ImportError:
     pass
 
+# PySVN
 try:
-    import pysvn
+    import pysvn  #@UnusedImport
     from pysvn import ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
 except ImportError:
     pass
+
+import easybuild
+from easybuild.framework.easyconfig import EasyConfig
+from easybuild.tools.build_log import getLog
+
+
+log = getLog('repo')
+
 
 class Repository:
     """
@@ -97,9 +111,17 @@ class Repository:
         """
         Clean up working copy.
         """
-        return
+        pass
+
+    def get_buildstats(self, name, version):
+        """
+        Get the build statististics for module with name and version
+        """
+        pass
+
 
 class FileRepository(Repository):
+    """Class for file repositories."""
 
     def setupRepo(self):
         """
@@ -145,7 +167,7 @@ class FileRepository(Repository):
 
             # append a line to the eb file so we don't have git merge conflicts
             if not previous:
-                statstemplate = "\n#Build statistics\nbuildstats=[%s]t\n"
+                statstemplate = "\n#Build statistics\nbuildstats=[%s]\n"
             else:
                 statstemplate = "\nbuildstats.append(%s)\n"
 
@@ -157,11 +179,29 @@ class FileRepository(Repository):
 
         return dest
 
+    def get_buildstats(self, name, version):
+        """
+        return the build statistics
+        """
+        full_path = os.path.join(self.wc, self.subdir, name)
+        if not os.path.isdir(full_path):
+            log.debug("module (%s) has not been found in the repo" % name)
+            return []
+
+        dest = os.path.join(full_path, "%s.eb" % version)
+        if not os.path.isfile(dest):
+            log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
+            return []
+
+        eb = EasyConfig(dest)
+        return eb['buildstats']
+
 
 class GitRepository(FileRepository):
     """
-    Class representing a git repository.
+    Class for git repositories.
     """
+
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
@@ -175,10 +215,9 @@ class GitRepository(FileRepository):
         Set up git repository.
         """
         try:
-            import git
-            from git import GitCommandError
-        except ImportError:
-            log.exception("GitPython failed to load")
+            git.GitCommandError
+        except NameError, err:
+            log.exception("It seems like GitPython is not available: %s" % err)
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
     def createWorkingCopy(self):
@@ -252,8 +291,9 @@ class GitRepository(FileRepository):
 
 class SvnRepository(FileRepository):
     """
-    class representing an svn repository
+    Class for svn repositories
     """
+
     def __init__(self, *args):
         """
         Set self.client to None. Real logic is in setupRepo and createWorkingCopy
@@ -267,10 +307,9 @@ class SvnRepository(FileRepository):
         """
         self.repo = os.path.join(self.repo, self.subdir)
         try:
-            import pysvn
-            from pysvn import ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
-        except ImportError:
-            log.exception("Failed to load pysvn. Make sure it is installed "
+            raise pysvn.ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
+        except NameError, err:
+            log.exception("pysvn not available (%s). Make sure it is installed " % err +
                           "properly. Run 'python -c \"import pysvn\"' to test.")
 
         ## try to connect to the repository

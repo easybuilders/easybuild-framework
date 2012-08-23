@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,15 +22,18 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for installing the Intel MPI library, implemented as an easyblock
+"""
 
 import os
-
 from distutils.version import LooseVersion
 
-from easybuild.easyblocks.i.intelbase import IntelBase
+from easybuild.easyblocks.i.intelbase import EB_IntelBase
 from easybuild.tools.filetools import run_cmd
 
-class Impi(IntelBase):
+
+class EB_impi(EB_IntelBase):
     """
     Support for installing Intel MPI library
     """
@@ -39,7 +46,7 @@ class Impi(IntelBase):
         """
         if LooseVersion(self.version()) >= LooseVersion('4.0.1'):
             #impi starting from version 4.0.1.x uses standard installation procedure.
-            IntelBase.make_install(self)
+            EB_IntelBase.make_install(self)
             return None
         else:
             #impi up until version 4.0.0.x uses custom installation procedure.
@@ -66,7 +73,7 @@ EULA=accept
 
 """ % {'lic':self.license, 'ins':self.installdir}
 
-            ##already in correct directory
+            # already in correct directory
             silentcfg = os.path.join(os.getcwd(), "silent.cfg")
             try:
                 f = open(silentcfg, 'w')
@@ -74,7 +81,7 @@ EULA=accept
                 f.close()
             except:
                 self.log.exception("Writing silent cfg file %s failed." % silent)
-            ## tmpdir
+
             tmpdir = os.path.join(os.getcwd(), self.version(), 'mytmpdir')
             try:
                 os.makedirs(tmpdir)
@@ -101,7 +108,7 @@ EULA=accept
 
     def make_module_extra(self):
         """Overwritten from Application to add extra txt"""
-        txt = IntelBase.make_module_extra(self)
+        txt = EB_IntelBase.make_module_extra(self)
         txt += "prepend-path\t%s\t\t%s\n" % ('INTEL_LICENSE_FILE', self.license)
         txt += "setenv\t%s\t\t$root\n" % ('I_MPI_ROOT')
 

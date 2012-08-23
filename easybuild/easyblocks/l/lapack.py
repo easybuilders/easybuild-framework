@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,11 +22,20 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for building and installing LAPACK, implemented as an easyblock
+"""
+
 import glob
 import os
 import shutil
+
+import easybuild.tools.toolkit as toolkit
 from easybuild.framework.application import Application
+from easybuild.framework.easyconfig import CUSTOM
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.modules import get_software_root
+
 
 # also used for e.g. ScaLAPACK
 def get_blas_lib(log):
@@ -31,24 +44,25 @@ def get_blas_lib(log):
     """
     blaslib = None
     known_blas_libs = {
-                       'GotoBLAS' : '-L%s -lgoto',
-                       'ATLAS' : '-L%s -lf77blas -latlas'
-                       }
+                       'GotoBLAS': '-L%s -lgoto',
+                       'ATLAS': '-L%s -lf77blas -latlas'
+                      }
     for (key,val) in known_blas_libs.items():
-        softroot = 'SOFTROOT%s' % key.upper()
-        if os.getenv(softroot):
-            blaslib = val % os.path.join(os.getenv(softroot), 'lib')
-            log.debug("Found %s, so using %s as BLAS lib" % (softroot, key))
+        root = get_software_root(key)
+        if root:
+            blaslib = val % os.path.join(root, 'lib')
+            log.debug("Using %s as BLAS lib" % root)
             break
         else:
-            log.debug("%s not defined, so %s not loaded" % (softroot, key))
+            log.debug("%s module not loaded" % key)
 
     if not blaslib:
         log.error("No or unknown BLAS lib loaded; known BLAS libs: %s" % known_blas_libs.keys())
 
     return blaslib
 
-class LAPACK(Application):
+
+class EB_LAPACK(Application):
     """
     Support for building LAPACK
     - read make.inc.example and replace BLAS line with configtops
@@ -58,10 +72,14 @@ class LAPACK(Application):
     def __init__(self, *args, **kwargs):
         Application.__init__(self, *args, **kwargs)
 
-        self.cfg.update({
-                         'supply_blas':[False, "Supply BLAS lib to LAPACK for building (default: False)"],
-                         'test_only':[False, "Only make tests, don't try and build LAPACK lib."]
-                         })
+    @staticmethod
+    def extra_options():
+        extra_vars = [
+                      ('supply_blas', [False, "Supply BLAS lib to LAPACK for building (default: False)", CUSTOM]),
+                      ('test_only', [False, "Only make tests, don't try and build LAPACK lib.", CUSTOM])
+                     ]
+        return Application.extra_options(extra_vars)
+
 
     def configure(self):
         """
@@ -69,9 +87,9 @@ class LAPACK(Application):
         """
 
         # copy make.inc file from examples
-        if os.getenv('SOFTROOTGCC'):
+        if self.toolkit().comp_family() == toolkit.GCC:
             makeinc = 'gfortran'
-        elif os.getenv('SOFTROOTIFORT'):
+        elif self.toolkit().comp_family() == toolkit.INTEL:
             makeinc = 'ifort'
         else:
             self.log.error("Don't know which make.inc file to pick, unknown compiler being used...")
@@ -92,7 +110,7 @@ class LAPACK(Application):
 
         # set optimization flags
         fpic = ''
-        if self.tk.opts['pic']:
+        if self.toolkit().opts['pic']:
             fpic = '-fPIC'
         self.updatecfg('makeopts', 'OPTS="$FFLAGS -m64" NOOPT="%s -m64 -O0"' % fpic)
 
@@ -130,7 +148,6 @@ class LAPACK(Application):
             # default make suffices (for now)
             Application.make(self)
 
-
     def make_install(self):
         """
         Install LAPACK: copy all .a files to lib dir in install directory
@@ -146,14 +163,14 @@ class LAPACK(Application):
         try:
             os.makedirs(destdir)
 
-            ## copy all .a files
+            # copy all .a files
             os.chdir(srcdir)
             for lib in glob.glob('*.a'):
                 srcfile = os.path.join(srcdir, lib)
                 self.log.debug("Copying file %s to dir %s" % (srcfile, destdir))
                 shutil.copy2(srcfile, destdir)
 
-            ## symlink libraries to sensible names, if they aren't renamed already
+            # symlink libraries to sensible names, if they aren't renamed already
             for (fromfile, tofile) in [('liblapack_LINUX.a', 'liblapack.a'),
                                        ('tmglib_LINUX.a', 'libtmglib.a')]:
                 frompath = os.path.join(destdir, fromfile)
@@ -163,7 +180,7 @@ class LAPACK(Application):
                     os.symlink(frompath, topath)
 
         except OSError, err:
-            self.log.error("Copying %s to installation dir %s failed: %s"%(srcdir, destdir, err))
+            self.log.error("Copying %s to installation dir %s failed: %s" % (srcdir, destdir, err))
 
     def test(self):
         """
@@ -171,7 +188,7 @@ class LAPACK(Application):
         """
         if self.getcfg('test_only'):
 
-            if not os.getenv('SOFTROOTLAPACK'):
+            if not get_software_root('LAPACK'):
                 self.log.error("You need to make sure that the LAPACK module is loaded to perform testing.")
 
             blaslib = get_blas_lib(self.log)
@@ -193,19 +210,21 @@ class LAPACK(Application):
         """
         if self.getcfg('test_only'):
             pass
-
         else:
-            Application.make_module(self, fake)
+            return Application.make_module(self, fake)
 
     def sanitycheck(self):
         """
-        Custom sanity check for LAPACK.
+        Custom sanity check for LAPACK (only run when not testing)
         """
-        if not self.getcfg('sanityCheckPaths'):
-            self.setcfg('sanityCheckPaths',{'files':["lib/%s"%x for x in ["liblapack.a","libtmglib.a"]],
-                                            'dirs':[]
-                                           })
+        if not self.getcfg('test_only'):
+            if not self.getcfg('sanityCheckPaths'):
+                self.setcfg('sanityCheckPaths',{
+                                                'files': ["lib/%s" % x for x in ["liblapack.a",
+                                                                                 "libtmglib.a"]],
+                                                'dirs': []
+                                               })
 
-            self.log.info("Customized sanity check paths: %s"%self.getcfg('sanityCheckPaths'))
+                self.log.info("Customized sanity check paths: %s" % self.getcfg('sanityCheckPaths'))
 
-        Application.sanitycheck(self)
+            Application.sanitycheck(self)

@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -21,6 +26,7 @@
 """
 Set of file tools
 """
+import errno
 import os
 import re
 import shutil
@@ -30,13 +36,17 @@ import subprocess
 import tempfile
 import time
 
-from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT, send_all, recv_some
+import easybuild.tools.environment as env
+from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
+from easybuild.tools.asyncprocess import send_all, recv_some
 from easybuild.tools.build_log import getLog
+
 
 log = getLog('fileTools')
 errorsFoundInLog = 0
 
 strictness = 'warn'
+
 
 def unpack(fn, dest, extra_options=None, overwrite=False):
     """
@@ -74,6 +84,7 @@ def unpack(fn, dest, extra_options=None, overwrite=False):
 
     return findBaseDir()
 
+
 def findBaseDir():
     """
     Try to locate a possible new base directory
@@ -82,8 +93,8 @@ def findBaseDir():
       expect only the first one to give the correct path
     """
     def getLocalDirsPurged():
-        ## e.g. always purge the easybuildlog directory
-        ignoreDirs = ['easybuildlog']
+        ## e.g. always purge the log directory
+        ignoreDirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
         for ignDir in ignoreDirs:
@@ -108,6 +119,7 @@ def findBaseDir():
     log.debug("Possible new dir %s found" % newDir)
     return newDir
 
+
 def extractCmd(fn, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
@@ -131,7 +143,7 @@ def extractCmd(fn, overwrite=False):
         if ff[-2] == 'tar':
             ftype = 'tar xjf %s'
     if ff[-1] == 'tbz':
-        ftype = 'tar xfj %s'
+        ftype = 'tar xjf %s'
 
     # tarball
     if ff[-1] == 'tar':
@@ -148,6 +160,7 @@ def extractCmd(fn, overwrite=False):
         log.error('Unknown file type from file %s (%s)' % (fn, ff))
 
     return ftype % fn
+
 
 def patch(patchFile, dest, fn=None, copy=False, level=None):
     """
@@ -248,6 +261,7 @@ def patch(patchFile, dest, fn=None, copy=False, level=None):
 
     return result
 
+
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """
     Executes a command cmd
@@ -324,6 +338,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         runLog.close()
 
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
+
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """
@@ -512,6 +527,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
 
+
 def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     will parse and perform error checks based on strictness setting
@@ -565,10 +581,10 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
         # Because we are not running in simple mode, we return the output and ec to the user
         return (stdouterr, ec)
 
+
 def modifyEnv(old, new):
     """
     Compares 2 os.environ dumps. Adapts final environment.
-    - Assinging to os.environ doesn't seem to work, need to use os.putenv
     """
     oldKeys = old.keys()
     newKeys = new.keys()
@@ -578,12 +594,10 @@ def modifyEnv(old, new):
             ## hmm, smart checking with debug logging
             if not new[key] == old[key]:
                 log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
-                os.putenv(key, new[key])
-                os.environ[key] = new[key]
+                env.set(key, new[key])
         else:
             log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
-            os.putenv(key, new[key])
-            os.environ[key] = new[key]
+            env.set(key, new[key])
 
     for key in oldKeys:
         if not key in newKeys:
@@ -592,6 +606,7 @@ def modifyEnv(old, new):
             del os.environ[key]
 
     return 'ok'
+
 
 def convertName(name, upper=False):
     """
@@ -609,6 +624,7 @@ def convertName(name, upper=False):
         return name.upper()
     else:
         return name
+
 
 def parselogForError(txt, regExp=None, stdout=True, msg=None):
     """
@@ -645,28 +661,42 @@ def parselogForError(txt, regExp=None, stdout=True, msg=None):
 
     return res
 
-def recursiveChmod(path, permissionBits, add=True, onlyFiles=False):
+
+def adjust_permissions(name, permissionBits, add=True, onlyFiles=False, recursive=True):
     """
     Add or remove (if add is False) permissionBits from all files
     and directories (if onlyFiles is False) in path
     """
-    for root, dirs, files in os.walk(path):
-        paths = files
-        if not onlyFiles:
-            paths += dirs
 
-        for path in paths:
-            # Ignore errors while walking (for example caused by bad links)
-            try:
-                absEl = os.path.join(root, path)
-                perms = os.stat(absEl)[stat.ST_MODE]
+    allpaths = []
 
-                if add:
-                    os.chmod(absEl, perms | permissionBits)
-                else:
-                    os.chmod(absEl, perms & ~permissionBits)
-            except OSError, err:
-                log.debug("Failed to chmod %s (but ignoring it): %s" % (path, err))
+    if recursive:
+        log.info("Adjusting permissions recursively for %s" % name)
+        for root, dirs, files in os.walk(name):
+            paths = files
+            if not onlyFiles:
+                paths += dirs
+
+            for path in paths:
+                allpaths.append(os.path.join(root, path))
+
+    else:
+        log.info("Adjusting permissions for %s" % name)
+        allpaths = [name]
+
+    for path in allpaths:
+        log.info("Adjusting permissions for %s" % path)
+        # ignore errors while adjusting permissions (for example caused by bad links)
+        try:
+            perms = os.stat(path)[stat.ST_MODE]
+
+            if add:
+                os.chmod(path, perms | permissionBits)
+            else:
+                os.chmod(path, perms & ~permissionBits)
+        except OSError, err:
+            log.info("Failed to chmod %s (but ignoring it): %s" % (path, err))
+
 
 def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
@@ -689,3 +719,172 @@ def patch_perl_script_autoflush(path):
 
     except IOError, err:
         log.error("Failed to patch Perl configure script: %s" % err)
+
+def mkdir(directory, parents=False):
+    """
+    Create a directory
+    Directory is the path to make
+    log is the logger to which to log debugging or error info.
+    
+    When parents is True then no error if directory already exists
+    and make parent directories as needed (cfr. mkdir -p)
+    """
+    if parents:
+        try:
+            os.makedirs(directory)
+            log.debug("Succesfully created directory %s and needed parents" % directory)
+        except OSError, err:
+            if err.errno == errno.EEXIST:
+                log.debug("Directory %s already exitst" % directory)
+            else:
+                log.error("Failed to create directory %s: %s" % (directory, err))
+    else:#not parrents
+        try:
+            os.mkdir(directory)
+            log.debug("Succesfully created directory %s" % directory)
+        except OSError, err:
+            if err.errno == errno.EEXIST:
+                log.warning("Directory %s already exitst" % directory)
+            else:
+                log.error("Failed to create directory %s: %s" % (directory, err))
+
+
+def copytree(src, dst, symlinks=False, ignore=None):
+    """
+    Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
+    and this code can be improved...
+    
+    Recursively copy a directory tree using copy2().
+
+    The destination directory must not already exist.
+    If exception(s) occur, an Error is raised with a list of reasons.
+
+    If the optional symlinks flag is true, symbolic links in the
+    source tree result in symbolic links in the destination tree; if
+    it is false, the contents of the files pointed to by symbolic
+    links are copied.
+
+    The optional ignore argument is a callable. If given, it
+    is called with the `src` parameter, which is the directory
+    being visited by copytree(), and `names` which is the list of
+    `src` contents, as returned by os.listdir():
+
+        callable(src, names) -> ignored_names
+
+    Since copytree() is called recursively, the callable will be
+    called once for each directory that is copied. It returns a
+    list of names relative to the `src` directory that should
+    not be copied.
+
+    XXX Consider this example code rather than the ultimate tool.
+
+    """
+    class Error(EnvironmentError):
+        pass
+    try:
+        WindowsError #@UndefinedVariable
+    except NameError:
+        WindowsError = None
+
+    names = os.listdir(src)
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+    log.debug("copytree: skipping copy of %s" % ignored_names)
+    os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
+        try:
+            if symlinks and os.path.islink(srcname):
+                linkto = os.readlink(srcname)
+                os.symlink(linkto, dstname)
+            elif os.path.isdir(srcname):
+                copytree(srcname, dstname, symlinks, ignore)
+            else:
+                # Will raise a SpecialFileError for unsupported file types
+                shutil.copy2(srcname, dstname)
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except Error, err:
+            errors.extend(err.args[0])
+        except EnvironmentError, why:
+            errors.append((srcname, dstname, str(why)))
+    try:
+        shutil.copystat(src, dst)
+    except OSError, why:
+        if WindowsError is not None and isinstance(why, WindowsError):
+            # Copying file access times may fail on Windows
+            pass
+        else:
+            errors.extend((src, dst, str(why)))
+    if errors:
+        raise Error, errors
+
+def encode_string(name):
+    """
+    This encoding function handles funky package names ad infinitum, like:
+      example: '0_foo+0x0x#-$__'
+      becomes: '0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'
+    The intention is to have a robust escaping mechanism for names like c++, C# et al
+
+    It has been inspired by the concepts seen at, but in lowercase style:
+    * http://fossies.org/dox/netcdf-4.2.1.1/escapes_8c_source.html
+    * http://celldesigner.org/help/CDH_Species_01.html
+    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
+    and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
+    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    For readability of >2 words, it is suggested to use _CamelCase_ style.
+    So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
+    valid package name; package "electron" in the original spelling anyone? ;-)
+
+    """
+
+    charmap = {
+               ' ': "_space_",
+               '!': "_exclamation_",
+               '"': "_quotation_",
+               '#': "_hash_",
+               '$': "_dollar_",
+               '%': "_percent_",
+               '&': "_ampersand_",
+               '(': "_leftparen_",
+               ')': "_rightparen_",
+               '*': "_asterisk_",
+               '+': "_plus_",
+               ',': "_comma_",
+               '-': "_minus_",
+               '.': "_period_",
+               '/': "_slash_",
+               ':': "_colon_",
+               ';': "_semicolon_",
+               '<': "_lessthan_",
+               '=': "_equals_",
+               '>': "_greaterthan_",
+               '?': "_question_",
+               '@': "_atsign_",
+               '[': "_leftbracket_",
+               '\'': "_apostrophe_",
+               '\\': "_backslash_",
+               ']': "_rightbracket_",
+               '^': "_circumflex_",
+               '_': "_underscore_",
+               '`': "_backquote_",
+               '{': "_leftcurly_",
+               '|': "_verticalbar_",
+               '}': "_rightcurly_",
+               '~': "_tilde_"
+              }
+
+    # do the character remapping, return same char by default
+    result = ''.join(map(lambda x: charmap.get(x, x), name))
+    return result
+
+def encode_class_name(name):
+    """return encoded version of class name"""
+    return "EB_" + encode_string(name)
+

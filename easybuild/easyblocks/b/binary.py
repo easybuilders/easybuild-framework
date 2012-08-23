@@ -23,19 +23,23 @@
 # along with EasyBuild. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBlock for binary applications
+General EasyBuild support for software with a binary installer
 """
+
 import shutil
 import os
 import stat
+
 from easybuild.framework.application import Application
 
-class Binary(Application):
+
+class EB_Binary(Application):
     """Support for installing a binary package.
     Just copy it's sources to the installdir"""
 
     def unpack_src(self):
         """Move all source files to the build directory"""
+
         self.src[0]['finalpath'] = self.builddir
 
         # copy source to build dir.
@@ -45,9 +49,8 @@ class Binary(Application):
             try:
                 shutil.copy2(src, self.builddir)
                 os.chmod(dst, stat.S_IRWXU)
-            except (OSError, IOError):
-                self.log.exception("Couldn't copy %s to %s" % (src, self.builddir))
-
+            except (OSError, IOError), err:
+                self.log.exception("Couldn't copy %s to %s: %s" % (src, self.builddir, err))
 
     def configure(self):
         """No configuration, this is a binary package"""
@@ -58,7 +61,7 @@ class Binary(Application):
         pass
 
     def make_installdir(self):
-        """Do not actually create installdir, copytree in make_install doesn't 
+        """Do not actually create installdir, copytree in make_install doesn't
         want the destination directory already exist
         But in python < 2.5 the actual path leading up to the directory has to exist."""
         self.make_dir(self.installdir, clean=True, dontcreateinstalldir=True)
@@ -68,12 +71,9 @@ class Binary(Application):
         shutil.copytree(self.getcfg('startfrom'), self.installdir, symlinks=True)
 
     def make_module_extra(self):
-        """
-        Add the install directory to the PATH.
-        """
+        """Add the install directory to the PATH."""
+
         txt = Application.make_module_extra(self)
         txt += self.moduleGenerator.prependPaths("PATH", [""])
-
         self.log.debug("make_module_extra added this: %s" % txt)
-
         return txt
