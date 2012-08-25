@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,42 +22,56 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from distutils.version import LooseVersion
+"""
+EasyBuild support for building and installing WPS, implemented as an easyblock
+"""
+
 import fileinput
 import os
 import re
 import shutil
 import sys
 import tempfile
-from easybuild.framework.application import Application
-from easybuild.tools.filetools import patch_perl_script_autoflush, run_cmd, run_cmd_qa, unpack
-from easybuild.easyblocks.n.netcdf import set_netcdf_env_vars, get_netcdf_module_set_cmds
+from distutils.version import LooseVersion
 
-class WPS(Application):
+import easybuild.tools.environment as env
+import easybuild.tools.toolkit as toolkit
+from easybuild.easyblocks.netcdf import set_netcdf_env_vars, get_netcdf_module_set_cmds
+from easybuild.framework.application import Application
+from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+from easybuild.tools.filetools import patch_perl_script_autoflush, run_cmd, run_cmd_qa, unpack
+from easybuild.tools.modules import get_software_root, get_software_version
+
+
+class EB_WPS(Application):
     """Support for building/installing WPS."""
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """Add extra config options specific to WPS."""
 
-        Application.__init__(self)
+        Application.__init__(self, *args, **kwargs)
 
         self.build_in_installdir = True
         self.comp_fam = None
         self.wrfdir = None
         self.compile_script = None
 
+    @staticmethod
+    def extra_options():
         testdata_urls = [
                          "http://www.mmm.ucar.edu/wrf/src/data/avn_data.tar.gz",
                          "http://www.mmm.ucar.edu/wrf/src/wps_files/geog.tar.gz" # 697MB download, 16GB unpacked!
-                         ]
+                        ]
 
-        self.cfg.update({'buildtype':[None, "Specify the type of build (smpar: OpenMP, dmpar: MPI)."],
-                         'runtest':[True, "Build and run WPS tests (default: True)."],
-                         'testdata':[testdata_urls, "URL to test data required to run WPS test (default: %s)." % testdata_urls]
-                         })
+        extra_vars = [
+                      ('buildtype', [None, "Specify the type of build (smpar: OpenMP, dmpar: MPI).", MANDATORY]),
+                      ('runtest', [True, "Build and run WPS tests (default: True).", CUSTOM]),
+                      ('testdata', [testdata_urls, "URL to test data required to run WPS test (default: %s)." % testdata_urls, CUSTOM])
+                     ]
+        return Application.extra_options(extra_vars)
 
     def configure(self):
-        """Configure build: 
+        """Configure build:
         - set required environment variables (for netCDF, JasPer)
         - patch compile script and ungrib Makefile for non-default install paths of WRF and JasPer
         - run configure script and figure how to select desired build option
@@ -64,10 +82,10 @@ class WPS(Application):
         set_netcdf_env_vars(self.log)
 
         # WRF dependency check
-        softrootwrf = os.getenv('SOFTROOTWRF')
-        if softrootwrf:
-            majver = os.getenv('SOFTVERSIONWRF').split('.')[0]
-            self.wrfdir = os.path.join(softrootwrf, "WRFV%s" % majver)
+        wrf = get_software_root('WRF')
+        if wrf:
+            majver = get_software_version('WRF').split('.')[0]
+            self.wrfdir = os.path.join(wrf, "WRFV%s" % majver)
         else:
             self.log.error("WRF module not loaded?")
 
@@ -81,23 +99,23 @@ class WPS(Application):
             self.log.error("Failed to patch %s script: %s" % (self.compile_script, err))
 
         # libpng dependency check
-        libpng = os.getenv('SOFTROOTLIBPNG')
+        libpng = get_software_root('libpng')
         libpnginc = "%s/include" % libpng
         libpnglibdir = "%s/lib" % libpng
         if not libpng:
             self.log.error("libpng module not loaded?")
 
         # JasPer dependency check + setting env vars
-        jasper = os.getenv('SOFTROOTJASPER')
+        jasper = get_software_root('JasPer')
         jasperlibdir = os.path.join(jasper, "lib")
         if jasper:
-            os.environ['JASPERINC'] = os.path.join(jasper, "include")
-            os.environ['JASPERLIB'] = jasperlibdir
+            env.set('JASPERINC', os.path.join(jasper, "include"))
+            env.set('JASPERLIB', jasperlibdir)
         else:
             self.log.error("JasPer module not loaded?")
 
         # patch ungrib Makefile so that JasPer is found
-        fn = os.path.join("ungrib","src","Makefile")
+        fn = os.path.join("ungrib", "src", "Makefile")
         jasperlibs = "-L%s -ljasper -L%s -lpng" % (jasperlibdir, libpnglibdir)
         try:
             for line in fileinput.input(fn, inplace=1, backup='.orig.JasPer'):
@@ -113,20 +131,20 @@ class WPS(Application):
         # configure
 
         # determine build type option to look for
-        self.comp_fam = self.tk.toolkit_comp_family()
+        self.comp_fam = self.toolkit().comp_family()
         build_type_option = None
 
         if LooseVersion(self.version()) >= LooseVersion("3.4"):
 
             knownbuildtypes = {
-                               'smpar':'serial',
-                               'dmpar':'dmpar'
-                               }
+                               'smpar': 'serial',
+                               'dmpar': 'dmpar'
+                              }
 
-            if self.comp_fam == "Intel":
+            if self.comp_fam == toolkit.INTEL:
                 build_type_option = " Linux x86_64, Intel compiler"
 
-            elif self.comp_fam == "GCC":
+            elif self.comp_fam == toolkit.GCC:
                 build_type_option = "Linux x86_64 g95 compiler"
 
             else:
@@ -135,14 +153,14 @@ class WPS(Application):
         else:
 
             knownbuildtypes = {
-                               'smpar':'serial',
-                               'dmpar':'DM parallel'
-                               }
+                               'smpar': 'serial',
+                               'dmpar': 'DM parallel'
+                              }
 
-            if self.comp_fam == "Intel":
+            if self.comp_fam == toolkit.INTEL:
                 build_type_option = "PC Linux x86_64, Intel compiler"
 
-            elif self.comp_fam == "GCC":
+            elif self.comp_fam == toolkit.GCC:
                 build_type_option = "PC Linux x86_64, gfortran compiler,"
                 knownbuildtypes['dmpar'] = knownbuildtypes['dmpar'].upper()
 
@@ -163,23 +181,23 @@ class WPS(Application):
         no_qa = []
         std_qa = {
                   # named group in match will be used to construct answer
-                  r"%s(.*\n)*Enter selection\s*\[[0-9]+-[0-9]+\]\s*:" % build_type_question:"%(nr)s",
-                  }
+                  r"%s(.*\n)*Enter selection\s*\[[0-9]+-[0-9]+\]\s*:" % build_type_question: "%(nr)s",
+                 }
 
         run_cmd_qa(cmd, qa, no_qa=no_qa, std_qa=std_qa, log_all=True, simple=True)
 
         # make sure correct compilers and compiler flags are being used
         comps = {
-                 'SCC':"%s -I$(JASPERINC) -I%s" % (os.getenv('CC'), libpnginc),
-                 'SFC':os.getenv('F90'),
-                 'DM_FC':os.getenv('MPIF90'),
-                 'DM_CC':os.getenv('MPICC'),
-                 'FC':os.getenv('MPIF90'),
-                 'CC':os.getenv('MPICC'),
-                 }
-        fn='configure.wps'
-        for line in fileinput.input(fn, inplace=1,backup='.orig.comps'):
-            for k,v in comps.items():
+                 'SCC': "%s -I$(JASPERINC) -I%s" % (os.getenv('CC'), libpnginc),
+                 'SFC': os.getenv('F90'),
+                 'DM_FC': os.getenv('MPIF90'),
+                 'DM_CC': os.getenv('MPICC'),
+                 'FC': os.getenv('MPIF90'),
+                 'CC': os.getenv('MPICC'),
+                }
+        fn = 'configure.wps'
+        for line in fileinput.input(fn, inplace=1, backup='.orig.comps'):
+            for (k, v) in comps.items():
                 line = re.sub(r"^(%s\s*=\s*).*$" % k, r"\1 %s" % v, line)
             sys.stdout.write(line)
 
@@ -234,16 +252,14 @@ class WPS(Application):
 
                 # setup directories and files
                 for d in os.listdir(os.path.join(tmpdir, "geog")):
-                    os.symlink(os.path.join(tmpdir, "geog", d),
-                               os.path.join(tmpdir, d)
-                               )
+                    os.symlink(os.path.join(tmpdir, "geog", d), os.path.join(tmpdir, d))
 
                 # patch namelist.wps file for geogrib
                 for line in fileinput.input(namelist_file, inplace=1, backup='.orig.geogrid'):
                     line = re.sub(r"^(\s*geog_data_path\s*=\s*).*$", r"\1 '%s'" % tmpdir, line)
                     sys.stdout.write(line)
 
-                ## GEOGRID.TBL
+                # GEOGRID.TBL
                 geogrid_dir = os.path.join(tmpdir, "geogrid")
                 os.mkdir(geogrid_dir)
                 os.symlink(os.path.join(wpsdir, "geogrid", "GEOGRID.TBL.ARW"),
@@ -298,6 +314,7 @@ class WPS(Application):
 
     # installing is done in make, so we can run tests
     def make_install(self):
+        """Building was done in install dir, so just do some cleanup here."""
 
         # make sure JASPER environment variables are unset
         env_vars = ['JASPERINC', 'JASPERLIB']
@@ -311,13 +328,13 @@ class WPS(Application):
 
         if not self.getcfg('sanityCheckPaths'):
 
-            self.setcfg('sanityCheckPaths',{'files':["WPS/%s"%x for x in ["geogrid.exe",
-                                                                          "metgrid.exe",
-                                                                          "ungrib.exe"]],
-                                            'dirs':[]
+            self.setcfg('sanityCheckPaths', {
+                                             'files': ["WPS/%s" % x for x in ["geogrid.exe", "metgrid.exe",
+                                                                             "ungrib.exe"]],
+                                             'dirs': []
                                             })
 
-            self.log.info("Customized sanity check paths: %s"%self.getcfg('sanityCheckPaths'))
+            self.log.info("Customized sanity check paths: %s" % self.getcfg('sanityCheckPaths'))
 
         Application.sanitycheck(self)
 
@@ -325,10 +342,10 @@ class WPS(Application):
         """Make sure PATH and LD_LIBRARY_PATH are set correctly."""
 
         return {
-            'PATH': [self.name()],
-            'LD_LIBRARY_PATH': [self.name()],
-            'MANPATH': [],
-        }
+                'PATH': [self.name()],
+                'LD_LIBRARY_PATH': [self.name()],
+                'MANPATH': [],
+               }
 
     def make_module_extra(self):
         """Add netCDF environment variables to module file."""

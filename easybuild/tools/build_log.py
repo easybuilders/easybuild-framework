@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -22,17 +26,19 @@
 EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
-from socket import gethostname
-from copy import copy
 import logging
 import os
 import sys
+import tempfile
 import time
+from socket import gethostname
+from copy import copy
 
 import easybuild
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
+
 
 class EasyBuildError(Exception):
     """
@@ -43,6 +49,7 @@ class EasyBuildError(Exception):
         self.msg = msg
     def __str__(self):
         return repr(self.msg)
+
 
 class EasyBuildLog(logging.Logger):
     """
@@ -80,12 +87,14 @@ class EasyBuildLog(logging.Logger):
 
         raise EasyBuildError(newMsg)
 
+
 # set format for logger
-loggingFormat = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
-formatter = logging.Formatter(loggingFormat)
+logging_format = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+formatter = logging.Formatter(logging_format)
 
 # redirect standard handler of root logger to /dev/null
-logging.basicConfig(level=logging.ERROR, format=loggingFormat, filename='/dev/null')
+# without this, everything is logged twice (one by root logger, once by descendant logger)
+logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
 
 logging.setLoggerClass(EasyBuildLog)
 
@@ -110,13 +119,18 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
     - does not append
     - sets log handlers
     """
+
+    # obtain root logger
     log = logging.getLogger()
 
-    # set log level
+    # determine log level
     if debug:
         defaultLogLevel = logging.DEBUG
     else:
         defaultLogLevel = logging.INFO
+
+    # set log level for root logger
+    log.setLevel(defaultLogLevel)
 
     if (name and version) or filename:
         if not filename:
@@ -128,6 +142,7 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
     hand.setFormatter(formatter)
     log.addHandler(hand)
 
+    # initialize our logger
     log = logging.getLogger(typ)
     log.setLevel(defaultLogLevel)
 
@@ -146,16 +161,16 @@ def logFilename(name, version):
     Generate a filename to be used
     """
     # this can't be imported at the top, otherwise we'd have a cyclic dependency
-    from easybuild.tools.config import logFormat
+    from easybuild.tools.config import logFormat, get_build_log_path
 
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = '/tmp/' + (logFormat() % {'name':name,
-                                         'version':version,
-                                         'date':date,
-                                         'time':timeStamp
-                                         })
+    filename = os.path.join(get_build_log_path(), logFormat() % {'name':name,
+                                                                 'version':version,
+                                                                 'date':date,
+                                                                 'time':timeStamp
+                                                                 })
 
     # Append numbers if the log file already exist
     counter = 1

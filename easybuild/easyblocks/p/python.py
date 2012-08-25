@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,20 +22,27 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for Python, implemented as an easyblock
+"""
 
-from easybuild.framework.application import ApplicationPackage, Application
-from easybuild.tools.filetools import unpack, patch, run_cmd
 import os
 import shutil
 
-class Python(Application):
+import easybuild.tools.toolkit as toolkit
+from easybuild.framework.application import ApplicationPackage, Application
+from easybuild.tools.filetools import unpack, patch, run_cmd
+from easybuild.tools.modules import get_software_root
+
+
+class EB_Python(Application):
     """Support for building/installing Python
     - default configure/make/make install works fine
 
     To extend Python by adding extra packages there are two ways:
     - list the packages in the pkglist, this will include the packages in this Python easyblock
     - create a seperate easyblock, so the packages can be loaded with module load
-    
+
     e.g., you can include numpy and scipy in a default Python installation
     but also provide newer updated numpy and scipy versions by creating a PythonPackageModule for it.
     """
@@ -40,11 +51,17 @@ class Python(Application):
         """
         We set some default configs here for packages included in python
         """
-        #insert new packages by building them with DefaultPythonPackage
+        #insert new packages by building them with EB_DefaultPythonPackage
         self.log.debug("setting extra packages options")
-        # use __name__ here, since this is the module where DefaultPythonPackage is defined
-        self.setcfg('pkgdefaultclass', (__name__, "DefaultPythonPackage"))
+        # use __name__ here, since this is the module where EB_DefaultPythonPackage is defined
+        self.setcfg('pkgdefaultclass', (__name__, "EB_DefaultPythonPackage"))
         self.setcfg('pkgfilter', ('python -c "import %(name)s"', ""))
+
+    def configure(self):
+        """Set extra configure options."""
+        self.updatecfg('configopts', "--with-threads --enable-shared")
+
+        Application.configure(self)
 
     def make_install(self):
         """Extend make install to make sure that the 'python' command is present."""
@@ -60,7 +77,7 @@ class Python(Application):
                 self.log.error("Failed to symlink %s to %s: %s" % err)
 
 
-class DefaultPythonPackage(ApplicationPackage):
+class EB_DefaultPythonPackage(ApplicationPackage):
     """
     Easyblock for python packages to be included in the python installation.
     """
@@ -73,11 +90,13 @@ class DefaultPythonPackage(ApplicationPackage):
         self.sitecfgincdir = None
         self.testinstall = False
         self.builddir = mself.builddir
-        self.cfg = mself.cfg
+        self.mself = mself
         self.installopts = ''
         self.runtest = None
         self.pkgdir = "%s/%s" % (self.builddir, self.name)
         self.unpack_options = ''
+
+        self.python = get_software_root('Python')
 
     def configure(self):
         """Configure Python package build
@@ -115,7 +134,7 @@ class DefaultPythonPackage(ApplicationPackage):
     def make_install(self):
         """Install built Python package"""
 
-        cmd = "python setup.py install --prefix=%s %s" % (os.environ['SOFTROOTPYTHON'], self.installopts)
+        cmd = "python setup.py install --prefix=%s %s" % (self.python, self.installopts)
         run_cmd(cmd, log_all=True, simple=True)
 
     def test(self):
@@ -125,7 +144,7 @@ class DefaultPythonPackage(ApplicationPackage):
         extrapath = ""
         testinstalldir = os.path.join(self.builddir, "mytemporarytestinstalldir")
         if self.testinstall:
-            #Install in test directory and export PYTHONPATH
+            # Install in test directory and export PYTHONPATH
             try:
                 os.makedirs(testinstalldir)
             except OSError:
@@ -143,7 +162,6 @@ class DefaultPythonPackage(ApplicationPackage):
 
         if self.runtest:
             cmd = "%s%s" % (extrapath, self.runtest)
-
             run_cmd(cmd, log_all=True, simple=True)
 
         if self.testinstall:
@@ -154,9 +172,6 @@ class DefaultPythonPackage(ApplicationPackage):
 
     def run(self):
         """Perform the actual package build/installation procedure"""
-        # a Python module should be loaded
-        if not os.environ.has_key('SOFTROOTPYTHON'):
-            self.log.error("Couldn't find SOFTROOTPYTHON variable")
 
         # unpack
         if not self.src:
@@ -176,32 +191,37 @@ class DefaultPythonPackage(ApplicationPackage):
         self.test()
         self.make_install()
 
-class Nose(DefaultPythonPackage):
+    def getcfg(self, *args, **kwargs):
+        return self.mself.getcfg(*args, **kwargs)
+
+
+class EB_nose(EB_DefaultPythonPackage):
     """nose package"""
     def __init__(self, mself, pkg, pkginstalldeps):
-        DefaultPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
+        EB_DefaultPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
 
         # use extra unpack options to avoid problems like
         # 'tar: Ignoring unknown extended header keyword `SCHILY.nlink'
         # and tar exiting with non-zero exit code
         self.unpack_options = ' --pax-option="delete=SCHILY.*" --pax-option="delete=LIBARCHIVE.*" '
 
-class FortranPythonPackage(DefaultPythonPackage):
-    """Extends DefaultPythonPackage to add a Fortran compiler to the make call"""
+
+class EB_FortranPythonPackage(EB_DefaultPythonPackage):
+    """Extends EB_DefaultPythonPackage to add a Fortran compiler to the make call"""
 
     def make(self):
-        comp_fam = self.tk.toolkit_comp_family()
+        comp_fam = self.toolkit().comp_family()
 
-        if comp_fam == "Intel":
+        if comp_fam == toolkit.INTEL:
             cmd = "python setup.py build --compiler=intel --fcompiler=intelem"
 
-        elif comp_fam == "GCC":
+        elif comp_fam == toolkit.GCC:
             cmdprefix = ""
             ldflags = os.getenv('LDFLAGS')
             if ldflags:
                 # LDFLAGS should not be set when building numpy/scipy, because it overwrites whatever numpy/scipy sets
                 # see http://projects.scipy.org/numpy/ticket/182
-                ## don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4 (see http://bugs.python.org/issue1287)
+                # don't unset it with os.environ.pop('LDFLAGS'), doesn't work in Python 2.4 (see http://bugs.python.org/issue1287)
                 cmdprefix = "unset LDFLAGS && "
                 self.log.debug("LDFLAGS was %s, will be cleared before numpy build with '%s'" % (ldflags, cmdprefix))
 
@@ -213,13 +233,13 @@ class FortranPythonPackage(DefaultPythonPackage):
         run_cmd(cmd, log_all=True, simple=True)
 
 
-class Numpy(FortranPythonPackage):
+class EB_numpy(EB_FortranPythonPackage):
     """numpy package"""
 
     def __init__(self, mself, pkg, pkginstalldeps):
-        FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
+        EB_FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
 
-        self.pkgcfgs = self.cfg['pkgcfgs'][0]
+        self.pkgcfgs = mself.getcfg('pkgcfgs')
         if self.pkgcfgs.has_key('numpysitecfglibsubdirs'):
             self.numpysitecfglibsubdirs = self.pkgcfgs['numpysitecfglibsubdirs']
         else:
@@ -236,13 +256,13 @@ search_static_first=True
 
 """
 
-        if  "SOFTROOTIMKL" in os.environ:
+        if get_software_root("IMKL"):
             #use mkl
             extrasiteconfig = """[mkl]
 lapack_libs = %(lapack)s
 mkl_libs = %(blas)s
         """
-        elif "SOFTROOTATLAS" in os.environ and "SOFTROOTLAPACK" in os.environ:
+        elif get_software_root("ATLAS") and get_software_root("LAPACK"):
             extrasiteconfig = """
 [blas_opt]
 libraries = %(blas)s
@@ -252,8 +272,8 @@ libraries = %(lapack)s
         else:
             self.log.error("Could not detect math kernel (mkl, atlas)")
 
-        if "SOFTROOTIMKL" in os.environ or "SOFTROOTFFTW" in os.environ:
-            extrasiteconfig += """ 
+        if get_software_root("IMKL") or get_software_root("FFTW"):
+            extrasiteconfig += """
 [fftw]
 libraries = %s
         """ % os.getenv("LIBFFT")
@@ -262,7 +282,7 @@ libraries = %s
 
         lapack_libs = os.getenv("LIBLAPACK_MT").split(" -l")
         blas_libs = os.getenv("LIBBLAS_MT").split(" -l")
-        if os.getenv('SOFTROOTIMKL'):
+        if get_software_root("IMKL"):
             # with IMKL, get rid of all spaces and use '-Wl:'
             lapack_libs.remove("pthread")
             lapack = ','.join(lapack_libs).replace(' ', ',').replace('Wl,','Wl:')
@@ -272,10 +292,11 @@ libraries = %s
             blas = ", ".join(blas_libs)
 
         self.sitecfg = self.sitecfg % \
-            { 'lapack' : lapack,
-              'blas' : blas,
-              'libs' : ":".join([lib for lib in os.getenv('LDFLAGS').split(" -L")]),
-              'includes' : ":".join([lib for lib in os.getenv('CPPFLAGS').split(" -I")]),
+            {
+             'lapack': lapack,
+             'blas': blas,
+             'libs': ":".join([lib for lib in os.getenv('LDFLAGS').split(" -L")]),
+             'includes': ":".join([lib for lib in os.getenv('CPPFLAGS').split(" -I")]),
             }
 
         self.sitecfgfn = 'site.cfg'
@@ -287,7 +308,7 @@ libraries = %s
         """Install numpy package
         We remove the numpy build dir here, so scipy doesn't find it by accident
         """
-        FortranPythonPackage.make_install(self)
+        EB_FortranPythonPackage.make_install(self)
         builddir = os.path.join(self.builddir, "numpy")
         if os.path.isdir(builddir):
             shutil.rmtree(builddir)
@@ -295,11 +316,11 @@ libraries = %s
             self.log.debug("build dir %s already clean" % builddir)
 
 
-class Scipy(FortranPythonPackage):
+class EB_scipy(EB_FortranPythonPackage):
     """scipy package"""
 
     def __init__(self, mself, pkg, pkginstalldeps):
-        FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
+        EB_FortranPythonPackage.__init__(self, mself, pkg, pkginstalldeps)
 
         # disable testing
         test = False

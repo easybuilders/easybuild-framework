@@ -1,13 +1,13 @@
 EasyBuild: building software with ease
 =======================================
 
-EasyBuild [1] is a software build and installation framework written in Python
+[EasyBuild] [1] is a software build and installation framework written in Python
 that allows you to install software in a structured, repeatable and robust way.
 
 It is motivated by the need for a tool that allows to:
 
  * independently install multiple versions of a software package side-by-side
- * support multiple compilers and libraries for building a software package 
+ * support multiple compilers and libraries for building a software package
    and its dependencies
  * keep the package configuration simple
  * divert from the standard configure / make / make install with custom
@@ -25,22 +25,22 @@ Some key properties of EasyBuild:
  * the generation of the module files to easily make the software available to users
  * the dependencies for installation are resolved using environment modules and can
    be automatically installed using the robot feature
- * after the installation, the specification files can be sent to a repository for 
+ * after the installation, the specification files can be sent to a repository for
    archiving
 
-For more information on EasyBuild, see the documentation wiki on github [3].
+For more information on EasyBuild, see the [EasyBuild wiki] [2] on GitHub.
 
 
 REQUIREMENTS
 -------------
 
 EasyBuild requires Python 2.4 (or a more recent 2.x version) to be available,
-as well as the environment-modules software package [4]. 
+as well as the [environment modules] [3] software package.
 
-The GitPython Python module [5] is recommended, especially when EasyBuild is
+The [GitPython] [4] Python module is recommended, especially when EasyBuild is
 being used from a git repository.
 
-See [6] for more information on EasyBuild dependencies.
+See the EasyBuild wiki for more information on [EasyBuild dependencies] [5].
 
 
 QUICK DEMO FOR THE IMPATIENT
@@ -51,16 +51,16 @@ running the following (bash/sh syntax):
 
     export EBHOME="<path to where you unpacked EasyBuild>"
     export CFGS="$EBHOME/easybuild/easyconfigs"
-    ${EBHOME}/easybuild.sh --robot ${CFGS} ${CFGS}/h/HPL/HPL-2.0-goalf-1.1.0.eb
+    ${EBHOME}/eb --robot ${CFGS} ${CFGS}/h/HPL/HPL-2.0-goalf-1.1.0.eb
 
 This will build and install HPL, after building and installing a GCC-based
 compiler toolkit and all of its dependencies using the default EasyBuild
-configuration, which will install to $HOME/easybuild/software.
+configuration, which will install to $HOME/.local/easybuild/software.
 
 The entire process should take about an hour on a recent system.
 
-Module files will be provided in $HOME/easybuild/modules/all, so to load the
-provided modules, update your MODULEPATH environment variable.
+Module files will be provided in $HOME/.local/easybuild/modules/all, so to load
+the provided modules, update your MODULEPATH environment variable.
 
 Note: this demo requires a C and C++ compiler to be available on your system,
 e.g., gcc and g++.
@@ -69,27 +69,49 @@ e.g., gcc and g++.
 QUICK START
 ------------
 
-To get started, you first need to configure EasyBuild for use [7].
+To get started, you first need to [configure EasyBuild] [6] for use.
 
 Once this is done, using EasyBuild is as simple as creating a .eb specification
 file, and providing it to the framework:
 
-	easybuild/easybuild.sh example.eb
+	easybuild/eb example.eb
 
-For command line options, see 
+For command line options, see
 
-	easybuild/easybuild.sh -h (or --help)
+	easybuild/eb -h (or --help)
 
-Documentation on writing your own .eb specification files is available on the
-EasyBuild github wiki [8].
+See the EasyBuild wiki for documentation on writing your own [easyconfig files] [7] (.eb).
 
 To add support for a particular software package that requires a custom
 installation procedure, you will need to implement an easyblock that can be
-plugged into the EasyBuild framework [9].
+plugged into the EasyBuild framework (see [Development guide] [8]).
 
-A step-by-step guide to getting started with EasyBuild is provided on 
-the github wiki [10].
+On the EasyBuild wiki, a step-by-step guide to [getting started] [9] with EasyBuild is provided.
 
+CONTACT INFO
+------------
+
+You can get in contact with the EasyBuild community in different ways:
+
+### Mailing list
+
+An EasyBuild mailinglist easybuild@lists.ugent.be is available to subscribe to.
+
+This list is used by both users and developers of EasyBuild, so if you have any questions or suggestions, you can post them there.
+
+Only members can post to this mailinglist. To request membership, see https://lists.ugent.be/sympa/info/easybuild.
+
+### IRC
+
+An IRC channel #easybuild has been set up on the FreeNode network.
+
+Just connect your IRC client to the irc.freenode.net server, and join the #easybuild channel.
+
+There is an IRC bot present (easybuilder). Just type !help to get pointers to the available commands.
+
+### Twitter
+
+The EasyBuild team also has a Twitter feed: [@easy_build] [10].
 
 DISCLAIMER
 -----------
@@ -102,17 +124,18 @@ systems is pending.
 LICENSE
 --------
 
-EasyBuild is developed by the High-Performance Computing team at Ghent University [2]
+EasyBuild is developed by the [High-Performance Computing team at Ghent University] [11]
 and is made available under the GNU General Public License (GPL) version 2.
 
 
-[1] https://github.com/hpcugent/easybuild
-[2] http://www.ugent.be/hpc/en
-[3] https://github.com/hpcugent/easybuild/wiki/Home
-[4] http://modules.sourceforge.net/
-[5] http://gitorious.org/git-python
-[6] https://github.com/hpcugent/easybuild/wiki/Dependencies
-[7] https://github.com/hpcugent/easybuild/wiki/Configuration
-[8] https://github.com/hpcugent/easybuild/wiki/Specification-files
-[9] https://github.com/hpcugent/easybuild/wiki/Development-guide
-[10] https://github.com/hpcugent/easybuild/wiki/Step-by-step-guide
+[1]: https://github.com/hpcugent/easybuild "EasyBuild"
+[2]: https://github.com/hpcugent/easybuild/wiki/Home "EasyBuild wiki"
+[3]: http://modules.sourceforge.net/ "environment modules"
+[4]: http://gitorious.org/git-python "GitPython"
+[5]: https://github.com/hpcugent/easybuild/wiki/Dependencies "EasyBuild dependencies"
+[6]: https://github.com/hpcugent/easybuild/wiki/Configuration "configure EasyBuild"
+[7]: https://github.com/hpcugent/easybuild/wiki/Specification-files "easyconfig files"
+[8]: https://github.com/hpcugent/easybuild/wiki/Development-guide "Development guide"
+[9]: https://github.com/hpcugent/easybuild/wiki/Step-by-step-guide "getting started"
+[10]: http://twitter.com/easy_build "@easy_build"
+[11]: https://ugent.be/hpcugent "High-Performance Computing team at Ghent University"

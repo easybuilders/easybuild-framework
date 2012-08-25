@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -21,17 +26,24 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 """
+
 import os
+import tempfile
 
 from easybuild.tools.build_log import getLog
+import easybuild.tools.repository as repo
+
 
 log = getLog('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repositoryType', 'repositoryPath']
+requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH',
-    'installPath': 'EASYBUILDINSTALLPATH'
+    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
+    'installPath': 'EASYBUILDINSTALLPATH', # final install path
+    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
+    'configFile': 'EASYBUILDCONFIG', # path to the config file
+    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
 }
 
 def init(filename, **kwargs):
@@ -72,11 +84,6 @@ def init(filename, **kwargs):
                     create_dir(key, d)
                     continue
 
-    if variables['repositoryType'] == 'fs' and not os.path.isdir(variables['repositoryPath']):
-        strs = ('repositoryPath', variables['repositoryPath'])
-        log.warn('The %s directory %s does not exist or does not have proper permissions' % strs)
-        create_dir('repositoryPath', variables['repositoryPath'])
-
     # update MODULEPATH if required
     ebmodpath = os.path.join(installPath(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
@@ -91,7 +98,10 @@ def readConfiguration(filename):
     """
     Read variables from the config file
     """
-    fileVariables = {}
+    fileVariables = {'FileRepository': repo.FileRepository,
+                     'GitRepository': repo.GitRepository,
+                     'SvnRepository': repo.SvnRepository
+                    }
     try:
         execfile(filename, {}, fileVariables)
     except (IOError, SyntaxError), err:
@@ -102,7 +112,7 @@ def readConfiguration(filename):
 def readEnvironment(envVars, strict=False):
     """
     Read variables from the environment
-        - strict=True enforces that all possible environment variables are found 
+        - strict=True enforces that all possible environment variables are found
     """
     result = {}
     for key in envVars.keys():
@@ -139,11 +149,11 @@ def installPath(typ=None):
 
     return os.path.join(variables['installPath'], suffix)
 
-def repositoryType():
+def getRepository():
     """
-    Return the repository type (e.g. fs, git, svn)
+    Return the repository (git, svn or file)
     """
-    return variables['repositoryType']
+    return variables['repository']
 
 def repositoryPath():
     """
@@ -165,3 +175,18 @@ def logPath():
     Return the log path
     """
     return variables['logFormat'][0]
+
+def get_build_log_path():
+    """
+    return temporary log directory
+    """
+    return variables.get('logDir', tempfile.gettempdir())
+
+def read_only_installdir():
+    """
+    Return whether installation dir should be fully read-only after installation.
+    """
+    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
+    # this also needs to be checked when --force is used;
+    # install dir will have to (temporarily) be made writeable again for owner in that case
+    return False
