@@ -9,6 +9,7 @@ toolkit = {'name': 'goalf', 'version': '1.1.0-no-OFED'}
 sources = ['%s-%s.tar.gz' % (name,version)]
 sourceURLs = ['http://cran.us.r-project.org/src/base/R-2/']
 
+preconfigopts = ' BLAS_LIBS="$LIBBLAS" LAPACK_LIBS="$LIBLAPACK" '
 configopts = " --with-lapack --with-blas --with-pic --enable-threads --with-x=no --enable-R-shlib"
 #makeopts = 'LDFLAGS=" -lpthread "'
 
@@ -19,7 +20,16 @@ dependencies= [
 		('Mesa', '8.0.3', '-Python-2.7.3'),
 		]
 
-patches = ['R_ldflags.patch']
+sanityCheckPaths = {
+                    'files': ['bin/%s' % x for x in ['R', 'Rscript']] + \
+                             ['lib64/R/include/%s' % x for x in ['Rconfig.h', 'Rdefines.h', 'Rembedded.h',
+                                 'R.h', 'Rinterface.h', 'Rinternals.h', 'Rmath.h', 'Rversion.h', 'S.h']] + \
+                             ['lib64/R/modules/%s' % x for x in ['internet.so', 'lapack.so', 'vfonts.so']] + \
+                             ['lib64/R/lib/libR.so'],
+                    'dirs': []
+                }
+
+#patches = ['R_ldflags.patch']
 
 # !! order of packages is important !!
 #pkglist=['Matrix','rsprng','rpvm','RODBC','rgl','png','Rmpi',('rgenoud','5.7-3-ug1'),'Rcpp',('VIM','2.0.4'),('sp','0.9-91'),'rgdal','BB','rlecuyer','exonmap',('exon.pmcdf','1.1'),('Rserve','0.6-1'),('rparallel','0.6-21-src'),'bioconductor','BSgenome','GenomeGraphs','ShortRead','e1071','akima','annotate','AnnotationDbi','base','Biobase','biomaRt','Biostrings','bitops','boot','class','cluster','coda','codetools','colorspace','datasets','DBI','foreign','gam','gamlss','gamlss.data','gamlss.dist','gamlss.tr','geneplotter','graphics','grDevices','grid','hwriter','IRanges','KernSmooth','lattice','lmtest','MASS','methods','mgcv','mnormt','mvtnorm','nlme','nnet','numDeriv','pscl','RColorBrewer','RCurl','rpart','RSQLite','sandwich','sfsmisc','spatial','splines','stats','stats4','survival','tcltk','tools','utils','vcd','VGAM','waveslim','XML','xtable','ZIGP','zoo','sna','brglm','snow','snowfall','deSolve','nnet','tseriesChaos','tseries',('tsDyn','0.7-62.ug.4'),'doSNOW','rJava','irace']
