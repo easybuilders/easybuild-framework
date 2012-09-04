@@ -12,4 +12,4 @@ configopts="--with-pic"
 sources=['%s-%s.tar.gz'%(name.lower(),version)]
 sourceURLs=['http://prdownloads.sourceforge.net/%s' % name]
 
-dependencies=[('zlib','1.2.5')]
+dependencies=[('zlib','1.2.7')]
