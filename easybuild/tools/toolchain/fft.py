@@ -29,8 +29,8 @@ from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import getLog
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
+
 
 
 class FFT(object):
@@ -39,7 +39,7 @@ class FFT(object):
     """
     def __init__(self):
         if not hasattr(self, 'log'):
-            self.log = getLog(self.__class__.__name__)
+            self.log = getLogger(self.__class__.__name__)
 
 class IntelFFT(FFT):
     """FFT functionality of Intel MKL"""

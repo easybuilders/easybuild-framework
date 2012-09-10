@@ -497,7 +497,9 @@ class Toolkit:
         self._addDependencyVariables(['GotoBLAS'])
 
     def prepareIntelCompiler(self, name):
-
+        """
+            port - DONE
+        """
         root = get_software_root(name)
         version = get_software_version(name)
 
@@ -697,6 +699,7 @@ class Toolkit:
     def prepareIMPI(self):
         """
         Prepare for Intel MPI library
+            port - DONE
         """
 
         if self.comp_family() == INTEL:
@@ -746,7 +749,9 @@ class Toolkit:
         pass
 
     def prepareQLogicMPI(self):
-
+        """
+            port - DONE
+        """
         ## QLogic specific
         self.vars['MPICC'] = 'mpicc -cc="%s"' % self.vars['CC']
         self.vars['MPICXX'] = 'mpicxx -CC="%s"' % self.vars['CXX']
@@ -780,6 +785,7 @@ class Toolkit:
     def prepareMPICH2(self):
         """
         Prepare for MPICH2 MPI library (e.g. ScaleMP's version)
+            port - DONE
         """
         if "vSMP" in get_software_version('MPICH2'):
             # ScaleMP MPICH specific
@@ -805,6 +811,7 @@ class Toolkit:
     def prepareSimpleMPI(self):
         """
         Prepare for 'simple' MPI libraries (e.g. MVAPICH2, OpenMPI)
+            port - DONE
         """
 
         self.vars['MPICC'] = 'mpicc %s' % self.m32flag
@@ -823,6 +830,7 @@ class Toolkit:
     def prepareMVAPICH2(self):
         """
         Prepare for MVAPICH2 MPI library
+            port - DONE
         """
 
         mvapich2 = get_software_root('MVAPICH2')
@@ -834,6 +842,7 @@ class Toolkit:
     def prepareOpenMPI(self):
         """
         Prepare for OpenMPI MPI library
+            port - DONE
         """
 
         openmpi = get_software_root('OpenMPI')

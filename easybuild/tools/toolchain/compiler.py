@@ -29,87 +29,20 @@ from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import getLog
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
-class Vars(dict):
-    """Extend dict with
+from easybuild.tool.toolchain.toolkit import Variables, Options, INTEL, GCC
 
-    ## example code
-    v=Vars()
-    v.extend('CFLAGS',['O3','lto'])
-    v.flags_for_subdirs('LDFLAGS','/usr',subdirs=['lib','lib64','unknown'])
+from vsc.fancylogger import getLogger
 
-
-    for o in ['CFLAGS','LDFLAGS']:
-        print o, v.options(o)
-
-    ## output
-    2012-09-10 08:11:52,189 WARNING    test.Vars       MainThread  _flags_for_subdirs: directory /usr/unknown was not found
-    CFLAGS -O3 -lto
-    LDFLAGS -L/usr/lib -L/usr/lib64
-
-    """
-    def __init__(self, *args, **kwargs):
-        super(Vars, self).__init__(*args, **kwargs)
-        self.log = getLog(self.__class__.__name__)
-
-    def append(self, k, v):
-        """append (k,v) : if k does not ,exists, initialise a list; append v to list"""
-
-        tmp = self.setdefault(k, [])
-        tmp.append(v)
-
-    def extend(self, k, v):
-        """extend (k,v) : if k does not ,exists, initialise a list; extend list with v"""
-        tmp = self.setdefault(k, [])
-        tmp.extend(v)
-
-    def options(self, k):
-        """options(k):
-                print as option: if list, add '-' to each item, otherwise just return
-        """
-        res = self.__getitem__(k)
-        if isinstance(res, (list,)):
-            tmp = []
-            for x in res:
-                if isinstance(x, (list, tuple,)):
-                    tmp.extend(x)
-                else:
-                    tmp.append(x)
-            res = " ".join(["-%s" % x for x in tmp])
-        return res
-
-    def flags_for_subdirs(self, var, base  , subdirs=None, flag=None):
-        """Generate flags to pass to the compiler """
-        if flag is None:
-            if var == 'LDFLAGS':
-                flag = "L"
-            elif var == 'CPPFLAGS':
-                flag = 'I'
-            else:
-                self.log.raiseException("flags_for_subdirs: flag not set and can't derive value for var %s" % var)
-        flags = []
-        if subdirs is None:
-            subdirs = ['']
-        for subdir in subdirs:
-            directory = os.path.join(base, subdir).rstrip(os.sep)
-            if os.path.isdir(directory):
-                flags.append("%s%s" % (flag , directory))
-            else:
-                self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
-
-        self.extend(var, flags)
-
-    def flags_for_libs(self, var, libs):
-        """Given libs, add them prefixed with 'l' """
-        if isinstance(libs, str):
-            libs = [libs]
-        self.extend(var, ["l%s" % x for x in libs])
-
+COMPILER_VARIABLES = ['CC', 'CXX', 'F77', 'F90']
 
 class Compiler(object):
     """General compiler-like class"""
+    COMPILER_MODULE_NAME = None
+
+    COMPILER_FAMILY = None
+
     COMPILER_UNIQUE_OPTS = None
     COMPILER_SHARED_OPTS = {'cciscxx': False, ## also MPI
                             'pic': False, ## also FFTW
@@ -161,21 +94,20 @@ class Compiler(object):
     COMPILER_C_FLAGS = ['cstd']
     COMPILER_C_UNIQUE_FLAGS = []
 
-    COMPILER_F70 = None
+    COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
     def __init__(self):
         if not hasattr(self, 'log'):
-            self.log = getLog(self.__class__.__name__)
+            self.log = getLogger(self.__class__.__name__)
 
         self.arch = None
 
-        self.opts = getattr(self, 'opts', {})
-        self.option_map = getattr(self, 'option_map', {})
+        self.opts = getattr(self, 'opts', Options())
 
-        self.vars = getattr(self, 'vars', Vars())
+        self.vars = getattr(self, 'vars', Variables())
 
         self._set_compiler_opts()
         self._set_compiler_option_map()
@@ -185,80 +117,54 @@ class Compiler(object):
         super(Compiler, self).__init__()
 
     def _set_compiler_opts(self):
-        opts = self.COMPILER_SHARED_OPTS
+        self.opts.update(self.COMPILER_SHARED_OPTS)
         if self.COMPILER_UNIQUE_OPTS is not None:
-            opts.update(self.COMPILER_UNIQUE_OPTS)
+            self.opts.update(self.COMPILER_UNIQUE_OPTS)
 
-        self.log.debug('_set_compiler_opts: setting opts %s' % opts)
-
-        self.opts.update(opts)
+        self.log.debug('_set_compiler_opts: all current opts %s' % self.opts)
 
     def _set_compiler_option_map(self):
         option_map = self.COMPILER_SHARED_OPTION_MAP
         if self.COMPILER_UNIQUE_OPTION_MAP is not None:
             option_map.update(self.COMPILER_UNIQUE_OPTION_MAP)
-        self.log.debug('_set_compiler_option_map: setting option_map %s' % option_map)
-
-        ## sanity check: do all options from the optionmap have a corresponding entry in opts
-        ## - reverse is not necessarily an issue
-        for k in option_map.keys():
-            if not k in self.opts:
-                self.log.raiseException("_set_compiler_option_map: entry %s in option_map has not option with that name" % k)
 
         ## redefine optarch
         option_map['optarch'] = self._get_optimal_architecture(option_map['optarch'])
 
-        self.option_map.update(option_map)
+        self.log.debug('_set_compiler_option_map: setting option_map %s' % option_map)
 
-    def _get_compiler_option(self, name):
-        """Return option value"""
-        opt = self.option.get(name, None)
-        if opt is None:
-            self.log.warning("_get_compiler_option: opt with name %s returns None" % name)
-            res = None
-        elif isinstance(opt, bool):
-            ## check if True?
-            res = self.option_map[name]
-        else:
-            ## allow for template
-            res = self.option_map[name] % {'opt':opt}
+        self.opts.update_map(option_map)
 
-        return res
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        varis = {}
-
         is32bit = self.opts.get('32bit', None)
         if is32bit:
             self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
 
-        compiler_vars = ['CC', 'CXX', 'F70', 'F90']
-        for var in compiler_vars:
+        for var in COMPILER_VARIABLES:
             value = getattr(self, 'COMPILER_%s' % var.upper(), None)
             if value is None:
                 self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+            self.vars.append(var, value)
             if is32bit:
-                value += " -%s" % (self._get_compiler_option('32bit'))
-            varis[var] = value  ## not a list. is not an option.
+                self.vars.append(var, self.opts.option('32bit'))
 
         if self.opts.get('cciscxx', None):
-            self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" % (varis['CXX'], varis['CC']))
-            varis['CXX'] = varis['CC']
-
-        self.vars.update(varis)
+            self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" % (self.vars['CXX'], self.vars['CC']))
+            self.vars['CXX'] = self.vars['CC']
 
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
-        flags = [ self._get_compiler_option(x) for x in self.COMPILER_FLAGS if self.opts.get(x, False)]
+        flags = [ self.opts.option(x) for x in self.COMPILER_FLAGS if self.opts.get(x, False)]
 
-        cflags = [ self._get_compiler_option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS if self.opts.get(x, False)]
-        fflags = [ self._get_compiler_option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS if self.opts.get(x, False)]
+        cflags = [ self.opts.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS if self.opts.get(x, False)]
+        fflags = [ self.opts.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS if self.opts.get(x, False)]
 
         ## 1st one is the one to use. add default at the end so len is at least 1
-        optflags = [self._get_compiler_option(x) for x in self.COMPILER_OPT_FLAGS if self.opts.get(x, False)] + [self._get_compiler_option('defaultopt')]
-        precflags = [self._get_compiler_option(x) for x in self.COMPILER_PREC_FLAGS if self.opts.get(x, False)] + [self._get_compiler_option('defaultprec')]
+        optflags = [self.opts.option(x) for x in self.COMPILER_OPT_FLAGS if self.opts.get(x, False)] + [self.opts.option('defaultopt')]
+        precflags = [self.opts.option(x) for x in self.COMPILER_PREC_FLAGS if self.opts.get(x, False)] + [self.opts.option('defaultprec')]
 
         def_flags = flags + optflags[:1] + precflags[:1]
 
@@ -286,6 +192,9 @@ class Compiler(object):
 
 class GCC(Compiler):
     """GCC compiler class"""
+    COMPILER_MODULE_NAME = ['GCC']
+
+    COMPILER_FAMILY = GCC
     COMPILER_UNIQUE_OPTS = {'loop': False,
                             'f2c': False,
                             'lto':False
@@ -310,7 +219,7 @@ class GCC(Compiler):
     COMPILER_CXX = 'g++'
     COMPILER_C_UNIQUE_FLAGS = []
 
-    COMPILER_F70 = 'gfortran'
+    COMPILER_F77 = 'gfortran'
     COMPILER_F90 = 'gfortran'
     COMPILER_F_UNIQUE_FLAGS = []
 
@@ -330,6 +239,9 @@ class IccIfort(Compiler):
         - TODO: install as single package ?
             should be done anyway (all icc versions come with matching ifort version)
     """
+    COMPILER_MODULE_NAME = ['icc', 'ifort']
+
+    COMPILER_FAMILY = INTEL
     COMPILER_UNIQUE_OPTS = {'intel-static': False,
                             'no-icc': False,
                             }
@@ -355,7 +267,7 @@ class IccIfort(Compiler):
     COMPILER_CXX = 'icpc'
     COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc']
 
-    COMPILER_F70 = 'ifort'
+    COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
