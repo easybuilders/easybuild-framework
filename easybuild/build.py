@@ -43,11 +43,16 @@ from optparse import OptionParser
 # a NameError should be catched where these are used
 
 # PyGraph (used for generating dependency graphs)
+graph_errors = []
 try:
-    import  pygraph.readwrite.dot as dot
     from pygraph.classes.digraph import digraph
 except ImportError, err:
-    pass
+    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
+    
+try:
+    import  pygraph.readwrite.dot as dot
+except:
+    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
 
 # graphviz (used for creating dependency graph images)
 try:
@@ -56,7 +61,8 @@ try:
     sys.path.append('/usr/lib64/graphviz/python/')
     import gv
 except ImportError, err:
-    pass
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz") 
+
 
 import easybuild  # required for VERBOSE_VERSION
 import easybuild.framework.easyconfig as easyconfig
@@ -280,8 +286,9 @@ def main():
         try:
             dep_graph(options.dep_graph, orderedSpecs, log)
         except NameError, err:
-            log.error("At least one optional Python packages (pygraph, dot, graphviz) required to " \
-                      "generate dependency graphs is missing: %s" % err)
+            log.error("An optional Python packages required to " \
+                      "generate dependency graphs is missing: %s" % "\n".join(graph_errors))
+            log.debug(err)
         sys.exit(0)
 
     # submit build as job(s) and exit
