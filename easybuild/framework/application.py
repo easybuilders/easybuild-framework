@@ -875,7 +875,7 @@ class Application:
         failed_pkgs = [pkg.name for pkg in self.instance_pkgs if not pkg.sanitycheck()]
 
         if failed_pkgs:
-            self.log.info("Sanity check for packages %s failed!" % failed_pkgs)
+            self.log.error("Sanity check for packages %s failed!" % failed_pkgs)
             self.sanityCheckOK = False
 
         # pass or fail
@@ -1345,22 +1345,30 @@ class Application:
         """
         pkgSources = []
         for pkg in self.getcfg('pkglist'):
+
             if type(pkg) in [list, tuple] and pkg:
+                self.log.debug('trying to get source for %s' % str(pkg))
                 pkgName = pkg[0]
                 forceunknownsource = False
                 if len(pkg) == 1:
+                    self.log.debug('package name is %s' % pkgName)
                     pkgSources.append({'name':pkgName})
                 else:
                     if len(pkg) == 2:
-                        fn = self.getcfg('pkgtemplate') % (pkgName, pkg[1])
+                        fn = self.getcfg('pkgtemplate') % {'name': pkgName, 'version': pkg[1]}
+                        self.log.debug('file name is %s' % fn)
                     elif len(pkg) == 3:
                         if type(pkg[2]) == bool:
                             forceunknownsource = pkg[2]
+                            self.log.debug('forceunknownsource is %s' % forceunknownsource)
                         else:
                             fn = pkg[2]
+                            self.log.debug('file name is %s' % fn)
+
                     else:
                         self.log.error('Package specified in unknown format (list/tuple too long)')
 
+                    self.log.debug('trying to get source for %s from %s' % (pkgName, fn))
                     if forceunknownsource:
                         pkgSources.append({'name':pkgName,
                                            'version':pkg[1]})
@@ -1385,6 +1393,8 @@ class Application:
 
             elif type(pkg) == str:
                 pkgSources.append({'name':pkg})
+                # FIXME: should this be error?
+                self.log.warning("No version specified for package %s" % pkg)
             else:
                 self.log.error("Package specified in unknown format (not a string/list/tuple)")
 
@@ -1409,6 +1419,7 @@ class Application:
         pkgdefaultclass = self.getcfg('pkgdefaultclass')
         if not pkgdefaultclass:
             self.log.error("ERROR: No default package class set for %s" % self.name())
+        self.log.debug("pkgdefaultclass set to %s" % pkgdefaultclass)
 
         allclassmodule = pkgdefaultclass[0]
         defaultClass = pkgdefaultclass[1]
