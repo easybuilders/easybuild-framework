@@ -37,35 +37,33 @@ pkgtemplate = "%s/%s"
 pkglist= [
     # installed by default
     #'Matrix', 
-    # working
-    #'png', 'Rcpp',
-    #'e1071', 'car', 'colorspace', 'robustbase', ('sp', '0.9-91'), 'vcd', # dependencies of VIM
-    #'BB', 'rlecuyer', 
-    #('Rserve', '0.6-1'), 'Biobase', 'IRanges', 'AnnotationDbi', 'BSgenome', 'ShortRead',
+    'png', 'Rcpp', 'BB', 'rlecuyer', 
+    'e1071', 'car', 'colorspace', 'robustbase', ('sp', '0.9-91'), 'vcd', # dependencies of VIM
+    ('Rserve', '0.6-1'), 'Biobase', 'IRanges', 'AnnotationDbi', 'BSgenome', 'ShortRead',
     'akima', 'base', 'Biostrings', 'bitops', 'boot',
-]
-"""    'class', 'cluster', 'coda', 'codetools', 'datasets', 'DBI', 'foreign', 'gam', 'gamlss',
-    'gamlss.data', 'gamlss.dist', 'gamlss.tr', 'geneplotter', 'graphics', 'grDevices', 'grid', 'hwriter', 'IRanges',
+    'class', 'cluster', 'coda', 'codetools', 'datasets', 'DBI', 'foreign', 'gam', 'gamlss',
+    'gamlss.data', 'gamlss.dist', 'gamlss.tr', 'graphics', 'grDevices', 'grid', 'hwriter', 'IRanges',
     'KernSmooth', 'lattice', 'lmtest', 'MASS', 'methods', 'mgcv', 'mnormt', 'mvtnorm', 'nlme', 'nnet', 'numDeriv',
-    'pscl', 'RColorBrewer', 'RCurl', 'rpart', 'RSQLite', 'sandwich', 'sfsmisc', 'spatial', 'splines', 'stats',
-    'stats4', 'survival', 'tcltk', 'tools', 'utils', 'VGAM', 'waveslim', 'XML', 'xtable', 'ZIGP', 'zoo', 'sna',
-    'brglm', 'snow', 'snowfall', 'deSolve', 'nnet', 'tseriesChaos', 'tseries', 'doSNOW', 'rJava', 'irace',
+    'pscl', 'RColorBrewer', 'rpart', 'RSQLite', 'sandwich', 'sfsmisc', 'spatial', 'splines', 'stats',
+    'stats4', 'survival', 'tools', 'utils', 'VGAM', 'waveslim', 'XML', 'xtable', 'zoo', 
+    'brglm', 'deSolve', 'nnet', 'tseriesChaos', 'tseries', 'doSNOW', 'rJava', 
+
     ## no sources t obe found online for these
     #('rgenoud', '5.7-3-ug1'), ('exon.pmcdf', '1.1'), ('rparallel', '0.6-21-src'), ('tsDyn', '0.7-62.ug.4'),
     ## not available online 
-    # 'rpvm', 'annotate', 'biomaRt'
+    # 'rpvm', 'annotate', 'biomaRt', 'geneplotter', 'tcltk', 'ZIGP'
     # 'exonmap' (not available trought biocLite either)
     ## need extra dependencies:
-    #'rsprng'- > SPRNG
+    # 'snow' -> (Rpackage) 'rsprng'- > SPRNG
     # 'RODBC' -> unixODBC-devel (mysql devel??)
-    # 'RGL' -> Mesa
+    # 'sna' -> 'rgl' -> Mesa
     # ('VIM', '2.0.4') -> (rpackage) tkrplot -> Tk
     # 'rgdal' -> GDAL 
-    # 'GenomeGraphs' -> 'curl-devel'
+    # 'GenomeGraphs','RCurl' -> 'curl-devel'
     ## broken  
-    # 'Rmpi' : can't find mpi? -> use EB_Rmpi!
+    # 'snowfall', 'irace' -> (rpackage) 'Rmpi' : can't find mpi? -> use EB_Rmpi!
     ]
-"""
+
 
 #dependencies=[['GMP', '4.3.1'],['SPRNG', '2.0b'],['PVM', '3.4.6'],['Tcl', '8.5.9'],['Tk', '8.5.9'],['GDAL', '1.8.1'],('Java', '1.6.0_26', '',True)]
 #osdependencies=['mysql-devel', 'libxml2-devel', 'curl-devel', 'unixODBC-devel', 'mesa-libGLU-devel', 'tetex-latex']
