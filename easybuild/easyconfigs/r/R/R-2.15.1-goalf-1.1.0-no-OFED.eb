@@ -46,7 +46,7 @@ pkglist= [
     'KernSmooth', 'lattice', 'lmtest', 'MASS', 'methods', 'mgcv', 'mnormt', 'mvtnorm', 'nlme', 'nnet', 'numDeriv',
     'pscl', 'RColorBrewer', 'rpart', 'RSQLite', 'sandwich', 'sfsmisc', 'spatial', 'splines', 'stats',
     'stats4', 'survival', 'tools', 'utils', 'VGAM', 'waveslim', 'XML', 'xtable', 'zoo', 
-    'brglm', 'deSolve', 'nnet', 'tseriesChaos', 'tseries', 'doSNOW', 'rJava', 
+    'brglm', 'deSolve', 'nnet', 'tseriesChaos', 'tseries', 'doSNOW', 
 
     ## no sources t obe found online for these
     #('rgenoud', '5.7-3-ug1'), ('exon.pmcdf', '1.1'), ('rparallel', '0.6-21-src'), ('tsDyn', '0.7-62.ug.4'),
@@ -60,8 +60,8 @@ pkglist= [
     # ('VIM', '2.0.4') -> (rpackage) tkrplot -> Tk
     # 'rgdal' -> GDAL 
     # 'GenomeGraphs','RCurl' -> 'curl-devel'
-    ## broken  
-    # 'snowfall', 'irace' -> (rpackage) 'Rmpi' : can't find mpi? -> use EB_Rmpi!
+    # 'snowfall', 'irace' -> (rpackage) 'Rmpi' -> use EB_Rmpi!
+    # 'rJava' -> Java
     ]
 
 
