@@ -31,8 +31,8 @@ import easybuild.tools.environment as env
 from easybuild.tools import systemtools
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
-from easybuild.tool.toolchain.compiler import COMPILER_VARIABLES
-from easybuild.tool.toolchain.toolkit import Variables, Options, INTEL, GCC
+from easybuild.tools.toolchain.compiler import COMPILER_VARIABLES
+from easybuild.tools.toolchain.toolkit import Variables, Options, INTEL, GCC
 
 from vsc.fancylogger import getLogger
 

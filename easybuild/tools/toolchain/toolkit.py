@@ -38,6 +38,12 @@ from easybuild.tools.toolchain.fft import IntelFFT
 
 from vsc.fancylogger import getLogger
 
+"""
+TODO
+    - itac support ; not in old one either
+
+"""
+
 # constants used for recognizing compilers, MPI libraries, ...
 GCC = "GCC"
 INTEL = "Intel"
