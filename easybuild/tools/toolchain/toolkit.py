@@ -33,7 +33,7 @@ from easybuild.tools.modules import Modules, get_software_root, get_software_ver
 
 from easybuild.tools.toolchain.compiler import IccIfort
 from easybuild.tools.toolchain.mpi import IntelMPI
-from easybuild.tools.toolchain.linearalgebra import IntelMKL
+from easybuild.tools.toolchain.scalapack import IntelMKL
 from easybuild.tools.toolchain.fft import IntelFFT
 
 from vsc.fancylogger import getLogger
@@ -47,10 +47,7 @@ TODO
 # constants used for recognizing compilers, MPI libraries, ...
 GCC = "GCC"
 INTEL = "Intel"
-MPICH2 = "MPICH2"
-MVAPICH2 = "MVAPICH2"
-OPENMPI = "OpenMPI"
-QLOGIC = "QLogic"
+
 
 class Variables(dict):
     """Extend dict with
@@ -69,10 +66,23 @@ class Variables(dict):
     CFLAGS -O3 -lto
     LDFLAGS -L/usr/lib -L/usr/lib64
 
+    TODO:
+        introduce proper classes for features like cmd+flags, flags, comma_separated_lists
+            with correct __str__
+        make conversion from Variables to old text-only vars
     """
+    LINKER_TEMPLATE = 'Wl,%s'
+
+    START_GROUP = 'start-group'
+    END_GROUP = 'end-group'
+
+    TOGGLE_STATIC = None
+    TOGGLE_DYNAMIC = None
+
     def __init__(self, *args, **kwargs):
         super(Variables, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
+        self.strmap = {}
 
     def append(self, k, v):
         """append (k,v) : if k does not ,exists, initialise a list; append v to list"""
@@ -114,6 +124,19 @@ class Variables(dict):
             res = "%s %s" % (cmd, opts)
         return res
 
+    def as_comma_list(self, k, res=None):
+        """Return comma-separated list"""
+        if res is None:
+            res = self.__getitem__(k)
+        if isinstance(res, (list,)):
+            tmp = []
+            for x in res:
+                if isinstance(x, (list, tuple,)):
+                    tmp.extend(x)
+                else:
+                    tmp.append(x)
+            res = ",".join(tmp)
+        return res
 
     def flags_for_subdirs(self, var, base  , subdirs=None, flag=None):
         """Generate flags to pass to the compiler """
@@ -135,12 +158,90 @@ class Variables(dict):
                 self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
 
         self.extend(var, flags)
+        self.strmap[var] = self.as_options
 
-    def flags_for_libs(self, var, libs):
-        """Given libs, add them prefixed with 'l' """
+    def toggle_static(self, on=True):
+        """Return link flag to prefer linking to static target
+            on = True: set static
+            on = False : set dynamic
+        """
+        if on and self.TOGGLE_STATIC is not None:
+            return self.TOGGLE_STATIC
+        elif (not on) and self.TOGGLE_DYNAMIC is not None:
+            return self.TOGGLE_DYNAMIC
+        return []
+
+    def flags_for_linker(self, var, flags):
+        """Add flags as linker flags"""
+        if isinstance(flags, str):
+            flags = [flags]
+        self.extend(var, [self.LINKER_TEMPLATE % x for x in flags])
+        self.strmap[var] = self.as_options
+
+
+    def flags_for_libs(self, var, libs, map=None, group=False, static=False):
+        """Given libs, add them prefixed with 'l'
+            map : fill in the templates
+            if group: add them in start/end group construct
+            if static true, toggle static at start and restore dynamic at end
+        """
         if isinstance(libs, str):
             libs = [libs]
+        if map is not None:
+            libs = [x % map for x in libs]
+
+        ## toggle static
+        if static:
+            self.flags_for_linker(var, self.as_options(None, self.toggle_static(on=True)))
+
+        ## start group
+        if group:
+            self.flags_for_linker(var, '--%s' % self.START_GROUP)
+
         self.extend(var, ["l%s" % x for x in libs])
+
+        ## end group
+        if group:
+            self.flags_for_linker(var, '--%s' % self.END_GROUP)
+
+        ## un-toggle static
+        if static:
+            self.flags_for_linker(var, self.as_options(None, self.toggle_static(on=False)))
+
+        self.strmap[var] = self.as_options
+
+    def add_exists(self, var, prefix, paths, filename=None, suffix=None):
+        """Given prefix and list of paths, return first that exists
+            if filename : look for filename in prefix+paths
+            if suffix : extend the paths with prefixes
+        """
+        if suffix is not None:
+            res = []
+            for path in paths:
+                res.extend(["%s%s" % (path, suffix), path])
+            paths = res
+
+        for path in paths:
+            abs_path = os.path.join(prefix, path)
+            if filename is not None:
+                abs_path = os.path.join(abs_path, filename)
+            if os.path.exists(abs_path):
+                self.append(var, abs_path)
+                return
+
+        self.log.raiseException("add_exists: no existing path found (var %s ; prefix %s ; path %s ; filename %s; suffix %s)" % (var, prefix, paths, filename, suffix))
+
+    def add_comma_libs(self, var, libs, prefix='lib', suffix=None):
+        """Add libs as list of lib%s
+            to be returned as comma-separated list
+        """
+        if suffix is None:
+            suffix = ''
+
+        self.extend(var, ["%s%s%s" % (prefix, x, suffix) for x in libs])
+
+        self.strmap[var] = self.as_comma_list
+
 
 class Options(dict):
     def __init__(self, *args, **kwargs):

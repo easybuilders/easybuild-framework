@@ -32,14 +32,24 @@ from easybuild.tools import systemtools
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
 from easybuild.tools.toolchain.compiler import COMPILER_VARIABLES
-from easybuild.tools.toolchain.toolkit import Variables, Options, INTEL, GCC
+from easybuild.tools.toolchain.toolkit import Variables, Options
 
 from vsc.fancylogger import getLogger
+
+INTELMPI = "IntelMPI"
+OPENMPI = "OpenMPI"
+QLOGICMPI = "QLogic"
+MPICH2_F = "MPICH2"  ## _F family names, otherwise classes
+MVAPICH2_F = "MVAPICH2"
 
 
 class MPI(object):
     """General MPI-like class"""
+    OPTIONS_CLASS = Options
+    VARIABLES_CLASS = Variables
+
     MPI_MODULE_NAME = None
+    MPI_FAMILY = None
 
     MPI_LIBRARY_NAME = None
 
@@ -65,9 +75,9 @@ class MPI(object):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
-        self.opts = getattr(self, 'opts', Options())
+        self.opts = getattr(self, 'opts', self.OPTIONS_CLASS())
 
-        self.vars = getattr(self, 'vars', Variables())
+        self.vars = getattr(self, 'vars', self.VARIABLES_CLASS())
 
         self._set_mpi_opts()
         self._set_mpi_option_map()
@@ -88,7 +98,7 @@ class MPI(object):
     def _set_mpi_option_map(self):
         option_map = self.MPI_SHARED_OPTION_MAP
         if self.MPI_UNIQUE_OPTION_MAP is not None:
-            option_map.update(self.COMPILER_UNIQUE_OPTION_MAP)
+            option_map.update(self.MPI_UNIQUE_OPTION_MAP)
 
         self.log.debug('_set_mpi_option_map: setting option_map %s' % option_map)
 
@@ -132,44 +142,24 @@ class MPI(object):
 
     def _set_mpi_vars(self):
         """Set the other MPI variables"""
-        root = get_software_root(self.MPI_MODULE_NAME)
+        root = get_software_root(self.MPI_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
         lib_dir = ['lib']
         incl_dir = ['include']
+        suffix = None
         if not self.opts.get('32bit', None):
-            def _insert_suffix64_front(paths):
-                res = []
-                for path in paths:
-                    res.extend(["%s64" % path, path])
-                return res
-            lib_dir = _insert_suffix64_front(lib_dir)
-            incl_dir = _insert_suffix64_front(incl_dir)
+            suffix = '64'
 
-        def _check_exists(prefix, paths, suffix=None):
-            for path in paths:
-                abs_path = os.path.join(prefix, path)
-                if suffix is not None:
-                    abs_path = os.path.join(abs_path, suffix)
-                if os.path.exists(abs_path):
-                    return abs_path
-
-        variables = {}
-        variables['MPI_LIB_STATIC'] = _check_exists(root, lib_dir, "lib%s.a" % self.MPI_LIBRARY_NAME)
-        variables['MPI_LIB_SHARED'] = _check_exists(root, lib_dir, "lib%s.so" % self.MPI_LIBRARY_NAME)
-        variables['MPI_LIB_DIR'] = _check_exists(root, lib_dir)
-        variables['MPI_INC_DIR'] = _check_exists(root, incl_dir)
-
-        ## sanity check
-        for v in variables.values():
-            if v is None:
-                self.log.raiseException("_set_mpi_compiler_vars: one or more variables not set: %s" % variables)
-
-        self.vars.update(variables)
+        self.vars.add_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME, suffix=suffix)
+        self.vars.add_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME, suffix=suffix)
+        self.vars.add_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
+        self.vars.add_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
 
 class OpenMPI(MPI):
     """OpenMPI MPI class"""
-    MPI_MODULE_NAME = ['OpenMPI']
+    MPI_MODULE_NAME = [OPENMPI]
+    MPI_FAMILY = OPENMPI
 
     MPI_LIBRARY_NAME = 'mpi'
 
@@ -183,6 +173,7 @@ class OpenMPI(MPI):
 class IntelMPI(MPI):
     """Intel MPI class"""
     MPI_MODULE_NAME = ['impi']
+    MPI_FAMILY = INTELMPI
 
     MPI_LIBRARY_NAME = 'mpi'
 
@@ -197,21 +188,24 @@ class IntelMPI(MPI):
 
 class MVAPICH2(MPI):
     """MVAPICH2 MPI class"""
-    MPI_MODULE_NAME = ['MVAPICH2']
+    MPI_MODULE_NAME = [MVAPICH2_F]
+    MPI_FAMILY = MVAPICH2_F
 
     MPI_LIBRARY_NAME = 'mpich'
 
 
 class MPICH2(MPI):
     """MPICH2 MPI class"""
-    MPI_MODULE_NAME = ['MPICH2']
+    MPI_MODULE_NAME = [MPICH2_F]
+    MPI_FAMILY = MPICH2_F
 
     MPI_LIBRARY_NAME = 'mpich'
 
 
 class QLogicMPI(MPI):
     """QlogicMPI MPI class"""
-    MPI_MODULE_NAME = ['QLogicMPI']
+    MPI_MODULE_NAME = [QLOGICMPI]
+    MPI_FAMILY = QLOGICMPI
 
     MPI_LIBRARY_NAME = 'mpich'
 

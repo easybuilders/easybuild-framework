@@ -39,6 +39,9 @@ COMPILER_VARIABLES = ['CC', 'CXX', 'F77', 'F90']
 
 class Compiler(object):
     """General compiler-like class"""
+    OPTIONS_CLASS = Options
+    VARIABLES_CLASS = Variables
+
     COMPILER_MODULE_NAME = None
 
     COMPILER_FAMILY = None
@@ -58,7 +61,7 @@ class Compiler(object):
                             'veryloose': False,
                             'verbose': False,
                             'debug': False,
-                            'i8': False, ## fortran only
+                            'i8': False, ## fortran only -> no: MKL and icc give -DMKL_ILP64
                             'r8' : False, ## fortran only
                             'unroll': False,
                             'cstd': None,
@@ -99,15 +102,17 @@ class Compiler(object):
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
+    LIB_MULTITHREAD = None
+
     def __init__(self):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
         self.arch = None
 
-        self.opts = getattr(self, 'opts', Options())
+        self.opts = getattr(self, 'opts', self.OPTIONS_CLASS())
 
-        self.vars = getattr(self, 'vars', Variables())
+        self.vars = getattr(self, 'vars', self.VARIABLES_CLASS())
 
         self._set_compiler_opts()
         self._set_compiler_option_map()
@@ -189,6 +194,16 @@ class Compiler(object):
 
         return optarch
 
+class Dummy(Compiler):
+    """Dummy compiler : try not to even use system gcc"""
+    COMPILER_MODULE_NAME = []
+
+    COMPILER_CC = 'DUMMYCC'
+    COMPILER_CXX = 'DUMMYCXX'
+
+    COMPILER_F77 = 'DUMMYF77'
+    COMPILER_F90 = 'DUMMYF90'
+
 
 class GCC(Compiler):
     """GCC compiler class"""
@@ -223,6 +238,9 @@ class GCC(Compiler):
     COMPILER_F90 = 'gfortran'
     COMPILER_F_UNIQUE_FLAGS = []
 
+    LIB_MULTITHREAD = ['pthread']
+
+
     def _set_compiler_vars(self):
         super(GCC, self)._set_compiler_vars()
 
@@ -231,7 +249,13 @@ class GCC(Compiler):
 
         ## to get rid of lots of problems with libgfortranbegin
         ## or remove the system gcc-gfortran
+        ## also used in eg LIBBLAS variable
         self.vars.flags_for_libs('FLIBS', "gfortran")
+
+
+class IntelVariables(Variables):
+    TOGGLE_STATIC = 'Bstatic'
+    TOGGLE_DYNAMIC = 'Bdynamic'
 
 
 class IccIfort(Compiler):
@@ -239,6 +263,9 @@ class IccIfort(Compiler):
         - TODO: install as single package ?
             should be done anyway (all icc versions come with matching ifort version)
     """
+    VARIABLES_CLASS = IntelVariables
+
+
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
     COMPILER_FAMILY = INTEL
@@ -271,6 +298,8 @@ class IccIfort(Compiler):
     COMPILER_F90 = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
+    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related : TODO: harmful or not?
+
     def _set_compiler_vars(self):
         super(IccIfort, self)._set_compiler_vars()
 
@@ -283,11 +312,11 @@ class IccIfort(Compiler):
         if not ifort_version == icc_version:
             self.log.raiseException("_set_compiler_vars: mismatch between icc version %s and ifort version %s" % (icc_version, ifort_version))
 
+        if LooseVersion(icc_version) < LooseVersion('2011'):
+            self.LIB_MULTITHREAD.insert(1, "guide")
+
         if "liomp5" not in self.vars['LIBS']:
-            libs = ['iomp5', 'pthread']
-            if LooseVersion(icc_version) < LooseVersion('2011'):
-                libs.insert(1, "guide")
-            self.vars.flags_for_libs('LIBS', libs)
+            self.vars.flags_for_libs('LIBS', self.LIB_MULTITHREAD)
 
         libpaths = ['intel64']
         if self.opts.get('32bit', None):
