@@ -11,24 +11,20 @@ toolkitopts = {'pic':True}
 sources = ['%s_%s.source.tar.gz' % (name.lower(), version)]
 sourceURLs = ['ftp://root.cern.ch/root/']
 
-#patches=['configure_FftwFromMkl_28.patch','config_makefilex8664icc_iccv12.patch']
-
 dependencies = [
-				('GSL', '1.14'),
-				('libxml2', '2.7.6'),
-				('Python', '2.7.1'),
-				#('Ruby', '1.9.2-p180'),
+				('GSL', '1.15'),
+				('libxml2', '2.8.0'),
+				('Python', '2.7.3'),
 				]
 
-#osdependencies=['libX11-devel','libXft-devel','libXpm-devel','libXext-devel','qt4-devel']
-
-configopts = 'linuxx8664'
-configopts += ' --disable-xft --disable-xrootd --disable-mysql --enable-unuran --enable-table --enable-explicitlink --enable-minuit2 --enable-roofit'
+# architecture
+configopts = 'linuxx8664gcc'
+# disable featuers
+configopts += ' --disable-xft --disable-x11 --disable-xrootd --disable-mysql'
+#enable features
+configopts += ' --enable-unuran --enable-table --enable-explicitlink --enable-minuit2 --enable-roofit'
 configopts += ' --with-gsl-incdir=$SOFTROOTGSL/include/gsl --with-gsl-libdir=$SOFTROOTGSL/lib'
 configopts += ' --with-xml-incdir=$EBROOTLIBXML2/include/libxml2/libxml --with-xml-libdir=$EBROOTLIBXML2/lib'
-#configopts += ' --with-fftw3-incdir=$MKLROOT/include/fftw --with-fftw3-libdir=$MKLROOT/lib/em64t'
-configopts += ' --enable-python'
-#configopts += ' --enable-ruby'
+configopts += ' --with-fftw3-incdir=$FFTW_INC_DIR --with-fftw3-libdir=$FFTW_LIB_DIR'
+configopts += ' --with-python-libdir=$EBROOTPYTHON/lib'
 
-## qt4
-configopts += ' --with-qt-libdir="/usr/lib64/qt4/lib64/" --with-qt-incdir="/usr/lib64/qt4/include/" '

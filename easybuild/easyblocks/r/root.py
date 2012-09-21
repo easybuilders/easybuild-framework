@@ -39,5 +39,7 @@ class EB_ROOT(Application):
         txt = Application.make_module_extra(self)
         txt += "setenv\tROOTSYS\t\t$root\n"
         txt += "prepend-path\tLD_LIBRARY_PATH\t\t$root/lib/root\n"
+        txt += "prepend-path\tPYTHONPATH\t\t$root/lib/root\n"
+        txt += "prepend-path\tPYTHONPATH\t\t$root/lib/root/python\n"
 
         return txt
