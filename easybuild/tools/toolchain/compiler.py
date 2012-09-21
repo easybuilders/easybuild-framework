@@ -31,7 +31,9 @@ import easybuild.tools.environment as env
 from easybuild.tools import systemtools
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
-from easybuild.tools.toolchain.toolkit import Variables, Options, INTEL, GCC
+from easybuild.tools.toolchain.toolkit import INTEL, GCC
+from easybuild.tools.toolchain.variables import Variables
+from easybuild.tools.toolchain.options import Options
 
 from vsc.fancylogger import getLogger
 
@@ -151,13 +153,15 @@ class Compiler(object):
             value = getattr(self, 'COMPILER_%s' % var.upper(), None)
             if value is None:
                 self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
-            self.vars.append(var, value)
+            self.vars.append_cmd_option(var, value)
             if is32bit:
-                self.vars.append(var, self.opts.option('32bit'))
+                self.vars.append_cmd_option(var, self.opts.option('32bit'))
 
         if self.opts.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" % (self.vars['CXX'], self.vars['CC']))
             self.vars['CXX'] = self.vars['CC']
+
+        self.log.debug('_set_compiler_vars: current variables %s' % self.vars)
 
 
     def _set_compiler_flags(self):
@@ -173,11 +177,12 @@ class Compiler(object):
 
         def_flags = flags + optflags[:1] + precflags[:1]
 
-        self.vars.extend('CFLAGS', def_flags + cflags)
-        self.vars.extend('CXXFLAGS', def_flags + cflags)
-        self.vars.extend('FFLAGS', def_flags + fflags)
-        self.vars.extend('F90FLAGS', def_flags + fflags)
+        self.vars.extend_option('CFLAGS', def_flags + cflags)
+        self.vars.extend_option('CXXFLAGS', def_flags + cflags)
+        self.vars.extend_option('FFLAGS', def_flags + fflags)
+        self.vars.extend_option('F90FLAGS', def_flags + fflags)
 
+        self.log.debug('_set_compiler_flags: current variables %s' % self.vars)
 
     def _get_optimal_architecture(self, optarch):
         """ Get options for the current architecture """
@@ -316,7 +321,7 @@ class IccIfort(Compiler):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
         if "liomp5" not in self.vars['LIBS']:
-            self.vars.flags_for_libs('LIBS', self.LIB_MULTITHREAD)
+            self.vars.extend_lib_option('LIBS', self.LIB_MULTITHREAD)
 
         libpaths = ['intel64']
         if self.opts.get('32bit', None):
@@ -325,5 +330,5 @@ class IccIfort(Compiler):
         if LooseVersion(icc_version) > LooseVersion('2011.4'):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
-        self.vars.flags_for_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+        self.vars.extend_subdirs_option("LDFLAGS", icc_root, subdirs=libpaths)
 

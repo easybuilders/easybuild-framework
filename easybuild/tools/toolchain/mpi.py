@@ -32,7 +32,8 @@ from easybuild.tools import systemtools
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
 from easybuild.tools.toolchain.compiler import COMPILER_VARIABLES
-from easybuild.tools.toolchain.toolkit import Variables, Options
+from easybuild.tools.toolchain.variables import Variables
+from easybuild.tools.toolchain.options import Options
 
 from vsc.fancylogger import getLogger
 
@@ -117,20 +118,20 @@ class MPI(object):
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:
                 self.log.raiseException("_set_mpi_compiler_vars: mpi compiler variable %s undefined" % var)
-            self.vars.append(var, value)
+            self.vars.append_cmd_option(var, value)
 
             templatedict = {c_var:self.vars.as_cmd_option(c_var),
                             '%s_base' % c_var:self.vars[c_var][0],
                             }
 
-            self.vars.append(var, self.opts.option('_opt_%s' % var, templatedict=templatedict))
+            self.vars.extend_cmd_option(var, self.opts.option('_opt_%s' % var, templatedict=templatedict))
 
             if is32bit:
-                self.vars.append(var, self.opts.option('32bit'))
+                self.vars.append_cmd_option(var, self.opts.option('32bit'))
 
             if self.opts.get('usempi', None):
                 self.log.debug("_set_mpi_compiler_vars: usempi set: switching %s value %s for %s value %s" % (c_var, self.vars[c_var], var, self.vars[var]))
-                self.vars[c_var] = self.vars[var]
+                self.vars.extend_cmd_option(c_var, self.vars[var])
 
 
         if self.opts.get('cciscxx', None):
@@ -150,10 +151,10 @@ class MPI(object):
         if not self.opts.get('32bit', None):
             suffix = '64'
 
-        self.vars.add_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME, suffix=suffix)
-        self.vars.add_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME, suffix=suffix)
-        self.vars.add_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
-        self.vars.add_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
+        self.vars.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME, suffix=suffix)
+        self.vars.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME, suffix=suffix)
+        self.vars.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
+        self.vars.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
 
 class OpenMPI(MPI):

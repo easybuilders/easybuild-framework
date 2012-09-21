@@ -31,8 +31,10 @@ import easybuild.tools.environment as env
 from easybuild.tools import systemtools
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
-from easybuild.tools.toolchain.toolkit import Variables, Options, INTEL, GCC
-from easybuild.tools.toolchain.mpi import Variables, Options, INTELMPI, OPENMPI
+from easybuild.tools.toolchain.toolkit import INTEL, GCC
+from easybuild.tools.toolchain.mpi import INTELMPI, OPENMPI
+from easybuild.tools.toolchain.variables import Variables
+from easybuild.tools.toolchain.options import Options
 
 from vsc.fancylogger import getLogger
 
@@ -50,18 +52,37 @@ class ScalableLinearAlgebraPackage(object):
     BLAS_INCLUDE_DIR = ['include']
 
 
+    LAPACK_IS_BLAS = False
+    LAPACK_REQUIRES = ['BLAS']
     LAPACK_MODULE_NAME = None
+    LAPACK_LIB = None
+    LAPACK_LIB_MT = None
+    LAPACK_LIB_DIR = ['lib']
+    LAPACK_INCLUDE_DIR = ['include']
+
     BLACS_MODULE_NAME = None
+    BLACS_LIB_DIR = ['lib']
+    BLACS_INCLUDE_DIR = ['include']
+
     SCALAPACK_MODULE_NAME = None
+    SCALAPACK_REQUIRES = ['LIBBLACS','LIBLAPACK','LIBBLAS']
+    SCALAPACK_LIB = None
+    SCALAPACK_LIB_MT = None
+    SCALAPACK_LIB_MAP = {}
+    SCALAPACK_LIB_GROUP = False
+    SCALAPACK_LIB_STATIC = False
+    SCALAPACK_LIB_DIR = ['lib']
+    SCALAPACK_INCLUDE_DIR = ['include']
 
+    """
     {'packed-groups':False}
-    # some tools (like pkg-utils) don't handle groups well, so pack them if required
-    if self.opts['packed-groups']:
-        for x in ['LIBBLAS', 'LIBLAPACK', 'LIBSCALAPACK']:
+    # TODO: some tools (like pkg-utils) don't handle groups well, so pack them if required
+    if opts['packed-groups']:
+        for x in ['LIBBLAS', 'LIBLAPACK','LIBLAPACK_ONLY' 'LIBSCALAPACK']:
             for var in [x, "%s_MT" % x]:
-                self.vars[var] = self.vars[var].replace(" ", ",")
-                self.vars[var] = self.vars[var].replace(",-Wl,", ",")
-
+                vars[var] = self.vars[var].replace(" ", ",")
+                vars[var] = self.vars[var].replace(",-Wl,", ",")
+    """
     def __init__(self):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
@@ -86,118 +107,137 @@ class ScalableLinearAlgebraPackage(object):
             self.log.raiseException("_set_blas_vars: BLAS_LIB not set")
 
         self.BLAS_LIB=[x%self.BLAS_LIB_MAP for x in self.BLAS_LIB]
-        flagopts = {'group':self.BLAS_LIB_GROUP,
-                    'static':self.BLAS_LIB_STATIC,
-                    }
 
-        self.vars.flags_for_libs('LIBBLAS', self.BLAS_LIB, **flagopts)
+        self.vars.extend_lib_option('LIBBLAS', self.BLAS_LIB, group=self.BLAS_LIB_GROUP,static=self.BLAS_LIB_STATIC)
         if 'FLIBS' in self.vars:
-            self.vars.extend('LIBBLAS', self.vars['FLIBS'])
+            self.vars.extend_lib_option('LIBBLAS', self.vars['FLIBS'])
 
         ## multi-threaded
         if self.BLAS_LIB_MT is None:
             ## reuse BLAS variables
-            self.vars.extend('LIBBLAS_MT', self.vars['LIBBLAS'])
+            self.vars.extend_lib_option('LIBBLAS_MT', self.vars['LIBBLAS'])
         else:
             self.BLAS_LIB_MT=[x%self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT]
-            self.vars.flags_for_libs('LIBBLAS_MT', self.BLAS_LIB_MT, **flagopts)
+            self.vars.extend_lib_option('LIBBLAS_MT', self.BLAS_LIB_MT, group=self.BLAS_LIB_GROUP,static=self.BLAS_LIB_STATIC)
             if 'FLIBS' in self.vars:
-                self.vars.extend('LIBBLAS_MT', self.vars['FLIBS'])
+                self.vars.extend_lib_option('LIBBLAS_MT', self.vars['FLIBS'])
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                self.vars.flags_for_libs('LIBBLAS_MT', self.LIB_MULTITHREAD)
-
+                self.vars.extend_lib_option('LIBBLAS_MT', self.LIB_MULTITHREAD)
 
         root = get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
-        self.vars.add_exist('BLAS_LIB_DIR',root, self.BLAS_LIB_DIR)
-        self.vars.add_comma_libs('BLAS_STATIC_LIBS', self.BLAS_LIB,suffx='.a')
-        self.vars.add_comma_libs('BLAS_MT_STATIC_LIBS', self.BLAS_LIB_MT,suffx='.a')
+        self.vars.append_exist('BLAS_LIB_DIR',root, self.BLAS_LIB_DIR)
+        self.vars.extend_comma_libs('BLAS_STATIC_LIBS', self.vars['LIBBLAS'],suffx='.a')
+        self.vars.extend_comma_libs('BLAS_MT_STATIC_LIBS', self.vars['LIBBLAS_MT'],suffx='.a')
 
 
     def _set_lapack_vars(self):
-        """Set LAPACK releated variables"""
+        """Set LAPACK related variables
+            and LAPACK only, for (working) use BLAS+LAPACK
+        """
+        if self.LAPACK_IS_BLAS:
+            self.vars.extend_lib_option('LIBLAPACK_ONLY',self.vars['LIBBLAS'])
+            self.vars.extend_lib_option('LIBLAPACK_MT_ONLY',self.vars['LIBBLAS_MT'])
+            self.vars.extend_lib_option('LIBLAPACK',self.vars['LIBBLAS'])
+            self.vars.extend_lib_option('LIBLAPACK_MT',self.vars['LIBBLAS_MT'])
+            self.vars.extend_comma_libs('LAPACK_STATIC_LIBS', self.vars['BLAS_STATIC_LIBS'])
+            self.vars.extend_comma_libs('LAPACK_MT_STATIC_LIBS', self.vars['BLAS_MT_STATIC_LIBS'])
+            self.vars.append_exist('LAPACK_LIB_DIR',self.vars['BLAS_LIB_DIR'])
+        else:
+            if self.LAPACK_LIB is None:
+                self.log.raiseException("_set_lapack_vars: LAPACK_LIB not set")
+            self.vars.extend_lib_option('LIBLAPACK_ONLY',self.LAPACK_LIB)
 
-        ## acml
-        self.vars['LIBLAPACK'] = self.vars['LIBBLAS']
-        self.vars['LIBLAPACK_MT'] = self.vars['LIBBLAS_MT']
+            if self.LAPACK_LIB_MT is None:
+                ## reuse LAPACK variables
+                self.vars.extend_lib_option('LIBBLAS_MT_ONLY', self.vars['LIBLAPACK_ONLY'])
+            else:
+                self.vars.extend_lib_option('LIBLAPACK_MT_ONLY', self.LAPACK_LIB_MT)
+                if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                    self.vars.extend_lib_option('LIBBLAS_MT_ONLY', self.LIB_MULTITHREAD)
 
-        ## lapack
-        self.vars['LIBLAPACK'] = "-llapack %s" % self.vars['LIBBLAS']
-        self.vars['LIBLAPACK_MT'] = "-llapack %s -lpthread" % self.vars['LIBBLAS_MT']
-        self.vars['LAPACK_LIB_DIR'] = os.path.join(lapack, "lib")
-        self.vars['LAPACK_STATIC_LIBS'] = "liblapack.a"
-        self.vars['LAPACK_MT_STATIC_LIBS'] = self.vars['LAPACK_STATIC_LIBS']
+            ## need BLAS for LAPACK ?
+            if self.LAPACK_REQUIRES is not None:
+                self.vars.join('LIBLAPACK','LIBLAPACK_ONLY',*self.LAPACK_REQUIRES)
+                lapack_mt=["%s_MT"%x for x in self.LAPACK_REQUIRES]
+                if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                    lapack_mt.extend(self.LIB_MULTITHREAD)
+                self.vars.join('LIBLAPACK_MT','LIBLAPACK_MT_ONLY',*lapack_mt)
+            else:
+                self.vars.extend_lib_option('LIBLAPACK',self.vars['LIBLAPACK_ONLY'])
+                self.vars.extend_lib_option('LIBLAPACK_MT',self.vars['LIBLAPACK_MT_ONLY'])
 
-        ## atlas
-        if not self.vars.has_key('LIBLAPACK') and not self.vars.has_key('LIBLAPACK_MT'):
-            self.vars['LIBLAPACK'] = ' '.join(["lapack", self.vars['LIBBLAS']])
-            self.vars['LIBLAPACK_MT'] = ' '.join(["lapack", self.vars['LIBBLAS_MT']])
-        self.vars['LAPACK_LIB_DIR'] = self.vars['BLAS_LIB_DIR']
-        self.vars['LAPACK_STATIC_LIBS'] = "liblapack.a," + self.vars['BLAS_STATIC_LIBS']
-        self.vars['LAPACK_MT_STATIC_LIBS'] = "liblapack.a," + self.vars['BLAS_MT_STATIC_LIBS']
-        self.vars['BLAS_LAPACK_LIB_DIR'] = self.vars['LAPACK_LIB_DIR']
-        self.vars['BLAS_LAPACK_STATIC_LIBS'] = self.vars['LAPACK_STATIC_LIBS']
-        self.vars['BLAS_LAPACK_MT_STATIC_LIBS'] = self.vars['LAPACK_MT_STATIC_LIBS']
+            self.vars.append_comma_libs('LAPACK_STATIC_LIBS',self.vars['LIBLAPACK'] ,suffx='.a')
+            self.vars.append_comma_libs('LAPACK_MT_STATIC_LIBS', self.vars['LIBLAPACK_MT'],suffx='.a')
 
-        ## flame
-        self.vars['LIBLAPACK'] += " -llapack2flame -lflame "
-        self.vars['LIBLAPACK_MT'] += " -llapack2flame -lflame "
+            root = get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
+            self.vars.extend_subdirs_option('LAPACK_LIB_DIR',root, self.LAPACK_LIB_DIR)
 
-        ## intel
-        self.vars['LIBLAPACK_MT'] = self.vars['LIBBLAS_MT']
-        self.vars['LIBLAPACK'] = self.vars['LIBBLAS']
-        self.vars['LAPACK_LIB_DIR'] = libs_dir
-        self.vars['BLAS_LAPACK_LIB_DIR'] = libs_dir
-        self.vars['LAPACK_STATIC_LIBS'] = self.vars['BLAS_STATIC_LIBS']
-        self.vars['LAPACK_MT_STATIC_LIBS'] = self.vars['BLAS_MT_STATIC_LIBS']
-        self.vars['BLAS_LAPACK_STATIC_LIBS'] = self.vars['LAPACK_STATIC_LIBS']
-        self.vars['BLAS_LAPACK_MT_STATIC_LIBS'] = self.vars['LAPACK_MT_STATIC_LIBS']
+        self.vars.join('BLAS_LAPACK_LIB_DIR','LAPACK_LIB_DIR','BLAS_LIB_DIR')
+        self.vars.join('BLAS_LAPACK_STATIC_LIBS', 'LAPACK_STATIC_LIBS','BLAS_STATIC_LIBS')
+        self.vars.join('BLAS_LAPACK_MT_STATIC_LIBS','LAPACK_MT_STATIC_LIBS','BLAS_STATIC_LIBS')
 
 
     def _set_blacs_vars(self):
         """Set BLACS related variables"""
 
+        self.BLACS_LIB=[x%self.BLACS_LIB_MAP for x in self.BLACS_LIB]
+
         ## BLACS
-        blacs_libs = ["blacsCinit", "blacsF77init", "blacs"]
-        self.vars['BLACS_INC_DIR'] = os.path.join(blacs, "include")
-        self.vars['BLACS_LIB_DIR'] = os.path.join(blacs, "lib")
-        self.vars['BLACS_STATIC_LIBS'] = ','.join(["lib%s.a" % x for x in blacs_libs])
-        self.vars['LIBSCALAPACK'] = ' '.join(["-l%s" % x for x in blacs_libs])
-        self.vars['LIBSCALAPACK_MT'] = self.vars['LIBSCALAPACK']
+        self.vars.extend_lib_option('LIBBLACS',self.BLACS_LIBS)
+        if self.BLACS_LIB_MT is None:
+            self.vars.extend_lib_option('LIBBLACS_MT', self.vars['LIBBLACS'])
+        else:
+            self.log.raiseException("_set_blacs_vars: setting LIBBLACS_MT from self.BLACS_LIB_MT not implemented")
 
+        root = get_software_root(self.BLACS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
-        # intel
-        self.vars['BLACS_INC_DIR'] = os.path.join(mklroot, "mkl", "include")
-        self.vars['BLACS_LIB_DIR'] = libs_dir
-        self.vars['BLACS_STATIC_LIBS'] = ','.join(["libmkl_%s.a" % x for x in blacs_libs])
-        self.vars['BLACS_MT_STATIC_LIBS'] = self.vars['BLACS_STATIC_LIBS']
+        self.vars.append_exist('BLACS_LIB_DIR',root, self.BLACS_LIB_DIR)
+        self.vars.append_exist('BLACS_INC_DIR',root, self.BLACS_INCLUDE_DIR)
+        self.vars.extend_comma_libs('BLCAS_STATIC_LIBS', self.vars['LIBBLACS'],suffx='.a')
+        self.vars.extend_comma_libs('BLACS_MT_STATIC_LIBS', self.vars['LIBBLACS_MT'],suffx='.a')
 
     def _set_scalapack_vars(self):
         """Set ScaLAPACK related variables"""
 
-        # we need to be careful here, LIBSCALAPACK(_MT) may be set by prepareBLACS, or not
-        self.vars['LIBSCALAPACK'] = "%s -lscalapack" % self.vars.get('LIBSCALAPACK', '')
-        self.vars['LIBSCALAPACK_MT'] = "%s %s -lpthread" % (self.vars['LIBSCALAPACK'],
-                                                            self.vars.get('LIBSCALAPACK_MT', ''))
-        self.vars['SCALAPACK_INC_DIR'] = os.path.join(scalapack, "include")
-        self.vars['SCALAPACK_LIB_DIR'] = os.path.join(scalapack, "lib")
-        self.vars['SCALAPACK_STATIC_LIBS'] = "libscalapack.a"
-        self.vars['SCALAPACK_MT_STATIC_LIBS'] = self.vars['SCALAPACK_STATIC_LIBS']
+        if self.SCALAPACK_LIB is None:
+            self.log.raiseException("_set_blas_vars: SCALAPACK_LIB not set")
 
-        # intel
-        blacs_libs = ["blacs%s" % libsfx]
-        blas_libs = ["intel%s" % libsfx, "sequential", "core"]
-        blas_mt_libs = ["intel%s" % libsfx, "intel_thread", "core"]
-        scalapack_libs = ["scalapack%s" % libsfxsl, "solver%s_sequential" % libsfx] + blas_libs + ["blacs_intelmpi%s" % libsfx]
-        scalapack_mt_libs = ["scalapack%s" % libsfxsl, "solver%s" % libsfx] + blas_mt_libs + ["blacs_intelmpi%s" % libsfx]
-        self.vars['SCALAPACK_INC_DIR'] = os.path.join(mklroot, "mkl", "include")
-        self.vars['SCALAPACK_LIB_DIR'] = libs_dir
-        suffix = "-Wl,--end-group -Wl,-Bdynamic"
-        self.vars['LIBSCALAPACK'] = ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in scalapack_libs]), suffix])
-        self.vars['SCALAPACK_STATIC_LIBS'] = ','.join(["libmkl_%s.a" % x for x in scalapack_libs])
-        suffix += ' -liomp5 -lpthread'
-        self.vars['LIBSCALAPACK_MT'] = ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in scalapack_mt_libs]), suffix])
-        self.vars['SCALAPACK_MT_STATIC_LIBS'] = ','.join(["libmkl_%s.a" % x for x in scalapack_mt_libs])
+        self.SCALAPACK_LIB=[x%self.SCALAPACK_LIB_MAP for x in self.SCALAPACK_LIB]
+
+        self.vars.extend_lib_option('LIBSCALAPACK_ONLY', self.SCALAPACK_LIB, group=self.SCALAPACK_LIB_GROUP,static=self.SCALAPACK_LIB_STATIC)
+        if 'FLIBS' in self.vars:
+            self.vars.extend_lib_option('LIBSCALAPACK_ONLY', self.vars['FLIBS'])
+
+        ## multi-threaded
+        if self.SCALAPACK_LIB_MT is None:
+            ## reuse BLAS variables
+            self.vars.extend_lib_option('LIBSCALAPACK_MT_ONLY', self.vars['LIBSCALAPCK_ONLY'])
+        else:
+            self.SCALAPACK_LIB_MT=[x%self.SCALAPACK_LIB_MAP for x in self.SCALAPACK_LIB_MT]
+            self.vars.extend_lib_option('LIBSCALAPACK_MT_ONLY', self.SCALAPACK_LIB_MT, group=self.SCALAPACK_LIB_GROUP,static=self.SCALAPACK_LIB_STATIC)
+            if 'FLIBS' in self.vars:
+                self.vars.extend_lib_option('LIBSCALAPACK_MT_ONLY', self.vars['FLIBS'])
+            if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                self.vars.extend_lib_option('LIBSCALAPACK_MT_ONLY', self.LIB_MULTITHREAD)
+
+        root = get_software_root(self.SCALAPACK_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
+
+
+        if self.SCALAPACK_REQUIRES is not None:
+            self.vars.join('LIBSCALAPACK','LIBSCALAPACK_ONLY',*self.SCALAPACK_REQUIRES)
+            scalapack_mt=["%s_MT"%x for x in self.SCALAPACK_REQUIRES]
+            if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                lapack_mt.extend(self.LIB_MULTITHREAD)
+            self.vars.join('LIBSCALAPACK_MT','LIBSCALAPACK_MT_ONLY',*scalapack_mt)
+        else:
+            self.log.raiseException("_set_scalapack_vars: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
+
+
+        self.vars.append_exist('SCALAPACK_LIB_DIR',root, self.SCALAPACK_LIB_DIR)
+        self.vars.append_exist('SCALAPACK_INC_DIR',root, self.SCALAPACK_INCLUDE_DIR)
+        self.vars.extend_comma_libs('SCALAPACK_STATIC_LIBS', self.vars['LIBSCALAPACK'],suffx='.a')
+        self.vars.extend_comma_libs('SCALAPACK_MT_STATIC_LIBS', self.vars['LIBSCALAPACK_MT'],suffx='.a')
 
 
 class GotoBLAS(object):
@@ -214,11 +254,12 @@ class LAPACK(object):
         provides LAPACK
     """
     LAPACK_MODULE_NAME = ['LAPACK']
+    LAPACK_LIB = ['lapack']
 
 class FLAME(LAPACK):
     """Less trivial module"""
-    LAPACK_MODULE_NAME = ['FLAME', 'LAPACK']
     LAPACK_MODULE_NAME = ['FLAME'] + super(FLAME).LAPACK_MODULE_NAME
+    LAPACK_LIB = ['lapack2flame', 'flame'] + super(FLAME).LAPACK_LIB
 
 class ATLAS(object):
     """
@@ -231,7 +272,7 @@ class ATLAS(object):
     BLAS_LIB_MT = ["ptcblas", "ptf77blas", "atlas"]
 
     LAPACK_MODULE_NAME = ['ATLAS']
-
+    LAPACK_LIB = ['lapack']
 
 class ACML(object):
     """
@@ -242,6 +283,7 @@ class ACML(object):
     BLAS_LIB = ['acml_mv', 'acml']
 
     LAPACK_MODULE_NAME = ['ACML']
+    LAPACK_IS_BLAS = True
 
 class BLACS(object):
     """
@@ -249,7 +291,7 @@ class BLACS(object):
         provides BLACS
     """
     BLACS_MODULE_NAME = ['BLACS']
-
+    BLACS_LIB=["blacsCinit", "blacsF77init", "blacs"]
 
 
 class ScaLAPACK(object):
@@ -279,16 +321,20 @@ class IntelMKL(ScalableLinearAlgebraPackage):
     BLAS_LIB_STATIC = True
 
     LAPACK_MODULE_NAME = ['imkl']
+    LAPACK_IS_BLAS = True
 
     BLACS_MODULE_NAME = ['imkl']
-    BLACS_LIB = ["mkl_blacs%(lp64)s"]
     BLACS_LIB_MPI = ["mkl_blacs_%(mpi)s%(lp64)s]
+    BLACS_LIB = ["mkl_blacs%(lp64)s"]+self.BLACS_LIB_MPI
     BLACS_LIB_MAP = {'mpi':None}
 
     SCALAPACK_MODULE_NAME = ['imkl']
     SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s","mkl_solver%(lp64)s_sequential"]
     SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s","mkl_solver%(lp64)s"]
     SCALAPACK_LIB_MAP = {"lp64_sc":"_lp64"}
+    SCALAPACK_REQUIRES = ['LIBBLACS','LIBBLAS']
+    SCALAPACK_LIB_GROUP = True
+    SCALAPACK_LIB_STATIC = True
 
     def _set_blas_vars(self):
         """Fix the map a bit"""
@@ -316,7 +362,7 @@ class IntelMKL(ScalableLinearAlgebraPackage):
             ## ilp64/i8
             self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})
             ## CPP / CFLAGS
-            self.vars.append('CFLAGS', 'DMKL_ILP64')
+            self.vars.append_option('CFLAGS', 'DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
         found_version=get_software_version(self.BLAS_MODULE_NAME[0])
@@ -346,12 +392,16 @@ class IntelMKL(ScalableLinearAlgebraPackage):
         except:
             self.raiseException("_set_blacs_vars: mpi unsupported combination with MPI family %s"%self.MPI_FAMILY)
 
+        self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
+        self.BLACS_INCLUDE_DIR=self.BLAS_INCLUDE_DIR
+
         super(IntelMKL, self)._set_blacs_vars()
 
     def _set_scalapack_vars(self):
         if self.opts.get('32bit', None):
             ##32 bit
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_core'})
+
 
         super(IntelMKL, self)._set_scalapack_vars()
 
