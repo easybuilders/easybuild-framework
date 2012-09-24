@@ -189,7 +189,7 @@ class EB_Geant4(Application, EB_CMake):
             EB_CMake.make_install(self)
             self.datadst = os.path.join(self.installdir,
                                         'share',
-                                        '%s-%s' % (self.name(), self.version()),
+                                        '%s-%s' % (self.name(), self.version().replace("p0", "")),
                                         'data',
                                         )
             return
@@ -288,6 +288,7 @@ class EB_Geant4(Application, EB_CMake):
 
         txt = Application.make_module_extra(self)
         txt += "setenv\tG4INSTALL\t\t$root\n"
+        #no longer needed in > 9.5, but leave it there for now.
         txt += "setenv\tG4VERSION\t\t%s\n" % g4version
 
         if LooseVersion(self.installversion()) >= LooseVersion("9.5"):

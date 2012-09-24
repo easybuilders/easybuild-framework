@@ -1,12 +1,6 @@
 name = 'Geant4'
 version = '9.5.p01'
 
-#PhotonEvaporationVersion = '2.2'
-#G4RadioactiveDecayVersion = '3.5'
-#G4EMLOWVersion = '6.29'
-#G4NDLVersion = '4.1'
-#G4ABLAVersion = '3.0'
-
 homepage = 'http://geant4.cern.ch/'
 description = """Geant4 is a toolkit for the simulation of the passage of particles through matter.
  Its areas of application include high energy, nuclear and accelerator physics, 
@@ -14,18 +8,8 @@ description = """Geant4 is a toolkit for the simulation of the passage of partic
 
 toolkit = {'name': 'goalf', 'version':'1.1.0-no-OFED'}
 
-
-sources = ['%s.%s.tar.gz' % (name.lower(), version),
-         #'PhotonEvaporation.%s.tar.gz' % PhotonEvaporationVersion,
-         #'G4RadioactiveDecay.%s.tar.gz' % G4RadioactiveDecayVersion,
-         #'G4EMLOW.%s.tar.gz' % G4EMLOWVersion,
-         #'G4NDL.%s.tar.gz' % G4NDLVersion,
-         #'G4ABLA.%s.tar.gz' % G4ABLAVersion,
-         ]
-         
+sources = ['%s.%s.tar.gz' % (name.lower(), version)]
 sourceURLs = ['http://geant4.cern.ch/support/source']
-
-#patches = ['MPI_interface_Intel.patch']
 
 dependencies = [
                 ('expat', '2.1.0'),
