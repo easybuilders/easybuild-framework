@@ -77,7 +77,7 @@ class EB_Geant4(Application, EB_CMake):
                     "Definition of G4SYSTEM variable is Linux-icc. That stands for: 1) OS : Linux 2) Compiler : icc To modify default settings, select number above (e.g. 2) [Press [Enter] for default settings]": "",
                     "Do you expect to run these scripts and binaries on multiple machines? [n]": "y",
                     "Where is Geant4 source installed? [%s]" % pwd: "",
-                    "Specify the path where Geant4 libraries and source files should be installed. [%s]" % pwd:dst,
+                    "Specify the path where Geant4 libraries and source files should be installed. [%s]" % pwd: dst,
                     "Do you want to copy all Geant4 headers in one directory? [n]": "y",
                     "Please, specify default directory where ALL the Geant4 data is installed: G4LEVELGAMMADATA: %(pwd)s/data/PhotonEvaporation2.0 G4RADIOACTIVEDATA: %(pwd)s/data/RadioactiveDecay3.2 G4LEDATA: %(pwd)s/data/G4EMLOW5.1 G4NEUTRONHPDATA:    %(pwd)s/data/G4NDL3.12 G4ABLADATA: %(pwd)s/data/G4ABLA3.0 You will be asked about customizing these next. [%(pwd)s/data]" % {'pwd':pwd}: "%s/data" % dst,
                     "Directory %s/data doesn't exist. Use that name anyway? [n]" % dst: "y",
@@ -187,6 +187,11 @@ class EB_Geant4(Application, EB_CMake):
     def make_install(self):
         if LooseVersion(self.installversion()) >= LooseVersion("9.5"):
             EB_CMake.make_install(self)
+            self.datadst = os.path.join(self.installdir,
+                                        'share',
+                                        '%s-%s' % (self.name(), self.version()),
+                                        'data',
+                                        )
             return
 
         pwd = self.getcfg('startfrom')
@@ -280,23 +285,18 @@ class EB_Geant4(Application, EB_CMake):
         """
         g4version = '.'.join(self.version().split('.')[:2])
 
-        libpath = 'lib'
-        fulllibpath = os.path.join(self.installdir, libpath)
-        lst = os.listdir(fulllibpath)
-        while (len(lst) == 1) and os.path.isdir(os.path.join(fulllibpath, lst[0])):
-            libpath = os.path.join(libpath, lst[0])
-            fulllibpath = os.path.join(self.installdir, libpath)
-            lst = os.listdir(fulllibpath)
-        self.log.info("The full library path is: %s" % fulllibpath)
 
         txt = Application.make_module_extra(self)
-        txt += "prepend-path\tLD_LIBRARY_PATH\t\t$root/%s\n" % libpath
-        txt += "\n"
-        txt += "setenv\tG4SYSTEM\t\t%s\n" % self.g4system
         txt += "setenv\tG4INSTALL\t\t$root\n"
         txt += "setenv\tG4VERSION\t\t%s\n" % g4version
-        txt += "setenv\tG4INCLUDE\t\t$root/include/geant4\n"
-        txt += "setenv\tG4LIB\t\t$root/lib/geant4\n"
+
+        if LooseVersion(self.installversion()) >= LooseVersion("9.5"):
+            txt += "setenv\tG4INCLUDE\t\t$root/include/Geant4\n"
+            txt += "setenv\tG4LIB\t\t$root/lib64/Geant4\n"
+        else:
+            txt += "setenv\tG4INCLUDE\t\t$root/include/geant4\n"
+            txt += "setenv\tG4LIB\t\t$root/lib/geant4\n"
+            txt += "setenv\tG4SYSTEM\t\t%s\n" % self.g4system
 
         txt += "setenv\tG4LEVELGAMMADATA\t%s/PhotonEvaporation%s\n" % \
             (self.datadst, self.getcfg('PhotonEvaporationVersion'))
@@ -307,3 +307,35 @@ class EB_Geant4(Application, EB_CMake):
         txt += "setenv\tG4ABLADATA\t%s/G4ABLA%s\n" % (self.datadst, self.getcfg('G4ABLAVersion'))
 
         return txt
+
+
+
+    def sanitycheck(self):
+        """
+        Custom sanity check for geant4 >= 9.5
+        Not tested with previous versions
+        """
+
+        if not self.getcfg('sanityCheckPaths'):
+
+            self.setcfg('sanityCheckPaths',
+                         {
+                         'files': ["bin/geant4.sh",
+                                   "bin/geant4.csh",
+                                   "bin/geant4-config",
+                                   ] + ["lib64/%s" % x for x in [
+                                                                 'libG4analysis.so',
+                                                                 'libG4event.so',
+                                                                 'libG4GMocren.so',
+                                                                 'libG4materials.so',
+                                                                 'libG4persistency.so',
+                                                                 'libG4readout.so',
+                                                                 'libG4Tree.so',
+                                                                 'libG4VRML.so',
+                                                                ]
+                                        ],
+                         'dirs': ['include/Geant4',
+                                  ]
+                          })
+
+        Application.sanitycheck(self)
