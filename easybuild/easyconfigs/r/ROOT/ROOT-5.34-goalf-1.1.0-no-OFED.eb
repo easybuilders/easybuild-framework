@@ -19,9 +19,9 @@ dependencies = [
 
 # architecture
 configopts = 'linuxx8664gcc'
-# disable featuers
+# disable features
 configopts += ' --disable-xft --disable-x11 --disable-xrootd --disable-mysql'
-#enable features
+# enable features
 configopts += ' --enable-unuran --enable-table --enable-explicitlink --enable-minuit2 --enable-roofit'
 configopts += ' --with-gsl-incdir=$SOFTROOTGSL/include/gsl --with-gsl-libdir=$SOFTROOTGSL/lib'
 configopts += ' --with-xml-incdir=$EBROOTLIBXML2/include/libxml2/libxml --with-xml-libdir=$EBROOTLIBXML2/lib'

@@ -12,5 +12,3 @@ toolkitopts = {'pic': True}
 sources = ['%s-%s.tgz' % (name.lower(), version)]
 sourceURLs = ['http://proj-clhep.web.cern.ch/proj-clhep/DISTRIBUTION/tarFiles/']
 
-#configopts = ' AR="ar" ARFLAGS="cru"'
-#parallel = 1

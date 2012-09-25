@@ -20,9 +20,9 @@ dependencies = [
 
 # architecture
 configopts = 'linuxx8664icc'
-# disable featuers
+# disable features
 configopts += ' --disable-xft --disable-x11 --disable-xrootd --disable-mysql'
-#enable features
+# enable features
 configopts += ' --enable-unuran --enable-table --enable-explicitlink --enable-minuit2 --enable-roofit'
 configopts += ' --with-gsl-incdir=$SOFTROOTGSL/include/gsl --with-gsl-libdir=$SOFTROOTGSL/lib'
 configopts += ' --with-fftw3-incdir=$MKLROOT/mkl/include/fftw --with-fftw3-libdir=$MKLROOT/mkl/lib/intel64'
