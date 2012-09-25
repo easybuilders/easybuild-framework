@@ -7,7 +7,7 @@ description = """GATE is an advanced opensource software developed by the intern
 dedicated to the numerical simulations in medical imaging. It currently supports simulations of Emission Tomography
 (Positron Emission Tomography - PET and Single Photon Emission Computed Tomography - SPECT), and Computed Tomography"""
 
-toolkit = {'name': 'goalf', 'version':'1.1.0-no-OFED'}
+toolkit = {'name': 'ictce', 'version':'4.0.6'}
 
 
 sources = ['%s-%s.tar.gz' % (name.lower(), version)]
@@ -18,7 +18,6 @@ dependencies = [
                 ('Geant4', '9.5.p01'),
                 ('CLHEP', '2.1.1.0'),
                 ('ROOT', 'v5.34.01'),
-                ('CMake', '2.8.4'),
                 ]
 
 sanityCheckPaths = {
