@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -23,39 +18,81 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+The toolchain options module contains the ToolchainOptions class
+    These are the options that can be passed to the toolchain through the easyconfig files
+
+Map values can be string with named templates
+    By default following named options is filled
+        %(opt)s : option name
+        %(value)s : option value
+"""
 
 from vsc.fancylogger import getLogger
-import os
 
 
-class Options(dict):
-    def __init__(self, *args, **kwargs):
-        super(Options, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
-        self.map = {}
 
-    def update_map(self, option_map):
-        ## sanity check: do all options from the optionmap have a corresponding entry in opts
-        ## - reverse is not necessarily an issue
-        for k in option_map.keys():
-            if not k in self:
-                self.log.raiseException("update_map: entry %s in option_map has no option with that name" % k)
+class ToolchainOptions(dict):
+    def __init__(self):
+        self._log = getLogger(self.__class__.__name__)
 
-        self.map.update(option_map)
+        self.map = {}  # map between options name and value
+        self.description = {}  # short description of the options
+
+    def add_options(self, options=None, options_map=None):
+        """Add
+            @options: dict with options : tuple option_name and option_description
+            @options_map: dict with a mapping between and option and a value
+        """
+        if not options is None:
+            self._add_options(options)
+
+        if not options_map is None:
+            self._add_options_map(options_map)
+
+
+    def _add_options(self, options):
+        self.log.debug("_add_options: adding options %s" % options)
+        for name, value in options.items():
+            if not isinstance(value, (list, tuple,)) and len(value) == 2:
+                self.log.raiseException("_add_options: option name %s has to be 2 element list (%s)" % (name, value))
+            if name in self:
+                self.log.debug("_add_options: redefining previous name %s (prev value %s)" % (name, self.get(name)))
+            self.__setitem__(name, value[0])
+            self.description.__setitem__(name, value[1])
+
+    def _add_options_map(self, options_map):
+        for name in options_map.keys():
+            if not name in self:
+                self.log.raiseException("_add_options_map: no option with name %s defined" % name)
+
+        self.map.update(options_map)
 
     def option(self, name, templatedict=None):
         """Return option value"""
-        opt = self.get(name, None)
-        if opt is None:
-            self.log.warning("_get_compiler_option: opt with name %s returns None" % name)
+        value = self.get(name, None)
+        if value is None:
+            self.log.warning("option: option with name %s returns None" % name)
             res = None
-        elif isinstance(opt, bool):
-            ## check if True?
+        elif name in self.map:
             res = self.map[name]
+
+            if isinstance(res, str):
+                ## allow for template
+                if templatedict is None:
+                    templatedict = {}
+                templatedict.update({'opt':name,
+                                     'value':value,
+                                     })
+                res = self.map[name] % templatedict
+            else:
+                ## check if True?
+                res = self.map[name]
         else:
-            ## allow for template
-            if templatedict is None:
-                templatedict = {'opt':opt}
-            res = self.map[name] % templatedict
+            res = value
 
         return res
+
+
+if __name__ == '__main__':
+    to = ToolchainOptions()

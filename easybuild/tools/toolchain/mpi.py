@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -23,17 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import copy
-import os
-from distutils.version import LooseVersion
+from easybuild.tools.modules import  get_software_root
 
-import easybuild.tools.environment as env
-from easybuild.tools import systemtools
-from easybuild.tools.modules import Modules, get_software_root, get_software_version
-
-from easybuild.tools.toolchain.compiler import COMPILER_VARIABLES
-from easybuild.tools.toolchain.variables import Variables
-from easybuild.tools.toolchain.options import Options
+from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
+from easybuild.tools.toolchain.options import ToolchainOptions
 
 from vsc.fancylogger import getLogger
 
@@ -46,8 +34,8 @@ MVAPICH2_F = "MVAPICH2"
 
 class MPI(object):
     """General MPI-like class"""
-    OPTIONS_CLASS = Options
-    VARIABLES_CLASS = Variables
+    OPTIONS_CLASS = ToolchainOptions
+    VARIABLES_CLASS = ToolchainVariables
 
     MPI_MODULE_NAME = None
     MPI_FAMILY = None
@@ -65,7 +53,6 @@ class MPI(object):
                              '_opt_MPICF90':'f90="%(F90_base)s',
                              }
 
-    MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
     MPI_COMPILER_MPICC = 'mpicc'
     MPI_COMPILER_MPICXX = 'mpicxx'
 
@@ -76,85 +63,78 @@ class MPI(object):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
-        self.opts = getattr(self, 'opts', self.OPTIONS_CLASS())
+        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
 
-        self.vars = getattr(self, 'vars', self.VARIABLES_CLASS())
+        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
 
-        self._set_mpi_opts()
-        self._set_mpi_option_map()
-        self._set_mpi_compiler_vars()
-        self._set_mpi_vars()
+        self._set_mpi_options()
+        self._set_mpi_compiler_variables()
+        self._set_mpi_variables()
 
         super(MPI, self).__init__()
 
 
-    def _set_mpi_opts(self):
-        self.opts.update(self.MPI_SHARED_OPTS)
-        if self.MPI_UNIQUE_OPTS is not None:
-            self.opts.update(self.MPI_UNIQUE_OPTS)
+    def _set_mpi_options(self):
+        self.options.add_options(self.MPI_SHARED_OPTS, self.MPI_SHARED_OPTION_MAP)
 
-        self.log.debug('_set_mpi_opts: all current opts %s' % self.opts)
+        self.options.add_options(self.MPI_UNIQUE_OPTS, self.MPI_UNIQUE_OPTION_MAP)
 
-
-    def _set_mpi_option_map(self):
-        option_map = self.MPI_SHARED_OPTION_MAP
-        if self.MPI_UNIQUE_OPTION_MAP is not None:
-            option_map.update(self.MPI_UNIQUE_OPTION_MAP)
-
-        self.log.debug('_set_mpi_option_map: setting option_map %s' % option_map)
-
-        self.opts.update_map(option_map)
+        self.log.debug('_set_mpi_options: all current options %s' % self.options)
 
 
-    def _set_mpi_compiler_vars(self):
+    def _set_mpi_compiler_variables(self):
         """Set the compiler variables"""
-        is32bit = self.opts.get('32bit', None)
+        is32bit = self.options.get('32bit', None)
         if is32bit:
-            self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
+            self.log.debug("_set_compiler_variables: 32bit set: changing compiler definitions")
 
         for c_var in COMPILER_VARIABLES:
-            var = self.MPI_COMPILER_TEMPLATE % {'c_var':c_var}
+            var = MPI_COMPILER_TEMPLATE % {'c_var':c_var}
 
             value = getattr(self, 'MPI_COMPILER_%s' % var.upper(), None)
             if value is None:
-                self.log.raiseException("_set_mpi_compiler_vars: mpi compiler variable %s undefined" % var)
-            self.vars.append_cmd_option(var, value)
+                self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
+            self.variables.append_cmd_option(var, value)
 
-            templatedict = {c_var:self.vars.as_cmd_option(c_var),
-                            '%s_base' % c_var:self.vars[c_var][0],
+            templatedict = {c_var:self.variables.as_cmd_option(c_var),
+                            '%s_base' % c_var:self.variables[c_var][0],
                             }
 
-            self.vars.extend_cmd_option(var, self.opts.option('_opt_%s' % var, templatedict=templatedict))
+            self.variables.extend_cmd_option(var, self.options.option('_opt_%s' % var, templatedict=templatedict))
 
             if is32bit:
-                self.vars.append_cmd_option(var, self.opts.option('32bit'))
+                self.variables.append_cmd_option(var, self.options.option('32bit'))
 
-            if self.opts.get('usempi', None):
-                self.log.debug("_set_mpi_compiler_vars: usempi set: switching %s value %s for %s value %s" % (c_var, self.vars[c_var], var, self.vars[var]))
-                self.vars.extend_cmd_option(c_var, self.vars[var])
+            if self.options.get('usempi', None):
+                self.log.debug("_set_mpi_compiler_variables: usempi set: switching %s value %s for %s value %s" %
+                               (c_var, self.variables[c_var], var, self.variables[var]))
+                self.variables.extend_cmd_option(c_var, self.variables[var])
 
 
-        if self.opts.get('cciscxx', None):
-            self.log.debug("_set_mpi_compiler_vars: cciscxx set: switching MPICXX %s for MPICC value %s" % (self.vars['MPICXX'], self.vars['MPICC']))
-            self.vars['MPICXX'] = self.vars['MPICC']
-            if self.opts.get('usempi', None):
+        if self.options.get('cciscxx', None):
+            self.log.debug("_set_mpi_compiler_variables: cciscxx set: switching MPICXX %s for MPICC value %s" %
+                           (self.variables['MPICXX'], self.variables['MPICC']))
+            self.variables['MPICXX'] = self.variables['MPICC']
+            if self.options.get('usempi', None):
                 ## possibly/likely changed
-                self.vars['CXX'] = self.vars['CC']
+                self.variables['CXX'] = self.variables['CC']
 
-    def _set_mpi_vars(self):
+    def _set_mpi_variables(self):
         """Set the other MPI variables"""
         root = get_software_root(self.MPI_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
         lib_dir = ['lib']
         incl_dir = ['include']
         suffix = None
-        if not self.opts.get('32bit', None):
+        if not self.options.get('32bit', None):
             suffix = '64'
 
-        self.vars.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME, suffix=suffix)
-        self.vars.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME, suffix=suffix)
-        self.vars.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
-        self.vars.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
+        self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME,
+                                     suffix=suffix)
+        self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME,
+                                     suffix=suffix)
+        self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
+        self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
 
 class OpenMPI(MPI):
@@ -164,7 +144,7 @@ class OpenMPI(MPI):
 
     MPI_LIBRARY_NAME = 'mpi'
 
-    ## OpenMPI reads from CC etc env vars
+    ## OpenMPI reads from CC etc env variables
     COMPILER_UNIQUE_OPTION_MAP = {'_opt_MPICC': '',
                                   '_opt_MPICXX':'',
                                   '_opt_MPICF77':'',

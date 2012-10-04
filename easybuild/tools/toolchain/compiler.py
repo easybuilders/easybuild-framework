@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -23,54 +18,53 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import copy
-import os
 from distutils.version import LooseVersion
 
-import easybuild.tools.environment as env
 from easybuild.tools import systemtools
-from easybuild.tools.modules import Modules, get_software_root, get_software_version
+from easybuild.tools.modules import get_software_root, get_software_version
+from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VARIABLES
 
-from easybuild.tools.toolchain.toolkit import INTEL, GCC
-from easybuild.tools.toolchain.variables import Variables
-from easybuild.tools.toolchain.options import Options
+from easybuild.tools.toolchain.options import ToolchainOptions
 
 from vsc.fancylogger import getLogger
 
-COMPILER_VARIABLES = ['CC', 'CXX', 'F77', 'F90']
+# constants used for recognizing compilers, MPI libraries, ...
+GCC = "GCC"
+INTEL = "Intel"
+
 
 class Compiler(object):
     """General compiler-like class"""
-    OPTIONS_CLASS = Options
-    VARIABLES_CLASS = Variables
+    OPTIONS_CLASS = ToolchainOptions
+    VARIABLES_CLASS = ToolchainVariables  # set compiler specific usage
 
     COMPILER_MODULE_NAME = None
 
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = {'cciscxx': False, ## also MPI
-                            'pic': False, ## also FFTW
-                            'noopt': False,
-                            'lowopt': False,
-                            'defaultopt':False, ## not set, but default
-                            'opt': False,
-                            'optarch':True,
-                            'strict': False,
-                            'precise':False,
-                            'defaultprec':False, ## not set, but default
-                            'loose': False,
-                            'veryloose': False,
-                            'verbose': False,
-                            'debug': False,
-                            'i8': False, ## fortran only -> no: MKL and icc give -DMKL_ILP64
-                            'r8' : False, ## fortran only
-                            'unroll': False,
-                            'cstd': None,
-                            'shared': False,
-                            'static': False,
-                            '32bit':False, ## LA, FFTW
-                            'openmp':False,
+    COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"), ## also MPI
+                            'pic': (False, "Use PIC"), ## also FFTW
+                            'noopt': (False, "Disable compiler optiomisations"),
+                            'lowopt': (False, "Low compiler optimisation"),
+                            'defaultopt':(False, "Default compiler optimisation"), ## not set, but default
+                            'opt': (False, "High compiler optimisation"),
+                            'optarch':(True, "Enable architecture optimisations"),
+                            'strict': (False, "Strict (highest) precision"),
+                            'precise':(False, "High precision"),
+                            'defaultprec':(False, "Default precision"), ## not set, but default
+                            'loose': (False, "Loose precision"),
+                            'veryloose': (False, "Very loose precision"),
+                            'verbose': (False, "Verbose output"),
+                            'debug': (False, "Enabel debug"),
+                            'i8': (False, "Intergers are 8 byte integers"), ## fortran only -> no: MKL and icc give -DMKL_ILP64
+                            'r8' : (False, "Real is 8 byte real"), ## fortran only
+                            'unroll': (False, "Unroll loops"),
+                            'cstd': (None, "Specify C standard"),
+                            'shared': (False, "Build shared library"),
+                            'static': (False, "Build static library"),
+                            '32bit':(False, "Compile 32bit target"), ## LA, FFTW
+                            'openmp':(False, "Enable OpenMP"),
                             }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -85,7 +79,7 @@ class Compiler(object):
                                   'defaultopt':'O2',
                                   'opt': 'O3',
                                   '32bit' : 'm32',
-                                  'cstd':'std=%(opt)s',
+                                  'cstd':'std=%(value)s',
                                   }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
@@ -104,6 +98,8 @@ class Compiler(object):
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
+    TOGGLE_STATIC_DYNAMIC = None
+
     LIB_MULTITHREAD = None
 
     def __init__(self):
@@ -112,40 +108,33 @@ class Compiler(object):
 
         self.arch = None
 
-        self.opts = getattr(self, 'opts', self.OPTIONS_CLASS())
+        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
 
-        self.vars = getattr(self, 'vars', self.VARIABLES_CLASS())
+        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
 
-        self._set_compiler_opts()
-        self._set_compiler_option_map()
+        self._set_compiler_toolchainoptions()
+
         self._set_compiler_vars()
         self._set_compiler_flags()
 
         super(Compiler, self).__init__()
 
-    def _set_compiler_opts(self):
-        self.opts.update(self.COMPILER_SHARED_OPTS)
-        if self.COMPILER_UNIQUE_OPTS is not None:
-            self.opts.update(self.COMPILER_UNIQUE_OPTS)
-
-        self.log.debug('_set_compiler_opts: all current opts %s' % self.opts)
-
-    def _set_compiler_option_map(self):
-        option_map = self.COMPILER_SHARED_OPTION_MAP
-        if self.COMPILER_UNIQUE_OPTION_MAP is not None:
-            option_map.update(self.COMPILER_UNIQUE_OPTION_MAP)
-
+    def _set_compiler_toolchainoptions(self):
         ## redefine optarch
-        option_map['optarch'] = self._get_optimal_architecture(option_map['optarch'])
+        self.COMPILER_SHARED_OPTION_MAP['optarch'] = self._get_optimal_architecture(
+                                                                self.COMPILER_SHARED_OPTION_MAP['optarch'])
 
-        self.log.debug('_set_compiler_option_map: setting option_map %s' % option_map)
+        self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
-        self.opts.update_map(option_map)
+        ## overwrite/add unique compiler specific toolchainoptions
+        self.options.add_options(self.COMPILER_UNIQUE_OPTS, self.COMPILER_UNIQUE_OPTION_MAP)
+
+        self.log.debug('_set_compiler_toolchainptions: all current toolchainoptions %s' % self.options)
 
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        is32bit = self.opts.get('32bit', None)
+        is32bit = self.options.get('32bit', None)
         if is32bit:
             self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
 
@@ -153,36 +142,47 @@ class Compiler(object):
             value = getattr(self, 'COMPILER_%s' % var.upper(), None)
             if value is None:
                 self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
-            self.vars.append_cmd_option(var, value)
+            self.variables[var] = value
             if is32bit:
-                self.vars.append_cmd_option(var, self.opts.option('32bit'))
+                self.variables.append_el(var, self.options.option('32bit'))
 
-        if self.opts.get('cciscxx', None):
-            self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" % (self.vars['CXX'], self.vars['CC']))
-            self.vars['CXX'] = self.vars['CC']
+        if self.options.get('cciscxx', None):
+            self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
+                           (self.variables['CXX'], self.variables['CC']))
+            self.variables['CXX'] = self.variables['CC']
 
-        self.log.debug('_set_compiler_vars: current variables %s' % self.vars)
+        self.log.debug('_set_compiler_vars: current variables %s' % self.variables)
 
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
-        flags = [ self.opts.option(x) for x in self.COMPILER_FLAGS if self.opts.get(x, False)]
+        flags = [ self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
 
-        cflags = [ self.opts.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS if self.opts.get(x, False)]
-        fflags = [ self.opts.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS if self.opts.get(x, False)]
+        cflags = [ self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
+                  if self.options.get(x, False)]
+        fflags = [ self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
+                  if self.options.get(x, False)]
 
         ## 1st one is the one to use. add default at the end so len is at least 1
-        optflags = [self.opts.option(x) for x in self.COMPILER_OPT_FLAGS if self.opts.get(x, False)] + [self.opts.option('defaultopt')]
-        precflags = [self.opts.option(x) for x in self.COMPILER_PREC_FLAGS if self.opts.get(x, False)] + [self.opts.option('defaultprec')]
+        optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+                            [self.options.option('defaultopt')]
+
+        precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
+                            [self.options.option('defaultprec')]
+
+
+
+        self.variables.append('OPTFLAGS', optflags)
+        self.variables.append('PRECFLAGS', precflags)
 
         def_flags = flags + optflags[:1] + precflags[:1]
 
-        self.vars.extend_option('CFLAGS', def_flags + cflags)
-        self.vars.extend_option('CXXFLAGS', def_flags + cflags)
-        self.vars.extend_option('FFLAGS', def_flags + fflags)
-        self.vars.extend_option('F90FLAGS', def_flags + fflags)
+        self.variables.append('CFLAGS', def_flags + cflags)
+        self.variables.append('CXXFLAGS', def_flags + cflags)
+        self.variables.append('FFLAGS', def_flags + fflags)
+        self.variables.append('F90FLAGS', def_flags + fflags)
 
-        self.log.debug('_set_compiler_flags: current variables %s' % self.vars)
+        self.log.debug('_set_compiler_flags: current variables %s' % self.variables)
 
     def _get_optimal_architecture(self, optarch):
         """ Get options for the current architecture """
@@ -190,7 +190,8 @@ class Compiler(object):
             self.arch = systemtools.get_cpu_vendor()
 
 
-        if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+        if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and \
+                self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
 
@@ -210,14 +211,14 @@ class Dummy(Compiler):
     COMPILER_F90 = 'DUMMYF90'
 
 
-class GCC(Compiler):
+class GNUCompilerCollection(Compiler):
     """GCC compiler class"""
     COMPILER_MODULE_NAME = ['GCC']
 
     COMPILER_FAMILY = GCC
-    COMPILER_UNIQUE_OPTS = {'loop': False,
-                            'f2c': False,
-                            'lto':False
+    COMPILER_UNIQUE_OPTS = {'loop': (False, "Automatic loop parallellisation"),
+                            'f2c': (False, "Generate code comaptible with f2c and f77"),
+                            'lto':(False, "Enable Link Time Optimisation"),
                             }
     COMPILER_UNIQUE_OPTION_MAP = {'i8': 'fdefault-integer-8',
                                   'r8': 'fdefault-real-8',
@@ -241,41 +242,39 @@ class GCC(Compiler):
 
     COMPILER_F77 = 'gfortran'
     COMPILER_F90 = 'gfortran'
-    COMPILER_F_UNIQUE_FLAGS = []
+    COMPILER_F_UNIQUE_FLAGS = ['f2c']
 
     LIB_MULTITHREAD = ['pthread']
 
 
     def _set_compiler_vars(self):
-        super(GCC, self)._set_compiler_vars()
+        super(GNUCompilerCollection, self)._set_compiler_vars()
 
-        if self.opts.get('32bit', None):
-            self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for 32bit GCC in EasyBuild")
+        if self.options.get('32bit', None):
+            self.log.raiseException(("_set_compiler_vars: 32bit set, but no support yet for "
+                                     "32bit GCC in EasyBuild"))
 
         ## to get rid of lots of problems with libgfortranbegin
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
-        self.vars.flags_for_libs('FLIBS', "gfortran")
+        self.variables.append('FLIBS', "gfortran")
 
 
-class IntelVariables(Variables):
-    TOGGLE_STATIC = 'Bstatic'
-    TOGGLE_DYNAMIC = 'Bdynamic'
 
 
-class IccIfort(Compiler):
+class IntelIccIfort(Compiler):
     """Intel compiler class
         - TODO: install as single package ?
             should be done anyway (all icc versions come with matching ifort version)
     """
-    VARIABLES_CLASS = IntelVariables
+    VARIABLES_CLASS = ToolchainVariables
 
 
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
     COMPILER_FAMILY = INTEL
-    COMPILER_UNIQUE_OPTS = {'intel-static': False,
-                            'no-icc': False,
+    COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
+                            'no-icc': (False, "Don't set Intel specific macros"),
                             }
 
     COMPILER_UNIQUE_OPTION_MAP = {'i8': 'i8',
@@ -303,10 +302,15 @@ class IccIfort(Compiler):
     COMPILER_F90 = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
+    TOGGLE_STATIC_DYNAMIC = {'static': '-Bstatic',
+                             'dynamic':'-Bdynamic',
+                             }
+
+
     LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related : TODO: harmful or not?
 
     def _set_compiler_vars(self):
-        super(IccIfort, self)._set_compiler_vars()
+        super(IntelIccIfort, self)._set_compiler_vars()
 
         icc_root = get_software_root('icc')
         icc_version = get_software_version('icc')
@@ -315,20 +319,21 @@ class IccIfort(Compiler):
         ifort_version = get_software_version('ifort')
 
         if not ifort_version == icc_version:
-            self.log.raiseException("_set_compiler_vars: mismatch between icc version %s and ifort version %s" % (icc_version, ifort_version))
+            self.log.raiseException(("_set_compiler_vars: mismatch between icc "
+                                     "version %s and ifort version %s") % (icc_version, ifort_version))
 
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        if "liomp5" not in self.vars['LIBS']:
-            self.vars.extend_lib_option('LIBS', self.LIB_MULTITHREAD)
+        if "liomp5" not in self.variables['LIBS']:
+            self.variables.extend('LIBS', self.LIB_MULTITHREAD)
 
         libpaths = ['intel64']
-        if self.opts.get('32bit', None):
+        if self.options.get('32bit', None):
             libpaths.append('ia32')
         libpaths = ['lib/%s' % x for x in libpaths]
         if LooseVersion(icc_version) > LooseVersion('2011.4'):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
-        self.vars.extend_subdirs_option("LDFLAGS", icc_root, subdirs=libpaths)
+        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 

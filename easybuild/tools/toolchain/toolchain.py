@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -23,23 +18,22 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import copy
-import os
-from distutils.version import LooseVersion
+"""
+The toolchain module with the abstract Toolchain class and
+a set of derived, predefined and tested toolchains.
 
-import easybuild.tools.environment as env
-from easybuild.tools import systemtools
-from easybuild.tools.modules import Modules, get_software_root, get_software_version
-
+Creating a new toolchain should be as simple as possible.
+"""
 
 
-class FFT(object):
-    """General FFT-like class
-        To provide the FFTW tools
-    """
+from vsc.fancylogger import getLogger
+
+
+
+class Toolchain(object):
+    """General toolchain class"""
     def __init__(self):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
-class IntelFFT(FFT):
-    """FFT functionality of Intel MKL"""
+
