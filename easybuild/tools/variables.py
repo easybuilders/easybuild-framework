@@ -91,43 +91,37 @@ class StrList(list):
 
     def str_convert(self, x):
         ## no prefix of start and end
-        if self.PREFIX is None:
-            prefix = ''
-        else:
-            prefix = self.PREFIX
-
-        if self.SUFFIX is None:
-            suffix = ''
-        else:
-            suffix = self.SUFFIX
-
-        return ''.join([prefix, str(x), suffix])
+        return ''.join([x for x in [self.PREFIX, str(x), self.SUFFIX] if x])
 
     def _str_self(self):
         return [self.str_convert(x) for x in self if x is not None]
 
     def __str__(self):
-        return self.SEPARATOR.join([str(x) for x in [self.START] + self._str_self() + [self.END] if x is not None])
+        xs = [self.START] + self._str_self() + [self.END]
+        print "xs: %s" % xs
+        return self.SEPARATOR.join([str(x) for x in xs if x is not None])
 
 class CommaList(StrList):
-    """Commas separated list"""
+    """Comma-separated list"""
     SEPARATOR = ','
 
+## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+## FlagList, CommandFlagList, LibraryList, LinkerFlagList
 class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
 
 class CommandFlagList(StrList):
-    """Command and flags list
-        first of the list has no prefix (ie the executable)
-        The remainder of the options are considered flags
+    """
+    Command and flags list
+    First of the list has no prefix (i.e. the executable)
+    The remainder of the options are considered flags
     """
     PREFIX = "-"
     def _str_self(self):
         tmp = [self.str_convert(x) for x in self if x is not None]
         tmp[0] = self[0]
         return tmp
-
 
 class LibraryList(StrList):
     """Link library list"""
@@ -151,7 +145,8 @@ class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
-        """Given prefix and list of paths, return first that exists
+        """
+        Given prefix and list of paths, return first that exists
             if suffix : extend the paths with prefixes
             if filename : look for filename in prefix+paths
         """
@@ -173,8 +168,8 @@ class AbsPathList(StrList):
                     return
 
     def append_subdirs(self, base, subdirs=None):
-        """Add directory base
-            or its subdirs if subdirs is not None
+        """
+        Add directory base, or its subdirs if subdirs is not None
         """
         self.log.debug("append_subdirs: base %s subdirs %s" % (base, subdirs))
 
@@ -192,6 +187,8 @@ class AbsPathList(StrList):
             else:
                 self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
 
+## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+## IncludePaths, LinkLibraryPaths, get_linker*
 class IncludePaths(AbsPathList):
     PREFIX = '-I'
 
@@ -209,7 +206,6 @@ def get_linker_endgroup(static_dynamic=None):
     l = LinkerFlagList(['--end-group'])
     l.LINKER_TOGGLE_STATIC_DYNAMIC = static_dynamic
     return l
-
 
 class ListOfLists(list):
     """List of lists"""
@@ -243,7 +239,8 @@ class ListOfLists(list):
 
 
 class Variables(dict):
-    """Class to hold variable-like key/value pairs
+    """
+    Class to hold variable-like key/value pairs
         All values are lists (or derived from list class)
             most only have a single element though
             some are lists of lists
@@ -303,37 +300,45 @@ class Variables(dict):
 
 if __name__ == '__main__':
     class TestListOfLists(ListOfLists):
-        MAP_CLASS = {'Y':CommaList}
+        MAP_CLASS = {'FOO':CommaList}
 
     class TestVariables(Variables):
-        MAP_CLASS = {TestListOfLists : ['Y'],
-                     }
+        MAP_LISTCLASS = {TestListOfLists : ['FOO']}
 
     v = TestVariables()
-    v['X'] = range(5)
-    print v['X'], v
-    print type(v['X'])
 
-    v['X'].append(StrList(range(10, 15)))
-    print v['X'], v
+    v['BAR'] = range(5)
+    print v['BAR'], v
+    print type(v['BAR'])
+    print '------------'
 
-    v.append_el('X', 20)
-    print v['X'], v
-    print str(v['X'])
+    v['BAR'].append(StrList(range(10, 15)))
+    print v['BAR'], v
+    print '------------'
+
+    v.append_el('BAR', 20)
+    print v['BAR'], v
+    print str(v['BAR'])
+    print '------------'
 
     ##
-    v['Y'] = range(10)
-    print v['Y']
+    v['FOO'] = range(10)
+    print v['FOO']
+    print '------------'
 
     ## startgroup
     l = get_linker_endgroup()
     print l
+    print '------------'
+
     l2 = get_linker_startgroup({'static':'-Bstatic',
                                 'dynamic':'-Bdynamic',
                                })
     l2.toggle_static()
     print l2
+    print '------------'
 
     ##
     cmd = CommandFlagList(range(5))
     print cmd
+    print '------------'

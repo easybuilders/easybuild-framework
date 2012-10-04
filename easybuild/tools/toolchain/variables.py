@@ -20,47 +20,52 @@
 ##
 """
 Toolchain specific variables
-
 """
 
-from easybuild.tools.variables import Variables, ListOfLists, StrList, \
-                                      FlagList, LibraryList, \
-                                      LinkLibraryPaths, IncludePaths, CommandFlagList, \
-                                      join_map_class
+from easybuild.tools.variables import Variables, ListOfLists, StrList, FlagList, LibraryList
+from easybuild.tools.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, join_map_class
 
 
-COMPILER_VARIABLES = [('CC', 'C compiler'),
+COMPILER_VARIABLES = [
+                      ('CC', 'C compiler'),
                       ('CXX', 'C++ compiler'),
                       ('F77', 'Fortran 77 compiler'),
                       ('F90', 'Fortran 90 compiler'),
                       ]
 
-COMPILER_MAP_CLASS = {FlagList:[('OPTFLAGS', 'Optimisation flags'),
-                                ('PRECFLAGS',  'FP precision flags'),
-                                ('CFLAGS', 'C compiler flags'),
-                                ('CXXFLAGS', 'C++ compiler flags'),
-                                ('FFLAGS', 'Fortran compiler flags'),
-                                ('F90FLAGS', 'Fortran 90 compiler flags'),
+COMPILER_MAP_CLASS = {
+                      FlagList: [
+                                 ('OPTFLAGS', 'Optimisation flags'),
+                                 ('PRECFLAGS',  'FP precision flags'),
+                                 ('CFLAGS', 'C compiler flags'),
+                                 ('CXXFLAGS', 'C++ compiler flags'),
+                                 ('FFLAGS', 'Fortran compiler flags'),
+                                 ('F90FLAGS', 'Fortran 90 compiler flags'),
                                 ],
-                      LibraryList:[('LIBS', 'Libraries'), ## TODO: where are these used? ld?
-                                   ('FLIBS', 'Fortran libraries'), ## TODO: where are these used? gfortran only?
+                      LibraryList: [
+                                    ('LIBS', 'Libraries'), ## TODO: where are these used? ld?
+                                    ('FLIBS', 'Fortran libraries'), ## TODO: where are these used? gfortran only?
                                    ],
-                      LinkLibraryPaths:[('LDFLAGS', 'Flags passed to linker'), ## TODO: overridden by command line?
+                      LinkLibraryPaths: [
+                                         ('LDFLAGS', 'Flags passed to linker'),  ## TODO: overridden by command line?
                                         ],
-                      IncludePaths:[('CPPFLAGS', 'Precompiler flags'),
-                                     ],
-                      CommandFlagList:COMPILER_VARIABLES,
+                      IncludePaths: [
+                                     ('CPPFLAGS', 'Precompiler flags'),
+                                    ],
+                      CommandFlagList: COMPILER_VARIABLES,
                       }
 
 MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
-MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var':x[0]}, "MPI %s wrapper" % x[1]) for x in COMPILER_VARIABLES]
+MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var': v}, "MPI %s wrapper" % d)
+                          for (v,d) in COMPILER_VARIABLES]
 
-MPI_MAP_CLASS = {StrList:[('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: usefull at all? shouldn't these be obtained from mpiXX --show
-                          ('MPI_LIB_SHARED', 'MPI libraries (shared)'),
-                          ('MPI_LIB_DIR', 'MPI library directory'),
-                          ('MPI_INC_DIR', 'MPI include directory'),
-                          ],
-                 CommandFlagList:MPI_COMPILER_VARIABLES,
+MPI_MAP_CLASS = {StrList: [
+                           ('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: usefull at all? shouldn't these be obtained from mpiXX --show
+                           ('MPI_LIB_SHARED', 'MPI libraries (shared)'),
+                           ('MPI_LIB_DIR', 'MPI library directory'),
+                           ('MPI_INC_DIR', 'MPI include directory'),
+                           ],
+                 CommandFlagList: MPI_COMPILER_VARIABLES,
                  }
 
 SCALAPACK_MAP_CLASS = {StrList:[],
@@ -72,8 +77,9 @@ class ToolchainList(ListOfLists):
     MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS)
 
 class ToolchainVariables(Variables):
-    """Class to hold variable-like key/value pairs
-        in context of compilers (ie the generated string are eg compiler options or link flags
+    """
+    Class to hold variable-like key/value pairs
+    in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
     DEFAULT_CLASS = ToolchainList
 
