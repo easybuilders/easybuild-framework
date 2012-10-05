@@ -98,7 +98,6 @@ class StrList(list):
 
     def __str__(self):
         xs = [self.START] + self._str_self() + [self.END]
-        print "xs: %s" % xs
         return self.SEPARATOR.join([str(x) for x in xs if x is not None])
 
 class CommaList(StrList):
@@ -216,9 +215,12 @@ class ListOfLists(list):
     MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
 
     def append_empty(self, name=None):
-        self.append(name=None)
+        #self.append(name=None)
+        self.append(None, name=None)
 
-    def append(self, name=None, value=None):
+    #TODO (KH) this should be append(self, value, name=None)?
+    #def append(self, name=None, value=None):
+    def append(self, value, name=None):
         klass = get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
 
         if value is None:
@@ -263,17 +265,17 @@ class Variables(dict):
 
     def append(self, name, value):
         current = self.setdefault(name, self.get_instance(name))
-        current.append(name, value)
+        current.append(value, name=name)
 
     def __setitem__(self, name, value):
         """Automatically create a list for each name"""
-        self.append(name, value)
+        self.append(value, name=name)
 
     def setdefault(self, name, default=None):
         tmp = super(Variables, self).setdefault(name, default)
         if len(tmp) == 0:
             self.log.debug("setdefault: name %s initialising." % name)
-            tmp.append_empty()
+            tmp.append_empty(name=name)
         return tmp
 
     def append_el(self, name, value, idx= -1):
@@ -307,30 +309,36 @@ if __name__ == '__main__':
 
     v = TestVariables()
 
+    print 'initial: BAR 0-5'
     v['BAR'] = range(5)
     print v['BAR'], v
     print type(v['BAR'])
     print '------------'
 
+    print 'added 10-15 to BAR'
     v['BAR'].append(StrList(range(10, 15)))
     print v['BAR'], v
     print '------------'
 
+    print 'added 20 to BAR'
     v.append_el('BAR', 20)
     print v['BAR'], v
     print str(v['BAR'])
     print '------------'
 
     ##
+    print 'set FOO to 0-10 (commalist)'
     v['FOO'] = range(10)
     print v['FOO']
     print '------------'
 
     ## startgroup
+    print 'linker endgroup'
     l = get_linker_endgroup()
     print l
     print '------------'
 
+    print 'linker startgroup with static toggle'
     l2 = get_linker_startgroup({'static':'-Bstatic',
                                 'dynamic':'-Bdynamic',
                                })
