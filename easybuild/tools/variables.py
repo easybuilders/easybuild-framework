@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Stijn De Weirdt
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -20,6 +21,7 @@
 ##
 
 from vsc.fancylogger import getLogger
+import copy
 import os
 
 
@@ -140,6 +142,9 @@ class LinkerFlagList(StrList):
         if self.LINKER_TOGGLE_STATIC_DYNAMIC is not None and 'dynamic' in self.LINKER_TOGGLE_STATIC_DYNAMIC:
             self.append(self.LINKER_TOGGLE_STATIC_DYNAMIC['dynamic'])
 
+    def set_static_dynamic(self, static_dynamic):
+        self.LINKER_TOGGLE_STATIC_DYNAMIC = copy.deepcopy(static_dynamic)
+
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
@@ -197,13 +202,13 @@ class LinkLibraryPaths(AbsPathList):
 def get_linker_startgroup(static_dynamic=None):
     """Return most common startgroup"""
     l = LinkerFlagList(['--start-group'])
-    l.LINKER_TOGGLE_STATIC_DYNAMIC = static_dynamic
+    l.set_static_dynamic(static_dynamic)
     return l
 
 def get_linker_endgroup(static_dynamic=None):
     """Return most common endgroup"""
     l = LinkerFlagList(['--end-group'])
-    l.LINKER_TOGGLE_STATIC_DYNAMIC = static_dynamic
+    l.set_static_dynamic(static_dynamic)
     return l
 
 class ListOfLists(list):

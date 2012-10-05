@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -22,7 +22,7 @@ import os
 import re
 
 from unittest import TestCase, TestSuite
-from easybuild.tools.variables import CommaList, CommandFlagList, ListOfLists, StrList, Variables
+from easybuild.tools.variables import CommaList, CommandFlagList, FlagList, ListOfLists, StrList, Variables
 from easybuild.tools.variables import get_linker_endgroup, get_linker_startgroup
 
 
@@ -60,21 +60,26 @@ class VariablesTest(TestCase):
         v['FOO'] = range(3)
         self.assertEqual(str(v['FOO']), " 0,1,2")   
 
-        l = get_linker_endgroup()
-        self.assertEqual(str(l), "-Wl,--end-group")
+        le = get_linker_endgroup()
+        self.assertEqual(str(le), "-Wl,--end-group")
 
-        l2 = get_linker_startgroup({'static':'-Bstatic',
-                                    'dynamic':'-Bdynamic',
-                                   })
-        l2.toggle_static()
-        self.assertEqual(str(l2), "-Wl,--start-group -Wl,-Bstatic")
+        static_dynamic = {
+                          'static': '-Bstatic',
+                          'dynamic': '-Bdynamic'
+                         }
 
-        l2.append("foo")
-        l2.toggle_dynamic()
-        self.assertEqual(str(l2), "-Wl,--start-group -Wl,-Bstatic -foo -Wl,-Bdynamic")
+        ls = get_linker_startgroup(static_dynamic)
+        ls.toggle_static()
+        self.assertEqual(str(ls), "-Wl,--start-group -Wl,-Bstatic")
 
-        cmd = CommandFlagList(["foo", "bar", "baz"])
-        self.assertEqual(str(cmd), "-foo -bar -baz")
+        fs = FlagList(["foo", "bar"])
+        le.set_static_dynamic(static_dynamic)
+        le.toggle_dynamic()
+        all_flags = ListOfLists([ls, fs, le])
+        self.assertEqual(str(all_flags), "-Wl,--start-group -Wl,-Bstatic -foo -bar -Wl,--end-group -Wl,-Bdynamic")
+
+        cmd = CommandFlagList(["gcc", "bar", "baz"])
+        self.assertEqual(str(cmd), "gcc -bar -baz")
 
 def suite():
     """ return all the tests"""
