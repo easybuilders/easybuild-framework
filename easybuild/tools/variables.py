@@ -263,7 +263,7 @@ class Variables(dict):
         klass = get_class(name, self.DEFAULT_CLASS, self.MAP_LISTCLASS)
         return klass()
 
-    def append(self, name, value):
+    def append(self, value, name=None):
         current = self.setdefault(name, self.get_instance(name))
         current.append(value, name=name)
 
@@ -308,6 +308,7 @@ if __name__ == '__main__':
         MAP_LISTCLASS = {TestListOfLists : ['FOO']}
 
     v = TestVariables()
+    print v
 
     print 'initial: BAR 0-5'
     v['BAR'] = range(5)
