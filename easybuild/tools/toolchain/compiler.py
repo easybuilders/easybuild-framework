@@ -318,8 +318,8 @@ class IntelIccIfort(Compiler):
         ifort_version = get_software_version('ifort')
 
         if not ifort_version == icc_version:
-            self.log.raiseException(("_set_compiler_vars: mismatch between icc version %s and " \
-                                     "ifort version %s") % (icc_version, ifort_version))
+            msg = "_set_compiler_vars: mismatch between icc version %s and ifort version %s"
+            self.log.raiseException(msg % (icc_version, ifort_version))
 
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")

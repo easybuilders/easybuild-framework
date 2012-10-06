@@ -93,7 +93,7 @@ class StrList(list):
 
     def str_convert(self, x):
         ## no prefix of start and end
-        return ''.join([x for x in [self.PREFIX, str(x), self.SUFFIX] if x])
+        return ''.join([str(y) for y in [self.PREFIX, str(x), self.SUFFIX] if y is not None])
 
     def _str_self(self):
         return [self.str_convert(x) for x in self if x is not None]
