@@ -19,13 +19,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-
-from vsc.fancylogger import getLogger
-import copy
-import os
-
-
 """
+Module that contains a set of classes and function to generate variables to be used
+eg in compiling or linking
+
 TODO:
     new classes that extend lists
         retain original provided data
@@ -38,6 +35,11 @@ TODO:
             not exactly what i need though
                 we don't want to redefine the class (eg dict) but it's uage (eg tk.vars)
 """
+
+from vsc.fancylogger import getLogger, setLogLevelDebug
+import copy
+import os
+import re
 
 _log = getLogger()
 
@@ -67,11 +69,15 @@ def join_map_class(*map_classes):
     res = {}
     for map_class in map_classes:
         for k, v in map_class.items():
+            if isinstance(v, (tuple, list)):
+                ## second element is documentation
+                v = v[0]
+
             if isinstance(k, (str,)):
                 res[k] = v
             elif type(k) in (type,):
-                tmp = res.setdefault(k, [])
-                tmp.append(v)
+                default = res.setdefault(k, [])
+                default.append(v)
             else:
                 _log.raiseException("join_map_class: impossible to join key %s value %s" % (k, v))
 
@@ -84,7 +90,7 @@ class StrList(list):
     PREFIX = None
     SUFFIX = None
 
-    START = None
+    BEGIN = None
     END = None
 
     def __init__(self, *args , **kwargs):
@@ -92,15 +98,27 @@ class StrList(list):
         self.log = getLogger(self.__class__.__name__)
 
     def str_convert(self, x):
-        ## no prefix of start and end
+        """Convert members of list to string (no prefix of begin and end)"""
         return ''.join([str(y) for y in [self.PREFIX, str(x), self.SUFFIX] if y is not None])
 
     def _str_self(self):
+        """Main part of __str__"""
         return [self.str_convert(x) for x in self if x is not None]
 
     def __str__(self):
-        xs = [self.START] + self._str_self() + [self.END]
+        """_str_self and support for BEGIN/END"""
+        xs = [self.BEGIN] + self._str_self() + [self.END]
         return self.SEPARATOR.join([str(x) for x in xs if x is not None])
+
+    def __getattribute__(self, attr_name):
+        """Filter out function calls from Variables class"""
+        if attr_name == 'nappend_el':
+            return self.append
+        elif attr_name == 'nextend_el':
+            return self.extend
+        else:
+            return super(StrList, self).__getattribute__(attr_name)
+
 
 class CommaList(StrList):
     """Comma-separated list"""
@@ -112,17 +130,17 @@ class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
 
-class CommandFlagList(StrList):
+class CommandFlagList(FlagList):
     """
     Command and flags list
-    First of the list has no prefix (i.e. the executable)
-    The remainder of the options are considered flags
+        First of the list has no prefix (i.e. the executable)
+        The remainder of the options are considered flags
     """
-    PREFIX = "-"
     def _str_self(self):
-        tmp = [self.str_convert(x) for x in self if x is not None]
-        tmp[0] = self[0]
-        return tmp
+        """Like a regular flag list, but set first element to original value"""
+        tmp_str = [self.str_convert(x) for x in self if x is not None]
+        tmp_str[0] = self[0]
+        return tmp_str
 
 class LibraryList(StrList):
     """Link library list"""
@@ -135,14 +153,17 @@ class LinkerFlagList(StrList):
     LINKER_TOGGLE_STATIC_DYNAMIC = None
 
     def toggle_static(self):
+        """Append static linking flags"""
         if self.LINKER_TOGGLE_STATIC_DYNAMIC is not None and 'static' in self.LINKER_TOGGLE_STATIC_DYNAMIC:
             self.append(self.LINKER_TOGGLE_STATIC_DYNAMIC['static'])
 
     def toggle_dynamic(self):
+        """Append dynamic linking flags"""
         if self.LINKER_TOGGLE_STATIC_DYNAMIC is not None and 'dynamic' in self.LINKER_TOGGLE_STATIC_DYNAMIC:
             self.append(self.LINKER_TOGGLE_STATIC_DYNAMIC['dynamic'])
 
     def set_static_dynamic(self, static_dynamic):
+        """Set the static/dynamic toggle values"""
         self.LINKER_TOGGLE_STATIC_DYNAMIC = copy.deepcopy(static_dynamic)
 
 class AbsPathList(StrList):
@@ -194,22 +215,24 @@ class AbsPathList(StrList):
 ## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
 ## IncludePaths, LinkLibraryPaths, get_linker*
 class IncludePaths(AbsPathList):
+    """Absolute path to directory containing include files"""
     PREFIX = '-I'
 
 class LinkLibraryPaths(AbsPathList):
+    """Absolute path to directory containing libraries"""
     PREFIX = '-L'
 
 def get_linker_startgroup(static_dynamic=None):
     """Return most common startgroup"""
-    l = LinkerFlagList(['--start-group'])
-    l.set_static_dynamic(static_dynamic)
-    return l
+    lfl = LinkerFlagList(['--start-group'])
+    lfl.set_static_dynamic(static_dynamic)
+    return lfl
 
 def get_linker_endgroup(static_dynamic=None):
     """Return most common endgroup"""
-    l = LinkerFlagList(['--end-group'])
-    l.set_static_dynamic(static_dynamic)
-    return l
+    lfl = LinkerFlagList(['--end-group'])
+    lfl.set_static_dynamic(static_dynamic)
+    return lfl
 
 class ListOfLists(list):
     """List of lists"""
@@ -219,29 +242,57 @@ class ListOfLists(list):
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
     MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
 
-    def append_empty(self, name=None):
-        #self.append(name=None)
-        self.append(None, name=None)
+    def __init__(self, *args , **kwargs):
+        super(ListOfLists, self).__init__(*args, **kwargs)
+        self.log = getLogger(self.__class__.__name__)
 
-    #TODO (KH) this should be append(self, value, name=None)?
-    #def append(self, name=None, value=None):
-    def append(self, value, name=None):
+    def append_empty(self, name):
+        """Initialise MAP_CLASS instance"""
+        self.nappend(name, None)
+
+    def nappend(self, name, value=None):
+        """Named append"""
         klass = get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
 
-        if value is None:
-            newvalue = klass()
-        elif type(value) in self.PROTECTED_CLASSES:
+        if type(value) in self.PROTECTED_CLASSES:
             newvalue = value
         else:
-            newvalue = klass(value)
+            try:
+                ## this might work, but probably not
+                newvalue = klass(value)
+            except:
+                newvalue = klass()
+                if value is not None:
+                    newvalue.append(value)
 
-        super(ListOfLists, self).append(newvalue)
+        self.append(newvalue)
+
+    def nextend(self, name, value=None):
+        """Named extend, value is list type"""
+        klass = get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
+
+        res = []
+        if value is None:
+            ## TODO ? append_empty ?
+            self.log.raiseException("extend_el with None value unimplemented")
+        else:
+            for el in value:
+                if type(el) in self.PROTECTED_CLASSES:
+                    res.append(el)
+                else:
+                    res.append(klass(el))
+
+        self.extend(res)
+
 
     def str_convert(self, x):
+        """Given x, return a string representing x
+            called in __str__ of this class
+        """
         return str(x)
 
     def __str__(self):
-        return self.STR_SEPARATOR.join([self.str_convert(x) for x in self])
+        return self.STR_SEPARATOR.join([self.str_convert(x) for x in self if x is not None and len(x) > 0])
 
 
 
@@ -268,74 +319,88 @@ class Variables(dict):
         klass = get_class(name, self.DEFAULT_CLASS, self.MAP_LISTCLASS)
         return klass()
 
-    def append(self, value, name=None):
-        current = self.setdefault(name, self.get_instance(name))
-        current.append(value, name=name)
+    def append(self, name, value):
+        """Append value to element name (alias for nappend)"""
+        self.nappend(name, value)
 
     def __setitem__(self, name, value):
-        """Automatically create a list for each name"""
-        self.append(value, name=name)
+        """Automatically creates a list for each name"""
+        self.append(name, value)
 
     def setdefault(self, name, default=None):
-        tmp = super(Variables, self).setdefault(name, default)
-        if len(tmp) == 0:
+        #"""append_empty to non-existing element"""
+        default = super(Variables, self).setdefault(name, default)
+        if len(default) == 0:
             self.log.debug("setdefault: name %s initialising." % name)
-            tmp.append_empty(name=name)
-        return tmp
+            default.append_empty(name)
+        return default
 
-    def append_el(self, name, value, idx= -1):
-        """Add the value to the idx-th element of the current value of name"""
-        current = self.setdefault(name, self.get_instance(name))
-        current[idx].append(value)
-
-    def extend_el(self, name, value, idx= -1):
-        """Extend the value of the idx-th element of the current value of name"""
-        current = self.setdefault(name, self.get_instance(name))
-        current[idx].extend(value)
-
-    ## functions that pass through
-    def append_exists(self, name, *args, **kwargs):
-        idx = kwargs.pop('idx', -1)
-        current = self.setdefault(name, self.get_instance(name))
-        current[idx].append_exists(*args, **kwargs)
-
-    def append_subdirs(self, name, *args, **kwargs):
-        idx = kwargs.pop('idx', -1)
-        current = self.setdefault(name, self.get_instance(name))
-        current[idx].append_subdirs(*args, **kwargs)
+    def __getattribute__(self, attr_name):
+        # allow for pass-through
+        if attr_name in ['nappend', 'nextend', 'append_empty']:
+            self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
+            def _passthrough(name, *args, **kwargs):
+                """functions that pass through to LISTCLASS instances"""
+                current = self.setdefault(name, self.get_instance(name))
+                actual_function = getattr(current, attr_name)
+                res = actual_function(name, *args, **kwargs)
+                return res
+            return _passthrough
+        elif attr_name in ['nappend_el', 'nextend_el', 'append_exists', 'append_subdirs']:
+            self.log.debug("Passthrough to LISTCLASS element function %s" % attr_name)
+            def _passthrough(name, *args, **kwargs):
+                """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""
+                idx = kwargs.pop('idx', -1)
+                current = self.setdefault(name, self.get_instance(name))
+                actual_function = getattr(current[idx], attr_name)
+                res = actual_function(*args, **kwargs)
+                return res
+            return _passthrough
+        else:
+            return super(Variables, self).__getattribute__(attr_name)
 
 
 if __name__ == '__main__':
+    setLogLevelDebug()
     class TestListOfLists(ListOfLists):
+        """Test ListOfList class"""
         MAP_CLASS = {'FOO':CommaList}
 
     class TestVariables(Variables):
+        """Test Variables class"""
         MAP_LISTCLASS = {TestListOfLists : ['FOO']}
 
-    v = TestVariables()
-    print v
+    va = TestVariables()
+    print va
 
     print 'initial: BAR 0-5'
-    v['BAR'] = range(5)
-    print v['BAR'], v
-    print type(v['BAR'])
+    va['BAR'] = range(5)
+    print va['BAR'], va
+    print type(va['BAR'])
     print '------------'
 
     print 'added 10-15 to BAR'
-    v['BAR'].append(StrList(range(10, 15)))
-    print v['BAR'], v
+    va['BAR'].append(StrList(range(10, 15)))
+    print va['BAR'], va
     print '------------'
 
     print 'added 20 to BAR'
-    v.append_el('BAR', 20)
-    print v['BAR'], v
-    print str(v['BAR'])
+    va.nappend('BAR', 20)
+    print va['BAR'], va
+    print str(va['BAR'])
     print '------------'
+
+    print 'added 30 to 2nd last element of BAR'
+    va.nappend_el('BAR', 30, idx= -2)
+    print va['BAR'], va
+    print str(va['BAR'])
+    print '------------'
+
 
     ##
     print 'set FOO to 0-10 (commalist)'
-    v['FOO'] = range(10)
-    print v['FOO']
+    va['FOO'] = range(10)
+    print va['FOO']
     print '------------'
 
     ## startgroup

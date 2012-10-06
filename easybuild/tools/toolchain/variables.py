@@ -36,7 +36,7 @@ COMPILER_VARIABLES = [
 COMPILER_MAP_CLASS = {
                       FlagList: [
                                  ('OPTFLAGS', 'Optimisation flags'),
-                                 ('PRECFLAGS',  'FP precision flags'),
+                                 ('PRECFLAGS', 'FP precision flags'),
                                  ('CFLAGS', 'C compiler flags'),
                                  ('CXXFLAGS', 'C++ compiler flags'),
                                  ('FFLAGS', 'Fortran compiler flags'),
@@ -47,7 +47,7 @@ COMPILER_MAP_CLASS = {
                                     ('FLIBS', 'Fortran libraries'), ## TODO: where are these used? gfortran only?
                                    ],
                       LinkLibraryPaths: [
-                                         ('LDFLAGS', 'Flags passed to linker'),  ## TODO: overridden by command line?
+                                         ('LDFLAGS', 'Flags passed to linker'), ## TODO: overridden by command line?
                                         ],
                       IncludePaths: [
                                      ('CPPFLAGS', 'Precompiler flags'),
@@ -57,7 +57,7 @@ COMPILER_MAP_CLASS = {
 
 MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
 MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var': v}, "MPI %s wrapper" % d)
-                          for (v,d) in COMPILER_VARIABLES]
+                          for (v, d) in COMPILER_VARIABLES]
 
 MPI_MAP_CLASS = {
                  StrList: [
@@ -70,12 +70,11 @@ MPI_MAP_CLASS = {
                  }
 
 SCALAPACK_MAP_CLASS = {StrList:[],
-
                        }
 
 class ToolchainList(ListOfLists):
     DEFAULT_CLASS = FlagList
-    MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS)
+    MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS) ## join_map_class strips explanation
 
 class ToolchainVariables(Variables):
     """

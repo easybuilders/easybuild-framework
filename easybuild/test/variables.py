@@ -40,25 +40,30 @@ class VariablesTest(TestCase):
 
         class TestListOfLists(ListOfLists):
             MAP_CLASS = {'FOO':CommaList}
-    
+
         class TestVariables(Variables):
             MAP_LISTCLASS = {TestListOfLists : ['FOO']}
 
         v = TestVariables()
         self.assertEqual(str(v), "{}")
 
+        ## DEFAULTCLASS is StrList
         v['BAR'] = range(3)
         self.assertEqual(str(v), "{'BAR': [[], [0, 1, 2]]}")
-        self.assertEqual(str(v['BAR']), " 0 1 2")
+        self.assertEqual(str(v['BAR']), "0 1 2")
 
         v['BAR'].append(StrList(range(10, 12)))
-        self.assertEqual(str(v['BAR']), " 0 1 2 10 11")
+        self.assertEqual(str(v['BAR']), "0 1 2 10 11")
 
-        v.append_el('BAR', 20)
-        self.assertEqual(str(v['BAR']), " 0 1 2 10 11 20")
+        v.nappend('BAR', 20)
+        self.assertEqual(str(v['BAR']), "0 1 2 10 11 20")
+
+        v.nappend_el('BAR', 30, idx= -2)
+        self.assertEqual(str(v), "{'BAR': [[], [0, 1, 2], [10, 11, 30], [20]]}")
+        self.assertEqual(str(v['BAR']), '0 1 2 10 11 30 20')
 
         v['FOO'] = range(3)
-        self.assertEqual(str(v['FOO']), " 0,1,2")   
+        self.assertEqual(str(v['FOO']), "0,1,2")
 
         le = get_linker_endgroup()
         self.assertEqual(str(le), "-Wl,--end-group")
