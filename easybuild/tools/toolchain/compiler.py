@@ -35,6 +35,7 @@ INTEL = "Intel"
 
 class Compiler(object):
     """General compiler-like class"""
+
     OPTIONS_CLASS = ToolchainOptions
     VARIABLES_CLASS = ToolchainVariables  # set compiler specific usage
 
@@ -156,21 +157,19 @@ class Compiler(object):
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
-        flags = [ self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
+        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
 
-        cflags = [ self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
+        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
-        fflags = [ self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
+        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
 
         ## 1st one is the one to use. add default at the end so len is at least 1
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-                            [self.options.option('defaultopt')]
+                   [self.options.option('defaultopt')]
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
-                            [self.options.option('defaultprec')]
-
-
+                    [self.options.option('defaultprec')]
 
         self.variables.append('OPTFLAGS', optflags)
         self.variables.append('PRECFLAGS', precflags)
@@ -216,11 +215,13 @@ class GNUCompilerCollection(Compiler):
     COMPILER_MODULE_NAME = ['GCC']
 
     COMPILER_FAMILY = GCC
-    COMPILER_UNIQUE_OPTS = {'loop': (False, "Automatic loop parallellisation"),
+    COMPILER_UNIQUE_OPTS = {
+                            'loop': (False, "Automatic loop parallellisation"),
                             'f2c': (False, "Generate code comaptible with f2c and f77"),
                             'lto':(False, "Enable Link Time Optimisation"),
                             }
-    COMPILER_UNIQUE_OPTION_MAP = {'i8': 'fdefault-integer-8',
+    COMPILER_UNIQUE_OPTION_MAP = {
+                                  'i8': 'fdefault-integer-8',
                                   'r8': 'fdefault-real-8',
                                   'unroll': 'funroll-loops',
                                   'f2c': 'ff2c',
@@ -258,8 +259,6 @@ class GNUCompilerCollection(Compiler):
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
         self.variables.append('FLIBS', "gfortran")
-
-
 
 
 class IntelIccIfort(Compiler):
@@ -319,8 +318,8 @@ class IntelIccIfort(Compiler):
         ifort_version = get_software_version('ifort')
 
         if not ifort_version == icc_version:
-            self.log.raiseException(("_set_compiler_vars: mismatch between icc "
-                                     "version %s and ifort version %s") % (icc_version, ifort_version))
+            self.log.raiseException(("_set_compiler_vars: mismatch between icc version %s and " \
+                                     "ifort version %s") % (icc_version, ifort_version))
 
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
@@ -336,4 +335,3 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
-
