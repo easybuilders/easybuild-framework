@@ -326,12 +326,12 @@ class Application:
         if len(loadedmods) > 0:
             self.log.warning("Loaded modules detected: %s" % loadedmods)
 
-        # Do all dependencies have a toolkit version
-        self.toolkit().add_dependencies(self.cfg.dependencies())
-        if not len(self.cfg.dependencies()) == len(self.toolkit().dependencies):
+        # Do all dependencies have a toolchain version
+        self.toolchain().add_dependencies(self.cfg.dependencies())
+        if not len(self.cfg.dependencies()) == len(self.toolchain().dependencies):
             self.log.debug("dep %s (%s)" % (len(self.cfg.dependencies()), self.cfg.dependencies()))
-            self.log.debug("tk.dep %s (%s)" % (len(self.toolkit().dependencies), self.toolkit().dependencies))
-            self.log.error('Not all dependencies have a matching toolkit version')
+            self.log.debug("tk.dep %s (%s)" % (len(self.toolchain().dependencies), self.toolchain().dependencies))
+            self.log.error('Not all dependencies have a matching toolchain version')
 
         # Check if the application is not loaded at the moment
         (root, env_var) = get_software_root(self.name(), with_env_var=True)
@@ -620,7 +620,7 @@ class Application:
         - unpack sources
         - patch sources
         - prepare dependencies
-        - prepare toolkit
+        - prepare toolchain
         - configure
         - make (use parallelism?)
         - test
@@ -913,7 +913,7 @@ class Application:
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
-        self.toolkit().prepare(self.getcfg('onlytkmod'))
+        self.toolchain().prepare(self.getcfg('onlytkmod'))
         self.startfrom()
 
 
@@ -958,21 +958,21 @@ class Application:
 
             return out
 
-    def toolkit(self):
+    def toolchain(self):
         """
-        Toolkit used to build this Application
+        Toolchain used to build this Application
         """
-        return self.cfg.toolkit()
+        return self.cfg.toolchain()
 
     def toolkit_name(self):
         """
-        Name of toolkit used to build this Application
+        Name of toolchain used to build this Application
         """
         return self.cfg.toolkit_name()
 
     def toolkit_version(self):
         """
-        Version of toolkit used to build this Application
+        Version of toolchain used to build this Application
         """
         return self.cfg.toolkit_version()
 
@@ -1189,14 +1189,14 @@ class Application:
         """
         load = unload = ''
 
-        # Load toolkit
+        # Load toolchain
         if self.toolkit_name() != 'dummy':
             load += self.moduleGenerator.loadModule(self.toolkit_name(), self.toolkit_version())
             unload += self.moduleGenerator.unloadModule(self.toolkit_name(), self.toolkit_version())
 
         # Load dependencies
         builddeps = self.cfg.builddependencies()
-        for dep in self.toolkit().dependencies:
+        for dep in self.toolchain().dependencies:
             if not dep in builddeps:
                 self.log.debug("Adding %s/%s as a module dependency" % (dep['name'], dep['tk']))
                 load += self.moduleGenerator.loadModule(dep['name'], dep['tk'])
@@ -1689,21 +1689,21 @@ class ApplicationPackage:
         """
         pass
 
-    def toolkit(self):
+    def toolchain(self):
         """
-        Toolkit used to build this package
+        Toolchain used to build this package
         """
-        return self.master.toolkit()
+        return self.master.toolchain()
 
     def toolkit_name(self):
         """
-        Name of toolkit used to build this package
+        Name of toolchain used to build this package
         """
         return self.master.toolkit_name()
 
     def toolkit_version(self):
         """
-        Version of toolkit used to build this package
+        Version of toolchain used to build this package
         """
         return self.master.toolkit_version()
 

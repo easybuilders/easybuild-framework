@@ -32,7 +32,9 @@ from vsc.fancylogger import getLogger
 
 class Toolchain(object):
     """General toolchain class"""
-    def __init__(self):
+    def __init__(self, name, version):
+        self.name = name
+        self.version = version
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 

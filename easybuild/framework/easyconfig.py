@@ -29,7 +29,7 @@ import difflib
 import os
 
 from easybuild.tools.build_log import getLog
-from easybuild.tools.toolkit import Toolkit
+from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
@@ -37,7 +37,7 @@ from easybuild.tools.ordereddict import OrderedDict
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
 CUSTOM = (1, 'easyblock-specific')
-TOOLKIT = (2, 'toolkit')
+TOOLCHAIN = (2, 'toolchain')
 BUILD = (3, 'build')
 FILEMANAGEMENT = (4, 'file-management')
 DEPENDENCIES = (5, 'dependencies')
@@ -59,16 +59,16 @@ class EasyConfig:
     default_config = [
           ('name', [None, "Name of software", MANDATORY]),
           ('version', [None, "Version of software", MANDATORY]),
-          ('toolkit', [None, 'Name and version of toolkit', MANDATORY]),
+          ('toolchain', [None, 'Name and version of toolchain', MANDATORY]),
           ('description', [None, 'A short description of the software', MANDATORY]),
           ('homepage', [None, 'The homepage of the software', MANDATORY]),
 
-          ('toolkitopts', ['', 'Extra options for compilers', TOOLKIT]),
-          ('onlytkmod', [False, 'Boolean/string to indicate if the toolkit should only load the enviornment with module (True) or also set all other variables (False) like compiler CC etc (If string: comma separated list of variables that will be ignored). (Default: False)', TOOLKIT]),
+          ('toolchainopts', ['', 'Extra options for compilers', TOOLCHAIN]),
+          ('onlytcmod', [False, 'Boolean/string to indicate if the toolchain should only load the enviornment with module (True) or also set all other variables (False) like compiler CC etc (If string: comma separated list of variables that will be ignored). (Default: False)', TOOLCHAIN]),
 
           ('easybuildVersion', [None, "EasyBuild-version this spec-file was written for", BUILD]),
-          ('versionsuffix', ['', 'Additional suffix for software version (placed after toolkit name)', BUILD]),
-          ('versionprefix', ['', 'Additional prefix for software version (placed before version and toolkit name)',BUILD]),
+          ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)', BUILD]),
+          ('versionprefix', ['', 'Additional prefix for software version (placed before version and toolchain name)',BUILD]),
           ('runtest', [None, 'Indicates if a test should be run after make; should specify argument after make (for e.g.,"test" for make test) (Default: None)', BUILD]),
           ('preconfigopts', ['', 'Extra options pre-passed to configure.', BUILD]),
           ('configopts', ['', 'Extra options passed to configure (Default already has --prefix)', BUILD]),
@@ -132,7 +132,7 @@ class EasyConfig:
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
         self.config.update(extra_options)
-        self.mandatory = ['name', 'version', 'homepage', 'description', 'toolkit']
+        self.mandatory = ['name', 'version', 'homepage', 'description', 'toolchain']
 
         # extend mandatory keys
         for (key, value) in extra_options:
@@ -141,8 +141,8 @@ class EasyConfig:
 
         self.log = getLog("EasyConfig")
 
-        # store toolkit
-        self._toolkit = None
+        # store toolchain
+        self._toolchain = None
 
         if not os.path.isfile(path):
             self.log.error("EasyConfig __init__ expected a valid path")
@@ -245,31 +245,31 @@ class EasyConfig:
 
         return deps
 
-    def toolkit_name(self):
+    def toolchain_name(self):
         """
-        Returns toolkit name.
+        Returns toolchain name.
         """
-        return self['toolkit']['name']
+        return self['toolchain']['name']
 
-    def toolkit_version(self):
+    def toolchain_version(self):
         """
-        Returns toolkit name.
+        Returns toolchain name.
         """
-        return self['toolkit']['version']
+        return self['toolchain']['version']
 
-    def toolkit(self):
+    def toolchain(self):
         """
-        returns the Toolkit used
+        returns the Toolchain used
         """
-        if self._toolkit:
-            return self._toolkit
+        if self._toolchain:
+            return self._toolchain
 
-        tk = Toolkit(self.toolkit_name(), self.toolkit_version())
-        if self['toolkitopts']:
-            tk.set_options(self['toolkitopts'])
+        tc = Toolchain(self.toolchain_name(), self.toolchain_version())
+        if self['toolchainopts']:
+            tc.set_options(self['toolchainopts'])
 
-        self._toolkit = tk
-        return self._toolkit
+        self._toolchain = tc
+        return self._toolchain
 
     def installversion(self):
         """
@@ -277,10 +277,10 @@ class EasyConfig:
         """
         prefix, suffix = self['versionprefix'], self['versionsuffix']
 
-        if self.toolkit_name() == 'dummy':
+        if self.toolchain_name() == 'dummy':
             name = "%s%s%s" % (prefix, self['version'], suffix)
         else:
-            extra = "%s-%s" % (self.toolkit_name(), self.toolkit_version())
+            extra = "%s-%s" % (self.toolchain_name(), self.toolchain_version())
             name = "%s%s-%s%s" % (prefix, self['version'], extra, suffix)
 
         return name
@@ -331,7 +331,7 @@ class EasyConfig:
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'suffix', 'dummy', 'tk']
+        ['name', 'version', 'suffix', 'dummy', 'tc']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -354,8 +354,8 @@ class EasyConfig:
         if not dependency['version']:
             self.log.error('Dependency without version.')
 
-        if not 'tk' in dependency:
-            dependency['tk'] = self.toolkit().get_dependency_version(dependency)
+        if not 'tc' in dependency:
+            dependency['tc'] = self.toolchain().get_dependency_version(dependency)
 
         return dependency
 
@@ -377,7 +377,7 @@ def sorted_categories():
     """
     returns the categories in the correct order
     """
-    categories = [MANDATORY, CUSTOM , TOOLKIT, BUILD, FILEMANAGEMENT, DEPENDENCIES, LICENSE , PACKAGE, MODULES, OTHER]
+    categories = [MANDATORY, CUSTOM , TOOLCHAIN, BUILD, FILEMANAGEMENT, DEPENDENCIES, LICENSE , PACKAGE, MODULES, OTHER]
     categories.sort(key = lambda c: c[0])
     return categories
 
