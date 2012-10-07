@@ -256,6 +256,12 @@ class ListOfLists(list):
         """Return the class associated with the name accordong to the DEFAULT_CLASS and MAP_CLASS"""
         return get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
 
+    def first(self):
+        """Return first non-empty list"""
+        for x in self:
+            if len(x) > 0:
+                return x
+
     def nappend(self, name, value=None):
         """Named append"""
         klass = self.get_class(name)
@@ -365,7 +371,7 @@ class Variables(dict):
 
     def __getattribute__(self, attr_name):
         # allow for pass-through
-        if attr_name in ['nappend', 'nextend', 'append_empty']:
+        if attr_name in ['nappend', 'nextend', 'append_empty', 'first']:
             self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
             def _passthrough(name, *args, **kwargs):
                 """functions that pass through to LISTCLASS instances"""
@@ -380,7 +386,6 @@ class Variables(dict):
                 """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""
                 idx = kwargs.pop('idx', -1)
                 current = self.setdefault(name, self.get_instance(name))
-                print type(self), name, current, type(current), current.get_class(name), current.MAP_CLASS
                 actual_function = getattr(current[idx], attr_name)
                 res = actual_function(*args, **kwargs)
                 return res

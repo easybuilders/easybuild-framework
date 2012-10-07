@@ -22,7 +22,7 @@
 Toolchain specific variables
 """
 
-from easybuild.tools.variables import Variables, ListOfLists, StrList, FlagList, LibraryList
+from easybuild.tools.variables import Variables, ListOfLists, StrList, AbsPathList, FlagList, LibraryList
 from easybuild.tools.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, join_map_class
 
 
@@ -60,12 +60,12 @@ MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var': v}, "MPI %s wrapper
                           for (v, d) in COMPILER_VARIABLES]
 
 MPI_MAP_CLASS = {
-                 StrList: [
-                           ('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: usefull at all? shouldn't these be obtained from mpiXX --show
-                           ('MPI_LIB_SHARED', 'MPI libraries (shared)'),
-                           ('MPI_LIB_DIR', 'MPI library directory'),
-                           ('MPI_INC_DIR', 'MPI include directory'),
-                          ],
+                 AbsPathList: [
+                               ('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: useful at all? shouldn't these be obtained from mpiXX --show
+                               ('MPI_LIB_SHARED', 'MPI libraries (shared)'),
+                               ('MPI_LIB_DIR', 'MPI library directory'),
+                               ('MPI_INC_DIR', 'MPI include directory'),
+                               ],
                  CommandFlagList: MPI_COMPILER_VARIABLES,
                  }
 

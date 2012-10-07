@@ -26,7 +26,7 @@ from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VAR
 
 from easybuild.tools.toolchain.options import ToolchainOptions
 
-from vsc.fancylogger import getLogger, setLogLevelDebug
+from vsc.fancylogger import getLogger
 
 # constants used for recognizing compilers, MPI libraries, ...
 GCC = "GCC"
@@ -306,11 +306,13 @@ class IntelIccIfort(Compiler):
                              'dynamic':'-Bdynamic',
                              }
 
-
     LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related : TODO: harmful or not?
 
     def _set_compiler_vars(self):
         super(IntelIccIfort, self)._set_compiler_vars()
+
+        if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
+            self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
 
         icc_root = get_software_root('icc')
         if icc_root is None:
@@ -344,6 +346,7 @@ class IntelIccIfort(Compiler):
 
 
 if __name__ == '__main__':
+    from vsc.fancylogger import setLogLevelDebug
     setLogLevelDebug()
     to = ToolchainVariables()
     print to
@@ -370,7 +373,7 @@ if __name__ == '__main__':
 
 
     os.environ.setdefault('EBROOTGCC', '/usr')
-    os.environ.setdefault('EBVERSIONIFORT', '4.7.2')
+    os.environ.setdefault('EBVERSIONGCC', '4.7.2')
 
     class GTC(GNUCompilerCollection, Toolchain):
         NAME = 'GTC'
