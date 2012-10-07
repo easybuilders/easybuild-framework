@@ -65,6 +65,12 @@ class VariablesTest(TestCase):
         v['FOO'] = range(3)
         self.assertEqual(str(v['FOO']), "0,1,2")
 
+        v['BARSTR'] = 'XYZ'
+        self.assertEqual(v['BARSTR'].__repr__(), "[[], ['XYZ']]")
+
+        v['BARINT'] = 0
+        self.assertEqual(v['BARINT'].__repr__(), "[[], [0]]")
+
         le = get_linker_endgroup()
         self.assertEqual(str(le), "-Wl,--end-group")
 

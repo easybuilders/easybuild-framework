@@ -30,11 +30,9 @@ Map values can be string with named templates
 
 from vsc.fancylogger import getLogger
 
-
-
 class ToolchainOptions(dict):
     def __init__(self):
-        self._log = getLogger(self.__class__.__name__)
+        self.log = getLogger(self.__class__.__name__)
 
         self.map = {}  # map between options name and value
         self.description = {}  # short description of the options
@@ -92,7 +90,3 @@ class ToolchainOptions(dict):
             res = value
 
         return res
-
-
-if __name__ == '__main__':
-    to = ToolchainOptions()

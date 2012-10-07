@@ -26,7 +26,7 @@ from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VAR
 
 from easybuild.tools.toolchain.options import ToolchainOptions
 
-from vsc.fancylogger import getLogger
+from vsc.fancylogger import getLogger, setLogLevelDebug
 
 # constants used for recognizing compilers, MPI libraries, ...
 GCC = "GCC"
@@ -103,7 +103,7 @@ class Compiler(object):
 
     LIB_MULTITHREAD = None
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
@@ -115,23 +115,27 @@ class Compiler(object):
 
         self._set_compiler_toolchainoptions()
 
+        self.log.debug('_compiler_init: compiler toolchainoptions %s' % self.options)
+
+        super(Compiler, self).__init__(*args, **kwargs)
+
+    def set_variables(self):
+        """Set the variables"""
         self._set_compiler_vars()
         self._set_compiler_flags()
 
-        super(Compiler, self).__init__()
+        self.log.debug('set_variables: compiler variables %s' % self.variables)
+        super(Compiler, self).set_variables()
 
     def _set_compiler_toolchainoptions(self):
-        ## redefine optarch
-        self.COMPILER_SHARED_OPTION_MAP['optarch'] = self._get_optimal_architecture(
-                                                                self.COMPILER_SHARED_OPTION_MAP['optarch'])
-
+        """Set the compiler related toolchain options"""
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         ## overwrite/add unique compiler specific toolchainoptions
         self.options.add_options(self.COMPILER_UNIQUE_OPTS, self.COMPILER_UNIQUE_OPTION_MAP)
 
-        self.log.debug('_set_compiler_toolchainptions: all current toolchainoptions %s' % self.options)
-
+        ## redefine optarch
+        self._get_optimal_architecture()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -139,21 +143,21 @@ class Compiler(object):
         if is32bit:
             self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
 
-        for var in COMPILER_VARIABLES:
+        for var_tuple in COMPILER_VARIABLES:
+            var = var_tuple[0]  # [1] is the description
+
             value = getattr(self, 'COMPILER_%s' % var.upper(), None)
             if value is None:
                 self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+
             self.variables[var] = value
             if is32bit:
-                self.variables.append_el(var, self.options.option('32bit'))
+                self.variables.nappend_el(var, self.options.option('32bit'))
 
         if self.options.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
             self.variables['CXX'] = self.variables['CC']
-
-        self.log.debug('_set_compiler_vars: current variables %s' % self.variables)
-
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
@@ -171,33 +175,30 @@ class Compiler(object):
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.append('OPTFLAGS', optflags)
-        self.variables.append('PRECFLAGS', precflags)
+        self.variables.nextend('OPTFLAGS', optflags[:1])
+        self.variables.nextend('PRECFLAGS', precflags[:1])
 
-        def_flags = flags + optflags[:1] + precflags[:1]
+        def_flags = flags + optflags[:1]
 
-        self.variables.append('CFLAGS', def_flags + cflags)
-        self.variables.append('CXXFLAGS', def_flags + cflags)
-        self.variables.append('FFLAGS', def_flags + fflags)
-        self.variables.append('F90FLAGS', def_flags + fflags)
+        ## precflags last
+        self.variables.nextend('CFLAGS', def_flags + cflags + precflags[:1])
+        self.variables.nextend('CXXFLAGS', def_flags + cflags + precflags[:1])
+        self.variables.nextend('FFLAGS', def_flags + fflags + precflags[:1])
+        self.variables.nextend('F90FLAGS', def_flags + fflags + precflags[:1])
 
-        self.log.debug('_set_compiler_flags: current variables %s' % self.variables)
-
-    def _get_optimal_architecture(self, optarch):
+    def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
             self.arch = systemtools.get_cpu_vendor()
-
 
         if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and \
                 self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
+            self.options.map['optarch'] = optarch
 
-        if optarch is None:
+        if self.options.map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
-
-        return optarch
 
 class Dummy(Compiler):
     """Dummy compiler : try not to even use system gcc"""
@@ -312,9 +313,13 @@ class IntelIccIfort(Compiler):
         super(IntelIccIfort, self)._set_compiler_vars()
 
         icc_root = get_software_root('icc')
+        if icc_root is None:
+            self.log.raiseException("_set_compiler_vars: get_software_root icc returned None")
         icc_version = get_software_version('icc')
 
         ifort_root = get_software_root('ifort')
+        if ifort_root is None:
+            self.log.raiseException("_set_compiler_vars: get_software_root ifort returned None")
         ifort_version = get_software_version('ifort')
 
         if not ifort_version == icc_version:
@@ -324,8 +329,9 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        if "liomp5" not in self.variables['LIBS']:
-            self.variables.extend('LIBS', self.LIB_MULTITHREAD)
+        if not 'LIBS' in self.variables or "liomp5" not in self.variables['LIBS']:
+            self.variables.nextend('LIBS', self.LIB_MULTITHREAD)
+            print self.LIB_MULTITHREAD
 
         libpaths = ['intel64']
         if self.options.get('32bit', None):
@@ -335,3 +341,45 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+
+
+if __name__ == '__main__':
+    setLogLevelDebug()
+    to = ToolchainVariables()
+    print to
+    print to.DEFAULT_LISTCLASS
+
+    import os
+
+    from easybuild.tools.toolchain.toolchain import Toolchain
+    class ITC(IntelIccIfort, Toolchain):
+        NAME = 'ITC'
+        VERSION = '1.0.0'
+
+    os.environ.setdefault('EBROOTICC', '/x/y/z/icc')
+    os.environ.setdefault('EBROOTIFORT', '/x/y/z/ifort')
+    os.environ.setdefault('EBVERSIONICC', '2012.0.0.0')
+    os.environ.setdefault('EBVERSIONIFORT', '2012.0.0.0')
+    itc = ITC()
+    itc.options['32bit'] = True
+    itc.set_variables()
+    itc.generate_vars()
+    print 'IntelIccIfort', 'options', itc.options
+    print 'IntelIccIfort', 'variables', itc.variables
+    print 'IntelIccIfort', "vars", itc.vars
+
+
+    os.environ.setdefault('EBROOTGCC', '/usr')
+    os.environ.setdefault('EBVERSIONIFORT', '4.7.2')
+
+    class GTC(GNUCompilerCollection, Toolchain):
+        NAME = 'GTC'
+        VERSION = '1.0.0'
+    gtc = GTC()
+    gtc.options['cstd'] = 'CVERYVERYSPECIAL'
+    gtc.set_variables()
+    gtc.generate_vars()
+    print 'GNUCompilerCollection', 'options', gtc.options
+    print 'GNUCompilerCollection', 'variables', gtc.variables
+    print 'GNUCompilerCollection', "vars", gtc.vars
+

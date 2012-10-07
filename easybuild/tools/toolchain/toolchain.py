@@ -32,10 +32,36 @@ from vsc.fancylogger import getLogger
 
 class Toolchain(object):
     """General toolchain class"""
-    def __init__(self, name, version):
-        self.name = name
-        self.version = version
+    NAME = None
+    VERSION = None
+    def __init__(self, name=None, version=None):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
+        if name is None:
+            name = self.NAME
+        if name is None:
+            self.log.raiseException("init: no name provided")
+        self.name = name
 
+
+        if version is None:
+            version = self.VERSION
+        if version is None:
+            self.log.raiseException("init: no version provided")
+        self.version = version
+
+        self.opts = None
+        self.vars = None
+
+    def set_variables(self):
+        """Do nothing? Everything should have been set by others
+            Needs to be defined for super() relations
+        """
+        self.log.debug("set_variables: toolchain variables. Do nothing.")
+
+    def generate_vars(self):
+        """Convert the variables in simple vars"""
+        self.vars = {}
+        for k, v in self.variables.items():
+            self.vars[k] = str(v)

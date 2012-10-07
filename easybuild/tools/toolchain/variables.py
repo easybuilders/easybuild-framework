@@ -81,5 +81,4 @@ class ToolchainVariables(Variables):
     Class to hold variable-like key/value pairs
     in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
-    DEFAULT_CLASS = ToolchainList
-
+    DEFAULT_LISTCLASS = ToolchainList

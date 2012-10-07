@@ -69,15 +69,17 @@ def join_map_class(*map_classes):
     res = {}
     for map_class in map_classes:
         for k, v in map_class.items():
-            if isinstance(v, (tuple, list)):
-                ## second element is documentation
-                v = v[0]
-
             if isinstance(k, (str,)):
-                res[k] = v
+                var_name = k
+                if isinstance(v, (tuple, list)):
+                    ## second element is documentation
+                    klass = v[0]
+                res[var_name] = klass
             elif type(k) in (type,):
-                default = res.setdefault(k, [])
-                default.append(v)
+                ## k is the class, v a list of tuples (name,doc)
+                klass = k
+                default = res.setdefault(klass, [])
+                default.extend([tpl[0] for tpl in v])
             else:
                 _log.raiseException("join_map_class: impossible to join key %s value %s" % (k, v))
 
@@ -250,13 +252,22 @@ class ListOfLists(list):
         """Initialise MAP_CLASS instance"""
         self.nappend(name, None)
 
+    def get_class(self, name):
+        """Return the class associated with the name accordong to the DEFAULT_CLASS and MAP_CLASS"""
+        return get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
+
     def nappend(self, name, value=None):
         """Named append"""
-        klass = get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
+        klass = self.get_class(name)
 
         if type(value) in self.PROTECTED_CLASSES:
             newvalue = value
         else:
+            if isinstance(value, (str, int,)):
+                ## convert to list. although the try/except will work
+                ##  list('XYZ') creates ['X','Y','Z']
+                value = [value]
+
             try:
                 ## this might work, but probably not
                 newvalue = klass(value)
@@ -268,8 +279,8 @@ class ListOfLists(list):
         self.append(newvalue)
 
     def nextend(self, name, value=None):
-        """Named extend, value is list type"""
-        klass = get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
+        """Named extend, value is list type (TODO: tighten the allowed values)"""
+        klass = self.get_class(name)
 
         res = []
         if value is None:
@@ -280,7 +291,20 @@ class ListOfLists(list):
                 if type(el) in self.PROTECTED_CLASSES:
                     res.append(el)
                 else:
-                    res.append(klass(el))
+                    if isinstance(el, (str, int,)):
+                        ## convert to list. although the try/except will work
+                        ##  list('XYZ') creates ['X','Y','Z']
+                        el = [el]
+
+                    try:
+                        ## this might work, but probably not
+                        newvalue = klass(el)
+                    except:
+                        newvalue = klass()
+                        if value is not None:
+                            newvalue.append(el)
+
+                    res.append(newvalue)
 
         self.extend(res)
 
@@ -307,16 +331,20 @@ class Variables(dict):
         Most items are of same DEFAULT_CLASS
             but are in different classes
     """
-    DEFAULT_CLASS = ListOfLists
+    DEFAULT_LISTCLASS = ListOfLists
     MAP_LISTCLASS = {}  # map between variable name and ListOfList classes (ie not the (default) class for the variable)
 
     def __init__(self, *args, **kwargs):
         super(Variables, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
 
+    def get_class(self, name):
+        """Return the class associated with the name accordong to the DEFAULT_CLASS and MAP_CLASS"""
+        return get_class(name, self.DEFAULT_LISTCLASS, self.MAP_LISTCLASS)
+
     def get_instance(self, name=None):
         """Return an instance of the class"""
-        klass = get_class(name, self.DEFAULT_CLASS, self.MAP_LISTCLASS)
+        klass = self.get_class(name)
         return klass()
 
     def append(self, name, value):
@@ -352,6 +380,7 @@ class Variables(dict):
                 """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""
                 idx = kwargs.pop('idx', -1)
                 current = self.setdefault(name, self.get_instance(name))
+                print type(self), name, current, type(current), current.get_class(name), current.MAP_CLASS
                 actual_function = getattr(current[idx], attr_name)
                 res = actual_function(*args, **kwargs)
                 return res
@@ -378,6 +407,19 @@ if __name__ == '__main__':
     print va['BAR'], va
     print type(va['BAR'])
     print '------------'
+
+    print 'initial: BARSTR XYZ'
+    va['BARSTR'] = 'XYZ'
+    print va['BARSTR'].__repr__(), va
+    print type(va['BARSTR'])
+    print '------------'
+
+    print 'initial: BARINT 0'
+    va['BARINT'] = 0
+    print va['BARINT'], va
+    print type(va['BARINT'])
+    print '------------'
+
 
     print 'added 10-15 to BAR'
     va['BAR'].append(StrList(range(10, 15)))
@@ -421,3 +463,5 @@ if __name__ == '__main__':
     cmd = CommandFlagList(range(5))
     print cmd
     print '------------'
+
+
