@@ -61,7 +61,7 @@ class MPI(object):
     MPI_COMPILER_MPIF77 = 'mpif77'
     MPI_COMPILER_MPIF90 = 'mpif90'
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
@@ -71,7 +71,7 @@ class MPI(object):
 
         self._set_mpi_options()
 
-        super(MPI, self).__init__()
+        super(MPI, self).__init__(*args, **kwargs)
 
 
     def _set_mpi_options(self):

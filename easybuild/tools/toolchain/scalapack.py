@@ -75,7 +75,7 @@ class ScalableLinearAlgebraPackage(object):
                 variables[var] = self.variables[var].replace(" ", ",")
                 variables[var] = self.variables[var].replace(",-Wl,", ",")
     """
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         if not hasattr(self, 'log'):
             self.log = getLogger(self.__class__.__name__)
 
@@ -83,13 +83,18 @@ class ScalableLinearAlgebraPackage(object):
 
         self.variables = getattr(self, 'variables', ToolchainVariables())
 
-        ## TODO is link order fully preserved with this order ?
-        self._set_blas_variables()
-        self._set_lapack_variables()
-        self._set_blacs_variables()
-        self._set_scalapack_variables()
+        super(ScalableLinearAlgebraPackage, self).__init__(*args, **kwargs)
 
-        super(ScalableLinearAlgebraPackage, self).__init__()
+    def set_variables(self):
+        """Set the variables"""
+        ## TODO is link order fully preserved with this order ?
+        self._set_blas_vars()
+        self._set_lapack_vars()
+        self._set_blacs_vars()
+        self._set_scalapack_vars()
+
+        self.log.debug('set_variables: scalapack variables %s' % self.variables)
+        super(ScalableLinearAlgebraPackage, self).set_variables()
 
     def _set_blas_variables(self):
         """Set BLAS related variables"""
@@ -119,7 +124,6 @@ class ScalableLinearAlgebraPackage(object):
         self.variables.append_exist('BLAS_LIB_DIR', root, self.BLAS_LIB_DIR)
         self.variables.extend_comma_libs('BLAS_STATIC_LIBS', self.variables['LIBBLAS'], suffx='.a')
         self.variables.extend_comma_libs('BLAS_MT_STATIC_LIBS', self.variables['LIBBLAS_MT'], suffx='.a')
-
 
     def _set_lapack_variables(self):
         """Set LAPACK related variables
@@ -166,7 +170,6 @@ class ScalableLinearAlgebraPackage(object):
         self.variables.join('BLAS_LAPACK_LIB_DIR', 'LAPACK_LIB_DIR', 'BLAS_LIB_DIR')
         self.variables.join('BLAS_LAPACK_STATIC_LIBS', 'LAPACK_STATIC_LIBS', 'BLAS_STATIC_LIBS')
         self.variables.join('BLAS_LAPACK_MT_STATIC_LIBS', 'LAPACK_MT_STATIC_LIBS', 'BLAS_STATIC_LIBS')
-
 
     def _set_blacs_variables(self):
         """Set BLACS related variables"""
@@ -229,7 +232,6 @@ class ScalableLinearAlgebraPackage(object):
         self.variables.extend_comma_libs('SCALAPACK_STATIC_LIBS', self.variables['LIBSCALAPACK'], suffx='.a')
         self.variables.extend_comma_libs('SCALAPACK_MT_STATIC_LIBS', self.variables['LIBSCALAPACK_MT'], suffx='.a')
 
-
 class GotoBLAS(object):
     """
     Trivial class
@@ -237,7 +239,6 @@ class GotoBLAS(object):
     """
     BLAS_MODULE_NAME = ['GotoBLAS']
     BLAS_LIB = ['goto']
-
 
 class LAPACK(object):
     """Trivial class
