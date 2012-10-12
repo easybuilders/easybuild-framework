@@ -80,6 +80,47 @@ class Toolchain(object):
         for k, v in self.variables.items():
             self.vars[k] = str(v)
 
+    def show_variables(self, offset='', sep='\n', verbose=False):
+        """Pretty print the variables"""
+        if self.vars is None:
+            self.generate_vars()
+
+        var_names = self.variables.keys()
+        var_names.sort()
+        res = []
+        for v in var_names:
+            res.append("%s=%s" % (v, self.variables[v]))
+            if verbose:
+                res.append("# type %s" % (type(self.variables[v])))
+                res.append("# %s" % (self.variables[v].show_el()))
+                res.append("# repr %s" % (self.variables[v].__repr__()))
+
+        if offset is None:
+            offset = ''
+        txt = sep.join(["%s%s" % (offset, x) for x in res])
+        self.log.debug("show_variables:\n%s" % txt)
+        return txt
+
+    def get_software_root(self, name):
+        """Try to get the software root for name"""
+        root = get_software_root(name)
+        if root is None:
+            self.log.raiseException("get_software_root software root for %s was not found in environment" % (name))
+        else:
+            self.log.debug("get_software_root software root %s for %s was found in environment" % (root, name))
+        return root
+
+    def get_software_version(self, name):
+        """Try to get the software root for name"""
+        version = get_software_version(name)
+        if version is None:
+            self.log.raiseException("get_software_version software version for %s was not found in environment" % (name))
+        else:
+            self.log.debug("get_software_version software version %s for %s was found in environment" % (version, name))
+
+        return version
+
+
     def _toolchain_exists(self, name=None, version=None):
         """
         Verify if there exists a toolchain by this name and version
@@ -206,23 +247,27 @@ class Toolchain(object):
             self._add_dependency_variables()
             self._setenv_variables(onlymod)
 
-    def _add_dependency_variables(self, names=None):
+    def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
             names should be a list of strings containing the name of the dependency
         """
         cpp_paths = ['include']
-        ld_paths = ['lib64', 'lib']
+        ld_paths = ['lib']
+        if not self.options.get('32bit', None):
+            ld_paths.insert(0, 'lib64')
+
+        if cpp is not None:
+            cpp_paths = cpp + cpp_paths
+        if ld is not None:
+            ld_paths = ld + ld_paths
 
         if not names:
             deps = self.dependencies
         else:
-            deps = [{'name':name} for name in names]
+            deps = [{'name':name} for name in names if name is not None]
 
         for dep in deps:
-            root = get_software_root(dep['name'])
-            if root is None:
-                self.log.raiseException("_add_dependency_variables software root for %s was not found in environment (dep: %s)" % (dep['name'], dep))
-
+            root = self.get_software_root(dep['name'])
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 
@@ -253,7 +298,7 @@ class Toolchain(object):
             env.set("EBVAR%s" % key, val)
 
     ## legacy functions TODO remove after migration
-
+    ## should search'n'replaced
     def get_type(self, name, type_map):
         """Determine type of toolchain based on toolchain dependencies."""
         self.log.raiseException("get_type: legacy code. should not be needed anymore.")

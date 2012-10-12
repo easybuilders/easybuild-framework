@@ -21,9 +21,8 @@
 from distutils.version import LooseVersion
 
 from easybuild.tools import systemtools
-from easybuild.tools.modules import get_software_root, get_software_version
-from easybuild.tools.toolchain.options import ToolchainOptions
-from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VARIABLES
+from easybuild.tools.toolchain.variables import COMPILER_VARIABLES
+from easybuild.tools.variables import LinkerFlagList
 
 from vsc.fancylogger import getLogger
 
@@ -33,10 +32,9 @@ INTEL = "Intel"
 
 
 class Compiler(object):
-    """General compiler-like class"""
-
-    OPTIONS_CLASS = ToolchainOptions
-    VARIABLES_CLASS = ToolchainVariables  # set compiler specific usage
+    """General compiler-like class
+        can't be used without creating new class C(Compiler,Toolchain)
+    """
 
     COMPILER_MODULE_NAME = None
 
@@ -45,19 +43,19 @@ class Compiler(object):
     COMPILER_UNIQUE_OPTS = None
     COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"), ## also MPI
                             'pic': (False, "Use PIC"), ## also FFTW
-                            'noopt': (False, "Disable compiler optiomisations"),
-                            'lowopt': (False, "Low compiler optimisation"),
-                            'defaultopt':(False, "Default compiler optimisation"), ## not set, but default
-                            'opt': (False, "High compiler optimisation"),
-                            'optarch':(True, "Enable architecture optimisations"),
+                            'noopt': (False, "Disable compiler optimizations"),
+                            'lowopt': (False, "Low compiler optimizations"),
+                            'defaultopt':(False, "Default compiler optimizations"), ## not set, but default
+                            'opt': (False, "High compiler optimizations"),
+                            'optarch':(True, "Enable architecture optimizations"),
                             'strict': (False, "Strict (highest) precision"),
                             'precise':(False, "High precision"),
                             'defaultprec':(False, "Default precision"), ## not set, but default
                             'loose': (False, "Loose precision"),
                             'veryloose': (False, "Very loose precision"),
                             'verbose': (False, "Verbose output"),
-                            'debug': (False, "Enabel debug"),
-                            'i8': (False, "Intergers are 8 byte integers"), ## fortran only -> no: MKL and icc give -DMKL_ILP64
+                            'debug': (False, "Enable debug"),
+                            'i8': (False, "Integers are 8 byte integers"), ## fortran only -> no: MKL and icc give -DMKL_ILP64
                             'r8' : (False, "Real is 8 byte real"), ## fortran only
                             'unroll': (False, "Unroll loops"),
                             'cstd': (None, "Specify C standard"),
@@ -98,7 +96,11 @@ class Compiler(object):
     COMPILER_F_FLAGS = ['i8', 'r8']
     COMPILER_F_UNIQUE_FLAGS = []
 
-    TOGGLE_STATIC_DYNAMIC = None
+    LINKER_TOGGLE_STATIC_DYNAMIC = None
+    LINKER_TOGGLE_START_STOP_GROUP = {
+                                      'start':'--start-group',
+                                      'stop':'--end-group',
+                                      }
 
     LIB_MULTITHREAD = None
 
@@ -177,13 +179,22 @@ class Compiler(object):
         self.variables.nextend('OPTFLAGS', optflags[:1])
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
-        def_flags = flags + optflags[:1]
-
         ## precflags last
-        self.variables.nextend('CFLAGS', def_flags + cflags + precflags[:1])
-        self.variables.nextend('CXXFLAGS', def_flags + cflags + precflags[:1])
-        self.variables.nextend('FFLAGS', def_flags + fflags + precflags[:1])
-        self.variables.nextend('F90FLAGS', def_flags + fflags + precflags[:1])
+        self.variables.nappend('CFLAGS', flags)
+        self.variables.nappend('CFLAGS', cflags)
+        self.variables.join('CFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('CXXFLAGS', flags)
+        self.variables.nappend('CXXFLAGS', cflags)
+        self.variables.join('CXXFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('FFLAGS', flags)
+        self.variables.nappend('FFLAGS', fflags)
+        self.variables.join('FFLAGS', 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('F90FLAGS', flags)
+        self.variables.nappend('F90FLAGS', fflags)
+        self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
 
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
@@ -198,6 +209,34 @@ class Compiler(object):
 
         if self.options.map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
+
+    def add_begin_end_linkerflags(self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False):
+        """
+        For given lib
+            if toggle_startstopgroup: toggle begin/end group
+            if toggle_staticdynamic: toggle static/dynamic
+        """
+        class LFL(LinkerFlagList):
+            LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
+            LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+
+        def make_lfl(begin=True):
+            """make linkerflaglist for begin/end of library"""
+            lfl = LFL()
+            if toggle_startstopgroup:
+                if begin:
+                    lfl.toggle_startgroup()
+                else:
+                    lfl.toggle_stopgroup()
+            if toggle_staticdynamic:
+                if begin:
+                    lfl.toggle_static()
+                else:
+                    lfl.toggle_dynamic()
+
+        lib.BEGIN = make_lfl(True)
+        lib.END = make_lfl(False)
+
 
 class Dummy(Compiler):
     """Dummy compiler : try not to even use system gcc"""
@@ -217,8 +256,8 @@ class GNUCompilerCollection(Compiler):
     COMPILER_FAMILY = GCC
     COMPILER_UNIQUE_OPTS = {
                             'loop': (False, "Automatic loop parallellisation"),
-                            'f2c': (False, "Generate code comaptible with f2c and f77"),
-                            'lto':(False, "Enable Link Time Optimisation"),
+                            'f2c': (False, "Generate code compatible with f2c and f77"),
+                            'lto':(False, "Enable Link Time Optimization"),
                             }
     COMPILER_UNIQUE_OPTION_MAP = {
                                   'i8': 'fdefault-integer-8',
@@ -258,7 +297,7 @@ class GNUCompilerCollection(Compiler):
         ## to get rid of lots of problems with libgfortranbegin
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
-        self.variables.append('FLIBS', "gfortran")
+        self.variables.nappend('FLIBS', "gfortran")
 
 
 class IntelIccIfort(Compiler):
@@ -266,8 +305,6 @@ class IntelIccIfort(Compiler):
         - TODO: install as single package ?
             should be done anyway (all icc versions come with matching ifort version)
     """
-    VARIABLES_CLASS = ToolchainVariables
-
 
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
@@ -301,9 +338,10 @@ class IntelIccIfort(Compiler):
     COMPILER_F90 = 'ifort'
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
-    TOGGLE_STATIC_DYNAMIC = {'static': '-Bstatic',
-                             'dynamic':'-Bdynamic',
-                             }
+    LINKER_TOGGLE_STATIC_DYNAMIC = {
+                                    'static': '-Bstatic',
+                                    'dynamic':'-Bdynamic',
+                                    }
 
     LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related : TODO: harmful or not?
 
@@ -313,15 +351,11 @@ class IntelIccIfort(Compiler):
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
             self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
 
-        icc_root = get_software_root('icc')
-        if icc_root is None:
-            self.log.raiseException("_set_compiler_vars: get_software_root icc returned None")
-        icc_version = get_software_version('icc')
+        icc_root = self.get_software_root('icc')
+        icc_version = self.get_software_version('icc')
 
-        ifort_root = get_software_root('ifort')
-        if ifort_root is None:
-            self.log.raiseException("_set_compiler_vars: get_software_root ifort returned None")
-        ifort_version = get_software_version('ifort')
+        ifort_root = self.get_software_root('ifort') ## result not used, but checks the existence
+        ifort_version = self.get_software_version('ifort')
 
         if not ifort_version == icc_version:
             msg = "_set_compiler_vars: mismatch between icc version %s and ifort version %s"
@@ -330,9 +364,8 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        if not 'LIBS' in self.variables or "liomp5" not in self.variables['LIBS']:
-            self.variables.nextend('LIBS', self.LIB_MULTITHREAD)
-            print self.LIB_MULTITHREAD
+        if not 'LIBS' in self.variables:
+            self.variables.nappend('LIBS', self.LIB_MULTITHREAD)
 
         libpaths = ['intel64']
         if self.options.get('32bit', None):
@@ -343,17 +376,12 @@ class IntelIccIfort(Compiler):
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 
-
 if __name__ == '__main__':
     from vsc.fancylogger import setLogLevelDebug
-    setLogLevelDebug()
-    to = ToolchainVariables()
-    print to
-    print to.DEFAULT_LISTCLASS
-
-    import os
-
     from easybuild.tools.toolchain.toolchain import Toolchain
+    import os
+    setLogLevelDebug()
+
     class ITC(IntelIccIfort, Toolchain):
         NAME = 'ITC'
         VERSION = '1.0.0'
@@ -369,7 +397,6 @@ if __name__ == '__main__':
     print 'IntelIccIfort', 'options', itc.options
     print 'IntelIccIfort', 'variables', itc.variables
     print 'IntelIccIfort', "vars", itc.vars
-
 
     os.environ.setdefault('EBROOTGCC', '/usr')
     os.environ.setdefault('EBVERSIONGCC', '4.7.2')

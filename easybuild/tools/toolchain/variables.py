@@ -22,7 +22,7 @@
 Toolchain specific variables
 """
 
-from easybuild.tools.variables import Variables, ListOfLists, StrList, AbsPathList, FlagList, LibraryList
+from easybuild.tools.variables import Variables, ListOfLists, CommaStaticLibs, AbsPathList, FlagList, LibraryList
 from easybuild.tools.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, join_map_class
 
 
@@ -69,12 +69,108 @@ MPI_MAP_CLASS = {
                  CommandFlagList: MPI_COMPILER_VARIABLES,
                  }
 
-SCALAPACK_MAP_CLASS = {StrList:[],
-                       }
+BLAS_MAP_CLASS = {
+                  AbsPathList:[
+                               ('BLAS_LIB_DIR', 'BLAS library directory'),
+                               ('BLAS_INC_DIR', 'BLAS include directory'),
+
+                               ],
+                  LibraryList:[
+                               ('LIBBLAS', 'BLAS libraries'),
+                               ('LIBBLAS_MT', 'multithreaded BLAS libraries'),
+                               ],
+                  CommaStaticLibs:[
+                                   ('BLAS_STATIC_LIBS', 'Comma-separated list of static BLAS libraries'),
+                                   ('BLAS_MT_STATIC_LIBS', 'Comma-separated list of static multithreaded BLAS libraries'),
+                                   ],
+                  }
+LAPACK_MAP_CLASS = {
+                    AbsPathList:[
+                                 ('LAPACK_LIB_DIR', 'LAPACK library directory'),
+                                 ('LAPACK_INC_DIR', 'LAPACK include directory'),
+                                 ('BLAS_LAPACK_LIB_DIR', 'BLAS and LAPACK library directory'),
+                                 ('BLAS_LAPACK_INC_DIR', 'BLAS and LAPACK include directory'),
+                                 ],
+                    LibraryList:[
+                                 ('LIBLAPACK_ONLY', 'LAPACK libraries (LAPACK only)'),
+                                 ('LIBLAPACK_MT_ONLY', 'multithreaded LAPACK libraries (LAPACK only)'),
+                                 ('LIBLAPACK', 'LAPACK libraries'),
+                                 ('LIBLAPACK_MT', 'multithreaded LAPACK libraries'),
+                                 ],
+                  CommaStaticLibs:[
+                                   ('LAPACK_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
+                                   ('LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
+                                   ('BLAS_LAPACK_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
+                                   ('BLAS_LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
+                                   ],
+
+                    }
+BLACS_MAP_CLASS = {
+                  AbsPathList:[
+                               ('BLACS_LIB_DIR', 'BLACS library directory'),
+                               ('BLACS_INC_DIR', 'BLACS include directory'),
+
+                               ],
+                  LibraryList:[
+                               ('LIBBLACS', 'BLACS libraries'),
+                               ('LIBBLACS_MT', 'multithreaded BLACS libraries'),
+                               ],
+                  CommaStaticLibs:[
+                                   ('BLACS_STATIC_LIBS', 'Comma-separated list of static BLACS libraries'),
+                                   ('BLACS_MT_STATIC_LIBS', 'Comma-separated list of static multithreaded BLACS libraries'),
+                                   ],
+                  }
+
+SCALAPACK_MAP_CLASS = {
+                    AbsPathList:[
+                                 ('SCALAPACK_LIB_DIR', 'SCALAPACK library directory'),
+                                 ('SCALAPACK_INC_DIR', 'SCALAPACK include directory'),
+                                 ],
+                    LibraryList:[
+                                 ('LIBSCALAPACK_ONLY', 'SCALAPACK libraries (SCALAPACK only)'),
+                                 ('LIBSCALAPACK_MT_ONLY', 'multithreaded SCALAPACK libraries (SCALAPACK only)'),
+                                 ('LIBSCALAPACK', 'SCALAPACK libraries'),
+                                 ('LIBSCALAPACK_MT', 'multithreaded SCALAPACK libraries'),
+                                 ],
+                  CommaStaticLibs:[
+                                   ('SCALAPACK_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
+                                   ('SCALAPACK_MT_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
+                                   ],
+
+                    }
+
+FFT_MAP_CLASS = {
+                  AbsPathList:[
+                               ('FFT_LIB_DIR', 'FFT library directory'),
+                               ('FFT_INC_DIR', 'FFT include directory'),
+
+                               ],
+                  LibraryList:[
+                               ('LIBFFT', 'FFT libraries'),
+                               ],
+                  CommaStaticLibs:[
+                                   ('FFT_STATIC_LIBS', 'Comma-separated list of static FFT libraries'),
+                                   ],
+                 }
+
+
+FFTW_MAP_CLASS = {
+                  AbsPathList:[
+                               ('FFTW_LIB_DIR', 'FFTW library directory'),
+                               ('FFTW_INC_DIR', 'FFTW include directory'),
+
+                               ],
+                  CommaStaticLibs:[
+                                   ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),
+                                   ],
+                 }
 
 class ToolchainList(ListOfLists):
     DEFAULT_CLASS = FlagList
-    MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS) ## join_map_class strips explanation
+    MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS,
+                               BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
+                               FFT_MAP_CLASS, FFTW_MAP_CLASS,
+                               ) ## join_map_class strips explanation
 
 class ToolchainVariables(Variables):
     """

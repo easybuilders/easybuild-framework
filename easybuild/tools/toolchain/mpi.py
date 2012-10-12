@@ -18,10 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from easybuild.tools.modules import  get_software_root
-
-from easybuild.tools.toolchain.variables import ToolchainVariables, COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
-from easybuild.tools.toolchain.options import ToolchainOptions
+from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
 
 from vsc.fancylogger import getLogger
 
@@ -31,11 +28,12 @@ QLOGICMPI = "QLogic"
 MPICH2_F = "MPICH2"  ## _F family names, otherwise classes
 MVAPICH2_F = "MVAPICH2"
 
+## TODO check for addDependencyVariables (i sit needed here?)
 
 class MPI(object):
-    """General MPI-like class"""
-    OPTIONS_CLASS = ToolchainOptions
-    VARIABLES_CLASS = ToolchainVariables
+    """General MPI-like class
+        can't be used without creating new class M(MPI,Toolchain)
+    """
 
     MPI_MODULE_NAME = None
     MPI_FAMILY = None
@@ -130,9 +128,7 @@ class MPI(object):
 
     def _set_mpi_variables(self):
         """Set the other MPI variables"""
-        root = get_software_root(self.MPI_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-        if root is None:
-            self.log.raiseException("_set_compiler_vars: get_software_root %s returned None" % (self.MPI_MODULE_NAME[0]))
+        root = self.get_software_root(self.MPI_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
         lib_dir = ['lib']
         incl_dir = ['include']
@@ -156,7 +152,8 @@ class OpenMPI(MPI):
     MPI_LIBRARY_NAME = 'mpi'
 
     ## OpenMPI reads from CC etc env variables
-    MPI_UNIQUE_OPTION_MAP = {'_opt_MPICC': '',
+    MPI_UNIQUE_OPTION_MAP = {
+                             '_opt_MPICC': '',
                              '_opt_MPICXX':'',
                              '_opt_MPICF77':'',
                              '_opt_MPICF90':'',
@@ -174,8 +171,9 @@ class IntelMPI(MPI):
     ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
     ## cxx -> cxx only
     ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
-    MPI_UNIQUE_OPTION_MAP = {'_opt_MPICF90':'-fc="%(F90_base)s"',
-                                  }
+    MPI_UNIQUE_OPTION_MAP = {
+                             '_opt_MPICF90':'-fc="%(F90_base)s"',
+                             }
 
 
 class MVAPICH2(MPI):
@@ -210,11 +208,11 @@ class QLogicMPI(MPI):
 
 if __name__ == '__main__':
     from vsc.fancylogger import setLogLevelDebug
-    setLogLevelDebug()
     import os
-
     from easybuild.tools.toolchain.toolchain import Toolchain
     from easybuild.tools.toolchain.compiler import IntelIccIfort, GNUCompilerCollection
+    setLogLevelDebug()
+
     class ITC(IntelIccIfort, IntelMPI, Toolchain):
         NAME = 'ITC'
         VERSION = '1.0.0'

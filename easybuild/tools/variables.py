@@ -34,6 +34,10 @@ TODO:
         http://stackoverflow.com/questions/9008444/how-to-warn-about-class-name-deprecation
             not exactly what i need though
                 we don't want to redefine the class (eg dict) but it's uage (eg tk.vars)
+
+    cleanup
+        only support key = class; value is list of tuples (name, descr)
+        remove usage of derived ListOfList
 """
 
 from vsc.fancylogger import getLogger, setLogLevelDebug
@@ -103,14 +107,19 @@ class StrList(list):
         """Convert members of list to string (no prefix of begin and end)"""
         return ''.join([str(y) for y in [self.PREFIX, str(x), self.SUFFIX] if y is not None])
 
+    def _str_ok(self, x):
+        """Test if x can be added to returned string"""
+        test = x is not None and len(x) > 0
+        return test
+
     def _str_self(self):
         """Main part of __str__"""
-        return [self.str_convert(x) for x in self if x is not None]
+        return [self.str_convert(x) for x in self if self._str_ok(x)]
 
     def __str__(self):
         """_str_self and support for BEGIN/END"""
         xs = [self.BEGIN] + self._str_self() + [self.END]
-        return self.SEPARATOR.join([str(x) for x in xs if x is not None])
+        return str(self.SEPARATOR).join([str(x) for x in xs if self._str_ok(x)])
 
     def __getattribute__(self, attr_name):
         """Filter out function calls from Variables class"""
@@ -121,10 +130,14 @@ class StrList(list):
         else:
             return super(StrList, self).__getattribute__(attr_name)
 
+    def copy(self):
+        """Return copy of self"""
+        return copy.deepcopy(self)
 
 class CommaList(StrList):
     """Comma-separated list"""
     SEPARATOR = ','
+
 
 ## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
 ## FlagList, CommandFlagList, LibraryList, LinkerFlagList
@@ -140,33 +153,58 @@ class CommandFlagList(FlagList):
     """
     def _str_self(self):
         """Like a regular flag list, but set first element to original value"""
-        tmp_str = [self.str_convert(x) for x in self if x is not None]
-        tmp_str[0] = self[0]
+        tmp_str = [self.str_convert(x) for x in self if self._str_ok(x)]
+        if len(tmp_str) > 0:
+            tmp_str[0] = self[0]
         return tmp_str
 
 class LibraryList(StrList):
     """Link library list"""
     PREFIX = "-l"
 
+
+
+class CommaStaticLibs(LibraryList):
+    """Comma-separated list"""
+    SEPARATOR = ','
+
+    PREFIX = 'lib'
+    SUFFIX = '.a'
+
 class LinkerFlagList(StrList):
     """Linker flags"""
     PREFIX = '-Wl,'
 
+
+    LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
+
+    def _toggle_map(self, toggle_map, name, descr):
+        """Append value from toggle_map. Raise if not None and name not found
+            descr string to add to raise
+        """
+        if toggle_map is not None:
+            if name in toggle_map:
+                self.append(toggle_map[name])
+            else:
+                self.log.raiseException("%s name %s not found in map %s" % (descr, name, toggle_map))
+
+    def toggle_startgroup(self):
+        """Append start group"""
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'start', 'toggle_startgroup')
+
+    def toggle_stopgroup(self):
+        """Append stop group"""
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'stop', 'toggle_stopgroup')
 
     def toggle_static(self):
         """Append static linking flags"""
-        if self.LINKER_TOGGLE_STATIC_DYNAMIC is not None and 'static' in self.LINKER_TOGGLE_STATIC_DYNAMIC:
-            self.append(self.LINKER_TOGGLE_STATIC_DYNAMIC['static'])
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'static', 'toggle_static')
 
     def toggle_dynamic(self):
         """Append dynamic linking flags"""
-        if self.LINKER_TOGGLE_STATIC_DYNAMIC is not None and 'dynamic' in self.LINKER_TOGGLE_STATIC_DYNAMIC:
-            self.append(self.LINKER_TOGGLE_STATIC_DYNAMIC['dynamic'])
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic')
 
-    def set_static_dynamic(self, static_dynamic):
-        """Set the static/dynamic toggle values"""
-        self.LINKER_TOGGLE_STATIC_DYNAMIC = copy.deepcopy(static_dynamic)
 
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
@@ -224,18 +262,6 @@ class LinkLibraryPaths(AbsPathList):
     """Absolute path to directory containing libraries"""
     PREFIX = '-L'
 
-def get_linker_startgroup(static_dynamic=None):
-    """Return most common startgroup"""
-    lfl = LinkerFlagList(['--start-group'])
-    lfl.set_static_dynamic(static_dynamic)
-    return lfl
-
-def get_linker_endgroup(static_dynamic=None):
-    """Return most common endgroup"""
-    lfl = LinkerFlagList(['--end-group'])
-    lfl.set_static_dynamic(static_dynamic)
-    return lfl
-
 class ListOfLists(list):
     """List of lists"""
 
@@ -252,17 +278,29 @@ class ListOfLists(list):
         """Initialise MAP_CLASS instance"""
         self.nappend(name, None)
 
+    def show_el(self):
+        """Show some info on the elements"""
+        res = []
+        for el in self:
+            res.append("%s B_ %s _E" % (type(el), el))
+        return ";".join(res)
+
     def get_class(self, name):
-        """Return the class associated with the name accordong to the DEFAULT_CLASS and MAP_CLASS"""
+        """Return the class associated with the name according to the DEFAULT_CLASS and MAP_CLASS"""
         return get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
 
     def first(self):
-        """Return first non-empty list"""
+        """Return first non-empty list
+            if it doesn't exist, try to return first element
+        """
         for x in self:
-            if len(x) > 0:
+            if self._str_ok(x):
                 return x
 
-    def nappend(self, name, value=None):
+        if len(self) > 0:
+            return self[0]
+
+    def nappend(self, name, value=None, **kwargs):
         """Named append"""
         klass = self.get_class(name)
 
@@ -276,18 +314,19 @@ class ListOfLists(list):
 
             try:
                 ## this might work, but probably not
-                newvalue = klass(value)
+                newvalue = klass(value, **kwargs)
             except:
-                newvalue = klass()
+                newvalue = klass(**kwargs)
                 if value is not None:
                     newvalue.append(value)
 
         self.append(newvalue)
+        self.log.debug("nappend: name %s value %s newvalue %s" % (name, value.__repr__(), newvalue.__repr__()))
+        return newvalue
 
     def nextend(self, name, value=None):
         """Named extend, value is list type (TODO: tighten the allowed values)"""
         klass = self.get_class(name)
-
         res = []
         if value is None:
             ## TODO ? append_empty ?
@@ -313,7 +352,8 @@ class ListOfLists(list):
                     res.append(newvalue)
 
         self.extend(res)
-
+        self.log.debug("nextend: name %s value %s res %s" % (name, value.__repr__(), res.__repr__()))
+        return res
 
     def str_convert(self, x):
         """Given x, return a string representing x
@@ -321,10 +361,33 @@ class ListOfLists(list):
         """
         return str(x)
 
+    def _str_ok(self, x):
+        """Test if x can be added returned string"""
+        test = x is not None and len(x) > 0
+        return test
+
+    def sanitize(self):
+        """Cleanup of self"""
+        ## TODO implement (needs new MAP_CLASS usage with dynamic generation of instances)
+
     def __str__(self):
-        return self.STR_SEPARATOR.join([self.str_convert(x) for x in self if x is not None and len(x) > 0])
+        self.sanitize()
+        sep = self.STR_SEPARATOR
 
+        f = self.first()
+        if f is None:
+            self.log.debug("__str__: first is None (self %s)" % self.__repr__())
+        else:
+            if hasattr(f, 'SEPARATOR') and f.SEPARATOR is not None:
+                ## use separator of first element
+                sep = f.SEPARATOR
+            else:
+                self.log.debug('__str__: using default STR_SEPARATOR %s (no first found)' % self.STR_SEPARATOR)
+                self.log.raiseException('__str__: no SPEARATOR found for first %s (%s;%s)' % (f, f.__repr__(), type(f)))
 
+        txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
+        self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
+        return txt
 
 class Variables(dict):
     """
@@ -344,18 +407,35 @@ class Variables(dict):
         super(Variables, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
 
-    def get_class(self, name):
-        """Return the class associated with the name accordong to the DEFAULT_CLASS and MAP_CLASS"""
+    def get_listclass(self, name):
+        """Return the class associated with the name according to the DEFAULT_CLASS and MAP_CLASS"""
         return get_class(name, self.DEFAULT_LISTCLASS, self.MAP_LISTCLASS)
 
     def get_instance(self, name=None):
         """Return an instance of the class"""
-        klass = self.get_class(name)
+        klass = self.get_listclass(name)
         return klass()
+
+    def join(self, name, *others):
+        """Join all values in others into name
+            it is first tested if other is an existing element
+                else it is nappend-ed
+        """
+        self.log.debug("join name %s others %s" % (name, others))
+        for other in others:
+            if other in self:
+                self.log.debug("join other %s in self: other %s" % (other, self.get(other).__repr__()))
+                for el in self.get(other):
+                    self.nappend(name, el)
+            else:
+                self.log.debug("join: name %s; other %s not found in self." % (name, other))
+#                self.log.debug("join: name %s; other %s not found in self. appending..." % (name, other))
+#                self.nappend(name, other)
+
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""
-        self.nappend(name, value)
+        return self.nappend(name, value)
 
     def __setitem__(self, name, value):
         """Automatically creates a list for each name"""
@@ -371,7 +451,7 @@ class Variables(dict):
 
     def __getattribute__(self, attr_name):
         # allow for pass-through
-        if attr_name in ['nappend', 'nextend', 'append_empty', 'first']:
+        if attr_name in ['nappend', 'nextend', 'append_empty', 'first', 'get_class']:
             self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
             def _passthrough(name, *args, **kwargs):
                 """functions that pass through to LISTCLASS instances"""
