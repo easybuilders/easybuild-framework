@@ -54,7 +54,3 @@ def setvar(key, value):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     changes[key] = value
-
-def set(*args):
-    """DEPRECATED. Function name conflict""" # TODO cleanup
-    return setenv(*args)

@@ -26,7 +26,7 @@ Creating a new toolchain should be as simple as possible.
 """
 
 from vsc import fancylogger
-from easybuild.tools.environment import setenv
+from easybuild.tools.environment import setvar
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.variables import ToolchainVariables
@@ -317,13 +317,13 @@ class Toolchain(object):
                 continue
 
             self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
-            setenv(key, val)
+            setvar(key, val)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            setenv("EBVAR%s" % key, val)
+            setvar("EBVAR%s" % key, val)
 
     ## legacy functions TODO remove after migration
     ## should search'n'replaced

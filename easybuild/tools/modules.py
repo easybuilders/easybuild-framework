@@ -48,7 +48,7 @@ class Modules(object):
     Interact with modules.
     """
     def __init__(self, modulePath=None):
-        self.log = getLog(self.__class__.__name__)
+        self.log = get_log(self.__class__.__name__)
 
         self.modulePath = modulePath
         self.modules = []
