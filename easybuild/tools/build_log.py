@@ -32,6 +32,7 @@ import sys
 import time
 from socket import gethostname
 from copy import copy
+from vsc import fancylogger
 
 import easybuild
 
@@ -50,7 +51,7 @@ class EasyBuildError(Exception):
         return repr(self.msg)
 
 
-class EasyBuildLog(logging.Logger):
+class EasyBuildLog(fancylogger.NamedLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
     """
@@ -101,7 +102,8 @@ def get_log(name=None):
     """
     Generate logger object
     """
-    log = logging.getLogger(name)
+    #log = logging.getLogger(name)
+    log = fancylogger.getLogger(name)
     log.info("Logger started for %s." % name)
     return log
 
@@ -109,7 +111,7 @@ def remove_log_handler(hnd):
     """
     Remove handler from root log
     """
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
     log.removeHandler(hnd)
 
 def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
@@ -120,7 +122,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     """
 
     # obtain root logger
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
 
     # determine log level
     if debug:
@@ -142,7 +144,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     log.addHandler(hand)
 
     # initialize our logger
-    log = logging.getLogger(typ)
+    log = fancylogger.getLogger(typ)
     log.setLevel(defaultLogLevel)
 
     ## init message

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,20 +18,21 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-""" this module is a collection of all the testcases """
-import unittest
+from easybuild.tools.toolchain import search_toolchain
 
-# toolkit should be first to allow hacks to work
-import easybuild.test.toolkit as t
-import easybuild.test.asyncprocess as a
-import easybuild.test.easyconfig as e
-import easybuild.test.modulegenerator as mg
-import easybuild.test.modules as m
-import easybuild.test.filetools as f
-import easybuild.test.repository as r
-import easybuild.test.robot as robot
-import easybuild.test.variables as v
+if __name__ == '__main__':
+    from vsc.fancylogger import setLogLevelDebug
+    setLogLevelDebug()
 
-# call suite() for each module and then run them all
-suite = unittest.TestSuite(map(lambda x: x.suite(), [t, r, e, mg, m, f, a, robot, v]))
-unittest.TextTestRunner().run(suite)
+    tc_class, all_tcs = search_toolchain('goalf')
+
+    print ",".join([x.__name__ for x in all_tcs])
+
+    tc = tc_class(version='1.0.0')
+    tc.options['cstd'] = 'CVERYVERYSPECIAL'
+    tc.options['pic'] = True
+    tc.set_variables()
+    tc.generate_vars()
+    tc.show_variables(offset=" "*4, verbose=True)
+
+

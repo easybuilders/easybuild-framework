@@ -61,12 +61,26 @@ class Toolkit(object):
 
         # option flags
         self.opts = {
-           'usempi': False, 'cciscxx': False, 'pic': False, 'opt': False,
-           'noopt': False, 'lowopt': False, 'debug': False, 'optarch':True,
-           'i8': False, 'unroll': False, 'verbose': False, 'cstd': None,
-           'shared': False, 'static': False, 'intel-static': False,
-           'loop': False, 'f2c': False, 'no-icc': False,
-           'packed-groups': False, '32bit' : False
+           'usempi': False, ## MPI and FFTW
+           'cciscxx': False, ## compiler and MPI
+           'pic': False, ## compiler and FFTW
+           'opt': False,
+           'noopt': False,
+           'lowopt': False,
+           'optarch':True,
+           'debug': False,
+           'i8': False, ## add r8
+           'unroll': False,
+           'verbose': False,
+           'cstd': None,
+           'shared': False,
+           'static': False,
+           'loop': False, ## gcc only
+           'f2c': False, ## gcc only
+           'intel-static': False, ## icc only
+           'no-icc': False, ## icc only
+           'packed-groups': False, ## LA
+           '32bit' : False ## compiler, LA, fftw ...
         }
 
         self.name = name
@@ -231,7 +245,9 @@ class Toolkit(object):
 
 
     def _getOptimalArchitecture(self):
-        """ Get options for the current architecture """
+        """ Get options for the current architecture
+              only used in icc/ifort - DONE
+        """
         optarchs = {systemtools.INTEL : 'xHOST', systemtools.AMD : 'msse3'}
         if not self.arch:
             self.arch = systemtools.get_cpu_vendor()
@@ -425,6 +441,7 @@ class Toolkit(object):
     def prepareGCC(self, withMPI=True):
         """
         Prepare for a GCC-based compiler toolkit
+            - migrated - DONE
         """
 
         if self.opts['32bit']:
@@ -480,7 +497,9 @@ class Toolkit(object):
         self._addDependencyVariables(['GotoBLAS'])
 
     def prepareIntelCompiler(self, name):
-
+        """
+            port - DONE
+        """
         root = get_software_root(name)
         version = get_software_version(name)
 
@@ -499,6 +518,7 @@ class Toolkit(object):
     def prepareIcc(self):
         """
         Prepare for an icc based compiler toolkit
+            - migrated - DONE
         """
 
         self.vars['CC'] = 'icc%s' % self.m32flag
@@ -531,6 +551,7 @@ class Toolkit(object):
     def prepareIfort(self):
         """
         Prepare for an ifort based compiler toolkit
+            - migrated - DONE
         """
 
         self.vars['F77'] = 'ifort%s' % self.m32flag
@@ -680,6 +701,7 @@ class Toolkit(object):
     def prepareIMPI(self):
         """
         Prepare for Intel MPI library
+            port - DONE
         """
 
         if self.comp_family() == INTEL:
@@ -729,7 +751,9 @@ class Toolkit(object):
         pass
 
     def prepareQLogicMPI(self):
-
+        """
+            port - DONE
+        """
         ## QLogic specific
         self.vars['MPICC'] = 'mpicc -cc="%s"' % self.vars['CC']
         self.vars['MPICXX'] = 'mpicxx -CC="%s"' % self.vars['CXX']
@@ -763,6 +787,7 @@ class Toolkit(object):
     def prepareMPICH2(self):
         """
         Prepare for MPICH2 MPI library (e.g. ScaleMP's version)
+            port - DONE
         """
         if "vSMP" in get_software_version('MPICH2'):
             # ScaleMP MPICH specific
@@ -788,6 +813,7 @@ class Toolkit(object):
     def prepareSimpleMPI(self):
         """
         Prepare for 'simple' MPI libraries (e.g. MVAPICH2, OpenMPI)
+            port - DONE
         """
 
         self.vars['MPICC'] = 'mpicc%s' % self.m32flag
@@ -806,6 +832,7 @@ class Toolkit(object):
     def prepareMVAPICH2(self):
         """
         Prepare for MVAPICH2 MPI library
+            port - DONE
         """
 
         mvapich2 = get_software_root('MVAPICH2')
@@ -817,6 +844,7 @@ class Toolkit(object):
     def prepareOpenMPI(self):
         """
         Prepare for OpenMPI MPI library
+            port - DONE
         """
 
         openmpi = get_software_root('OpenMPI')
@@ -920,7 +948,9 @@ class Toolkit(object):
         return self.get_type("compiler family", comp_families)
 
     def get_openmp_flag(self):
-        """Determine compiler flag for OpenMP"""
+        """Determine compiler flag for OpenMP
+            - moved to map - DONE
+        """
 
         if self.comp_family() == INTEL:
             return "-openmp"
