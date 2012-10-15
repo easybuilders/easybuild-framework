@@ -23,10 +23,9 @@ from distutils.version import LooseVersion
 
 from easybuild.tools.toolchain.compiler import INTEL, GCC
 from easybuild.tools.toolchain.mpi import INTELMPI, OPENMPI, MPICH2, MVAPICH2
+from easybuild.tools.toolchain.toolchain import Toolchain
 
-from vsc.fancylogger import getLogger
-
-class ScalableLinearAlgebraPackage(object):
+class ScalableLinearAlgebraPackage(Toolchain):
     """General LinearAlgebra-like class
         can't be used without creating new class S(ScalableLinearAlgebraPackage,Toolchain)
         To provide the BLAS/LAPACK/ScaLAPACK tools
@@ -75,12 +74,7 @@ class ScalableLinearAlgebraPackage(object):
                 variables[var] = self.variables[var].replace(",-Wl,", ",")
     """
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, 'log'):
-            self.log = getLogger(self.__class__.__name__)
-
-        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
-
-        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
+        Toolchain.base_init(self)
 
         super(ScalableLinearAlgebraPackage, self).__init__(*args, **kwargs)
 

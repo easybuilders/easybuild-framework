@@ -25,12 +25,12 @@ a set of derived, predefined and tested toolchains.
 Creating a new toolchain should be as simple as possible.
 """
 
-from vsc.fancylogger import getLogger
-import easybuild.tools.environment as env
+from vsc import fancylogger
+from easybuild.tools.environment import setenv
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.variables import ToolchainVariables
-
+import sys
 
 class Toolchain(object):
     """General toolchain class"""
@@ -42,13 +42,25 @@ class Toolchain(object):
 
     NAME = None
     VERSION = None
+
+    #classmethod
+    def _is_toolchain_for(cls, name):
+        """see if this class can provide support for toolchain named name"""
+        ## TODO report later in the initialization the found version
+        if hasattr(cls, 'NAME') and name == cls.NAME:
+            return True
+        elif cls.__name__ == 'name':
+            ## classname is also tested
+            return True
+
+        return False
+
+
+    _is_toolchain_for = classmethod(_is_toolchain_for)
+
+
     def __init__(self, name=None, version=None):
-        if not hasattr(self, 'log'):
-            self.log = getLogger(self.__class__.__name__)
-
-        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
-
-        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
+        self.base_init()
 
         self.dependencies = []
         self.toolchain_dependencies = []
@@ -67,6 +79,22 @@ class Toolchain(object):
 
         self.opts = None
         self.vars = None
+
+    def base_init(self):
+        print sys.modules.keys()
+        if not hasattr(self, 'log'):
+            self.log = fancylogger.getLogger(self.__class__.__name__)
+        else:
+            print 'BASEINIT EXISTING', self.log, type(self.log)
+
+
+        if not hasattr(self, 'options'):
+            self.options = self.OPTIONS_CLASS()
+
+        if not hasattr(self, 'variables'):
+            self.variables = self.VARIABLES_CLASS()
+
+        print 'BASEINIT', self.log, type(self.log)
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -289,13 +317,13 @@ class Toolchain(object):
                 continue
 
             self.log.debug("_setenv_variables: setting environment variable %s to %s" % (key, val))
-            env.set(key, val)
+            setenv(key, val)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            env.set("EBVAR%s" % key, val)
+            setenv("EBVAR%s" % key, val)
 
     ## legacy functions TODO remove after migration
     ## should search'n'replaced

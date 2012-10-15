@@ -19,9 +19,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 from distutils.version import LooseVersion
-from vsc.fancylogger import getLogger
+from easybuild.tools.toolchain.toolchain import Toolchain
 
-class FFT(object):
+class FFT(Toolchain):
     """General FFT-like class
         To provide FFT tools
     """
@@ -34,12 +34,7 @@ class FFT(object):
     FFT_INCLUDE_DIR = ['include']
 
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, 'log'):
-            self.log = getLogger(self.__class__.__name__)
-
-        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
-
-        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
+        Toolchain.base_init(self)
 
         super(FFT, self).__init__(*args, **kwargs)
 
@@ -56,7 +51,7 @@ class FFT(object):
         self.variables.append_exists('FFT_INC_DIR', root, self.FFT_INCLUDE_DIR)
         self.variables.join('FFT_STATIC_LIBS', 'LIBFFT')
 
-        self._add_dependency_variables(self.FFT_MODULE_NAME[0])
+        self._add_dependency_variables(self.FFT_MODULE_NAME)
 
     def set_variables(self):
         """Set the variables"""
@@ -75,7 +70,7 @@ class FFTW(FFT):
 
         suffix = ''
         version = self.get_software_version(self.FFT_MODULE_NAME[0])
-        if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) > LooseVersion('3'):
+        if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
             self.log.raiseException("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)" % version)
         elif LooseVersion(version) > LooseVersion('2'):
             suffix = '3'
@@ -130,11 +125,10 @@ if __name__ == '__main__':
     from vsc.fancylogger import setLogLevelDebug
     setLogLevelDebug()
     import os, sys
-    from easybuild.tools.toolchain.toolchain import Toolchain
     from easybuild.tools.toolchain.compiler import IntelIccIfort, GNUCompilerCollection
     from easybuild.tools.toolchain.mpi import IntelMPI, OpenMPI
     from easybuild.tools.toolchain.scalapack import IntelMKL, ScaATLAS
-    class ITC(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW, Toolchain):
+    class ITC(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
         NAME = 'ITC'
         VERSION = '1.0.0'
 
@@ -156,7 +150,7 @@ if __name__ == '__main__':
     itc.show_variables(offset=" "*4, verbose=True)
 
     ## module load goalf
-    class GMTC(GNUCompilerCollection, OpenMPI, ScaATLAS, FFTW, Toolchain):
+    class GMTC(GNUCompilerCollection, OpenMPI, ScaATLAS, FFTW):
         NAME = 'GMTC'
         VERSION = '1.0.0'
     gmtc = GMTC()

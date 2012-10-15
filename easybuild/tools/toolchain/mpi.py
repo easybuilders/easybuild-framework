@@ -19,8 +19,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
-
-from vsc.fancylogger import getLogger
+from easybuild.tools.toolchain.toolchain import Toolchain
 
 INTELMPI = "IntelMPI"
 OPENMPI = "OpenMPI"
@@ -60,12 +59,8 @@ class MPI(object):
     MPI_COMPILER_MPIF90 = 'mpif90'
 
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, 'log'):
-            self.log = getLogger(self.__class__.__name__)
-
-        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
-
-        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
+        Toolchain.base_init(self)
+        print 'MPI BASEINIT', self.log, type(self.log)
 
         self._set_mpi_options()
 
@@ -209,11 +204,10 @@ class QLogicMPI(MPI):
 if __name__ == '__main__':
     from vsc.fancylogger import setLogLevelDebug
     import os
-    from easybuild.tools.toolchain.toolchain import Toolchain
     from easybuild.tools.toolchain.compiler import IntelIccIfort, GNUCompilerCollection
     setLogLevelDebug()
 
-    class ITC(IntelIccIfort, IntelMPI, Toolchain):
+    class ITC(IntelIccIfort, IntelMPI):
         NAME = 'ITC'
         VERSION = '1.0.0'
 
@@ -237,7 +231,7 @@ if __name__ == '__main__':
     os.environ.setdefault('EBROOTMPICH2', '/usr/lib64/mpich2/1.4.1') # FC17 (incl are somewhere else) TODO use real easybuild
     os.environ.setdefault('EBVERSIONMPICH2', '1.4.1')
 
-    class GMTC(GNUCompilerCollection, MPICH2, Toolchain):
+    class GMTC(GNUCompilerCollection, MPICH2):
         NAME = 'GMTC'
         VERSION = '1.0.0'
     gmtc = GMTC()

@@ -34,7 +34,6 @@ from easybuild.tools.build_log import getLog, EasyBuildError
 from easybuild.tools.filetools import convertName, run_cmd
 
 
-log = getLog('Modules')
 outputMatchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
@@ -49,6 +48,8 @@ class Modules:
     Interact with modules.
     """
     def __init__(self, modulePath=None):
+        self.log = getLog(self.__class__.__name__)
+
         self.modulePath = modulePath
         self.modules = []
 
@@ -59,7 +60,7 @@ class Modules:
         if ec:
             msg = "Could not find the modulecmd command, environment-modules is not installed?\n"
             msg += "Exit code of 'which modulecmd': %d" % ec
-            log.error(msg)
+            self.log.error(msg)
             raise EasyBuildError(msg)
 
     def checkModulePath(self):
@@ -75,7 +76,7 @@ class Modules:
             if ec != 0 or not module_regexp.match(out):
                 errormsg += "; environment-modules doesn't seem to be installed: "
                 errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
-            log.error(errormsg)
+            self.log.error(errormsg)
 
         if self.modulePath:
             ## set the module path environment accordingly
@@ -105,7 +106,7 @@ class Modules:
         modules.sort(key=lambda m: (m['name'] + (m['default'] or ''), m['version']))
         ans = [(mod['name'], mod['version']) for mod in modules]
 
-        log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
+        self.log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
             (name, version, modulePath, len(ans), ans))
         return ans
 
@@ -132,7 +133,7 @@ class Modules:
                 else:
                     version = mod['version']
             else:
-                log.error("Can't add module %s: unknown type" % str(mod))
+                self.log.error("Can't add module %s: unknown type" % str(mod))
 
             mods = self.available(name, version)
             if (name, version) in mods:
@@ -140,9 +141,9 @@ class Modules:
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:
-                    log.warning('No module %s available' % mod)
+                    self.log.warning('No module %s available' % mod)
                 else:
-                    log.warning('More then one module found for %s: %s' % (mod, mods))
+                    self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
 
     def load(self):
@@ -208,7 +209,7 @@ class Modules:
 
                 error = outputMatchers['error'].search(line)
                 if error:
-                    log.error(line)
+                    self.log.error(line)
                     raise EasyBuildError(line)
 
                 packages = outputMatchers['available'].finditer(line)
@@ -228,7 +229,7 @@ class Modules:
             mods = ['/'.join(modfile.split('/')[-2:]) for modfile in os.getenv('_LMFILES_').split(':')]
 
         else:
-            log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
+            self.log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
 
         # filter devel modules, since they cannot be split like this
         mods = [mod for mod in mods if not mod.endswith("easybuild-devel")]
@@ -247,14 +248,14 @@ class Modules:
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
         """
         modfilepath = self.modulefile_path(name, version)
-        log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
+        self.log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
 
         try:
             f = open(modfilepath, "r")
             modtxt = f.read()
             f.close()
         except IOError, err:
-            log.error("Failed to read module file %s to determine toolkit dependencies: %s" % (modfilepath, err))
+            self.log.error("Failed to read module file %s to determine toolkit dependencies: %s" % (modfilepath, err))
 
         loadregex = re.compile("^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]

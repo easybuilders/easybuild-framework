@@ -23,15 +23,14 @@ from distutils.version import LooseVersion
 from easybuild.tools import systemtools
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES
 from easybuild.tools.variables import LinkerFlagList
-
-from vsc.fancylogger import getLogger
+from easybuild.tools.toolchain.toolchain import Toolchain
 
 # constants used for recognizing compilers, MPI libraries, ...
 GCC = "GCC"
 INTEL = "Intel"
 
 
-class Compiler(object):
+class Compiler(Toolchain):
     """General compiler-like class
         can't be used without creating new class C(Compiler,Toolchain)
     """
@@ -105,14 +104,11 @@ class Compiler(object):
     LIB_MULTITHREAD = None
 
     def __init__(self, *args, **kwargs):
-        if not hasattr(self, 'log'):
-            self.log = getLogger(self.__class__.__name__)
+        Toolchain.base_init(self)
+
+        print 'COMPILER BASEINIT', self.log, type(self.log)
 
         self.arch = None
-
-        self.options = getattr(self, 'options', self.OPTIONS_CLASS())
-
-        self.variables = getattr(self, 'variables', self.VARIABLES_CLASS())
 
         self._set_compiler_toolchainoptions()
 
@@ -382,7 +378,7 @@ if __name__ == '__main__':
     import os
     setLogLevelDebug()
 
-    class ITC(IntelIccIfort, Toolchain):
+    class ITC(IntelIccIfort):
         NAME = 'ITC'
         VERSION = '1.0.0'
 
@@ -401,7 +397,7 @@ if __name__ == '__main__':
     os.environ.setdefault('EBROOTGCC', '/usr')
     os.environ.setdefault('EBVERSIONGCC', '4.7.2')
 
-    class GTC(GNUCompilerCollection, Toolchain):
+    class GTC(GNUCompilerCollection):
         NAME = 'GTC'
         VERSION = '1.0.0'
     gtc = GTC()

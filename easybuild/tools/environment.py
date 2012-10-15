@@ -29,7 +29,7 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = open(filename,'w')
+    script = open(filename, 'w')
 
     for key in changes:
         script.write('export %s="%s"\n' % (key, changes[key]))
@@ -46,7 +46,7 @@ def reset_changes():
     changes = {}
 
 
-def set(key, value):
+def setenv(key, value):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
@@ -54,3 +54,7 @@ def set(key, value):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     changes[key] = value
+
+def set(*args):
+    """DEPRECATED. Function name conflict""" # TODO cleanup
+    return setenv(*args)
