@@ -165,16 +165,17 @@ FFTW_MAP_CLASS = {
                                    ],
                  }
 
-class ToolchainList(ListOfLists):
-    DEFAULT_CLASS = FlagList
-    MAP_CLASS = join_map_class(COMPILER_MAP_CLASS, MPI_MAP_CLASS,
-                               BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
-                               FFT_MAP_CLASS, FFTW_MAP_CLASS,
-                               ) ## join_map_class strips explanation
+ALL_MAP_CLASSES = [
+                   COMPILER_MAP_CLASS, MPI_MAP_CLASS,
+                   BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
+                   FFT_MAP_CLASS, FFTW_MAP_CLASS,
+                   ]
+
 
 class ToolchainVariables(Variables):
     """
     Class to hold variable-like key/value pairs
     in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
-    DEFAULT_LISTCLASS = ToolchainList
+    MAP_CLASS = join_map_class(*ALL_MAP_CLASSES) ## join_map_class strips explanation
+    DEFAULT_CLASS = FlagList

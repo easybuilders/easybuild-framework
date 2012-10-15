@@ -264,11 +264,8 @@ class LinkLibraryPaths(AbsPathList):
 
 class ListOfLists(list):
     """List of lists"""
-
-    STR_SEPARATOR = ' '
     DEFAULT_CLASS = StrList
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
-    MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
@@ -285,10 +282,6 @@ class ListOfLists(list):
             res.append("%s B_ %s _E" % (type(el), el))
         return ";".join(res)
 
-    def get_class(self, name):
-        """Return the class associated with the name according to the DEFAULT_CLASS and MAP_CLASS"""
-        return get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
-
     def first(self):
         """Return first non-empty list
             if it doesn't exist, try to return first element
@@ -302,7 +295,7 @@ class ListOfLists(list):
 
     def nappend(self, name, value=None, **kwargs):
         """Named append"""
-        klass = self.get_class(name)
+        klass = self.DEFAULT_CLASS
 
         if type(value) in self.PROTECTED_CLASSES:
             newvalue = value
@@ -326,7 +319,7 @@ class ListOfLists(list):
 
     def nextend(self, name, value=None):
         """Named extend, value is list type (TODO: tighten the allowed values)"""
-        klass = self.get_class(name)
+        klass = self.DEFAULT_CLASS
         res = []
         if value is None:
             ## TODO ? append_empty ?
@@ -367,27 +360,28 @@ class ListOfLists(list):
         return test
 
     def sanitize(self):
-        """Cleanup of self"""
+        """Cleanup self"""
         ## TODO implement (needs new MAP_CLASS usage with dynamic generation of instances)
 
     def __str__(self):
         self.sanitize()
-        sep = self.STR_SEPARATOR
+        sep = ''  ## default no separator
 
         f = self.first()
         if f is None:
+            ## return empty string
             self.log.debug("__str__: first is None (self %s)" % self.__repr__())
+            return ''
         else:
             if hasattr(f, 'SEPARATOR') and f.SEPARATOR is not None:
                 ## use separator of first element
                 sep = f.SEPARATOR
             else:
-                self.log.debug('__str__: using default STR_SEPARATOR %s (no first found)' % self.STR_SEPARATOR)
                 self.log.raiseException('__str__: no SPEARATOR found for first %s (%s;%s)' % (f, f.__repr__(), type(f)))
 
-        txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
-        self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
-        return txt
+            txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
+            self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
+            return txt
 
 class Variables(dict):
     """
@@ -403,17 +397,30 @@ class Variables(dict):
     DEFAULT_LISTCLASS = ListOfLists
     MAP_LISTCLASS = {}  # map between variable name and ListOfList classes (ie not the (default) class for the variable)
 
+    DEFAULT_CLASS = StrList
+    MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
+
     def __init__(self, *args, **kwargs):
         super(Variables, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
 
-    def get_listclass(self, name):
-        """Return the class associated with the name according to the DEFAULT_CLASS and MAP_CLASS"""
+    def get_list_class(self, name):
+        """Return the class associated with the name according to the DEFAULT_LISTCLASS and MAP_LISTCLASS"""
         return get_class(name, self.DEFAULT_LISTCLASS, self.MAP_LISTCLASS)
+
+    def get_element_class(self, name):
+        """Return the class associated with the name according to the DEFAULT_CLASS and MAP_CLASS"""
+        return get_class(name, self.DEFAULT_CLASS, self.MAP_CLASS)
 
     def get_instance(self, name=None):
         """Return an instance of the class"""
-        klass = self.get_listclass(name)
+        list_class = self.get_list_class(name)
+        element_class = self.get_element_class(name)
+
+        class klass(list_class):
+            DEFAULT_CLASS = element_class
+
+        klass.__name__ = name  ## better log messages (most use self.__class__.__name__; would give klass otherwise)
         return klass()
 
     def join(self, name, *others):
