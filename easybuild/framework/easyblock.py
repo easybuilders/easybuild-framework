@@ -361,8 +361,8 @@ class EasyBlock(object):
                     if ext:
                         fullpaths = [
                                      os.path.join(cfp, "extensions", filename),
-                                     os.path.join(cfp, "packages", filename),  # legacy
-                                     fullpath 
+                                     os.path.join(cfp, "packages", filename), # legacy
+                                     fullpath
                                     ]
                     else:
                         fullpaths = [fullpath]
@@ -737,6 +737,10 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
+        if not self.cfg['exts_filter'] or len(self.cfg['exts_filter']) == 0:
+            self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
+        elif len(self.cfg['exts_filter']) == 1:
+            self.log.error('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = self.cfg['exts_filter'][0]
         cmdinputtmpl = self.cfg['exts_filter'][1]
 
@@ -1053,8 +1057,8 @@ class EasyBlock(object):
     def test_step(self):
         """Run unit tests provided by software (if any)."""
         if self.cfg['runtest']:
-          
-            self.log.debug("Trying to execute %s as a command for running unit tests...") 
+
+            self.log.debug("Trying to execute %s as a command for running unit tests...")
             (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
 
             return out
@@ -1111,6 +1115,8 @@ class EasyBlock(object):
         if not exts_defaultclass:
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
+        # exts_defaultclass should be a list or a tuple, but certaintly not a string
+        assert not isinstance(exts_defaultclass, basestring)
         allclassmodule = exts_defaultclass[0]
         defaultClass = exts_defaultclass[1]
         for ext in self.exts:
@@ -1118,8 +1124,8 @@ class EasyBlock(object):
             self.log.debug("Starting extension %s" % name)
 
             try:
-                exec("from %s import %s" % (allclassmodule, name))
-                p = eval("%s(self,ext,exts_installdeps)" % name)
+                cls = get_class_for(allclassmodule, name)
+                p = cls(self, ext, exts_installdeps)
                 self.log.debug("Installing extension %s through class %s" % (ext['name'], name))
             except (ImportError, NameError), err:
                 self.log.debug("Couldn't load class %s for extension %s with extension deps %s:\n%s" % (name, ext['name'], exts_installdeps, err))
@@ -1159,7 +1165,7 @@ class EasyBlock(object):
             gid = grp.getgrnam(self.cfg['group'])[2]
             # rwx for owner, r-x for group, --- for other
             try:
-                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False, 
+                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False,
                                    ignore_errors=True)
             except EasyBuildError, err:
                 self.log.error("Unable to change group permissions of file(s). " \
@@ -1412,6 +1418,8 @@ class EasyBlock(object):
     def run_all_steps(self, run_test_cases, regtest_online):
         """
         Build and install this software.
+        run_test_cases (bool): run tests after building (e.g.: make test)
+        regtest_online (bool): do an online regtest, this means check the websites and try to download sources"
         """
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
@@ -1462,9 +1470,9 @@ def get_module_path(easyblock, generic=False):
 
     # construct character translation table for module name
     # only 0-9, a-z, A-Z are retained, everything else is mapped to _
-    charmap = 48*'_' + ''.join([chr(x) for x in range(48,58)]) # 0-9
-    charmap += 7*'_' + ''.join([chr(x) for x in range(65,91)]) # A-Z
-    charmap += 6*'_' + ''.join([chr(x) for x in range(97,123)]) + 133*'_' # a-z
+    charmap = 48 * '_' + ''.join([chr(x) for x in range(48, 58)]) # 0-9
+    charmap += 7 * '_' + ''.join([chr(x) for x in range(65, 91)]) # A-Z
+    charmap += 6 * '_' + ''.join([chr(x) for x in range(97, 123)]) + 133 * '_' # a-z
 
     module_name = easyblock.translate(charmap)
 
@@ -1472,7 +1480,7 @@ def get_module_path(easyblock, generic=False):
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
     else:
         modpath = '.'.join(["easybuild", "easyblocks"])
-    
+
     return '.'.join([modpath, module_name.lower()])
 
 def get_class(easyblock, log, name=None):
