@@ -111,9 +111,11 @@ class IntelFFTW(FFTW):
         if self.options['usempi']:
             fftw_libs.append("fftw3x_cdft%s" % fftwsuff) ## add cluster interface
             fftw_libs.append("mkl_cdft_core") ## add cluster dft
-            fftw_libs.extend(self.variables['LIBBLACS']) ## add BLACS
+            fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
 
-        fftw_libs.extend(self.variables['LIBBLAS']) ## add core (contains dft)
+        self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
+        fftw_libs.extend(self.variables['LIBBLAS'].flatten()) ## add core (contains dft) ; use flatten because ListOfList
+        self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
 
 
         self.FFT_LIB = fftw_libs
@@ -163,3 +165,8 @@ if __name__ == '__main__':
 #    print 'GMTC', "vars"
 #    print gmtc.show_variables(offset=" "*4, verbose=True)
     gmtc.show_variables(offset=" "*4, verbose=True)
+
+
+
+    itc.show_variables(offset=" "*4, verbose=False)
+    gmtc.show_variables(offset=" "*4, verbose=False)

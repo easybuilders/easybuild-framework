@@ -58,13 +58,13 @@ def get_class(name, default_class, map_class=None):
 
     klass = default_class
     if name is not None:
-        for k, v in map_class.items():
-            if isinstance(k, (str,)) and k == name:
-                klass = v
-            elif type(k) in (type,) and name in v:
-                klass = k
-            else:
-                _log.debug("get_class: key %s value %s no str or type" % (k, v))
+        try:
+            klass = map_class[name]
+        except:
+            for k, v in map_class.items():
+                if type(k) in (type,) and name in v:
+                    klass = k
+                    break
 
     return klass
 
@@ -98,6 +98,10 @@ class StrList(list):
 
     BEGIN = None
     END = None
+
+    POSITION = 0 # when sorting in list of list: < 0 -> left; > 0 : right
+    SANITIZE_REMOVE_DUPLICATE_KEEP = None  ## used with ListOfList
+
 
     def __init__(self, *args , **kwargs):
         super(StrList, self).__init__(*args, **kwargs)
@@ -162,6 +166,7 @@ class LibraryList(StrList):
     """Link library list"""
     PREFIX = "-l"
 
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  ##  sanitize from end
 
 
 class CommaStaticLibs(LibraryList):
@@ -174,7 +179,6 @@ class CommaStaticLibs(LibraryList):
 class LinkerFlagList(StrList):
     """Linker flags"""
     PREFIX = '-Wl,'
-
 
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
@@ -208,6 +212,8 @@ class LinkerFlagList(StrList):
 
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
+
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  ##  sanitize from end
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
         """
@@ -266,14 +272,22 @@ class ListOfLists(list):
     """List of lists"""
     DEFAULT_CLASS = StrList
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
+    PROTECTED_INSTANCES = [AbsPathList, LibraryList]
+
+    SEPARATOR = None
+
+    SANITIZE_SORT = True
+    SANITIZE_REMOVE_DUPLICATE = False
+    SANITIZE_REMOVE_DUPLICATE_KEEP = None
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
+        self._first = None
 
-    def append_empty(self, name):
+    def append_empty(self):
         """Initialise MAP_CLASS instance"""
-        self.nappend(name, None)
+        self.nappend(None, append_empty=True)
 
     def show_el(self):
         """Show some info on the elements"""
@@ -282,7 +296,7 @@ class ListOfLists(list):
             res.append("%s B_ %s _E" % (type(el), el))
         return ";".join(res)
 
-    def first(self):
+    def get_first(self):
         """Return first non-empty list
             if it doesn't exist, try to return first element
         """
@@ -293,11 +307,27 @@ class ListOfLists(list):
         if len(self) > 0:
             return self[0]
 
-    def nappend(self, name, value=None, **kwargs):
-        """Named append"""
+    def _is_protected(self, value):
+        """Check if value is protected from conversion to default class"""
+        res = False
+        if type(value) in self.PROTECTED_CLASSES:
+            res = True
+        elif isinstance(value, tuple(self.PROTECTED_INSTANCES)):
+            res = True
+
+        self.log.debug("_is_protected: %s value %s (%s)" % (res, value, value.__repr__()))
+        return res
+
+    def nappend(self, value, **kwargs):
+        """Named append
+            name is not used anymore
+        """
+        append_empty = kwargs.pop('append_empty', False)
+        position = kwargs.pop('position', None)
+
         klass = self.DEFAULT_CLASS
 
-        if type(value) in self.PROTECTED_CLASSES:
+        if self._is_protected(value):
             newvalue = value
         else:
             if isinstance(value, (str, int,)):
@@ -312,13 +342,19 @@ class ListOfLists(list):
                 newvalue = klass(**kwargs)
                 if value is not None:
                     newvalue.append(value)
+        if not position is None:
+            newvalue.POSITION = position
+        if self._str_ok(newvalue) or append_empty:
+            self.append(newvalue)
+            self.log.debug("nappend: value %s newvalue %s position %s" % (value.__repr__(), newvalue.__repr__(), position))
+            return newvalue
+        else:
+            self.log.debug("nappend: ignoring value %s newvalue %s (not _str_ok)" % (value.__repr__(), newvalue.__repr__()))
 
-        self.append(newvalue)
-        self.log.debug("nappend: name %s value %s newvalue %s" % (name, value.__repr__(), newvalue.__repr__()))
-        return newvalue
-
-    def nextend(self, name, value=None):
-        """Named extend, value is list type (TODO: tighten the allowed values)"""
+    def nextend(self, value=None):
+        """Named extend, value is list type (TODO: tighten the allowed values)
+            name not used anymore
+        """
         klass = self.DEFAULT_CLASS
         res = []
         if value is None:
@@ -326,8 +362,12 @@ class ListOfLists(list):
             self.log.raiseException("extend_el with None value unimplemented")
         else:
             for el in value:
+                if not self._str_ok(el):
+                    self.log.debug("nextend: ignoring el %s from value %s (not _str_ok)" % (el, value.__repr__()))
+                    continue
+
                 if type(el) in self.PROTECTED_CLASSES:
-                    res.append(el)
+                    newvalue = el
                 else:
                     if isinstance(el, (str, int,)):
                         ## convert to list. although the try/except will work
@@ -342,10 +382,10 @@ class ListOfLists(list):
                         if value is not None:
                             newvalue.append(el)
 
-                    res.append(newvalue)
+                res.append(newvalue)
 
         self.extend(res)
-        self.log.debug("nextend: name %s value %s res %s" % (name, value.__repr__(), res.__repr__()))
+        self.log.debug("nextend: value %s res %s" % (value.__repr__(), res.__repr__()))
         return res
 
     def str_convert(self, x):
@@ -361,23 +401,45 @@ class ListOfLists(list):
 
     def sanitize(self):
         """Cleanup self"""
-        ## TODO implement (needs new MAP_CLASS usage with dynamic generation of instances)
+        if self.SANITIZE_SORT:
+            self.sort(key=lambda x: getattr(x, 'POSITION'))
+
+        if self.SANITIZE_REMOVE_DUPLICATE:
+            ## get all occurences with their index
+            to_remove = []
+            for el in self:
+                all_idx = [idx for idx, x in enumerate(self) if x == el]
+                if len(all_idx) > 1:
+                    if self.SANITIZE_REMOVE_DUPLICATE_KEEP == 0:
+                        ## keep first
+                        to_remove.extend(all_idx[1:])
+                    elif self.SANITIZE_REMOVE_DUPLICATE_KEEP == -1:
+                        ## keep last
+                        to_remove.extend(all_idx[:-1])
+
+            to_remove = sorted(list(set(to_remove)), reverse=True)
+            self.log.debug("sanitize: to_remove %s" % to_remove)
+            for idx in to_remove:
+                del self[idx]
+
+    def flatten(self):
+        res = []
+        for x in self:
+            if self._str_ok(x):
+                res.extend(x)
+        return res
 
     def __str__(self):
+        self._first = self.get_first()
         self.sanitize()
         sep = ''  ## default no separator
 
-        f = self.first()
-        if f is None:
+        if self._first is None:
             ## return empty string
             self.log.debug("__str__: first is None (self %s)" % self.__repr__())
             return ''
         else:
-            if hasattr(f, 'SEPARATOR') and f.SEPARATOR is not None:
-                ## use separator of first element
-                sep = f.SEPARATOR
-            else:
-                self.log.raiseException('__str__: no SPEARATOR found for first %s (%s;%s)' % (f, f.__repr__(), type(f)))
+            sep = self.SEPARATOR
 
             txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
             self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
@@ -420,7 +482,12 @@ class Variables(dict):
         class klass(list_class):
             DEFAULT_CLASS = element_class
 
-        klass.__name__ = name  ## better log messages (most use self.__class__.__name__; would give klass otherwise)
+            SEPARATOR = element_class.SEPARATOR
+
+            SANITIZE_REMOVE_DUPLICATE = element_class.SANITIZE_REMOVE_DUPLICATE_KEEP is not None
+            SANITIZE_REMOVE_DUPLICATE_KEEP = element_class.SANITIZE_REMOVE_DUPLICATE_KEEP
+
+        klass.__name__ = "%s_%s" % (self.__class__.__name__, name)  ## better log messages (most use self.__class__.__name__; would give klass otherwise)
         return klass()
 
     def join(self, name, *others):
@@ -446,14 +513,23 @@ class Variables(dict):
 
     def __setitem__(self, name, value):
         """Automatically creates a list for each name"""
-        self.append(name, value)
+        if name in self:
+            del self[name]
+        self.nappend(name, value)
 
-    def setdefault(self, name, default=None):
+    def setdefault(self, name, default=None, append_empty=False):
         #"""append_empty to non-existing element"""
-        default = super(Variables, self).setdefault(name, default)
+        if name in self:
+            default = self[name]
+        else:
+            if default is None:
+                default = self.get_instance(name)
+            super(Variables, self).__setitem__(name, default)
+
         if len(default) == 0:
             self.log.debug("setdefault: name %s initialising." % name)
-            default.append_empty(name)
+            if append_empty:
+                default.append_empty()
         return default
 
     def __getattribute__(self, attr_name):
@@ -462,9 +538,9 @@ class Variables(dict):
             self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
             def _passthrough(name, *args, **kwargs):
                 """functions that pass through to LISTCLASS instances"""
-                current = self.setdefault(name, self.get_instance(name))
+                current = self.setdefault(name)
                 actual_function = getattr(current, attr_name)
-                res = actual_function(name, *args, **kwargs)
+                res = actual_function(*args, **kwargs)
                 return res
             return _passthrough
         elif attr_name in ['nappend_el', 'nextend_el', 'append_exists', 'append_subdirs']:
@@ -472,7 +548,11 @@ class Variables(dict):
             def _passthrough(name, *args, **kwargs):
                 """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""
                 idx = kwargs.pop('idx', -1)
-                current = self.setdefault(name, self.get_instance(name))
+                if attr_name in ['append_exists', 'append_subdirs']:
+                    current = self.setdefault(name)
+                    current.append_empty()  ## always add empty
+                else:
+                    current = self.setdefault(name, append_empty=True)
                 actual_function = getattr(current[idx], attr_name)
                 res = actual_function(*args, **kwargs)
                 return res

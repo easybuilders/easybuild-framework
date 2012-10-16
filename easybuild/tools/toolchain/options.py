@@ -76,7 +76,7 @@ class ToolchainOptions(dict):
     def option(self, name, templatedict=None):
         """Return option value"""
         value = self.get(name, None)
-        if value is None:
+        if value is None and name not in self.map:
             self.log.warning("option: option with name %s returns None" % name)
             res = None
         elif name in self.map:

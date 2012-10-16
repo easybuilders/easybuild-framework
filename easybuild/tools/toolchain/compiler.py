@@ -106,8 +106,6 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
-        print 'COMPILER BASEINIT', self.log, type(self.log)
-
         self.arch = None
 
         self._set_compiler_toolchainoptions()
@@ -229,6 +227,7 @@ class Compiler(Toolchain):
                     lfl.toggle_static()
                 else:
                     lfl.toggle_dynamic()
+            return lfl
 
         lib.BEGIN = make_lfl(True)
         lib.END = make_lfl(False)
@@ -293,7 +292,7 @@ class GNUCompilerCollection(Compiler):
         ## to get rid of lots of problems with libgfortranbegin
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
-        self.variables.nappend('FLIBS', "gfortran")
+        self.variables.nappend('FLIBS', "gfortran", position=5)
 
 
 class IntelIccIfort(Compiler):
@@ -361,7 +360,7 @@ class IntelIccIfort(Compiler):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
         if not 'LIBS' in self.variables:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD)
+            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
 
         libpaths = ['intel64']
         if self.options.get('32bit', None):
@@ -374,7 +373,6 @@ class IntelIccIfort(Compiler):
 
 if __name__ == '__main__':
     from vsc.fancylogger import setLogLevelDebug
-    from easybuild.tools.toolchain.toolchain import Toolchain
     import os
     setLogLevelDebug()
 

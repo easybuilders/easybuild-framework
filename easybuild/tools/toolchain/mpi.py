@@ -48,8 +48,8 @@ class MPI(object):
     MPI_SHARED_OPTION_MAP = {
                              '_opt_MPICC': 'cc="%(CC_base)s"',
                              '_opt_MPICXX':'cxx="%(CXX_base)s"',
-                             '_opt_MPICF77':'fc="%(F77_base)s',
-                             '_opt_MPICF90':'f90="%(F90_base)s',
+                             '_opt_MPIF77':'fc="%(F77_base)s',
+                             '_opt_MPIF90':'f90="%(F90_base)s',
                              }
 
     MPI_COMPILER_MPICC = 'mpicc'
@@ -60,7 +60,6 @@ class MPI(object):
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
-        print 'MPI BASEINIT', self.log, type(self.log)
 
         self._set_mpi_options()
 
@@ -99,7 +98,7 @@ class MPI(object):
             self.variables.nappend_el(var, value)
 
             templatedict = {c_var:str(self.variables[c_var]),
-                            '%s_base' % c_var: self.variables[c_var].first(),
+                            '%s_base' % c_var: str(self.variables[c_var].get_first()),
                             }
 
             self.variables.nappend_el(var, self.options.option('_opt_%s' % var, templatedict=templatedict))
@@ -110,7 +109,7 @@ class MPI(object):
             if self.options.get('usempi', None):
                 self.log.debug("_set_mpi_compiler_variables: usempi set: switching %s value %s for %s value %s" %
                                (c_var, self.variables[c_var], var, self.variables[var]))
-                self.variables.nappend_el(c_var, self.variables[var])
+                self.variables[c_var] = self.variables[var]
 
 
         if self.options.get('cciscxx', None):

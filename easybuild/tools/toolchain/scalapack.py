@@ -113,7 +113,7 @@ class ScalableLinearAlgebraPackage(Toolchain):
             if 'FLIBS' in self.variables:
                 self.variables.join('LIBBLAS_MT', 'FLIBS')
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                self.variables.nextend('LIBBLAS_MT', self.LIB_MULTITHREAD)
+                self.variables.nappend('LIBBLAS_MT', self.LIB_MULTITHREAD, position=10)
 
         root = self.get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
@@ -174,7 +174,7 @@ class ScalableLinearAlgebraPackage(Toolchain):
         self.variables.join('BLAS_LAPACK_LIB_DIR', 'LAPACK_LIB_DIR', 'BLAS_LIB_DIR')
         self.variables.join('BLAS_LAPACK_INC_DIR', 'LAPACK_INC_DIR', 'BLAS_INC_DIR')
         self.variables.join('BLAS_LAPACK_STATIC_LIBS', 'LAPACK_STATIC_LIBS', 'BLAS_STATIC_LIBS')
-        self.variables.join('BLAS_LAPACK_MT_STATIC_LIBS', 'LAPACK_MT_STATIC_LIBS', 'BLAS_STATIC_LIBS')
+        self.variables.join('BLAS_LAPACK_MT_STATIC_LIBS', 'LAPACK_MT_STATIC_LIBS', 'BLAS_MT_STATIC_LIBS')
 
         ## add general dependency variables
         self._add_dependency_variables(self.LAPACK_MODULE_NAME, ld=self.LAPACK_LIB_DIR, cpp=self.LAPACK_INCLUDE_DIR)
@@ -491,3 +491,14 @@ if __name__ == '__main__':
 #    print 'GMTC', "vars"
 #    print gmtc.show_variables(offset=" "*4, verbose=True)
     gmtc.show_variables(offset=" "*4, verbose=True)
+
+
+
+    """
+    TODO: fix
+    LIBSCALAPACK=-lscalapack -lblacsCinit -lblacsF77init -lblacs -lcblas -lf77blas -latlas -lgfortran
+    LIBSCALAPACK_MT=-lblacsCinit -lblacsF77init -lblacs -lptcblas -lptf77blas -latlas -lgfortran -lpthread
+    SCALAPACK_MT_STATIC_LIBS=-lblacsCinit -lblacsF77init -lblacs,-lptcblas -lptf77blas -latlas,-lgfortran,-lpthread
+    SCALAPACK_STATIC_LIBS=-lscalapack,-lblacsCinit -lblacsF77init -lblacs,-lcblas -lf77blas -latlas,-lgfortran
+
+    """

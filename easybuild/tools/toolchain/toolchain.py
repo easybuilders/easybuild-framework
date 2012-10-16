@@ -81,20 +81,14 @@ class Toolchain(object):
         self.vars = None
 
     def base_init(self):
-        print sys.modules.keys()
         if not hasattr(self, 'log'):
             self.log = fancylogger.getLogger(self.__class__.__name__)
-        else:
-            print 'BASEINIT EXISTING', self.log, type(self.log)
-
 
         if not hasattr(self, 'options'):
             self.options = self.OPTIONS_CLASS()
 
         if not hasattr(self, 'variables'):
             self.variables = self.VARIABLES_CLASS()
-
-        print 'BASEINIT', self.log, type(self.log)
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -285,9 +279,13 @@ class Toolchain(object):
             ld_paths.insert(0, 'lib64')
 
         if cpp is not None:
-            cpp_paths = cpp + cpp_paths
+            for p in cpp:
+                if not p in cpp_paths:
+                    cpp_paths.append(p)
         if ld is not None:
-            ld_paths = ld + ld_paths
+            for p in ld:
+                if not p in ld_paths:
+                    ld_paths.append(p)
 
         if not names:
             deps = self.dependencies
