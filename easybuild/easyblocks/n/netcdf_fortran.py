@@ -29,41 +29,36 @@ EasyBuild support for building and installing netCDF-Fortran, implemented as an 
 import os
 
 import easybuild.tools.environment as env
-import easybuild.tools.toolkit as toolkit
-from easybuild.framework.application import Application
+import easybuild.tools.toolkit as toolchain
+from easybuild.easyblocks.generic.configuremake import ConfigureMake
 
 
-class EB_netCDF_Fortran(Application):
+class EB_netCDF_minus_Fortran(ConfigureMake):
     """Support for building/installing the netCDF-Fortran library"""
 
-    def configure(self):
+    def configure_step(self):
         """Configure build: set config options and configure"""
 
-        if self.toolkit().opts['pic']:
-            self.updatecfg('configopts', "--with-pic")
+        if self.toolchain.opts['pic']:
+            self.cfg.update('configopts', "--with-pic")
 
-        self.updatecfg('configopts', 'FCFLAGS="%s" FC="%s"' % (os.getenv('FFLAGS'), os.getenv('F90')))
+        self.cfg.update('configopts', 'FCFLAGS="%s" FC="%s"' % (os.getenv('FFLAGS'), os.getenv('F90')))
 
         # add -DgFortran to CPPFLAGS when building with GCC
-        if self.toolkit().comp_family() == toolkit.GCC:
-            env.set('CPPFLAGS', "%s -DgFortran" % os.getenv('CPPFLAGS'))
+        if self.toolchain.comp_family() == toolchain.GCC:
+            env.setvar('CPPFLAGS', "%s -DgFortran" % os.getenv('CPPFLAGS'))
 
-        Application.configure(self)
+        super(EB_netCDF_minus_Fortran, self).configure_step()
 
-    def sanitycheck(self):
+    def sanity_check_step(self):
         """
         Custom sanity check for netCDF-Fortran
         """
-        if not self.getcfg('sanityCheckPaths'):
 
-            self.setcfg('sanityCheckPaths',{
-                                            'files': ["bin/nf-config"] +
-                                                     ["lib/%s" % x for x in ["libnetcdff.so", "libnetcdff.a"]] +
-                                                     ["include/%s" % x for x in ["netcdf.inc", "netcdf.mod",
-                                                                                 "typesizes.mod"]],
-                                            'dirs': []
-                                           })
+        custom_paths = {
+                        'files': ["bin/nf-config"] + ["lib/%s" % x for x in ["libnetcdff.so", "libnetcdff.a"]] +
+                                 ["include/%s" % x for x in ["netcdf.inc", "netcdf.mod", "typesizes.mod"]],
+                        'dirs': []
+                       }
 
-            self.log.info("Customized sanity check paths: %s" % self.getcfg('sanityCheckPaths'))
-
-        Application.sanitycheck(self)
+        super(EB_netCDF_minus_Fortran, self).sanity_check_step(custom_paths=custom_paths)

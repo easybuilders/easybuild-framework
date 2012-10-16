@@ -31,11 +31,11 @@ try:
 except ImportError:
     pass
 
-from easybuild.tools.build_log import getLog
+from easybuild.tools.build_log import get_log
 
 MAX_WALLTIME = 72
 
-class PbsJob:
+class PbsJob(object):
     """Interaction with TORQUE"""
 
     def __init__(self, script, name, env_vars=None, resources={}):
@@ -45,7 +45,7 @@ class PbsJob:
         resources is a dictionary with optional keys: ['hours', 'cores'] both of these should be integer values.
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
-        self.log = getLog("PBS")
+        self.log = get_log("PBS")
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
@@ -133,6 +133,7 @@ class PbsJob:
             deps_attributes[0].name = pbs.ATTR_depend
             deps_attributes[0].value = ",".join(["afterok:%s" % dep for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
+            self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
         ## add a bunch of variables (added by qsub)
         ## also set PBS_O_WORKDIR to os.getcwd()
@@ -147,12 +148,14 @@ class PbsJob:
         variable_attributes[0].value = ",".join(pbsvars)
 
         pbs_attributes.extend(variable_attributes)
+        self.log.debug("Job variable attributes: %s" % variable_attributes[0].value)
 
         # mail settings
         mail_attributes = pbs.new_attropl(1)
         mail_attributes[0].name = 'Mail_Points'
         mail_attributes[0].value = 'n'  # disable all mail
         pbs_attributes.extend(mail_attributes)
+        self.log.debug("Job mail attributes: %s" % mail_attributes[0].value)
 
         import tempfile
         fh, scriptfn = tempfile.mkstemp()
@@ -285,3 +288,7 @@ class PbsJob:
 
         return freq_np
 
+    def cleanup(self):
+        """Cleanup: disconnect from server."""
+        self.log.debug("Disconnecting from server.")
+        pbs.pbs_disconnect(self.pbsconn)

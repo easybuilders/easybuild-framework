@@ -29,7 +29,7 @@ from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import getLog
+from easybuild.tools.build_log import get_log
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 
 
@@ -42,7 +42,7 @@ OPENMPI = "OpenMPI"
 QLOGIC = "QLogic"
 
 
-class Toolkit:
+class Toolkit(object):
     """
     Class for compiler toolkits, consisting out of a compiler and dependencies (libraries).
     """
@@ -57,7 +57,7 @@ class Toolkit:
         self.m32flag = ''
 
         # logger
-        self.log = getLog('Toolkit')
+        self.log = get_log('Toolkit')
 
         # option flags
         self.opts = {
@@ -131,11 +131,11 @@ class Toolkit:
         mod = Modules()
         self.log.debug("Adding toolkit dependencies")
         for dep in dependencies:
-            if not 'tk' in dep:
-                dep['tk'] = self.get_dependency_version(dep)
+            if not 'tc' in dep:
+                dep['tc'] = self.get_dependency_version(dep)
 
-            if not mod.exists(dep['name'], dep['tk']):
-                self.log.error('No module found for dependency %s/%s' % (dep['name'], dep['tk']))
+            if not mod.exists(dep['name'], dep['tc']):
+                self.log.error('No module found for dependency %s/%s' % (dep['name'], dep['tc']))
             else:
                 self.dependencies.append(dep)
                 self.log.debug('Added toolkit dependency %s' % dep)
@@ -159,14 +159,14 @@ class Toolkit:
             else:
                 self.log.info('Toolkit: dummy mode, but loading dependencies')
                 modules = Modules()
-                modules.addModule(self.dependencies)
+                modules.add_module(self.dependencies)
                 modules.load()
             return
 
         ## Load the toolkit and dependencies modules
         modules = Modules()
-        modules.addModule([(self.name, self.version)])
-        modules.addModule(self.dependencies)
+        modules.add_module([(self.name, self.version)])
+        modules.add_module(self.dependencies)
         modules.load()
 
         ## Determine direct toolkit dependencies, so we can prepare for them
@@ -221,13 +221,13 @@ class Toolkit:
                 continue
 
             self.log.debug("Setting environment variable %s to %s" % (key, val))
-            env.set(key, val)
+            env.setvar(key, val)
 
             # also set unique named variables that can be used in Makefiles
             # - so you can have 'CFLAGS = $(EBVARCFLAGS)'
             # -- 'CLFLAGS = $(CFLAGS)' gives  '*** Recursive variable `CFLAGS'
             # references itself (eventually).  Stop' error
-            env.set("EBVAR%s" % key, val)
+            env.setvar("EBVAR%s" % key, val)
 
 
     def _getOptimalArchitecture(self):
@@ -414,7 +414,7 @@ class Toolkit:
             fftw_libs.append("fftw%s_mpi" % suffix)
         fftw_libs.append("fftw%s" % suffix)
 
-        self.vars['LIBFFT'] = ','.join(["-l%s" % x for x in fftw_libs])
+        self.vars['LIBFFT'] = ' '.join(["-l%s" % x for x in fftw_libs])
 
         self.vars['FFTW_INC_DIR'] = os.path.join(fftw, "include")
         self.vars['FFTW_LIB_DIR'] = os.path.join(fftw, "lib")
@@ -431,10 +431,10 @@ class Toolkit:
             self.log.error("ERROR: 32-bit not supported yet for GCC based toolkits.")
 
         # set basic GCC options
-        self.vars['CC'] = 'gcc %s' % self.m32flag
-        self.vars['CXX'] = 'g++ %s' % self.m32flag
-        self.vars['F77'] = 'gfortran %s ' % self.m32flag
-        self.vars['F90'] = 'gfortran %s' % self.m32flag
+        self.vars['CC'] = 'gcc%s' % self.m32flag
+        self.vars['CXX'] = 'g++%s' % self.m32flag
+        self.vars['F77'] = 'gfortran%s ' % self.m32flag
+        self.vars['F90'] = 'gfortran%s' % self.m32flag
 
         if self.opts['cciscxx']:
             self.vars['CXX'] = self.vars['CC']
@@ -592,8 +592,10 @@ class Toolkit:
 
         # adjust lib subdir if GCC is used
         if self.comp_family() == GCC:
-            for libs in [blas_libs, blas_mt_libs, scalapack_libs]:
-                libs.replace('mkl_intel_lp64', 'mkl_gf_lp64')
+            blas_libs =  [x.replace('mkl_intel_lp64', 'mkl_gf_lp64') for x in blas_libs]
+            blas_mt_libs = [x.replace('mkl_intel_lp64', 'mkl_gf_lp64') for x in blas_mt_libs]
+            scalapack_libs = [x.replace('mkl_intel_lp64', 'mkl_gf_lp64') for x in scalapack_libs]
+            scalapack_mt_libs = [x.replace('mkl_intel_lp64', 'mkl_gf_lp64') for x in scalapack_mt_libs]
 
         # sequential BLAS and LAPACK
         prefix = "-Wl,-Bstatic -Wl,--start-group"
@@ -656,7 +658,7 @@ class Toolkit:
                      "fftw3x_cdft%s" % fftwsuff,
                      "mkl_cdft_core"]
         self.vars['LIBFFT'] = ' '.join(["-Wl,-Bstatic",
-                                        ' '.join(["-%s" % x for x in fftw_libs]),
+                                        ' '.join(["-l%s" % x for x in fftw_libs]),
                                         "-Wl,-Bdynamic"])
         self.vars['FFTW_INC_DIR'] = os.path.join(mklroot, "mkl", "include", "fftw")
         self.vars['FFTW_LIB_DIR'] = libs_dir
@@ -683,10 +685,10 @@ class Toolkit:
         if self.comp_family() == INTEL:
             # Intel-based toolkit
 
-            self.vars['MPICC'] = 'mpiicc %s' % self.m32flag
-            self.vars['MPICXX'] = 'mpiicpc %s' % self.m32flag
-            self.vars['MPIF77'] = 'mpiifort %s' % self.m32flag
-            self.vars['MPIF90'] = 'mpiifort %s' % self.m32flag
+            self.vars['MPICC'] = 'mpiicc%s' % self.m32flag
+            self.vars['MPICXX'] = 'mpiicpc%s' % self.m32flag
+            self.vars['MPIF77'] = 'mpiifort%s' % self.m32flag
+            self.vars['MPIF90'] = 'mpiifort%s' % self.m32flag
 
             if self.opts['usempi']:
                 for i in ['CC', 'CXX', 'F77', 'F90']:
@@ -701,10 +703,10 @@ class Toolkit:
 
         else:
             # other compilers (e.g. GCC) with Intel MPI
-            self.vars['MPICC'] = "mpicc -cc='%s %s' " % (self.vars['CC'], self.m32flag)
-            self.vars['MPICXX'] = "mpicxx -cxx='%s %s' " % (self.vars['CXX'], self.m32flag)
-            self.vars['MPIF77'] = "mpif77 -fc='%s %s' " % (self.vars['F77'], self.m32flag)
-            self.vars['MPIF90'] = "mpif90 -fc='%s %s' " % (self.vars['F90'], self.m32flag)
+            self.vars['MPICC'] = "mpicc -cc='%s%s'" % (self.vars['CC'], self.m32flag)
+            self.vars['MPICXX'] = "mpicxx -cxx='%s%s'" % (self.vars['CXX'], self.m32flag)
+            self.vars['MPIF77'] = "mpif77 -fc='%s%s'" % (self.vars['F77'], self.m32flag)
+            self.vars['MPIF90'] = "mpif90 -fc='%s%s'" % (self.vars['F90'], self.m32flag)
 
         impiroot = get_software_root('IMPI')
         if self.opts['32bit']:
@@ -764,10 +766,10 @@ class Toolkit:
         """
         if "vSMP" in get_software_version('MPICH2'):
             # ScaleMP MPICH specific
-            self.vars['MPICC'] = "mpicc -cc='%s %s'" % (self.vars['CC'], self.m32flag)
-            self.vars['MPICXX'] = "mpicxx -CC='%s %s'" % (self.vars['CXX'], self.m32flag)
-            self.vars['MPIF77'] = "mpif77 -fc='%s %s'" % (self.vars['F77'], self.m32flag)
-            self.vars['MPIF90'] = "mpif90 -f90='%s %s'" % (self.vars['F90'], self.m32flag)
+            self.vars['MPICC'] = "mpicc -cc='%s%s'" % (self.vars['CC'], self.m32flag)
+            self.vars['MPICXX'] = "mpicxx -CC='%s%s'" % (self.vars['CXX'], self.m32flag)
+            self.vars['MPIF77'] = "mpif77 -fc='%s%s'" % (self.vars['F77'], self.m32flag)
+            self.vars['MPIF90'] = "mpif90 -f90='%s%s'" % (self.vars['F90'], self.m32flag)
 
             if self.opts['cciscxx']:
                 self.vars['MPICXX'] = self.vars['MPICC']
@@ -788,10 +790,10 @@ class Toolkit:
         Prepare for 'simple' MPI libraries (e.g. MVAPICH2, OpenMPI)
         """
 
-        self.vars['MPICC'] = 'mpicc %s' % self.m32flag
-        self.vars['MPICXX'] = 'mpicxx %s' % self.m32flag
-        self.vars['MPIF77'] = 'mpif77 %s' % self.m32flag
-        self.vars['MPIF90'] = 'mpif90 %s' % self.m32flag
+        self.vars['MPICC'] = 'mpicc%s' % self.m32flag
+        self.vars['MPICXX'] = 'mpicxx%s' % self.m32flag
+        self.vars['MPIF77'] = 'mpif77%s' % self.m32flag
+        self.vars['MPIF90'] = 'mpif90%s' % self.m32flag
 
         if self.opts['cciscxx']:
             self.vars['MPICXX'] = self.vars['MPICC']
@@ -904,7 +906,8 @@ class Toolkit:
             if match:
                 return tk_type
 
-        self.log.error("Failed to determine %s based on toolkit dependencies." % name)
+        self.log.error("Failed to determine %s based on toolkit dependencies: %s" % (name,
+                                                                                     toolkit_dep_names))
 
     def comp_family(self):
         """Determine compiler family based on toolkit dependencies."""
@@ -957,10 +960,10 @@ class Toolkit:
         if mpi_type == INTEL:
 
             # set temporary dir for mdp
-            env.set('I_MPI_MPD_TMPDIR', "/tmp")
+            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
-            env.set('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
+            env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
 
             # create mpdboot file
             fn = "/tmp/mpdboot"

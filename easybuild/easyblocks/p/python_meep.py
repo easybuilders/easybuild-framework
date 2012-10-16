@@ -30,24 +30,24 @@ import os
 import shutil
 import tempfile
 
-from easybuild.framework.application import Application
-from easybuild.tools.filetools import run_cmd, unpack
+from easybuild.framework.easyblock import EasyBlock
+from easybuild.tools.filetools import run_cmd, extract_file
 from easybuild.tools.modules import get_software_root, get_software_version
 
 
-class EB_python_minus_meep(Application):
+class EB_python_minus_meep(EasyBlock):
     """
     Support for building and installing python-meep
     """
 
     def __init__(self, *args, **kwargs):
         """Initialize custom variables."""
-        Application.__init__(self, *args, **kwargs)
+        super(EB_python_minus_meep, self).__init__(*args, **kwargs)
 
         # template for Python packages lib dir
         self.pylibdir = os.path.join("lib", "python%s", "site-packages")
 
-    def configure(self):
+    def configure_step(self):
         """Just check whether dependencies (Meep, Python) are available."""
 
         # complete Python packages lib dir
@@ -60,7 +60,7 @@ class EB_python_minus_meep(Application):
             if not get_software_root(dep):
                 self.log.error("Module for %s not loaded." % dep)
 
-    def make(self):
+    def build_step(self):
         """Build python-meep using available make/make-mpi script."""
 
         # determine make script arguments
@@ -71,14 +71,14 @@ class EB_python_minus_meep(Application):
 
         # determine suffix for make script
         suff = ''
-        if self.toolkit().opts['usempi']:
+        if self.toolchain.opts['usempi']:
             suff = '-mpi'
 
         # run make script
         cmd = "./make%s -I%s,%s -L%s" % (suff, meepinc, numpyinc, meeplib)
         run_cmd(cmd, log_all=True, simple=True)
 
-    def make_install(self):
+    def install_step(self):
         """
         Install by unpacking tarball in dist directory,
         and copying site-packages dir to installdir.
@@ -86,10 +86,10 @@ class EB_python_minus_meep(Application):
 
         # locate tarball
         tarball = None
-        shortver = '.'.join(self.version().split('.')[0:2])
-        fn_pattern = os.path.join(self.getcfg('startfrom'),
+        shortver = '.'.join(self.version.split('.')[0:2])
+        fn_pattern = os.path.join(self.cfg['start_dir'],
                                   'dist',
-                                  "%s-%s.*.tar.gz" % (self.name(), shortver))
+                                  "%s-%s.*.tar.gz" % (self.name, shortver))
         matches = glob.glob(fn_pattern)
         if not matches:
             self.log.error("No tarball found at %s" % fn_pattern)
@@ -101,7 +101,7 @@ class EB_python_minus_meep(Application):
 
         # unpack tarball to temporary directory
         tmpdir = tempfile.mkdtemp()
-        srcdir = unpack(tarball, tmpdir)
+        srcdir = extract_file(tarball, tmpdir)
         if not srcdir:
             self.log.error("Unpacking tarball %s failed?" % tarball)
 
@@ -120,23 +120,21 @@ class EB_python_minus_meep(Application):
         except OSError, err:
             self.log.exception("Failed to copy directory %s to %s: %s" % (src, dest, err))
 
-    def sanitycheck(self):
+    def sanity_check_step(self):
 
-        if not self.getcfg('sanityCheckPaths'):
-            self.setcfg('sanityCheckPaths',{'files':["site-packages/meep_mpi.py"],
-                                            'dirs':[]
-                                           })
+        custom_paths = {
+                        'files':["site-packages/meep_mpi.py"],
+                        'dirs':[]
+                       }
 
-            self.log.info("Customized sanity check paths: %s"%self.getcfg('sanityCheckPaths'))
-
-        Application.sanitycheck(self)
+        super(EB_python_minus_meep, self).sanity_check_step(custom_paths=custom_paths)
 
     def make_module_extra(self):
         """Set python-meep specific environment variables in module."""
 
-        txt = Application.make_module_extra(self)
+        txt = super(EB_python_minus_meep, self).make_module_extra()
 
-        meep = os.getenv("SOFTROOTMEEP")
+        meep = get_software_root('Meep')
 
         txt += "setenv\tMEEP_INCLUDE\t\t%s/include\n" % meep
         txt += "setenv\tMEEP_LIB\t\t%s/lib\n" % meep
