@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -21,6 +26,7 @@
 """
 Set of file tools
 """
+import errno
 import os
 import re
 import shutil
@@ -29,27 +35,34 @@ import stat
 import subprocess
 import tempfile
 import time
+import urllib
 
-from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT, send_all, recv_some
-from easybuild.tools.build_log import getLog
+import easybuild.tools.environment as env
+from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
+from easybuild.tools.asyncprocess import send_all, recv_some
+from easybuild.tools.build_log import get_log
 
-log = getLog('fileTools')
+
+log = get_log('fileTools')
 errorsFoundInLog = 0
 
-def unpack(fn, dest, extra_options=None, overwrite=False):
+strictness = 'warn'
+
+
+def extract_file(fn, dest, extra_options=None, overwrite=False):
     """
-    Given filename fn, try to unpack in directory dest
+    Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
     if not os.path.isfile(fn):
-        log.error("Can't unpack file %s: no such file" % fn)
+        log.error("Can't extract file %s: no such file" % fn)
 
     if not os.path.isdir(dest):
         ## try to create it
         try:
             os.makedirs(dest)
         except OSError, err:
-            log.exception("Can't unpack file %s: directory %s can't be created: %err " % (fn, dest, err))
+            log.exception("Can't extract file %s: directory %s can't be created: %err " % (fn, dest, err))
 
     ## use absolute pathnames from now on
     absDest = os.path.abspath(dest)
@@ -61,27 +74,62 @@ def unpack(fn, dest, extra_options=None, overwrite=False):
     except OSError, err:
         log.error("Can't change to directory %s: %s" % (absDest, err))
 
-    cmd = extractCmd(fn, overwrite=overwrite)
+    cmd = extract_cmd(fn, overwrite=overwrite)
     if not cmd:
-        log.error("Can't unpack file %s with unknown filetype" % fn)
+        log.error("Can't extract file %s with unknown filetype" % fn)
 
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
     run_cmd(cmd, simple=True)
 
-    return findBaseDir()
+    return find_base_dir()
 
-def findBaseDir():
+def download_file(filename, url, path):
+
+    log.debug("Downloading %s from %s to %s" % (filename, url, path))
+
+    # make sure directory exists
+    basedir = os.path.dirname(path)
+    if not os.path.exists(basedir):
+        os.makedirs(basedir)
+
+    downloaded = False
+    attempt_cnt = 0
+
+    # try downloading three times max.
+    while not downloaded and attempt_cnt < 3:
+
+        (_, httpmsg) = urllib.urlretrieve(url, path)
+
+        if httpmsg.type == "text/html" and not filename.endswith('.html'):
+            log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
+            log.debug("removing downloaded file %s from %s" % (filename, path))
+            try:
+                os.remove(path)
+            except OSError, err:
+                log.error("Failed to remove downloaded file:" % err)
+        else:
+            log.info("Downloading file %s from url %s: done" % (filename, url))
+            downloaded = True
+            return path
+
+        attempt_cnt += 1
+        log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
+
+    # failed to download after multiple attempts
+    return None
+
+def find_base_dir():
     """
     Try to locate a possible new base directory
     - this is typically a single subdir, e.g. from untarring a tarball
-    - when unpacking multiple tarballs in the same directory, 
+    - when extracting multiple tarballs in the same directory,
       expect only the first one to give the correct path
     """
-    def getLocalDirsPurged():
-        ## e.g. always purge the easybuildlog directory
-        ignoreDirs = ['easybuildlog']
+    def get_local_dirs_purged():
+        ## e.g. always purge the log directory
+        ignoreDirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
         for ignDir in ignoreDirs:
@@ -89,7 +137,7 @@ def findBaseDir():
                 lst.remove(ignDir)
         return lst
 
-    lst = getLocalDirsPurged()
+    lst = get_local_dirs_purged()
     newDir = os.getcwd()
     while len(lst) == 1:
         newDir = os.path.join(os.getcwd(), lst[0])
@@ -100,15 +148,16 @@ def findBaseDir():
             os.chdir(newDir)
         except OSError, err:
             log.exception("Changing to dir %s from current dir %s failed: %s" % (newDir, os.getcwd(), err))
-        lst = getLocalDirsPurged()
+        lst = get_local_dirs_purged()
 
     log.debug("Last dir list %s" % lst)
     log.debug("Possible new dir %s found" % newDir)
     return newDir
 
-def extractCmd(fn, overwrite=False):
+
+def extract_cmd(fn, overwrite=False):
     """
-    Determines the file type of file fn, returns extract cmd 
+    Determines the file type of file fn, returns extract cmd
     - based on file suffix
     - better to use Python magic?
     """
@@ -129,7 +178,7 @@ def extractCmd(fn, overwrite=False):
         if ff[-2] == 'tar':
             ftype = 'tar xjf %s'
     if ff[-1] == 'tbz':
-        ftype = 'tar xfj %s'
+        ftype = 'tar xjf %s'
 
     # tarball
     if ff[-1] == 'tar':
@@ -147,7 +196,8 @@ def extractCmd(fn, overwrite=False):
 
     return ftype % fn
 
-def patch(patchFile, dest, fn=None, copy=False, level=None):
+
+def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
@@ -246,13 +296,26 @@ def patch(patchFile, dest, fn=None, copy=False, level=None):
 
     return result
 
-def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False):
+
+def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """
     Executes a command cmd
     - returns exitcode and stdout+stderr (mixed)
     - no input though stdin
+    - if log_ok or log_all are set -> will log.error if non-zero exit-code
+    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
+    - inp is the input given to the command
+    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
+    - if log_output is True -> all output of command will be logged to a tempfile
+    - path is the path run_cmd should chdir to before doing anything
     """
-    log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
+    try:
+        if path:
+            os.chdir(path)
+
+        log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
+    except:
+        log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
     ## Log command output
     if log_output:
@@ -290,7 +353,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     ec = p.poll()
     stdouterr = ''
     while ec < 0:
-        # need to read from time to time. 
+        # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         output = p.stdout.read(readSize)
         if runLog:
@@ -305,39 +368,33 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     # not needed anymore. subprocess does this correct?
     # ec=os.WEXITSTATUS(ec)
 
-    ## log: if ec > 0, dump to output
-    if ec and (log_all or log_ok):
-        log.error('run_cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-    if not ec:
-        if log_all:
-            log.info('run_cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-        else:
-            log.debug('run_cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-
     ## Command log output
     if log_output:
         runLog.close()
 
-    ## parse the stdout/stderr for errors?
-    if regexp:
-        parselogForError(stdouterr, regexp, msg="Command used: %s" % cmd)
+    return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
-    if simple:
-        if ec:
-            return False
-        else:
-            return True
-    else:
-        return (stdouterr, ec)
 
-def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None):
+def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """
     Executes a command cmd
-    - looks for questions and tries to answer 
+    - looks for questions and tries to answer based on qa dictionary
     - returns exitcode and stdout+stderr (mixed)
     - no input though stdin
+    - if log_ok or log_all are set -> will log.error if non-zero exit-code
+    - if simple is True -> instead of returning a tuple (output, ec) it will just return True or False signifying succes
+    - regexp -> Regex used to check the output for errors. If True will use default (see parselogForError)
+    - if log_output is True -> all output of command will be logged to a tempfile
+    - path is the path run_cmd should chdir to before doing anything
     """
-    log.debug("runQandA: running cmd %s (in %s)" % (cmd, os.getcwd()))
+    try:
+        if path:
+            os.chdir(path)
+
+        log.debug("runQandA: running cmd %s (in %s)" % (cmd, os.getcwd()))
+    except:
+        log.info("running cmd %s in non-existing directory, might fail!" % cmd)
+
 
     # SuSE hack
     # - profile is not resourced, and functions (e.g. module) is not inherited
@@ -354,18 +411,18 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Part 1: process the QandA dictionary
     # given initial set of Q and A (in dict), return dict of reg. exp. and A
     #
-    # make regular expression that matches the string with 
+    # make regular expression that matches the string with
     # - replace whitespace
     # - replace newline
 
-    def escapeSpecial(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\])" , r"\\\1", string)
+    def escape_special(string):
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])" , r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
 
-    def processQA(q, a):
-        splitq = [escapeSpecial(x) for x in regSplit.split(q)]
+    def process_QA(q, a):
+        splitq = [escape_special(x) for x in regSplit.split(q)]
         regQtxt = split.join(splitq) + split.rstrip('+') + "*$"
         ## add optional split at the end
         if not a.endswith('\n'):
@@ -379,7 +436,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     newQA = {}
     log.debug("newQA: ")
     for question, answer in qa.items():
-        (a, regQ) = processQA(question, answer)
+        (a, regQ) = process_QA(question, answer)
         newQA[regQ] = a
         log.debug("newqa[%s]: %s" % (regQ.pattern, a))
 
@@ -428,7 +485,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     hitCount = 0
 
     while ec < 0:
-        # need to read from time to time. 
+        # need to read from time to time.
         # - otherwise the stdout/stderr buffer gets filled and it all stops working
         try:
             tmpOut = recv_some(p)
@@ -503,31 +560,66 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # Not needed anymore. Subprocess does this correct?
     # ec=os.WEXITSTATUS(ec)
 
-    ## log: if ec > 0, dump to output
+    return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
+
+
+def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
+    """
+    will parse and perform error checks based on strictness setting
+    """
+    if strictness == 'ignore':
+        check_ec = False
+        use_regexp = False
+    elif strictness == 'warn':
+        check_ec = True
+        use_regexp = False
+    elif strictness == 'error':
+        check_ec = True
+        use_regexp = True
+    else:
+        log.error("invalid strictness setting: %s" % strictness)
+
+    # allow for overriding the regexp setting
+    if not regexp:
+        use_regexp = False
+
     if ec and (log_all or log_ok):
-        log.error('runqanda cmd "%s" exited with exitcode %s and output\n%s' % (cmd, ec, stdoutErr))
+        # We don't want to error if the user doesn't care
+        if check_ec:
+            log.error('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+        else:
+            log.warn('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+
     if not ec:
         if log_all:
-            log.info('runqanda cmd "%s" exited with exitcode %s and output\n%s' % (cmd, ec, stdoutErr))
+            log.info('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
         else:
-            log.debug('runqanda cmd "%s" exited with exitcode %s and output\n%s' % (cmd, ec, stdoutErr))
+            log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
 
-    ## parse the stdouterr?
-    if regexp:
-        parselogForError(stdoutErr, regexp, msg="Command used: %s" % cmd)
+    # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
+    if use_regexp or regexp:
+        res = parse_log_for_error(stdouterr, regexp, msg="Command used: %s" % cmd)
+        if len(res) > 0:
+            message = "Found %s errors in command output (output: %s)" % (len(res), ", ".join([r[0] for r in res]))
+            if use_regexp:
+                log.error(message)
+            else:
+                log.warn(message)
 
     if simple:
         if ec:
-            return False
+            # If the user does not care -> will return true
+            return not check_ec
         else:
             return True
     else:
-        return (stdoutErr, ec)
+        # Because we are not running in simple mode, we return the output and ec to the user
+        return (stdouterr, ec)
 
-def modifyEnv(old, new):
+
+def modify_env(old, new):
     """
     Compares 2 os.environ dumps. Adapts final environment.
-    - Assinging to os.environ doesn't seem to work, need to use os.putenv
     """
     oldKeys = old.keys()
     newKeys = new.keys()
@@ -537,12 +629,10 @@ def modifyEnv(old, new):
             ## hmm, smart checking with debug logging
             if not new[key] == old[key]:
                 log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
-                os.putenv(key, new[key])
-                os.environ[key] = new[key]
+                env.setvar(key, new[key])
         else:
             log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
-            os.putenv(key, new[key])
-            os.environ[key] = new[key]
+            env.setvar(key, new[key])
 
     for key in oldKeys:
         if not key in newKeys:
@@ -550,9 +640,8 @@ def modifyEnv(old, new):
             os.unsetenv(key)
             del os.environ[key]
 
-    return 'ok'
 
-def convertName(name, upper=False):
+def convert_name(name, upper=False):
     """
     Converts name so it can be used as variable name
     """
@@ -569,12 +658,13 @@ def convertName(name, upper=False):
     else:
         return name
 
-def parselogForError(txt, regExp=None, stdout=True, msg=None):
+
+def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """
     txt is multiline string.
     - in memory
     regExp is a one-line regular expression
-    - default 
+    - default
     """
     global errorsFoundInLog
 
@@ -604,28 +694,63 @@ def parselogForError(txt, regExp=None, stdout=True, msg=None):
 
     return res
 
-def recursiveChmod(path, permissionBits, add=True, onlyFiles=False):
-    """
-    Add or remove (if add is False) permissionBits from all files
-    and directories (if onlyFiles is False) in path
-    """
-    for root, dirs, files in os.walk(path):
-        paths = files
-        if not onlyFiles:
-            paths += dirs
 
-        for path in paths:
-            # Ignore errors while walking (for example caused by bad links)
-            try:
-                absEl = os.path.join(root, path)
-                perms = os.stat(absEl)[stat.ST_MODE]
+def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
+                       group_id=None, relative=True, ignore_errors=False):
+    """
+    Add or remove (if add is False) permissionBits from all files (if onlydirs is False)
+    and directories (if onlyfiles is False) in path
+    """
+
+    name = os.path.abspath(name)
+
+    if recursive:
+        log.info("Adjusting permissions recursively for %s" % name)
+        allpaths = [name]
+        for root, dirs, files in os.walk(name):
+            paths = []
+            if not onlydirs:
+                paths += files
+            if not onlyfiles:
+                paths += dirs
+
+            for path in paths:
+                allpaths.append(os.path.join(root, path))
+
+    else:
+        log.info("Adjusting permissions for %s" % name)
+        allpaths = [name]
+
+    failed_paths = []
+    for path in allpaths:
+
+        try:
+            if relative:
+
+                # relative permissions (add or remove)
+                perms = os.stat(path)[stat.ST_MODE]
 
                 if add:
-                    os.chmod(absEl, perms | permissionBits)
+                    os.chmod(path, perms | permissionBits)
                 else:
-                    os.chmod(absEl, perms & ~permissionBits)
-            except OSError, err:
-                log.debug("Failed to chmod %s (but ignoring it): %s" % (path, err))
+                    os.chmod(path, perms & ~permissionBits)
+
+            else:
+                # hard permissions bits (not relative)
+                os.chmod(path, permissionBits)
+
+            if group_id:
+                os.chown(path, -1, group_id)
+
+        except OSError, err:
+            if ignore_errors:
+                # ignore errors while adjusting permissions (for example caused by bad links)
+                log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
+            else:
+                failed_paths.append(path)
+
+    if failed_paths:
+        log.exception("Failed to chmod/chown several paths: %s (last error: %s)" % (failed_paths, err))
 
 def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
@@ -648,3 +773,172 @@ def patch_perl_script_autoflush(path):
 
     except IOError, err:
         log.error("Failed to patch Perl configure script: %s" % err)
+
+def mkdir(directory, parents=False):
+    """
+    Create a directory
+    Directory is the path to create
+    log is the logger to which to log debugging or error info.
+    
+    When parents is True then no error if directory already exists
+    and make parent directories as needed (cfr. mkdir -p)
+    """
+    if parents:
+        try:
+            os.makedirs(directory)
+            log.debug("Succesfully created directory %s and needed parents" % directory)
+        except OSError, err:
+            if err.errno == errno.EEXIST:
+                log.debug("Directory %s already exitst" % directory)
+            else:
+                log.error("Failed to create directory %s: %s" % (directory, err))
+    else:#not parrents
+        try:
+            os.mkdir(directory)
+            log.debug("Succesfully created directory %s" % directory)
+        except OSError, err:
+            if err.errno == errno.EEXIST:
+                log.warning("Directory %s already exitst" % directory)
+            else:
+                log.error("Failed to create directory %s: %s" % (directory, err))
+
+
+def copytree(src, dst, symlinks=False, ignore=None):
+    """
+    Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
+    and this code can be improved...
+    
+    Recursively copy a directory tree using copy2().
+
+    The destination directory must not already exist.
+    If exception(s) occur, an Error is raised with a list of reasons.
+
+    If the optional symlinks flag is true, symbolic links in the
+    source tree result in symbolic links in the destination tree; if
+    it is false, the contents of the files pointed to by symbolic
+    links are copied.
+
+    The optional ignore argument is a callable. If given, it
+    is called with the `src` parameter, which is the directory
+    being visited by copytree(), and `names` which is the list of
+    `src` contents, as returned by os.listdir():
+
+        callable(src, names) -> ignored_names
+
+    Since copytree() is called recursively, the callable will be
+    called once for each directory that is copied. It returns a
+    list of names relative to the `src` directory that should
+    not be copied.
+
+    XXX Consider this example code rather than the ultimate tool.
+
+    """
+    class Error(EnvironmentError):
+        pass
+    try:
+        WindowsError #@UndefinedVariable
+    except NameError:
+        WindowsError = None
+
+    names = os.listdir(src)
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+    log.debug("copytree: skipping copy of %s" % ignored_names)
+    os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
+        try:
+            if symlinks and os.path.islink(srcname):
+                linkto = os.readlink(srcname)
+                os.symlink(linkto, dstname)
+            elif os.path.isdir(srcname):
+                copytree(srcname, dstname, symlinks, ignore)
+            else:
+                # Will raise a SpecialFileError for unsupported file types
+                shutil.copy2(srcname, dstname)
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except Error, err:
+            errors.extend(err.args[0])
+        except EnvironmentError, why:
+            errors.append((srcname, dstname, str(why)))
+    try:
+        shutil.copystat(src, dst)
+    except OSError, why:
+        if WindowsError is not None and isinstance(why, WindowsError):
+            # Copying file access times may fail on Windows
+            pass
+        else:
+            errors.extend((src, dst, str(why)))
+    if errors:
+        raise Error, errors
+
+def encode_string(name):
+    """
+    This encoding function handles funky software names ad infinitum, like:
+      example: '0_foo+0x0x#-$__'
+      becomes: '0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'
+    The intention is to have a robust escaping mechanism for names like c++, C# et al
+
+    It has been inspired by the concepts seen at, but in lowercase style:
+    * http://fossies.org/dox/netcdf-4.2.1.1/escapes_8c_source.html
+    * http://celldesigner.org/help/CDH_Species_01.html
+    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
+    and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
+    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    For readability of >2 words, it is suggested to use _CamelCase_ style.
+    So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
+    valid software name; software "electron" in the original spelling anyone? ;-)
+
+    """
+
+    charmap = {
+               ' ': "_space_",
+               '!': "_exclamation_",
+               '"': "_quotation_",
+               '#': "_hash_",
+               '$': "_dollar_",
+               '%': "_percent_",
+               '&': "_ampersand_",
+               '(': "_leftparen_",
+               ')': "_rightparen_",
+               '*': "_asterisk_",
+               '+': "_plus_",
+               ',': "_comma_",
+               '-': "_minus_",
+               '.': "_period_",
+               '/': "_slash_",
+               ':': "_colon_",
+               ';': "_semicolon_",
+               '<': "_lessthan_",
+               '=': "_equals_",
+               '>': "_greaterthan_",
+               '?': "_question_",
+               '@': "_atsign_",
+               '[': "_leftbracket_",
+               '\'': "_apostrophe_",
+               '\\': "_backslash_",
+               ']': "_rightbracket_",
+               '^': "_circumflex_",
+               '_': "_underscore_",
+               '`': "_backquote_",
+               '{': "_leftcurly_",
+               '|': "_verticalbar_",
+               '}': "_rightcurly_",
+               '~': "_tilde_"
+              }
+
+    # do the character remapping, return same char by default
+    result = ''.join(map(lambda x: charmap.get(x, x), name))
+    return result
+
+def encode_class_name(name):
+    """return encoded version of class name"""
+    return "EB_" + encode_string(name)
+

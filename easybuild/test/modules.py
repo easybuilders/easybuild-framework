@@ -1,10 +1,5 @@
-#!/bin/bash
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -23,14 +18,29 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-version=`python -V 2>&1 | sed 's/^Python \([0-9]*\)\.\([0-9]*\).*/\1.\2/'`
 
-# See http://docs.python.org/using/cmdline.html#cmdoption-unittest-discover-m for -m support
+import easybuild.tools.modules as modules
+from unittest import TestCase, TestSuite
 
-# add EasyBuild top directory to PYTHONPATH
-export PYTHONPATH="`dirname $0`:$PYTHONPATH"
-if [[ "$version" = "2.4" ]]; then
-  python "`dirname $0`/easybuild/main.py" $@
-else
-  python -m easybuild.main $@
-fi
+
+class ModulesTest(TestCase):
+    """ small test for Modules """
+
+    def runTest(self):
+        """ test if we load one module it is in the loaded_modules """
+        testmods = modules.Modules()
+        ms = testmods.available('', None)
+        if len(ms) != 0:
+            import random
+            m = random.choice(ms)
+            testmods.add_module([m])
+            testmods.load()
+
+            tmp = {"name": m[0], "version": m[1]}
+            assert(tmp in testmods.loaded_modules())
+
+def suite():
+    """ returns all the testcases in this module """
+    return TestSuite([ModulesTest()])
+
+

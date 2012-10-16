@@ -1,5 +1,10 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -21,17 +26,24 @@
 """
 EasyBuild configuration (paths, preferences, etc.)
 """
+
 import os
+import tempfile
 
-from easybuild.tools.build_log import getLog
+from easybuild.tools.build_log import get_log
+import easybuild.tools.repository as repo
 
-log = getLog('config')
+
+log = get_log('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repositoryType', 'repositoryPath']
+requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH',
-    'installPath': 'EASYBUILDINSTALLPATH'
+    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
+    'installPath': 'EASYBUILDINSTALLPATH', # final install path
+    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
+    'configFile': 'EASYBUILDCONFIG', # path to the config file
+    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
 }
 
 def init(filename, **kwargs):
@@ -40,8 +52,8 @@ def init(filename, **kwargs):
     Variables are read in this order of preference: CLI option > environment > config file
     """
 
-    variables.update(readConfiguration(filename)) # config file
-    variables.update(readEnvironment(environmentVariables)) # environment
+    variables.update(read_configuration(filename)) # config file
+    variables.update(read_environment(environmentVariables)) # environment
     variables.update(kwargs) # CLI options
 
     def create_dir(dirtype, dirname):
@@ -72,13 +84,8 @@ def init(filename, **kwargs):
                     create_dir(key, d)
                     continue
 
-    if variables['repositoryType'] == 'fs' and not os.path.isdir(variables['repositoryPath']):
-        strs = ('repositoryPath', variables['repositoryPath'])
-        log.warn('The %s directory %s does not exist or does not have proper permissions' % strs)
-        create_dir('repositoryPath', variables['repositoryPath'])
-
     # update MODULEPATH if required
-    ebmodpath = os.path.join(installPath(typ='mod'), 'all')
+    ebmodpath = os.path.join(install_path(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
     if not modulepath or not ebmodpath in modulepath:
         if modulepath:
@@ -87,11 +94,14 @@ def init(filename, **kwargs):
             os.environ['MODULEPATH'] = ebmodpath
         log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
 
-def readConfiguration(filename):
+def read_configuration(filename):
     """
     Read variables from the config file
     """
-    fileVariables = {}
+    fileVariables = {'FileRepository': repo.FileRepository,
+                     'GitRepository': repo.GitRepository,
+                     'SvnRepository': repo.SvnRepository
+                    }
     try:
         execfile(filename, {}, fileVariables)
     except (IOError, SyntaxError), err:
@@ -99,10 +109,10 @@ def readConfiguration(filename):
 
     return fileVariables
 
-def readEnvironment(envVars, strict=False):
+def read_environment(envVars, strict=False):
     """
     Read variables from the environment
-        - strict=True enforces that all possible environment variables are found 
+        - strict=True enforces that all possible environment variables are found
     """
     result = {}
     for key in envVars.keys():
@@ -114,7 +124,7 @@ def readEnvironment(envVars, strict=False):
 
     return result
 
-def buildPath():
+def build_path():
     """
     Return the build path
     """
@@ -126,7 +136,7 @@ def source_path():
     """
     return variables['sourcePath']
 
-def installPath(typ=None):
+def install_path(typ=None):
     """
     Returns the install path
     - subdir 'software' for actual installation (default)
@@ -139,19 +149,19 @@ def installPath(typ=None):
 
     return os.path.join(variables['installPath'], suffix)
 
-def repositoryType():
+def get_repository():
     """
-    Return the repository type (e.g. fs, git, svn)
+    Return the repository (git, svn or file)
     """
-    return variables['repositoryType']
+    return variables['repository']
 
-def repositoryPath():
+def repository_path():
     """
     Return the repository path
     """
     return variables['repositoryPath']
 
-def logFormat():
+def log_format():
     """
     Return the log format
     """
@@ -160,8 +170,23 @@ def logFormat():
     else:
         return "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"
 
-def logPath():
+def log_path():
     """
     Return the log path
     """
     return variables['logFormat'][0]
+
+def get_build_log_path():
+    """
+    return temporary log directory
+    """
+    return variables.get('logDir', tempfile.gettempdir())
+
+def read_only_installdir():
+    """
+    Return whether installation dir should be fully read-only after installation.
+    """
+    # FIXME (see issue #123): add a config option to set this, should be True by default (?)
+    # this also needs to be checked when --force is used;
+    # install dir will have to (temporarily) be made writeable again for owner in that case
+    return False

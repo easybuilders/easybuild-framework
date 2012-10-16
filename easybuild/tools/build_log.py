@@ -1,5 +1,9 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -22,17 +26,18 @@
 EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
-from socket import gethostname
-from copy import copy
 import logging
 import os
 import sys
 import time
+from socket import gethostname
+from copy import copy
 
 import easybuild
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
+
 
 class EasyBuildError(Exception):
     """
@@ -44,6 +49,7 @@ class EasyBuildError(Exception):
     def __str__(self):
         return repr(self.msg)
 
+
 class EasyBuildLog(logging.Logger):
     """
     The EasyBuild logger, with its own error and exception functions.
@@ -53,7 +59,7 @@ class EasyBuildLog(logging.Logger):
     # necessary because logging.Logger.exception calls self.error
     raiseError = True
 
-    def callerInfo(self):
+    def caller_info(self):
         (filepath, line, function_name) = self.findCaller()
         filepath_dirs = filepath.split(os.path.sep)
 
@@ -65,14 +71,14 @@ class EasyBuildLog(logging.Logger):
         return "(at %s:%s in %s)" % (os.path.sep.join(filepath_dirs), line, function_name)
 
     def error(self, msg, *args, **kwargs):
-        newMsg = "EasyBuild crashed with an error %s: %s" % (self.callerInfo(), msg)
+        newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
         logging.Logger.error(self, newMsg, *args, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
     def exception(self, msg, *args):
         ## don't raise the exception from within error
-        newMsg = "EasyBuild encountered an exception %s: %s" % (self.callerInfo(), msg)
+        newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
         logging.Logger.exception(self, newMsg, *args)
@@ -80,16 +86,18 @@ class EasyBuildLog(logging.Logger):
 
         raise EasyBuildError(newMsg)
 
+
 # set format for logger
-loggingFormat = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
-formatter = logging.Formatter(loggingFormat)
+logging_format = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+formatter = logging.Formatter(logging_format)
 
 # redirect standard handler of root logger to /dev/null
-logging.basicConfig(level=logging.ERROR, format=loggingFormat, filename='/dev/null')
+# without this, everything is logged twice (one by root logger, once by descendant logger)
+logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
 
 logging.setLoggerClass(EasyBuildLog)
 
-def getLog(name=None):
+def get_log(name=None):
     """
     Generate logger object
     """
@@ -97,30 +105,35 @@ def getLog(name=None):
     log.info("Logger started for %s." % name)
     return log
 
-def removeLogHandler(hnd):
+def remove_log_handler(hnd):
     """
     Remove handler from root log
     """
     log = logging.getLogger()
     log.removeHandler(hnd)
 
-def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
+def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
     """
     Return filename of the log file being written
     - does not append
     - sets log handlers
     """
+
+    # obtain root logger
     log = logging.getLogger()
 
-    # set log level
+    # determine log level
     if debug:
         defaultLogLevel = logging.DEBUG
     else:
         defaultLogLevel = logging.INFO
 
+    # set log level for root logger
+    log.setLevel(defaultLogLevel)
+
     if (name and version) or filename:
         if not filename:
-            filename = logFilename(name, version)
+            filename = log_filename(name, version)
         hand = logging.FileHandler(filename)
     else:
         hand = logging.StreamHandler(sys.stdout)
@@ -128,6 +141,7 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
     hand.setFormatter(formatter)
     log.addHandler(hand)
 
+    # initialize our logger
     log = logging.getLogger(typ)
     log.setLevel(defaultLogLevel)
 
@@ -141,21 +155,21 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
 
     return filename, log, hand
 
-def logFilename(name, version):
+def log_filename(name, version):
     """
     Generate a filename to be used
     """
     # this can't be imported at the top, otherwise we'd have a cyclic dependency
-    from easybuild.tools.config import logFormat
+    from easybuild.tools.config import log_format, get_build_log_path
 
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = '/tmp/' + (logFormat() % {'name':name,
-                                         'version':version,
-                                         'date':date,
-                                         'time':timeStamp
-                                         })
+    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
+                                                                 'version':version,
+                                                                 'date':date,
+                                                                 'time':timeStamp
+                                                                 })
 
     # Append numbers if the log file already exist
     counter = 1
@@ -174,7 +188,7 @@ def print_msg(msg, log=None):
     print "%s %s" % (EB_MSG_PREFIX, msg)
 
 if __name__ == '__main__':
-    initLogger('test', '1.0.0')
-    fn, testlog, _ = initLogger(typ='build_log')
-    testlog.info('Testing buildLog...')
-    "Tested buildLog, see %s" % fn
+    init_logger('test', '1.0.0')
+    fn, testlog, _ = init_logger(typ='build_log')
+    testlog.info('Testing build_log...')
+    "Tested build_log, see %s" % fn
