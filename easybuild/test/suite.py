@@ -38,7 +38,10 @@ SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b]]
 
 try:
     import xmlrunner  # requires unittest-xml-reporting package
-    xmlrunner.XMLTestRunner(output='test-reports').run(SUITE)
+    res = xmlrunner.XMLTestRunner(output='test-reports').run(SUITE)
 except ImportError, err:
     sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
-    unittest.TextTestRunner().run(SUITE)
+    res = unittest.TextTestRunner().run(SUITE)
+
+if not res.wasSuccessful():
+    sys.exit(1)
