@@ -19,6 +19,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """ this module is a collection of all the testcases """
+import sys
 import unittest
 
 # toolkit should be first to allow hacks to work
@@ -34,4 +35,10 @@ import easybuild.test.easyblock as b
 
 # call suite() for each module and then run them all
 SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b]])
-unittest.TextTestRunner().run(SUITE)
+
+try:
+    import xmlrunner  # requires unittest-xml-reporting package
+    xmlrunner.XMLTestRunner(output='test-reports').run(SUITE)
+except ImportError, err:
+    sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
+    unittest.TextTestRunner().run(SUITE)
