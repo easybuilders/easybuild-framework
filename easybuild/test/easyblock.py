@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2012 Jens Timmerman
 # Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
@@ -31,34 +31,30 @@ import tempfile
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools import config
 from unittest import TestCase, TestSuite
-from easybuild.tools.build_log import EasyBuildError, init_logger
+from easybuild.tools.build_log import EasyBuildError
 import sys
-
-stdoutorig = sys.stdout
-
-log_fn = "/tmp/easybuild_easyconfig_tests.log"
-_, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_easyconfig_test")
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
 
-
-    def setUp(self):
+    def writeEC(self):
         """ create temporary easyconfig file """
-        self.eb_file = "/tmp/easyconfig_test_file.eb"
         f = open(self.eb_file, "w")
         f.write(self.contents)
         f.close()
-        config.variables['installPath'] = tempfile.gettempdir()
-        config.variables['buildPath'] = tempfile.gettempdir()
-        config.variables['logFormat'] = ("/dev/", "null")
-        sys.stdout = open("/dev/null", 'w')
+
+    def setUp(self):
+        """ setup """
+        self.eb_file = "/tmp/easyblock_test_file.eb"
+        self.writeEC()
+        config.variables['logDir'] = tempfile.mkdtemp()
+        self.cwd = os.getcwd()
 
     def tearDown(self):
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
-        sys.stdout.close()
-        sys.stdout = stdoutorig
+        shutil.rmtree(config.variables['logDir'])
+        os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """
@@ -98,8 +94,12 @@ exts_list = ['ext1']
 
     def runTest(self):
         """ make sure easyconfigs defining extensions work"""
+        stdoutorig = sys.stdout
+        sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(self.eb_file)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
+        sys.stdout.close()
+        sys.stdout = stdoutorig
 
 class TestExtensionsStep(EasyBlockTest):
     """Test extensions step"""
@@ -123,7 +123,7 @@ exts_list = ['ext1']
 
         # test if everything works fine if set
         self.contents += "exts_defaultclass = ['easybuild.framework.extension', 'Extension']"
-        self.setUp()
+        self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['installPath']
         eb.extensions_step()

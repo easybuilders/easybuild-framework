@@ -27,25 +27,25 @@ import tempfile
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
-from easybuild.tools.build_log import EasyBuildError, init_logger
+from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
-
-log_fn = "/tmp/easybuild_easyconfig_tests.log"
-_, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_easyconfig_test")
 
 class EasyConfigTest(TestCase):
     """ Baseclass for easyblock testcases """
 
     def setUp(self):
         """ create temporary easyconfig file """
+        self.log = get_log("EasyConfigTest")
         self.eb_file = "/tmp/easyconfig_test_file.eb"
         f = open(self.eb_file, "w")
         f.write(self.contents)
         f.close()
+        self.cwd = os.getcwd()
 
     def tearDown(self):
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
+        os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """
@@ -306,7 +306,7 @@ patches = %s
                   'toolchain_version': tcver,
                   'patches': extra_patches
                  }
-        tweak(self.eb_file, self.tweaked_fn, tweaks, log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
 
         eb = EasyConfig(self.tweaked_fn)
         self.assertEqual(eb['version'], ver)
@@ -327,7 +327,7 @@ patches = %s
                   'foo': "bar"
                  }
 
-        tweak(self.eb_file, self.tweaked_fn, tweaks, log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
 
         eb = EasyConfig(self.tweaked_fn)
         self.assertEqual(eb['toolchain']['name'], tcname)
@@ -426,11 +426,11 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, self.log)
 
         # should find matching easyconfig file
         specs = {'name': 'foo', 'version': '1.2.3'}
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], False)
         self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
 
@@ -444,7 +444,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'versionsuffix': suff
                      })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, self.log)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -454,7 +454,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': ver,
                       'foo': 'bar123'
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
@@ -471,7 +471,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
@@ -484,7 +484,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': '3.15',
                       'toolchain_version': '4.4.5',
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
@@ -502,7 +502,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'patches': extra_patches,
                       'dependencies': deps
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], specs['patches'] + patches)
@@ -511,15 +511,15 @@ class TestObtainEasyconfig(EasyConfigTest):
 
         # should use supplied filename
         fn = "my.eb"
-        res = obtain_ec_for(specs, self.ec_dir, fn, log)
+        res = obtain_ec_for(specs, self.ec_dir, fn, self.log)
         self.assertEqual(res[0], True)
         self.assertEqual(res[1], fn)
         os.remove(res[1])
 
         # should use a template if it's there
-        shutil.copy2(os.path.join("easybuild", "easyconfigs", "TEMPLATE.eb"), self.ec_dir)
+        shutil.copy2(os.path.join("easybuild", "test", "TEMPLATE.eb"), self.ec_dir)
         specs.update({'name': 'nosuchsoftware'})
-        res = obtain_ec_for(specs, self.ec_dir, None, log)
+        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['name'], specs['name'])

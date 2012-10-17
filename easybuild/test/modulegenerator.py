@@ -19,7 +19,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+import os
 from unittest import TestCase, TestSuite
+
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
 
@@ -29,8 +31,10 @@ class ModuleGeneratorTest(TestCase):
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-        self.modgen = ModuleGenerator(EasyBlock('easybuild/test/easyconfigs/gzip-1.4.eb'))
+        self.eb = EasyBlock('easybuild/test/easyconfigs/gzip-1.4.eb')
+        self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = "/tmp"
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ since we set the installdir above, we can predict the output """
@@ -77,6 +81,11 @@ prepend-path	key		$root/path2
 
         # test setEnvironment
         self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+
+    def tearDown(self):
+        """cleanup"""
+        os.remove(self.eb.logfile)
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

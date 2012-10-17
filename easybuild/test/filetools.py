@@ -29,6 +29,11 @@ class FileToolsTest(TestCase):
 
     def setUp(self):
         config.init('easybuild/easybuild_config.py')
+        self.cwd = os.getcwd()
+
+    def tearDown(self):
+        """cleanup"""
+        os.chdir(self.cwd)
 
     def runTest(self):
         """

@@ -74,6 +74,7 @@ class ToolkitTest(TestCase):
         self.tk_32bit = Toolkit("icc", "4.0.3-32bit")
         self.tk_64bit = Toolkit("GCC", "4.6.3")
         self.dummy_tk = Toolkit("dummy", "1.0")
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ check parsing and interaction with Modules """
@@ -125,6 +126,7 @@ class ToolkitTest(TestCase):
     def tearDown(self):
         """ reset Modules to its original """
         modules.Modules = OrigModules
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+import os
 from copy import deepcopy
 from unittest import TestCase, TestSuite
 
@@ -47,6 +48,7 @@ class RobotTest(TestCase):
         main.Modules = MockModule
 
         self.log = get_log("RobotTest")
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
@@ -89,6 +91,7 @@ class RobotTest(TestCase):
     def tearDown(self):
         """ reset the Modules back to its original """
         modules.Modules = orig_modules
+        os.chdir(self.cwd)
 
 
 def suite():
