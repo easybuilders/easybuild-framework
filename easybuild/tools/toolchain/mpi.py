@@ -48,8 +48,8 @@ class MPI(object):
     MPI_SHARED_OPTION_MAP = {
                              '_opt_MPICC': 'cc="%(CC_base)s"',
                              '_opt_MPICXX':'cxx="%(CXX_base)s"',
-                             '_opt_MPIF77':'fc="%(F77_base)s',
-                             '_opt_MPIF90':'f90="%(F90_base)s',
+                             '_opt_MPIF77':'fc="%(F77_base)s"',
+                             '_opt_MPIF90':'f90="%(F90_base)s"',
                              }
 
     MPI_COMPILER_MPICC = 'mpicc'

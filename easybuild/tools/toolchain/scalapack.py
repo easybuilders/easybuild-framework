@@ -231,7 +231,7 @@ class ScalableLinearAlgebraPackage(Toolchain):
         ## multi-threaded
         if self.SCALAPACK_LIB_MT is None:
             ## reuse BLAS variables
-            self.variables.join('LIBSCALAPACK_MT_ONLY', 'LIBSCALAPCK_ONLY')
+            self.variables.join('LIBSCALAPACK_MT_ONLY', 'LIBSCALAPACK_ONLY')
         else:
             self.SCALAPACK_LIB_MT = self.variables.nappend('LIBSCALAPACK_MT_ONLY',
                                                             [x % lib_map for x in self.SCALAPACK_LIB_MT])
@@ -372,7 +372,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
-        interfacemap = {INTEL:'intel',
+        interfacemap = {
+                        INTEL:'intel',
                         GCC:'gf',
                         }
         try:
@@ -416,7 +417,6 @@ class IntelMKL(ScalableLinearAlgebraPackage):
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
 
             self.BLAS_INCL_DIR = ['mkl/include']
-
 
         super(IntelMKL, self)._set_blas_variables()
 
@@ -496,8 +496,6 @@ if __name__ == '__main__':
 
     """
     TODO: fix
-    LIBSCALAPACK=-lscalapack -lblacsCinit -lblacsF77init -lblacs -lcblas -lf77blas -latlas -lgfortran
-    LIBSCALAPACK_MT=-lblacsCinit -lblacsF77init -lblacs -lptcblas -lptf77blas -latlas -lgfortran -lpthread
     SCALAPACK_MT_STATIC_LIBS=-lblacsCinit -lblacsF77init -lblacs,-lptcblas -lptf77blas -latlas,-lgfortran,-lpthread
     SCALAPACK_STATIC_LIBS=-lscalapack,-lblacsCinit -lblacsF77init -lblacs,-lcblas -lf77blas -latlas,-lgfortran
 

@@ -170,3 +170,9 @@ if __name__ == '__main__':
 
     itc.show_variables(offset=" "*4, verbose=False)
     gmtc.show_variables(offset=" "*4, verbose=False)
+
+    """
+    TODO
+    LIBSCALAPACK=-Wl,--start-group -Wl,-Bstatic -lmkl_scalapack_lp64 -lmkl_solver_lp64_sequential -Wl,--end-group -Wl,-Bdynamic -lmkl_blacs_intelmpi_\
+lp64 -Wl,--start-group -Wl,-Bstatic -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -Wl,-Bdynamic
+    """

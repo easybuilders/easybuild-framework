@@ -272,7 +272,10 @@ class ListOfLists(list):
     """List of lists"""
     DEFAULT_CLASS = StrList
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
-    PROTECTED_INSTANCES = [AbsPathList, LibraryList]
+    #PROTECTED_INSTANCES = [AbsPathList, LibraryList]
+    PROTECTED_INSTANCES = []
+    PROTECT_CLASS_SELF = True ## don't convert values that are same class as DEFAULT_CLASS
+    PROTECT_INSTANCE_SELF = True ## don't convert values that are instance of DEFAULT_CLASS
 
     SEPARATOR = None
 
@@ -284,6 +287,16 @@ class ListOfLists(list):
         super(ListOfLists, self).__init__(*args, **kwargs)
         self.log = getLogger(self.__class__.__name__)
         self._first = None
+
+
+        self.protected_classes = self.PROTECTED_CLASSES[:]
+        if self.PROTECT_CLASS_SELF:
+            if not self.DEFAULT_CLASS in self.protected_classes:
+                self.protected_classes.append(self.DEFAULT_CLASS)
+        self.protected_instances = self.PROTECTED_INSTANCES[:]
+        if self.PROTECT_INSTANCE_SELF:
+            if not self.DEFAULT_CLASS in self.protected_instances:
+                self.protected_instances.append(self.DEFAULT_CLASS)
 
     def append_empty(self):
         """Initialise MAP_CLASS instance"""
@@ -310,9 +323,12 @@ class ListOfLists(list):
     def _is_protected(self, value):
         """Check if value is protected from conversion to default class"""
         res = False
-        if type(value) in self.PROTECTED_CLASSES:
+
+        if type(value) in self.protected_classes:
+            self.log.debug("_is_protected: %s value %s (%s)" % (self.protected_classes, value, type(value)))
             res = True
-        elif isinstance(value, tuple(self.PROTECTED_INSTANCES)):
+        elif isinstance(value, tuple(self.protected_instances)):
+            self.log.debug("_is_protected: %s value %s (%s)" % (self.protected_instances, value, type(value)))
             res = True
 
         self.log.debug("_is_protected: %s value %s (%s)" % (res, value, value.__repr__()))
