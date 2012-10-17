@@ -721,6 +721,12 @@ class EasyBlock(object):
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
+        # clean up
+        try:
+            shutil.rmtree(os.path.dirname(mod_path))
+        except OSError, err:
+            self.log.error("Failed to clean up fake module dir: %s" % err)
+
     #
     # EXTENSIONS UTILITY FUNCTIONS
     #
@@ -1095,11 +1101,20 @@ class EasyBlock(object):
                 self.log.debug("Adding %s to MODULEPATH" % modpath)
                 m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
+
             if m.exists(self.name, self.get_installversion()):
                 m.add_module([[self.name, self.get_installversion()]])
                 m.load()
             else:
                 self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
+
+        if not self.skip:
+            try:
+                fakemoddir = os.path.dirname(modpath)
+                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+                shutil.rmtree(fakemoddir)
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
         self.prepare_for_extensions()
 
@@ -1132,8 +1147,8 @@ class EasyBlock(object):
                 if defaultClass:
                     self.log.info("No class found for %s, using default %s instead." % (ext['name'], defaultClass))
                     try:
-                        exec("from %s import %s" % (allclassmodule, defaultClass))
-                        exec("p=%s(self,ext,exts_installdeps)" % defaultClass)
+                        cls = get_class_for(allclassmodule, defaultClass)
+                        p = cls(self, ext, exts_installdeps)
                         self.log.debug("Installing extension %s through default class %s" % (ext['name'], defaultClass))
                     except (ImportError, NameError), errbis:
                         self.log.error("Failed to use both class %s and default %s for extension %s, giving up:\n%s\n%s" % (name, defaultClass, ext['name'], err, errbis))
