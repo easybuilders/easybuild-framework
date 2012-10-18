@@ -19,6 +19,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
+import sys
 
 from unittest import TestCase, TestSuite
 import easybuild.tools.config as config
@@ -28,7 +29,16 @@ class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
     def setUp(self):
-        config.init('easybuild/easybuild_config.py')
+        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
+        cfg_full_path = None
+        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
+            tmp_path = os.path.join(path, cfg_path)
+            if os.path.exists(tmp_path):
+                cfg_full_path = tmp_path
+                break
+        self.assertTrue(cfg_full_path)
+        
+        config.init(cfg_full_path)
         self.cwd = os.getcwd()
 
     def tearDown(self):
