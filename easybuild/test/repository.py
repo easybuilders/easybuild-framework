@@ -18,6 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+import os
 import shutil
 from unittest import TestCase, TestSuite
 
@@ -31,6 +32,7 @@ class RepositoryTest(TestCase):
         """ make sure temporary path does not exist """
         self.path = '/tmp/tmp-easybuild-repo'
         shutil.rmtree(self.path, True)
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ after initialization it should be the working copy """
@@ -40,6 +42,7 @@ class RepositoryTest(TestCase):
     def tearDown(self):
         """ clean up after myself """
         shutil.rmtree(self.path, True)
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

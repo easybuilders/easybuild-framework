@@ -32,7 +32,7 @@ import os
 import sys
 
 VERSION = LooseVersion("0.9")
-
+UNKNOWN = "UNKNOWN"
 
 def get_git_revision():
     """
@@ -44,12 +44,16 @@ def get_git_revision():
     try:
         import git
     except ImportError:
-        return "UNKNOWN"
+        return UNKNOWN
     try:
         path = os.path.dirname(__file__)
         gitrepo = git.Git(path)
         return gitrepo.rev_list("HEAD").splitlines()[0]
     except git.GitCommandError:
-        return "UNKNOWN"
+        return UNKNOWN
 
-VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
+git_rev = get_git_revision()
+if git_rev == UNKNOWN:
+    VERBOSE_VERSION = VERSION
+else:
+    VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
