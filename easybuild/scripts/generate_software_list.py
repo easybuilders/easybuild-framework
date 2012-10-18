@@ -22,6 +22,10 @@
 """
 This script will try to generate a list of supported software packages
 by walking over a directory of easyconfig files and parsing them all
+
+Sine this script will actually parse all easyconfigs and easyblocks
+it will only produce a list of Packages that can actually be handled
+correctly by easybuild.
 """
 import os
 import sys
@@ -33,6 +37,7 @@ sys.path.append('.')
 sys.path.append('..')
 
 from easybuild.framework.easyconfig import EasyConfig
+from easybuild.framework import easyblock
 from vsc import fancylogger
 
 # parse options
@@ -40,6 +45,10 @@ parser = OptionParser()
 parser.add_option("-v", "--verbose", action="count", dest="verbose", help="Be more verbose, can be used multiple times")
 
 options, args = parser.parse_args()
+
+if len(args) < 2:
+    print "Usage: %s [-v [-v [-v [-v]]]] easyconfigs_dir easyblocks_dir"
+
 # get and configure logger
 log = fancylogger.getLogger(__name__)
 if options.verbose >= 1:
@@ -48,7 +57,8 @@ if options.verbose >= 2:
     fancylogger.setLogLevelInfo()
 if options.verbose >= 3:
     fancylogger.setLogLevelDebug()
-log.info('starting parsing from %s' % sys.argv[1])
+log.info('parsing easyconfigs from %s' % args[0])
+log.info('parsing easyblocks from %s' % args[1])
 
 configs = []
 names = []
@@ -65,6 +75,12 @@ for root, subfolders, files in os.walk(sys.argv[1]):
             log.info("found valid easyconfig %s" % ec) 
             if not ec.name in names:
                 log.info("found new software package %s" % ec)
+                # check if an easyblock exists
+                module = easyblock.get_class(None, log, name=ec.name).__module__.split('.')[-1]
+                if module != "configuremake":
+                    ec.easyblock = module
+                else:
+                    ec.easyblock = None
                 configs.append(ec)
                 names.append(ec.name)
         except Exception, e:
@@ -79,8 +95,10 @@ configs = sorted(configs, key=lambda config : config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki
-print "Click on the ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) " 
+print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) " 
 print "to see to the list of easyconfig files."
+print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
+print "to go to the easyblock for this package." 
 print "## Supported Packages (%d as of %s) " % (len(configs), date.today().isoformat()) 
 
 for config in configs: 
@@ -88,9 +106,12 @@ for config in configs:
         firstl = config.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
         print "\n### %s (%d)\n" % (firstl.upper(), len([x for x in configs if x.name[0].lower() == firstl]))
-    #TODO: add a link to the easyblock if there is one available.
-    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] " \
-          "(https://github.com/hpcugent/easybuild-easyconfigs/tree/develop/easybuild/easyconfigs/%s/%s)" \
-          "[ %s](%s)" % \
-          (firstl, config.name, config.name, config['homepage'])
+    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] " 
+    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/develop/easybuild/easyconfigs/%s/%s)" % (firstl, config.name)
+    if config.easyblock:
+        print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
+        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/develop/easybuild/easyblocks/%s/%s.py)" % (firstl, config.easyblock)
+    else:
+        print "&nbsp;&nbsp;&nbsp;&nbsp;"
+    print "[ %s](%s)" % (config.name, config['homepage'])
 

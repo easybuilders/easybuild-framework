@@ -30,6 +30,10 @@ appended by the git commit id in VERBOSE_VERSION.
 from distutils.version import LooseVersion
 import os
 import sys
+from pkgutil import extend_path
+
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)
 
 VERSION = LooseVersion("0.9")
 
