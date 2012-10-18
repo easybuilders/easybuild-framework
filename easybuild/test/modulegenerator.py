@@ -20,6 +20,7 @@
 ##
 
 import os
+import sys
 from unittest import TestCase, TestSuite
 
 from easybuild.tools.module_generator import ModuleGenerator
@@ -31,7 +32,18 @@ class ModuleGeneratorTest(TestCase):
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-        self.eb = EasyBlock('easybuild/test/easyconfigs/gzip-1.4.eb')
+
+        # find .eb file
+        eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
+        eb_full_path = None
+        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
+            tmp_path = os.path.join(path, eb_path)
+            if os.path.exists(tmp_path):
+                eb_full_path = tmp_path
+                break
+        self.assertTrue(eb_full_path)
+            
+        self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = "/tmp"
         self.cwd = os.getcwd()
