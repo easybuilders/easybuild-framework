@@ -113,5 +113,8 @@ for config in configs:
         print " (https://github.com/hpcugent/easybuild-easyblocks/tree/develop/easybuild/easyblocks/%s/%s.py)" % (firstl, config.easyblock)
     else:
         print "&nbsp;&nbsp;&nbsp;&nbsp;"
-    print "[ %s](%s)" % (config.name, config['homepage'])
+    if config['homepage'] != "(none)":
+        print "[ %s](%s)" % (config.name, config['homepage'])
+    else:
+        print config.name
 
