@@ -22,7 +22,7 @@
 Toolchain specific variables
 """
 
-from easybuild.tools.variables import Variables, ListOfLists, CommaStaticLibs, AbsPathList, FlagList, LibraryList
+from easybuild.tools.variables import Variables, CommaStaticLibs, AbsPathList, LinkerFlagList, FlagList, LibraryList
 from easybuild.tools.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, join_map_class
 
 
@@ -35,7 +35,7 @@ COMPILER_VARIABLES = [
 
 COMPILER_MAP_CLASS = {
                       FlagList: [
-                                 ('OPTFLAGS', 'Optimisation flags'),
+                                 ('OPTFLAGS', 'Optimization flags'),
                                  ('PRECFLAGS', 'FP precision flags'),
                                  ('CFLAGS', 'C compiler flags'),
                                  ('CXXFLAGS', 'C++ compiler flags'),
@@ -179,3 +179,36 @@ class ToolchainVariables(Variables):
     """
     MAP_CLASS = join_map_class(*ALL_MAP_CLASSES) ## join_map_class strips explanation
     DEFAULT_CLASS = FlagList
+    LINKER_TOGGLE_START_STOP_GROUP = None
+    LINKER_TOGGLE_STATIC_DYNAMIC = None
+
+    def add_begin_end_linkerflags(self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False):
+        """
+        For given lib
+            if toggle_startstopgroup: toggle begin/end group
+            if toggle_staticdynamic: toggle static/dynamic
+        """
+        class LFL(LinkerFlagList):
+            LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
+            LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+
+        def make_lfl(begin=True):
+            """make linkerflaglist for begin/end of library"""
+            lfl = LFL()
+            if toggle_startstopgroup:
+                if begin:
+                    lfl.toggle_startgroup()
+                else:
+                    lfl.toggle_stopgroup()
+            if toggle_staticdynamic:
+                if begin:
+                    lfl.toggle_static()
+                else:
+                    lfl.toggle_dynamic()
+            return lfl
+
+        lib.BEGIN = make_lfl(True)
+        lib.BEGIN.IS_BEGIN = True
+        lib.END = make_lfl(False)
+        lib.END.IS_END = True
+

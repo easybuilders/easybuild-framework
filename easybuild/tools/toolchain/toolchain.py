@@ -30,7 +30,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.variables import ToolchainVariables
-import sys
+from easybuild.tools.variables import LibraryList
 
 class Toolchain(object):
     """General toolchain class"""
@@ -89,11 +89,18 @@ class Toolchain(object):
 
         if not hasattr(self, 'variables'):
             self.variables = self.VARIABLES_CLASS()
+            if hasattr(self, 'LINKER_TOGGLE_START_STOP_GROUP'):
+                self.variables.LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
+            if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
+                self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
             Needs to be defined for super() relations
         """
+        if self.options.option('packed-linker-options'):
+            self.log.debug("set_variables: toolchain variables. packed-linker-options.")
+            self.variables.try_function_el('set_packed_linker_options')
         self.log.debug("set_variables: toolchain variables. Do nothing.")
 
     def generate_vars(self):

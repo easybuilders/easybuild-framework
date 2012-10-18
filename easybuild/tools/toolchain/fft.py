@@ -44,8 +44,8 @@ class FFT(Toolchain):
 
 
         fft_libs = self.variables.nappend('LIBFFT', self.FFT_LIB)
-        self.add_begin_end_linkerflags(fft_libs, toggle_startstopgroup=self.FFT_LIB_GROUP,
-                                       toggle_staticdynamic=self.FFT_LIB_STATIC)
+        self.variables.add_begin_end_linkerflags(fft_libs, toggle_startstopgroup=self.FFT_LIB_GROUP,
+                                                 toggle_staticdynamic=self.FFT_LIB_STATIC)
 
         self.variables.append_exists('FFT_LIB_DIR', root, self.FFT_LIB_DIR)
         self.variables.append_exists('FFT_INC_DIR', root, self.FFT_INCLUDE_DIR)
@@ -144,6 +144,7 @@ if __name__ == '__main__':
     os.environ.setdefault('EBVERSIONIMKL', '10.1.0.0')
     itc = ITC()
     itc.options['usempi'] = True
+    itc.options['packed-linker-options'] = True
     itc.set_variables()
     itc.generate_vars()
 #    print 'ITC', 'options', itc.options

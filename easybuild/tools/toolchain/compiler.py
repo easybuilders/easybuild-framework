@@ -62,6 +62,7 @@ class Compiler(Toolchain):
                             'static': (False, "Build static library"),
                             '32bit':(False, "Compile 32bit target"), ## LA, FFTW
                             'openmp':(False, "Enable OpenMP"),
+                            'packed-linker-options':(False, "Pack the linker options as comma separated list"), ## ScaLAPACK mainly
                             }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -203,34 +204,6 @@ class Compiler(Toolchain):
 
         if self.options.map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
-
-    def add_begin_end_linkerflags(self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False):
-        """
-        For given lib
-            if toggle_startstopgroup: toggle begin/end group
-            if toggle_staticdynamic: toggle static/dynamic
-        """
-        class LFL(LinkerFlagList):
-            LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
-            LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
-
-        def make_lfl(begin=True):
-            """make linkerflaglist for begin/end of library"""
-            lfl = LFL()
-            if toggle_startstopgroup:
-                if begin:
-                    lfl.toggle_startgroup()
-                else:
-                    lfl.toggle_stopgroup()
-            if toggle_staticdynamic:
-                if begin:
-                    lfl.toggle_static()
-                else:
-                    lfl.toggle_dynamic()
-            return lfl
-
-        lib.BEGIN = make_lfl(True)
-        lib.END = make_lfl(False)
 
 
 class Dummy(Compiler):

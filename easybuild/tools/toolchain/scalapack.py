@@ -45,6 +45,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
     LAPACK_MODULE_NAME = None
     LAPACK_LIB = None
     LAPACK_LIB_MT = None
+    LAPACK_LIB_STATIC = False
+    LAPACK_LIB_GROUP = False
     LAPACK_LIB_DIR = ['lib']
     LAPACK_INCLUDE_DIR = ['include']
 
@@ -52,7 +54,10 @@ class ScalableLinearAlgebraPackage(Toolchain):
     BLACS_LIB_DIR = ['lib']
     BLACS_INCLUDE_DIR = ['include']
     BLACS_LIB = None
+    BLACS_LIB_MAP = None
     BLACS_LIB_MT = None
+    BLACS_LIB_STATIC = False
+    BLACS_LIB_GROUP = False
 
     SCALAPACK_MODULE_NAME = None
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBLAPACK', 'LIBBLAS']
@@ -96,9 +101,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
             self.log.raiseException("_set_blas_variables: BLAS_LIB not set")
 
         self.BLAS_LIB = self.variables.nappend('LIBBLAS', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB])
-
-        self.add_begin_end_linkerflags(self.BLAS_LIB, toggle_startstopgroup=self.BLAS_LIB_GROUP,
-                                       toggle_staticdynamic=self.BLAS_LIB_STATIC)
+        self.variables.add_begin_end_linkerflags(self.BLAS_LIB, toggle_startstopgroup=self.BLAS_LIB_GROUP,
+                                                 toggle_staticdynamic=self.BLAS_LIB_STATIC)
         if 'FLIBS' in self.variables:
             self.variables.join('LIBBLAS', 'FLIBS')
 
@@ -108,8 +112,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
             self.variables.join('LIBBLAS_MT', 'LIBBLAS')
         else:
             self.BLAS_LIB_MT = self.variables.nappend('LIBBLAS_MT', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT])
-            self.add_begin_end_linkerflags(self.BLAS_LIB_MT, toggle_startstopgroup=self.BLAS_LIB_GROUP,
-                                           toggle_staticdynamic=self.BLAS_LIB_STATIC)
+            self.variables.add_begin_end_linkerflags(self.BLAS_LIB_MT, toggle_startstopgroup=self.BLAS_LIB_GROUP,
+                                                     toggle_staticdynamic=self.BLAS_LIB_STATIC)
             if 'FLIBS' in self.variables:
                 self.variables.join('LIBBLAS_MT', 'FLIBS')
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
@@ -143,11 +147,15 @@ class ScalableLinearAlgebraPackage(Toolchain):
         else:
             if self.LAPACK_LIB is None:
                 self.log.raiseException("_set_lapack_variables: LAPACK_LIB not set")
-            self.variables.nappend('LIBLAPACK_ONLY', self.LAPACK_LIB)
+            self.LAPACK_LIB = self.variables.nappend('LIBLAPACK_ONLY', self.LAPACK_LIB)
+            self.variables.add_begin_end_linkerflags(self.LAPACK_LIB, toggle_startstopgroup=self.LAPACK_LIB_GROUP,
+                                                     toggle_staticdynamic=self.LAPACK_LIB_STATIC)
 
             if self.LAPACK_LIB_MT is None:
                 ## reuse LAPACK variables
-                self.variables.join('LIBBLAS_MT_ONLY', 'LIBLAPACK_ONLY')
+                self.LAPACK_LIB_MT = self.variables.join('LIBBLAS_MT_ONLY', 'LIBLAPACK_ONLY')
+                self.variables.add_begin_end_linkerflags(self.LAPACK_LIB_MT, toggle_startstopgroup=self.LAPACK_LIB_GROUP,
+                                                         toggle_staticdynamic=self.LAPACK_LIB_STATIC)
             else:
                 self.variables.nappend('LIBLAPACK_MT_ONLY', self.LAPACK_LIB_MT)
                 if getattr(self, 'LIB_MULTITHREAD', None) is not None:
@@ -188,14 +196,17 @@ class ScalableLinearAlgebraPackage(Toolchain):
         if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
             lib_map.update(self.BLACS_LIB_MAP)
 
-        self.BLACS_LIB = [x % lib_map for x in self.BLACS_LIB]
 
         ## BLACS
-        self.variables.nappend('LIBBLACS', self.BLACS_LIB)
+        self.BLACS_LIB = self.variables.nappend('LIBBLACS', [x % lib_map for x in self.BLACS_LIB])
+        self.variables.add_begin_end_linkerflags(self.BLACS_LIB, toggle_startstopgroup=self.BLACS_LIB_GROUP,
+                                                 toggle_staticdynamic=self.BLACS_LIB_STATIC)
         if self.BLACS_LIB_MT is None:
             self.variables.join('LIBBLACS_MT', 'LIBBLACS')
         else:
             self.log.raiseException("_set_blacs_variables: setting LIBBLACS_MT from self.BLACS_LIB_MT not implemented")
+#            self.add_begin_end_linkerflags(self.BLACS_LIB_MT, toggle_startstopgroup=self.BLACS_LIB_GROUP,
+#                                           toggle_staticdynamic=self.BLACS_LIB_STATIC)
 
         root = self.get_software_root(self.BLACS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
@@ -222,8 +233,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
             lib_map.update(self.SCALAPACK_LIB_MAP)
 
         self.SCALAPACK_LIB = self.variables.nappend('LIBSCALAPACK_ONLY', [x % lib_map for x in self.SCALAPACK_LIB])
-        self.add_begin_end_linkerflags(self.SCALAPACK_LIB, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
-                                       toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
+        self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
+                                                 toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
 
         if 'FLIBS' in self.variables:
             self.variables.join('LIBSCALAPACK_ONLY', 'FLIBS')
@@ -235,8 +246,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
         else:
             self.SCALAPACK_LIB_MT = self.variables.nappend('LIBSCALAPACK_MT_ONLY',
                                                             [x % lib_map for x in self.SCALAPACK_LIB_MT])
-            self.add_begin_end_linkerflags(self.SCALAPACK_LIB_MT, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
-                                           toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
+            self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB_MT, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
+                                                     toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
 
             if 'FLIBS' in self.variables:
                 self.variables.join('LIBSCALAPACK_MT_ONLY', 'FLIBS')
@@ -361,6 +372,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
     BLACS_MODULE_NAME = ['imkl']
     BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]
     BLACS_LIB_MAP = {'mpi':None}
+    BLACS_LIB_GROUP = True
+    BLACS_LIB_STATIC = True
 
     SCALAPACK_MODULE_NAME = ['imkl']
     SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s", "mkl_solver%(lp64)s_sequential"]

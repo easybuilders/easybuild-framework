@@ -102,6 +102,7 @@ class StrList(list):
     POSITION = 0 # when sorting in list of list: < 0 -> left; > 0 : right
     SANITIZE_REMOVE_DUPLICATE_KEEP = None  ## used with ListOfList
 
+    JOIN_BEGIN_END = False
 
     def __init__(self, *args , **kwargs):
         super(StrList, self).__init__(*args, **kwargs)
@@ -120,8 +121,12 @@ class StrList(list):
         """Main part of __str__"""
         return [self.str_convert(x) for x in self if self._str_ok(x)]
 
+    def sanitize(self):
+        """Sanitize self"""
+
     def __str__(self):
         """_str_self and support for BEGIN/END"""
+        self.sanitize()
         xs = [self.BEGIN] + self._str_self() + [self.END]
         return str(self.SEPARATOR).join([str(x) for x in xs if self._str_ok(x)])
 
@@ -168,6 +173,16 @@ class LibraryList(StrList):
 
     SANITIZE_REMOVE_DUPLICATE_KEEP = -1  ##  sanitize from end
 
+    JOIN_BEGIN_END = True
+
+    def set_packed_linker_options(self):
+        """Use packed linker options format"""
+        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.BEGIN, LinkerFlagList):
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+            self.BEGIN.PACKED_LINKER_OPTIONS = True
+            self.END.PACKED_LINKER_OPTIONS = True
+
+            self.SEPARATOR = ','
 
 class CommaStaticLibs(LibraryList):
     """Comma-separated list"""
@@ -178,36 +193,56 @@ class CommaStaticLibs(LibraryList):
 
 class LinkerFlagList(StrList):
     """Linker flags"""
+
     PREFIX = '-Wl,'
 
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
 
-    def _toggle_map(self, toggle_map, name, descr):
+    PACKED_LINKER_OPTIONS = None
+
+    IS_BEGIN = None
+    IS_END = None
+
+    def _toggle_map(self, toggle_map, name, descr, idx=None):
         """Append value from toggle_map. Raise if not None and name not found
             descr string to add to raise
         """
         if toggle_map is not None:
             if name in toggle_map:
-                self.append(toggle_map[name])
+                if idx is None:
+                    self.append(toggle_map[name])
+                else:
+                    self.insert(idx, toggle_map[name])
             else:
                 self.log.raiseException("%s name %s not found in map %s" % (descr, name, toggle_map))
 
     def toggle_startgroup(self):
         """Append start group"""
-        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'start', 'toggle_startgroup')
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'start', 'toggle_startgroup', idx=None)
 
     def toggle_stopgroup(self):
         """Append stop group"""
-        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'stop', 'toggle_stopgroup')
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'stop', 'toggle_stopgroup', idx=0)
 
     def toggle_static(self):
         """Append static linking flags"""
-        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'static', 'toggle_static')
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'static', 'toggle_static', idx=0)
 
     def toggle_dynamic(self):
         """Append dynamic linking flags"""
-        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic')
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
+
+    def sanitize(self):
+        if self.PACKED_LINKER_OPTIONS:
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+            self.SEPARATOR = ','
+            if self.IS_BEGIN:
+                self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
+            self.PREFIX = None
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s" % (self.IS_BEGIN, self.PREFIX, self.BEGIN))
+
+        super(LinkerFlagList, self).sanitize()
 
 
 class AbsPathList(StrList):
@@ -282,6 +317,8 @@ class ListOfLists(list):
     SANITIZE_SORT = True
     SANITIZE_REMOVE_DUPLICATE = False
     SANITIZE_REMOVE_DUPLICATE_KEEP = None
+
+    JOIN_BEGIN_END = False #
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
@@ -438,6 +475,21 @@ class ListOfLists(list):
             for idx in to_remove:
                 del self[idx]
 
+        if self.JOIN_BEGIN_END:
+            ## group elements with same begin/end into one element
+            to_remove = []
+            for idx in range(1, len(self))[::-1]: # work in reversed order;don't check last one (ie real el 0), it has no next element
+                if self[idx].BEGIN is None or self[idx].END is None: continue
+                self.log.debug("idx %s len %s" % (idx, len(self)))
+                if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:  # do check POSITION, sorting already done
+                    self.log.debug("sanitize: JOIN_BEGIN_END idx %s joining %s and %s" % (idx, self[idx], self[idx - 1]))
+                    self[idx - 1].extend(self[idx])
+                    to_remove.append(idx) ## remove current el
+            to_remove = sorted(list(set(to_remove)), reverse=True)
+            for idx in to_remove:
+                del self[idx]
+
+
     def flatten(self):
         res = []
         for x in self:
@@ -503,6 +555,8 @@ class Variables(dict):
             SANITIZE_REMOVE_DUPLICATE = element_class.SANITIZE_REMOVE_DUPLICATE_KEEP is not None
             SANITIZE_REMOVE_DUPLICATE_KEEP = element_class.SANITIZE_REMOVE_DUPLICATE_KEEP
 
+            JOIN_BEGIN_END = element_class.JOIN_BEGIN_END
+
         klass.__name__ = "%s_%s" % (self.__class__.__name__, name)  ## better log messages (most use self.__class__.__name__; would give klass otherwise)
         return klass()
 
@@ -547,6 +601,17 @@ class Variables(dict):
             if append_empty:
                 default.append_empty()
         return default
+
+    def try_function_el(self, function_name, names=None):
+        """Try to run function function_name on each element of names"""
+        if names is None:
+            names = self.keys()
+        for name in names:
+            self.log.debug("try_function_el: name %s function_name %s" % (name, function_name))
+            for el in self[name]:
+                if hasattr(el, function_name):
+                    function = getattr(el, function_name)
+                    function()
 
     def __getattribute__(self, attr_name):
         # allow for pass-through
