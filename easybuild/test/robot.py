@@ -24,10 +24,10 @@ from unittest import TestCase, TestSuite
 
 import easybuild.tools.modules as modules
 import easybuild.main as main
+from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 
 orig_modules = modules.Modules
-base_easyconfig_dir = "easybuild/test/easyconfigs/"
 
 
 class MockModule(modules.Modules):
@@ -50,6 +50,9 @@ class RobotTest(TestCase):
         self.log = get_log("RobotTest")
         self.cwd = os.getcwd()
 
+        self.base_easyconfig_dir = find_full_path(os.path.join("easybuild", "test", "easyconfigs"))
+        self.assertTrue(self.base_easyconfig_dir)
+
     def runTest(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
@@ -65,7 +68,7 @@ class RobotTest(TestCase):
             'module': ("name", "version"),
             'dependencies': [('gzip', '1.4')]
         }
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], base_easyconfig_dir, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
@@ -81,7 +84,7 @@ class RobotTest(TestCase):
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], base_easyconfig_dir, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual(('GCC', '4.6.3'), res[0]['module'])
