@@ -522,7 +522,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         tpl_full_path = None
         for path in sys.path + os.getenv('PYTHONPATH').split(':'):
             dirs = path.split(os.path.sep)
-            if len(dirs) > 3:
+            if len(dirs) > 3 and 'site-packages' in dirs:
                 if path.endswith('.egg'):
                     path = os.path.sep.join(dirs[:-4])  # strip of lib/python2.7/site-packages/*.egg part
                 else:
