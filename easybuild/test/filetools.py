@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -20,22 +21,19 @@
 ##
 import os
 import sys
-
 from unittest import TestCase, TestSuite
+
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
+from easybuild.test.utilities import find_full_path
+
 
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
     def setUp(self):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
-        cfg_full_path = None
-        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
-            tmp_path = os.path.join(path, cfg_path)
-            if os.path.exists(tmp_path):
-                cfg_full_path = tmp_path
-                break
+        cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
         
         config.init(cfg_full_path)

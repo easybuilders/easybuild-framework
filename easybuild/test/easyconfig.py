@@ -28,6 +28,7 @@ import tempfile
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
+from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
 
@@ -518,20 +519,19 @@ class TestObtainEasyconfig(EasyConfigTest):
         os.remove(res[1])
 
         # should use a template if it's there
-        tpl_path = os.path.join("easybuild", "easyconfigs", "TEMPLATE.eb")
-        tpl_full_path = None
-        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
+        tpl_path = os.path.join("share", "easybuild", "easyconfigs", "TEMPLATE.eb")
+
+        def trim_path(path):
             dirs = path.split(os.path.sep)
             if len(dirs) > 3 and 'site-packages' in dirs:
                 if path.endswith('.egg'):
                     path = os.path.sep.join(dirs[:-4])  # strip of lib/python2.7/site-packages/*.egg part
                 else:
                     path = os.path.sep.join(dirs[:-3])  # strip of lib/python2.7/site-packages part
-            tpl_full_path = os.path.join(path, 'share', tpl_path)
-            if os.path.exists(tpl_full_path):
-                break
-            else:
-                tpl_full_path = None
+
+            return path
+
+        tpl_full_path = find_full_path(tpl_path, trim=trim_path)
 
         # only run this test if the TEMPLATE.eb file is available
         # TODO: use unittest.skip for this (but only works from Python 2.7)

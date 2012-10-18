@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -25,6 +26,7 @@ from unittest import TestCase, TestSuite
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.test.utilities import find_full_path
 
 
 class ModuleGeneratorTest(TestCase):
@@ -35,12 +37,7 @@ class ModuleGeneratorTest(TestCase):
 
         # find .eb file
         eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
-        eb_full_path = None
-        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
-            tmp_path = os.path.join(path, eb_path)
-            if os.path.exists(tmp_path):
-                eb_full_path = tmp_path
-                break
+        eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
             
         self.eb = EasyBlock(eb_full_path)
