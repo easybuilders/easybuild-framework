@@ -1,5 +1,7 @@
+#!/usr/bin/python
 ##
 # Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -18,7 +20,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-""" this module is a collection of all the testcases """
+"""
+This script is a collection of all the testcases.
+Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
+"""
+import sys
 import unittest
 
 # toolkit should be first to allow hacks to work
@@ -32,6 +38,31 @@ import easybuild.test.repository as r
 import easybuild.test.robot as robot
 import easybuild.test.easyblock as b
 
+from easybuild.tools.build_log import init_logger, remove_log_handler
+
+
+# initialize logger for all the unit tests
+log_fn = "/tmp/easybuild_tests.log"
+_, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
+
 # call suite() for each module and then run them all
 SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b]])
-unittest.TextTestRunner().run(SUITE)
+
+# uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
+xml_msg = ""
+try:
+    import xmlrunner  # requires unittest-xml-reporting package
+    xml_dir = 'test-reports'
+    res = xmlrunner.XMLTestRunner(output=xml_dir, verbosity=1).run(SUITE)
+    xml_msg = ", XML output of tests available in %s directory" % xml_dir
+except ImportError, err:
+    sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
+    res = unittest.TextTestRunner().run(SUITE)
+
+remove_log_handler(logh)
+logh.close()
+print "Log available at %s" % log_fn, xml_msg
+
+if not res.wasSuccessful():
+    sys.stderr.write("ERROR: Not all tests were successful.\n")
+    sys.exit(2)
