@@ -22,6 +22,7 @@
 import os
 import re
 import shutil
+import sys
 import tempfile
 
 import easybuild.framework.easyconfig as easyconfig
@@ -519,9 +520,14 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should use a template if it's there
         tpl_path = os.path.join("easybuild", "easyconfigs", "TEMPLATE.eb")
         tpl_full_path = None
-        for path in os.getenv('PYTHONPATH').split(':') + ['']:
-            tpl_full_path = os.path.join(path, tpl_path)
-            print tpl_full_path
+        for path in sys.path + os.getenv('PYTHONPATH').split(':'):
+            dirs = path.split(os.path.sep)
+            if len(dirs) > 3:
+                if path.endswith('.egg'):
+                    path = os.path.sep.join(dirs[:-4])  # strip of lib/python2.7/site-packages/*.egg part
+                else:
+                    path = os.path.sep.join(dirs[:-3])  # strip of lib/python2.7/site-packages part
+            tpl_full_path = os.path.join(path, 'share', tpl_path)
             if os.path.exists(tpl_full_path):
                 break
             else:
@@ -530,7 +536,6 @@ class TestObtainEasyconfig(EasyConfigTest):
         # only run this test if the TEMPLATE.eb file is available
         # TODO: use unittest.skip for this (but only works from Python 2.7)
         if tpl_full_path:
-            print "Running TEMPLATE.eb test"
             shutil.copy2(tpl_full_path, self.ec_dir)
             specs.update({'name': 'nosuchsoftware'})
             res = obtain_ec_for(specs, self.ec_dir, None, self.log)
