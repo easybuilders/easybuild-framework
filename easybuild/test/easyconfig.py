@@ -517,13 +517,27 @@ class TestObtainEasyconfig(EasyConfigTest):
         os.remove(res[1])
 
         # should use a template if it's there
-        shutil.copy2(os.path.join("easybuild", "test", "TEMPLATE.eb"), self.ec_dir)
-        specs.update({'name': 'nosuchsoftware'})
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
-        self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1])
-        self.assertEqual(ec['name'], specs['name'])
-        os.remove(res[1])
+        tpl_path = os.path.join("easybuild", "easyconfigs", "TEMPLATE.eb")
+        tpl_full_path = None
+        for path in os.getenv('PYTHONPATH').split(':') + ['']:
+            tpl_full_path = os.path.join(path, tpl_path)
+            print tpl_full_path
+            if os.path.exists(tpl_full_path):
+                break
+            else:
+                tpl_full_path = None
+
+        # only run this test if the TEMPLATE.eb file is available
+        # TODO: use unittest.skip for this (but only works from Python 2.7)
+        if tpl_full_path:
+            print "Running TEMPLATE.eb test"
+            shutil.copy2(tpl_full_path, self.ec_dir)
+            specs.update({'name': 'nosuchsoftware'})
+            res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+            self.assertEqual(res[0], True)
+            ec = EasyConfig(res[1])
+            self.assertEqual(ec['name'], specs['name'])
+            os.remove(res[1])
 
     def tearDown(self):
         """Cleanup: remove temp dir with test easyconfig files."""
