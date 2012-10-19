@@ -1543,12 +1543,20 @@ def get_class(easyblock, log, name=None):
             # figure out if full path was specified or not
             if len(easyblock.split('.')) > 1:
                 log.info("Assuming that full easyblock module path was specified.")
-                modulepath = easyblock
+                modulepath = '.'.join(easyblock.split('.')[:-1])
+                cls = get_class_for(modulepath, class_name)
             else:
-                modulepath = get_module_path(easyblock, generic=True)
+                # if we only get the class name, most likely we're dealing with a generic easyblock
+                try:
+                    modulepath = get_module_path(easyblock, generic=True)
+                    cls = get_class_for(modulepath, class_name)
+                except ImportError, err:
+                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
                 log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
 
-        cls = get_class_for(modulepath, class_name)
+        print "cls = get_class_for(%s, %s)" % (modulepath, class_name)
         log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
         return cls
 
