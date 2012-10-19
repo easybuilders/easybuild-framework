@@ -32,11 +32,10 @@ import os
 from pkgutil import extend_path
 import sys
 
-
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)
 
-VERSION = LooseVersion("0.9")
+VERSION = LooseVersion("0.9dev")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():

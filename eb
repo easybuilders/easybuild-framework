@@ -23,14 +23,34 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-version=`python -V 2>&1 | sed 's/^Python \([0-9]*\)\.\([0-9]*\).*/\1.\2/'`
 
-# See http://docs.python.org/using/cmdline.html#cmdoption-unittest-discover-m for -m support
+# EasyBuild main script
+# find location of main EasyBuild script by looking in Python search path, and run it
 
-# add EasyBuild top directory to PYTHONPATH
-export PYTHONPATH="`dirname $0`:$PYTHONPATH"
-if [[ "$version" = "2.4" ]]; then
-  python "`dirname $0`/easybuild/main.py" $@
+#  this is an alternative for "python -m easybuild.main $@" which has issues, i.e.
+#  * it doesn't work with Python 2.4 (which we hang on to because of it being the default version in RedHat v5)
+#  * an ugly warning is printed whenever the pkg_resources module is loaded (e.g. by 3rd party modules like pygraph),
+#    see http://bugs.python.org/setuptools/issue36
+#    the cause of this is probably that we spread out the easybuild namespace across different locations
+
+main_script_base_path="easybuild/main.py"
+python_search_path_cmd="python -c \"import sys; print ' '.join(sys.path)\""
+
+easybuild_main=
+for path in `eval $python_search_path_cmd`;
+do
+    test_path="$path/$main_script_base_path"
+    if [ -f $test_path ]
+    then
+        easybuild_main=$test_path
+        break;
+    fi
+done
+
+if [ -z $easybuild_main ]
+then
+    echo "ERROR: Failed to locate EasyBuild's main script $main_script_base_path in Python's search path, obtained with '$python_search_path_cmd' ."
+    exit 1
 else
-  python -m easybuild.main $@
+    python $easybuild_main $@
 fi
