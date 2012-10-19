@@ -105,7 +105,7 @@ print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easybloc
 print "to see to the list of easyconfig files."
 print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
 print "to go to the easyblock for this package." 
-print "## Supported Packages (%d as of %s in %s) " % (len(configs), date.today().isoformat(), branch) 
+print "## Supported Packages (%d in %s as of %s) " % (len(configs), branch, date.today().isoformat()) 
 print "<center>"
 print " - ".join(["[%(letter)s](#%(letter)s)" % {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
 print "</center>"
