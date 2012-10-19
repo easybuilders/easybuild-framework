@@ -43,11 +43,12 @@ from vsc import fancylogger
 # parse options
 parser = OptionParser()
 parser.add_option("-v", "--verbose", action="count", dest="verbose", help="Be more verbose, can be used multiple times")
+parser.add_option("-b", "--branch", action="store_true", dest="branch", help="Choose the branch to link to (default develop)")
 
 options, args = parser.parse_args()
 
 if len(args) < 2:
-    print "Usage: %s [-v [-v [-v [-v]]]] easyconfigs_dir easyblocks_dir"
+    print "Usage: %s [-v [-v [-v [-v]]]] [--branch branchname] easyconfigs_dir easyblocks_dir"
 
 # get and configure logger
 log = fancylogger.getLogger(__name__)
@@ -59,6 +60,11 @@ if options.verbose >= 3:
     fancylogger.setLogLevelDebug()
 log.info('parsing easyconfigs from %s' % args[0])
 log.info('parsing easyblocks from %s' % args[1])
+
+if options.branch:
+    branch = options.branch
+else:
+    branch = "develop"
 
 configs = []
 names = []
@@ -99,18 +105,21 @@ print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easybloc
 print "to see to the list of easyconfig files."
 print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
 print "to go to the easyblock for this package." 
-print "## Supported Packages (%d as of %s) " % (len(configs), date.today().isoformat()) 
+print "## Supported Packages (%d as of %s in %s) " % (len(configs), date.today().isoformat(), branch) 
+print "<center>"
+print " - ".join(["[%(letter)s](#%(letter)s)" % {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
+print "</center>"
 
 for config in configs: 
     if config.name[0].lower() != firstl:
         firstl = config.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
-        print "\n### %s (%d)\n" % (firstl.upper(), len([x for x in configs if x.name[0].lower() == firstl]))
+        print "\n### %(letter)s (%(count)d) <a name='%(letter)s'/>\n" % {'letter': firstl.upper(), 'count': len([x for x in configs if x.name[0].lower() == firstl])}
     print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] " 
-    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/develop/easybuild/easyconfigs/%s/%s)" % (firstl, config.name)
+    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % (branch, firstl, config.name)
     if config.easyblock:
         print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
-        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/develop/easybuild/easyblocks/%s/%s.py)" % (firstl, config.easyblock)
+        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % (branch, firstl, config.easyblock)
     else:
         print "&nbsp;&nbsp;&nbsp;&nbsp;"
     if config['homepage'] != "(none)":
