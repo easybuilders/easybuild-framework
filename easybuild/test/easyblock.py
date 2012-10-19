@@ -101,6 +101,27 @@ exts_list = ['ext1']
         sys.stdout.close()
         sys.stdout = stdoutorig
 
+class TestLoadFakeModule(EasyBlockTest):
+    """
+    Test loading of a fake module
+    """
+
+    contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+"""
+
+    def runTest(self):
+        """Testcase for fake module load"""
+        # test for proper error message without the exts_defaultclass set
+        eb = EasyBlock(self.eb_file)
+        eb.installdir = config.variables['installPath']
+        eb.load_fake_module()
+        
+    
 class TestExtensionsStep(EasyBlockTest):
     """Test extensions step"""
 
@@ -135,4 +156,4 @@ exts_list = ['ext1']
 
 def suite():
     """ return all the tests in this file """
-    return TestSuite([TestEmpty(), TestEasyBlock(), TestExtensionsStep()])
+    return TestSuite([TestEmpty(), TestEasyBlock(), TestExtensionsStep(), TestLoadFakeModule()])
