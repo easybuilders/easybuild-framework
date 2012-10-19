@@ -1556,7 +1556,6 @@ def get_class(easyblock, log, name=None):
                     cls = get_class_for(modulepath, class_name)
                 log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
 
-        print "cls = get_class_for(%s, %s)" % (modulepath, class_name)
         log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
         return cls
 
