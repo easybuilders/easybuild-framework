@@ -712,18 +712,19 @@ class EasyBlock(object):
         """
 
         # make fake module
-        mod_path = [self.make_module_step(True)]
+        fake_mod_path = self.make_module_step(True)
 
         # load the module
-        mod_path.extend(Modules().modulePath)
-        m = Modules(mod_path)
+        mod_paths = [fake_mod_path]
+        mod_paths.extend(Modules().modulePath)
+        m = Modules(mod_paths)
         self.log.debug("created module instance")
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
         # clean up
         try:
-            shutil.rmtree(os.path.dirname(mod_path))
+            shutil.rmtree(os.path.dirname(fake_mod_path))
         except OSError, err:
             self.log.error("Failed to clean up fake module dir: %s" % err)
 
