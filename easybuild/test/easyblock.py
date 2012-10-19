@@ -30,7 +30,7 @@ import tempfile
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools import config
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestLoader
 from easybuild.tools.build_log import EasyBuildError
 import sys
 
@@ -46,44 +46,19 @@ class EasyBlockTest(TestCase):
     def setUp(self):
         """ setup """
         self.eb_file = "/tmp/easyblock_test_file.eb"
-        self.writeEC()
         config.variables['logDir'] = tempfile.mkdtemp()
         self.cwd = os.getcwd()
 
-    def tearDown(self):
-        """ make sure to remove the temporary file """
-        os.remove(self.eb_file)
-        shutil.rmtree(config.variables['logDir'])
-        os.chdir(self.cwd)
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
-
-
-class TestEmpty(EasyBlockTest):
-    """ Test empty easyblocks """
-
-    contents = "# empty string"
-
-    def runTest(self):
+    def test_empty(self):
+        self.contents = "# empty"
+        self.writeEC()
         """ empty files should not parse! """
         self.assertRaises(EasyBuildError, EasyBlock, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyBlock, "")
 
-class TestEasyBlock(EasyBlockTest):
-    """ Test the creation of an easyblock
-    and test all the steps (not all implemented yet)
-    but it should not be implemented when using the EeasyBlock class directly
-    """
-    contents = """
+    def test_easyblock(self):
+        """ make sure easyconfigs defining extensions work"""
+        self.contents =  """
 name = "pi"
 version = "3.14"
 homepage = "http://google.com"
@@ -91,9 +66,7 @@ description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 exts_list = ['ext1']
 """
-
-    def runTest(self):
-        """ make sure easyconfigs defining extensions work"""
+        self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(self.eb_file)
@@ -101,31 +74,24 @@ exts_list = ['ext1']
         sys.stdout.close()
         sys.stdout = stdoutorig
 
-class TestLoadFakeModule(EasyBlockTest):
-    """
-    Test loading of a fake module
-    """
-
-    contents = """
+    def test_fake_module_load(self):
+        """Testcase for fake module load"""
+        self.contents = """
 name = "pi"
 version = "3.14"
 homepage = "http://google.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 """
-
-    def runTest(self):
-        """Testcase for fake module load"""
+        self.writeEC()
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['installPath']
         eb.load_fake_module()
         
-    
-class TestExtensionsStep(EasyBlockTest):
-    """Test extensions step"""
-
-    contents = """
+    def test_extensions_step(self):
+        """Test the extensions_step"""
+        self.contents = """
 name = "pi"
 version = "3.14"
 homepage = "http://google.com"
@@ -133,8 +99,7 @@ description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 exts_list = ['ext1']
 """
-
-    def runTest(self):
+        self.writeEC()
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(self.eb_file)
@@ -154,6 +119,25 @@ exts_list = ['ext1']
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
 
 
+    
+    def tearDown(self):
+        """ make sure to remove the temporary file """
+        os.remove(self.eb_file)
+        shutil.rmtree(config.variables['logDir'])
+        os.chdir(self.cwd)
+
+    def assertErrorRegex(self, error, regex, call, *args):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args)
+            self.assertTrue(False)  # this will fail when no exception is thrown at all
+        except error, err:
+            res = re.search(regex, err.msg)
+            if not res:
+                print "err: %s" % err
+            self.assertTrue(res)
+
 def suite():
     """ return all the tests in this file """
-    return TestSuite([TestEmpty(), TestEasyBlock(), TestExtensionsStep(), TestLoadFakeModule()])
+    return TestLoader().loadTestsFromTestCase(EasyBlockTest)
+
