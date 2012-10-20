@@ -69,15 +69,6 @@ class ScalableLinearAlgebraPackage(Toolchain):
     SCALAPACK_LIB_DIR = ['lib']
     SCALAPACK_INCLUDE_DIR = ['include']
 
-    """
-    {'packed-groups':False}
-    # TODO: some tools (like pkg-utils) don't handle groups well, so pack them if required
-    if options['packed-groups']:
-        for x in ['LIBBLAS', 'LIBLAPACK','LIBLAPACK_ONLY' 'LIBSCALAPACK']:
-            for var in [x, "%s_MT" % x]:
-                variables[var] = self.variables[var].replace(" ", ",")
-                variables[var] = self.variables[var].replace(",-Wl,", ",")
-    """
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
@@ -101,18 +92,19 @@ class ScalableLinearAlgebraPackage(Toolchain):
             self.log.raiseException("_set_blas_variables: BLAS_LIB not set")
 
         self.BLAS_LIB = self.variables.nappend('LIBBLAS', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB])
-        self.variables.add_begin_end_linkerflags(self.BLAS_LIB, toggle_startstopgroup=self.BLAS_LIB_GROUP,
+        self.variables.add_begin_end_linkerflags(self.BLAS_LIB,
+                                                 toggle_startstopgroup=self.BLAS_LIB_GROUP,
                                                  toggle_staticdynamic=self.BLAS_LIB_STATIC)
         if 'FLIBS' in self.variables:
             self.variables.join('LIBBLAS', 'FLIBS')
 
         ## multi-threaded
         if self.BLAS_LIB_MT is None:
-            ## reuse BLAS variables
             self.variables.join('LIBBLAS_MT', 'LIBBLAS')
         else:
             self.BLAS_LIB_MT = self.variables.nappend('LIBBLAS_MT', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT])
-            self.variables.add_begin_end_linkerflags(self.BLAS_LIB_MT, toggle_startstopgroup=self.BLAS_LIB_GROUP,
+            self.variables.add_begin_end_linkerflags(self.BLAS_LIB_MT,
+                                                     toggle_startstopgroup=self.BLAS_LIB_GROUP,
                                                      toggle_staticdynamic=self.BLAS_LIB_STATIC)
             if 'FLIBS' in self.variables:
                 self.variables.join('LIBBLAS_MT', 'FLIBS')
@@ -148,13 +140,15 @@ class ScalableLinearAlgebraPackage(Toolchain):
             if self.LAPACK_LIB is None:
                 self.log.raiseException("_set_lapack_variables: LAPACK_LIB not set")
             self.LAPACK_LIB = self.variables.nappend('LIBLAPACK_ONLY', self.LAPACK_LIB)
-            self.variables.add_begin_end_linkerflags(self.LAPACK_LIB, toggle_startstopgroup=self.LAPACK_LIB_GROUP,
+            self.variables.add_begin_end_linkerflags(self.LAPACK_LIB,
+                                                     toggle_startstopgroup=self.LAPACK_LIB_GROUP,
                                                      toggle_staticdynamic=self.LAPACK_LIB_STATIC)
 
             if self.LAPACK_LIB_MT is None:
                 ## reuse LAPACK variables
                 self.LAPACK_LIB_MT = self.variables.join('LIBBLAS_MT_ONLY', 'LIBLAPACK_ONLY')
-                self.variables.add_begin_end_linkerflags(self.LAPACK_LIB_MT, toggle_startstopgroup=self.LAPACK_LIB_GROUP,
+                self.variables.add_begin_end_linkerflags(self.LAPACK_LIB_MT,
+                                                         toggle_startstopgroup=self.LAPACK_LIB_GROUP,
                                                          toggle_staticdynamic=self.LAPACK_LIB_STATIC)
             else:
                 self.variables.nappend('LIBLAPACK_MT_ONLY', self.LAPACK_LIB_MT)
@@ -199,14 +193,13 @@ class ScalableLinearAlgebraPackage(Toolchain):
 
         ## BLACS
         self.BLACS_LIB = self.variables.nappend('LIBBLACS', [x % lib_map for x in self.BLACS_LIB])
-        self.variables.add_begin_end_linkerflags(self.BLACS_LIB, toggle_startstopgroup=self.BLACS_LIB_GROUP,
+        self.variables.add_begin_end_linkerflags(self.BLACS_LIB,
+                                                 toggle_startstopgroup=self.BLACS_LIB_GROUP,
                                                  toggle_staticdynamic=self.BLACS_LIB_STATIC)
         if self.BLACS_LIB_MT is None:
             self.variables.join('LIBBLACS_MT', 'LIBBLACS')
         else:
             self.log.raiseException("_set_blacs_variables: setting LIBBLACS_MT from self.BLACS_LIB_MT not implemented")
-#            self.add_begin_end_linkerflags(self.BLACS_LIB_MT, toggle_startstopgroup=self.BLACS_LIB_GROUP,
-#                                           toggle_staticdynamic=self.BLACS_LIB_STATIC)
 
         root = self.get_software_root(self.BLACS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
@@ -233,7 +226,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
             lib_map.update(self.SCALAPACK_LIB_MAP)
 
         self.SCALAPACK_LIB = self.variables.nappend('LIBSCALAPACK_ONLY', [x % lib_map for x in self.SCALAPACK_LIB])
-        self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
+        self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB,
+                                                 toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
                                                  toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
 
         if 'FLIBS' in self.variables:
@@ -246,7 +240,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
         else:
             self.SCALAPACK_LIB_MT = self.variables.nappend('LIBSCALAPACK_MT_ONLY',
                                                             [x % lib_map for x in self.SCALAPACK_LIB_MT])
-            self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB_MT, toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
+            self.variables.add_begin_end_linkerflags(self.SCALAPACK_LIB_MT,
+                                                     toggle_startstopgroup=self.SCALAPACK_LIB_GROUP,
                                                      toggle_staticdynamic=self.SCALAPACK_LIB_STATIC)
 
             if 'FLIBS' in self.variables:
@@ -271,7 +266,8 @@ class ScalableLinearAlgebraPackage(Toolchain):
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
         self.variables.join('SCALAPACK_MT_STATIC_LIBS', 'LIBSCALAPACK_MT')
 
-        self._add_dependency_variables(self.SCALAPACK_MODULE_NAME, ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
+        self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
+                                       ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
 
 class GotoBLAS(object):
     """
@@ -331,7 +327,8 @@ class ACML(object):
         try:
             self.variables.append_exists('LDFLAGS', root, os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib'))
         except:
-            self.log.raiseException("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination with compiler family %s" % self.COMPILER_FAMILY)
+            self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
+                                     " with compiler family %s") % self.COMPILER_FAMILY)
 
         super(ACML, self)._set_blas_variables()
 
@@ -394,7 +391,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
                                       "interface":interfacemap[self.COMPILER_FAMILY]
                                       })
         except:
-            self.log.raiseException("_set_blas_variables: interface unsupported combination with MPI family %s" % self.COMPILER_FAMILY)
+            self.log.raiseException(("_set_blas_variables: interface unsupported combination"
+                                    " with MPI family %s") % self.COMPILER_FAMILY)
 
         interfacemap_mt = {
                            INTEL:'intel',
@@ -403,7 +401,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
         try:
             self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})
         except:
-            self.log.raiseException("_set_blas_variables: interface_mt unsupported combination with compiler family %s" % self.COMPILER_FAMILY)
+            self.log.raiseException(("_set_blas_variables: interface_mt unsupported combination "
+                                     "with compiler family %s") % self.COMPILER_FAMILY)
 
 
         if self.options.get('32bit', None):
@@ -425,7 +424,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
             self.BLAS_INCL_DIR = ['include']
         else:
             if self.options.get('32bit', None):
-                self.log.raiseException("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)" % found_version)
+                self.log.raiseException(("_set_blas_variables: 32-bit libraries not supported yet "
+                                        "for IMKL v%s (> v10.3)") % found_version)
             else:
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
 
@@ -443,7 +443,8 @@ class IntelMKL(ScalableLinearAlgebraPackage):
         try:
             self.BLACS_LIB_MAP.update({'mpi':mpimap[self.MPI_FAMILY]})
         except:
-            self.log.raiseException("_set_blacs_variables: mpi unsupported combination with MPI family %s" % self.MPI_FAMILY)
+            self.log.raiseException(("_set_blacs_variables: mpi unsupported combination with"
+                                     " MPI family %s") % self.MPI_FAMILY)
 
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
@@ -455,61 +456,5 @@ class IntelMKL(ScalableLinearAlgebraPackage):
             ##32 bit
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_core'})
 
-
         super(IntelMKL, self)._set_scalapack_variables()
 
-
-
-
-if __name__ == '__main__':
-    from vsc.fancylogger import setLogLevelDebug
-    setLogLevelDebug()
-    import os
-
-    from easybuild.tools.toolchain.toolchain import Toolchain
-    from easybuild.tools.toolchain.compiler import IntelIccIfort, GNUCompilerCollection
-    from easybuild.tools.toolchain.mpi import IntelMPI, OpenMPI
-    class ITC(IntelIccIfort, IntelMPI, IntelMKL, Toolchain):
-        NAME = 'ITC'
-        VERSION = '1.0.0'
-
-    os.environ.setdefault('EBROOTICC', '/x/y/z/icc')
-    os.environ.setdefault('EBROOTIFORT', '/x/y/z/ifort')
-    os.environ.setdefault('EBROOTIMPI', '/x/y/z/impi')
-    os.environ.setdefault('EBROOTIMKL', '/x/y/z/imkl')
-    os.environ.setdefault('EBVERSIONICC', '2012.0.0.0')
-    os.environ.setdefault('EBVERSIONIFORT', '2012.0.0.0')
-    os.environ.setdefault('EBVERSIONIMPI', '4.1.0.0')
-    os.environ.setdefault('EBVERSIONIMKL', '10.1.0.0')
-    itc = ITC()
-    itc.options['32bit'] = True
-    itc.set_variables()
-    itc.generate_vars()
-#    print 'ITC', 'options', itc.options
-#    print 'ITC', 'variables', itc.variables
-#    print 'ITC', "vars", itc.show_variables(offset=" "*4, verbose=True)
-    itc.show_variables(offset=" "*4, verbose=True)
-
-    ## module load goalf
-    class GMTC(GNUCompilerCollection, OpenMPI, ScaATLAS, Toolchain):
-        NAME = 'GMTC'
-        VERSION = '1.0.0'
-    gmtc = GMTC()
-    gmtc.options['cstd'] = 'CVERYVERYSPECIAL'
-    gmtc.options['pic'] = True
-    gmtc.set_variables()
-    gmtc.generate_vars()
-#    print 'GMTC', 'options', gmtc.options
-#    print 'GMTC', 'variables', gmtc.variables
-#    print 'GMTC', "vars"
-#    print gmtc.show_variables(offset=" "*4, verbose=True)
-    gmtc.show_variables(offset=" "*4, verbose=True)
-
-
-
-    """
-    TODO: fix
-    SCALAPACK_MT_STATIC_LIBS=-lblacsCinit -lblacsF77init -lblacs,-lptcblas -lptf77blas -latlas,-lgfortran,-lpthread
-    SCALAPACK_STATIC_LIBS=-lscalapack,-lblacsCinit -lblacsF77init -lblacs,-lcblas -lf77blas -latlas,-lgfortran
-
-    """

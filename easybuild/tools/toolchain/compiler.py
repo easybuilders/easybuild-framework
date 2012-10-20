@@ -344,38 +344,3 @@ class IntelIccIfort(Compiler):
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 
-if __name__ == '__main__':
-    from vsc.fancylogger import setLogLevelDebug
-    import os
-    setLogLevelDebug()
-
-    class ITC(IntelIccIfort):
-        NAME = 'ITC'
-        VERSION = '1.0.0'
-
-    os.environ.setdefault('EBROOTICC', '/x/y/z/icc')
-    os.environ.setdefault('EBROOTIFORT', '/x/y/z/ifort')
-    os.environ.setdefault('EBVERSIONICC', '2012.0.0.0')
-    os.environ.setdefault('EBVERSIONIFORT', '2012.0.0.0')
-    itc = ITC()
-    itc.options['32bit'] = True
-    itc.set_variables()
-    itc.generate_vars()
-    print 'IntelIccIfort', 'options', itc.options
-    print 'IntelIccIfort', 'variables', itc.variables
-    print 'IntelIccIfort', "vars", itc.vars
-
-    os.environ.setdefault('EBROOTGCC', '/usr')
-    os.environ.setdefault('EBVERSIONGCC', '4.7.2')
-
-    class GTC(GNUCompilerCollection):
-        NAME = 'GTC'
-        VERSION = '1.0.0'
-    gtc = GTC()
-    gtc.options['cstd'] = 'CVERYVERYSPECIAL'
-    gtc.set_variables()
-    gtc.generate_vars()
-    print 'GNUCompilerCollection', 'options', gtc.options
-    print 'GNUCompilerCollection', 'variables', gtc.variables
-    print 'GNUCompilerCollection', "vars", gtc.vars
-

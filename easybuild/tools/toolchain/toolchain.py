@@ -224,7 +224,8 @@ class Toolchain(object):
                 dep['tc'] = self.get_dependency_version(dep)
 
             if not mod.exists(dep['name'], dep['tc']):
-                self.log.raiseException('add_dependencies: no module found for dependency %s/%s' % (dep['name'], dep['tc']))
+                self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
+                                        (dep['name'], dep['tc']))
             else:
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
@@ -330,23 +331,11 @@ class Toolchain(object):
             # references itself (eventually).  Stop' error
             setvar("EBVAR%s" % key, val)
 
-    ## legacy functions TODO remove after migration
+    ## legacy functions TODO remove AFTER migration
     ## should search'n'replaced
     def get_type(self, name, type_map):
         """Determine type of toolchain based on toolchain dependencies."""
         self.log.raiseException("get_type: legacy code. should not be needed anymore.")
-
-        toolchain_dep_names = [dep['name'] for dep in self.toolchain_deps]
-
-        for req_mods, tc_type in type_map.items():
-            match = True
-            for req_mod in req_mods:
-                if not req_mod in toolchain_dep_names:
-                    match = False
-            if match:
-                return tc_type
-
-        self.log.raiseException("get_type: failed to determine %s based on toolchain dependencies." % name)
 
     def _set_variables(self, dontset=None):
         """ Sets the environment variables """

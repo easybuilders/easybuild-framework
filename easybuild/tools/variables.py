@@ -22,28 +22,11 @@
 """
 Module that contains a set of classes and function to generate variables to be used
 eg in compiling or linking
-
-TODO:
-    new classes that extend lists
-        retain original provided data
-            options or libnames
-        override __str__
-        add static methods
-    introduce legacy class
-        dict when accessed prints warnings and gives
-        http://stackoverflow.com/questions/9008444/how-to-warn-about-class-name-deprecation
-            not exactly what i need though
-                we don't want to redefine the class (eg dict) but it's uage (eg tk.vars)
-
-    cleanup
-        only support key = class; value is list of tuples (name, descr)
-        remove usage of derived ListOfList
 """
 
 from vsc.fancylogger import getLogger, setLogLevelDebug
 import copy
 import os
-import re
 
 _log = getLogger()
 
@@ -68,7 +51,7 @@ def get_class(name, default_class, map_class=None):
 
     return klass
 
-def join_map_class(*map_classes):
+def join_map_class(map_classes):
     """Join all class_maps into single class_map"""
     res = {}
     for map_class in map_classes:
@@ -573,9 +556,6 @@ class Variables(dict):
                     self.nappend(name, el)
             else:
                 self.log.debug("join: name %s; other %s not found in self." % (name, other))
-#                self.log.debug("join: name %s; other %s not found in self. appending..." % (name, other))
-#                self.nappend(name, other)
-
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""
@@ -640,81 +620,4 @@ class Variables(dict):
             return _passthrough
         else:
             return super(Variables, self).__getattribute__(attr_name)
-
-
-if __name__ == '__main__':
-    setLogLevelDebug()
-    class TestListOfLists(ListOfLists):
-        """Test ListOfList class"""
-        MAP_CLASS = {'FOO':CommaList}
-
-    class TestVariables(Variables):
-        """Test Variables class"""
-        MAP_LISTCLASS = {TestListOfLists : ['FOO']}
-
-    va = TestVariables()
-    print va
-
-    print 'initial: BAR 0-5'
-    va['BAR'] = range(5)
-    print va['BAR'], va
-    print type(va['BAR'])
-    print '------------'
-
-    print 'initial: BARSTR XYZ'
-    va['BARSTR'] = 'XYZ'
-    print va['BARSTR'].__repr__(), va
-    print type(va['BARSTR'])
-    print '------------'
-
-    print 'initial: BARINT 0'
-    va['BARINT'] = 0
-    print va['BARINT'], va
-    print type(va['BARINT'])
-    print '------------'
-
-
-    print 'added 10-15 to BAR'
-    va['BAR'].append(StrList(range(10, 15)))
-    print va['BAR'], va
-    print '------------'
-
-    print 'added 20 to BAR'
-    va.nappend('BAR', 20)
-    print va['BAR'], va
-    print str(va['BAR'])
-    print '------------'
-
-    print 'added 30 to 2nd last element of BAR'
-    va.nappend_el('BAR', 30, idx= -2)
-    print va['BAR'], va
-    print str(va['BAR'])
-    print '------------'
-
-
-    ##
-    print 'set FOO to 0-10 (commalist)'
-    va['FOO'] = range(10)
-    print va['FOO']
-    print '------------'
-
-    ## startgroup
-    print 'linker endgroup'
-    l = get_linker_endgroup()
-    print l
-    print '------------'
-
-    print 'linker startgroup with static toggle'
-    l2 = get_linker_startgroup({'static':'-Bstatic',
-                                'dynamic':'-Bdynamic',
-                               })
-    l2.toggle_static()
-    print l2
-    print '------------'
-
-    ##
-    cmd = CommandFlagList(range(5))
-    print cmd
-    print '------------'
-
 

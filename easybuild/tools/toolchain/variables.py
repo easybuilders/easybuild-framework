@@ -97,13 +97,12 @@ LAPACK_MAP_CLASS = {
                                  ('LIBLAPACK', 'LAPACK libraries'),
                                  ('LIBLAPACK_MT', 'multithreaded LAPACK libraries'),
                                  ],
-                  CommaStaticLibs:[
-                                   ('LAPACK_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
-                                   ('LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
-                                   ('BLAS_LAPACK_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
-                                   ('BLAS_LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
-                                   ],
-
+                    CommaStaticLibs:[
+                                     ('LAPACK_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
+                                     ('LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
+                                     ('BLAS_LAPACK_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
+                                     ('BLAS_LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
+                                     ],
                     }
 BLACS_MAP_CLASS = {
                   AbsPathList:[
@@ -132,18 +131,16 @@ SCALAPACK_MAP_CLASS = {
                                  ('LIBSCALAPACK', 'SCALAPACK libraries'),
                                  ('LIBSCALAPACK_MT', 'multithreaded SCALAPACK libraries'),
                                  ],
-                  CommaStaticLibs:[
-                                   ('SCALAPACK_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
-                                   ('SCALAPACK_MT_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
-                                   ],
-
-                    }
+                       CommaStaticLibs:[
+                                        ('SCALAPACK_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
+                                        ('SCALAPACK_MT_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
+                                        ],
+                       }
 
 FFT_MAP_CLASS = {
                   AbsPathList:[
                                ('FFT_LIB_DIR', 'FFT library directory'),
                                ('FFT_INC_DIR', 'FFT include directory'),
-
                                ],
                   LibraryList:[
                                ('LIBFFT', 'FFT libraries'),
@@ -153,17 +150,15 @@ FFT_MAP_CLASS = {
                                    ],
                  }
 
-
 FFTW_MAP_CLASS = {
                   AbsPathList:[
                                ('FFTW_LIB_DIR', 'FFTW library directory'),
                                ('FFTW_INC_DIR', 'FFTW include directory'),
-
                                ],
                   CommaStaticLibs:[
                                    ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),
                                    ],
-                 }
+                  }
 
 ALL_MAP_CLASSES = [
                    COMPILER_MAP_CLASS, MPI_MAP_CLASS,
@@ -177,7 +172,7 @@ class ToolchainVariables(Variables):
     Class to hold variable-like key/value pairs
     in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
     """
-    MAP_CLASS = join_map_class(*ALL_MAP_CLASSES) ## join_map_class strips explanation
+    MAP_CLASS = join_map_class(ALL_MAP_CLASSES) ## join_map_class strips explanation
     DEFAULT_CLASS = FlagList
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
