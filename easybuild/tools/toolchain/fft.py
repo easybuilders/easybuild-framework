@@ -44,16 +44,14 @@ class FFT(Toolchain):
 
     def _set_fft_variables(self):
         """Set FFT variables"""
-        root = self.get_software_root(self.FFT_MODULE_NAME[0]) ## TODO: deal with multiple modules properly
-
-
         fft_libs = self.variables.nappend('LIBFFT', self.FFT_LIB)
         self.variables.add_begin_end_linkerflags(fft_libs, toggle_startstopgroup=self.FFT_LIB_GROUP,
                                                  toggle_staticdynamic=self.FFT_LIB_STATIC)
 
-        self.variables.append_exists('FFT_LIB_DIR', root, self.FFT_LIB_DIR)
-        self.variables.append_exists('FFT_INC_DIR', root, self.FFT_INCLUDE_DIR)
         self.variables.join('FFT_STATIC_LIBS', 'LIBFFT')
+        for root in self.get_software_root(self.FFT_MODULE_NAME):
+            self.variables.append_exists('FFT_LIB_DIR', root, self.FFT_LIB_DIR)
+            self.variables.append_exists('FFT_INC_DIR', root, self.FFT_INCLUDE_DIR)
 
         self._add_dependency_variables(self.FFT_MODULE_NAME)
 
@@ -73,7 +71,7 @@ class FFTW(FFT):
     def _set_fftw_variables(self):
 
         suffix = ''
-        version = self.get_software_version(self.FFT_MODULE_NAME[0])
+        version = self.get_software_version(self.FFT_MODULE_NAME)[0]
         if LooseVersion(version) < LooseVersion('2') or LooseVersion(version) >= LooseVersion('4'):
             self.log.raiseException("_set_fft_variables: FFTW unsupported version %s (major should be 2 or 3)" % version)
         elif LooseVersion(version) > LooseVersion('2'):

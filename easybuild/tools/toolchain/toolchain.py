@@ -130,7 +130,24 @@ class Toolchain(object):
         self.log.debug("show_variables:\n%s" % txt)
         return txt
 
-    def get_software_root(self, name):
+    def get_software_root(self, names):
+        """Try to get the software root for all names"""
+        return self._get_software_multiple(names, self._get_software_root)
+
+    def get_software_version(self, names):
+        """Try to get the software version for all names"""
+        return self._get_software_multiple(names, self._get_software_version)
+
+    def _get_software_multiple(self, names, function):
+        """Execute function of each of names"""
+        if isinstance(names, (str,)):
+            names = [names]
+        res = []
+        for name in names:
+            res.append(function(name))
+        return res
+
+    def _get_software_root(self, name):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
@@ -139,7 +156,7 @@ class Toolchain(object):
             self.log.debug("get_software_root software root %s for %s was found in environment" % (root, name))
         return root
 
-    def get_software_version(self, name):
+    def _get_software_version(self, name):
         """Try to get the software root for name"""
         version = get_software_version(name)
         if version is None:
@@ -236,7 +253,7 @@ class Toolchain(object):
         - load modules for toolchain and dependencies
         - generate extra variables and set them in the environment
 
-        onlymod: Boolean/string to indicate if the toolchain should only load the enviornment
+        onlymod: Boolean/string to indicate if the toolchain should only load the environment
         with module (True) or also set all other variables (False) like compiler CC etc
         (If string: comma separated list of variables that will be ignored).
         """
@@ -300,8 +317,7 @@ class Toolchain(object):
         else:
             deps = [{'name':name} for name in names if name is not None]
 
-        for dep in deps:
-            root = self.get_software_root(dep['name'])
+        for root in self.get_software_root([dep['name'] for dep in deps]):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
 

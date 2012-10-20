@@ -126,7 +126,6 @@ class MPI(object):
 
     def _set_mpi_variables(self):
         """Set the other MPI variables"""
-        root = self.get_software_root(self.MPI_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
 
         lib_dir = ['lib']
         incl_dir = ['include']
@@ -134,12 +133,13 @@ class MPI(object):
         if not self.options.get('32bit', None):
             suffix = '64'
 
-        self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME,
-                                     suffix=suffix)
-        self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME,
-                                     suffix=suffix)
-        self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
-        self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
+        for root in self.get_software_root(self.MPI_MODULE_NAME):
+            self.variables.append_exists('MPI_LIB_STATIC', root, lib_dir, filename="lib%s.a" % self.MPI_LIBRARY_NAME,
+                                         suffix=suffix)
+            self.variables.append_exists('MPI_LIB_SHARED', root, lib_dir, filename="lib%s.so" % self.MPI_LIBRARY_NAME,
+                                         suffix=suffix)
+            self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
+            self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
 
 class OpenMPI(MPI):

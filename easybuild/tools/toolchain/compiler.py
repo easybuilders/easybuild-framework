@@ -314,7 +314,7 @@ class IntelIccIfort(Compiler):
                                     'dynamic':'-Bdynamic',
                                     }
 
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related : TODO: harmful or not?
+    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
 
     def _set_compiler_vars(self):
         super(IntelIccIfort, self)._set_compiler_vars()
@@ -322,11 +322,8 @@ class IntelIccIfort(Compiler):
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
             self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
 
-        icc_root = self.get_software_root('icc')
-        icc_version = self.get_software_version('icc')
-
-        ifort_root = self.get_software_root('ifort') ## result not used, but checks the existence
-        ifort_version = self.get_software_version('ifort')
+        icc_root, ifort_root = self.get_software_root(self.COMPILER_MODULE_NAME)
+        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
 
         if not ifort_version == icc_version:
             msg = "_set_compiler_vars: mismatch between icc version %s and ifort version %s"

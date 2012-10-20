@@ -114,12 +114,11 @@ class ScalableLinearAlgebraPackage(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBBLAS_MT', self.LIB_MULTITHREAD, position=10)
 
-        root = self.get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-
-        self.variables.append_exists('BLAS_LIB_DIR', root, self.BLAS_LIB_DIR)
-        self.variables.append_exists('BLAS_INC_DIR', root, self.BLAS_INCLUDE_DIR)
         self.variables.join('BLAS_STATIC_LIBS', 'LIBBLAS')
         self.variables.join('BLAS_MT_STATIC_LIBS', 'LIBBLAS_MT')
+        for root in self.get_software_root(self.BLAS_MODULE_NAME):
+            self.variables.append_exists('BLAS_LIB_DIR', root, self.BLAS_LIB_DIR)
+            self.variables.append_exists('BLAS_INC_DIR', root, self.BLAS_INCLUDE_DIR)
 
         ## add general dependency variables
         self._add_dependency_variables(self.BLAS_MODULE_NAME, ld=self.BLAS_LIB_DIR, cpp=self.BLAS_INCLUDE_DIR)
@@ -172,9 +171,9 @@ class ScalableLinearAlgebraPackage(Toolchain):
             self.variables.join('LAPACK_STATIC_LIBS', 'LIBLAPACK')
             self.variables.join('LAPACK_MT_STATIC_LIBS', 'LIBLAPACK_MT')
 
-            root = self.get_software_root(self.LAPACK_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-            self.variables.append_exists('LAPACK_LIB_DIR', root, self.LAPACK_LIB_DIR)
-            self.variables.append_exists('LAPACK_INC_DIR', root, self.LAPACK_INCLUDE_DIR)
+            for root in self.get_software_root(self.LAPACK_MODULE_NAME):
+                self.variables.append_exists('LAPACK_LIB_DIR', root, self.LAPACK_LIB_DIR)
+                self.variables.append_exists('LAPACK_INC_DIR', root, self.LAPACK_INCLUDE_DIR)
 
         self.variables.join('BLAS_LAPACK_LIB_DIR', 'LAPACK_LIB_DIR', 'BLAS_LIB_DIR')
         self.variables.join('BLAS_LAPACK_INC_DIR', 'LAPACK_INC_DIR', 'BLAS_INC_DIR')
@@ -204,12 +203,11 @@ class ScalableLinearAlgebraPackage(Toolchain):
         else:
             self.log.raiseException("_set_blacs_variables: setting LIBBLACS_MT from self.BLACS_LIB_MT not implemented")
 
-        root = self.get_software_root(self.BLACS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-
-        self.variables.append_exists('BLACS_LIB_DIR', root, self.BLACS_LIB_DIR)
-        self.variables.append_exists('BLACS_INC_DIR', root, self.BLACS_INCLUDE_DIR)
         self.variables.join('BLACS_STATIC_LIBS', 'LIBBLACS')
         self.variables.join('BLACS_MT_STATIC_LIBS', 'LIBBLACS_MT')
+        for root in self.get_software_root(self.BLACS_MODULE_NAME):
+            self.variables.append_exists('BLACS_LIB_DIR', root, self.BLACS_LIB_DIR)
+            self.variables.append_exists('BLACS_INC_DIR', root, self.BLACS_INCLUDE_DIR)
 
         ## add general dependency variables
         self._add_dependency_variables(self.BLACS_MODULE_NAME, ld=self.BLACS_LIB_DIR, cpp=self.BLACS_INCLUDE_DIR)
@@ -252,8 +250,6 @@ class ScalableLinearAlgebraPackage(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBSCALAPACK_MT_ONLY', self.LIB_MULTITHREAD)
 
-        root = self.get_software_root(self.SCALAPACK_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-
         if self.SCALAPACK_REQUIRES is not None:
             self.variables.join('LIBSCALAPACK', 'LIBSCALAPACK_ONLY', *self.SCALAPACK_REQUIRES)
             scalapack_mt = ["%s_MT" % x for x in self.SCALAPACK_REQUIRES]
@@ -264,10 +260,11 @@ class ScalableLinearAlgebraPackage(Toolchain):
             self.log.raiseException("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
 
 
-        self.variables.append_exists('SCALAPACK_LIB_DIR', root, self.SCALAPACK_LIB_DIR)
-        self.variables.append_exists('SCALAPACK_INC_DIR', root, self.SCALAPACK_INCLUDE_DIR)
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
         self.variables.join('SCALAPACK_MT_STATIC_LIBS', 'LIBSCALAPACK_MT')
+        for root in self.get_software_root(self.SCALAPACK_MODULE_NAME):
+            self.variables.append_exists('SCALAPACK_LIB_DIR', root, self.SCALAPACK_LIB_DIR)
+            self.variables.append_exists('SCALAPACK_INC_DIR', root, self.SCALAPACK_INCLUDE_DIR)
 
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
@@ -418,7 +415,7 @@ class IntelMKL(ScalableLinearAlgebraPackage):
             self.variables.append_el('CFLAGS', 'DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
-        found_version = self.get_software_version(self.BLAS_MODULE_NAME[0])
+        found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(found_version) < LooseVersion('10.3'):
             if self.options.get('32bit', None):
                 self.BLAS_LIB_DIR = ['lib/32']
