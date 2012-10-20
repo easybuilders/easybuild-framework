@@ -160,9 +160,11 @@ class Toolchain(object):
         """Try to get the software root for name"""
         version = get_software_version(name)
         if version is None:
-            self.log.raiseException("get_software_version software version for %s was not found in environment" % (name))
+            self.log.raiseException("get_software_version software version for %s was not found in environment" %
+                                    (name))
         else:
-            self.log.debug("get_software_version software version %s for %s was found in environment" % (version, name))
+            self.log.debug("get_software_version software version %s for %s was found in environment" %
+                           (version, name))
 
         return version
 
@@ -194,7 +196,8 @@ class Toolchain(object):
                 self.options[opt] = options[opt]
             else:
                 ## used to be warning, but this is a severe error imho
-                self.log.raiseException("set_options: undefined toolchain option %s specified (possible names %s)" % (opt, ",".join(self.options.keys())))
+                self.log.raiseException("set_options: undefined toolchain option %s specified (possible names %s)" %
+                                        (opt, ",".join(self.options.keys())))
 
     def get_dependency_version(self, dependency):
         """ Generate a version string for a dependency on a module using this toolchain """

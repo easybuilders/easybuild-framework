@@ -97,7 +97,7 @@ class StrList(list):
 
     def _str_ok(self, x):
         """Test if x can be added to returned string"""
-        test = x is not None and len(x) > 0
+        test = x is not None and len(str(x)) > 0
         return test
 
     def _str_self(self):

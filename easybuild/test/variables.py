@@ -23,7 +23,6 @@ import re
 
 from unittest import TestCase, TestSuite
 from easybuild.tools.variables import CommaList, CommandFlagList, FlagList, ListOfLists, StrList, Variables
-from easybuild.tools.variables import get_linker_endgroup, get_linker_startgroup
 
 
 class VariablesTest(TestCase):
@@ -37,19 +36,15 @@ class VariablesTest(TestCase):
             self.assertTrue(re.search(regex, err.msg))
 
     def runTest(self):
-
-        class TestListOfLists(ListOfLists):
-            MAP_CLASS = {'FOO':CommaList}
-
         class TestVariables(Variables):
-            MAP_LISTCLASS = {TestListOfLists : ['FOO']}
+            MAP_CLASS = {'FOO':CommaList}
 
         v = TestVariables()
         self.assertEqual(str(v), "{}")
 
         ## DEFAULTCLASS is StrList
         v['BAR'] = range(3)
-        self.assertEqual(str(v), "{'BAR': [[], [0, 1, 2]]}")
+        self.assertEqual(str(v), "{'BAR': [[0, 1, 2]]}")
         self.assertEqual(str(v['BAR']), "0 1 2")
 
         v['BAR'].append(StrList(range(10, 12)))
@@ -59,35 +54,17 @@ class VariablesTest(TestCase):
         self.assertEqual(str(v['BAR']), "0 1 2 10 11 20")
 
         v.nappend_el('BAR', 30, idx= -2)
-        self.assertEqual(str(v), "{'BAR': [[], [0, 1, 2], [10, 11, 30], [20]]}")
+        self.assertEqual(str(v), "{'BAR': [[0, 1, 2], [10, 11, 30], [20]]}")
         self.assertEqual(str(v['BAR']), '0 1 2 10 11 30 20')
 
         v['FOO'] = range(3)
         self.assertEqual(str(v['FOO']), "0,1,2")
 
         v['BARSTR'] = 'XYZ'
-        self.assertEqual(v['BARSTR'].__repr__(), "[[], ['XYZ']]")
+        self.assertEqual(v['BARSTR'].__repr__(), "[['XYZ']]")
 
         v['BARINT'] = 0
-        self.assertEqual(v['BARINT'].__repr__(), "[[], [0]]")
-
-        le = get_linker_endgroup()
-        self.assertEqual(str(le), "-Wl,--end-group")
-
-        static_dynamic = {
-                          'static': '-Bstatic',
-                          'dynamic': '-Bdynamic'
-                         }
-
-        ls = get_linker_startgroup(static_dynamic)
-        ls.toggle_static()
-        self.assertEqual(str(ls), "-Wl,--start-group -Wl,-Bstatic")
-
-        fs = FlagList(["foo", "bar"])
-        le.set_static_dynamic(static_dynamic)
-        le.toggle_dynamic()
-        all_flags = ListOfLists([ls, fs, le])
-        self.assertEqual(str(all_flags), "-Wl,--start-group -Wl,-Bstatic -foo -bar -Wl,--end-group -Wl,-Bdynamic")
+        self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")

@@ -31,8 +31,6 @@ QLOGICMPI = "QLogic"
 MPICH2_F = "MPICH2"  ## _F family names, otherwise classes
 MVAPICH2_F = "MVAPICH2"
 
-## TODO check for addDependencyVariables (i sit needed here?)
-
 class MPI(object):
     """General MPI-like class
         can't be used without creating new class M(MPI,Toolchain)
