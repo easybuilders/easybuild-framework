@@ -18,6 +18,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Toolchain fft module. Contains all FFT related classes
+"""
+
 from distutils.version import LooseVersion
 from easybuild.tools.toolchain.toolchain import Toolchain
 
