@@ -88,6 +88,24 @@ from easybuild.tools import systemtools
 # so this global variable is used.
 LOGDEBUG = False
 
+# see http://stackoverflow.com/questions/1229146/parsing-empty-options-in-python
+def optional_arg(default_value):
+    """Callback for supporting options with optional values."""
+
+    def func(option, opt_str, value, parser):
+        if parser.rargs and not parser.rargs[0].startswith('-'):
+            val = parser.rargs[0]
+            parser.rargs.pop(0)
+        else:
+            val = default_value
+
+        print "parser.values: %s" % parser.values
+        print "option.dest: %s" % option.dest
+        print "val: %s" % val
+        setattr(parser.values, option.dest, val)
+
+    return func
+
 def add_cmdline_options(parser):
     """
     Add build options to options parser
@@ -103,7 +121,7 @@ def add_cmdline_options(parser):
     basic_options.add_option("-k", "--skip", action="store_true",
                         help="skip existing software (useful for installing additional packages)")
     basic_options.add_option("-l", action="store_true", dest="stdoutLog", help="log to stdout")
-    basic_options.add_option("-r", "--robot", metavar="PATH",
+    basic_options.add_option("-r", "--robot", metavar="PATH", action='callback', callback=optional_arg(True), dest='robot',
                         help="path to search for easyconfigs for missing dependencies")
     basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
                         help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
@@ -251,6 +269,27 @@ def main():
     if options.version:
         print_msg("This is EasyBuild %s" % easybuild.VERBOSE_VERSION, log)
 
+    # determine easybuild-easyconfigs package install path
+    # we may need for the robot (default path), or for finding easyconfig files
+    easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
+    easyconfigs_pkg_full_path = None
+    for syspath in sys.path:
+        tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
+        if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
+            easyconfigs_pkg_full_path = tmppath
+            log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
+            break
+
+    if not easyconfigs_pkg_full_path:
+        log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
+
+    if options.robot and type(options.robot) == bool:
+        if easyconfigs_pkg_full_path:
+            options.robot = easyconfigs_pkg_full_path
+            log.info("Using default robot path: %s" % options.robot)
+        else:
+            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
+
     # initialize configuration
     # - check environment variable EASYBUILDCONFIG
     # - then, check command line option
@@ -324,16 +363,6 @@ def main():
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they we found at the given relative paths
 
-        # determine easybuild-easyconfigs package install path
-        easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
-        easyconfigs_pkg_full_path = None
-        for syspath in sys.path:
-            tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
-            if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
-                easyconfigs_pkg_full_path = tmppath
-                log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
-                break
-
         # create a mapping from filename to path in easybuild-easyconfigs package install path
         easyconfigs_map = {}
         for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
@@ -347,8 +376,6 @@ def main():
                     if paths[i] in easyconfigs_map:
                         log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
                         paths[i] = easyconfigs_map[paths[i]]
-        else:
-            log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
 
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in paths]
