@@ -321,6 +321,35 @@ def main():
                   "options to make EasyBuild search for easyconfigs", optparser=parser)
 
     else:
+        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+        # unless they we found at the given relative paths
+
+        # determine easybuild-easyconfigs package install path
+        easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
+        easyconfigs_pkg_full_path = None
+        for syspath in sys.path:
+            tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
+            if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
+                easyconfigs_pkg_full_path = tmppath
+                log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
+                break
+
+        # create a mapping from filename to path in easybuild-easyconfigs package install path
+        easyconfigs_map = {}
+        for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
+            for filename in filenames:
+                easyconfigs_map.update({filename: os.path.join(subpath, filename)})
+
+        # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
+        if easyconfigs_pkg_full_path:
+            for i in range(len(paths)):
+                if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
+                    if paths[i] in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
+                        paths[i] = easyconfigs_map[paths[i]]
+        else:
+            log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
+
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in paths]
 
