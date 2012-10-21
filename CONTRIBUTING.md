@@ -15,7 +15,7 @@ You should also register an SSH public key, so you can easily clone, push to and
 Clone your fork of the easybuild-framework repository to your favorite workstation. 
 
 ```bash
-git clone git@github.com:YOUR_ACCOUNT/easybuild-framework.git
+git clone git@github.com:YOUR\_GITHUB\_LOGIN/easybuild-framework.git
 ```
 
 ### Pull in the develop branch
