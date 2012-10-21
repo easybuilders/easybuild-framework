@@ -49,7 +49,9 @@ done
 
 if [ -z $easybuild_main ]
 then
-    echo "ERROR: Failed to locate EasyBuild's main script $main_script_base_path in Python's search path, obtained with '$python_search_path_cmd' ."
+    echo "ERROR: Failed to locate EasyBuild's main script $main_script_base_path" \
+         "in Python's search path, obtained with '$python_search_path_cmd' ."
+    echo "Make sure you PYTHONPATH setting is correct."
     exit 1
 else
     python $easybuild_main $@
