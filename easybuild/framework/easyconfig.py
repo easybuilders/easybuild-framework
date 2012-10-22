@@ -1006,7 +1006,7 @@ def get_paths_for(log, subdir="easyconfigs"):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
-    # browse through PYTHONPATH, all easyblocks repo paths should be there
+    # browse through Python search path, all easyblocks repo paths should be there
     paths = []
     for path in sys.path:
         path = os.path.join(path, "easybuild", subdir)
@@ -1014,6 +1014,7 @@ def get_paths_for(log, subdir="easyconfigs"):
         try:
             if os.path.isdir(path):
                 paths.append(os.path.abspath(path))
+                log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
             raise EasyBuildError(str(err))
 
