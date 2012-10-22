@@ -34,7 +34,12 @@ def find_full_path(base_path, trim=(lambda x: x)):
 
     full_path = None
 
-    for path in sys.path + os.getenv('PYTHONPATH').split(':'):
+    pythonpath = os.getenv('PYTHONPATH')
+    if pythonpath:
+        pythonpath = pythonpath.split(':')
+    else:
+        pythonpath = []
+    for path in sys.path + pythonpath:
         tmp_path = os.path.join(trim(path), base_path)
         if os.path.exists(tmp_path):
             full_path = tmp_path
