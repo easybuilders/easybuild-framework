@@ -99,9 +99,6 @@ def optional_arg(default_value):
         else:
             val = default_value
 
-        print "parser.values: %s" % parser.values
-        print "option.dest: %s" % option.dest
-        print "val: %s" % val
         setattr(parser.values, option.dest, val)
 
     return func
