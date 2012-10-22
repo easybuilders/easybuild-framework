@@ -1,5 +1,5 @@
 include eb
-recursive-include easybuild
+recursive-include easybuild *py *eb
 include CONTRIBUTING.md
 include LICENSE
 include README.rst
