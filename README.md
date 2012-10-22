@@ -6,7 +6,7 @@ a software build and installation framework written in Python that allows you to
 in a structured, repeatable and robust way.
 
 This package contains the EasyBuild framework that supports the implementation and use of so-called
-easyblocks, that implement the software install procedure for a particular (groups of) software packages.
+easyblocks, that implement the software install procedure for a particular (group of) software package(s).
 
 The code of the easybuild-framework package is hosted on GitHub, along with an issue tracker for
 bug reports and feature requests, see https://github.com/hpcugent/easybuild-framework.
