@@ -331,7 +331,7 @@ def main(options):
     # run regtest
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
-        regtest(options, log, paths)
+        regtest(options, log, easyconfigs_pkg_full_path, easyconfigs_paths=paths)
 
     if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
         if logfile:
@@ -1317,14 +1317,14 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
 
     print "Aggregate regtest results written to %s" % output_filename
 
-def regtest(options, log, easyconfigs_paths=None):
+def regtest(options, log, easyconfigs_pkg_path, easyconfigs_paths=None):
     """Run regression test, using easyconfigs available in given path."""
 
     cur_dir = os.getcwd()
 
     if options.aggregate_regtest:
-        output_file = os.path.join(options.aggregate_regtest, "%s-aggregate.xml" % os.path.basename(options.aggregate_regtest))
-        print output_file
+        output_file = os.path.join(options.aggregate_regtest,
+                                   "%s-aggregate.xml" % os.path.basename(options.aggregate_regtest))
         aggregate_xml_in_dirs(options.aggregate_regtest, output_file)
         log.info("aggregated xml files inside %s, output written to: %s" % (options.aggregate_regtest, output_file))
         sys.exit(0)
@@ -1349,10 +1349,11 @@ def regtest(options, log, easyconfigs_paths=None):
     if easyconfigs_paths:
         for path in easyconfigs_paths:
             ecfiles += find_easyconfigs(path, log)
+    elif easyconfigs_pkg_path:
+        # default path: easybuild-easyconfigs install path
+        ecfiles = find_easyconfigs(easyconfigs_pkg_path, log)
     else:
-        # default path
-        path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "easyconfigs")
-        ecfiles = find_easyconfigs(path, log)
+        log.error("No easyconfig paths specified, and default path (easyconfigs package install path) not available.")
 
     test_results = []
 
