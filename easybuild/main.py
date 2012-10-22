@@ -229,18 +229,18 @@ def parse_options():
     LOGDEBUG = options.debug
 
     # initialize logger
-    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="build")
-    return options, paths, log, logfile
+    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
+    return options, paths, log, logfile, hn
 
 def main(options):
     """
     Main function:
-    @arg options: a tuple: (options, paths, logger, logfile) as defined in parse_options
+    @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
     This function will:
     - read easyconfig
     - build software
     """
-    options, paths, log, logfile = options
+    options, paths, log, logfile, hn = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % easybuild.VERBOSE_VERSION, log)
