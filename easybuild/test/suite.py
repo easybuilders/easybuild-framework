@@ -31,7 +31,8 @@ import easybuild.test.filetools as f
 import easybuild.test.repository as r
 import easybuild.test.robot as robot
 import easybuild.test.variables as v
+import easybuild.test.toolchainvariables as tcv
 
 # call suite() for each module and then run them all
-suite = unittest.TestSuite(map(lambda x: x.suite(), [t, r, e, mg, m, f, a, robot, v]))
+suite = unittest.TestSuite(map(lambda x: x.suite(), [t, r, e, mg, m, f, a, robot, v, tcv]))
 unittest.TextTestRunner().run(suite)

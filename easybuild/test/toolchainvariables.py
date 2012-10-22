@@ -24,7 +24,6 @@ import re
 from unittest import TestCase, TestSuite
 from easybuild.tools.toolchain.variables import ToolchainVariables
 
-
 class ToolchainVariablesTest(TestCase):
     """ Baseclass for easyblock testcases """
 
@@ -37,7 +36,10 @@ class ToolchainVariablesTest(TestCase):
 
     def runTest(self):
         ## DEFAULTCLASS is FlagList
-        tcv = ToolchainVariables()
+        class TCV(ToolchainVariables):
+            LINKER_TOGGLE_START_STOP_GROUP = {'start': '-Xstart',
+                                              'stop':'-Xstop', }
+        tcv = TCV()
         self.assertEqual(str(tcv), "{}")
 
         tcv['CC'] = 'gcc'
@@ -55,7 +57,35 @@ class ToolchainVariablesTest(TestCase):
         x = tcv.nappend('FLAGS', ['three', 'four'])
         x.POSITION = -5 ## sanitize will reorder, default POSITION is 0
         self.assertEqual(tcv['FLAGS'].__repr__(), "[['one', 'two'], ['three', 'four']]")
+        tcv['FLAGS'].sanitize() # sort on position, called by __str__ also
+        self.assertEqual(tcv['FLAGS'].__repr__(), "[['three', 'four'], ['one', 'two']]")
         self.assertEqual(str(tcv['FLAGS']), "-three -four -one -two")
+
+        ## LIBBLAS is a LibraryList
+        lib = tcv.nappend('LIBBLAS', ['d', 'e', 'f'])
+        lib.POSITION = 5 ## relative position after default
+        lib = tcv.nappend('LIBBLAS', ['a', 'b', 'c'])
+        tcv.add_begin_end_linkerflags(lib, toggle_startstopgroup=True)
+        self.assertEqual(lib.BEGIN.__repr__(), "['-Xstart']")
+        self.assertEqual(tcv['LIBBLAS'].__repr__(), "[['d', 'e', 'f'], ['a', 'b', 'c']]")
+        ## str calls sanitize
+        self.assertEqual(str(tcv['LIBBLAS']), "-Wl,-Xstart -la -lb -lc -Wl,-Xstop -ld -le -lf")
+        ## sanitize is on self
+        self.assertEqual(tcv['LIBBLAS'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
+
+        ## packed_linker
+        tcv.try_function_el('set_packed_linker_options') ## don't use it like this (this is internal)
+        self.assertEqual(str(tcv['LIBBLAS']), "-Wl,-Xstart,-la,-lb,-lc,-Xstop -ld -le -lf")
+
+        tcv.join('LIBLAPACK', 'LIBBLAS')
+        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
+        lib = tcv.nappend('LIBLAPACK', ['g', 'h'])
+        tcv.add_begin_end_linkerflags(lib, toggle_startstopgroup=True)
+        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h']]")
+        ## sanitize will reorder wrt POSISTION and join the start/stop group
+        tcv['LIBLAPACK'].sanitize()
+        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c', 'g', 'h'], ['d', 'e', 'f']]")
+        self.assertEqual(str(tcv['LIBLAPACK']), "-Wl,-Xstart,-la,-lb,-lc,-lg,-lh,-Xstop -ld -le -lf")
 
 
 def suite():

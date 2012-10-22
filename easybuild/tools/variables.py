@@ -217,13 +217,18 @@ class LinkerFlagList(StrList):
         self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
 
     def sanitize(self):
+        ## TODO: rewrite to avoid changing constants
         if self.PACKED_LINKER_OPTIONS:
+            ## somehow this should only be run once.
+            self.PACKED_LINKER_OPTIONS = None
+
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
             self.SEPARATOR = ','
             if self.IS_BEGIN:
                 self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
             self.PREFIX = None
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s" % (self.IS_BEGIN, self.PREFIX, self.BEGIN))
+
 
         super(LinkerFlagList, self).sanitize()
 
