@@ -29,6 +29,7 @@ import difflib
 import glob
 import os
 import re
+import sys
 import tempfile
 from distutils.version import LooseVersion
 
@@ -1007,12 +1008,12 @@ def get_paths_for(log, subdir="easyconfigs"):
     """
     # browse through PYTHONPATH, all easyblocks repo paths should be there
     paths = []
-    for pythonpath in os.getenv('PYTHONPATH').split(':'):
-        path = os.path.join(pythonpath, "easybuild", subdir)
-        log.debug("Looking for easybuild/%s in path %s" % (subdir, pythonpath))
+    for path in sys.path:
+        path = os.path.join(path, "easybuild", subdir)
+        log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
             if os.path.isdir(path):
-                paths.append(os.path.abspath(pythonpath))
+                paths.append(os.path.abspath(path))
         except OSError, err:
             raise EasyBuildError(str(err))
 
