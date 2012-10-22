@@ -67,7 +67,6 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-import easybuild  # required for VERBOSE_VERSION
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
@@ -81,6 +80,7 @@ from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.version import VERBOSE_VERSION
 from easybuild.tools import systemtools
 
 
@@ -267,7 +267,7 @@ def main():
 
     # show version
     if options.version:
-        print_msg("This is EasyBuild %s" % easybuild.VERBOSE_VERSION, log)
+        print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
 
     # determine easybuild-easyconfigs package install path
     # we may need for the robot (default path), or for finding easyconfig files
@@ -900,7 +900,7 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild_version', str(easybuild.VERBOSE_VERSION)),
+                              ('easybuild_version', str(VERBOSE_VERSION)),
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
@@ -1155,7 +1155,7 @@ def write_to_xml(succes, failed, filename):
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(easybuild.VERBOSE_VERSION))
+    version.setAttribute("value", str(VERBOSE_VERSION))
     properties.appendChild(version)
 
     time = root.createElement("property")
@@ -1276,7 +1276,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(easybuild.VERBOSE_VERSION))
+    version.setAttribute("value", str(VERBOSE_VERSION))
     properties.appendChild(version)
 
     time_el = root.createElement("property")

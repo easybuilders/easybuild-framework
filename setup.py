@@ -1,7 +1,7 @@
 import os
 from distutils import log
 
-from easybuild import VERSION
+from easybuild.tools.version import VERSION
 
 API_VERSION = str(VERSION).split('.')[0]
 
