@@ -1536,6 +1536,7 @@ def get_class(easyblock, log, name=None):
                     log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
                                 (class_name, app_mod_class, err))
                     (modulepath, class_name) = app_mod_class
+                    cls = get_class_for(modulepath, class_name)
 
         # something was specified, lets parse it
         else:
