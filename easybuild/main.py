@@ -198,14 +198,7 @@ def add_cmdline_options(parser):
 
     parser.add_option_group(regtest_options)
 
-def main():
-    """
-    Main function:
-    - parse command line options
-    - initialize logger
-    - read easyconfig
-    - build software
-    """
+def parse_options():
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
@@ -225,28 +218,29 @@ def main():
     (options, paths) = parser.parse_args()
 
     # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-    fd, logFile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
     os.close(fd)
 
     if options.stdoutLog:
-        os.remove(logFile)
-        logFile = None
+        os.remove(logfile)
+        logfile = None
 
     global LOGDEBUG
     LOGDEBUG = options.debug
 
-    configOptions = {}
-    if options.pretend:
-        configOptions['installPath'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
-
-    if options.only_blocks:
-        blocks = options.only_blocks.split(',')
-    else:
-        blocks = None
-
     # initialize logger
-    logFile, log, hn = init_logger(filename=logFile, debug=options.debug, typ="build")
+    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="build")
+    return options, paths, log, logfile
 
+def main(options):
+    """
+    Main function:
+    @arg options: a tuple: (options, paths, logger, logfile) as defined in parse_options
+    This function will:
+    - read easyconfig
+    - build software
+    """
+    options, paths, log, logfile = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % easybuild.VERBOSE_VERSION, log)
@@ -256,6 +250,15 @@ def main():
     # - then, check command line option
     # - last, use default config file easybuild_config.py in main.py directory
     config_file = options.config
+
+    configOptions = {}
+    if options.pretend:
+        configOptions['installPath'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
+
+    if options.only_blocks:
+        blocks = options.only_blocks.split(',')
+    else:
+        blocks = None
 
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
@@ -291,8 +294,8 @@ def main():
         regtest(options, log, paths)
 
     if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
-        if logFile:
-            os.remove(logFile)
+        if logfile:
+            os.remove(logfile)
         sys.exit(0)
 
     # set strictness of filetools module
@@ -435,15 +438,15 @@ def main():
     try:
         remove_log_handler(hn)
         hn.close()
-        if logFile:
-            os.remove(logFile)
+        if logfile:
+            os.remove(logfile)
 
-        for easyconfig in easyconfigs:
-            if 'originalSpec' in easyconfig:
-                os.remove(easyconfig['spec'])
+        for ec in easyconfigs:
+            if 'originalSpec' in ec:
+                os.remove(ec['spec'])
 
     except IOError, err:
-        error("Something went wrong closing and removing the log %s : %s" % (logFile, err))
+        error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
 def error(message, exitCode=1, optparser=None):
     """
@@ -682,7 +685,7 @@ def process_software_build_specs(options):
                 tc = options.toolchain.split(',')
                 if options.try_toolchain:
                     warning("Ignoring --try-toolchain, only using --toolchain specification.")
-        elif options.try_toollkit:
+        elif options.try_toolchain:
                 tc = options.try_toolchain.split(',')
                 try_to_generate = True
         else:
@@ -1383,7 +1386,7 @@ def print_tree(classes, classNames, detailed, depth=0):
 
 if __name__ == "__main__":
     try:
-        main()
+        main(parse_options())
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
