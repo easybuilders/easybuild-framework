@@ -40,7 +40,7 @@ implement support for installing particular (groups of) software packages.""",
     data_files = [
                   ('easybuild', ["easybuild/easybuild_config.py"]),
     ],
-    long_description = read("README.md"),
+    long_description = read("README.rst"),
     classifiers = [
                    "Development Status :: 5 - Production/Stable",
                    "Environment :: Console",
