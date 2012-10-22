@@ -217,12 +217,6 @@ def add_cmdline_options(parser):
     parser.add_option_group(regtest_options)
 
 def parse_options():
-    # disallow running EasyBuild as root
-    if os.getuid() == 0:
-        sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
-                        "That's not wise, so let's end this here.\n" \
-                        "Exiting.\n")
-        sys.exit(1)
 
     # options parser
     parser = OptionParser()
@@ -248,6 +242,7 @@ def parse_options():
 
     # initialize logger
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
+
     return options, paths, log, logfile, hn
 
 def main(options):
@@ -258,6 +253,14 @@ def main(options):
     - read easyconfig
     - build software
     """
+
+    # disallow running EasyBuild as root
+    if os.getuid() == 0:
+        sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
+                        "That's not wise, so let's end this here.\n" \
+                        "Exiting.\n")
+        sys.exit(1)
+
     options, paths, log, logfile, hn = options
     # show version
     if options.version:
@@ -366,14 +369,14 @@ def main(options):
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they we found at the given relative paths
 
-        # create a mapping from filename to path in easybuild-easyconfigs package install path
-        easyconfigs_map = {}
-        for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
-            for filename in filenames:
-                easyconfigs_map.update({filename: os.path.join(subpath, filename)})
-
-        # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
         if easyconfigs_pkg_full_path:
+            # create a mapping from filename to path in easybuild-easyconfigs package install path
+            easyconfigs_map = {}
+            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
+                for filename in filenames:
+                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
+
+            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
             for i in range(len(paths)):
                 if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
                     if paths[i] in easyconfigs_map:
