@@ -119,7 +119,8 @@ def add_cmdline_options(parser):
                         help="skip existing software (useful for installing additional packages)")
     basic_options.add_option("-l", action="store_true", dest="stdoutLog", help="log to stdout")
     basic_options.add_option("-r", "--robot", metavar="PATH", action='callback', callback=optional_arg(True), dest='robot',
-                        help="path to search for easyconfigs for missing dependencies")
+                        help="path to search for easyconfigs for missing dependencies " \
+                             "(default: easybuild-easyconfigs install path)")
     basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
                         help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
     strictness_options = ['ignore', 'warn', 'error']
@@ -240,7 +241,7 @@ def parse_options():
     # initialize logger
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
 
-    return options, paths, log, logfile, hn
+    return options, paths, log, logfile, hn, parser
 
 def main(options):
     """
@@ -258,7 +259,7 @@ def main(options):
                         "Exiting.\n")
         sys.exit(1)
 
-    options, paths, log, logfile, hn = options
+    options, paths, log, logfile, hn, parser = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
