@@ -81,7 +81,6 @@ class Toolchain(object):
             self.log.raiseException("init: no version provided")
         self.version = version
 
-        self.opts = None
         self.vars = None
 
     def base_init(self):
@@ -196,7 +195,7 @@ class Toolchain(object):
         """ Process toolchain options """
         for opt in options.keys():
             ## Only process supported opts
-            if opt in self.opts:
+            if opt in self.options:
                 self.options[opt] = options[opt]
             else:
                 ## used to be warning, but this is a severe error imho
