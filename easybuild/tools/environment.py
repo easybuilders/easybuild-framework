@@ -2,7 +2,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -29,7 +33,7 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = open(filename,'w')
+    script = open(filename, 'w')
 
     for key in changes:
         script.write('export %s="%s"\n' % (key, changes[key]))

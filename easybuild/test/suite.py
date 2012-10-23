@@ -4,7 +4,11 @@
 # Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -37,7 +41,8 @@ import easybuild.test.filetools as f
 import easybuild.test.repository as r
 import easybuild.test.robot as robot
 import easybuild.test.easyblock as b
-
+import easybuild.test.variables as v
+import easybuild.test.toolchainvariables as tcv
 from easybuild.tools.build_log import init_logger, remove_log_handler
 
 
@@ -46,7 +51,7 @@ log_fn = "/tmp/easybuild_tests.log"
 _, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b]])
+SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b, v, tcv]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""

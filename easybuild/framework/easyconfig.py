@@ -7,7 +7,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -34,7 +38,7 @@ import tempfile
 from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError, get_log
-from easybuild.tools.toolkit import Toolkit
+from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
@@ -42,7 +46,7 @@ from easybuild.tools.ordereddict import OrderedDict
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
 CUSTOM = (1, 'easyblock-specific')
-TOOLKIT = (2, 'toolchain')
+TOOLCHAIN = (2, 'toolchain')
 BUILD = (3, 'build')
 FILEMANAGEMENT = (4, 'file-management')
 DEPENDENCIES = (5, 'dependencies')
@@ -69,19 +73,13 @@ class EasyConfig(object):
           ('description', [None, 'A short description of the software', MANDATORY]),
           ('homepage', [None, 'The homepage of the software', MANDATORY]),
 
-          ('toolchainopts', ['', 'Extra options for compilers', TOOLKIT]),
-          ('onlytcmod', [False,"Boolean/list to indicate if the toolchain should only load " \
-                               "the enviornment with module (True) or also set all other " \
-                               "variables (False) like compiler CC etc (If list: list of variables" \
-                               "that will be ignored). (Default: False)", TOOLKIT]),
+          ('toolchainopts', ['', 'Extra options for compilers', TOOLCHAIN]),
+          ('onlytcmod', [False, 'Boolean/string to indicate if the toolchain should only load the enviornment with module (True) or also set all other variables (False) like compiler CC etc (If string: comma separated list of variables that will be ignored). (Default: False)', TOOLCHAIN]),
 
           ('easybuildVersion', [None, "EasyBuild-version this spec-file was written for", BUILD]),
-          ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)',
-                             BUILD]),
-          ('versionprefix', ['', "Additional prefix for software version (placed before version " \
-                                 "and toolchain name)", BUILD]),
-          ('runtest', [None, 'Indicates if a test should be run after make; should specify argument ' \
-                             'after make (for e.g.,"test" for make test) (Default: None)', BUILD]),
+          ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)', BUILD]),
+          ('versionprefix', ['', 'Additional prefix for software version (placed before version and toolchain name)',BUILD]),
+          ('runtest', [None, 'Indicates if a test should be run after make; should specify argument after make (for e.g.,"test" for make test) (Default: None)', BUILD]),
           ('preconfigopts', ['', 'Extra options pre-passed to configure.', BUILD]),
           ('configopts', ['', 'Extra options passed to configure (Default already has --prefix)', BUILD]),
           ('premakeopts', ['', 'Extra options pre-passed to build command.', BUILD]),

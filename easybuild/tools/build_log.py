@@ -6,7 +6,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -32,6 +36,7 @@ import sys
 import time
 from socket import gethostname
 from copy import copy
+from vsc import fancylogger
 
 from easybuild.tools.version import VERBOSE_VERSION
 
@@ -50,7 +55,7 @@ class EasyBuildError(Exception):
         return repr(self.msg)
 
 
-class EasyBuildLog(logging.Logger):
+class EasyBuildLog(fancylogger.NamedLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
     """
@@ -101,7 +106,8 @@ def get_log(name=None):
     """
     Generate logger object
     """
-    log = logging.getLogger(name)
+    #log = logging.getLogger(name)
+    log = fancylogger.getLogger(name)
     log.info("Logger started for %s." % name)
     return log
 
@@ -109,7 +115,7 @@ def remove_log_handler(hnd):
     """
     Remove handler from root log
     """
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
     log.removeHandler(hnd)
 
 def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
@@ -120,7 +126,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     """
 
     # obtain root logger
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
 
     # determine log level
     if debug:
@@ -142,7 +148,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     log.addHandler(hand)
 
     # initialize our logger
-    log = logging.getLogger(typ)
+    log = fancylogger.getLogger(typ)
     log.setLevel(defaultLogLevel)
 
     ## init message
