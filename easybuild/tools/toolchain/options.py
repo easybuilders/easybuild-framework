@@ -38,7 +38,7 @@ class ToolchainOptions(dict):
     def __init__(self):
         self.log = getLogger(self.__class__.__name__)
 
-        self.map = {}  # map between options name and value
+        self.options_map = {}  # map between options name and value
         self.description = {}  # short description of the options
 
     def add_options(self, options=None, options_map=None):
@@ -75,16 +75,16 @@ class ToolchainOptions(dict):
                 else:
                     self.log.raiseException("_add_options_map: no option with name %s defined" % name)
 
-        self.map.update(options_map)
+        self.options_map.update(options_map)
 
     def option(self, name, templatedict=None):
         """Return option value"""
         value = self.get(name, None)
-        if value is None and name not in self.map:
+        if value is None and name not in self.options_map:
             self.log.warning("option: option with name %s returns None" % name)
             res = None
-        elif name in self.map:
-            res = self.map[name]
+        elif name in self.options_map:
+            res = self.options_map[name]
 
             if isinstance(res, str):
                 ## allow for template
@@ -93,10 +93,10 @@ class ToolchainOptions(dict):
                 templatedict.update({'opt':name,
                                      'value':value,
                                      })
-                res = self.map[name] % templatedict
+                res = self.options_map[name] % templatedict
             else:
                 ## check if True?
-                res = self.map[name]
+                res = self.options_map[name]
         else:
             res = value
 

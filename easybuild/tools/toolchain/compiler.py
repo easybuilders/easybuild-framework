@@ -203,8 +203,8 @@ class Compiler(Toolchain):
                 self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
-            self.options.map['optarch'] = optarch
+            self.options.options_map['optarch'] = optarch
 
-        if self.options.map.get('optarch', None) is None:
+        if self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
