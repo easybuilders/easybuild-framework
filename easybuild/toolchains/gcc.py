@@ -26,6 +26,6 @@
 from easybuild.toolchains.compiler.gcc import Gcc
 
 
-class GccToolchain(Gcc):
+class Gcc(Gcc):
     """Simple toolchain with just the GCC compilers."""
     NAME = 'GCC'
