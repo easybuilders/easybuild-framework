@@ -56,9 +56,10 @@ class IntelIccIfort(Compiler):
                                   'no-icc': 'no-icc'
                                   }
 
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {systemtools.INTEL : 'xHOST',
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                                            systemtools.INTEL : 'xHOST',
                                             systemtools.AMD : 'msse3'
-                                            }
+                                           }
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'

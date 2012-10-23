@@ -26,6 +26,7 @@
 Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
+import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -56,6 +57,11 @@ class Gcc(Compiler):
                                   'loose': ['mrecip', 'mno-ieee-fp'],
                                   'veryloose': ['mrecip=all', 'mno-ieee-fp'],
                                   }
+
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                                            systemtools.INTEL : 'march=native',
+                                            systemtools.AMD : 'march=native'
+                                           }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
