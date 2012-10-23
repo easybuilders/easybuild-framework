@@ -43,7 +43,8 @@ class IntelIccIfort(Compiler):
                             'no-icc': (False, "Don't set Intel specific macros"),
                             }
 
-    COMPILER_UNIQUE_OPTION_MAP = {'i8': 'i8',
+    COMPILER_UNIQUE_OPTION_MAP = {
+                                  'i8': 'i8',
                                   'r8':'r8',
                                   'optarch':'xHOST',
                                   'openmp':'openmp',
