@@ -29,6 +29,7 @@ import difflib
 import glob
 import os
 import re
+import sys
 import tempfile
 from distutils.version import LooseVersion
 
@@ -172,7 +173,7 @@ class EasyConfig(object):
                             'stop': self.validstops
                            }
 
-        self.parse(path, validate)
+        self.parse(path)
 
         # perform validations
         if validate:
@@ -188,7 +189,7 @@ class EasyConfig(object):
 
         self[key] = '%s %s ' % (prev_value, value)
 
-    def parse(self, path, validate=True):
+    def parse(self, path):
         """
         Parse the file and set options
         mandatory requirements are checked here
@@ -204,30 +205,23 @@ class EasyConfig(object):
             self.log.exception("SyntaxError in easyblock %s: %s" % (path, err))
 
         # validate mandatory keys
-        if validate:
-            missing_keys = [key for key in self.mandatory if key not in local_vars]
-            if missing_keys:
-                self.log.error("mandatory variables %s not provided" % missing_keys)
+        missing_keys = [key for key in self.mandatory if key not in local_vars]
+        if missing_keys:
+            self.log.error("mandatory variables %s not provided" % missing_keys)
 
-            # provide suggestions for typos
-            possible_typos = [(key, difflib.get_close_matches(key, self.config.keys(), 1, 0.85))
-                              for key in local_vars if key not in self.config]
+        # provide suggestions for typos
+        possible_typos = [(key, difflib.get_close_matches(key, self.config.keys(), 1, 0.85))
+                          for key in local_vars if key not in self.config]
 
-            typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
-            if typos:
-                self.log.error("You may have some typos in your easyconfig file: %s" %
-                                ', '.join(["%s -> %s" % typo for typo in typos]))
+        typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
+        if typos:
+            self.log.error("You may have some typos in your easyconfig file: %s" %
+                            ', '.join(["%s -> %s" % typo for typo in typos]))
 
         for key in local_vars:
             # validations are skipped, just set in the config
-            if not validate:
-                if key in self.config:
-                    self[key] = local_vars[key]
-                else:
-                    self.config[key] = [local_vars[key], ""]
-
             # do not store variables we don't need
-            elif key in self.config:
+            if key in self.config:
                 self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s" % (key, self[key]))
 
@@ -311,7 +305,7 @@ class EasyConfig(object):
         """
         if self._toolchain:
             return self._toolchain
-
+        
         tc = Toolkit(self['toolchain']['name'], self['toolchain']['version'])
         if self['toolchainopts']:
             tc.set_options(self['toolchainopts'])
@@ -1006,14 +1000,15 @@ def get_paths_for(log, subdir="easyconfigs"):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
-    # browse through PYTHONPATH, all easyblocks repo paths should be there
+    # browse through Python search path, all easyblocks repo paths should be there
     paths = []
-    for pythonpath in os.getenv('PYTHONPATH').split(':'):
-        path = os.path.join(pythonpath, "easybuild", subdir)
-        log.debug("Looking for easybuild/%s in path %s" % (subdir, pythonpath))
+    for path in sys.path:
+        path = os.path.join(path, "easybuild", subdir)
+        log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
             if os.path.isdir(path):
-                paths.append(os.path.abspath(pythonpath))
+                paths.append(os.path.abspath(path))
+                log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
             raise EasyBuildError(str(err))
 

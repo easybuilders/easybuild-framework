@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -19,9 +20,13 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+import os
+import sys
 from unittest import TestCase, TestSuite
+
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.test.utilities import find_full_path
 
 
 class ModuleGeneratorTest(TestCase):
@@ -29,8 +34,16 @@ class ModuleGeneratorTest(TestCase):
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-        self.modgen = ModuleGenerator(EasyBlock('easybuild/test/easyconfigs/gzip-1.4.eb'))
+
+        # find .eb file
+        eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
+        eb_full_path = find_full_path(eb_path)
+        self.assertTrue(eb_full_path)
+            
+        self.eb = EasyBlock(eb_full_path)
+        self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = "/tmp"
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ since we set the installdir above, we can predict the output """
@@ -77,6 +90,11 @@ prepend-path	key		$root/path2
 
         # test setEnvironment
         self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+
+    def tearDown(self):
+        """cleanup"""
+        os.remove(self.eb.logfile)
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

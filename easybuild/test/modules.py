@@ -18,15 +18,20 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+import os
 
 import easybuild.tools.modules as modules
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestLoader 
 
 
 class ModulesTest(TestCase):
     """ small test for Modules """
 
-    def runTest(self):
+    def setUp(self):
+        """setup"""
+        self.cwd = os.getcwd()
+
+    def test_load(self):
         """ test if we load one module it is in the loaded_modules """
         testmods = modules.Modules()
         ms = testmods.available('', None)
@@ -39,8 +44,12 @@ class ModulesTest(TestCase):
             tmp = {"name": m[0], "version": m[1]}
             assert(tmp in testmods.loaded_modules())
 
+
+    def tearDown(self):
+        """cleanup"""
+        os.chdir(self.cwd)
+
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([ModulesTest()])
-
+    return TestLoader().loadTestsFromTestCase(ModulesTest)
 
