@@ -42,6 +42,7 @@ from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain.utilities import search_toolchain
 
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
@@ -74,22 +75,27 @@ class EasyConfig(object):
           ('homepage', [None, 'The homepage of the software', MANDATORY]),
 
           ('toolchainopts', ['', 'Extra options for compilers', TOOLCHAIN]),
-          ('onlytcmod', [False, 'Boolean/string to indicate if the toolchain should only load the enviornment with module (True) or also set all other variables (False) like compiler CC etc (If string: comma separated list of variables that will be ignored). (Default: False)', TOOLCHAIN]),
+          ('onlytcmod', [False, 'Boolean/string to indicate if the toolchain should only load ' \
+                                'the environment with module (True) or also set all other ' \
+                                'variables (False) like compiler CC etc (if string: comma ' \
+                                'separated list of variables that will be ignored). (default: False)', TOOLCHAIN]),
 
           ('easybuildVersion', [None, "EasyBuild-version this spec-file was written for", BUILD]),
           ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)', BUILD]),
-          ('versionprefix', ['', 'Additional prefix for software version (placed before version and toolchain name)',BUILD]),
-          ('runtest', [None, 'Indicates if a test should be run after make; should specify argument after make (for e.g.,"test" for make test) (Default: None)', BUILD]),
+          ('versionprefix', ['', 'Additional prefix for software version ' \
+                                 '(placed before version and toolchain name)', BUILD]),
+          ('runtest', [None, 'Indicates if a test should be run after make; should specify argument after make ' \
+                             '(for e.g.,"test" for make test) (default: None)', BUILD]),
           ('preconfigopts', ['', 'Extra options pre-passed to configure.', BUILD]),
-          ('configopts', ['', 'Extra options passed to configure (Default already has --prefix)', BUILD]),
+          ('configopts', ['', 'Extra options passed to configure (default already has --prefix)', BUILD]),
           ('premakeopts', ['', 'Extra options pre-passed to build command.', BUILD]),
-          ('makeopts', ['', 'Extra options passed to make (Default already has -j X)', BUILD]),
-          ('preinstallopts', ['', 'Extra prefix options for installation (Default: nothing)', BUILD]),
-          ('installopts', ['', 'Extra options for installation (Default: nothing)', BUILD]),
+          ('makeopts', ['', 'Extra options passed to make (default already has -j X)', BUILD]),
+          ('preinstallopts', ['', 'Extra prefix options for installation (default: nothing)', BUILD]),
+          ('installopts', ['', 'Extra options for installation (default: nothing)', BUILD]),
           ('unpackOptions', [None, "Extra options for unpacking source (default: None)", BUILD]),
           ('stop', [None, 'Keyword to halt the buildprocess at certain points. Valid are %s' % validstops,
                     BUILD]),
-          ('skip', [False, "Skip existing software (Default: False)", BUILD]),
+          ('skip', [False, "Skip existing software (default: False)", BUILD]),
           ('parallel', [None, 'Degree of parallelism for e.g. make (default: based on the number of ' \
                               'cores and restrictions in ulimit)', BUILD]),
           ('maxparallel', [None, 'Max degree of parallelism (default: None)', BUILD]),
@@ -106,14 +112,14 @@ class EasyConfig(object):
           ('start_dir', [None, 'Path to start the make in. If the path is absolute, use that path. ' \
                                'If not, this is added to the guessed path.', FILEMANAGEMENT]),
           ('keeppreviousinstall', [False, 'Boolean to keep the previous installation with identical ' \
-                                          'name. Default False, experts only!', FILEMANAGEMENT]),
+                                          'name. (default: False) Experts only!', FILEMANAGEMENT]),
           ('cleanupoldbuild', [True, 'Boolean to remove (True) or backup (False) the previous build ' \
-                                     'directory with identical name or not. Default True', FILEMANAGEMENT]),
+                                     'directory with identical name or not. (default: True)', FILEMANAGEMENT]),
           ('cleanupoldinstall', [True, 'Boolean to remove (True) or backup (False) the previous install ' \
-                                       'directory with identical name or not. Default True',
+                                       'directory with identical name or not. (default: True)',
                                        FILEMANAGEMENT]),
           ('dontcreateinstalldir', [False, 'Boolean to create (False) or not create (True) the install ' \
-                                           'directory (Default False)', FILEMANAGEMENT]),
+                                           'directory (default: False)', FILEMANAGEMENT]),
           ('keepsymlinks', [False, 'Boolean to determine whether symlinks are to be kept during copying ' \
                                    'or if the content of the files pointed to should be copied',
                                    FILEMANAGEMENT]),
@@ -127,23 +133,32 @@ class EasyConfig(object):
           ('key', [None, 'Key for installing software', LICENSE]),
           ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
 
-          ('exts_list', [[], 'List with extensions added to the base installation (Default: [])', EXTENSIONS]),
-          ('exts_modulenames', [{}, 'Dictionary with real modules names for extensions, if they are different from the extension name (Default: {})', EXTENSIONS]),
-          ('exts_loadmodule', [True, 'Load the to-be installed software using temporary module (Default: True)', EXTENSIONS]),
-          ('exts_template', ["%s-%s.tar.gz", "Template for extension source file names (Default: %s-%s.tar.gz)", EXTENSIONS]),
-          ('exts_findsource', [True, "Find sources for extensions (Default: True)", EXTENSIONS]),
-          ('exts_installdeps', [True, "Install dependencies for specified extensions if necessary (Default: True)", EXTENSIONS]),
-          ('exts_defaultclass', [None, "List of module for and name of the default extension class (Default: None)", EXTENSIONS]),
-          ('exts_filter', [None, "Extension filter details. List with template for cmd and input to cmd (templates for name, version and src). (Default: None)", EXTENSIONS]),
+          ('exts_list', [[], 'List with extensions added to the base installation (default: [])', EXTENSIONS]),
+          ('exts_modulenames', [{}, 'Dictionary with real modules names for extensions, ' \
+                                    'if they are different from the extension name (default: {})', EXTENSIONS]),
+          ('exts_loadmodule', [True, 'Load the to-be installed software using temporary module (default: True)',
+                               EXTENSIONS]),
+          ('exts_template', ["%s-%s.tar.gz", "Template for extension source file names (default: %s-%s.tar.gz)",
+                             EXTENSIONS]),
+          ('exts_findsource', [True, "Find sources for extensions (default: True)", EXTENSIONS]),
+          ('exts_installdeps', [True, "Install dependencies for specified extensions if necessary (default: True)",
+                                EXTENSIONS]),
+          ('exts_defaultclass', [None, "List of module for and name of the default extension class (default: None)",
+                                 EXTENSIONS]),
+          ('exts_filter', [None, "Extension filter details. List with template for cmd and input to cmd " \
+                                 "(templates for name, version and src). (default: None)", EXTENSIONS]),
           ('exts_patches', [[], 'List with patches for extensions (default: [])', EXTENSIONS]),
           ('exts_cfgs', [{}, 'Dictionary with config parameters for extensions (default: {})', EXTENSIONS]),
 
           ('modextravars', [{}, "Extra environment variables to be added to module file (default: {})", MODULES]),
-          ('moduleclass', ['base', 'Module class to be used for this software (Default: base) (Valid: %s)' % validmoduleclasses, MODULES]),
-          ('moduleforceunload', [False, 'Force unload of all modules when loading the extension (Default: False)', MODULES]),
-          ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead (Default: False)", MODULES]),
+          ('moduleclass', ['base', 'Module class to be used for this software (default: base) ' \
+                                   '(valid: %s)' % validmoduleclasses, MODULES]),
+          ('moduleforceunload', [False, 'Force unload of all modules when loading the extension ' \
+                                        '(default: False)', MODULES]),
+          ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead " \
+                                           "(default: False)", MODULES]),
 
-          ('buildstats', [None, "A list of dicts with buildstats: build_time, platform, core_count, cpu_model, install_size, timestamp", OTHER]),
+          ('buildstats', [None, "A list of dicts with build statistics", OTHER]),
         ]
 
     def __init__(self, path, extra_options=[], validate=True):
@@ -310,9 +325,16 @@ class EasyConfig(object):
         if self._toolchain:
             return self._toolchain
         
-        tc = Toolkit(self['toolchain']['name'], self['toolchain']['version'])
+        tcname = self['toolchain']['name']
+        tc, all_tcs = search_toolchain(tcname)
+        if not tc:
+            all_tcs_names = ",".join([x.__name__ for x in all_tcs])
+            self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
+        tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts']:
             tc.set_options(self['toolchainopts'])
+        tc.set_variables()
+        tc.generate_vars()
 
         self._toolchain = tc
         return self._toolchain
