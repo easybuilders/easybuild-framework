@@ -1,10 +1,13 @@
 ##
 # Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Stijn De Weirdt
+# Copyright 2012 Stijn De Weirdt 
 #
 # This file is part of VSC-tools,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
-#
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/VSC-tools
 #
@@ -12,7 +15,7 @@
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation v2.
 #
-# EasyBuild is distributed in the hope that it will be useful,
+# VSC-tools is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
@@ -96,7 +99,7 @@ except ImportError:
 
 class FancyLogRecord(logging.LogRecord):
     """
-    This class defines a custom log record
+    This class defines a custom log record.
     Adding extra specifiers is as simple as adding attributes to the log record
     """
     def __init__(self, *args, **kwargs):
@@ -154,12 +157,9 @@ class NamedLogger(logging.getLoggerClass()):
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
             if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
-                ## no stream or not initialised. TODO: what to do here: for now, crash and burn
+                ## no stream or not initialised. 
                 raise("write_and_flush_stream failed. No active stream attribute.")
-            if data is None:
-                ## TODO: ?
-                pass
-            else:
+            if data is not None:
                 hdlr.stream.write(data)
                 hdlr.flush()
 
@@ -196,7 +196,6 @@ def getLogger(name=None, fname=False):
     if fname:
         fullname = ".".join([fullname, _getCallingFunctionName()])
 
-    #print "creating logger for %s"%fullname
     return logging.getLogger(fullname)
 
 def getRootLoggerName():
@@ -265,7 +264,6 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
                     'mode': 'a',
                     'maxBytes': max_bytes,
                     'backupCount': backup_count,
-                    #'encoding': 'bz2',  # enabling this encodes the whole stream, not only on rollover TODO implment compression on dorollover()
                     }
     return _logToSomething(logging.handlers.RotatingFileHandler,
                            handleropts,
@@ -307,7 +305,7 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
     logger = getLogger(name)
 
     if not hasattr(logger, loggeroption):
-        ## not set. TODO: add dynamically or abort ? for now, make it dynamic
+        ## not set. 
         setattr(logger, loggeroption, False) ## set default to False
 
     if enable and not getattr(logger, loggeroption):
@@ -373,9 +371,7 @@ def logToDevLog(enable=True, name=None, handler=None):
     return _logToSomething(logging.handlers.SysLogHandler,
                             syslogoptions, 'logtodevlog', enable=enable, name=name, handler=handler)
 
-##
 ##  Change loglevel
-##
 
 def setLogLevel(level):
     """
