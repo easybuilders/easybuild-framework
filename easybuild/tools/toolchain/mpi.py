@@ -29,13 +29,8 @@ Toolchain mpi module. Contains all MPI related classes
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-INTELMPI = "IntelMPI"
-OPENMPI = "OpenMPI"
-QLOGICMPI = "QLogic"
-MPICH2_F = "MPICH2"  ## _F family names, otherwise classes
-MVAPICH2_F = "MVAPICH2"
 
-class MPI(object):
+class Mpi(object):
     """General MPI-like class
         can't be used without creating new class M(MPI,Toolchain)
     """
@@ -69,7 +64,7 @@ class MPI(object):
 
         self._set_mpi_options()
 
-        super(MPI, self).__init__(*args, **kwargs)
+        super(Mpi, self).__init__(*args, **kwargs)
 
 
     def _set_mpi_options(self):
@@ -86,7 +81,7 @@ class MPI(object):
         self._set_mpi_variables()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
-        super(MPI, self).set_variables()
+        super(Mpi, self).set_variables()
 
     def _set_mpi_compiler_variables(self):
         """Set the compiler variables"""
@@ -142,66 +137,4 @@ class MPI(object):
                                          suffix=suffix)
             self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
             self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
-
-
-class OpenMPI(MPI):
-    """OpenMPI MPI class"""
-    MPI_MODULE_NAME = [OPENMPI]
-    MPI_FAMILY = OPENMPI
-
-    MPI_LIBRARY_NAME = 'mpi'
-
-    ## OpenMPI reads from CC etc env variables
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICC': '',
-                             '_opt_MPICXX':'',
-                             '_opt_MPICF77':'',
-                             '_opt_MPICF90':'',
-                             }
-
-class IntelMPI(MPI):
-    """Intel MPI class"""
-    MPI_MODULE_NAME = ['impi']
-    MPI_FAMILY = INTELMPI
-
-    MPI_LIBRARY_NAME = 'mpi'
-
-    ## echo "   1. Command line option:  -cc=<compiler_name>"
-    ## echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
-    ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
-    ## cxx -> cxx only
-    ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICF90':'-fc="%(F90_base)s"',
-                             }
-
-
-class MVAPICH2(MPI):
-    """MVAPICH2 MPI class"""
-    MPI_MODULE_NAME = [MVAPICH2_F]
-    MPI_FAMILY = MVAPICH2_F
-
-    MPI_LIBRARY_NAME = 'mpich'
-
-
-class MPICH2(MPI):
-    """MPICH2 MPI class"""
-    MPI_MODULE_NAME = [MPICH2_F]
-    MPI_FAMILY = MPICH2_F
-
-    MPI_LIBRARY_NAME = 'mpich'
-
-
-class QLogicMPI(MPI):
-    """QlogicMPI MPI class"""
-    MPI_MODULE_NAME = [QLOGICMPI]
-    MPI_FAMILY = QLOGICMPI
-
-    MPI_LIBRARY_NAME = 'mpich'
-
-    ## qlogic: cxx -> -CC only
-    ## qlogic has seperate -m32 / -m64 option to mpicc/.. --> only one
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICXX':'-CC="%(CXX_base)s"',
-                             }
 

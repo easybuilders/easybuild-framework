@@ -28,13 +28,12 @@ Toolchain scalapack module. Contains all (scalable) linear algebra related class
 import os
 from distutils.version import LooseVersion
 
-from easybuild.tools.toolchain.compiler import INTEL, GCC
-from easybuild.tools.toolchain.mpi import INTELMPI, OPENMPI, MPICH2, MVAPICH2
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-class ScalableLinearAlgebraPackage(Toolchain):
+
+class LinAlg(Toolchain):
     """General LinearAlgebra-like class
-        can't be used without creating new class S(ScalableLinearAlgebraPackage,Toolchain)
+        can't be used without creating new class S(LinAlg,Toolchain)
         To provide the BLAS/LAPACK/ScaLAPACK tools
     """
     BLAS_MODULE_NAME = None
@@ -79,7 +78,7 @@ class ScalableLinearAlgebraPackage(Toolchain):
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
-        super(ScalableLinearAlgebraPackage, self).__init__(*args, **kwargs)
+        super(LinAlg, self).__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
@@ -89,9 +88,9 @@ class ScalableLinearAlgebraPackage(Toolchain):
         self._set_blacs_variables()
         self._set_scalapack_variables()
 
-        self.log.debug('set_variables: ScalableLinearAlgebraPackage variables %s' % self.variables)
+        self.log.debug('set_variables: LinAlg variables %s' % self.variables)
 
-        super(ScalableLinearAlgebraPackage, self).set_variables()
+        super(LinAlg, self).set_variables()
 
     def _set_blas_variables(self):
         """Set BLAS related variables"""
@@ -272,193 +271,4 @@ class ScalableLinearAlgebraPackage(Toolchain):
 
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
-
-class GotoBLAS(object):
-    """
-    Trivial class
-        provides GotoBLAS
-    """
-    BLAS_MODULE_NAME = ['GotoBLAS']
-    BLAS_LIB = ['goto']
-
-class LAPACK(object):
-    """Trivial class
-        provides LAPACK
-    """
-    LAPACK_MODULE_NAME = ['LAPACK']
-    LAPACK_LIB = ['lapack']
-
-class FLAME(LAPACK):
-    """Less trivial module"""
-    LAPACK_MODULE_NAME = ['FLAME'] + LAPACK.LAPACK_MODULE_NAME # no super()
-    LAPACK_LIB = ['lapack2flame', 'flame'] + LAPACK.LAPACK_LIB # no super()
-
-class ATLAS(object):
-    """
-    Trivial class
-        provides ATLAS BLAS and LAPACK
-            LAPACK is a build dependency only
-    """
-    BLAS_MODULE_NAME = ['ATLAS']
-    BLAS_LIB = ["cblas", "f77blas", "atlas"]
-    BLAS_LIB_MT = ["ptcblas", "ptf77blas", "atlas"]
-
-    LAPACK_MODULE_NAME = ['ATLAS']
-    LAPACK_LIB = ['lapack']
-
-    LAPACK_IS_BLAS = True
-
-class ACML(object):
-    """
-    Trivial class
-        provides ACML BLAS and LAPACK
-    """
-    BLAS_MODULE_NAME = ['ACML']
-    BLAS_LIB = ['acml_mv', 'acml']
-
-    LAPACK_MODULE_NAME = ['ACML']
-    LAPACK_IS_BLAS = True
-
-    def _set_blas_variables(self):
-        """Fix the map a bit"""
-        if self.options.get('32bit', None):
-            self.log.raiseException("_set_blas_variables: 32bit ACML not (yet) supported")
-
-        interfacemap = {INTEL:'ifort',
-                        GCC:'gfortran',
-                        }
-        root = self.get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
-        try:
-            self.variables.append_exists('LDFLAGS', root, os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib'))
-        except:
-            self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
-                                     " with compiler family %s") % self.COMPILER_FAMILY)
-
-        super(ACML, self)._set_blas_variables()
-
-class BLACS(object):
-    """
-    Trivial class
-        provides BLACS
-    """
-    BLACS_MODULE_NAME = ['BLACS']
-    BLACS_LIB = ["blacsCinit", "blacsF77init", "blacs"]
-
-class ScaLAPACK(object):
-    """Trivial class
-        provides ScaLAPACK
-    """
-    SCALAPACK_MODULE_NAME = ['ScaLAPACK']
-    SCALAPACK_LIB = ['scalapack']
-
-class ScaATLAS(ATLAS, BLACS, ScaLAPACK, ScalableLinearAlgebraPackage):
-    """ScaLAPACK based on ATLAS/BLAS/SCALAPACK"""
-    pass
-
-class IntelMKL(ScalableLinearAlgebraPackage):
-    """Interface to Intel MKL"""
-    BLAS_MODULE_NAME = ['imkl']
-    BLAS_LIB_MAP = {"lp64":'_lp64',
-                    "interface":None,
-                    "interface_mt":None,
-                    }
-    BLAS_LIB = ["mkl_%(interface)s%(lp64)s" , "mkl_sequential", "mkl_core"]
-    BLAS_LIB_MT = ["mkl_%(interface)s%(lp64)s" , "mkl_%(interface_mt)s_thread", "mkl_core"]
-    BLAS_LIB_GROUP = True
-    BLAS_LIB_STATIC = True
-
-    LAPACK_MODULE_NAME = ['imkl']
-    LAPACK_IS_BLAS = True
-
-    BLACS_MODULE_NAME = ['imkl']
-    BLACS_LIB = ["mkl_blacs%(mpi)s%(lp64)s"]
-    BLACS_LIB_MAP = {'mpi':None}
-    BLACS_LIB_GROUP = True
-    BLACS_LIB_STATIC = True
-
-    SCALAPACK_MODULE_NAME = ['imkl']
-    SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s", "mkl_solver%(lp64)s_sequential"]
-    SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s", "mkl_solver%(lp64)s"]
-    SCALAPACK_LIB_MAP = {"lp64_sc":"_lp64"}
-    SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
-    SCALAPACK_LIB_GROUP = True
-    SCALAPACK_LIB_STATIC = True
-
-    def _set_blas_variables(self):
-        """Fix the map a bit"""
-        interfacemap = {
-                        INTEL:'intel',
-                        GCC:'gf',
-                        }
-        try:
-            self.BLAS_LIB_MAP.update({
-                                      "interface":interfacemap[self.COMPILER_FAMILY]
-                                      })
-        except:
-            self.log.raiseException(("_set_blas_variables: interface unsupported combination"
-                                    " with MPI family %s") % self.COMPILER_FAMILY)
-
-        interfacemap_mt = {
-                           INTEL:'intel',
-                           GCC:'gnu',
-                           }
-        try:
-            self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})
-        except:
-            self.log.raiseException(("_set_blas_variables: interface_mt unsupported combination "
-                                     "with compiler family %s") % self.COMPILER_FAMILY)
-
-
-        if self.options.get('32bit', None):
-            ## 32bit
-            self.BLAS_LIB_MAP.update({"lp64":''})
-        if self.options.get('i8', None):
-            ## ilp64/i8
-            self.BLAS_LIB_MAP.update({"lp64":'_ilp64'})
-            ## CPP / CFLAGS
-            self.variables.append_el('CFLAGS', 'DMKL_ILP64')
-
-        # exact paths/linking statements depend on imkl version
-        found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
-        if LooseVersion(found_version) < LooseVersion('10.3'):
-            if self.options.get('32bit', None):
-                self.BLAS_LIB_DIR = ['lib/32']
-            else:
-                self.BLAS_LIB_DIR = ['lib/em64t']
-            self.BLAS_INCL_DIR = ['include']
-        else:
-            if self.options.get('32bit', None):
-                self.log.raiseException(("_set_blas_variables: 32-bit libraries not supported yet "
-                                        "for IMKL v%s (> v10.3)") % found_version)
-            else:
-                self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
-
-            self.BLAS_INCL_DIR = ['mkl/include']
-
-        super(IntelMKL, self)._set_blas_variables()
-
-    def _set_blacs_variables(self):
-        mpimap = {
-                  OPENMPI:'_openmpi',
-                  INTELMPI:'_intelmpi',
-                  MVAPICH2:'_intelmpi',
-                  MPICH2:'',
-                  }
-        try:
-            self.BLACS_LIB_MAP.update({'mpi':mpimap[self.MPI_FAMILY]})
-        except:
-            self.log.raiseException(("_set_blacs_variables: mpi unsupported combination with"
-                                     " MPI family %s") % self.MPI_FAMILY)
-
-        self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
-        self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
-
-        super(IntelMKL, self)._set_blacs_variables()
-
-    def _set_scalapack_variables(self):
-        if self.options.get('32bit', None):
-            ##32 bit
-            self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_core'})
-
-        super(IntelMKL, self)._set_scalapack_variables()
 

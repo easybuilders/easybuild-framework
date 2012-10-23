@@ -30,6 +30,9 @@ Easy access to actual Toolchain classes
 
 Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 """
+import glob
+import os
+import sys
 
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -39,15 +42,27 @@ def get_subclasses(cls):
     """
     res = []
     for cl in cls.__subclasses__():
-        res.extend(get_subclasses(cl))
-        res.append(cl)
+        for subcl in get_subclasses(cl)+[cl]:
+            if not subcl in res:
+                res.append(subcl)
     return res
 
 def search_toolchain(name):
     """Find a toolchain with matching name
         returns toolchain (or None), found_toolchains
     """
+
+    # import all available toolchains, so we know about them
+    for path in sys.path:
+        for module in glob.glob(os.path.join(path, 'easybuild', 'toolchains', '*.py')):
+            if not module.endswith('__init__.py'):
+                modpath = "easybuild.toolchains.%s" % module.split(os.path.sep)[-1].split('.')[0]
+                __import__(modpath, globals(), locals(), [''])
+
     found_tcs = get_subclasses(Toolchain)
+
+    # filter found toolchain subclasses based on whether they can be used a toolchains
+    found_tcs = [tc for tc in found_tcs if tc._is_toolchain_for(None)]
 
     for tc in found_tcs:
         if tc._is_toolchain_for(name):

@@ -23,27 +23,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Toolchain terminology
----------------------
-
-Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
-    -> eg tc=Toolchain()
-
-
-Toolchain options : options passed to the toolchain through the easyconfig file
-    -> eg tc.options
-
-Options : all options passed to an executable
-    Flags: specific subset of options, typically involved with compilation
-        -> eg tc.variables.CFLAGS
-    LinkOptions: specific subset of options, typically involved with linking
-        -> eg tc.variables.LIBBLAS
-
-TooclchainVariables: list of environment variables that are set when the toolchain is initialised
-           and the toolchain options have been parsed.
-    -> eg tc.variables['X'] will be available as os.environ['X']
-
-
-This module initializes the tools.toolchain package of EasyBuild,
-which contains toolchain related modules.
+Support for Intel MPI as toolchain MPI library.
 """
+
+from easybuild.tools.toolchain.mpi import Mpi
+
+
+class IntelMPI(Mpi):
+    """Intel MPI class"""
+    MPI_MODULE_NAME = ['impi']
+    MPI_FAMILY = "IntelMPI"
+
+    MPI_LIBRARY_NAME = 'mpi'
+
+    ## echo "   1. Command line option:  -cc=<compiler_name>"
+    ## echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
+    ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
+    ## cxx -> cxx only
+    ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
+    MPI_UNIQUE_OPTION_MAP = {
+                             '_opt_MPICF90':'-fc="%(F90_base)s"',
+                             }
+

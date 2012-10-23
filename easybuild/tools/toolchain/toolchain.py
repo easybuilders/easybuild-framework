@@ -51,13 +51,14 @@ class Toolchain(object):
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
         ## TODO report later in the initialization the found version
-        if hasattr(cls, 'NAME') and name == cls.NAME:
-            return True
-        elif cls.__name__ == name:
-            ## classname is also tested
-            return True
-
-        return False
+        if name:
+            if hasattr(cls, 'NAME') and name == cls.NAME:
+                return True
+            else:
+                return False
+        else:
+            # is no name is supplied, check whether class can be used as a toolchain
+            return hasattr(cls, 'NAME') and cls.NAME
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -272,14 +273,14 @@ class Toolchain(object):
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
                 modules = Modules()
-                modules.addModule(self.dependencies)
+                modules.add_module(self.dependencies)
                 modules.load()
             return
 
         ## Load the toolchain and dependencies modules
         modules = Modules()
-        modules.addModule([(self.name, self.version)])
-        modules.addModule(self.dependencies)
+        modules.add_module([(self.name, self.version)])
+        modules.add_module(self.dependencies)
         modules.load()
 
         ## Determine direct toolchain dependencies, so we can prepare for them

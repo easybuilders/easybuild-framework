@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Toolchain compiler module. Contains all compiler related classes
+Toolchain compiler module, provides abstract class for compilers.
 """
 from distutils.version import LooseVersion
 
@@ -31,10 +31,6 @@ from easybuild.tools import systemtools
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES
 from easybuild.tools.variables import LinkerFlagList
 from easybuild.tools.toolchain.toolchain import Toolchain
-
-# constants used for recognizing compilers, MPI libraries, ...
-GCC = "GCC"
-INTEL = "Intel"
 
 
 class Compiler(Toolchain):
@@ -211,140 +207,4 @@ class Compiler(Toolchain):
 
         if self.options.map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
-
-
-class Dummy(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
-    COMPILER_MODULE_NAME = []
-
-    COMPILER_CC = 'DUMMYCC'
-    COMPILER_CXX = 'DUMMYCXX'
-
-    COMPILER_F77 = 'DUMMYF77'
-    COMPILER_F90 = 'DUMMYF90'
-
-
-class GNUCompilerCollection(Compiler):
-    """GCC compiler class"""
-    COMPILER_MODULE_NAME = ['GCC']
-
-    COMPILER_FAMILY = GCC
-    COMPILER_UNIQUE_OPTS = {
-                            'loop': (False, "Automatic loop parallellisation"),
-                            'f2c': (False, "Generate code compatible with f2c and f77"),
-                            'lto':(False, "Enable Link Time Optimization"),
-                            }
-    COMPILER_UNIQUE_OPTION_MAP = {
-                                  'i8': 'fdefault-integer-8',
-                                  'r8': 'fdefault-real-8',
-                                  'unroll': 'funroll-loops',
-                                  'f2c': 'ff2c',
-                                  'loop': ['ftree-switch-conversion', 'floop-interchange',
-                                            'floop-strip-mine', 'floop-block'],
-                                  'lto':'flto',
-                                  'optarch':'march=native',
-                                  'openmp':'fopenmp',
-                                  'strict': ['mieee-fp', 'mno-recip'],
-                                  'precise':['mno-recip'],
-                                  'defaultprec':[],
-                                  'loose': ['mrecip', 'mno-ieee-fp'],
-                                  'veryloose': ['mrecip=all', 'mno-ieee-fp'],
-                                  }
-
-    COMPILER_CC = 'gcc'
-    COMPILER_CXX = 'g++'
-    COMPILER_C_UNIQUE_FLAGS = []
-
-    COMPILER_F77 = 'gfortran'
-    COMPILER_F90 = 'gfortran'
-    COMPILER_F_UNIQUE_FLAGS = ['f2c']
-
-    LIB_MULTITHREAD = ['pthread']
-
-
-    def _set_compiler_vars(self):
-        super(GNUCompilerCollection, self)._set_compiler_vars()
-
-        if self.options.get('32bit', None):
-            self.log.raiseException(("_set_compiler_vars: 32bit set, but no support yet for "
-                                     "32bit GCC in EasyBuild"))
-
-        ## to get rid of lots of problems with libgfortranbegin
-        ## or remove the system gcc-gfortran
-        ## also used in eg LIBBLAS variable
-        self.variables.nappend('FLIBS', "gfortran", position=5)
-
-
-class IntelIccIfort(Compiler):
-    """Intel compiler class
-        - TODO: install as single package ?
-            should be done anyway (all icc versions come with matching ifort version)
-    """
-
-    COMPILER_MODULE_NAME = ['icc', 'ifort']
-
-    COMPILER_FAMILY = INTEL
-    COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
-                            'no-icc': (False, "Don't set Intel specific macros"),
-                            }
-
-    COMPILER_UNIQUE_OPTION_MAP = {'i8': 'i8',
-                                  'r8':'r8',
-                                  'optarch':'xHOST',
-                                  'openmp':'openmp',
-                                  'strict': ['fp-relaxed', 'fp-speculation=strict', 'fp-model strict'],
-                                  'precise':['fp-model precise'],
-                                  'defaultprec':['ftz', 'fp-relaxed', 'fp-speculation=safe', 'fp-model source'],
-                                  'loose': ['fp-model fast=1'],
-                                  'veryloose': ['fp-model fast=2'],
-                                  'intel-static': 'static-intel',
-                                  'no-icc': 'no-icc'
-                                  }
-
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {systemtools.INTEL : 'xHOST',
-                                            systemtools.AMD : 'msse3'
-                                            }
-
-    COMPILER_CC = 'icc'
-    COMPILER_CXX = 'icpc'
-    COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc']
-
-    COMPILER_F77 = 'ifort'
-    COMPILER_F90 = 'ifort'
-    COMPILER_F_UNIQUE_FLAGS = ['intel-static']
-
-    LINKER_TOGGLE_STATIC_DYNAMIC = {
-                                    'static': '-Bstatic',
-                                    'dynamic':'-Bdynamic',
-                                    }
-
-    LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
-
-    def _set_compiler_vars(self):
-        super(IntelIccIfort, self)._set_compiler_vars()
-
-        if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
-            self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
-
-        icc_root, ifort_root = self.get_software_root(self.COMPILER_MODULE_NAME)
-        icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
-
-        if not ifort_version == icc_version:
-            msg = "_set_compiler_vars: mismatch between icc version %s and ifort version %s"
-            self.log.raiseException(msg % (icc_version, ifort_version))
-
-        if LooseVersion(icc_version) < LooseVersion('2011'):
-            self.LIB_MULTITHREAD.insert(1, "guide")
-
-        if not 'LIBS' in self.variables:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
-
-        libpaths = ['intel64']
-        if self.options.get('32bit', None):
-            libpaths.append('ia32')
-        libpaths = ['lib/%s' % x for x in libpaths]
-        if LooseVersion(icc_version) > LooseVersion('2011.4'):
-            libpaths = ['compiler/%s' % x for x in libpaths]
-
-        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
 

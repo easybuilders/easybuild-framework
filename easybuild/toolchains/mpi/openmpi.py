@@ -23,27 +23,23 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Toolchain terminology
----------------------
-
-Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
-    -> eg tc=Toolchain()
-
-
-Toolchain options : options passed to the toolchain through the easyconfig file
-    -> eg tc.options
-
-Options : all options passed to an executable
-    Flags: specific subset of options, typically involved with compilation
-        -> eg tc.variables.CFLAGS
-    LinkOptions: specific subset of options, typically involved with linking
-        -> eg tc.variables.LIBBLAS
-
-TooclchainVariables: list of environment variables that are set when the toolchain is initialised
-           and the toolchain options have been parsed.
-    -> eg tc.variables['X'] will be available as os.environ['X']
-
-
-This module initializes the tools.toolchain package of EasyBuild,
-which contains toolchain related modules.
+Support for OpenMPI as toolchain MPI library.
 """
+
+from easybuild.tools.toolchain.mpi import Mpi
+
+
+class OpenMPI(Mpi):
+    """OpenMPI MPI class"""
+    MPI_MODULE_NAME = ["OpenMPI"]
+    MPI_FAMILY = "OpenMPI"
+
+    MPI_LIBRARY_NAME = 'mpi'
+
+    ## OpenMPI reads from CC etc env variables
+    MPI_UNIQUE_OPTION_MAP = {
+                             '_opt_MPICC': '',
+                             '_opt_MPICXX':'',
+                             '_opt_MPICF77':'',
+                             '_opt_MPICF90':'',
+                             }

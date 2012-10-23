@@ -23,27 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Toolchain terminology
----------------------
-
-Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
-    -> eg tc=Toolchain()
-
-
-Toolchain options : options passed to the toolchain through the easyconfig file
-    -> eg tc.options
-
-Options : all options passed to an executable
-    Flags: specific subset of options, typically involved with compilation
-        -> eg tc.variables.CFLAGS
-    LinkOptions: specific subset of options, typically involved with linking
-        -> eg tc.variables.LIBBLAS
-
-TooclchainVariables: list of environment variables that are set when the toolchain is initialised
-           and the toolchain options have been parsed.
-    -> eg tc.variables['X'] will be available as os.environ['X']
-
-
-This module initializes the tools.toolchain package of EasyBuild,
-which contains toolchain related modules.
+Support for QLogicMPI as toolchain MPI library.
 """
+
+from easybuild.tools.toolchain.mpi import Mpi
+
+
+class QLogicMPI(Mpi):
+    """QLogicMPI MPI class"""
+    MPI_MODULE_NAME = ["QLogicMPI"]
+    MPI_FAMILY = "QLogicMPI"
+
+    MPI_LIBRARY_NAME = 'mpich'
+
+    ## qlogic: cxx -> -CC only
+    ## qlogic has seperate -m32 / -m64 option to mpicc/.. --> only one
+    MPI_UNIQUE_OPTION_MAP = {
+                             '_opt_MPICXX':'-CC="%(CXX_base)s"',
+                             }
+

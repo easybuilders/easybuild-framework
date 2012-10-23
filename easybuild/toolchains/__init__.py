@@ -1,5 +1,9 @@
 ##
-# Copyright 2012 Stijn De Weirdt
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,28 +26,7 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""
-Toolchain terminology
----------------------
+from pkgutil import extend_path
 
-Toolchain: group of development related utilities (eg compiler) and libraries (eg MPI, linear algebra)
-    -> eg tc=Toolchain()
-
-
-Toolchain options : options passed to the toolchain through the easyconfig file
-    -> eg tc.options
-
-Options : all options passed to an executable
-    Flags: specific subset of options, typically involved with compilation
-        -> eg tc.variables.CFLAGS
-    LinkOptions: specific subset of options, typically involved with linking
-        -> eg tc.variables.LIBBLAS
-
-TooclchainVariables: list of environment variables that are set when the toolchain is initialised
-           and the toolchain options have been parsed.
-    -> eg tc.variables['X'] will be available as os.environ['X']
-
-
-This module initializes the tools.toolchain package of EasyBuild,
-which contains toolchain related modules.
-"""
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)
