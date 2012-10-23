@@ -26,6 +26,7 @@
 Support for dummy compiler.
 """
 
+import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -39,4 +40,21 @@ class Dummy(Compiler):
     COMPILER_F77 = 'DUMMYF77'
     COMPILER_F90 = 'DUMMYF90'
 
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                                            systemtools.INTEL : 'DUMMYOPTARCH_INTEL',
+                                            systemtools.AMD : 'DUMMYOPTARCH_AMD'
+                                           }
+
+    COMPILER_UNIQUE_OPTION_MAP = {
+                                  'i8': 'DUMMYI8',
+                                  'r8': 'DUMMYR8',
+                                  'unroll': 'DUMMYUNROLL',
+                                  'optarch':'DUMMYOPTARCH',
+                                  'openmp':'DUMMYOPENMP',
+                                  'strict': ['DUMMYSTRICT'],
+                                  'precise':['DUMMYPRECISE'],
+                                  'defaultprec':['DUMMYDEFAULTPREC'],
+                                  'loose': ['DUMMYLOOSE'],
+                                  'veryloose': ['DUMMYVERYLOOSE'],
+                                  }
 
