@@ -33,7 +33,7 @@ import time
 from socket import gethostname
 from copy import copy
 
-import easybuild
+from easybuild.tools.version import VERBOSE_VERSION
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -151,7 +151,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
                                                                                 filename,
                                                                                 gethostname()
                                                                                 ))
-    log.info("This is EasyBuild %s" % easybuild.VERBOSE_VERSION)
+    log.info("This is EasyBuild %s" % VERBOSE_VERSION)
 
     return filename, log, hand
 

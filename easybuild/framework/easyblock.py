@@ -39,7 +39,6 @@ import time
 import urllib
 from distutils.version import LooseVersion
 
-import easybuild
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
@@ -49,6 +48,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
+from easybuild.tools.version import VERBOSE_VERSION, VERSION
 
 
 class EasyBlock(object):
@@ -344,13 +344,7 @@ class EasyBlock(object):
 
                 # also consider easyconfigs paths as a fall back (e.g. for patch files, test cases, ...)
                 for path in get_paths_for(self.log, "easyconfigs"):
-                    candidate_filepaths.append(os.path.join(
-                                                            path,
-                                                            "easybuild",
-                                                            "easyconfigs",
-                                                            self.name.lower()[0],
-                                                            self.name
-                                                            ))
+                    candidate_filepaths.append(os.path.join(path, self.name.lower()[0], self.name))
 
                 # see if file can be found at that location
                 for cfp in candidate_filepaths:
@@ -963,9 +957,9 @@ class EasyBlock(object):
         if not easybuildVersion:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuildVersion')! Assuming the latest version")
         else:
-            if LooseVersion(easybuildVersion) < easybuild.VERSION:
+            if LooseVersion(easybuildVersion) < VERSION:
                 self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!" % easybuildVersion)
-            elif LooseVersion(easybuildVersion) > easybuild.VERSION:
+            elif LooseVersion(easybuildVersion) > VERSION:
                 self.log.error("EasyBuild-version %s is newer than the currently running one. Aborting!" % easybuildVersion)
 
         # fetch sources
@@ -1344,7 +1338,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         if self.cfg['exts_list']:
             txt += self.make_module_extra_extensions()
-        txt += '\n# built with EasyBuild version %s\n' % easybuild.VERBOSE_VERSION
+        txt += '\n# built with EasyBuild version %s\n' % VERBOSE_VERSION
 
         try:
             f = open(self.moduleGenerator.filename, 'w')
@@ -1536,6 +1530,7 @@ def get_class(easyblock, log, name=None):
                     log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
                                 (class_name, app_mod_class, err))
                     (modulepath, class_name) = app_mod_class
+                    cls = get_class_for(modulepath, class_name)
 
         # something was specified, lets parse it
         else:

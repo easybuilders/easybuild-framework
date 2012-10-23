@@ -22,7 +22,36 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-from pkgutil import extend_path
+"""
+Module that takes control of versioning.
+"""
+from distutils.version import LooseVersion
+import os
+import sys
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)
+VERSION = LooseVersion("0.9dev")
+UNKNOWN = "UNKNOWN"
+
+def get_git_revision():
+    """
+    Returns the git revision (e.g. aab4afc016b742c6d4b157427e192942d0e131fe),
+    or UNKNOWN is getting the git revision fails
+
+    relies on GitPython (see http://gitorious.org/git-python)
+    """
+    try:
+        import git
+    except ImportError:
+        return UNKNOWN
+    try:
+        path = os.path.dirname(__file__)
+        gitrepo = git.Git(path)
+        return gitrepo.rev_list("HEAD").splitlines()[0]
+    except git.GitCommandError:
+        return UNKNOWN
+
+git_rev = get_git_revision()
+if git_rev == UNKNOWN:
+    VERBOSE_VERSION = VERSION
+else:
+    VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
