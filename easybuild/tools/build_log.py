@@ -100,6 +100,9 @@ formatter = logging.Formatter(logging_format)
 # without this, everything is logged twice (one by root logger, once by descendant logger)
 logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
 
+# disable logging to screen by default
+fancylogger.logToScreen(boolean=False)
+
 logging.setLoggerClass(EasyBuildLog)
 
 def get_log(name=None):
