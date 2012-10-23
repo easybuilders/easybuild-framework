@@ -480,7 +480,7 @@ def sorted_categories():
     """
     returns the categories in the correct order
     """
-    categories = [MANDATORY, CUSTOM , TOOLKIT, BUILD, FILEMANAGEMENT,
+    categories = [MANDATORY, CUSTOM , TOOLCHAIN, BUILD, FILEMANAGEMENT,
                   DEPENDENCIES, LICENSE , EXTENSIONS, MODULES, OTHER]
     categories.sort(key = lambda c: c[0])
     return categories
@@ -677,7 +677,7 @@ def select_or_generate_ec(fp, paths, specs, log):
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
-    # TOOLKIT NAME
+    # TOOLCHAIN NAME
 
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
@@ -716,7 +716,7 @@ def select_or_generate_ec(fp, paths, specs, log):
 
     log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
-    # TOOLKIT VERSION
+    # TOOLCHAIN VERSION
 
     tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files])
     log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))

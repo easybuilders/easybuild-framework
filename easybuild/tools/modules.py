@@ -259,7 +259,7 @@ class Modules(object):
             modtxt = f.read()
             f.close()
         except IOError, err:
-            self.log.error("Failed to read module file %s to determine toolkit dependencies: %s" % (modfilepath, err))
+            self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
 
         loadregex = re.compile("^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]

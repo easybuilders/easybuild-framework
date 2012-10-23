@@ -377,10 +377,10 @@ class Toolchain(object):
         """
         Verify if there exists a toolkit by this name and version
         """
-        self.log.raiseException("_toolchainExists: legacy code. replace use _toolchain_exists.")
+        self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
 
     def mpi_type(self):
-        """Determine type of MPI library based on toolkit dependencies."""
+        """Determine type of MPI library based on toolchain dependencies."""
         self.log.raiseException("mpi_type: legacy code. use mympirun.")
 
     def mpi_cmd_for(self, cmd, nr_ranks):
