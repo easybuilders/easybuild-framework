@@ -1,8 +1,13 @@
 ##
 # Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -19,16 +24,28 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
-
+import sys
 from unittest import TestCase, TestSuite
+
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
+from easybuild.test.utilities import find_full_path
+
 
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
     def setUp(self):
-        config.init('easybuild/easybuild_config.py')
+        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
+        cfg_full_path = find_full_path(cfg_path)
+        self.assertTrue(cfg_full_path)
+        
+        config.init(cfg_full_path)
+        self.cwd = os.getcwd()
+
+    def tearDown(self):
+        """cleanup"""
+        os.chdir(self.cwd)
 
     def runTest(self):
         """

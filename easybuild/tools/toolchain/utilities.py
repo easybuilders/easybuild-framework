@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,38 +23,34 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for modifying os.environ
+Toolchain utility module
+
+Easy access to actual Toolchain classes
+    search_toolchain
+
+Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 """
-import os
 
-changes = {}
+from easybuild.tools.toolchain.toolchain import Toolchain
 
-def write_changes(filename):
+def get_subclasses(cls):
     """
-    Write current changes to filename and reset environment afterwards
+    Get all subclasses recursively
     """
-    script = open(filename, 'w')
+    res = []
+    for cl in cls.__subclasses__():
+        res.extend(get_subclasses(cl))
+        res.append(cl)
+    return res
 
-    for key in changes:
-        script.write('export %s="%s"\n' % (key, changes[key]))
-
-    script.close()
-    reset_changes()
-
-
-def reset_changes():
+def search_toolchain(name):
+    """Find a toolchain with matching name
+        returns toolchain (or None), found_toolchains
     """
-    Reset the changes tracked by this module
-    """
-    global changes
-    changes = {}
+    found_tcs = get_subclasses(Toolchain)
 
+    for tc in found_tcs:
+        if tc._is_toolchain_for(name):
+            return tc, found_tcs
 
-def setvar(key, value):
-    """
-    put key in the environment with value
-    tracks added keys until write_changes has been called
-    """
-    # os.putenv() is not necessary. os.environ will call this.
-    os.environ[key] = value
-    changes[key] = value
+    return None, found_tcs

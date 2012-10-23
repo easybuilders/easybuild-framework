@@ -2,7 +2,11 @@
 # Copyright 2012 Stijn De Weirdt
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -19,8 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-The toolchain module with the abstract Toolchain class and
-a set of derived, predefined and tested toolchains.
+The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 """
@@ -34,27 +37,27 @@ from easybuild.tools.variables import LibraryList
 
 class Toolchain(object):
     """General toolchain class"""
+
     OPTIONS_CLASS = ToolchainOptions
     VARIABLES_CLASS = ToolchainVariables
 
-    DUMMY_NAME = 'dummy' ## The official dummy toolchain name
-    DUMMY_VERSION = 'dummy'  ## if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
+    DUMMY_NAME = 'dummy'  # The official dummy toolchain name
+    DUMMY_VERSION = 'dummy'   # if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
 
     NAME = None
     VERSION = None
 
-    #classmethod
+    # class method
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
         ## TODO report later in the initialization the found version
         if hasattr(cls, 'NAME') and name == cls.NAME:
             return True
-        elif cls.__name__ == 'name':
+        elif cls.__name__ == name:
             ## classname is also tested
             return True
 
         return False
-
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -373,10 +376,10 @@ class Toolchain(object):
         """
         Verify if there exists a toolkit by this name and version
         """
-        self.log.raiseException("_toolchainExists: legacy code. replace use _toolchain_exists.")
+        self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
 
     def mpi_type(self):
-        """Determine type of MPI library based on toolkit dependencies."""
+        """Determine type of MPI library based on toolchain dependencies."""
         self.log.raiseException("mpi_type: legacy code. use mympirun.")
 
     def mpi_cmd_for(self, cmd, nr_ranks):

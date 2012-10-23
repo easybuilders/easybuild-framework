@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,38 +23,30 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for modifying os.environ
+Various test utility functions.
 """
+
 import os
+import sys
 
-changes = {}
 
-def write_changes(filename):
+def find_full_path(base_path, trim=(lambda x: x)):
     """
-    Write current changes to filename and reset environment afterwards
+    Determine full path for given base path by looking in sys.path and PYTHONPATH.
+    trim: a function that takes a path and returns a trimmed version of that path
     """
-    script = open(filename, 'w')
 
-    for key in changes:
-        script.write('export %s="%s"\n' % (key, changes[key]))
+    full_path = None
 
-    script.close()
-    reset_changes()
+    pythonpath = os.getenv('PYTHONPATH')
+    if pythonpath:
+        pythonpath = pythonpath.split(':')
+    else:
+        pythonpath = []
+    for path in sys.path + pythonpath:
+        tmp_path = os.path.join(trim(path), base_path)
+        if os.path.exists(tmp_path):
+            full_path = tmp_path
+            break
 
-
-def reset_changes():
-    """
-    Reset the changes tracked by this module
-    """
-    global changes
-    changes = {}
-
-
-def setvar(key, value):
-    """
-    put key in the environment with value
-    tracks added keys until write_changes has been called
-    """
-    # os.putenv() is not necessary. os.environ will call this.
-    os.environ[key] = value
-    changes[key] = value
+    return full_path

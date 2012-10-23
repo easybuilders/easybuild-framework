@@ -8,7 +8,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -47,11 +51,16 @@ from optparse import OptionParser, OptionGroup
 # a NameError should be catched where these are used
 
 # PyGraph (used for generating dependency graphs)
+graph_errors = []
 try:
-    import  pygraph.readwrite.dot as dot
     from pygraph.classes.digraph import digraph
 except ImportError, err:
-    pass
+    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
+
+try:
+    import  pygraph.readwrite.dot as dot
+except ImportError, err:
+    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
 
 # graphviz (used for creating dependency graph images)
 try:
@@ -60,9 +69,8 @@ try:
     sys.path.append('/usr/lib64/graphviz/python/')
     import gv
 except ImportError, err:
-    pass
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-import easybuild  # required for VERBOSE_VERSION
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
@@ -71,18 +79,33 @@ from easybuild.framework.easyblock import get_class
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
-from easybuild.tools.class_dumper import dump_classes
 from easybuild.tools.config import get_repository
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.version import VERBOSE_VERSION
 from easybuild.tools import systemtools
 
 
 # applications use their own logger, we need to tell them to debug or not
 # so this global variable is used.
 LOGDEBUG = False
+
+# see http://stackoverflow.com/questions/1229146/parsing-empty-options-in-python
+def optional_arg(default_value):
+    """Callback for supporting options with optional values."""
+
+    def func(option, opt_str, value, parser):
+        if parser.rargs and not parser.rargs[0].startswith('-'):
+            val = parser.rargs[0]
+            parser.rargs.pop(0)
+        else:
+            val = default_value
+
+        setattr(parser.values, option.dest, val)
+
+    return func
 
 def add_cmdline_options(parser):
     """
@@ -99,8 +122,9 @@ def add_cmdline_options(parser):
     basic_options.add_option("-k", "--skip", action="store_true",
                         help="skip existing software (useful for installing additional packages)")
     basic_options.add_option("-l", action="store_true", dest="stdoutLog", help="log to stdout")
-    basic_options.add_option("-r", "--robot", metavar="PATH",
-                        help="path to search for easyconfigs for missing dependencies")
+    basic_options.add_option("-r", "--robot", metavar="PATH", action='callback', callback=optional_arg(True), dest='robot',
+                        help="path to search for easyconfigs for missing dependencies " \
+                             "(default: easybuild-easyconfigs install path)")
     basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
                         help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
     strictness_options = ['ignore', 'warn', 'error']
@@ -150,8 +174,8 @@ def add_cmdline_options(parser):
     # override options
     override_options = OptionGroup(parser, "Override options", "Override default EasyBuild behavior.")
     
-    override_options.add_option("-C", "--config",
-                        help = "path to EasyBuild config file [default: $EASYBUILDCONFIG or easybuild/easybuild_config.py]")
+    override_options.add_option("-C", "--config", help = "path to EasyBuild config file " \
+                                                         "[default: $EASYBUILDCONFIG or easybuild/easybuild_config.py]")
     override_options.add_option("-e", "--easyblock", metavar="CLASS",
                         help="loads the class from module to process the spec file or dump " \
                                "the options for [default: Application class]")
@@ -168,8 +192,11 @@ def add_cmdline_options(parser):
 
     informative_options.add_option("-a", "--avail-easyconfig-params", action="store_true",
                                    help="show available easyconfig parameters")
-    informative_options.add_option("--dump-classes", action="store_true",
-                                   help="show list of available classes")
+    # TODO: figure out a way to set a default choice for --list-easyblocks
+    # adding default="simple" doesn't work, it always enables --list-easyblocks
+    # see https://github.com/hpcugent/VSC-tools/issues/8
+    informative_options.add_option("--list-easyblocks", type="choice", choices=["simple", "detailed"], default=None,
+                                   help="show list of available easyblocks")
     informative_options.add_option("--search", metavar="STR", help="search for module-files in the robot-directory")
     informative_options.add_option("-v", "--version", action="store_true", help="show version")
     informative_options.add_option("--dep-graph", metavar="depgraph.<ext>", help="create dependency graph")
@@ -191,20 +218,7 @@ def add_cmdline_options(parser):
 
     parser.add_option_group(regtest_options)
 
-def main():
-    """
-    Main function:
-    - parse command line options
-    - initialize logger
-    - read easyconfig
-    - build software
-    """
-    # disallow running EasyBuild as root
-    if os.getuid() == 0:
-        sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
-                        "That's not wise, so let's end this here.\n" \
-                        "Exiting.\n")
-        sys.exit(1)
+def parse_options():
 
     # options parser
     parser = OptionParser()
@@ -218,15 +232,68 @@ def main():
     (options, paths) = parser.parse_args()
 
     # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-    fd, logFile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
     os.close(fd)
 
     if options.stdoutLog:
-        os.remove(logFile)
-        logFile = None
+        os.remove(logfile)
+        logfile = None
 
     global LOGDEBUG
     LOGDEBUG = options.debug
+
+    # initialize logger
+    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
+
+    return options, paths, log, logfile, hn, parser
+
+def main(options):
+    """
+    Main function:
+    @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
+    This function will:
+    - read easyconfig
+    - build software
+    """
+
+    # disallow running EasyBuild as root
+    if os.getuid() == 0:
+        sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
+                        "That's not wise, so let's end this here.\n" \
+                        "Exiting.\n")
+        sys.exit(1)
+
+    options, paths, log, logfile, hn, parser = options
+    # show version
+    if options.version:
+        print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
+
+    # determine easybuild-easyconfigs package install path
+    # we may need for the robot (default path), or for finding easyconfig files
+    easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
+    easyconfigs_pkg_full_path = None
+    for syspath in sys.path:
+        tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
+        if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
+            easyconfigs_pkg_full_path = tmppath
+            log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
+            break
+
+    if not easyconfigs_pkg_full_path:
+        log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
+
+    if options.robot and type(options.robot) == bool:
+        if easyconfigs_pkg_full_path:
+            options.robot = easyconfigs_pkg_full_path
+            log.info("Using default robot path: %s" % options.robot)
+        else:
+            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
+
+    # initialize configuration
+    # - check environment variable EASYBUILDCONFIG
+    # - then, check command line option
+    # - last, use default config file easybuild_config.py in main.py directory
+    config_file = options.config
 
     configOptions = {}
     if options.pretend:
@@ -236,19 +303,6 @@ def main():
         blocks = options.only_blocks.split(',')
     else:
         blocks = None
-
-    # initialize logger
-    logFile, log, hn = init_logger(filename=logFile, debug=options.debug, typ="build")
-
-    # show version
-    if options.version:
-        print_msg("This is EasyBuild %s" % easybuild.VERBOSE_VERSION, log)
-
-    # initialize configuration
-    # - check environment variable EASYBUILDCONFIG
-    # - then, check command line option
-    # - last, use default config file easybuild_config.py in main.py directory
-    config_file = options.config
 
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
@@ -269,8 +323,8 @@ def main():
         print_avail_params(options.easyblock, log)
 
     # dump available classes
-    if options.dump_classes:
-        dump_classes('easybuild.easyblocks')
+    if options.list_easyblocks:
+        list_easyblocks(detailed=options.list_easyblocks=="detailed")
 
     # search for modules
     if options.search:
@@ -281,11 +335,14 @@ def main():
     # run regtest
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
-        regtest(options, log, paths)
+        if paths:
+            regtest(options, log, paths)
+        else:  # fallback: easybuild-easyconfigs install path
+            regtest(options, log, [easyconfigs_pkg_full_path])
 
-    if options.avail_easyconfig_params or options.dump_classes or options.search or options.version or options.regtest:
-        if logFile:
-            os.remove(logFile)
+    if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
+        if logfile:
+            os.remove(logfile)
         sys.exit(0)
 
     # set strictness of filetools module
@@ -314,6 +371,23 @@ def main():
                   "options to make EasyBuild search for easyconfigs", optparser=parser)
 
     else:
+        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+        # unless they we found at the given relative paths
+
+        if easyconfigs_pkg_full_path:
+            # create a mapping from filename to path in easybuild-easyconfigs package install path
+            easyconfigs_map = {}
+            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
+                for filename in filenames:
+                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
+
+            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
+            for i in range(len(paths)):
+                if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
+                    if paths[i] in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
+                        paths[i] = easyconfigs_map[paths[i]]
+
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in paths]
 
@@ -371,8 +445,8 @@ def main():
         try:
             dep_graph(options.dep_graph, orderedSpecs, log)
         except NameError, err:
-            log.error("At least one optional Python packages (pygraph, dot, graphviz) required to " \
-                      "generate dependency graphs is missing: %s" % err)
+            log.error("An optional Python packages required to " \
+                      "generate dependency graphs is missing: %s" % "\n".join(graph_errors))
         sys.exit(0)
 
     # submit build as job(s) and exit
@@ -428,15 +502,15 @@ def main():
     try:
         remove_log_handler(hn)
         hn.close()
-        if logFile:
-            os.remove(logFile)
+        if logfile:
+            os.remove(logfile)
 
-        for easyconfig in easyconfigs:
-            if 'originalSpec' in easyconfig:
-                os.remove(easyconfig['spec'])
+        for ec in easyconfigs:
+            if 'originalSpec' in ec:
+                os.remove(ec['spec'])
 
     except IOError, err:
-        error("Something went wrong closing and removing the log %s : %s" % (logFile, err))
+        error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
 def error(message, exitCode=1, optparser=None):
     """
@@ -675,7 +749,7 @@ def process_software_build_specs(options):
                 tc = options.toolchain.split(',')
                 if options.try_toolchain:
                     warning("Ignoring --try-toolchain, only using --toolchain specification.")
-        elif options.try_toollkit:
+        elif options.try_toolchain:
                 tc = options.try_toolchain.split(',')
                 try_to_generate = True
         else:
@@ -837,7 +911,7 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild_version', str(easybuild.VERBOSE_VERSION)),
+                              ('easybuild_version', str(VERBOSE_VERSION)),
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
@@ -1092,7 +1166,7 @@ def write_to_xml(succes, failed, filename):
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(easybuild.VERBOSE_VERSION))
+    version.setAttribute("value", str(VERBOSE_VERSION))
     properties.appendChild(version)
 
     time = root.createElement("property")
@@ -1213,7 +1287,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(easybuild.VERBOSE_VERSION))
+    version.setAttribute("value", str(VERBOSE_VERSION))
     properties.appendChild(version)
 
     time_el = root.createElement("property")
@@ -1250,14 +1324,14 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
 
     print "Aggregate regtest results written to %s" % output_filename
 
-def regtest(options, log, easyconfigs_paths=None):
+def regtest(options, log, easyconfig_paths):
     """Run regression test, using easyconfigs available in given path."""
 
     cur_dir = os.getcwd()
 
     if options.aggregate_regtest:
-        output_file = os.path.join(options.aggregate_regtest, "%s-aggregate.xml" % os.path.basename(options.aggregate_regtest))
-        print output_file
+        output_file = os.path.join(options.aggregate_regtest,
+                                   "%s-aggregate.xml" % os.path.basename(options.aggregate_regtest))
         aggregate_xml_in_dirs(options.aggregate_regtest, output_file)
         log.info("aggregated xml files inside %s, output written to: %s" % (options.aggregate_regtest, output_file))
         sys.exit(0)
@@ -1279,13 +1353,11 @@ def regtest(options, log, easyconfigs_paths=None):
 
     # find all easyconfigs
     ecfiles = []
-    if easyconfigs_paths:
-        for path in easyconfigs_paths:
+    if easyconfig_paths:
+        for path in easyconfig_paths:
             ecfiles += find_easyconfigs(path, log)
     else:
-        # default path
-        path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "easyconfigs")
-        ecfiles = find_easyconfigs(path, log)
+        log.error("No easyconfig paths specified.")
 
     test_results = []
 
@@ -1311,9 +1383,72 @@ def regtest(options, log, easyconfigs_paths=None):
 
         log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
+def list_easyblocks(detailed=False):
+    """Get a class tree for easyblocks."""
+
+    classes = {}
+
+    module_regexp = re.compile("^([^_].*)\.py$")
+
+    for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
+
+        __import__(package)
+
+        # determine paths for this package
+        paths = sys.modules[package].__path__
+
+        # import all modules in these paths
+        for path in paths:
+            if os.path.exists(path):
+                for f in os.listdir(path):
+                    res = module_regexp.match(f)
+                    if res:
+                        __import__("%s.%s" % (package, res.group(1)))
+
+    from easybuild.framework.easyblock import EasyBlock
+    from easybuild.framework.extension import Extension
+
+    def add_class(classes, cls):
+        """Add a new class, and all of its subclasses."""
+        children = cls.__subclasses__()
+        classes.update({cls.__name__: {
+                                         'module': cls.__module__,
+                                         'children': [x.__name__ for x in children]
+                                        }
+                       })
+        for child in children:
+            add_class(classes, child)
+
+    roots = [EasyBlock, Extension]
+
+    classes = {}
+    for root in roots:
+        add_class(classes, root)
+
+    # Print the tree, start with the roots
+    for root in roots:
+        root = root.__name__
+        if detailed:
+            print "%s (%s)" % (root, classes[root]['module'])
+        else:
+            print "%s" % root
+        if 'children' in classes[root]:
+            print_tree(classes, classes[root]['children'], detailed)
+            print ""
+
+def print_tree(classes, classNames, detailed, depth=0):
+    for className in classNames:
+        classInfo = classes[className]
+        if detailed:
+            print "%s|-- %s (%s)" % ("|   " * depth, className, classInfo['module'])
+        else:
+            print "%s|-- %s" % ("|   " * depth, className)
+        if 'children' in classInfo:
+            print_tree(classes, classInfo['children'], detailed, depth + 1)
+
 if __name__ == "__main__":
     try:
-        main()
+        main(parse_options())
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)

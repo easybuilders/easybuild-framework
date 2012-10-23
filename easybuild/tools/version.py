@@ -1,5 +1,9 @@
 ##
-# Copyright 2012 Toon Willems
+# Copyright 2009-2012 Stijn De Weirdt
+# Copyright 2010 Dries Verdegem
+# Copyright 2010-2012 Kenneth Hoste
+# Copyright 2011 Pieter De Baets
+# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,38 +27,35 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for modifying os.environ
+Module that takes control of versioning.
 """
+from distutils.version import LooseVersion
 import os
+import sys
 
-changes = {}
+VERSION = LooseVersion("0.9dev")
+UNKNOWN = "UNKNOWN"
 
-def write_changes(filename):
+def get_git_revision():
     """
-    Write current changes to filename and reset environment afterwards
+    Returns the git revision (e.g. aab4afc016b742c6d4b157427e192942d0e131fe),
+    or UNKNOWN is getting the git revision fails
+
+    relies on GitPython (see http://gitorious.org/git-python)
     """
-    script = open(filename, 'w')
+    try:
+        import git
+    except ImportError:
+        return UNKNOWN
+    try:
+        path = os.path.dirname(__file__)
+        gitrepo = git.Git(path)
+        return gitrepo.rev_list("HEAD").splitlines()[0]
+    except git.GitCommandError:
+        return UNKNOWN
 
-    for key in changes:
-        script.write('export %s="%s"\n' % (key, changes[key]))
-
-    script.close()
-    reset_changes()
-
-
-def reset_changes():
-    """
-    Reset the changes tracked by this module
-    """
-    global changes
-    changes = {}
-
-
-def setvar(key, value):
-    """
-    put key in the environment with value
-    tracks added keys until write_changes has been called
-    """
-    # os.putenv() is not necessary. os.environ will call this.
-    os.environ[key] = value
-    changes[key] = value
+git_rev = get_git_revision()
+if git_rev == UNKNOWN:
+    VERBOSE_VERSION = VERSION
+else:
+    VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
