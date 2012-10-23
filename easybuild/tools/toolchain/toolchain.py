@@ -23,8 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-The toolchain module with the abstract Toolchain class and
-a set of derived, predefined and tested toolchains.
+The toolchain module with the abstract Toolchain class.
 
 Creating a new toolchain should be as simple as possible.
 """
@@ -38,27 +37,27 @@ from easybuild.tools.variables import LibraryList
 
 class Toolchain(object):
     """General toolchain class"""
+
     OPTIONS_CLASS = ToolchainOptions
     VARIABLES_CLASS = ToolchainVariables
 
-    DUMMY_NAME = 'dummy' ## The official dummy toolchain name
-    DUMMY_VERSION = 'dummy'  ## if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
+    DUMMY_NAME = 'dummy'  # The official dummy toolchain name
+    DUMMY_VERSION = 'dummy'   # if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
 
     NAME = None
     VERSION = None
 
-    #classmethod
+    # class method
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
         ## TODO report later in the initialization the found version
         if hasattr(cls, 'NAME') and name == cls.NAME:
             return True
-        elif cls.__name__ == 'name':
+        elif cls.__name__ == name:
             ## classname is also tested
             return True
 
         return False
-
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
