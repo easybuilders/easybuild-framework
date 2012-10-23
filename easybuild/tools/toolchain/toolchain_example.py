@@ -27,7 +27,7 @@ Some simple examples of using toolchain
 
     requires 'module load goalf' environment
 """
-from easybuild.tools.toolchain import search_toolchain
+from easybuild.tools.toolchain.utilities import search_toolchain
 
 def basic_goalf():
     """Simple example of using toochain interface"""
