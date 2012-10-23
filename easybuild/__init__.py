@@ -1,8 +1,4 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
@@ -28,12 +24,7 @@
 ##
 """
 This initializes EasyBuild.
-The EasyBuild version is defined here in VERSION,
-appended by the git commit id in VERBOSE_VERSION.
 """
-from distutils.version import LooseVersion
-import os
-import sys
 from pkgutil import extend_path
 
 # we're not the only ones in this namespace
