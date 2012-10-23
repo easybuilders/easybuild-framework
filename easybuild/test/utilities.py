@@ -1,9 +1,5 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +23,30 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This initializes the framework submodule of EasyBuild,
-which is a collection of additional modules/classes to be used for software compilation
+Various test utility functions.
 """
+
+import os
+import sys
+
+
+def find_full_path(base_path, trim=(lambda x: x)):
+    """
+    Determine full path for given base path by looking in sys.path and PYTHONPATH.
+    trim: a function that takes a path and returns a trimmed version of that path
+    """
+
+    full_path = None
+
+    pythonpath = os.getenv('PYTHONPATH')
+    if pythonpath:
+        pythonpath = pythonpath.split(':')
+    else:
+        pythonpath = []
+    for path in sys.path + pythonpath:
+        tmp_path = os.path.join(trim(path), base_path)
+        if os.path.exists(tmp_path):
+            full_path = tmp_path
+            break
+
+    return full_path

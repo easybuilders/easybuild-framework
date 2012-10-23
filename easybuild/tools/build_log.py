@@ -6,7 +6,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -33,7 +37,7 @@ import time
 from socket import gethostname
 from copy import copy
 
-import easybuild
+from easybuild.tools.version import VERBOSE_VERSION
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -151,7 +155,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
                                                                                 filename,
                                                                                 gethostname()
                                                                                 ))
-    log.info("This is EasyBuild %s" % easybuild.VERBOSE_VERSION)
+    log.info("This is EasyBuild %s" % VERBOSE_VERSION)
 
     return filename, log, hand
 

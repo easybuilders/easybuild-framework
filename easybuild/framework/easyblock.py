@@ -7,7 +7,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -39,7 +43,6 @@ import time
 import urllib
 from distutils.version import LooseVersion
 
-import easybuild
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
@@ -49,6 +52,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
+from easybuild.tools.version import VERBOSE_VERSION, VERSION
 
 
 class EasyBlock(object):
@@ -344,13 +348,7 @@ class EasyBlock(object):
 
                 # also consider easyconfigs paths as a fall back (e.g. for patch files, test cases, ...)
                 for path in get_paths_for(self.log, "easyconfigs"):
-                    candidate_filepaths.append(os.path.join(
-                                                            path,
-                                                            "easybuild",
-                                                            "easyconfigs",
-                                                            self.name.lower()[0],
-                                                            self.name
-                                                            ))
+                    candidate_filepaths.append(os.path.join(path, self.name.lower()[0], self.name))
 
                 # see if file can be found at that location
                 for cfp in candidate_filepaths:
@@ -361,8 +359,8 @@ class EasyBlock(object):
                     if ext:
                         fullpaths = [
                                      os.path.join(cfp, "extensions", filename),
-                                     os.path.join(cfp, "packages", filename),  # legacy
-                                     fullpath 
+                                     os.path.join(cfp, "packages", filename), # legacy
+                                     fullpath
                                     ]
                     else:
                         fullpaths = [fullpath]
@@ -712,14 +710,21 @@ class EasyBlock(object):
         """
 
         # make fake module
-        mod_path = [self.make_module_step(True)]
+        fake_mod_path = self.make_module_step(True)
 
         # load the module
-        mod_path.extend(Modules().modulePath)
-        m = Modules(mod_path)
+        mod_paths = [fake_mod_path]
+        mod_paths.extend(Modules().modulePath)
+        m = Modules(mod_paths)
         self.log.debug("created module instance")
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
+
+        # clean up
+        try:
+            shutil.rmtree(os.path.dirname(fake_mod_path))
+        except OSError, err:
+            self.log.error("Failed to clean up fake module dir: %s" % err)
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -737,6 +742,10 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
+        if not self.cfg['exts_filter'] or len(self.cfg['exts_filter']) == 0:
+            self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
+        elif len(self.cfg['exts_filter']) == 1:
+            self.log.error('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = self.cfg['exts_filter'][0]
         cmdinputtmpl = self.cfg['exts_filter'][1]
 
@@ -913,7 +922,6 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
-
         # Check whether modules are loaded
         loadedmods = Modules().loaded_modules()
         if len(loadedmods) > 0:
@@ -953,9 +961,9 @@ class EasyBlock(object):
         if not easybuildVersion:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuildVersion')! Assuming the latest version")
         else:
-            if LooseVersion(easybuildVersion) < easybuild.VERSION:
+            if LooseVersion(easybuildVersion) < VERSION:
                 self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!" % easybuildVersion)
-            elif LooseVersion(easybuildVersion) > easybuild.VERSION:
+            elif LooseVersion(easybuildVersion) > VERSION:
                 self.log.error("EasyBuild-version %s is newer than the currently running one. Aborting!" % easybuildVersion)
 
         # fetch sources
@@ -1054,8 +1062,8 @@ class EasyBlock(object):
     def test_step(self):
         """Run unit tests provided by software (if any)."""
         if self.cfg['runtest']:
-          
-            self.log.debug("Trying to execute %s as a command for running unit tests...") 
+
+            self.log.debug("Trying to execute %s as a command for running unit tests...")
             (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
 
             return out
@@ -1078,7 +1086,6 @@ class EasyBlock(object):
         - find source for extensions, in 'extensions' (and 'packages' for legacy reasons)
         - run extra_extensions
         """
-
         if len(self.cfg['exts_list']) == 0:
             self.log.debug("No extensions in exts_list")
             return
@@ -1093,11 +1100,20 @@ class EasyBlock(object):
                 self.log.debug("Adding %s to MODULEPATH" % modpath)
                 m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
+
             if m.exists(self.name, self.get_installversion()):
                 m.add_module([[self.name, self.get_installversion()]])
                 m.load()
             else:
                 self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
+
+        if not self.skip:
+            try:
+                fakemoddir = os.path.dirname(modpath)
+                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+                shutil.rmtree(fakemoddir)
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
         self.prepare_for_extensions()
 
@@ -1113,6 +1129,8 @@ class EasyBlock(object):
         if not exts_defaultclass:
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
+        # exts_defaultclass should be a list or a tuple, but certaintly not a string
+        assert not isinstance(exts_defaultclass, basestring)
         allclassmodule = exts_defaultclass[0]
         defaultClass = exts_defaultclass[1]
         for ext in self.exts:
@@ -1120,16 +1138,16 @@ class EasyBlock(object):
             self.log.debug("Starting extension %s" % name)
 
             try:
-                exec("from %s import %s" % (allclassmodule, name))
-                p = eval("%s(self,ext,exts_installdeps)" % name)
+                cls = get_class_for(allclassmodule, name)
+                p = cls(self, ext, exts_installdeps)
                 self.log.debug("Installing extension %s through class %s" % (ext['name'], name))
             except (ImportError, NameError), err:
                 self.log.debug("Couldn't load class %s for extension %s with extension deps %s:\n%s" % (name, ext['name'], exts_installdeps, err))
                 if defaultClass:
                     self.log.info("No class found for %s, using default %s instead." % (ext['name'], defaultClass))
                     try:
-                        exec("from %s import %s" % (allclassmodule, defaultClass))
-                        exec("p=%s(self,ext,exts_installdeps)" % defaultClass)
+                        cls = get_class_for(allclassmodule, defaultClass)
+                        p = cls(self, ext, exts_installdeps)
                         self.log.debug("Installing extension %s through default class %s" % (ext['name'], defaultClass))
                     except (ImportError, NameError), errbis:
                         self.log.error("Failed to use both class %s and default %s for extension %s, giving up:\n%s\n%s" % (name, defaultClass, ext['name'], err, errbis))
@@ -1161,7 +1179,7 @@ class EasyBlock(object):
             gid = grp.getgrnam(self.cfg['group'])[2]
             # rwx for owner, r-x for group, --- for other
             try:
-                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False, 
+                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False,
                                    ignore_errors=True)
             except EasyBuildError, err:
                 self.log.error("Unable to change group permissions of file(s). " \
@@ -1324,7 +1342,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         if self.cfg['exts_list']:
             txt += self.make_module_extra_extensions()
-        txt += '\n# built with EasyBuild version %s\n' % easybuild.VERBOSE_VERSION
+        txt += '\n# built with EasyBuild version %s\n' % VERBOSE_VERSION
 
         try:
             f = open(self.moduleGenerator.filename, 'w')
@@ -1414,6 +1432,8 @@ class EasyBlock(object):
     def run_all_steps(self, run_test_cases, regtest_online):
         """
         Build and install this software.
+        run_test_cases (bool): run tests after building (e.g.: make test)
+        regtest_online (bool): do an online regtest, this means check the websites and try to download sources"
         """
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
@@ -1464,9 +1484,9 @@ def get_module_path(easyblock, generic=False):
 
     # construct character translation table for module name
     # only 0-9, a-z, A-Z are retained, everything else is mapped to _
-    charmap = 48*'_' + ''.join([chr(x) for x in range(48,58)]) # 0-9
-    charmap += 7*'_' + ''.join([chr(x) for x in range(65,91)]) # A-Z
-    charmap += 6*'_' + ''.join([chr(x) for x in range(97,123)]) + 133*'_' # a-z
+    charmap = 48 * '_' + ''.join([chr(x) for x in range(48, 58)]) # 0-9
+    charmap += 7 * '_' + ''.join([chr(x) for x in range(65, 91)]) # A-Z
+    charmap += 6 * '_' + ''.join([chr(x) for x in range(97, 123)]) + 133 * '_' # a-z
 
     module_name = easyblock.translate(charmap)
 
@@ -1474,7 +1494,7 @@ def get_module_path(easyblock, generic=False):
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
     else:
         modpath = '.'.join(["easybuild", "easyblocks"])
-    
+
     return '.'.join([modpath, module_name.lower()])
 
 def get_class(easyblock, log, name=None):
@@ -1514,6 +1534,7 @@ def get_class(easyblock, log, name=None):
                     log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
                                 (class_name, app_mod_class, err))
                     (modulepath, class_name) = app_mod_class
+                    cls = get_class_for(modulepath, class_name)
 
         # something was specified, lets parse it
         else:
@@ -1521,12 +1542,19 @@ def get_class(easyblock, log, name=None):
             # figure out if full path was specified or not
             if len(easyblock.split('.')) > 1:
                 log.info("Assuming that full easyblock module path was specified.")
-                modulepath = easyblock
+                modulepath = '.'.join(easyblock.split('.')[:-1])
+                cls = get_class_for(modulepath, class_name)
             else:
-                modulepath = get_module_path(easyblock, generic=True)
+                # if we only get the class name, most likely we're dealing with a generic easyblock
+                try:
+                    modulepath = get_module_path(easyblock, generic=True)
+                    cls = get_class_for(modulepath, class_name)
+                except ImportError, err:
+                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
                 log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
 
-        cls = get_class_for(modulepath, class_name)
         log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
         return cls
 

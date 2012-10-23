@@ -2,7 +2,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -74,6 +78,7 @@ class ToolkitTest(TestCase):
         self.tk_32bit = Toolkit("icc", "4.0.3-32bit")
         self.tk_64bit = Toolkit("GCC", "4.6.3")
         self.dummy_tk = Toolkit("dummy", "1.0")
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ check parsing and interaction with Modules """
@@ -125,6 +130,7 @@ class ToolkitTest(TestCase):
     def tearDown(self):
         """ reset Modules to its original """
         modules.Modules = OrigModules
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

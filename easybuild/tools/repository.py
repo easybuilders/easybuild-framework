@@ -7,7 +7,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -53,10 +57,10 @@ try:
 except ImportError:
     pass
 
-import easybuild
 from easybuild.framework.easyconfig import EasyConfig, stats_to_str
 from easybuild.tools.build_log import get_log
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.version import VERBOSE_VERSION
 
 
 log = get_log('repo')
@@ -159,7 +163,7 @@ class FileRepository(Repository):
 
         try:
             dest_file = open(dest, 'w')
-            dest_file.write("# Built with %s on %s\n" % (easybuild.VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S")))
+            dest_file.write("# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S")))
 
             # copy file
             for line in open(cfg):

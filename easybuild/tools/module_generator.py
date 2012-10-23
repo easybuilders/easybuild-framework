@@ -6,7 +6,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -167,8 +171,9 @@ if { ![is-loaded %(name)s/%(version)s] } {
         Desconstructor: clean up temporary directory used for fake modules, if any.
         """
         if self.fake:
-            log.info("Cleaning up fake modules dir %s" % self.tmpdir)
             try:
-                shutil.rmtree(self.tmpdir)
+                if os.path.exists(self.tmpdir):
+                    log.info("Cleaning up fake modules dir %s" % self.tmpdir)
+                    shutil.rmtree(self.tmpdir)
             except OSError, err:
                 log.exception("Cleaning up fake module dir failed: %s" % err)
