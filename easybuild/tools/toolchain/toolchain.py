@@ -395,3 +395,7 @@ class Toolchain(object):
         """Construct an MPI command for the given command and number of ranks."""
         self.log.raiseException("mpi_cmd_for: legacy code. use mympirun.")
 
+    @property
+    def opts(self):
+        """Get value for specified option."""
+        self.log.raiseException("opts[x]: legacy code. use options[x].")
