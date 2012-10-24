@@ -282,12 +282,13 @@ class Toolchain(object):
         modules.add_module(self.dependencies)
         modules.load()
 
-        ## Determine direct toolchain dependencies, so we can prepare for them
+        # determine direct toolchain dependencies (legacy, not really used anymore)
         self.toolchain_deps = modules.dependencies_for(self.name, self.version, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_deps)
 
         ## Generate the variables to be set
         self.set_variables()
+        self.generate_vars()
 
         ## set the variables
         ## onlymod can be comma-separated string of variables not to be set
@@ -353,6 +354,14 @@ class Toolchain(object):
             # references itself (eventually).  Stop' error
             setvar("EBVAR%s" % key, val)
 
+    def comp_family():
+        """ Return compiler family used in this toolchain (abstract method)."""
+        raise NotImplementedError
+
+    def mpi_family():
+        """ Return type of MPI library used in this toolchain (abstract method)."""
+        raise NotImplementedError
+
     ## legacy functions TODO remove AFTER migration
     ## should search'n'replaced
     def get_type(self, name, type_map):
@@ -378,9 +387,9 @@ class Toolchain(object):
         """
         self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
 
-    def mpi_type(self):
-        """Determine type of MPI library based on toolchain dependencies."""
-        self.log.raiseException("mpi_type: legacy code. use mympirun.")
+    def mpi_type():
+        """Determine type of MPI library based on toolkit dependencies."""
+        self.log.raiseException("mpi_type: legacy code. use mpi_family.")
 
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""

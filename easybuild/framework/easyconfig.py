@@ -333,8 +333,6 @@ class EasyConfig(object):
         tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts']:
             tc.set_options(self['toolchainopts'])
-        tc.set_variables()
-        tc.generate_vars()
 
         self._toolchain = tc
         return self._toolchain
