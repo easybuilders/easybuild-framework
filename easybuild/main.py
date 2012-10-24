@@ -452,8 +452,6 @@ def main(options):
     # submit build as job(s) and exit
     if options.job:
         curdir = os.getcwd()
-        easybuild_basedir = os.path.dirname(os.path.dirname(sys.argv[0]))
-        eb_path = os.path.join(easybuild_basedir, "eb")
 
         # Reverse option parser -> string
 
@@ -476,11 +474,11 @@ def main(options):
 
         opts = ' '.join(result_opts)
 
-        command = "cd %s && %s %%s %s" % (curdir, eb_path, opts)
+        command = "cd %s && eb %%s %s" % (curdir, opts)
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
         for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
+            print "%s: %s" % (job.get_, job.jobid)
         print "(%d jobs submitted)" % len(jobs)
 
         log.info("Submitted parallel build jobs, exiting now")
@@ -1374,7 +1372,7 @@ def regtest(options, log, easyconfig_paths):
     else:
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
         # use %%s so we can replace it later
-        command = "cd %s && %s %%s --regtest --sequential -ld" % (cur_dir, sys.argv[0])
+        command = "cd %s && eb %%s --regtest --sequential -ld" % cur_dir
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, log)
         print "List of submitted jobs:"
         for job in jobs:
