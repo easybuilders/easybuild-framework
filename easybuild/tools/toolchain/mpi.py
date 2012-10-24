@@ -138,7 +138,7 @@ class Mpi(Toolchain):
             self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
             self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
-    def mpi_family():
+    def mpi_family(self):
         """ Return type of MPI library used in this toolchain."""
         if self.MPI_FAMILY:
             return self.MPI_FAMILY

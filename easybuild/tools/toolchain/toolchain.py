@@ -354,11 +354,11 @@ class Toolchain(object):
             # references itself (eventually).  Stop' error
             setvar("EBVAR%s" % key, val)
 
-    def comp_family():
+    def comp_family(self):
         """ Return compiler family used in this toolchain (abstract method)."""
         raise NotImplementedError
 
-    def mpi_family():
+    def mpi_family(self):
         """ Return type of MPI library used in this toolchain (abstract method)."""
         raise NotImplementedError
 
@@ -387,7 +387,7 @@ class Toolchain(object):
         """
         self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
 
-    def mpi_type():
+    def mpi_type(self):
         """Determine type of MPI library based on toolkit dependencies."""
         self.log.raiseException("mpi_type: legacy code. use mpi_family.")
 
