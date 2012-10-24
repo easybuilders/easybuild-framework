@@ -1,164 +1,114 @@
 ##
-# This file is part of agithub
-# Originally created by Jonathan Paugh
+# Copyright 2012 Jens Timmerman 
 #
-# https://github.com/jpaugh64/agithub
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# Copyright 2012 Jonathan Paugh
-# 
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-# 
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# http://github.com/hpcugent/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import base64
-import httplib, urllib
-import json
-import re
+"""
+utility module for working with github
+"""
+from easybuild.tools.agithub import Github
 
-from functools import partial, update_wrapper
+PATH_SEPARATOR = "/"
+GITHUB_DIR_TYPE = u'dir'
+GITHUB_FILE_TYPE = u'file'
 
-from vsc import fancylogger
-class Client(object):
-  http_methods = (
-      'get',
-      'post',
-      'delete',
-      'put',
-      )
+class Githubfs(object):
+    """This class implements some higher level functionality on top of the Github api"""
+    
+    def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
+        """Construct a new githubfs object
+        @param githubuser: the github user's repo we want to use.
+        @param reponame: The name of the repository we want to use.
+        @param branchname: Then name of the branch to use (defaults to master)
+        @param username: (optional) your github username.
+        @param password: (optional) your github password.
+        @param token:    (optional) a github api token.
+        """
+        self.gh = Github(username, password, token)
+        self.githubuser = githubuser
+        self.reponame = reponame
+        self.branchname = branchname
 
-  def __init__(self, username=None, password=None, token=None):
-    if username is not None:
-      if password is None and token is None:
-        raise TypeError("You need a password to authenticate as " + username)
-      if password is not None and token is not None:
-        raise TypeError("You cannot use both password and oauth token authenication")
+    @staticmethod 
+    def join(*args):
+        """This method joins 'paths' inside a github repository"""
+        args = [x for x in args if x]
+        return PATH_SEPARATOR.join(args)
 
-      if password is not None:
-        self.auth_header = self.hash_pass(password)
-      elif token is not None:
-        self.auth_header = 'Token %s' % token
-    self.username = username
+    def get_repo(self):
+        """Returns the repo as a Github object (from agithub)"""
+        return self.gh.repos[self.githubuser][self.reponame]
+    
+    def get_path(self, path):
+        """returns the path as a Github object (from agithub)"""
+        endpoint = self.get_repo()['contents']
+        if path:
+            for subpath in path.split(PATH_SEPARATOR):
+                endpoint = endpoint[subpath]
+        return endpoint
 
-  def get(self, url, headers={}, **params):
-    url += self.urlencode(params)
-    return self.request('GET', url, None, headers)
+    def isdir(self, githubobj):
+        """Check if this path points to a directory"""
+        if isinstance(githubobj,(list, tuple)):
+            return True 
+        else:   
+            return githubobj['type'] == GITHUB_DIR_TYPE
 
-  def delete(self, url, headers={}, **params):
-    url += self.urlencode(params)
-    return self.request('DELETE', url, None, headers)
+    def isfile(self, githubobj):
+        """Check if this path points to a file"""
+        if isinstance(githubobj,(tuple, list)):
+            return False 
+        else:
+            return githubobj['type'] == GITHUB_FILE_TYPE
+        
+    def listdir(self, path):
+        """List the contents of a directory"""
+        path = self.get_path(path)
+        listing = path.get(ref=self.branchname)[1]
+        return listing
+    
+    def walk(self, top, topdown=True):
+        """
+        Walk the github repo in an os.walk like fashion.
+        """
+        isdir, listdir =  self.isdir, self.listdir
 
-  def post(self, url, body=None, headers={}, **params):
-    url += self.urlencode(params)
-    return self.request('POST', url, json.dumps(body), headers)
+        # If this fails we blow up, since permissions on a github repo are recursive anyway.j
+        githubobjs = listdir(top)
+        # listdir works with None, but we want to show a decent 'root dir' name
+        dirs, nondirs = [], []
+        for githubobj in githubobjs:
+            if isdir(githubobj):
+                dirs.append(str(githubobj['name']))
+            else:
+                nondirs.append(str(githubobj['name']))
+        
+        if topdown:
+            yield top, dirs, nondirs
 
-  def put(self, url, body=None, headers={}, **params):
-    url += self.urlencode(params)
-    return self.request('PUT', url, json.dumps(body), headers)
-
-  def request(self, method, url, body, headers):
-    if self.username:
-      headers['Authorization'] = self.auth_header
-    fancylogger.getLogger().info('cli request: %s, %s, %s %s', method, url, body, headers)
-    #TODO: Context manager
-    conn = self.get_connection()
-    conn.request(method, url, body, headers)
-    response = conn.getresponse()
-    status = response.status
-    body = response.read()
-    try:
-      pybody = json.loads(body)
-    except ValueError:
-      pybody = body
-    fancylogger.getLogger().info('reponse len: %s ', len(pybody))
-    conn.close()
-    return status, pybody
-
-  def urlencode(self, params):
-    if not params:
-      return ''
-    return '?' + urllib.urlencode(params)
-
-  def hash_pass(self, password):
-    return 'Basic ' + base64.b64encode('%s:%s' % (self.username, password)).strip()
-
-  def get_connection(self):
-    return httplib.HTTPSConnection('api.github.com')
-
-
-class Github(object):
-  '''The agnostic Github API. It doesn't know, and you don't care.
-  >>> from agithub import Github
-  >>> g = Github('user', 'pass')
-  >>> status, data = g.issues.get(filter='subscribed')
-  >>> data
-  ... [ list_, of, stuff ]
-  >>> status, data = g.repos.jpaugh64.repla.issues[1].get()
-  >>> data
-  ... { 'dict': 'my issue data', }
-  >>> name, repo = 'jpaugh64', 'repla'
-  >>> status, data = g.repos[name][repo].issues[1].get()
-  ... same thing
-  >>> status, data = g.funny.I.donna.remember.that.one.get()
-  >>> status
-  ... 404
-
-  That's all there is to it. (blah.post() should work, too.)
-
-  NOTE: It is up to you to spell things correctly. Github doesn't even
-  try to validate the url you feed it. On the other hand, it
-  automatically supports the full API--so why should you care?
-  '''
-  def __init__(self, *args, **kwargs):
-    self.client = Client(*args, **kwargs)
-  def __getattr__(self, key):
-    return RequestBuilder(self.client).__getattr__(key)
-
-class RequestBuilder(object):
-  '''RequestBuilder(client).path.to.resource.method(...)
-      stands for
-  RequestBuilder(client).client.method('path/to/resource, ...)
-
-  Also, if you use an invalid path, too bad. Just be ready to catch a
-  You can use item access instead of attribute access. This is
-  convenient for using variables' values and required for numbers.
-  bad status from github.com. (Or maybe an httplib.error...)
-
-  To understand the method(...) calls, check out github.client.Client.
-  '''
-  def __init__(self, client):
-    self.client = client
-    self.url = ''
-
-  def __getattr__(self, key):
-    if key in self.client.http_methods:
-      mfun = getattr(self.client, key)
-      fun = partial(mfun, url=self.url)
-      return update_wrapper(fun, mfun)
-    self.url += '/' + str(key)
-    return self
-
-  __getitem__ = __getattr__
-
-  def __str__(self):
-    '''If you ever stringify this, you've (probably) messed up
-    somewhere. So let's give a semi-helpful message.
-    '''
-    return "I don't know about " + self.url
-
-  def __repr__(self):
-    return '%s: %s' % (self.__class__, self.__str__())
-
+        for name in dirs:
+            new_path = self.join(top, name)
+            for x in self.walk(new_path, topdown):
+                yield x
+        if not topdown:
+            yield top, dirs, nondirs
+            
