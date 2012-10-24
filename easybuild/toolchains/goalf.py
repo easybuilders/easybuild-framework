@@ -25,6 +25,10 @@
 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.atlas import Atlas
+from easybuild.toolchains.linalg.blacs import Blacs
+from easybuild.toolchains.linalg.lapack import Lapack
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
