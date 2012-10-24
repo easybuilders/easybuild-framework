@@ -29,10 +29,13 @@ Support for QLogicMPI as toolchain MPI library.
 from easybuild.tools.toolchain.mpi import Mpi
 
 
+TC_CONSTANT_QLOGICMPI = "QLogicMPI"
+
+
 class QLogicMPI(Mpi):
     """QLogicMPI MPI class"""
     MPI_MODULE_NAME = ["QLogicMPI"]
-    MPI_FAMILY = "QLogicMPI"
+    MPI_FAMILY = TC_CONSTANT_QLOGICMPI
 
     MPI_LIBRARY_NAME = 'mpich'
 

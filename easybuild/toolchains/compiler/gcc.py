@@ -30,12 +30,15 @@ import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_GCC = "GCC"
+
+
 class Gcc(Compiler):
     """GCC compiler class"""
 
     COMPILER_MODULE_NAME = ['GCC']
 
-    COMPILER_FAMILY = "GCC"
+    COMPILER_FAMILY = TC_CONSTANT_GCC
     COMPILER_UNIQUE_OPTS = {
                             'loop': (False, "Automatic loop parallellisation"),
                             'f2c': (False, "Generate code compatible with f2c and f77"),
@@ -72,7 +75,6 @@ class Gcc(Compiler):
     COMPILER_F_UNIQUE_FLAGS = ['f2c']
 
     LIB_MULTITHREAD = ['pthread']
-
 
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()

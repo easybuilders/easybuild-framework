@@ -30,6 +30,9 @@ import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_INTEL = "Intel"
+
+
 class IntelIccIfort(Compiler):
     """Intel compiler class
         - TODO: install as single package ?
@@ -38,7 +41,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
-    COMPILER_FAMILY = "Intel"
+    COMPILER_FAMILY = TC_CONSTANT_INTEL
     COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
                             'no-icc': (False, "Don't set Intel specific macros"),
                             }

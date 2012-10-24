@@ -29,10 +29,13 @@ Support for Intel MPI as toolchain MPI library.
 from easybuild.tools.toolchain.mpi import Mpi
 
 
+TC_CONSTANT_INTELMPI = "IntelMPI"
+
+
 class IntelMPI(Mpi):
     """Intel MPI class"""
     MPI_MODULE_NAME = ['impi']
-    MPI_FAMILY = "IntelMPI"
+    MPI_FAMILY = TC_CONSTANT_INTELMPI
 
     MPI_LIBRARY_NAME = 'mpi'
 
