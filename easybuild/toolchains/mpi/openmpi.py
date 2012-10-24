@@ -40,7 +40,7 @@ class OpenMPI(Mpi):
     MPI_LIBRARY_NAME = 'mpi'
 
     ## OpenMPI reads from CC etc env variables
-    MPI_UNIQUE_OPTION_MAP = {
+    MPI_SHARED_OPTION_MAP = {
                              '_opt_MPICC': '',
                              '_opt_MPICXX':'',
                              '_opt_MPICF77':'',
