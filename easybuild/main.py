@@ -480,7 +480,7 @@ def main(options):
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
         for job in jobs:
-            print "%s: %s" % (job.get_, job.jobid)
+            print "%s: %s" % (job.name, job.jobid)
         print "(%d jobs submitted)" % len(jobs)
 
         log.info("Submitted parallel build jobs, exiting now")
