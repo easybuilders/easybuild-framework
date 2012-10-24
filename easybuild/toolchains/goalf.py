@@ -26,7 +26,6 @@
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.mpi.openmpi import OpenMPI
-from easybuild.toolchains.linalg.scaatlas import ScaATLAS
 
 
 class Goalf(Gcc, OpenMPI, Atlas, Lapack, Blacs, ScaLAPACK, Fftw):
