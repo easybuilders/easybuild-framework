@@ -208,3 +208,9 @@ class Compiler(Toolchain):
         if self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
+    def comp_family():
+        """ Return compiler family used in this toolchain. """
+        if self.COMPILER_FAMILY:
+            return self.COMPILER_FAMILY
+        else:
+            self.log.raiseException('comp_family: COMPILER_FAMILY is undefined.')
