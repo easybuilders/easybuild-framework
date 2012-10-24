@@ -30,7 +30,7 @@ from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
-class Mpi(object):
+class Mpi(Toolchain):
     """General MPI-like class
         can't be used without creating new class M(MPI,Toolchain)
     """

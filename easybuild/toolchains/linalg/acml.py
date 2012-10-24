@@ -26,8 +26,10 @@
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 """
 
+from easybuild.tools.toolchain.linalg import LinAlg
 
-class Acml(object):
+
+class Acml(LinAlg):
     """
     Trivial class
         provides ACML BLAS and LAPACK

@@ -26,7 +26,10 @@
 Support for ATLAS as toolchain linear algebra library.
 """
 
-class Atlas(object):
+from easybuild.tools.toolchain.linalg import LinAlg
+
+
+class Atlas(LinAlg):
     """
     Trivial class
         provides ATLAS BLAS and LAPACK

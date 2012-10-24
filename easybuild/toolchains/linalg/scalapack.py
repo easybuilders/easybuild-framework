@@ -26,8 +26,10 @@
 Support for ScaLAPACK as toolchain linear algebra library.
 """
 
+from easybuild.tools.toolchain.linalg import LinAlg
 
-class ScaLAPACK(object):
+
+class ScaLAPACK(LinAlg):
     """Trivial class
         provides ScaLAPACK
     """

@@ -26,8 +26,10 @@
 Support for BLACS as toolchain linear algebra library.
 """
 
+from easybuild.tools.toolchain.linalg import LinAlg
 
-class Blacs(object):
+
+class Blacs(LinAlg):
     """
     Trivial class
         provides BLACS

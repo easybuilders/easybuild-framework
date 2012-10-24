@@ -26,7 +26,10 @@
 Support for LAPACK as toolchain linear algebra library.
 """
 
-class Lapack(object):
+from easybuild.tools.toolchain.linalg import LinAlg
+
+
+class Lapack(LinAlg):
     """Trivial class
         provides LAPACK
     """

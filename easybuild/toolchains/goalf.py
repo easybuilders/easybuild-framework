@@ -29,5 +29,5 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 from easybuild.toolchains.linalg.scaatlas import ScaATLAS
 
 
-class Goalf(Gcc, OpenMPI, ScaATLAS, Fftw):
+class Goalf(Gcc, OpenMPI, Atlas, Lapack, Blacs, ScaLAPACK, Fftw):
     NAME = 'goalf'
