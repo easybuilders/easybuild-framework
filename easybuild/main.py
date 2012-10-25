@@ -1245,9 +1245,9 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
 
             steps = app.get_steps()
 
-            for (_, descr, step_methods, _) in steps:
+            for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:
-                    perform_step("%s (%s)" % (descr, step_method.func_name), app, step_method, applog)
+                    perform_step('_'.join([step_name, step_method.func_name]), app, step_method, applog)
 
             # close log and move it
             app.close_log()
