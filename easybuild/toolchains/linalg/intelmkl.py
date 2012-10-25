@@ -26,6 +26,8 @@
 Support for Intel MKL as toolchain linear algebra library.
 """
 
+from distutils.version import LooseVersion
+
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

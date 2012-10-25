@@ -26,6 +26,8 @@
 Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT library.
 """
 
+from distutils.version import LooseVersion
+
 from easybuild.tools.toolchain.fft import Fft
 
 
