@@ -25,6 +25,9 @@
 """
 utility module for working with github
 """
+import base64
+import tempfile
+import urllib
 from easybuild.tools.agithub import Github
 
 PATH_SEPARATOR = "/"
@@ -66,19 +69,21 @@ class Githubfs(object):
                 endpoint = endpoint[subpath]
         return endpoint
 
-    def isdir(self, githubobj):
+    @staticmethod 
+    def isdir(githubobj):
         """Check if this path points to a directory"""
         if isinstance(githubobj,(list, tuple)):
             return True 
         else:   
             return githubobj['type'] == GITHUB_DIR_TYPE
 
-    def isfile(self, githubobj):
+    @staticmethod 
+    def isfile(githubobj):
         """Check if this path points to a file"""
-        if isinstance(githubobj,(tuple, list)):
-            return False 
-        else:
+        try:
             return githubobj['type'] == GITHUB_FILE_TYPE
+        except:
+            return False
         
     def listdir(self, path):
         """List the contents of a directory"""
@@ -86,7 +91,7 @@ class Githubfs(object):
         listing = path.get(ref=self.branchname)[1]
         return listing
     
-    def walk(self, top, topdown=True):
+    def walk(self, top=None, topdown=True):
         """
         Walk the github repo in an os.walk like fashion.
         """
@@ -112,3 +117,23 @@ class Githubfs(object):
         if not topdown:
             yield top, dirs, nondirs
             
+    def read(self, path, api=True):
+        """Read the contents of a file and return it
+        Or, if api=False it will download the file and return the location of the downloaded file"""
+        # we don't need use the api for this, but can also use raw.github.com
+        # https://raw.github.com/hpcugent/easybuild/master/README.rst
+        if not api: 
+            outfile = tempfile.mkstemp()[1]
+            url = ("http://raw.github.com/%s/%s/%s/%s" % (self.githubuser, self.reponame, self.branchname, path))
+            urllib.urlretrieve(url, outfile)
+            return outfile
+        else: 
+            obj = self.get_path(path).get(ref=self.branchname)[1]
+            if not self.isfile(obj):
+                raise GithubError("Error: not a valid file: %s" % str(obj)) 
+            return  base64.b64decode(obj['content'])
+
+
+class GithubError(Exception):
+    """Error raised by the Githubfs"""
+    pass

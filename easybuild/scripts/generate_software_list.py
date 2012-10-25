@@ -32,12 +32,9 @@ from optparse import OptionParser
 import os
 import sys
 
-sys.path.append('.')
-sys.path.append('..')
-sys.path.append('../..')
-
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.framework import easyblock
+from easybuild.tools.github import Githubfs
 from vsc import fancylogger
 
 # parse options
@@ -45,11 +42,10 @@ parser = OptionParser()
 parser.add_option("-v", "--verbose", action="count", dest="verbose", help="Be more verbose, can be used multiple times.")
 parser.add_option("-q", "--quiet", action="store_true", dest="quiet", help="Don't be verbose, in fact, be quiet.")
 parser.add_option("-b", "--branch", action="store_true", dest="branch", help="Choose the branch to link to (default develop).")
+parser.add_option("-u", "--username", action="store_true", dest="username", help="Choose the user to link to (default hpcugent.")
+parser.add_option("-r", "--repo", action="store_true", dest="repo", help="Choose the branch to link to (default easybuild-easyconfigs).")
 
 options, args = parser.parse_args()
-
-if len(args) < 2:
-    print "Usage: %s [-v [-v [-v [-v]]]] [--branch branchname] easyconfigs_dir"
 
 # get and configure logger
 log = fancylogger.getLogger(__name__)
@@ -61,26 +57,34 @@ elif options.verbose >= 3:
     fancylogger.setLogLevelDebug()
 if options.quiet:
     fancylogger.logToScreen(False)
+if not options.username:
+    options.username = "hpcugent"
+if not options.repo:
+    options.repo = "easybuild-easyconfigs"
 
-log.info('parsing easyconfigs from %s' % args[0])
+log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
-if options.branch:
-    branch = options.branch
-else:
-    branch = "develop"
+if not options.branch:
+    options.branch = "develop"
 
 configs = []
 names = []
-# TODO: Do this with the github repository
-for root, subfolders, files in os.walk(args[0]):    
-    # TODO: do this for all hidden folders
+
+fs = Githubfs(options.username, options.repo, options.branch)
+
+# fs.walk yields the same results as os.walk, so should be interchangable
+# same for fs.join and os.path.join
+
+for root, subfolders, files in fs.walk('easybuild/easyconfigs'):    
     if '.git' in subfolders:
         log.info("found .git subfolder, ignoring it")
         subfolders.remove('.git')
-    for file in files:
-        file = os.path.join(root,file)
+    for file_ in files:
+        file_ = fs.join(root,file_)
+        file_ = fs.read(file_, api=False)
         try:
-            ec = EasyConfig(file, validate=False)
+            
+            ec = EasyConfig(file_, validate=False)
             log.info("found valid easyconfig %s" % ec) 
             if not ec.name in names:
                 log.info("found new software package %s" % ec)
