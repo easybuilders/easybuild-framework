@@ -101,7 +101,7 @@ class IntelMKL(LinAlg):
                 self.BLAS_LIB_DIR = ['lib/32']
             else:
                 self.BLAS_LIB_DIR = ['lib/em64t']
-            self.BLAS_INCL_DIR = ['include']
+            self.BLAS_INCLUDE_DIR = ['include']
         else:
             if self.options.get('32bit', None):
                 self.log.raiseException(("_set_blas_variables: 32-bit libraries not supported yet "
@@ -109,7 +109,7 @@ class IntelMKL(LinAlg):
             else:
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
 
-            self.BLAS_INCL_DIR = ['mkl/include']
+            self.BLAS_INCLUDE_DIR = ['mkl/include']
 
         super(IntelMKL, self)._set_blas_variables()
 
