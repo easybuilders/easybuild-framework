@@ -354,6 +354,10 @@ class Toolchain(object):
             # references itself (eventually).  Stop' error
             setvar("EBVAR%s" % key, val)
 
+    def get_flag(self, name):
+        """Get compiler flag for a certain option."""
+        return "-%s" % self.options.option(name)
+
     def comp_family(self):
         """ Return compiler family used in this toolchain (abstract method)."""
         raise NotImplementedError
@@ -394,6 +398,10 @@ class Toolchain(object):
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""
         self.log.raiseException("mpi_cmd_for: legacy code. use mympirun.")
+
+    def get_openmp_flag(self):
+        """Get compiler flag for OpenMP support."""
+        self.log.raiseException("get_openmp_flag: legacy code. use options.get_flag('openmp').")
 
     @property
     def opts(self):
