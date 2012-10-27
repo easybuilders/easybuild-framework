@@ -288,17 +288,18 @@ class Toolchain(object):
 
         ## Generate the variables to be set
         self.set_variables()
-        self.generate_vars()
 
         ## set the variables
         ## onlymod can be comma-separated string of variables not to be set
         if onlymod == True:
             self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
+            self.generate_vars()
         else:
             self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
 
             ## add LDFLAGS and CPPFLAGS from dependencies to self.vars
             self._add_dependency_variables()
+            self.generate_vars()
             self._setenv_variables(onlymod)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
