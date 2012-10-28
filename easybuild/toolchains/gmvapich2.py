@@ -24,8 +24,8 @@
 ##
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Gmpich2(Gcc, Mpich2):
-    NAME = 'gmpich2'
+class Gmvapich2(Gcc, Mvapich2):
+    NAME = 'gmvapich2'
