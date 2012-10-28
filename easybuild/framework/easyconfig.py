@@ -80,7 +80,7 @@ class EasyConfig(object):
                                 'variables (False) like compiler CC etc (if string: comma ' \
                                 'separated list of variables that will be ignored). (default: False)', TOOLCHAIN]),
 
-          ('easybuildVersion', [None, "EasyBuild-version this spec-file was written for", BUILD]),
+          ('easybuild_version', [None, "EasyBuild-version this spec-file was written for", BUILD]),
           ('versionsuffix', ['', 'Additional suffix for software version (placed after toolchain name)', BUILD]),
           ('versionprefix', ['', 'Additional prefix for software version ' \
                                  '(placed before version and toolchain name)', BUILD]),
@@ -92,7 +92,7 @@ class EasyConfig(object):
           ('makeopts', ['', 'Extra options passed to make (default already has -j X)', BUILD]),
           ('preinstallopts', ['', 'Extra prefix options for installation (default: nothing)', BUILD]),
           ('installopts', ['', 'Extra options for installation (default: nothing)', BUILD]),
-          ('unpackOptions', [None, "Extra options for unpacking source (default: None)", BUILD]),
+          ('unpack_options', [None, "Extra options for unpacking source (default: None)", BUILD]),
           ('stop', [None, 'Keyword to halt the buildprocess at certain points. Valid are %s' % validstops,
                     BUILD]),
           ('skip', [False, "Skip existing software (default: False)", BUILD]),
@@ -100,13 +100,13 @@ class EasyConfig(object):
                               'cores and restrictions in ulimit)', BUILD]),
           ('maxparallel', [None, 'Max degree of parallelism (default: None)', BUILD]),
           ('sources', [[], "List of source files", BUILD]),
-          ('sourceURLs', [[], "List of URLs for source files", BUILD]),
+          ('source_urls', [[], "List of URLs for source files", BUILD]),
           ('patches', [[], "List of patches to apply", BUILD]),
           ('tests', [[], "List of test-scripts to run after install. A test script should return a " \
                          "non-zero exit status to fail", BUILD]),
-          ('sanityCheckPaths', [{}, "List of files and directories to check (format: {'files':<list>, " \
+          ('sanity_check_paths', [{}, "List of files and directories to check (format: {'files':<list>, " \
                                     "'dirs':<list>}, default: {})", BUILD]),
-          ('sanityCheckCommands', [[], "format: [(name, options)] e.g. [('gzip','-h')]. " \
+          ('sanity_check_commands', [[], "format: [(name, options)] e.g. [('gzip','-h')]. " \
                                        "Using a non-tuple is equivalent to (name, '-h')", BUILD]),
 
           ('start_dir', [None, 'Path to start the make in. If the path is absolute, use that path. ' \
@@ -128,8 +128,8 @@ class EasyConfig(object):
           ('builddependencies', [[], "List of build dependencies (default: [])", DEPENDENCIES]),
           ('osdependencies', [[], "OS dependencies that should be present on the system", DEPENDENCIES]),
 
-          ('licenseServer', [None, 'License server for software', LICENSE]),
-          ('licenseServerPort', [None, 'Port for license server', LICENSE]),
+          ('license_server', [None, 'License server for software', LICENSE]),
+          ('license_serverPort', [None, 'Port for license server', LICENSE]),
           ('key', [None, 'Key for installing software', LICENSE]),
           ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
 
@@ -366,7 +366,7 @@ class EasyConfig(object):
                         ["name", "version", "versionprefix", "versionsuffix"],
                         ["homepage", "description"],
                         ["toolchain", "toolchainopts"],
-                        ["sourceURLs", "sources"],
+                        ["source_urls", "sources"],
                         ["patches"],
                         ["dependencies"],
                         ["parallel", "maxparallel"],
