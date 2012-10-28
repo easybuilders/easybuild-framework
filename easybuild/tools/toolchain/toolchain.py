@@ -367,6 +367,62 @@ class Toolchain(object):
         """ Return type of MPI library used in this toolchain (abstract method)."""
         raise NotImplementedError
 
+    # FIXME: deprecate this function, use mympirun instead
+    # this requires that either mympirun is packaged together with EasyBuild, or that vsc-tools is a dependency of EasyBuild
+    def mpi_cmd_for(self, cmd, nr_ranks):
+        """Construct an MPI command for the given command and number of ranks."""
+
+        # parameter values for mpirun command
+        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
+
+        # different known mpirun commands
+        mpi_cmds = {
+                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",
+                    toolchain.INTEL:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
+                    }
+
+        mpi_type = self.mpi_type()
+
+        # Intel MPI mpirun needs more work
+        if mpi_type == toolchain.INTEL:
+
+            # set temporary dir for mdp
+            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
+
+            # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
+            env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
+
+            # create mpdboot file
+            fn = "/tmp/mpdboot"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost ifhn=localhost")
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
+
+            params.update({'mpdbootfile':"--file=%s"%fn})
+
+            # create nodes file
+            fn = "/tmp/nodes"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost\n" * nr_ranks)
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
+
+            params.update({'nodesfile':"-machinefile %s"%fn})
+
+        if mpi_type in mpi_cmds.keys():
+            return mpi_cmds[mpi_type] % params
+        else:
+            self.log.error("Don't know how to create an MPI command for MPI library of type '%s'." % mpi_type)
+
     ## legacy functions TODO remove AFTER migration
     ## should search'n'replaced
     def get_type(self, name, type_map):
@@ -391,10 +447,6 @@ class Toolchain(object):
         Verify if there exists a toolkit by this name and version
         """
         self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
-
-    def mpi_type(self):
-        """Determine type of MPI library based on toolkit dependencies."""
-        self.log.raiseException("mpi_type: legacy code. use mpi_family.")
 
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""
