@@ -24,8 +24,8 @@
 ##
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.toolchains.mpi.mpich2 import MPICH2
+from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
-class Gompi(Gcc, MPICH2):
+class Gompi(Gcc, Mpich2):
     NAME = 'gmpich2'
