@@ -26,6 +26,7 @@
 Toolchain mpi module. Contains all MPI related classes
 """
 
+import easybuild.tools.toolchain.toolchain as toolchain
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -144,4 +145,53 @@ class Mpi(Toolchain):
             return self.MPI_FAMILY
         else:
             self.log.raiseException("mpi_family: MPI_FAMILY is undefined.")
+
+    # FIXME: deprecate this function, use mympirun instead
+    # this requires that either mympirun is packaged together with EasyBuild, or that vsc-tools is a dependency of EasyBuild
+    def mpi_cmd_for(self, cmd, nr_ranks):
+        """Construct an MPI command for the given command and number of ranks."""
+
+        # parameter values for mpirun command
+        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
+
+        # different known mpirun commands
+        mpi_cmds = {
+                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",
+                    toolchain.INTEL:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
+                    }
+
+        mpi_type = self.mpi_type()
+
+        # Intel MPI mpirun needs more work
+        if mpi_type == toolchain.INTEL:
+
+            # set temporary dir for mdp
+            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
+
+            # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
+            env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
+
+            # create mpdboot file
+            fn = "/tmp/mpdboot"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost ifhn=localhost")
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
+
+            params.update({'mpdbootfile':"--file=%s"%fn})
+
+            # create nodes file
+            fn = "/tmp/nodes"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost\n" * nr_ranks)
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
 
