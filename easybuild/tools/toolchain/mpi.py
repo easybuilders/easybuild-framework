@@ -160,10 +160,10 @@ class Mpi(Toolchain):
                     toolchain.INTEL:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
                     }
 
-        mpi_type = self.mpi_type()
+        mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_type == toolchain.INTEL:
+        if mpi_family == toolchain.INTEL:
 
             # set temporary dir for mdp
             env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
