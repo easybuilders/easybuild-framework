@@ -47,19 +47,6 @@ class IntelMPI(Mpi):
 
     # FIXME: does this need to be here? if so, why?
     MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICF90':'-fc="%(F90_base)s"',
+                             '_opt_MPICF90':'-fc=%(F90_base)s',
                              }
 
-    # turns out MPICC="mpicc -cc='icc' " isn't always working, e.g. with configure
-    MPI_COMPILER_MPICC = 'mpiicc'
-    MPI_COMPILER_MPICXX = 'mpiicpc'
-
-    MPI_COMPILER_MPIF77 = 'mpiifort'
-    MPI_COMPILER_MPIF90 = 'mpiifort'
-
-    MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': '', #cc="%(CC_base)s"',
-                             '_opt_MPICXX':'', #cxx="%(CXX_base)s"',
-                             '_opt_MPIF77':'', #fc="%(F77_base)s"',
-                             '_opt_MPIF90':'', #f90="%(F90_base)s"',
-                             }

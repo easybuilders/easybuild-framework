@@ -48,10 +48,10 @@ class Mpi(Toolchain):
 
     MPI_UNIQUE_OPTION_MAP = None
     MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': 'cc="%(CC_base)s"',
-                             '_opt_MPICXX':'cxx="%(CXX_base)s"',
-                             '_opt_MPIF77':'fc="%(F77_base)s"',
-                             '_opt_MPIF90':'f90="%(F90_base)s"',
+                             '_opt_MPICC': 'cc=%(CC_base)s',
+                             '_opt_MPICXX':'cxx=%(CXX_base)s',
+                             '_opt_MPIF77':'fc=%(F77_base)s',
+                             '_opt_MPIF90':'f90=%(F90_base)s',
                              }
 
     MPI_COMPILER_MPICC = 'mpicc'
@@ -98,6 +98,9 @@ class Mpi(Toolchain):
             if value is None:
                 self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
             self.variables.nappend_el(var, value)
+
+            if not len(self.variables[c_var].get_first()) == 1:
+                self.log.raiseException("_set_mpi_compiler_variables: first part of %s variable has len > 1" % c_var)
 
             templatedict = {c_var:str(self.variables[c_var]),
                             '%s_base' % c_var: str(self.variables[c_var].get_first()),
