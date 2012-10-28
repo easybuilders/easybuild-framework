@@ -28,8 +28,8 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.mvapich2 import Mvapich2
+from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Goalf(Gcc, Mvapich2, Acml, Blacs, ScaLAPACK, Fftw):
-    NAME = 'goalf'
+class Gqacml(Gcc, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
+    NAME = 'gqacml'
