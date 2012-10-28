@@ -195,3 +195,9 @@ class Mpi(Toolchain):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
+            params.update({'nodesfile':"-machinefile %s"%fn})
+
+        if mpi_type in mpi_cmds.keys():
+            return mpi_cmds[mpi_type] % params
+        else:
+            self.log.error("Don't know how to create an MPI command for MPI library of type '%s'." % mpi_type)
