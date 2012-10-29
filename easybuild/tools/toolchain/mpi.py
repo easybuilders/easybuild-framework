@@ -99,9 +99,7 @@ class Mpi(Toolchain):
                 self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
             self.variables.nappend_el(var, value)
 
-            if not len(self.variables[c_var].get_first()) == 1:
-                self.log.raiseException("_set_mpi_compiler_variables: first part of %s variable has len > 1" % c_var)
-
+            # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
             templatedict = {c_var:str(self.variables[c_var]),
                             '%s_base' % c_var: str(self.variables[c_var].get_first()),
                             }
