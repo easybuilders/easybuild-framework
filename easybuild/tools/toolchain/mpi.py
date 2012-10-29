@@ -158,13 +158,13 @@ class Mpi(Toolchain):
         # different known mpirun commands
         mpi_cmds = {
                     toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",
-                    toolchain.INTEL:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
+                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
                     }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_family == toolchain.INTEL:
+        if mpi_family == toolchain.INTELMPI:
 
             # set temporary dir for mdp
             env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
