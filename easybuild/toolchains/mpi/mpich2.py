@@ -48,10 +48,11 @@ class Mpich2(Mpi):
                              '_opt_MPIF90': '',
                              }
 
-    def _set_mpi_variables(self):
+    def _set_mpi_compiler_variables(self):
         """Add MPICH_XXX variables to set."""
 
-        super(Mpich2, self)._set_mpi_variables()
-
+        # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
         for var in ["CC", "CXX", "F77", "F90"]:
             self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+
+        super(Mpich2, self)._set_mpi_compiler_variables()
