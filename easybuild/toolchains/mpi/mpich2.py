@@ -47,5 +47,10 @@ class Mpich2(Mpi):
                              '_opt_MPIF90': '',
                              }
 
-    for var in ["CC", "CXX", "F77", "F90"]:
-        self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()))
+    def _set_mpi_variables(self):
+        """Add MPICH_XXX variables to set."""
+
+        super(Mpich2, self)._set_mpi_variables()
+
+        for var in ["CC", "CXX", "F77", "F90"]:
+            self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()))
