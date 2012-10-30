@@ -42,6 +42,6 @@ class QLogicMPI(Mpi):
     ## qlogic: cxx -> -CC only
     ## qlogic has seperate -m32 / -m64 option to mpicc/.. --> only one
     MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICXX':'-CC="%(CXX_base)s"',
+                             '_opt_MPICXX':'CC="%(CXX_base)s"',
                              }
 

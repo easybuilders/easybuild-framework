@@ -26,13 +26,13 @@
 Support for Intel MPI as toolchain MPI library.
 """
 
-from easybuild.tools.toolchain.mpi import Mpi
+from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
 TC_CONSTANT_INTELMPI = "IntelMPI"
 
 
-class IntelMPI(Mpi):
+class IntelMPI(Mpich2):
     """Intel MPI class"""
     MPI_MODULE_NAME = ['impi']
     MPI_FAMILY = TC_CONSTANT_INTELMPI
@@ -44,9 +44,4 @@ class IntelMPI(Mpi):
     ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
     ## cxx -> cxx only
     ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
-
-    # FIXME: does this need to be here? if so, why?
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICF90':'-fc=%(F90_base)s',
-                             }
 

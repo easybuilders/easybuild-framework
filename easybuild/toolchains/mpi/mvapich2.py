@@ -26,13 +26,13 @@
 Support for MVAPICH2 as toolchain MPI library.
 """
 
-from easybuild.tools.toolchain.mpi import Mpi
+from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
 TC_CONSTANT_MVAPICH2 = "MVAPICH2"
 
 
-class Mvapich2(Mpi):
+class Mvapich2(Mpich2):
     """MVAPICH2 MPI class"""
     MPI_MODULE_NAME = ["MVAPICH2"]
     MPI_FAMILY = TC_CONSTANT_MVAPICH2

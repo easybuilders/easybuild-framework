@@ -38,3 +38,14 @@ class Mpich2(Mpi):
     MPI_FAMILY = TC_CONSTANT_MPICH2
 
     MPI_LIBRARY_NAME = 'mpich'
+
+    # clear MPI wrapper command options
+    MPI_SHARED_OPTION_MAP = {
+                             '_opt_MPICC': '',
+                             '_opt_MPICXX': '',
+                             '_opt_MPIF77': '',
+                             '_opt_MPIF90': '',
+                             }
+
+    for var in ["CC", "CXX", "F77", "F90"]:
+        self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()))
