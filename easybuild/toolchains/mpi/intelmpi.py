@@ -45,3 +45,11 @@ class IntelMPI(Mpich2):
     ## cxx -> cxx only
     ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
 
+    def _set_mpi_compiler_variables(self):
+        """Add I_MPI_XXX variables to set."""
+
+        # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
+        for var in ["CC", "CXX", "F77", "F90"]:
+            self.variables.nappend("I_MPI_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
+
+        super(IntelMPI, self)._set_mpi_compiler_variables()
