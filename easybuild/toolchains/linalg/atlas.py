@@ -41,5 +41,3 @@ class Atlas(LinAlg):
 
     LAPACK_MODULE_NAME = ['ATLAS']
     LAPACK_LIB = ['lapack']
-
-    LAPACK_IS_BLAS = True
