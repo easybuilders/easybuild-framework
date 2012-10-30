@@ -564,6 +564,7 @@ class Variables(dict):
                     self.nappend(name, el)
             else:
                 self.log.debug("join: name %s; other %s not found in self." % (name, other))
+        return self[name]
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""
