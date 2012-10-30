@@ -369,8 +369,7 @@ class ListOfLists(list):
         """
         append_empty = kwargs.pop('append_empty', False)
         position = kwargs.pop('position', None)
-
-        klass = self.DEFAULT_CLASS
+        klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
 
         if self._is_protected(value):
             newvalue = value
@@ -396,11 +395,11 @@ class ListOfLists(list):
         else:
             self.log.debug("nappend: ignoring value %s newvalue %s (not _str_ok)" % (value.__repr__(), newvalue.__repr__()))
 
-    def nextend(self, value=None):
+    def nextend(self, value=None, **kwargs):
         """Named extend, value is list type (TODO: tighten the allowed values)
             name not used anymore
         """
-        klass = self.DEFAULT_CLASS
+        klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
         res = []
         if value is None:
             ## TODO ? append_empty ?

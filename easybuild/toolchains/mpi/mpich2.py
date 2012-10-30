@@ -27,6 +27,7 @@ Support for MPICH2 as toolchain MPI library.
 """
 
 from easybuild.tools.toolchain.mpi import Mpi
+from easybuild.tools.variables import CommandFlagList
 
 
 TC_CONSTANT_MPICH2 = "MPICH2"
@@ -53,4 +54,4 @@ class Mpich2(Mpi):
         super(Mpich2, self)._set_mpi_variables()
 
         for var in ["CC", "CXX", "F77", "F90"]:
-            self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()))
+            self.variables.nappend("MPICH_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)

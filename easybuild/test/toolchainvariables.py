@@ -27,6 +27,7 @@ import re
 
 from unittest import TestCase, TestSuite
 from easybuild.tools.toolchain.variables import ToolchainVariables
+from easybuild.tools.variables import CommandFlagList
 
 class ToolchainVariablesTest(TestCase):
     """ Baseclass for easyblock testcases """
@@ -91,6 +92,10 @@ class ToolchainVariablesTest(TestCase):
         self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c', 'g', 'h'], ['d', 'e', 'f']]")
         self.assertEqual(str(tcv['LIBLAPACK']), "-Wl,-Xstart,-la,-lb,-lc,-lg,-lh,-Xstop -ld -le -lf")
 
+        tcv.nappend('MPICH_CC', 'icc', var_class=CommandFlagList)
+        self.assertEqual(str(tcv['MPICH_CC']), "icc")
+        tcv.nappend('MPICH_CC', 'test')
+        self.assertEqual(str(tcv['MPICH_CC']), "icc -test")
 
 def suite():
     """ return all the tests"""
