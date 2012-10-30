@@ -41,20 +41,20 @@ class Dummy(Compiler):
     COMPILER_F90 = 'DUMMYF90'
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                                            systemtools.INTEL : 'DUMMYOPTARCH_INTEL',
-                                            systemtools.AMD : 'DUMMYOPTARCH_AMD'
+                                            systemtools.INTEL : "DUMMY",
+                                            systemtools.AMD : "DUMMY"
                                            }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-                                  'i8': 'DUMMYI8',
-                                  'r8': 'DUMMYR8',
-                                  'unroll': 'DUMMYUNROLL',
-                                  'optarch':'DUMMYOPTARCH',
-                                  'openmp':'DUMMYOPENMP',
-                                  'strict': ['DUMMYSTRICT'],
-                                  'precise':['DUMMYPRECISE'],
-                                  'defaultprec':['DUMMYDEFAULTPREC'],
-                                  'loose': ['DUMMYLOOSE'],
-                                  'veryloose': ['DUMMYVERYLOOSE'],
+                                  'i8': None,
+                                  'r8': None,
+                                  'unroll': None,
+                                  'optarch': None,
+                                  'openmp': None,
+                                  'strict': None,
+                                  'precise': None,
+                                  'defaultprec': None,
+                                  'loose': None,
+                                  'veryloose': None,
                                   }
 
