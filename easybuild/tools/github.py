@@ -29,6 +29,7 @@ import base64
 import tempfile
 import urllib
 from easybuild.tools.agithub import Github
+from vsc import fancylogger
 
 PATH_SEPARATOR = "/"
 GITHUB_DIR_TYPE = u'dir'
@@ -46,6 +47,7 @@ class Githubfs(object):
         @param password: (optional) your github password.
         @param token:    (optional) a github api token.
         """
+        self.log = fancylogger.getLogger(self.__class__.__name__)
         self.gh = Github(username, password, token)
         self.githubuser = githubuser
         self.reponame = reponame
@@ -75,7 +77,10 @@ class Githubfs(object):
         if isinstance(githubobj,(list, tuple)):
             return True 
         else:   
-            return githubobj['type'] == GITHUB_DIR_TYPE
+            try:
+                return githubobj['type'] == GITHUB_DIR_TYPE
+            except:
+                return False
 
     @staticmethod 
     def isfile(githubobj):
@@ -88,8 +93,13 @@ class Githubfs(object):
     def listdir(self, path):
         """List the contents of a directory"""
         path = self.get_path(path)
-        listing = path.get(ref=self.branchname)[1]
-        return listing
+        listing = path.get(ref=self.branchname)
+        self.log.debug("listdir response: %s" % str(listing))
+        if listing[0] == 200:
+            return listing[1]
+        else:
+            self.log.warning("error: %s" % str(listing))
+            self.log.exception("Invalid response from github (I/O error)")
     
     def walk(self, top=None, topdown=True):
         """
