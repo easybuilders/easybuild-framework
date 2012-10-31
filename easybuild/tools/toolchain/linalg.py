@@ -253,9 +253,9 @@ class LinAlg(Toolchain):
         if self.SCALAPACK_REQUIRES is not None:
             self.variables.join('LIBSCALAPACK', 'LIBSCALAPACK_ONLY', *self.SCALAPACK_REQUIRES)
             scalapack_mt = ["%s_MT" % x for x in self.SCALAPACK_REQUIRES]
-            if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                scalapack_mt.extend(self.LIB_MULTITHREAD)
             self.variables.join('LIBSCALAPACK_MT', 'LIBSCALAPACK_MT_ONLY', *scalapack_mt)
+            if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                self.variables.nappend('LIBSCALAPACK_MT', self.LIB_MULTITHREAD)
         else:
             self.log.raiseException("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
 
