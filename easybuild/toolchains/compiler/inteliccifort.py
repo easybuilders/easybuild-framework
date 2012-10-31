@@ -32,7 +32,7 @@ import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
-TC_CONSTANT_INTEL = "Intel"
+TC_CONSTANT_INTELCOMP = "Intel"
 
 
 class IntelIccIfort(Compiler):
@@ -43,7 +43,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
-    COMPILER_FAMILY = TC_CONSTANT_INTEL
+    COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
     COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
                             'no-icc': (False, "Don't set Intel specific macros"),
                             'error-unknown-option': (True, "Error instead of warning for unknown options")
