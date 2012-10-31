@@ -46,7 +46,7 @@ class IntelIccIfort(Compiler):
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
     COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
                             'no-icc': (False, "Don't set Intel specific macros"),
-                            'error-unknown-option': (True, "Error instead of warning for unknown options")
+                            'error-unknown-option': (False, "Error instead of warning for unknown options")
                             }
 
     COMPILER_UNIQUE_OPTION_MAP = {
@@ -61,7 +61,7 @@ class IntelIccIfort(Compiler):
                                   'veryloose': ['fp-model fast=2'],
                                   'intel-static': 'static-intel',
                                   'no-icc': 'no-icc',
-                                  'error-unknown-option': 'we10010'
+                                  'error-unknown-option': 'we10006'  # error at warning #10006: ignoring unknown option
                                   }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
