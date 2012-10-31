@@ -27,6 +27,7 @@ Support for Intel MPI as toolchain MPI library.
 """
 
 from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.tools.variables import CommandFlagList
 
 
 TC_CONSTANT_INTELMPI = "IntelMPI"
