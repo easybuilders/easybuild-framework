@@ -70,6 +70,11 @@ class VariablesTest(TestCase):
         v['BARINT'] = 0
         self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
 
+        x = v.join('BAR2', 'FOO', 'BARINT')
+        self.assertEqual(str(v['BAR2']), "0,1,2 0")
+
+        self.assertRaises(Exception, v.join, 'BAZ', 'DOESNOTEXIST')
+
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")
 
