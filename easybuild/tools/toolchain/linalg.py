@@ -161,9 +161,10 @@ class LinAlg(Toolchain):
             if self.LAPACK_REQUIRES is not None:
                 self.variables.join('LIBLAPACK', 'LIBLAPACK_ONLY', *self.LAPACK_REQUIRES)
                 lapack_mt = ["%s_MT" % x for x in self.LAPACK_REQUIRES]
-                if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                    lapack_mt.extend(self.LIB_MULTITHREAD)
                 self.variables.join('LIBLAPACK_MT', 'LIBLAPACK_MT_ONLY', *lapack_mt)
+                if getattr(self, 'LIB_MULTITHREAD', None) is not None:
+                    self.variables.nappend('LIBLAPACK_MT', self.LIB_MULTITHREAD)
+
             else:
                 self.variables.nappend('LIBLAPACK', 'LIBLAPACK_ONLY')
                 self.variables.nappend('LIBLAPACK_MT', 'LIBLAPACK_MT_ONLY')
