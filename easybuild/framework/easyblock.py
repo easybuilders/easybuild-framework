@@ -1262,13 +1262,14 @@ class EasyBlock(object):
 
         # run sanity check commands
         commands = self.cfg['sanity_check_commands']
-        self.log.info("Using specified sanity check paths: %s" % commands)
         if not commands:
             if custom_commands:
                 commands = custom_commands
                 self.log.info("Using customised sanity check commands: %s" % commands)
             else:
                 commands = []
+                self.log.info("Using specified sanity check commands: %s" % commands)
+
         for command in commands:
             # set command to default. This allows for config files with
             # non-tuple commands
