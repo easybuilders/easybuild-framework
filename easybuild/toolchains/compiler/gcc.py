@@ -75,6 +75,7 @@ class Gcc(Compiler):
     COMPILER_F_UNIQUE_FLAGS = ['f2c']
 
     LIB_MULTITHREAD = ['pthread']
+    LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()
