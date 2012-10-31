@@ -98,9 +98,6 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        if not 'LIBS' in self.variables:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
-
         libpaths = ['intel64']
         if self.options.get('32bit', None):
             libpaths.append('ia32')

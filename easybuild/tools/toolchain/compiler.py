@@ -106,6 +106,7 @@ class Compiler(Toolchain):
                                       }
 
     LIB_MULTITHREAD = None
+    LIB_MATH = ['m']
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
@@ -157,6 +158,11 @@ class Compiler(Toolchain):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
             self.variables['CXX'] = self.variables['CC']
+
+        if self.LIB_MULTITHREAD is not None:
+            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
+        if self.LIB_MATH is not None:
+            self.variables.nappend('LIBS', self.LIB_MATH)
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""

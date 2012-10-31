@@ -83,9 +83,6 @@ class Gcc(Compiler):
             self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
                                     "32bit GCC in EasyBuild")
 
-        if not 'LIBS' in self.variables:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
-
         ## to get rid of lots of problems with libgfortranbegin
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
