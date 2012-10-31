@@ -106,7 +106,7 @@ class Compiler(Toolchain):
                                       }
 
     LIB_MULTITHREAD = None
-    LIB_MATH = ['m']
+    LIB_MATH = None
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
