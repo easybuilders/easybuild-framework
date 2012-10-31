@@ -22,3 +22,10 @@
 # You should have received a copy of the GNU General Public License
 # along with VSC-tools. If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+This initializes VSC-tools.
+"""
+from pkgutil import extend_path
+
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)
