@@ -151,14 +151,14 @@ class LinAlg(Toolchain):
 
             if self.LAPACK_LIB_MT is None:
                 ## reuse LAPACK variables
-                self.LAPACK_LIB_MT = self.variables.join('LIBBLAS_MT_ONLY', 'LIBLAPACK_ONLY')
+                self.LAPACK_LIB_MT = self.variables.join('LIBLAPACK_MT_ONLY', 'LIBLAPACK_ONLY')
                 self.variables.add_begin_end_linkerflags(self.LAPACK_LIB_MT,
                                                          toggle_startstopgroup=self.LAPACK_LIB_GROUP,
                                                          toggle_staticdynamic=self.LAPACK_LIB_STATIC)
             else:
                 self.variables.nappend('LIBLAPACK_MT_ONLY', self.LAPACK_LIB_MT)
                 if getattr(self, 'LIB_MULTITHREAD', None) is not None:
-                    self.variables.nappend('LIBBLAS_MT_ONLY', self.LIB_MULTITHREAD)
+                    self.variables.nappend('LIBLAPACK_MT_ONLY', self.LIB_MULTITHREAD)
 
             ## need BLAS for LAPACK ?
             if self.LAPACK_REQUIRES is not None:
