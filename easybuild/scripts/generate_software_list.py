@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ##
 # Copyright 2012 Jens Timmerman
 #
@@ -39,12 +40,18 @@ from vsc import fancylogger
 
 # parse options
 parser = OptionParser()
-parser.add_option("-v", "--verbose", action="count", dest="verbose", help="Be more verbose, can be used multiple times.")
-parser.add_option("-q", "--quiet", action="store_true", dest="quiet", help="Don't be verbose, in fact, be quiet.")
-parser.add_option("-b", "--branch", action="store", dest="branch", help="Choose the branch to link to (default develop).")
-parser.add_option("-u", "--username", action="store", dest="username", help="Choose the user to link to (default hpcugent).")
-parser.add_option("-r", "--repo", action="store", dest="repo", help="Choose the branch to link to (default easybuild-easyconfigs).")
-parser.add_option("-p", "--path", action="store", dest="path", help="Specify a path inside the repo (default easybuild/easyconfigs).")
+parser.add_option("-v", "--verbose", action="count", dest="verbose",
+     help="Be more verbose, can be used multiple times.")
+parser.add_option("-q", "--quiet", action="store_true", dest="quiet",
+     help="Don't be verbose, in fact, be quiet.")
+parser.add_option("-b", "--branch", action="store", dest="branch",
+     help="Choose the branch to link to (default develop).")
+parser.add_option("-u", "--username", action="store", dest="username",
+     help="Choose the user to link to (default hpcugent).")
+parser.add_option("-r", "--repo", action="store", dest="repo",
+     help="Choose the branch to link to (default easybuild-easyconfigs).")
+parser.add_option("-p", "--path", action="store", dest="path",
+     help="Specify a path inside the repo (default easybuild/easyconfigs).")
 
 options, args = parser.parse_args()
 
@@ -117,19 +124,25 @@ print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_
 print "to go to the easyblock for this package." 
 print "## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat()) 
 print "<center>"
-print " - ".join(["[%(letter)s](#%(letter)s)" % {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
+print " - ".join(["[%(letter)s](#%(letter)s)" % \
+    {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
 print "</center>"
 
 for config in configs: 
     if config.name[0].lower() != firstl:
         firstl = config.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
-        print "\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {'letter': firstl.upper(), 'count': len([x for x in configs if x.name[0].lower() == firstl])}
+        print "\n### %(letter)s (%(count)d packages) <a name='%(letter)s'/>\n" % {
+                'letter': firstl.upper(),
+                'count': len([x for x in configs if x.name[0].lower() == firstl]),
+            }
     print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] " 
-    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % (options.branch, firstl, config.name)
+    print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
+            (options.branch, firstl, config.name)
     if config.easyblock:
         print "[![EasyBlocks](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png)] "
-        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % (options.branch, firstl, config.easyblock)
+        print " (https://github.com/hpcugent/easybuild-easyblocks/tree/%s/easybuild/easyblocks/%s/%s.py)" % \
+            (options.branch, firstl, config.easyblock)
     else:
         print "&nbsp;&nbsp;&nbsp;&nbsp;"
     if config['homepage'] != "(none)":

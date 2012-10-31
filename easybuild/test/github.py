@@ -53,7 +53,11 @@ class GithubTest(TestCase):
 
     def test_walk(self):
         """test the gitubfs walk function"""
-        self.assertEquals([x for x in self.ghfs.walk(None)], [(None, ['a_directory', 'second_dir'], ['README.md']), ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt'])])
+        #TODO: this will not work when rate limited, so we should have a test account token here
+        self.assertEquals([x for x in self.ghfs.walk(None)], [(None, ['a_directory', 'second_dir'], ['README.md']),
+                 ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
+                 ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
+            )
         
 
     def test_read_api(self):
@@ -62,7 +66,8 @@ class GithubTest(TestCase):
 
     def test_read(self):
         """Test the githubfs read function without using the api"""
-        self.assertEquals(open(self.ghfs.read("a_directory/a_file.txt", api=False), 'r').read(), "this is a line of text\n")
+        self.assertEquals(open(self.ghfs.read("a_directory/a_file.txt", api=False), 'r').read(),
+             "this is a line of text\n")
 
     def tearDown(self):
         """cleanup"""
