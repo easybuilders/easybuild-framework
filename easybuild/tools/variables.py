@@ -563,8 +563,7 @@ class Variables(dict):
                 for el in self.get(other):
                     self.nappend(name, el)
             else:
-                self.log.debug("join: name %s; other %s not found in self." % (name, other))
-        return self[name]
+                self.log.raiseException("join: name %s; other %s not found in self." % (name, other))
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""
