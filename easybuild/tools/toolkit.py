@@ -370,7 +370,7 @@ class Toolkit(object):
 
         self.vars['BLAS_LAPACK_LIB_DIR'] = self.vars['LAPACK_LIB_DIR']
         self.vars['BLAS_LAPACK_STATIC_LIBS'] = self.vars['LAPACK_STATIC_LIBS']
-        self.vars['BLAS_LAPACK_MT_STATIC_LIBS'] =  self.vars['LAPACK_MT_STATIC_LIBS']
+        self.vars['BLAS_LAPACK_MT_STATIC_LIBS'] = self.vars['LAPACK_MT_STATIC_LIBS']
 
         self._addDependencyVariables(['ATLAS'])
 
@@ -437,7 +437,7 @@ class Toolkit(object):
         # set basic GCC options
         self.vars['CC'] = 'gcc%s' % self.m32flag
         self.vars['CXX'] = 'g++%s' % self.m32flag
-        self.vars['F77'] = 'gfortran%s ' % self.m32flag
+        self.vars['F77'] = 'gfortran%s' % self.m32flag
         self.vars['F90'] = 'gfortran%s' % self.m32flag
 
         if self.opts['cciscxx']:
@@ -604,12 +604,12 @@ class Toolkit(object):
         # sequential BLAS and LAPACK
         prefix = "-Wl,-Bstatic -Wl,--start-group"
         suffix = "-Wl,--end-group -Wl,-Bdynamic"
-        self.vars['LIBBLAS'] =  ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in blas_libs]), suffix])
+        self.vars['LIBBLAS'] = ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in blas_libs]), suffix])
         self.vars['LIBLAPACK'] = self.vars['LIBBLAS']
 
         # multi-threaded BLAS and LAPACK
         suffix += " -liomp5 -lpthread"
-        self.vars['LIBBLAS_MT'] =  ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in blas_mt_libs]), suffix])
+        self.vars['LIBBLAS_MT'] = ' '.join([prefix, ' '.join(["-lmkl_%s" % x for x in blas_mt_libs]), suffix])
         self.vars['LIBLAPACK_MT'] = self.vars['LIBBLAS_MT']
 
         # determine BLACS/BLAS/LAPACK/FFTW library dir
@@ -759,7 +759,7 @@ class Toolkit(object):
         self.vars['LIBLAPACK_MT'] = "-llapack %s -lpthread" % self.vars['LIBBLAS_MT']
 
         self.vars['LAPACK_LIB_DIR'] = os.path.join(lapack, "lib")
-        self.vars['LAPACK_STATIC_LIBS'] =  "liblapack.a"
+        self.vars['LAPACK_STATIC_LIBS'] = "liblapack.a"
         self.vars['LAPACK_MT_STATIC_LIBS'] = self.vars['LAPACK_STATIC_LIBS']
 
         self._addDependencyVariables(['LAPACK'])
@@ -918,7 +918,7 @@ class Toolkit(object):
         comp_families = {
                          # always use tuples as keys!
                          ('icc', 'ifort'): INTEL,
-                         ('GCC', ): GCC
+                         ('GCC',): GCC
                         }
 
         return self.get_type("compiler family", comp_families)
@@ -937,11 +937,11 @@ class Toolkit(object):
         """Determine type of MPI library based on toolkit dependencies."""
         mpi_types = {
                       # always use tuples as keys!
-                      ('impi', ):INTEL,
-                      ('MPICH2', ):MPICH2,
-                      ('MVAPICH2', ):MVAPICH2,
-                      ('OpenMPI', ):OPENMPI,
-                      ('QLogicMPI', ):QLOGIC
+                      ('impi',):INTEL,
+                      ('MPICH2',):MPICH2,
+                      ('MVAPICH2',):MVAPICH2,
+                      ('OpenMPI',):OPENMPI,
+                      ('QLogicMPI',):QLOGIC
                       }
 
         return self.get_type("type of mpi library", mpi_types)
@@ -980,7 +980,7 @@ class Toolkit(object):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'mpdbootfile':"--file=%s"%fn})
+            params.update({'mpdbootfile':"--file=%s" % fn})
 
             # create nodes file
             fn = "/tmp/nodes"
@@ -993,7 +993,7 @@ class Toolkit(object):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'nodesfile':"-machinefile %s"%fn})
+            params.update({'nodesfile':"-machinefile %s" % fn})
 
         if mpi_type in mpi_cmds.keys():
             return mpi_cmds[mpi_type] % params
