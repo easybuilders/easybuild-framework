@@ -34,7 +34,7 @@ from easybuild.tools.toolchain.toolchain import Toolchain
 
 class LinAlg(Toolchain):
     """General LinearAlgebra-like class
-        can't be used without creating new class S(LinAlg,Toolchain)
+        can't be used without creating new class S(LinAlg)
         To provide the BLAS/LAPACK/ScaLAPACK tools
     """
     BLAS_MODULE_NAME = None

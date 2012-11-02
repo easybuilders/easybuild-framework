@@ -27,22 +27,24 @@
 Support for QLogicMPI as toolchain MPI library.
 """
 
-from easybuild.tools.toolchain.mpi import Mpi
+from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
 TC_CONSTANT_QLOGICMPI = "QLogicMPI"
 
 
-class QLogicMPI(Mpi):
+class QLogicMPI(Mpich2):
     """QLogicMPI MPI class"""
     MPI_MODULE_NAME = ["QLogicMPI"]
     MPI_FAMILY = TC_CONSTANT_QLOGICMPI
 
     MPI_LIBRARY_NAME = 'mpich'
 
-    ## qlogic: cxx -> -CC only
-    ## qlogic has seperate -m32 / -m64 option to mpicc/.. --> only one
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICXX':'CC="%(CXX_base)s"',
-                             }
+    ## qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
 
+    def _set_mpi_compiler_variables(self):
+        """Add I_MPI_XXX variables to set."""
+
+        self.variables.nappend("MPICH_CCC" % var, str(self.variables['CXX'].get_first()), var_class=CommandFlagList)
+
+        super(IntelMPI, self)._set_mpi_compiler_variables()

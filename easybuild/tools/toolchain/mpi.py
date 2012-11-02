@@ -35,7 +35,7 @@ from easybuild.tools.toolchain.toolchain import Toolchain
 
 class Mpi(Toolchain):
     """General MPI-like class
-        can't be used without creating new class M(MPI,Toolchain)
+        can't be used without creating new class M(Mpi)
     """
 
     MPI_MODULE_NAME = None
