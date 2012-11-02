@@ -1,4 +1,5 @@
 ##
+# Copyright 2012 Stijn De Weirdt
 # Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
