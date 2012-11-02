@@ -26,6 +26,7 @@
 Toolchain mpi module. Contains all MPI related classes
 """
 
+import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
