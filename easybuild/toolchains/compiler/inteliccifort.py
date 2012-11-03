@@ -91,7 +91,7 @@ class IntelIccIfort(Compiler):
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
             self.log.raiseException("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s" % self.COMPILER_MODULE_NAME)
 
-        icc_root, ifort_root = self.get_software_root(self.COMPILER_MODULE_NAME)
+        icc_root, _ = self.get_software_root(self.COMPILER_MODULE_NAME)
         icc_version, ifort_version = self.get_software_version(self.COMPILER_MODULE_NAME)
 
         if not ifort_version == icc_version:

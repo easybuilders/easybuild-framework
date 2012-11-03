@@ -26,8 +26,6 @@
 """
 Toolchain scalapack module. Contains all (scalable) linear algebra related classes
 """
-import os
-from distutils.version import LooseVersion
 
 from easybuild.tools.toolchain.toolchain import Toolchain
 

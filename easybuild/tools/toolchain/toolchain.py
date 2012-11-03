@@ -34,7 +34,6 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.variables import ToolchainVariables
-from easybuild.tools.variables import LibraryList
 
 class Toolchain(object):
     """General toolchain class"""

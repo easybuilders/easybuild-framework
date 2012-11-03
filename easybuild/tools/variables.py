@@ -28,7 +28,7 @@ Module that contains a set of classes and function to generate variables to be u
 eg in compiling or linking
 """
 
-from vsc.fancylogger import getLogger, setLogLevelDebug
+from vsc.fancylogger import getLogger
 import copy
 import os
 

@@ -27,6 +27,8 @@
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 """
 
+import os
+
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

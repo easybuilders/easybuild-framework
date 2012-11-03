@@ -26,7 +26,6 @@
 import os
 import re
 import shutil
-import sys
 import tempfile
 
 import easybuild.framework.easyconfig as easyconfig

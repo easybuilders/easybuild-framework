@@ -53,7 +53,7 @@ log_fn = "/tmp/easybuild_tests.log"
 _, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b, g, tcv]])
+SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b, v, g, tcv]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""

@@ -27,7 +27,6 @@
 Toolchain fft module, provides abstract class for FFT libraries.
 """
 
-from distutils.version import LooseVersion
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 

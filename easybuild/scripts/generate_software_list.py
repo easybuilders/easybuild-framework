@@ -30,8 +30,6 @@ correctly by easybuild.
 """
 from datetime import date
 from optparse import OptionParser
-import os
-import sys
 
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.framework import easyblock

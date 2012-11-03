@@ -26,11 +26,9 @@
 """
 Toolchain compiler module, provides abstract class for compilers.
 """
-from distutils.version import LooseVersion
 
 from easybuild.tools import systemtools
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES
-from easybuild.tools.variables import LinkerFlagList
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 

@@ -27,6 +27,8 @@
 Toolchain mpi module. Contains all MPI related classes
 """
 
+import os
+
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
@@ -159,14 +161,14 @@ class Mpi(Toolchain):
 
         # different known mpirun commands
         mpi_cmds = {
-                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",
-                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",
+                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
                     }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_family == toolchain.INTELMPI:
+        if mpi_family == toolchain.INTELMPI:  #@UndefinedVariable
 
             # set temporary dir for mdp
             env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
