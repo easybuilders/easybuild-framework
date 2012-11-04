@@ -210,7 +210,7 @@ class Compiler(Toolchain):
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 
-        if self.options.options_map.get('optarch', None) is None:
+        if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
     def comp_family(self):
