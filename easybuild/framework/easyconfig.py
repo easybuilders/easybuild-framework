@@ -414,6 +414,8 @@ class EasyConfig(object):
             cmd = "rpm -q %s" % dep
         elif run_cmd('which dpkg', simple=True, log_ok=False):
             cmd = "dpkg -s %s" % dep
+        else:
+            cmd = "exit 1"
         
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
