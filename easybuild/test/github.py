@@ -58,7 +58,6 @@ class GithubTest(TestCase):
                  ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
                  ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
             )
-        
 
     def test_read_api(self):
         """Test the githubfs read function"""

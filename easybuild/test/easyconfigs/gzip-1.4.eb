@@ -11,7 +11,7 @@ toolchain = {'name':'dummy','version':'dummy'}
 sources = ['%s-%s.tar.gz'%(name,version)]
 
 # download location for source files
-sourceURLs = ['http://ftpmirror.gnu.org/gzip']
+source_urls = ['http://ftpmirror.gnu.org/gzip']
 
 # make sure the gzip and gunzip binaries are available after installation
-sanityCheckPaths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}
+sanity_check_paths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}
