@@ -380,7 +380,7 @@ class EasyBlock(object):
                 return foundfile
             else:
                 # try and download source files from specified source URLs
-                sourceURLs = self.cfg['sourceURLs']
+                source_urls = self.cfg['source_urls']
                 targetdir = candidate_filepaths[0]
                 if not os.path.isdir(targetdir):
                     try:
@@ -388,7 +388,7 @@ class EasyBlock(object):
                     except OSError, err:
                         self.log.error("Failed to create directory %s to download source file %s into" % (targetdir, filename))
 
-                for url in sourceURLs:
+                for url in source_urls:
 
                     if ext:
                         targetpath = os.path.join(targetdir, "extensions", filename)
@@ -957,14 +957,14 @@ class EasyBlock(object):
         """
 
         ## check EasyBuild version
-        easybuildVersion = self.cfg['easybuildVersion']
-        if not easybuildVersion:
-            self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuildVersion')! Assuming the latest version")
+        easybuild_version = self.cfg['easybuild_version']
+        if not easybuild_version:
+            self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! Assuming the latest version")
         else:
-            if LooseVersion(easybuildVersion) < VERSION:
-                self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!" % easybuildVersion)
-            elif LooseVersion(easybuildVersion) > VERSION:
-                self.log.error("EasyBuild-version %s is newer than the currently running one. Aborting!" % easybuildVersion)
+            if LooseVersion(easybuild_version) < VERSION:
+                self.log.warn("EasyBuild-version %s is older than the currently running one. Proceed with caution!" % easybuild_version)
+            elif LooseVersion(easybuild_version) > VERSION:
+                self.log.error("EasyBuild-version %s is newer than the currently running one. Aborting!" % easybuild_version)
 
         # fetch sources
         if self.cfg['sources']:
@@ -1007,7 +1007,7 @@ class EasyBlock(object):
         """
         for tmp in self.src:
             self.log.info("Unpacking source %s" % tmp['name'])
-            srcdir = extract_file(tmp['path'], self.builddir, extra_options=self.cfg['unpackOptions'])
+            srcdir = extract_file(tmp['path'], self.builddir, extra_options=self.cfg['unpack_options'])
             if srcdir:
                 self.src[self.src.index(tmp)]['finalpath'] = srcdir
             else:
@@ -1202,10 +1202,10 @@ class EasyBlock(object):
         """
         Do a sanity check on the installation
         - if *any* of the files/subdirectories in the installation directory listed
-          in sanityCheckPaths are non-existent (or empty), the sanity check fails
+          in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
         # prepare sanity check paths
-        paths = self.cfg['sanityCheckPaths']
+        paths = self.cfg['sanity_check_paths']
         if not paths:
             if custom_paths:
                 paths = custom_paths
@@ -1225,7 +1225,7 @@ class EasyBlock(object):
         valnottypes = [type(x) != list for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
         if not ks == ["dirs", "files"] or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            self.log.error("Incorrect format for sanityCheckPaths (should only have 'files' and 'dirs' keys, " \
+            self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
                            "values should be lists (at least one non-empty)).")
 
         self.sanityCheckOK = True
@@ -1261,14 +1261,15 @@ class EasyBlock(object):
         os.chdir(self.installdir)
 
         # run sanity check commands
-        commands = self.cfg['sanityCheckCommands']
-        self.log.info("Using specified sanity check paths: %s" % commands)
+        commands = self.cfg['sanity_check_commands']
         if not commands:
             if custom_commands:
                 commands = custom_commands
                 self.log.info("Using customised sanity check commands: %s" % commands)
             else:
                 commands = []
+                self.log.info("Using specified sanity check commands: %s" % commands)
+
         for command in commands:
             # set command to default. This allows for config files with
             # non-tuple commands

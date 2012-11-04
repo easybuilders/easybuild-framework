@@ -25,7 +25,6 @@
 ##
 
 import os
-import sys
 from unittest import TestCase, TestSuite
 
 from easybuild.tools.module_generator import ModuleGenerator

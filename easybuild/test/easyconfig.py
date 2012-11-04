@@ -26,7 +26,6 @@
 import os
 import re
 import shutil
-import sys
 import tempfile
 
 import easybuild.framework.easyconfig as easyconfig
@@ -146,13 +145,13 @@ version = "3.14"
 homepage = "http://google.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
-sanityCheckPaths = { 'files': ["lib/lib.%s" % shared_lib_ext] }
+sanity_check_paths = { 'files': ["lib/lib.%s" % shared_lib_ext] }
 """
 
     def runTest(self):
         """ inside easyconfigs shared_lib_ext should be set """
         eb = EasyConfig(self.eb_file)
-        self.assertEqual(eb['sanityCheckPaths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
+        self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
 
 class TestDependency(EasyConfigTest):
@@ -246,7 +245,7 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         self.assertEqual(eb['custom_key'], 'not so default')
 
         # test if extra toolchain options are being passed
-        self.assertEqual(eb.toolchain.opts['static'], True)
+        self.assertEqual(eb.toolchain.options['static'], True)
 
         extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
 
@@ -271,13 +270,13 @@ homepage = "http://google.com"
 description = "test easyconfig"
 toolchain = {"name":"GCC", "version": "4.6.3"}
 dependencis = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
-sourceULs = ['http://google.com']
+source_uls = ['http://google.com']
 """
 
     def runTest(self):
         """ If a typo is present, suggestion should be provided (if possible) """
         self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "sourceULs -> sourceURLs", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
 
 
 class TestTweaking(EasyConfigTest):
