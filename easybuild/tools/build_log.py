@@ -101,7 +101,7 @@ formatter = logging.Formatter(logging_format)
 logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
 
 # disable logging to screen by default
-fancylogger.logToScreen(boolean=False)
+fancylogger.logToScreen(enable=False)
 
 logging.setLoggerClass(EasyBuildLog)
 

@@ -22,11 +22,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import os
 import re
 
 from unittest import TestCase, TestSuite
-from easybuild.tools.variables import CommaList, CommandFlagList, FlagList, ListOfLists, StrList, Variables
+from easybuild.tools.variables import CommaList, CommandFlagList, StrList, Variables
 
 
 class VariablesTest(TestCase):
@@ -69,6 +68,11 @@ class VariablesTest(TestCase):
 
         v['BARINT'] = 0
         self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
+
+        v.join('BAR2', 'FOO', 'BARINT')
+        self.assertEqual(str(v['BAR2']), "0,1,2 0")
+
+        self.assertRaises(Exception, v.join, 'BAZ', 'DOESNOTEXIST')
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")

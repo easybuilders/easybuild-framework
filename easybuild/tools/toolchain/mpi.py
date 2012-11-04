@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Stijn De Weirdt
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,18 +27,17 @@
 Toolchain mpi module. Contains all MPI related classes
 """
 
+import os
+
+import easybuild.tools.environment as env
+import easybuild.tools.toolchain as toolchain
 from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-INTELMPI = "IntelMPI"
-OPENMPI = "OpenMPI"
-QLOGICMPI = "QLogic"
-MPICH2_F = "MPICH2"  ## _F family names, otherwise classes
-MVAPICH2_F = "MVAPICH2"
 
-class MPI(object):
+class Mpi(Toolchain):
     """General MPI-like class
-        can't be used without creating new class M(MPI,Toolchain)
+        can't be used without creating new class M(Mpi)
     """
 
     MPI_MODULE_NAME = None
@@ -52,10 +52,10 @@ class MPI(object):
 
     MPI_UNIQUE_OPTION_MAP = None
     MPI_SHARED_OPTION_MAP = {
-                             '_opt_MPICC': 'cc="%(CC_base)s"',
-                             '_opt_MPICXX':'cxx="%(CXX_base)s"',
-                             '_opt_MPIF77':'fc="%(F77_base)s"',
-                             '_opt_MPIF90':'f90="%(F90_base)s"',
+                             '_opt_MPICC': 'cc=%(CC_base)s',
+                             '_opt_MPICXX':'cxx=%(CXX_base)s',
+                             '_opt_MPIF77':'fc=%(F77_base)s',
+                             '_opt_MPIF90':'f90=%(F90_base)s',
                              }
 
     MPI_COMPILER_MPICC = 'mpicc'
@@ -69,7 +69,7 @@ class MPI(object):
 
         self._set_mpi_options()
 
-        super(MPI, self).__init__(*args, **kwargs)
+        super(Mpi, self).__init__(*args, **kwargs)
 
 
     def _set_mpi_options(self):
@@ -86,7 +86,7 @@ class MPI(object):
         self._set_mpi_variables()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
-        super(MPI, self).set_variables()
+        super(Mpi, self).set_variables()
 
     def _set_mpi_compiler_variables(self):
         """Set the compiler variables"""
@@ -103,6 +103,7 @@ class MPI(object):
                 self.log.raiseException("_set_mpi_compiler_variables: mpi compiler variable %s undefined" % var)
             self.variables.nappend_el(var, value)
 
+            # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
             templatedict = {c_var:str(self.variables[c_var]),
                             '%s_base' % c_var: str(self.variables[c_var].get_first()),
                             }
@@ -143,65 +144,65 @@ class MPI(object):
             self.variables.append_exists('MPI_LIB_DIR', root, lib_dir, suffix=suffix)
             self.variables.append_exists('MPI_INC_DIR', root, incl_dir, suffix=suffix)
 
+    def mpi_family(self):
+        """ Return type of MPI library used in this toolchain."""
+        if self.MPI_FAMILY:
+            return self.MPI_FAMILY
+        else:
+            self.log.raiseException("mpi_family: MPI_FAMILY is undefined.")
 
-class OpenMPI(MPI):
-    """OpenMPI MPI class"""
-    MPI_MODULE_NAME = [OPENMPI]
-    MPI_FAMILY = OPENMPI
+    # FIXME: deprecate this function, use mympirun instead
+    # this requires that either mympirun is packaged together with EasyBuild, or that vsc-tools is a dependency of EasyBuild
+    def mpi_cmd_for(self, cmd, nr_ranks):
+        """Construct an MPI command for the given command and number of ranks."""
 
-    MPI_LIBRARY_NAME = 'mpi'
+        # parameter values for mpirun command
+        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
 
-    ## OpenMPI reads from CC etc env variables
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICC': '',
-                             '_opt_MPICXX':'',
-                             '_opt_MPICF77':'',
-                             '_opt_MPICF90':'',
-                             }
+        # different known mpirun commands
+        mpi_cmds = {
+                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    }
 
-class IntelMPI(MPI):
-    """Intel MPI class"""
-    MPI_MODULE_NAME = ['impi']
-    MPI_FAMILY = INTELMPI
+        mpi_family = self.mpi_family()
 
-    MPI_LIBRARY_NAME = 'mpi'
+        # Intel MPI mpirun needs more work
+        if mpi_family == toolchain.INTELMPI:  #@UndefinedVariable
 
-    ## echo "   1. Command line option:  -cc=<compiler_name>"
-    ## echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
-    ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
-    ## cxx -> cxx only
-    ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICF90':'-fc="%(F90_base)s"',
-                             }
+            # set temporary dir for mdp
+            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
 
+            # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
+            env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
 
-class MVAPICH2(MPI):
-    """MVAPICH2 MPI class"""
-    MPI_MODULE_NAME = [MVAPICH2_F]
-    MPI_FAMILY = MVAPICH2_F
+            # create mpdboot file
+            fn = "/tmp/mpdboot"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost ifhn=localhost")
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
 
-    MPI_LIBRARY_NAME = 'mpich'
+            params.update({'mpdbootfile':"--file=%s"%fn})
 
+            # create nodes file
+            fn = "/tmp/nodes"
+            try:
+                if os.path.exists(fn):
+                    os.remove(fn)
+                f = open(fn, "w")
+                f.write("localhost\n" * nr_ranks)
+                f.close()
+            except (OSError, IOError), err:
+                self.log.error("Failed to create file %s: %s" % (fn, err))
 
-class MPICH2(MPI):
-    """MPICH2 MPI class"""
-    MPI_MODULE_NAME = [MPICH2_F]
-    MPI_FAMILY = MPICH2_F
+            params.update({'nodesfile':"-machinefile %s"%fn})
 
-    MPI_LIBRARY_NAME = 'mpich'
-
-
-class QLogicMPI(MPI):
-    """QlogicMPI MPI class"""
-    MPI_MODULE_NAME = [QLOGICMPI]
-    MPI_FAMILY = QLOGICMPI
-
-    MPI_LIBRARY_NAME = 'mpich'
-
-    ## qlogic: cxx -> -CC only
-    ## qlogic has seperate -m32 / -m64 option to mpicc/.. --> only one
-    MPI_UNIQUE_OPTION_MAP = {
-                             '_opt_MPICXX':'-CC="%(CXX_base)s"',
-                             }
-
+        if mpi_family in mpi_cmds.keys():
+            return mpi_cmds[mpi_family] % params
+        else:
+            self.log.error("Don't know how to create an MPI command for MPI library of type '%s'." % mpi_family)

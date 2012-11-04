@@ -31,7 +31,6 @@ Module that takes control of versioning.
 """
 from distutils.version import LooseVersion
 import os
-import sys
 
 VERSION = LooseVersion("0.9dev")
 UNKNOWN = "UNKNOWN"

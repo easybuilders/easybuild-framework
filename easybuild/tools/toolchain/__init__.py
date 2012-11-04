@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Stijn De Weirdt
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,19 +45,6 @@ TooclchainVariables: list of environment variables that are set when the toolcha
     -> eg tc.variables['X'] will be available as os.environ['X']
 
 
-This module initializes the tools toolchain submodule of EasyBuild,
+This module initializes the tools.toolchain package of EasyBuild,
 which contains toolchain related modules.
 """
-
-from easybuild.tools.toolchain.compiler import IntelIccIfort, GNUCompilerCollection, Dummy
-from easybuild.tools.toolchain.fft import FFTW, IntelFFTW
-from easybuild.tools.toolchain.mpi import OpenMPI, IntelMPI, MVAPICH2, MPICH2, QLogicMPI
-from easybuild.tools.toolchain.scalapack import IntelMKL, ScaATLAS
-from easybuild.tools.toolchain.toolchain import Toolchain
-
-
-class ICTCE(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
-    NAME = 'ictce'
-
-class GOALF(GNUCompilerCollection, OpenMPI, ScaATLAS, FFTW):
-    NAME = 'goalf'

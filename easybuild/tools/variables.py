@@ -28,7 +28,7 @@ Module that contains a set of classes and function to generate variables to be u
 eg in compiling or linking
 """
 
-from vsc.fancylogger import getLogger, setLogLevelDebug
+from vsc.fancylogger import getLogger
 import copy
 import os
 
@@ -369,8 +369,7 @@ class ListOfLists(list):
         """
         append_empty = kwargs.pop('append_empty', False)
         position = kwargs.pop('position', None)
-
-        klass = self.DEFAULT_CLASS
+        klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
 
         if self._is_protected(value):
             newvalue = value
@@ -396,11 +395,11 @@ class ListOfLists(list):
         else:
             self.log.debug("nappend: ignoring value %s newvalue %s (not _str_ok)" % (value.__repr__(), newvalue.__repr__()))
 
-    def nextend(self, value=None):
+    def nextend(self, value=None, **kwargs):
         """Named extend, value is list type (TODO: tighten the allowed values)
             name not used anymore
         """
-        klass = self.DEFAULT_CLASS
+        klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
         res = []
         if value is None:
             ## TODO ? append_empty ?
@@ -564,7 +563,7 @@ class Variables(dict):
                 for el in self.get(other):
                     self.nappend(name, el)
             else:
-                self.log.debug("join: name %s; other %s not found in self." % (name, other))
+                self.log.raiseException("join: name %s; other %s not found in self." % (name, other))
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""

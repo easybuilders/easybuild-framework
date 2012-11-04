@@ -37,7 +37,7 @@ class ModulesTest(TestCase):
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
-        testmods = modules.Modules()
+        testmods = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
         ms = testmods.available('', None)
         if len(ms) != 0:
             import random

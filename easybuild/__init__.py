@@ -1,8 +1,4 @@
 ##
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
@@ -26,7 +22,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+This initializes EasyBuild.
+"""
 from pkgutil import extend_path
 
 # we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

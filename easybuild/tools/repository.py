@@ -59,7 +59,6 @@ except ImportError:
 
 from easybuild.framework.easyconfig import EasyConfig, stats_to_str
 from easybuild.tools.build_log import get_log
-from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.version import VERBOSE_VERSION
 
 

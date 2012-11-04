@@ -1,5 +1,6 @@
 ##
 # Copyright 2012 Stijn De Weirdt
+# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +34,6 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.variables import ToolchainVariables
-from easybuild.tools.variables import LibraryList
 
 class Toolchain(object):
     """General toolchain class"""
@@ -51,13 +51,14 @@ class Toolchain(object):
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
         ## TODO report later in the initialization the found version
-        if hasattr(cls, 'NAME') and name == cls.NAME:
-            return True
-        elif cls.__name__ == name:
-            ## classname is also tested
-            return True
-
-        return False
+        if name:
+            if hasattr(cls, 'NAME') and name == cls.NAME:
+                return True
+            else:
+                return False
+        else:
+            # is no name is supplied, check whether class can be used as a toolchain
+            return hasattr(cls, 'NAME') and cls.NAME
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -80,7 +81,6 @@ class Toolchain(object):
             self.log.raiseException("init: no version provided")
         self.version = version
 
-        self.opts = None
         self.vars = None
 
     def base_init(self):
@@ -195,7 +195,7 @@ class Toolchain(object):
         """ Process toolchain options """
         for opt in options.keys():
             ## Only process supported opts
-            if opt in self.opts:
+            if opt in self.options:
                 self.options[opt] = options[opt]
             else:
                 ## used to be warning, but this is a severe error imho
@@ -272,17 +272,17 @@ class Toolchain(object):
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
                 modules = Modules()
-                modules.addModule(self.dependencies)
+                modules.add_module(self.dependencies)
                 modules.load()
             return
 
         ## Load the toolchain and dependencies modules
         modules = Modules()
-        modules.addModule([(self.name, self.version)])
-        modules.addModule(self.dependencies)
+        modules.add_module([(self.name, self.version)])
+        modules.add_module(self.dependencies)
         modules.load()
 
-        ## Determine direct toolchain dependencies, so we can prepare for them
+        # determine direct toolchain dependencies (legacy, not really used anymore)
         self.toolchain_deps = modules.dependencies_for(self.name, self.version, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_deps)
 
@@ -293,11 +293,13 @@ class Toolchain(object):
         ## onlymod can be comma-separated string of variables not to be set
         if onlymod == True:
             self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
+            self.generate_vars()
         else:
             self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
 
             ## add LDFLAGS and CPPFLAGS from dependencies to self.vars
             self._add_dependency_variables()
+            self.generate_vars()
             self._setenv_variables(onlymod)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
@@ -353,6 +355,18 @@ class Toolchain(object):
             # references itself (eventually).  Stop' error
             setvar("EBVAR%s" % key, val)
 
+    def get_flag(self, name):
+        """Get compiler flag for a certain option."""
+        return "-%s" % self.options.option(name)
+
+    def comp_family(self):
+        """ Return compiler family used in this toolchain (abstract method)."""
+        raise NotImplementedError
+
+    def mpi_family(self):
+        """ Return type of MPI library used in this toolchain (abstract method)."""
+        raise NotImplementedError
+
     ## legacy functions TODO remove AFTER migration
     ## should search'n'replaced
     def get_type(self, name, type_map):
@@ -378,11 +392,11 @@ class Toolchain(object):
         """
         self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
 
-    def mpi_type(self):
-        """Determine type of MPI library based on toolchain dependencies."""
-        self.log.raiseException("mpi_type: legacy code. use mympirun.")
+    def get_openmp_flag(self):
+        """Get compiler flag for OpenMP support."""
+        self.log.raiseException("get_openmp_flag: legacy code. use options.get_flag('openmp').")
 
-    def mpi_cmd_for(self, cmd, nr_ranks):
-        """Construct an MPI command for the given command and number of ranks."""
-        self.log.raiseException("mpi_cmd_for: legacy code. use mympirun.")
-
+    @property
+    def opts(self):
+        """Get value for specified option."""
+        self.log.raiseException("opts[x]: legacy code. use options[x].")
