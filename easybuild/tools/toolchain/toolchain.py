@@ -97,6 +97,17 @@ class Toolchain(object):
             if hasattr(self, 'LINKER_TOGGLE_STATIC_DYNAMIC'):
                 self.variables.LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
 
+    def get_variable(self, name, typ=str):
+        """Get value for specified variable.
+        typ: indicates what type of return value is expected"""
+
+        if typ == str:
+            return str(self.variables[name])
+        elif typ == list:
+            return self.variables[name].flatten()
+        else:
+            self.log.raiseException("get_variables: Don't know how to create value of type %s." % typ)
+
     def set_variables(self):
         """Do nothing? Everything should have been set by others
             Needs to be defined for super() relations
