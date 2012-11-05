@@ -38,7 +38,6 @@ import tempfile
 from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError, get_log
-from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
