@@ -26,7 +26,6 @@ import os
 import re
 from unittest import TestCase, TestLoader
 
-import easybuild.tools.modules as modules
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 class ToolchainTest(TestCase):
@@ -42,7 +41,8 @@ class ToolchainTest(TestCase):
     def setUp(self):
         """Setup for tests."""
         # make sure path with modules for testing is added to MODULEPATH
-        modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+        self.orig_modpath = os.environ.get('MODULEPATH', '')
+        os.environ['MODULEPATH'] = os.path.join('easybuild', 'test', 'modules')
 
     def test_unknown_toolkit(self):
         """Test search_toolchain function for not available toolkits."""
@@ -81,6 +81,10 @@ class ToolchainTest(TestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertTrue(type(ldflags) == list)
         self.assertTrue(type(ldflags[0]) == str)
+
+    def tearDown(self):
+        """Cleanup."""
+        os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():
     """ return all the tests"""
