@@ -306,7 +306,7 @@ class EasyBlock(object):
             # figure out where to download the file to
             for srcpath in srcpaths:
                 filepath = os.path.join(srcpath, self.name[0].lower(), self.name)
-                if ext:
+                if extension:
                     filepath = os.path.join(filepath, "extensions")
                 if os.path.isdir(filepath):
                     self.log.info("Going to try and download file to %s" % filepath)
@@ -360,7 +360,7 @@ class EasyBlock(object):
                     fullpath = os.path.join(cfp, filename)
 
                     # also check in 'extensions' subdir for extensions
-                    if ext:
+                    if extension:
                         fullpaths = [
                                      os.path.join(cfp, "extensions", filename),
                                      os.path.join(cfp, "packages", filename), # legacy
@@ -399,7 +399,7 @@ class EasyBlock(object):
 
                 for url in source_urls:
 
-                    if ext:
+                    if extension:
                         targetpath = os.path.join(targetdir, "extensions", filename)
                     else:
                         targetpath = os.path.join(targetdir, filename)
