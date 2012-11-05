@@ -188,7 +188,7 @@ class EasyBlock(object):
             else:
                 pf = patchFile
 
-            path = self.obtain_file(pf, ext=extension)
+            path = self.obtain_file(pf, extension=extension)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patchFile))
                 tmppatch = {'name':pf, 'path':path}
@@ -254,12 +254,12 @@ class EasyBlock(object):
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        src_fn = self.obtain_file(fn, ext=True, urls=ext_options.get('source_urls', None))
+                        src_fn = self.obtain_file(fn, extension=True, urls=ext_options.get('source_urls', None))
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
-                            ext_patches = self.fetch_patches(ext_options.get('patches', []), ext=True)
+                            ext_patches = self.fetch_patches(ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
@@ -279,7 +279,7 @@ class EasyBlock(object):
 
         return exts_sources
 
-    def obtain_file(self, filename, ext=False, urls=None):
+    def obtain_file(self, filename, extension=False, urls=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
