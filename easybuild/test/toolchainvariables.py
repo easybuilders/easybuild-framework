@@ -30,7 +30,7 @@ from easybuild.tools.toolchain.variables import ToolchainVariables
 from easybuild.tools.variables import CommandFlagList
 
 class ToolchainVariablesTest(TestCase):
-    """ Baseclass for easyblock testcases """
+    """ Baseclass for toolchain variables testcases """
 
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """

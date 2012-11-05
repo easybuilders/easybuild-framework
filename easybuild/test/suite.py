@@ -32,7 +32,6 @@ import sys
 import unittest
 
 # toolkit should be first to allow hacks to work
-import easybuild.test.toolkit as t
 import easybuild.test.asyncprocess as a
 import easybuild.test.easyconfig as e
 import easybuild.test.modulegenerator as mg
@@ -44,6 +43,7 @@ import easybuild.test.easyblock as b
 import easybuild.test.variables as v
 import easybuild.test.github as g
 import easybuild.test.toolchainvariables as tcv
+import easybuild.test.toolchain as tc
 
 from easybuild.tools.build_log import init_logger, remove_log_handler
 
@@ -53,7 +53,7 @@ log_fn = "/tmp/easybuild_tests.log"
 _, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [t, r, e, mg, m, f, a, robot, b, v, g, tcv]])
+SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""
