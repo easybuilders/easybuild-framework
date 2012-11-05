@@ -158,12 +158,13 @@ class EasyBlock(object):
 
         self.log.info("Added sources: %s" % self.src)
 
-    def fetch_patches(self, list_of_patches, ext=False):
+    def fetch_patches(self, list_of_patches, extension=False):
         """
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
 
+        patches = []
         for patchFile in list_of_patches:
 
             ## check if the patches can be located
@@ -187,7 +188,7 @@ class EasyBlock(object):
             else:
                 pf = patchFile
 
-            path = self.obtain_file(pf, ext=ext)
+            path = self.obtain_file(pf, ext=extension)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patchFile))
                 tmppatch = {'name':pf, 'path':path}
@@ -198,11 +199,19 @@ class EasyBlock(object):
                         tmppatch['sourcepath'] = suff
                 if level:
                     tmppatch['level'] = level
-                self.patches.append(tmppatch)
+
+                if extension:
+                    patches.append(tmppatch)
+                else:
+                    self.patches.append(tmppatch)
             else:
                 self.log.error('No file found for patch %s' % patchFile)
 
-        self.log.info("Added patches: %s" % self.patches)
+        if extension:
+            self.log.info("Fetched extension patches: %s" % patches)
+            return patches
+        else:
+            self.log.info("Added patches: %s" % self.patches)
 
     def fetch_extension_sources(self):
         """
