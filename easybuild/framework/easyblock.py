@@ -384,9 +384,12 @@ class EasyBlock(object):
                 return foundfile
             else:
                 # try and download source files from specified source URLs
-                source_urls = self.cfg['source_urls']
                 if urls:
-                    source_urls.extend(urls)
+                    source_urls = urls
+                else:
+                    source_urls = []
+                source_urls.extend(self.cfg['source_urls'])
+
                 targetdir = candidate_filepaths[0]
                 if not os.path.isdir(targetdir):
                     try:
