@@ -22,9 +22,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+import os
 import re
-
 from unittest import TestCase, TestLoader
+
+import easybuild.tools.modules as modules
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 class ToolchainTest(TestCase):
@@ -36,6 +38,11 @@ class ToolchainTest(TestCase):
             call(*args)
         except error, err:
             self.assertTrue(re.search(regex, err.msg))
+
+    def setUp(self):
+        """Setup for tests."""
+        # make sure path with modules for testing is added to MODULEPATH
+        modules.Modules([os.path.join('easybuild', 'test', 'modules')])
 
     def test_unknown_toolkit(self):
         """Test search_toolchain function for not available toolkits."""
