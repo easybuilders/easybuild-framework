@@ -81,7 +81,7 @@ class ToolchainTest(TestCase):
         ldflags = tc.get_variable('LDFLAGS', typ=list)
         self.assertTrue(type(ldflags) == list)
         if len(ldflags) > 0:
-            self.assertTrue(type(ldflags[0]) == str)
+            self.assertTrue(type(ldflags[0]) == basestring)
 
     def tearDown(self):
         """Cleanup."""
