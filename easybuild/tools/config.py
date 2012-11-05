@@ -41,13 +41,15 @@ import easybuild.tools.repository as repo
 log = get_log('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
+requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
-    'installPath': 'EASYBUILDINSTALLPATH', # final install path
-    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
-    'configFile': 'EASYBUILDCONFIG', # path to the config file
-    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
+    'buildPath': 'EASYBUILDBUILDPATH',  # temporary build path
+    'installPath': 'EASYBUILDINSTALLPATH',  # final install path
+    'logDir': 'EASYBUILDLOGDIR',  # log directory where temporary log files are stored
+    'configFile': 'EASYBUILDCONFIG',  # path to the config file
+    'testOutputPath': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
+    'sourcePath': 'EASYBUILDSOURCEPATH',  # path to where sources should be downloaded
+    'logFormat': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
 def init(filename, **kwargs):
@@ -158,12 +160,6 @@ def get_repository():
     Return the repository (git, svn or file)
     """
     return variables['repository']
-
-def repository_path():
-    """
-    Return the repository path
-    """
-    return variables['repositoryPath']
 
 def log_format():
     """
