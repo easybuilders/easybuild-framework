@@ -194,6 +194,12 @@ def refactor(txt):
                     ('def configure', 'def configure_step'),
                     ('sanity_check', 'sanity_check_step'),
                     ('toolkit', 'toolchain'),
+                    ('sanityCheckPaths', 'sanity_check_paths'),
+                    ('sourceURLs', 'source_urls'),
+                    ('unpackOptions', 'unpack_options'),
+                    ('sanityCheckCommands', 'sanity_check_commands'),
+                    ('licenseServer', 'license_server'),
+                    ('licenseServerPort', 'license_server_port'),
                     ]
 
     totn = 0
