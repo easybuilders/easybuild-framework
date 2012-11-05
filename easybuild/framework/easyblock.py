@@ -209,7 +209,7 @@ class EasyBlock(object):
 
         if extension:
             self.log.info("Fetched extension patches: %s" % patches)
-            return patches
+            return [patch['path'] for patch in patches]
         else:
             self.log.info("Added patches: %s" % self.patches)
 
