@@ -158,7 +158,7 @@ class EasyBlock(object):
 
         self.log.info("Added sources: %s" % self.src)
 
-    def fetch_patches(self, list_of_patches):
+    def fetch_patches(self, list_of_patches, ext=False):
         """
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
@@ -187,7 +187,7 @@ class EasyBlock(object):
             else:
                 pf = patchFile
 
-            path = self.obtain_file(pf)
+            path = self.obtain_file(pf, ext=ext)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patchFile))
                 tmppatch = {'name':pf, 'path':path}
@@ -204,78 +204,73 @@ class EasyBlock(object):
 
         self.log.info("Added patches: %s" % self.patches)
 
-    def fetch_extension_patches(self, ext_name):
-        """
-        Find patches for extensions.
-        """
-        for (name, patches) in self.cfg['exts_patches']:
-            if name == ext_name:
-                exts_patches = []
-                for p in patches:
-                    pf = self.obtain_file(p, ext=True)
-                    if pf:
-                        exts_patches.append(pf)
-                    else:
-                        self.log.error("Unable to locate file for patch %s." % p)
-                return exts_patches
-        return []
-
     def fetch_extension_sources(self):
         """
         Find source file for extensions.
         """
         exts_sources = []
         for ext in self.cfg['exts_list']:
-            if type(ext) in [list, tuple] and ext:
+            if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
+
+                # expected format: (name, version, options (dict))
+
                 ext_name = ext[0]
-                forceunknownsource = False
                 if len(ext) == 1:
-                    exts_sources.append({'name':ext_name})
+                    exts_sources.append({'name': ext_name})
                 else:
-                    if len(ext) == 2:
-                        fn = self.cfg['exts_template'] % (ext_name, ext[1])
-                    elif len(ext) == 3:
-                        if type(ext[2]) == bool:
-                            forceunknownsource = ext[2]
-                        else:
-                            fn = ext[2]
-                    else:
+                    ext_version = ext[1]
+                    ext_options = {}
+
+                    def_src_tmpl = "%(name)s-%(version)s.tar.gz"
+
+                    if len(ext) == 3:
+                        ext_options = ext[2]
+
+                        if not isinstance(ext_options, dict):
+                            self.log.error("Unexpected type (non-dict) for 3rd element of %s" % ext)
+                    elif len(ext) > 3:
                         self.log.error('Extension specified in unknown format (list/tuple too long)')
 
-                    if forceunknownsource:
-                        exts_sources.append({
-                                             'name':ext_name,
-                                             'version':ext[1]
-                                            })
-                    else:
-                        filename = self.obtain_file(fn, True)
-                        if filename:
-                            ext_src = {
-                                       'name': ext_name,
-                                       'version': ext[1],
-                                       'src': filename
-                                      }
+                    ext_src = {
+                               'name': ext_name,
+                               'version': ext_version,
+                               'options': ext_options,
+                              }
 
-                            ext_patches = self.fetch_extension_patches(ext_name)
+                    if ext_options.get('source_tmpl', None):
+                        fn = ext_options['source_tmpl'] % ext_src
+                    else:
+                        fn = def_src_tmpl % ext_src
+
+                    if ext_options.get('nosource', None):
+                        exts_sources.append(ext_src)
+                    else:
+                        src_fn = self.obtain_file(fn, ext=True, urls=ext_options.get('source_urls', None))
+
+                        if src_fn:
+                            ext_src.update({'src': src_fn})
+
+                            ext_patches = self.fetch_patches(ext_options.get('patches', []), ext=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
-                                ext_src.update({'patches':ext_patches})
+                                ext_src.update({'patches': ext_patches})
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
                             exts_sources.append(ext_src)
 
                         else:
-                            self.log.warning("Source for extension %s not found.")
+                            self.log.error("Source for extension %s not found.")
 
-            elif type(ext) == str:
-                exts_sources.append({'name':ext})
+            elif isinstance(ext, basestring):
+                exts_sources.append({'name': ext})
+
             else:
                 self.log.error("Extension specified in unknown format (not a string/list/tuple)")
 
         return exts_sources
 
-    def obtain_file(self, filename, ext=False):
+    def obtain_file(self, filename, ext=False, urls=None):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
@@ -381,6 +376,8 @@ class EasyBlock(object):
             else:
                 # try and download source files from specified source URLs
                 source_urls = self.cfg['source_urls']
+                if urls:
+                    source_urls.extend(urls)
                 targetdir = candidate_filepaths[0]
                 if not os.path.isdir(targetdir):
                     try:
@@ -754,13 +751,14 @@ class EasyBlock(object):
         res = []
         for ext in self.exts:
             name = ext['name']
-            if name in self.cfg['exts_modulenames']:
-                modname = self.cfg['exts_modulenames'][name]
+            if 'modulename' in ext['options']:
+                modname = ext['options']['modulename']
             else:
                 modname = name
-            tmpldict = {'name':modname,
-                       'version':ext.get('version'),
-                       'src':ext.get('source')
+            tmpldict = {
+                        'name': modname,
+                        'version': ext.get('version'),
+                        'src': ext.get('source')
                        }
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
@@ -1094,20 +1092,20 @@ class EasyBlock(object):
 
         if not self.skip:
             modpath = self.make_module_step(fake=True)
+
         # adjust MODULEPATH and load module
-        if self.cfg['exts_loadmodule']:
-            if self.skip:
-                m = Modules()
-            else:
-                self.log.debug("Adding %s to MODULEPATH" % modpath)
-                m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
+        if self.skip:
+            m = Modules()
+        else:
+            self.log.debug("Adding %s to MODULEPATH" % modpath)
+            m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
 
-            if m.exists(self.name, self.get_installversion()):
-                m.add_module([[self.name, self.get_installversion()]])
-                m.load()
-            else:
-                self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
+        if m.exists(self.name, self.get_installversion()):
+            m.add_module([[self.name, self.get_installversion()]])
+            m.load()
+        else:
+            self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
 
         if not self.skip:
             try:
@@ -1125,7 +1123,6 @@ class EasyBlock(object):
             self.skip_extensions()
 
         # actually install extensions
-        exts_installdeps = self.cfg['exts_installdeps']
         self.log.debug("Installing extensions")
         exts_defaultclass = self.cfg['exts_defaultclass']
         if not exts_defaultclass:
@@ -1141,15 +1138,15 @@ class EasyBlock(object):
 
             try:
                 cls = get_class_for(allclassmodule, name)
-                p = cls(self, ext, exts_installdeps)
+                p = cls(self, ext)
                 self.log.debug("Installing extension %s through class %s" % (ext['name'], name))
             except (ImportError, NameError), err:
-                self.log.debug("Couldn't load class %s for extension %s with extension deps %s:\n%s" % (name, ext['name'], exts_installdeps, err))
+                self.log.debug("Couldn't load class %s for extension %s:\n%s" % (name, ext['name'], err))
                 if defaultClass:
                     self.log.info("No class found for %s, using default %s instead." % (ext['name'], defaultClass))
                     try:
                         cls = get_class_for(allclassmodule, defaultClass)
-                        p = cls(self, ext, exts_installdeps)
+                        p = cls(self, ext)
                         self.log.debug("Installing extension %s through default class %s" % (ext['name'], defaultClass))
                     except (ImportError, NameError), errbis:
                         self.log.error("Failed to use both class %s and default %s for extension %s, giving up:\n%s\n%s" % (name, defaultClass, ext['name'], err, errbis))
