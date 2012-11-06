@@ -154,10 +154,14 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         Generate prepend-path statements for the given list of paths.
         """
-        fullInstallPath = os.path.abspath(self.app.installdir) + '/'
-        template = "prepend-path\t%s\t\t$root/%s\n" # $root = installdir
+        template = "prepend-path\t%s\t\t$root/%s\n"  # $root = installdir
 
-        statements = [template % (key, p.replace(fullInstallPath, '')) for p in paths]
+        # make sure only relative paths are passed
+        for path in paths:
+            if path.startswith(os.path.sep):
+                log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+
+        statements = [template % (key, p) for p in paths]
         return ''.join(statements)
 
     def set_environment(self, key, value):
