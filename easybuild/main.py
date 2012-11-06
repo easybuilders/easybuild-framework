@@ -307,7 +307,7 @@ def main(options):
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
 
-        config_env_var = config.environmentVariables['configFile']
+        config_env_var = config.environmentVariables['config_file']
         if os.getenv(config_env_var):
             log.debug("Environment variable %s, so using that as config file." % config_env_var)
             config_file = os.getenv(config_env_var)
@@ -1338,7 +1338,7 @@ def regtest(options, log, easyconfig_paths):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.environmentVariables['testOutputPath']
+    var = config.environmentVariables['test_output_path']
     if options.regtest_output_dir:
         output_dir = options.regtest_output_dir
     elif var in os.environ:

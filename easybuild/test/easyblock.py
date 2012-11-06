@@ -50,7 +50,7 @@ class EasyBlockTest(TestCase):
     def setUp(self):
         """ setup """
         self.eb_file = "/tmp/easyblock_test_file.eb"
-        config.variables['logDir'] = tempfile.mkdtemp()
+        config.variables['log_dir'] = tempfile.mkdtemp()
         self.cwd = os.getcwd()
 
     def test_empty(self):
@@ -127,7 +127,7 @@ exts_list = ['ext1']
     def tearDown(self):
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
-        shutil.rmtree(config.variables['logDir'])
+        shutil.rmtree(config.variables['log_dir'])
         os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):

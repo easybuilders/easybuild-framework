@@ -41,13 +41,15 @@ import easybuild.tools.repository as repo
 log = get_log('config')
 
 variables = {}
-requiredVariables = ['build_path', 'install_path', 'source_path', 'logFormat', 'repository', 'repositoryPath']
+requiredVariables = ['build_path', 'install_path', 'source_path', 'log_format', 'repository']
 environmentVariables = {
-    'build_path': 'EASYBUILDBUILDPATH', # temporary build path
-    'install_path': 'EASYBUILDINSTALLPATH', # final install path
-    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
-    'configFile': 'EASYBUILDCONFIG', # path to the config file
-    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
+    'build_path': 'EASYBUILDBUILDPATH',  # temporary build path
+    'install_path': 'EASYBUILDINSTALLPATH',  # final install path
+    'log_dir': 'EASYBUILDLOGDIR',  # log directory where temporary log files are stored
+    'config_file': 'EASYBUILDCONFIG',  # path to the config file
+    'test_output_path': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
+    'source_path': 'EASYBUILDSOURCEPATH',  # path to where sources should be downloaded
+    'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
 def init(filename, **kwargs):
@@ -159,18 +161,12 @@ def get_repository():
     """
     return variables['repository']
 
-def repository_path():
-    """
-    Return the repository path
-    """
-    return variables['repositoryPath']
-
 def log_format():
     """
     Return the log format
     """
-    if 'logFormat' in variables:
-        return variables['logFormat'][1]
+    if 'log_format' in variables:
+        return variables['log_format'][1]
     else:
         return "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"
 
@@ -178,13 +174,13 @@ def log_path():
     """
     Return the log path
     """
-    return variables['logFormat'][0]
+    return variables['log_format'][0]
 
 def get_build_log_path():
     """
     return temporary log directory
     """
-    return variables.get('logDir', tempfile.gettempdir())
+    return variables.get('log_dir', tempfile.gettempdir())
 
 def read_only_installdir():
     """
