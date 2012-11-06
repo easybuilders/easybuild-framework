@@ -181,7 +181,7 @@ def add_cmdline_options(parser):
                                "the options for [default: Application class]")
     override_options.add_option("-p", "--pretend", action="store_true", help="does the build/installation in " \
                                 "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLDIR " \
-                                "or installPath in EasyBuild config file]")
+                                "or install_path in EasyBuild config file]")
     override_options.add_option("-t", "--skip-test-cases", action="store_true", help="skip running test cases")
 
     parser.add_option_group(override_options)
@@ -297,7 +297,7 @@ def main(options):
 
     configOptions = {}
     if options.pretend:
-        configOptions['installPath'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
+        configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
 
     if options.only_blocks:
         blocks = options.only_blocks.split(',')

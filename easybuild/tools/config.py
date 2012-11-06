@@ -41,10 +41,10 @@ import easybuild.tools.repository as repo
 log = get_log('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
+requiredVariables = ['build_path', 'install_path', 'source_path', 'logFormat', 'repository', 'repositoryPath']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
-    'installPath': 'EASYBUILDINSTALLPATH', # final install path
+    'build_path': 'EASYBUILDBUILDPATH', # temporary build path
+    'install_path': 'EASYBUILDINSTALLPATH', # final install path
     'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
     'configFile': 'EASYBUILDCONFIG', # path to the config file
     'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
@@ -76,13 +76,13 @@ def init(filename, **kwargs):
 
         # verify directories, try and create them if they don't exist
         value = variables[key]
-        dirNotFound = key in ['buildPath', 'installPath'] and not os.path.isdir(value)
-        srcDirNotFound = key in ['sourcePath'] and type(value) == str and not os.path.isdir(value)
+        dirNotFound = key in ['build_path', 'install_path'] and not os.path.isdir(value)
+        srcDirNotFound = key in ['source_path'] and type(value) == str and not os.path.isdir(value)
         if dirNotFound or srcDirNotFound:
             log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
             create_dir(key, value)
             continue
-        if key in ['sourcePath'] and type(value) == list:
+        if key in ['source_path'] and type(value) == list:
             for d in value:
                 if not os.path.isdir(d):
                     create_dir(key, d)
@@ -132,13 +132,13 @@ def build_path():
     """
     Return the build path
     """
-    return variables['buildPath']
+    return variables['build_path']
 
 def source_path():
     """
     Return the source path
     """
-    return variables['sourcePath']
+    return variables['source_path']
 
 def install_path(typ=None):
     """
@@ -151,7 +151,7 @@ def install_path(typ=None):
     else:
         suffix = 'software'
 
-    return os.path.join(variables['installPath'], suffix)
+    return os.path.join(variables['install_path'], suffix)
 
 def get_repository():
     """
