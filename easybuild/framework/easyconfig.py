@@ -409,7 +409,7 @@ class EasyConfig(object):
 
         if not found:
             # fallback for when os-dependency is a binary/library
-            cmd = "which %(dep)s || locate %(dep)s" % {'dep': dep}
+            cmd = 'which %(dep)s || locate --regexp "%(dep)s$"' % {'dep': dep}
 
             found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
             
