@@ -38,7 +38,7 @@ class Extension(object):
     """
     Support for installing extensions.
     """
-    def __init__(self, mself, ext, exts_installdeps):
+    def __init__(self, mself, ext):
         """
         mself has the logger
         """
@@ -46,7 +46,6 @@ class Extension(object):
         self.log = self.master.log
         self.cfg = self.master.cfg
         self.ext = ext
-        self.exts_installdeps = exts_installdeps
 
         if not 'name' in self.ext:
             self.log.error("")
@@ -55,6 +54,7 @@ class Extension(object):
         self.version = self.ext.get('version', None)
         self.src = self.ext.get('src', None)
         self.patches = self.ext.get('patches', None)
+        self.options = self.ext.get('options', {})
 
     def prerun(self):
         """
@@ -91,11 +91,13 @@ class Extension(object):
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
 
-        if self.name in self.master.cfg['exts_modulenames']:
-            modname = self.master.cfg['exts_modulenames'][self.name]
+        if 'modulename' in self.options:
+            modname = self.options['modulename']
         else:
             modname = self.name
-        template = {'name': modname,
+
+        template = {
+                    'name': modname,
                     'version': self.version,
                     'src': self.src
                    }
