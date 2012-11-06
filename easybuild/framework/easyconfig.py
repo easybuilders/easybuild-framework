@@ -228,7 +228,7 @@ class EasyConfig(object):
             self.log.error("mandatory variables %s not provided" % missing_keys)
 
         # provide suggestions for typos
-        possible_typos = [(key, difflib.get_close_matches(key, self.config.keys(), 1, 0.85))
+        possible_typos = [(key, difflib.get_close_matches(key.lower(), self.config.keys(), 1, 0.85))
                           for key in local_vars if key not in self.config]
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
