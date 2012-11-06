@@ -39,13 +39,13 @@ import easybuild.tools.config as config
 
 log = get_log('easybuild_config')
 
-# buildPath possibly overridden by EASYBUILDBUILDPATH
-# installPath possibly overridden by EASYBUILDINSTALLPATH
+# build_path possibly overridden by EASYBUILDBUILDPATH
+# install_path possibly overridden by EASYBUILDINSTALLPATH
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
-buildDir = 'build'
-installDir = ''
-sourceDir = 'sources'
+build_dir = 'build'
+install_dir = ''
+source_dir = 'sources'
 
 if os.getenv('EASYBUILDPREFIX'):
     prefix = os.getenv('EASYBUILDPREFIX')
@@ -55,9 +55,9 @@ else:
 if not prefix:
     prefix = "/tmp/easybuild"
 
-buildPath = os.path.join(prefix, buildDir)
-installPath = os.path.join(prefix, installDir)
-sourcePath = os.path.join(prefix, sourceDir)
+build_path = os.path.join(prefix, build_dir)
+install_path = os.path.join(prefix, install_dir)
+source_path = os.path.join(prefix, source_dir)
 
 # repository for eb files
 ## Currently, EasyBuild supports the following repository types:
@@ -72,15 +72,15 @@ sourcePath = os.path.join(prefix, sourceDir)
 
 ## optionally a subdir argument can be specified:
 ## `repository = FileRepository(repositoryPath, subdir)`
-repositoryPath = os.path.join(prefix, 'ebfiles_repo')
-repository = FileRepository(repositoryPath)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
+repository_path = os.path.join(prefix, 'ebfiles_repo')
+repository = FileRepository(repository_path)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
 
 # log format: (dir, filename template)
 # supported in template: name, version, data, time
-logFormat = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+log_format = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 
 # set the path where log files will be stored
-logDir = tempfile.gettempdir()
+log_dir = tempfile.gettempdir()
 
 # general cleanliness
-del os, get_log, config, log, prefix, buildDir, installDir, sourceDir
+del os, get_log, config, log, prefix, build_dir, install_dir, source_dir

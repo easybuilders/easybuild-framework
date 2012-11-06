@@ -181,7 +181,7 @@ def add_cmdline_options(parser):
                                "the options for [default: Application class]")
     override_options.add_option("-p", "--pretend", action="store_true", help="does the build/installation in " \
                                 "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLDIR " \
-                                "or installPath in EasyBuild config file]")
+                                "or install_path in EasyBuild config file]")
     override_options.add_option("-t", "--skip-test-cases", action="store_true", help="skip running test cases")
 
     parser.add_option_group(override_options)
@@ -297,7 +297,7 @@ def main(options):
 
     configOptions = {}
     if options.pretend:
-        configOptions['installPath'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
+        configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
 
     if options.only_blocks:
         blocks = options.only_blocks.split(',')
@@ -307,7 +307,7 @@ def main(options):
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
 
-        config_env_var = config.environmentVariables['configFile']
+        config_env_var = config.environmentVariables['config_file']
         if os.getenv(config_env_var):
             log.debug("Environment variable %s, so using that as config file." % config_env_var)
             config_file = os.getenv(config_env_var)
@@ -1338,7 +1338,7 @@ def regtest(options, log, easyconfig_paths):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.environmentVariables['testOutputPath']
+    var = config.environmentVariables['test_output_path']
     if options.regtest_output_dir:
         output_dir = options.regtest_output_dir
     elif var in os.environ:
