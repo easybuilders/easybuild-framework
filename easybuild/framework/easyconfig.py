@@ -133,21 +133,10 @@ class EasyConfig(object):
           ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
 
           ('exts_list', [[], 'List with extensions added to the base installation (default: [])', EXTENSIONS]),
-          ('exts_modulenames', [{}, 'Dictionary with real modules names for extensions, ' \
-                                    'if they are different from the extension name (default: {})', EXTENSIONS]),
-          ('exts_loadmodule', [True, 'Load the to-be installed software using temporary module (default: True)',
-                               EXTENSIONS]),
-          ('exts_template', ["%s-%s.tar.gz", "Template for extension source file names (default: %s-%s.tar.gz)",
-                             EXTENSIONS]),
-          ('exts_findsource', [True, "Find sources for extensions (default: True)", EXTENSIONS]),
-          ('exts_installdeps', [True, "Install dependencies for specified extensions if necessary (default: True)",
-                                EXTENSIONS]),
           ('exts_defaultclass', [None, "List of module for and name of the default extension class (default: None)",
                                  EXTENSIONS]),
-          ('exts_filter', [None, "Extension filter details. List with template for cmd and input to cmd " \
+          ('exts_filter', [None, "Extension filter details: template for cmd and input to cmd " \
                                  "(templates for name, version and src). (default: None)", EXTENSIONS]),
-          ('exts_patches', [[], 'List with patches for extensions (default: [])', EXTENSIONS]),
-          ('exts_cfgs', [{}, 'Dictionary with config parameters for extensions (default: {})', EXTENSIONS]),
 
           ('modextravars', [{}, "Extra environment variables to be added to module file (default: {})", MODULES]),
           ('moduleclass', ['base', 'Module class to be used for this software (default: base) ' \
