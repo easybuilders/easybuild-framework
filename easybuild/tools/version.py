@@ -32,7 +32,7 @@ Module that takes control of versioning.
 from distutils.version import LooseVersion
 import os
 
-VERSION = LooseVersion("0.9dev")
+VERSION = LooseVersion("1.0-rc1")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():
