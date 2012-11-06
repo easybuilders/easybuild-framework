@@ -271,12 +271,16 @@ description = "test easyconfig"
 toolchain = {"name":"GCC", "version": "4.6.3"}
 dependencis = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 source_uls = ['http://google.com']
+source_URLs = ['http://google.com']
+sourceURLs = ['http://google.com']
 """
 
     def runTest(self):
         """ If a typo is present, suggestion should be provided (if possible) """
         self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
 
 
 class TestTweaking(EasyConfigTest):
