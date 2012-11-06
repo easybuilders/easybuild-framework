@@ -33,7 +33,6 @@ The EasyBlock class should serve as a base class for all easyblocks.
 """
 
 import copy
-import glob
 import grp  #@UnresolvedImport
 import re
 import os
@@ -699,8 +698,8 @@ class EasyBlock(object):
         txt = "\n"
         for key in sorted(requirements):
             for path in requirements[key]:
-                globbedPaths = glob.glob(os.path.join(self.installdir, path))
-                txt += self.moduleGenerator.prepend_paths(key, globbedPaths)
+                if os.path.exists(os.path.join(self.installdir, path)):
+                    txt += self.moduleGenerator.prepend_paths(key, [path])
         return txt
 
     def make_module_req_guess(self):

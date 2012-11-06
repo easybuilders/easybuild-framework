@@ -25,15 +25,24 @@
 ##
 
 import os
+import re
 from unittest import TestCase, TestSuite
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.test.utilities import find_full_path
+from easybuild.tools.build_log import EasyBuildError
 
 
 class ModuleGeneratorTest(TestCase):
     """ testcase for ModuleGenerator """
+
+    def assertErrorRegex(self, error, regex, call, *args):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args)
+        except error, err:
+            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
@@ -93,6 +102,10 @@ prepend-path	key		$root/path2
 
         # test setEnvironment
         self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+
+        self.assertErrorRegex(EasyBuildError, "Absolute path /tmp/foo passed to prepend_paths " \
+                                              "which only expects relative paths.",
+                              self.modgen.prepend_paths, "key2", ["bar", "/tmp/foo"])
 
     def tearDown(self):
         """cleanup"""
