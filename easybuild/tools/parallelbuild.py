@@ -99,7 +99,7 @@ def create_job(build_command, easyconfig, log, output_dir=""):
     # create unique name based on module name
     name = "%s-%s" % easyconfig['module']
 
-    var = config.environmentVariables['testOutputPath']
+    var = config.environmentVariables['test_output_path']
     easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
