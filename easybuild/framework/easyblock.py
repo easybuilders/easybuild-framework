@@ -124,7 +124,7 @@ class EasyBlock(object):
         """
         if not self.log:
             self.logfile, self.log, self.loghandler = init_logger(self.name, self.version,
-                                                                 self.logdebug, typ=self.__class__.__name__)
+                                                                  self.logdebug, typ=self.__class__.__name__)
             self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
     def close_log(self):
