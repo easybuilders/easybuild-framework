@@ -124,7 +124,7 @@ class EasyBlock(object):
         """
         if not self.log:
             self.logfile, self.log, self.loghandler = init_logger(self.name, self.version,
-                                                                 self.logdebug, typ=self.__class__.__name__)
+                                                                  self.logdebug, typ=self.__class__.__name__)
             self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
     def close_log(self):
@@ -1396,6 +1396,7 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             for m in methods:
+                self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)
 
         if self.cfg['stop'] == step:

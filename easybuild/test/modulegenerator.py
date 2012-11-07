@@ -100,12 +100,17 @@ prepend-path	key		$root/path2
 """
         self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-        # test setEnvironment
-        self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+        expected = """prepend-path	bar		$root/foo
+"""
+        self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
         self.assertErrorRegex(EasyBuildError, "Absolute path /tmp/foo passed to prepend_paths " \
                                               "which only expects relative paths.",
                               self.modgen.prepend_paths, "key2", ["bar", "/tmp/foo"])
+
+
+        # test setEnvironment
+        self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
 
     def tearDown(self):
         """cleanup"""
