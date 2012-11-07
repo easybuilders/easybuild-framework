@@ -156,6 +156,9 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         template = "prepend-path\t%s\t\t$root/%s\n"  # $root = installdir
 
+        if isinstance(paths, basestring):
+            paths = [paths]
+
         # make sure only relative paths are passed
         for path in paths:
             if path.startswith(os.path.sep):
