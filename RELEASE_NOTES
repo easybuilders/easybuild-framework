@@ -1,6 +1,43 @@
 This file contains a description of the major changes to EasyBuild.
 For more detailed information, please see the git log.
 
+v1.0-rc1 (November 7th 2012)
+-------------------------
+
+- split up EasyBuild across three repositories: framework, easyblocks and easyconfigs
+- packaged EasyBuild, different parts can now be installed easily using easy_install
+- various changes to both internal and external API:
+    - renamed main script to main.py (from build.py)
+    - file and directory organisation
+    - module, class, function and function argument renaming and reorganisation
+    - split up Application into EasyBlock and ConfigureMake (see easybuild-easyblocks for the latter)
+    - created EasyConfig class for handling easyconfig files
+    - renaming of EasyBuild configuration parameters (non-camelCase)
+    - renaming of various easyconfig parameters (non-camelCase)
+    - rename SOFTROOT and SOFTVERSION environment variables set in generated module files to EBROOT and EBVERSION
+    - use 'extension' as generic terminology for Python packages, R libraries, Perl modules, ...
+- added support for building software packages in parallel via PBS jobs
+- added unit testing framework and initial set of unit tests for basic functionality
+    - and run them in Jenkins continuous integration service, see https://jenkins1.ugent.be/view/EasyBuild/
+- implement single-command regression test (e.g. to test building all supported software)
+    - eb --regtest --robot
+- switch to new style Python classes
+- replaced toolkit module with toolchain package (total rewrite), providing modular support for toolchains
+- adjust default EasyBuild configuration to only use $HOME/.local/easybuild by default
+- added support for running EasyBuild without supplying an easyconfig file
+    - make EasyBuild search for a matching easyconfig file
+    - support automatic rewriting of an existing partially-matching easyconfig file (use this with care!)
+    - support for automatically generating an easyconfig file according to given specifications (best effort!)
+- add support for looking for easyconfig file in Python search path if it can't be found on specified (relative) path
+    (that way, easyconfig files available in the easybuild-easyconfigs package can be used easily)
+- various other enhancements and bug fixes, e.g.:
+    - extended sanity check capabilities
+    - cleaned up logging
+    - creating of devel module which allows to mimic environment that was used by EasyBuild to build the software
+    - support for creating dependency graphs for a set of easyconfig files
+    - grouped options in help output and categorised available easyconfig parameters
+    - more consistent code style
+
 v0.8 (June 29th 2012)
 ---------------------
 
