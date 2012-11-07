@@ -1,4 +1,5 @@
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,

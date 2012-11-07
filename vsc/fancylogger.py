@@ -1,4 +1,5 @@
 ##
+# Copyright 2011-2012 Ghent University
 # Copyright 2011-2012 Jens Timmerman
 # Copyright 2012 Stijn De Weirdt 
 #
@@ -25,6 +26,7 @@
 ##
 """
 Created on Oct 14, 2011
+
 
 @author: Jens Timmerman
 This module implements a fancy logger on top of python logging
