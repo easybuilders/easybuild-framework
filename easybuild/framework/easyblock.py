@@ -1396,6 +1396,7 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             for m in methods:
+                self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)
 
         if self.cfg['stop'] == step:
