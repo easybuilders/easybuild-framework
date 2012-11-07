@@ -44,14 +44,14 @@ class ToolchainTest(TestCase):
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = os.path.join('easybuild', 'test', 'modules')
 
-    def test_unknown_toolkit(self):
-        """Test search_toolchain function for not available toolkits."""
+    def test_unknown_toolchain(self):
+        """Test search_toolchain function for not available toolchains."""
         tc, all_tcs = search_toolchain("NOSUCHTOOLKIT")
         self.assertEqual(tc, None)
-        self.assertTrue(len(all_tcs) > 0)  # list of available toolkits
+        self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
 
-    def test_goalf_toolkit(self):
-        """Test for goalf toolkit."""
+    def test_goalf_toolchain(self):
+        """Test for goalf toolchain."""
         name = "goalf"
         tc, _ = search_toolchain(name)
         self.assertEqual(tc.NAME, name)
