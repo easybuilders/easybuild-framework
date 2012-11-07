@@ -1,5 +1,6 @@
 #!/usr/bin/python
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 # Copyright 2012 Kenneth Hoste
 #
