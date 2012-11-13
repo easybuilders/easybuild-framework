@@ -70,7 +70,7 @@ implement support for installing particular (groups of) software packages.""",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
                 "easybuild.tools.toolchain", "easybuild.test", "vsc"],
     package_dir = {'easybuild.test': "easybuild/test"},
-    package_data = {"easybuild.test": ["easyconfigs/*eb"]},
+    package_data = {"easybuild.test": ["easyconfigs/*eb", "modules/*"]},
     scripts = ["eb"],
     data_files = [
                   ('easybuild', ["easybuild/easybuild_config.py"]),
