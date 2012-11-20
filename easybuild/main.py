@@ -1284,7 +1284,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     """
     dom = xml.getDOMImplementation()
     root = dom.createDocument(None, "testsuite", None)
-    root.setAttribute("name", base_dir)
+    root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
