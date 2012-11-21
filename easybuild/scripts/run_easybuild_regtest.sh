@@ -1,0 +1,99 @@
+#!/bin/bash
+
+if [ ! -z $PBS_OWORKDIR ]
+then
+    cd $PBS_OWORKDIR
+fi
+
+EBHOME=$VSC_SCRATCH/easybuild_easy_installed
+
+# clean up old installation, prepare for new installation
+echo "Cleaning up old EasyBuild installation in $EBHOME..."
+rm -rf $EBHOME/*
+PYLIB=`python -c "import distutils.sysconfig; print distutils.sysconfig.get_python_lib(prefix='$EBHOME');"`
+mkdir -p $PYLIB
+
+# make sure paths are set correctly in .bashrc
+source ~/.bashrc
+echo "Checking PYTHONPATH, PATH and MODULEPATH settings in .bashrc..."
+echo $PYTHONPATH | grep "$PYLIB" &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "Directory $PYLIB not in Python search path, please add PYTHONPATH=$PYLIB:\$PYTHONPATH to your .bashrc."
+    exit 1
+fi
+echo $PATH | grep "$EBHOME/bin" &> /dev/null
+if [ $? -ne 0 ]; then
+    echo "Directory $EBHOME/bin not in PATH, please add PATH=$EBHOME/bin:\$PATH to your .bashrc.";
+    exit 1;
+fi
+if [ "x$MODULEPATH" != "x$EASYBUILDPREFIX/modules/all" ]
+then
+    echo "MODULEPATH is not set correctly, please add MODULEPATH=$EASYBUILDPREFIX/modules/all to your .bashrc"
+    exit 1
+fi
+
+# install EasyBuild
+branch="develop"
+#branch="master"
+echo "Installing EasyBuild in $EBHOME from GitHub ($branch branch)..."
+for package in easybuild-framework easybuild-easyblocks easybuild-easyconfigs
+do
+    echo "+++ installing $package (output, see install_${package}.out)..."
+    easy_install --prefix=$EBHOME http://github.com/hpcugent/${package}/archive/${branch}.tar.gz &> install_${package}.out
+    if [ $? -ne 0 ]
+    then
+        echo "Installation of $package failed?"
+        exit 1
+    fi
+done
+
+# clean up the mess from last run
+echo -n "Cleaning up $EASYBUILDPREFIX... "
+cd $EASYBUILDPREFIX
+chmod -R 755 software  # required for e.g. WIEN2k
+rm -rf software modules ebfiles_repo
+cd -
+echo "done"
+
+# submit regtest
+outfile="full_regtest_`date +%Y%m%d`_submission.txt"
+echo "Submitting regtest, output goes to $outfile"
+eb --regtest --robot -ld 2>&1 | tee $outfile
+
+# submit trigger for Jenkins test
+echo "Submitting extra job to trigger Jenkins to pull in test results when regression test is completed..."
+results_dir=`grep "Submitted regression test as jobs, results in" $outfile | tail -1 | sed 's@.*/@@g'`
+
+after_anys=`qstat | grep ^[0-9] | sed 's/^\([0-9]*\).*/\1/g' | tr '\n' ':' | sed 's/^/afterany:/g'`
+
+datestamp=`date +%Y%m%d`
+rm -f ~/easybuild-full-regtest_${datestamp}.xml
+
+# submit via stdin
+# note: you'll need to replace TOKEN with the actual token to allow for triggering a Jenkins test
+qsub -W depend=$after_anys << EOF
+cd $PWD
+
+# aggregate results
+echo "eb --aggregate-regtest=$results_dir 2>&1"
+eb --aggregate-regtest=$results_dir > /tmp/aggregate-regtest.out 2>&1
+ec=\$?
+if [ \$ec -ne 0 ]; then echo "Failed to aggregate regtest results!"; exit \$ec; fi
+
+fn=\`cat /tmp/aggregate-regtest.out | sed 's/.* //g'\`
+outfn=\`echo ~/easybuild-full-regtest_${datestamp}.xml\`
+
+# move to home dir with standard name
+echo "mv \$fn \$outfn"
+mv \$fn \$outfn
+ec=\$?
+if [ \$ec -ne 0 ]; then echo "Failed to move regtest result for Jenkins!"; exit \$ec; fi
+
+echo "Aggregate test results made available for Jenkins in \$outfn"
+
+# trigger Jenkins test to pull in aggregated regtest result
+echo "wget https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-full-regtest_$branch/build?token=TOKEN &> /dev/null"
+wget https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-full-regtest_$branch/build?token=TOKEN &> /dev/null
+echo "Triggered Jenkins to pull in regtest results."
+
+EOF
