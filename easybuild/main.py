@@ -339,7 +339,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
-        else:
+        elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
+                     options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
                   "options to make EasyBuild search for easyconfigs", optparser=parser)
 
@@ -1447,6 +1448,12 @@ def print_tree(classes, classNames, detailed, depth=0):
             print "%s|-- %s" % ("|   " * depth, className)
         if 'children' in classInfo:
             print_tree(classes, classInfo['children'], detailed, depth + 1)
+
+# FIXME: remove when Python version on which we rely provides any by itself
+def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
+
+    return sum(ls) != 0
 
 if __name__ == "__main__":
     try:
