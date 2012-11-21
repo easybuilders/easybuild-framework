@@ -248,7 +248,7 @@ def parse_options():
 
     return options, paths, log, logfile, hn, parser
 
-def main(options):
+def main(options, orig_paths, log, logfile, hn, parser):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -264,7 +264,6 @@ def main(options):
                         "Exiting.\n")
         sys.exit(1)
 
-    options, orig_paths, log, logfile, hn, parser = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
@@ -1451,7 +1450,8 @@ def print_tree(classes, classNames, detailed, depth=0):
 
 if __name__ == "__main__":
     try:
-        main(parse_options())
+        options, orig_paths, log, logfile, hn, parser = parse_options()
+        main(options, orig_paths, log, logfile, hn, parser)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
