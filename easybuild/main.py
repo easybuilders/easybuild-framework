@@ -1449,6 +1449,7 @@ def print_tree(classes, classNames, detailed, depth=0):
         if 'children' in classInfo:
             print_tree(classes, classInfo['children'], detailed, depth + 1)
 
+# FIXME: remove when Python version on which we rely provides any by itself
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
