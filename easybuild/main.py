@@ -264,7 +264,7 @@ def main(options):
                         "Exiting.\n")
         sys.exit(1)
 
-    options, paths, log, logfile, hn, parser = options
+    options, orig_paths, log, logfile, hn, parser = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
@@ -337,7 +337,7 @@ def main(options):
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, software_build_specs) = process_software_build_specs(options)
 
-    if len(paths) == 0:
+    if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
         else:
@@ -356,20 +356,22 @@ def main(options):
                     easyconfigs_map.update({filename: os.path.join(subpath, filename)})
 
             # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
-            for i in range(len(paths)):
-                if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
-                    if paths[i] in easyconfigs_map:
-                        log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
-                        paths[i] = easyconfigs_map[paths[i]]
+            for i in range(len(orig_paths)):
+                if not os.path.isabs(orig_paths[i]) and not os.path.exists(orig_paths[i]):
+                    if orig_paths[i] in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path, easyconfigs_map[orig_paths[i]]))
+                        orig_paths[i] = easyconfigs_map[orig_paths[i]]
 
         # indicate that specified paths do not contain generated easyconfig files
-        paths = [(path, False) for path in paths]
+        paths = [(path, False) for path in orig_paths]
+
+    log.debug("Paths: %s" % paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
         if paths:
-            regtest(options, log, paths)
+            regtest(options, log, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
             regtest(options, log, [easyconfigs_pkg_full_path])
 
