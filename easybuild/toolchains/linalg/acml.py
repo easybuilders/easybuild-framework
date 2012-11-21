@@ -56,7 +56,7 @@ class Acml(LinAlg):
                         TC_CONSTANT_GCC: 'gfortran',
                        }
         try:
-            for root in self.get_software_root(self.BLAS_MODULE_NAME)
+            for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
         except Exception, err:
             self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
