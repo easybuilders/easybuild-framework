@@ -336,6 +336,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, software_build_specs) = process_software_build_specs(options)
 
+    paths = []
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
@@ -1453,7 +1454,7 @@ def print_tree(classes, classNames, detailed, depth=0):
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
-    return sum(ls) != 0
+    return sum([bool(x) for x in ls]) != 0
 
 if __name__ == "__main__":
     try:
