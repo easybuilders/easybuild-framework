@@ -55,9 +55,9 @@ class Acml(LinAlg):
                         TC_CONSTANT_INTELCOMP: 'ifort',
                         TC_CONSTANT_GCC: 'gfortran',
                        }
-        root = self.get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
         try:
-            self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
+            for root in self.get_software_root(self.BLAS_MODULE_NAME)
+                self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
         except Exception, err:
             self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
                                      " with compiler family %s; error: %s") % (self.COMPILER_FAMILY, err))
