@@ -339,7 +339,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
-        else:
+        elif sum([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
+                  options.search, options.regtest, options.version]) == 0:
             error("Please provide one or multiple easyconfig files, or use software build " \
                   "options to make EasyBuild search for easyconfigs", optparser=parser)
 
