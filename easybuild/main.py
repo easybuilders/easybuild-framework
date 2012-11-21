@@ -332,33 +332,6 @@ def main(options):
         if not options.robot:
             error("Please provide a search-path to --robot when using --search")
         search_module(options.robot, options.search)
-
-    # run regtest
-    if options.regtest or options.aggregate_regtest:
-        log.info("Running regression test")
-        if paths:
-            regtest(options, log, paths)
-        else:  # fallback: easybuild-easyconfigs install path
-            regtest(options, log, [easyconfigs_pkg_full_path])
-
-    if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
-        if logfile:
-            os.remove(logfile)
-        sys.exit(0)
-
-    # set strictness of filetools module
-    if options.strict:
-        filetools.strictness = options.strict
-
-    # building a dependency graph implies force, so that all dependencies are retained
-    # and also skips validation of easyconfigs (e.g. checking os dependencies)
-    validate_easyconfigs = True
-    retain_all_deps = False
-    if options.dep_graph:
-        log.info("Enabling force to generate dependency graph.")
-        options.force = True
-        validate_easyconfigs = False
-        retain_all_deps = True
     
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -391,6 +364,33 @@ def main(options):
 
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in paths]
+
+    # run regtest
+    if options.regtest or options.aggregate_regtest:
+        log.info("Running regression test")
+        if paths:
+            regtest(options, log, paths)
+        else:  # fallback: easybuild-easyconfigs install path
+            regtest(options, log, [easyconfigs_pkg_full_path])
+
+    if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
+        if logfile:
+            os.remove(logfile)
+        sys.exit(0)
+
+    # set strictness of filetools module
+    if options.strict:
+        filetools.strictness = options.strict
+
+    # building a dependency graph implies force, so that all dependencies are retained
+    # and also skips validation of easyconfigs (e.g. checking os dependencies)
+    validate_easyconfigs = True
+    retain_all_deps = False
+    if options.dep_graph:
+        log.info("Enabling force to generate dependency graph.")
+        options.force = True
+        validate_easyconfigs = False
+        retain_all_deps = True
 
     # read easyconfig files
     easyconfigs = []
@@ -1284,6 +1284,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     """
     dom = xml.getDOMImplementation()
     root = dom.createDocument(None, "testsuite", None)
+    root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
