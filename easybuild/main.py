@@ -248,7 +248,7 @@ def parse_options():
 
     return options, paths, log, logfile, hn, parser
 
-def main(options):
+def main(options, orig_paths, log, logfile, hn, parser):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -264,7 +264,6 @@ def main(options):
                         "Exiting.\n")
         sys.exit(1)
 
-    options, paths, log, logfile, hn, parser = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
@@ -332,12 +331,46 @@ def main(options):
         if not options.robot:
             error("Please provide a search-path to --robot when using --search")
         search_module(options.robot, options.search)
+    
+    # process software build specifications (if any), i.e.
+    # software name/version, toolchain name/version, extra patches, ...
+    (try_to_generate, software_build_specs) = process_software_build_specs(options)
+
+    if len(orig_paths) == 0:
+        if software_build_specs.has_key('name'):
+            paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
+        else:
+            error("Please provide one or multiple easyconfig files, or use software build " \
+                  "options to make EasyBuild search for easyconfigs", optparser=parser)
+
+    else:
+        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+        # unless they we found at the given relative paths
+
+        if easyconfigs_pkg_full_path:
+            # create a mapping from filename to path in easybuild-easyconfigs package install path
+            easyconfigs_map = {}
+            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
+                for filename in filenames:
+                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
+
+            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
+            for i in range(len(orig_paths)):
+                if not os.path.isabs(orig_paths[i]) and not os.path.exists(orig_paths[i]):
+                    if orig_paths[i] in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path, easyconfigs_map[orig_paths[i]]))
+                        orig_paths[i] = easyconfigs_map[orig_paths[i]]
+
+        # indicate that specified paths do not contain generated easyconfig files
+        paths = [(path, False) for path in orig_paths]
+
+    log.debug("Paths: %s" % paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
         if paths:
-            regtest(options, log, paths)
+            regtest(options, log, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
             regtest(options, log, [easyconfigs_pkg_full_path])
 
@@ -359,38 +392,6 @@ def main(options):
         options.force = True
         validate_easyconfigs = False
         retain_all_deps = True
-    
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, software_build_specs) = process_software_build_specs(options)
-
-    if len(paths) == 0:
-        if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
-        else:
-            error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", optparser=parser)
-
-    else:
-        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
-        # unless they we found at the given relative paths
-
-        if easyconfigs_pkg_full_path:
-            # create a mapping from filename to path in easybuild-easyconfigs package install path
-            easyconfigs_map = {}
-            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
-                for filename in filenames:
-                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
-
-            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
-            for i in range(len(paths)):
-                if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
-                    if paths[i] in easyconfigs_map:
-                        log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
-                        paths[i] = easyconfigs_map[paths[i]]
-
-        # indicate that specified paths do not contain generated easyconfig files
-        paths = [(path, False) for path in paths]
 
     # read easyconfig files
     easyconfigs = []
@@ -1284,6 +1285,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     """
     dom = xml.getDOMImplementation()
     root = dom.createDocument(None, "testsuite", None)
+    root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
@@ -1448,7 +1450,8 @@ def print_tree(classes, classNames, detailed, depth=0):
 
 if __name__ == "__main__":
     try:
-        main(parse_options())
+        options, orig_paths, log, logfile, hn, parser = parse_options()
+        main(options, orig_paths, log, logfile, hn, parser)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
