@@ -89,7 +89,7 @@ eb --regtest --robot -ld 2>&1 | tee $outfile
 echo "Submitting extra job to trigger Jenkins to pull in test results when regression test is completed..."
 results_dir=`grep "Submitted regression test as jobs, results in" $outfile | tail -1 | sed 's@.*/@@g'`
 
-after_anys=`qstat | grep ^[0-9] | sed 's/^\([0-9]*\).*/\1/g' | tr '\n' ':' | sed 's/^/afterany:/g'`
+after_anys=`grep "Job ids of leaf nodes in dep. graph:" $outfile | tail -1 | sed 's/.*: //g' | tr ',' ':' | sed 's/^/afterany:/g'`
 
 datestamp=`date +%Y%m%d`
 rm -f ~/easybuild-full-regtest_${datestamp}.xml
