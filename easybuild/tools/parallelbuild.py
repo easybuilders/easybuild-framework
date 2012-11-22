@@ -81,7 +81,7 @@ def create_job(build_command, easyconfig, log, output_dir=""):
     returns the job
     """
     # create command based on build_command template
-    command = build_command % easyconfig['spec']
+    command = build_command % {'spec': easyconfig['spec']}
 
     # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
     easybuild_vars = {}
