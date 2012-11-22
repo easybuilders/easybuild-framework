@@ -239,10 +239,33 @@ class Modules(object):
         # filter devel modules, since they cannot be split like this
         mods = [mod for mod in mods if not mod.endswith("easybuild-devel")]
         for mod in mods:
-            (mod_name, mod_version) = mod.split('/')
+            mod_name = None
+            mod_version = None
+            modparts = mod.split('/')
+
+            if len(modparts) == 2:
+                # this is what we expect, e.g. GCC/4.7.2
+                mod_name = modparts[0]
+                mod_version = modparts[1]
+
+            elif len(modparts) > 2:
+                # different module naming scheme
+                # let's assume first part is name, rest is version
+                mod_name = modparts[0]
+                mod_version = '/'.join(modparts[1:])
+
+            elif len(modparts) == 1:
+                # only name, no version
+                mod_name = modparts[0]
+                mod_version = ''
+
+            else:
+                # length after splitting is 0, so empty module name?
+                self.log.error("Module with empty name loaded? ('%s')" % mod)
+
             loaded_modules.append({
-                                   'name':mod_name,
-                                   'version':mod_version
+                                   'name': mod_name,
+                                   'version': mod_version
                                    })
 
         return loaded_modules
