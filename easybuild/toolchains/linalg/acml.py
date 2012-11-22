@@ -30,6 +30,8 @@ Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 
 import os
 
+from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
+from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -50,12 +52,12 @@ class Acml(LinAlg):
             self.log.raiseException("_set_blas_variables: 32bit ACML not (yet) supported")
 
         interfacemap = {
-                        "Intel": 'ifort',
-                        "GCC": 'gfortran',
+                        TC_CONSTANT_INTELCOMP: 'ifort',
+                        TC_CONSTANT_GCC: 'gfortran',
                        }
-        root = self.get_software_root(self.BLAS_MODULE_NAME[0])  ## TODO: deal with multiple modules properly
         try:
-            self.variables.append_exists('LDFLAGS', root, os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib'))
+            for root in self.get_software_root(self.BLAS_MODULE_NAME):
+                self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
         except:
             self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
                                      " with compiler family %s") % self.COMPILER_FAMILY)
