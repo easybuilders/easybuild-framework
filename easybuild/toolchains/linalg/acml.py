@@ -58,9 +58,9 @@ class Acml(LinAlg):
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
-        except Exception, err:
+        except:
             self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
-                                     " with compiler family %s; error: %s") % (self.COMPILER_FAMILY, err))
+                                     " with compiler family %s") % self.COMPILER_FAMILY)
 
         super(Acml, self)._set_blas_variables()
 
