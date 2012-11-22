@@ -1377,13 +1377,31 @@ def regtest(options, log, easyconfig_paths):
         build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
     else:
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
+
         # use %%s so we can replace it later
-        command = "cd %s && eb %%s --regtest --sequential -ld" % cur_dir
+        cmd = "eb %%(spec)s --regtest --sequential -ld"
+        command = "cd %s && %s; " % (cur_dir, cmd)
+        # retry twice in case of failure, to avoid fluke errors
+        command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
+
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, log)
+
         print "List of submitted jobs:"
         for job in jobs:
             print "%s: %s" % (job.name, job.jobid)
         print "(%d jobs submitted)" % len(jobs)
+
+        # determine leaf nodes in dependency graph, and report them
+        all_deps = set()
+        for job in jobs:
+            all_deps = all_deps.union(job.deps)
+
+        leaf_nodes = []
+        for job in jobs:
+            if not job.jobid in all_deps:
+                leaf_nodes.append(str(job.jobid).split('.')[0])
+
+        log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
         log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
