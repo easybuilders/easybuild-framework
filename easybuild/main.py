@@ -1378,8 +1378,7 @@ def regtest(options, log, easyconfig_paths):
     else:
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
 
-        # use %%s so we can replace it later
-        cmd = "eb %%(spec)s --regtest --sequential -ld"
+        cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
