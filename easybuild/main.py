@@ -372,9 +372,13 @@ def main(options, orig_paths, log, logfile, hn, parser):
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
         if paths:
-            regtest(options, log, [path[0] for path in paths])
+            regtest_ok = regtest(options, log, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
-            regtest(options, log, [easyconfigs_pkg_full_path])
+            regtest_ok = regtest(options, log, [easyconfigs_pkg_full_path])
+
+        if not regtest_ok:
+            log.info("Regression test failed (partially)!")
+            sys.exit(31)  # exit -> 3x1t -> 31
 
     if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
         if logfile:
@@ -1284,11 +1288,13 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
     failed = len(build_stopped)
     total = len(apps)
 
-    log.info("%s from %s packages failed to build!" % (failed, total))
+    log.info("%s of %s packages failed to build!" % (failed, total))
 
     output_file = os.path.join(output_dir, "easybuild-test.xml")
     log.debug("writing xml output to %s" % output_file)
     write_to_xml(succes, test_results, output_file)
+
+    return failed == 0
 
 def aggregate_xml_in_dirs(base_dir, output_filename):
     """
@@ -1384,7 +1390,7 @@ def regtest(options, log, easyconfig_paths):
             test_results.append((ecfile, 'easyconfig file error', err))
 
     if options.sequential:
-        build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
+        return build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
     else:
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
 
@@ -1413,6 +1419,8 @@ def regtest(options, log, easyconfig_paths):
         log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
 
         log.info("Submitted regression test as jobs, results in %s" % output_dir)
+
+        return True  # success
 
 def list_easyblocks(detailed=False):
     """Get a class tree for easyblocks."""
