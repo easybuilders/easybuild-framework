@@ -807,15 +807,15 @@ def mkdir(directory, parents=False):
             else:
                 log.error("Failed to create directory %s: %s" % (directory, err))
 
-def rmtree2(path):
+def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
-    n = 3
     ok = False
     for i in range(0,n):
         try:
             shutil.rmtree(path)
             ok = True
+            break
         except OSError, err:
             log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
             time.sleep(2)
