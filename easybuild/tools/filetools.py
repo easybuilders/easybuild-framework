@@ -396,7 +396,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         if path:
             os.chdir(path)
 
-        log.debug("runQandA: running cmd %s (in %s)" % (cmd, os.getcwd()))
+        log.debug("run_cmd_qa: running cmd %s (in %s)" % (cmd, os.getcwd()))
     except:
         log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
@@ -480,7 +480,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
-        log.error("runQandA init cmd %s failed:%s" % (cmd, err))
+        log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
 
     # initial short sleep
     time.sleep(0.1)
@@ -499,7 +499,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             stdoutErr += tmpOut
         # recv_some may throw Exception
         except (IOError, Exception), err:
-            log.debug("runQandA cmd %s: read failed: %s" % (cmd, err))
+            log.debug("run_cmd_qa cmd %s: read failed: %s" % (cmd, err))
             tmpOut = None
 
         hit = False
@@ -507,7 +507,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             res = q.search(stdoutErr)
             if tmpOut and res:
                 fa = a % res.groupdict()
-                log.debug("runQandA answer %s question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
+                log.debug("run_cmd_qa answer %s question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
                 send_all(p, fa)
                 hit = True
                 break
@@ -516,7 +516,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 res = q.search(stdoutErr)
                 if tmpOut and res:
                     fa = a % res.groupdict()
-                    log.debug("runQandA answer %s standard question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
+                    log.debug("run_cmd_qa answer %s standard question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
                     send_all(p, fa)
                     hit = True
                     break
@@ -542,9 +542,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 os.killpg(p.pid, signal.SIGKILL)
                 os.kill(p.pid, signal.SIGKILL)
             except OSError, err:
-                log.debug("runQandA exception caught when killing child process: %s" % err)
-            log.debug("runQandA: full stdouterr: %s" % stdoutErr)
-            log.error("runQandA: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
+                log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
+            log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
+            log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
                                                                                     maxHitCount,
                                                                                     stdoutErr[-500:]
                                                                                     ))
