@@ -91,9 +91,6 @@ results_dir=`grep "Submitted regression test as jobs, results in" $outfile | tai
 
 after_anys=`grep "Job ids of leaf nodes in dep. graph:" $outfile | tail -1 | sed 's/.*: //g' | tr ',' ':' | sed 's/^/afterany:/g'`
 
-datestamp=`date +%Y%m%d`
-rm -f ~/easybuild-full-regtest_${datestamp}.xml
-
 # submit via stdin
 # note: you'll need to replace TOKEN with the actual token to allow for triggering a Jenkins test
 qsub -W depend=$after_anys << EOF
