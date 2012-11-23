@@ -1257,6 +1257,16 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             # close log and move it
             app.close_log()
             try:
+                # retain old logs
+                if os.path.exists(applog):
+                    i = 0
+                    old_applog = "%s.%d" % (applog, i)
+                    while os.path.exists(old_applog):
+                        i += 1
+                        old_applog = "%s.%d" % (applog, i)
+                    shutil.move(applog, old_applog)
+                    log.info("Moved existing log file %s to %s" % (applog, old_applog))
+
                 shutil.move(app.logfile, applog)
                 log.info("Log file moved to %s" % applog)
             except IOError, err:
