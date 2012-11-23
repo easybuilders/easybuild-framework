@@ -475,7 +475,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     else:
         runLog = None
 
-    maxHitCount = 20
+    maxHitCount = 50
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
