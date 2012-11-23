@@ -475,7 +475,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     else:
         runLog = None
 
-    maxHitCount = 20
+    maxHitCount = 50
 
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT, stdin=PIPE, close_fds=True, executable="/bin/bash")
@@ -807,6 +807,22 @@ def mkdir(directory, parents=False):
             else:
                 log.error("Failed to create directory %s: %s" % (directory, err))
 
+def rmtree2(path, n=3):
+    """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
+
+    ok = False
+    for i in range(0,n):
+        try:
+            shutil.rmtree(path)
+            ok = True
+            break
+        except OSError, err:
+            log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
+            time.sleep(2)
+    if not ok:
+        log.error("Failed to remove path %s with shutil.rmtree, even after %d attempts." % (path, n))
+    else:
+        log.info("Path %s successfully removed." % path)
 
 def copytree(src, dst, symlinks=False, ignore=None):
     """

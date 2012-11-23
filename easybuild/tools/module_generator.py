@@ -36,6 +36,7 @@ import tempfile
 
 from easybuild.tools.build_log import get_log
 from easybuild.tools.config import install_path
+from easybuild.tools.filetools import rmtree2
 
 
 log = get_log('moduleGenerator')
@@ -183,6 +184,6 @@ if { ![is-loaded %(name)s/%(version)s] } {
             try:
                 if os.path.exists(self.tmpdir):
                     log.info("Cleaning up fake modules dir %s" % self.tmpdir)
-                    shutil.rmtree(self.tmpdir)
+                    rmtree2(self.tmpdir)
             except OSError, err:
                 log.exception("Cleaning up fake module dir failed: %s" % err)
