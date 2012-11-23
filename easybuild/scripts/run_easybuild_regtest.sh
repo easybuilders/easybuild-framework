@@ -107,7 +107,7 @@ if [ \$ec -ne 0 ]; then echo "Failed to aggregate regtest results!"; exit \$ec; 
 
 fn=\`cat /tmp/aggregate-regtest.out | sed 's/.* //g'\`
 datestamp=\`date +%Y%m%d\`
-outfn=\`echo ~/easybuild-full-regtest_${datestamp}.xml\`
+outfn=\`echo ~/easybuild-full-regtest_\${datestamp}.xml\`
 rm -f \$outfn
 
 # move to home dir with standard name
