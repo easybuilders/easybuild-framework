@@ -30,6 +30,8 @@ Support for Intel MKL as toolchain linear algebra library.
 
 from distutils.version import LooseVersion
 
+from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
+from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -65,8 +67,8 @@ class IntelMKL(LinAlg):
     def _set_blas_variables(self):
         """Fix the map a bit"""
         interfacemap = {
-                        "Intel": 'intel',
-                        "GCC": 'gf',
+                        TC_CONSTANT_INTELCOMP: 'intel',
+                        TC_CONSTANT_GCC: 'gf',
                        }
         try:
             self.BLAS_LIB_MAP.update({
@@ -77,8 +79,8 @@ class IntelMKL(LinAlg):
                                     " with MPI family %s") % self.COMPILER_FAMILY)
 
         interfacemap_mt = {
-                           "Intel": 'intel',
-                           "GCC": 'gnu',
+                           TC_CONSTANT_INTELCOMP: 'intel',
+                           TC_CONSTANT_GCC: 'gnu',
                           }
         try:
             self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})

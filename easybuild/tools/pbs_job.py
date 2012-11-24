@@ -179,7 +179,7 @@ class PbsJob(object):
         if is_error:
             self.log.error("Failed to submit job script %s: error %s" % (scriptfn, errormsg))
         else:
-            self.log.debug("Succesful jobsubmission returned jobid %s" % jobid)
+            self.log.debug("Succesful job submission returned jobid %s" % jobid)
             self.jobid = jobid
             os.remove(scriptfn)
 

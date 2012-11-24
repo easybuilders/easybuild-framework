@@ -40,6 +40,8 @@ import socket
 import tempfile
 import time
 
+from easybuild.tools.filetools import rmtree2
+
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
@@ -291,7 +293,7 @@ class GitRepository(FileRepository):
         Clean up git working copy.
         """
         try:
-            shutil.rmtree(self.wc)
+            rmtree2(self.wc)
         except IOError, err:
             log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
@@ -394,7 +396,7 @@ class SvnRepository(FileRepository):
         Clean up SVN working copy.
         """
         try:
-            shutil.rmtree(self.wc)
+            rmtree2(self.wc)
         except OSError, err:
             log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
