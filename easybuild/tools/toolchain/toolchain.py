@@ -301,8 +301,12 @@ class Toolchain(object):
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
         toolchain_module_deps = set([mod['name'] for mod in self.toolchain_dependencies])
         toolchain_elements_mod_names = set([y for x in dir(self) if x.endswith('_MODULE_NAME') for y in eval("self.%s" % x)])
+        # filter out toolchain name (e.g. 'GCC') from list of toolchain elements
+        toolchain_elements_mod_names = set([x for x in toolchain_elements_mod_names if not x == self.name])
+
         self.log.debug("List of toolchain dependency modules from loaded toolchain module: %s" % toolchain_module_deps)
         self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_elements_mod_names)
+
         if toolchain_module_deps == toolchain_elements_mod_names:
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
