@@ -248,7 +248,7 @@ def parse_options():
 
     return options, paths, log, logfile, hn, parser
 
-def main(options):
+def main(options, orig_paths, log, logfile, hn, parser):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -264,7 +264,6 @@ def main(options):
                         "Exiting.\n")
         sys.exit(1)
 
-    options, paths, log, logfile, hn, parser = options
     # show version
     if options.version:
         print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
@@ -332,14 +331,54 @@ def main(options):
         if not options.robot:
             error("Please provide a search-path to --robot when using --search")
         search_module(options.robot, options.search)
+    
+    # process software build specifications (if any), i.e.
+    # software name/version, toolchain name/version, extra patches, ...
+    (try_to_generate, software_build_specs) = process_software_build_specs(options)
+
+    paths = []
+    if len(orig_paths) == 0:
+        if software_build_specs.has_key('name'):
+            paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
+        elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
+                     options.search, options.regtest, options.version]):
+            error("Please provide one or multiple easyconfig files, or use software build " \
+                  "options to make EasyBuild search for easyconfigs", optparser=parser)
+
+    else:
+        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+        # unless they we found at the given relative paths
+
+        if easyconfigs_pkg_full_path:
+            # create a mapping from filename to path in easybuild-easyconfigs package install path
+            easyconfigs_map = {}
+            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
+                for filename in filenames:
+                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
+
+            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
+            for i in range(len(orig_paths)):
+                if not os.path.isabs(orig_paths[i]) and not os.path.exists(orig_paths[i]):
+                    if orig_paths[i] in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path, easyconfigs_map[orig_paths[i]]))
+                        orig_paths[i] = easyconfigs_map[orig_paths[i]]
+
+        # indicate that specified paths do not contain generated easyconfig files
+        paths = [(path, False) for path in orig_paths]
+
+    log.debug("Paths: %s" % paths)
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
         if paths:
-            regtest(options, log, paths)
+            regtest_ok = regtest(options, log, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
-            regtest(options, log, [easyconfigs_pkg_full_path])
+            regtest_ok = regtest(options, log, [easyconfigs_pkg_full_path])
+
+        if not regtest_ok:
+            log.info("Regression test failed (partially)!")
+            sys.exit(31)  # exit -> 3x1t -> 31
 
     if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
         if logfile:
@@ -359,38 +398,6 @@ def main(options):
         options.force = True
         validate_easyconfigs = False
         retain_all_deps = True
-    
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, software_build_specs) = process_software_build_specs(options)
-
-    if len(paths) == 0:
-        if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
-        else:
-            error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", optparser=parser)
-
-    else:
-        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
-        # unless they we found at the given relative paths
-
-        if easyconfigs_pkg_full_path:
-            # create a mapping from filename to path in easybuild-easyconfigs package install path
-            easyconfigs_map = {}
-            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
-                for filename in filenames:
-                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
-
-            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
-            for i in range(len(paths)):
-                if not os.path.isabs(paths[i]) and not os.path.exists(paths[i]):
-                    if paths[i] in easyconfigs_map:
-                        log.info("Found %s in %s: %s" % (paths[i], easyconfigs_pkg_full_path, easyconfigs_map[paths[i]]))
-                        paths[i] = easyconfigs_map[paths[i]]
-
-        # indicate that specified paths do not contain generated easyconfig files
-        paths = [(path, False) for path in paths]
 
     # read easyconfig files
     easyconfigs = []
@@ -1254,6 +1261,16 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             # close log and move it
             app.close_log()
             try:
+                # retain old logs
+                if os.path.exists(applog):
+                    i = 0
+                    old_applog = "%s.%d" % (applog, i)
+                    while os.path.exists(old_applog):
+                        i += 1
+                        old_applog = "%s.%d" % (applog, i)
+                    shutil.move(applog, old_applog)
+                    log.info("Moved existing log file %s to %s" % (applog, old_applog))
+
                 shutil.move(app.logfile, applog)
                 log.info("Log file moved to %s" % applog)
             except IOError, err:
@@ -1271,11 +1288,13 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
     failed = len(build_stopped)
     total = len(apps)
 
-    log.info("%s from %s packages failed to build!" % (failed, total))
+    log.info("%s of %s packages failed to build!" % (failed, total))
 
     output_file = os.path.join(output_dir, "easybuild-test.xml")
     log.debug("writing xml output to %s" % output_file)
     write_to_xml(succes, test_results, output_file)
+
+    return failed == 0
 
 def aggregate_xml_in_dirs(base_dir, output_filename):
     """
@@ -1284,6 +1303,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     """
     dom = xml.getDOMImplementation()
     root = dom.createDocument(None, "testsuite", None)
+    root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
     version = root.createElement("property")
     version.setAttribute("name", "easybuild-version")
@@ -1370,18 +1390,37 @@ def regtest(options, log, easyconfig_paths):
             test_results.append((ecfile, 'easyconfig file error', err))
 
     if options.sequential:
-        build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
+        return build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
     else:
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
-        # use %%s so we can replace it later
-        command = "cd %s && eb %%s --regtest --sequential -ld" % cur_dir
+
+        cmd = "eb %(spec)s --regtest --sequential -ld"
+        command = "cd %s && %s; " % (cur_dir, cmd)
+        # retry twice in case of failure, to avoid fluke errors
+        command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
+
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, log)
+
         print "List of submitted jobs:"
         for job in jobs:
             print "%s: %s" % (job.name, job.jobid)
         print "(%d jobs submitted)" % len(jobs)
 
+        # determine leaf nodes in dependency graph, and report them
+        all_deps = set()
+        for job in jobs:
+            all_deps = all_deps.union(job.deps)
+
+        leaf_nodes = []
+        for job in jobs:
+            if not job.jobid in all_deps:
+                leaf_nodes.append(str(job.jobid).split('.')[0])
+
+        log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
+
         log.info("Submitted regression test as jobs, results in %s" % output_dir)
+
+        return True  # success
 
 def list_easyblocks(detailed=False):
     """Get a class tree for easyblocks."""
@@ -1446,9 +1485,16 @@ def print_tree(classes, classNames, detailed, depth=0):
         if 'children' in classInfo:
             print_tree(classes, classInfo['children'], detailed, depth + 1)
 
+# FIXME: remove when Python version on which we rely provides any by itself
+def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
+
+    return sum([bool(x) for x in ls]) != 0
+
 if __name__ == "__main__":
     try:
-        main(parse_options())
+        options, orig_paths, log, logfile, hn, parser = parse_options()
+        main(options, orig_paths, log, logfile, hn, parser)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)

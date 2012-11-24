@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
 from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir, source_path
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd
+from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
@@ -539,7 +539,7 @@ class EasyBlock(object):
                 return
             elif clean:
                 try:
-                    shutil.rmtree(dirName)
+                    rmtree2(dirName)
                     self.log.info("Removed old directory %s" % dirName)
                 except OSError, err:
                     self.log.exception("Removal of old directory %s failed: %s" % (dirName, err))
@@ -734,7 +734,7 @@ class EasyBlock(object):
 
         # clean up
         try:
-            shutil.rmtree(os.path.dirname(fake_mod_path))
+            rmtree2(os.path.dirname(fake_mod_path))
         except OSError, err:
             self.log.error("Failed to clean up fake module dir: %s" % err)
 
@@ -1124,7 +1124,7 @@ class EasyBlock(object):
             try:
                 fakemoddir = os.path.dirname(modpath)
                 self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-                shutil.rmtree(fakemoddir)
+                rmtree2(fakemoddir)
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
 
@@ -1328,7 +1328,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             try:
-                shutil.rmtree(self.builddir)
+                rmtree2(self.builddir)
                 base = os.path.dirname(self.builddir)
 
                 # keep removing empty directories until we either find a non-empty one
