@@ -66,7 +66,7 @@ class Acml(LinAlg):
                                      " with compiler family %s") % self.COMPILER_FAMILY)
 
         # version before 5.x still featured the acml_mv library
-        ver = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
+        ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         if LooseVersion(ver) < LooseVersion("5"):
             self.BLAS_LIB.insert(0, "acml_mv")
             self.BLAS_LIB_MT.insert(0, "acml_mv")
