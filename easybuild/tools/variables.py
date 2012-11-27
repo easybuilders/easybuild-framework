@@ -129,7 +129,41 @@ class StrList(list):
 
     def copy(self):
         """Return copy of self"""
-        return copy.deepcopy(self)
+
+        # keep track of originals
+        log = self.log
+        begin = self.BEGIN
+        end = self.END
+
+        # clear stuff that will/may cause problems whe deepcopying
+        # e.g. loggers can't be deepcopied (and begin/end are again (derived) instances of StrList)
+        self.log = None
+        self.BEGIN = None
+        self.END = None
+
+        # perform the actual copy
+        res = copy.deepcopy(self)
+
+        # reinstate a (new) logger
+        res.log = getLogger(self.__class__.__name__)
+
+        # also copy begin/end
+        try:
+            res.BEGIN = begin.copy()
+        except:
+            res.BEGIN = copy.deepcopy(begin)
+        try:
+            res.END = end.copy()
+        except:
+            res.END = copy.deepcopy(end)
+
+        # restore originals
+        self.log = log
+        self.BEGIN = begin
+        self.END = end
+
+        # return copy result
+        return res
 
 class CommaList(StrList):
     """Comma-separated list"""
@@ -373,7 +407,7 @@ class ListOfLists(list):
         klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
 
         if self._is_protected(value):
-            newvalue = value
+            newvalue = value.copy()
         else:
             if isinstance(value, (str, int,)):
                 ## convert to list. although the try/except will work
@@ -463,7 +497,7 @@ class ListOfLists(list):
                         to_remove.extend(all_idx[:-1])
 
             to_remove = sorted(list(set(to_remove)), reverse=True)
-            self.log.debug("sanitize: to_remove %s" % to_remove)
+            self.log.debug("sanitize: to_remove in %s %s" % (self.__repr__(), to_remove))
             for idx in to_remove:
                 del self[idx]
 
