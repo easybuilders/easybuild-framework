@@ -97,7 +97,7 @@ def get_last_git_version_tag(home):
     try:
         gitrepo = git.Git(home)
         git_tags = gitrepo.execute(["git","tag","-l"]).split('\n')
-        vertag_re = re.compile("^v([0-9]+\.[0-9]+)$")
+        vertag_re = re.compile("^v([0-9]+\.[0-9]+[0-9.]*(rc[0-9]\+)*)$")
         git_version_tags = [LooseVersion(vertag_re.match(t).group(1)) for t in git_tags if vertag_re.match(t)]
         if len(git_version_tags) >= 1:
             return git_version_tags[-1]
