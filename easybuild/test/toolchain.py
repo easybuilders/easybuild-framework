@@ -85,6 +85,30 @@ class ToolchainTest(TestCase):
         if len(ldflags) > 0:
             self.assertTrue(isinstance(ldflags[0], basestring))
 
+    def test_validate_pass_by_value(self):
+        """
+        Check that elements of variables are passed by value, not by reference,
+        which is required to ensure correctness.
+        """
+        tc_class, _ = search_toolchain("goalf")
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.prepare()
+
+        pass_by_value = True
+        ids = []
+        for k, v in tc.variables.items():
+            for x in v:
+                idx = id(x)
+                if not idx in ids:
+                    ids.append(idx)
+                else:
+                    pass_by_value = False
+                    break
+            if not pass_by_value:
+                break
+
+        self.assertTrue(pass_by_value)
+
     def tearDown(self):
         """Cleanup."""
         os.environ['MODULEPATH'] = self.orig_modpath
