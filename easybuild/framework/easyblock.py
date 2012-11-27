@@ -1300,7 +1300,7 @@ class EasyBlock(object):
 
             cmd = "%(name)s %(options)s" % check_cmd
 
-            out, ec = run_cmd(cmd, simple=False)
+            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False)
             if ec != 0:
                 self.sanityCheckOK = False
                 self.log.warning("sanityCheckCommand %s exited with code %s (output: %s)" % (cmd, ec, out))
