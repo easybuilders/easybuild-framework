@@ -25,6 +25,13 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+if [ $# -ne 1 ]
+then
+    echo "Usage: $0 <regtest results dir <branch (e.g. develop, master)>"
+    exit 1
+fi
+branch=$1
+
 if [ ! -z $PBS_OWORKDIR ]
 then
     cd $PBS_OWORKDIR
@@ -58,8 +65,6 @@ then
 fi
 
 # install EasyBuild
-branch="develop"
-#branch="master"
 echo "Installing EasyBuild in $EBHOME from GitHub ($branch branch)..."
 for package in easybuild-framework easybuild-easyblocks easybuild-easyconfigs
 do
