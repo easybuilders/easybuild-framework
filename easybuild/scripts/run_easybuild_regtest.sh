@@ -25,6 +25,13 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 
+if [ $# -ne 1 ]
+then
+    echo "Usage: $0 <regtest results dir <branch (e.g. develop, master)>"
+    exit 1
+fi
+branch=$1
+
 if [ ! -z $PBS_OWORKDIR ]
 then
     cd $PBS_OWORKDIR
@@ -58,8 +65,6 @@ then
 fi
 
 # install EasyBuild
-branch="develop"
-#branch="master"
 echo "Installing EasyBuild in $EBHOME from GitHub ($branch branch)..."
 for package in easybuild-framework easybuild-easyblocks easybuild-easyconfigs
 do
@@ -91,9 +96,6 @@ results_dir=`grep "Submitted regression test as jobs, results in" $outfile | tai
 
 after_anys=`grep "Job ids of leaf nodes in dep. graph:" $outfile | tail -1 | sed 's/.*: //g' | tr ',' ':' | sed 's/^/afterany:/g'`
 
-datestamp=`date +%Y%m%d`
-rm -f ~/easybuild-full-regtest_${datestamp}.xml
-
 # submit via stdin
 # note: you'll need to replace TOKEN with the actual token to allow for triggering a Jenkins test
 qsub -W depend=$after_anys << EOF
@@ -107,7 +109,7 @@ if [ \$ec -ne 0 ]; then echo "Failed to aggregate regtest results!"; exit \$ec; 
 
 fn=\`cat /tmp/aggregate-regtest.out | sed 's/.* //g'\`
 datestamp=\`date +%Y%m%d\`
-outfn=\`echo ~/easybuild-full-regtest_${datestamp}.xml\`
+outfn=\`echo ~/easybuild-full-regtest_\${datestamp}.xml\`
 rm -f \$outfn
 
 # move to home dir with standard name

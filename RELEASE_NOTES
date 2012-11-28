@@ -1,7 +1,23 @@
 This file contains a description of the major changes to EasyBuild.
 For more detailed information, please see the git log.
 
-v1.0-rc1 (November 7th 2012)
+v1.0.1 (November 24th 2012)
+---------------------------
+
+bugfix release
+- fix support for installing easybuild-framework with distutils (broken import in setup.py)
+- fix support for ACML as a toolchain element (toolchains/linalg/acml.py)
+- add name to aggregated regtest XML so that is parsed correctly by Jenkins
+- reorder code in main.py so that regtest also works with incomplete easyconfig paths
+- add bash script for running regression test and sending a trigger to Jenkins to pull in the XML with results
+- get rid of assumption that loaded modules should have name like 'foo/bar', make it more flexible
+- retry failed builds in regtest twice to ignore fluke errors
+- report leaf nodes in dependency graph when regtest is submitted
+    - this is required for setting job dependencies in the regtest script for the Jenkins trigger job
+- implement and use rmtree2 as more (NFS) robust replacement for shutil.rmtree
+- bump max hit count for run_cmd_qa from 20 to 50, to make false positives of unasnwered questions less likely
+
+v1.0 (November 13th 2012)
 -------------------------
 
 - split up EasyBuild across three repositories: framework, easyblocks and easyconfigs
