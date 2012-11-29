@@ -51,6 +51,8 @@ parser.add_option("-r", "--repo", action="store", dest="repo",
      help="Choose the branch to link to (default easybuild-easyconfigs).")
 parser.add_option("-p", "--path", action="store", dest="path",
      help="Specify a path inside the repo (default easybuild/easyconfigs).")
+parser.add_option("-l", "--local", action="store_true", dest="local",
+     help="Use a local path, not on github.com (Default false)")
 
 options, args = parser.parse_args()
 
@@ -64,33 +66,48 @@ elif options.verbose >= 3:
     fancylogger.setLogLevelDebug()
 if options.quiet:
     fancylogger.logToScreen(False)
+else:
+    fancylogger.logToScreen(True)
+
+# other options
+if not options.branch:
+    options.branch = "develop"
 if not options.username:
     options.username = "hpcugent"
 if not options.repo:
     options.repo = "easybuild-easyconfigs"
 if not options.path:
     options.path = "easybuild/easyconfigs"
+if options.local:
+    import os   
+    walk = os.walk
+    join = os.path.join
+    read = lambda file_ : file_ 
+else:
+    fs = Githubfs(options.username, options.repo, options.branch)
+    walk = Githubfs(options.username, options.repo, options.branch).walk
+    join = fs.join
+    read = lambda file_ : fs.read(file_, api=False)
+    
+    
 
 log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
-if not options.branch:
-    options.branch = "develop"
 
 configs = []
 names = []
 
-fs = Githubfs(options.username, options.repo, options.branch)
 
 # fs.walk yields the same results as os.walk, so should be interchangable
 # same for fs.join and os.path.join
 
-for root, subfolders, files in fs.walk(options.path):    
+for root, subfolders, files in walk(options.path):    
     if '.git' in subfolders:
         log.info("found .git subfolder, ignoring it")
         subfolders.remove('.git')
     for file_ in files:
-        file_ = fs.join(root,file_)
-        file_ = fs.read(file_, api=False)
+        file_ = join(root,file_)
+        file_ = read(file_)
         try:
             
             ec = EasyConfig(file_, validate=False)
