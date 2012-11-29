@@ -189,7 +189,7 @@ class EB_%(name)s(%(parent)s):
         guesses = super(EB_%(name)s, self).make_module_req_guess()
 
         guesses.update({
-                        'VARIABLE': 'value'
+                        'VARIABLE': ['value1', 'value2'],
                        })
 
         return guesses
