@@ -199,8 +199,8 @@ class EB_%(name)s(%(parent)s):
 
         txt = super(EB_%(name)s, self).make_module_extra()
 
-        txt += self.moduleGenerator().set_environment("VARIABLE", 'value')
-        txt += self.moduleGenerator().prepend_paths("PATH_VAR", ['path1', 'path2'])
+        txt += self.moduleGenerator.set_environment("VARIABLE", 'value')
+        txt += self.moduleGenerator.prepend_paths("PATH_VAR", ['path1', 'path2'])
 
         return txt
 """
