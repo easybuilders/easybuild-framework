@@ -164,7 +164,7 @@ class EB_%(name)s(%(parent)s):
         \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
 
         if self.cfg['runtest']:
-            cmd = "test command" 
+            cmd = "test-command" 
             run_cmd(cmd, simple=True, log_all=True, log_output=True)
 
     def install_step(self):
