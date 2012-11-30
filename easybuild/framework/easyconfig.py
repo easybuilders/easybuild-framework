@@ -62,7 +62,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
     # validations
-    validmoduleclasses = ['base', 'compiler', 'lib']
+    validmoduleclasses = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
     validstops = ['cfg', 'source', 'patch', 'prepare', 'configure', 'make',
                   'install', 'test', 'postproc', 'cleanup', 'extensions']
 
