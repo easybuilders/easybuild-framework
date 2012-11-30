@@ -51,7 +51,13 @@ from easybuild.tools.build_log import get_log
 log = get_log('fileTools')
 errorsFoundInLog = 0
 
-strictness = 'warn'
+# constants for strictness levels
+IGNORE = 'ignore'
+WARN = 'warn'
+ERROR = 'error'
+
+# default strictness level
+strictness = ERROR
 
 
 def extract_file(fn, dest, extra_options=None, overwrite=False):
