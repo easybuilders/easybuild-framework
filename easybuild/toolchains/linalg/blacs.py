@@ -38,3 +38,4 @@ class Blacs(LinAlg):
     """
     BLACS_MODULE_NAME = ['BLACS']
     BLACS_LIB = ["blacsCinit", "blacsF77init", "blacs"]
+    BLACS_LIB_GROUP = True
