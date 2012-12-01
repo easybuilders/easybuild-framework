@@ -156,6 +156,8 @@ class EasyConfig(object):
         validate specifies whether validations should happen
         """
 
+        self.log = get_log("EasyConfig")
+
         if valid_module_classes:
             self.valid_module_classes = valid_module_classes
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
@@ -170,8 +172,6 @@ class EasyConfig(object):
         for (key, value) in extra_options:
             if value[2] == MANDATORY:
                 self.mandatory.append(key)
-
-        self.log = get_log("EasyConfig")
 
         # store toolchain
         self._toolchain = None
