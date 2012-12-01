@@ -289,12 +289,6 @@ def main(options, orig_paths, log, logfile, hn, parser):
         else:
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
-    # initialize configuration
-    # - check environment variable EASYBUILDCONFIG
-    # - then, check command line option
-    # - last, use default config file easybuild_config.py in main.py directory
-    config_file = options.config
-
     configOptions = {}
     if options.pretend:
         configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
@@ -304,13 +298,22 @@ def main(options, orig_paths, log, logfile, hn, parser):
     else:
         blocks = None
 
+    # initialize configuration
+    # - check environment variable EASYBUILDCONFIG
+    # - then, check command line option
+    # - last, use default config file easybuild_config.py in main.py directory
+    config_file = options.config
     if not config_file:
         log.debug("No config file specified on command line, trying other options.")
 
         config_env_var = config.environmentVariables['config_file']
+        home_config_file = os.path.join(os.getenv('HOME'), ".easybuild", "config.py")
         if os.getenv(config_env_var):
             log.debug("Environment variable %s, so using that as config file." % config_env_var)
             config_file = os.getenv(config_env_var)
+        elif os.path.exists(home_config_file):
+            config_file = home_config_file
+            log.debug("Found EasyBuild configuration file at %s." % config_file)
         else:
             appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
             config_file = os.path.join(appPath, "easybuild_config.py")
