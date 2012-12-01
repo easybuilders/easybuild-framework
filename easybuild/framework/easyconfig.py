@@ -62,7 +62,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
     # validations
-    validmoduleclasses = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+    valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
     validstops = ['cfg', 'source', 'patch', 'prepare', 'configure', 'make',
                   'install', 'test', 'postproc', 'cleanup', 'extensions']
 
@@ -141,20 +141,24 @@ class EasyConfig(object):
 
           ('modextravars', [{}, "Extra environment variables to be added to module file", MODULES]),
           ('moduleclass', ['base', 'Module class to be used for this software' \
-                                   '(valid: %s)' % validmoduleclasses, MODULES]),
+                                   '(valid: %s)' % valid_module_classes, MODULES]),
           ('moduleforceunload', [False, 'Force unload of all modules when loading the extension', MODULES]),
           ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead ", MODULES]),
 
           ('buildstats', [None, "A list of dicts with build statistics", OTHER]),
         ]
 
-    def __init__(self, path, extra_options=[], validate=True):
+    def __init__(self, path, extra_options=[], validate=True, valid_module_classes=None):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
         extra_options is a dict of extra variables that can be set in this specific instance
         validate specifies whether validations should happen
         """
+
+        if valid_module_classes:
+            self.valid_module_classes = valid_module_classes
+
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
         self.config.update(extra_options)
@@ -175,7 +179,7 @@ class EasyConfig(object):
             self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
-                            'moduleclass': self.validmoduleclasses,
+                            'moduleclass': self.valid_module_classes,
                             'stop': self.validstops
                            }
 
