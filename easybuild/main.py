@@ -482,7 +482,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         opts = ' '.join(result_opts)
 
-        command = "cd %s && eb %%s %s" % (curdir, opts)
+        command = "cd %s && eb %%(spec)s %s" % (curdir, opts)
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
         for job in jobs:
