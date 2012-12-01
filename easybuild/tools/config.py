@@ -191,3 +191,12 @@ def read_only_installdir():
     # this also needs to be checked when --force is used;
     # install dir will have to (temporarily) be made writeable again for owner in that case
     return False
+
+def module_classes():
+    """
+    Return list of module classes specified in config file.
+    """
+    if 'module_classes' in variables:
+        return variables['module_classes']
+    else:
+        return ['base', 'compiler', 'lib']  # legacy module classes
