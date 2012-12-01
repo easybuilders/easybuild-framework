@@ -158,6 +158,7 @@ class EasyConfig(object):
 
         if valid_module_classes:
             self.valid_module_classes = valid_module_classes
+            self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
