@@ -299,8 +299,9 @@ def main(options, orig_paths, log, logfile, hn, parser):
         blocks = None
 
     # initialize configuration
-    # - check environment variable EASYBUILDCONFIG
-    # - then, check command line option
+    # - check command line option -C/--config
+    # - then, check environment variable EASYBUILDCONFIG
+    # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
     config_file = options.config
     if not config_file:
