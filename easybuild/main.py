@@ -128,7 +128,7 @@ def add_cmdline_options(parser):
                              "(default: easybuild-easyconfigs install path)")
     basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
                         help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
-    strictness_options = ['ignore', 'warn', 'error']
+    strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
     basic_options.add_option("--strict", type="choice", choices=strictness_options, help="set strictness " + \
                                "level (possible levels: %s)" % ', '.join(strictness_options))
 
@@ -257,6 +257,10 @@ def main(options, orig_paths, log, logfile, hn, parser):
     - build software
     """
 
+    # set strictness of filetools module
+    if options.strict:
+        filetools.strictness = options.strict
+
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
@@ -384,10 +388,6 @@ def main(options, orig_paths, log, logfile, hn, parser):
         if logfile:
             os.remove(logfile)
         sys.exit(0)
-
-    # set strictness of filetools module
-    if options.strict:
-        filetools.strictness = options.strict
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
