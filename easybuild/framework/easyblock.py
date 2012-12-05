@@ -406,7 +406,10 @@ class EasyBlock(object):
                         targetpath = os.path.join(targetdir, filename)
 
                     if type(url) == str:
-                        fullurl = "%s/%s" % (url, filename)
+                        if url[-1] in ['=', '/']:
+                            fullurl = "%s%s" % (url, filename)
+                        else:
+                            fullurl = "%s/%s" % (url, filename)
                     elif type(url) == tuple:
                         ## URLs that require a suffix, e.g., SourceForge download links
                         ## e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
