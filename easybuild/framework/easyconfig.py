@@ -714,6 +714,8 @@ def select_or_generate_ec(fp, paths, specs, log):
             # only one (non-template) toolchain availble, so use that
             tcname = tcnames[0]
             selected_tcname = tcname
+        elif len(tcnames) == 1 and tcnames[0] == "TEMPLATE":
+            selected_tcname = tcnames[0]
         else:
             # fall-back: use template toolchain if a toolchain name was specified
             if tcname:
