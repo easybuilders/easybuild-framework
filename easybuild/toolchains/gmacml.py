@@ -29,9 +29,9 @@ from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
 from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
+from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Gqacml(Gcc, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
-    NAME = 'gqacml'
+class Gmacml(Gcc, Mvapich2, Acml, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW."""
+    NAME = 'gmacml'

@@ -29,4 +29,5 @@ from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
 class Gmpich2(Gcc, Mpich2):
+    """Compiler toolchain with GCC and MPICH2."""
     NAME = 'gmpich2'
