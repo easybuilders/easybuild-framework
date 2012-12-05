@@ -26,10 +26,10 @@
 ##
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.mpi.intelmpi import IntelMPI
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Gimkl(Gcc, IntelMPI, IntelMKL, Fftw):
+class Gimkl(Gcc, IntelMPI, IntelMKL, IntelFFTW):
     NAME = 'gimkl'
