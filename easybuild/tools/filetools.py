@@ -60,7 +60,7 @@ ERROR = 'error'
 strictness = WARN
 
 
-def extract_file(fn, dest, extra_options=None, overwrite=False):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
@@ -85,7 +85,11 @@ def extract_file(fn, dest, extra_options=None, overwrite=False):
     except OSError, err:
         log.error("Can't change to directory %s: %s" % (absDest, err))
 
-    cmd = extract_cmd(fn, overwrite=overwrite)
+    if not cmd:
+        cmd = extract_cmd(fn, overwrite=overwrite)
+    else:
+        # complete command template with filename
+        cmd = cmd % fn
     if not cmd:
         log.error("Can't extract file %s with unknown filetype" % fn)
 
