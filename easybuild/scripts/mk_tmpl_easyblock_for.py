@@ -40,6 +40,8 @@ parser.description = "Generates template easyblock for given software name. " \
 parser.add_option("--path", help="path to easyblocks repository (default: '.')", default='.')
 parser.add_option("--parent", default="EasyBlock",
                   help="Name of parent easyblock for this easyblock (default: 'EasyBlock').")
+parser.add_option("--letter-prefix", default=False, action="store_true",
+                  help="Whether or not to prefix the easyblock path with a letter directory (default: False)")
                  
 
 (options, args) = parser.parse_args()
@@ -60,10 +62,13 @@ if not os.path.isdir(easyblocks_repo_path):
     sys.exit(1)
 
 # determine path for easyblock
-letter = name.lower()[0]
-if not ord(letter) in range(ord('a'),ord('z')+1):
-    letter = '0'
-easyblock_path = os.path.join(easyblocks_repo_path, letter, "%s.py" % name.lower())
+if options.letter_prefix:
+    letter = name.lower()[0]
+    if not ord(letter) in range(ord('a'),ord('z')+1):
+        letter = '0'
+    easyblock_path = os.path.join(easyblocks_repo_path, letter, "%s.py" % name.lower())
+else:
+    easyblock_path = os.path.join(easyblocks_repo_path, "%s.py" % name.lower())
 
 # check whether path already exists
 if os.path.exists(easyblock_path):
