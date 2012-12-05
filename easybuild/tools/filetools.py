@@ -51,7 +51,13 @@ from easybuild.tools.build_log import get_log
 log = get_log('fileTools')
 errorsFoundInLog = 0
 
-strictness = 'warn'
+# constants for strictness levels
+IGNORE = 'ignore'
+WARN = 'warn'
+ERROR = 'error'
+
+# default strictness level
+strictness = WARN
 
 
 def extract_file(fn, dest, extra_options=None, overwrite=False):
@@ -572,13 +578,13 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     """
     will parse and perform error checks based on strictness setting
     """
-    if strictness == 'ignore':
+    if strictness == IGNORE:
         check_ec = False
         use_regexp = False
-    elif strictness == 'warn':
+    elif strictness == WARN:
         check_ec = True
         use_regexp = False
-    elif strictness == 'error':
+    elif strictness == ERROR:
         check_ec = True
         use_regexp = True
     else:
