@@ -33,4 +33,5 @@ from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
 class Gqacml(Gcc, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
     NAME = 'gqacml'

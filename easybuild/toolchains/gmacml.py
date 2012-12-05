@@ -33,4 +33,5 @@ from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
 class Gmacml(Gcc, Mvapich2, Acml, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW."""
     NAME = 'gmacml'
