@@ -32,4 +32,5 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
 class Gimkl(Gcc, IntelMPI, IntelMKL, IntelFFTW):
+    """Compiler toolchain with GCC, Intel MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers."""
     NAME = 'gimkl'
