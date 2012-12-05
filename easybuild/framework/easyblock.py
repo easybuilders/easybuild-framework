@@ -46,7 +46,8 @@ from distutils.version import LooseVersion
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
-from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir, source_path
+from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
+from easybuild.tools.config import source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
@@ -95,7 +96,7 @@ class EasyBlock(object):
         self.module_extra_extensions = ''  # extra stuff for module file required by extentions
 
         # easyconfig for this application
-        self.cfg = EasyConfig(path, self.extra_options())
+        self.cfg = EasyConfig(path, extra_options=self.extra_options(), valid_module_classes=module_classes())
 
         # module generator
         self.moduleGenerator = None

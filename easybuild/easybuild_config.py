@@ -83,5 +83,8 @@ log_format = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log
 # set the path where log files will be stored
 log_dir = tempfile.gettempdir()
 
+# define set of supported module classes
+module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+
 # general cleanliness
 del os, get_log, config, log, prefix, build_dir, install_dir, source_dir
