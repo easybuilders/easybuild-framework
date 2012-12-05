@@ -34,4 +34,5 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
 class Goalf(Gcc, OpenMPI, Atlas, Blacs, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, ATLAS, BLACS, ScaLAPACK and FFTW."""
     NAME = 'goalf'

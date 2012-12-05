@@ -29,4 +29,5 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
 class Gompi(Gcc, OpenMPI):
+    """Compiler toolchain with GCC and OpenMPI."""
     NAME = 'gompi'
