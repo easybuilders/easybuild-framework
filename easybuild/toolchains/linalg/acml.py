@@ -29,6 +29,7 @@ Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
 """
 
 import os
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
@@ -41,7 +42,9 @@ class Acml(LinAlg):
         provides ACML BLAS and LAPACK
     """
     BLAS_MODULE_NAME = ['ACML']
-    BLAS_LIB = ['acml_mv', 'acml']
+    # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
+    BLAS_LIB = ['acml']
+    BLAS_LIB_MT = ['acml_mp']
 
     LAPACK_MODULE_NAME = ['ACML']
     LAPACK_IS_BLAS = True
@@ -61,6 +64,12 @@ class Acml(LinAlg):
         except:
             self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
                                      " with compiler family %s") % self.COMPILER_FAMILY)
+
+        # version before 5.x still featured the acml_mv library
+        ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(ver) < LooseVersion("5"):
+            self.BLAS_LIB.insert(0, "acml_mv")
+            self.BLAS_LIB_MT.insert(0, "acml_mv")
 
         super(Acml, self)._set_blas_variables()
 

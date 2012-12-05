@@ -32,4 +32,5 @@ from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
 class Ictce(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
+    """Compiler toolchain with Intel compilers (icc/ifort), Intel MPI, Intel Math Kernel Library (MKL) and Intel FFTW wrappers."""
     NAME = 'ictce'
