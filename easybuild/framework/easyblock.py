@@ -149,12 +149,19 @@ class EasyBlock(object):
         All source files will be checked if a file exists (or can be located)
         """
 
-        for source in list_of_sources:
-            ## check if the sources can be located
+        for src_entry in list_of_sources:
+            if type(src_entry) in [list, tuple]:
+                cmd = src_entry[1]
+                source = src_entry[0]
+            elif type(src_entry) == str:
+                cmd = None
+                source = src_entry
+
+            # check if the sources can be located
             path = self.obtain_file(source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
-                self.src.append({'name':source, 'path':path})
+                self.src.append({'name': source, 'path': path, 'cmd': cmd})
             else:
                 self.log.error('No file found for source %s' % source)
 
@@ -1024,7 +1031,8 @@ class EasyBlock(object):
         """
         for tmp in self.src:
             self.log.info("Unpacking source %s" % tmp['name'])
-            srcdir = extract_file(tmp['path'], self.builddir, extra_options=self.cfg['unpack_options'])
+            srcdir = extract_file(tmp['path'], self.builddir, cmd=self.cfg['cmd'],
+                                  extra_options=self.cfg['unpack_options'])
             if srcdir:
                 self.src[self.src.index(tmp)]['finalpath'] = srcdir
             else:
