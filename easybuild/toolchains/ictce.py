@@ -24,6 +24,10 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for goalf compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
+Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
+"""
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
