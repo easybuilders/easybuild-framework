@@ -62,7 +62,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
     # validations
-    valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
+    valid_module_classes = None
     validstops = ['cfg', 'source', 'patch', 'prepare', 'configure', 'make',
                   'install', 'test', 'postproc', 'cleanup', 'extensions']
 
@@ -140,8 +140,7 @@ class EasyConfig(object):
                                  "(templates for name, version and src).", EXTENSIONS]),
 
           ('modextravars', [{}, "Extra environment variables to be added to module file", MODULES]),
-          ('moduleclass', ['base', 'Module class to be used for this software' \
-                                   '(valid: %s)' % valid_module_classes, MODULES]),
+          ('moduleclass', ['base', 'Module class to be used for this software', MODULES]),
           ('moduleforceunload', [False, 'Force unload of all modules when loading the extension', MODULES]),
           ('moduleloadnoconflict', [False, "Don't check for conflicts, unload other versions instead ", MODULES]),
 
@@ -161,6 +160,8 @@ class EasyConfig(object):
         if valid_module_classes:
             self.valid_module_classes = valid_module_classes
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
+        else:
+            self.valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
 
         # perform a deepcopy of the default_config found in the easybuild.tools.easyblock module
         self.config = dict(copy.deepcopy(self.default_config))
