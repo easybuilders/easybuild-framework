@@ -62,7 +62,6 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
     # validations
-    valid_module_classes = None
     validstops = ['cfg', 'source', 'patch', 'prepare', 'configure', 'make',
                   'install', 'test', 'postproc', 'cleanup', 'extensions']
 
@@ -157,6 +156,7 @@ class EasyConfig(object):
 
         self.log = get_log("EasyConfig")
 
+        valid_module_classes = None
         if valid_module_classes:
             self.valid_module_classes = valid_module_classes
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
