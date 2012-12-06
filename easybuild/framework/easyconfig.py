@@ -156,7 +156,7 @@ class EasyConfig(object):
 
         self.log = get_log("EasyConfig")
 
-        valid_module_classes = None
+        self.valid_module_classes = None
         if valid_module_classes:
             self.valid_module_classes = valid_module_classes
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
