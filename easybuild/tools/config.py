@@ -199,4 +199,6 @@ def module_classes():
     if 'module_classes' in variables:
         return variables['module_classes']
     else:
-        return ['base', 'compiler', 'lib']  # legacy module classes
+        legacy_module_classes = ['base', 'compiler', 'lib']
+        log.debug('module_classes not set in config, so returning legacy list (%s)' % legacy_module_classes)
+        return legacy_module_classes

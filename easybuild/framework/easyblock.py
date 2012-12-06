@@ -1031,7 +1031,7 @@ class EasyBlock(object):
         """
         for tmp in self.src:
             self.log.info("Unpacking source %s" % tmp['name'])
-            srcdir = extract_file(tmp['path'], self.builddir, cmd=self.cfg['cmd'],
+            srcdir = extract_file(tmp['path'], self.builddir, cmd=tmp['cmd'],
                                   extra_options=self.cfg['unpack_options'])
             if srcdir:
                 self.src[self.src.index(tmp)]['finalpath'] = srcdir

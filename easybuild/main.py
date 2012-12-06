@@ -80,7 +80,7 @@ from easybuild.framework.easyblock import get_class
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
-from easybuild.tools.config import get_repository
+from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
@@ -573,7 +573,7 @@ def process_easyconfig(path, log, onlyBlocks=None, regtest_online=False, validat
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, validate=validate)
+            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes())
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             log.exception(msg)
