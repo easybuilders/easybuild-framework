@@ -48,3 +48,5 @@ class OpenMPI(Mpi):
                              '_opt_MPICF77':'',
                              '_opt_MPICF90':'',
                              }
+
+    MPI_LINK_INFO_OPTION = '-showme:link'
