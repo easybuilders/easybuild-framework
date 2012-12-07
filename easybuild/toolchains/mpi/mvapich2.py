@@ -40,3 +40,5 @@ class Mvapich2(Mpich2):
     MPI_FAMILY = TC_CONSTANT_MVAPICH2
 
     MPI_LIBRARY_NAME = 'mpich'
+
+    MPI_LINK_INFO_OPTION = '-link_info'
