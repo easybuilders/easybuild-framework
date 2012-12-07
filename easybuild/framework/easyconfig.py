@@ -221,7 +221,7 @@ class EasyConfig(object):
         # validate mandatory keys
         missing_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_keys:
-            self.log.error("mandatory variables %s not provided" % missing_keys)
+            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self.config.keys(), 1, 0.85))

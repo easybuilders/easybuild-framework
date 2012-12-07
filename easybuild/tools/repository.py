@@ -60,7 +60,6 @@ try:
 except ImportError:
     pass
 
-from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, stats_to_str
 from easybuild.tools.build_log import get_log
 from easybuild.tools.version import VERBOSE_VERSION
@@ -203,8 +202,7 @@ class FileRepository(Repository):
             log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
             return []
 
-        all_stops = [x[0] for x in EasyBlock.get_steps()]
-        eb = EasyConfig(dest, valid_stops=all_stops)
+        eb = EasyConfig(dest, validate=False)
         return eb['buildstats']
 
 
