@@ -31,6 +31,7 @@ import tempfile
 
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
@@ -47,6 +48,8 @@ class EasyConfigTest(TestCase):
         f.write(self.contents)
         f.close()
         self.cwd = os.getcwd()
+
+        self.all_stops = [x[0] for x in EasyBlock.get_steps()]
 
     def tearDown(self):
         """ make sure to remove the temporary file """
@@ -92,7 +95,7 @@ version = "3.14"
                                     'toolchain = {"name": "dummy", "version": "dummy"}'])
         self.setUp()
 
-        eb = EasyConfig(self.eb_file)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
         self.assertEqual(eb['name'], "pi")
         self.assertEqual(eb['version'], "3.14")
@@ -115,8 +118,8 @@ stop = 'notvalid'
 
     def runTest(self):
         """ test other validations beside mandatory variables """
-        eb = EasyConfig(self.eb_file, validate=False)
-        self.assertErrorRegex(EasyBuildError, "\w* provided \w* is not valid", eb.validate)
+        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        self.assertErrorRegex(EasyBuildError, "\w* provided '\w*' is not valid", eb.validate)
 
         eb['stop'] = 'patch'
         # this should now not crash
@@ -151,7 +154,7 @@ sanity_check_paths = { 'files': ["lib/lib.%s" % shared_lib_ext] }
 
     def runTest(self):
         """ inside easyconfigs shared_lib_ext should be set """
-        eb = EasyConfig(self.eb_file)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
 
@@ -170,7 +173,7 @@ builddependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 
     def runTest(self):
         """ test all possible ways of specifying dependencies """
-        eb = EasyConfig(self.eb_file)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         # should include builddependencies
         self.assertEqual(len(eb.dependencies()), 4)
         self.assertEqual(len(eb.builddependencies()), 2)
@@ -224,12 +227,12 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 
     def runTest(self):
         """ extra_options should allow other variables to be stored """
-        eb = EasyConfig(self.eb_file)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         self.assertRaises(KeyError, lambda: eb['custom_key'])
 
         extra_vars = [('custom_key', ['default', "This is a default key", easyconfig.CUSTOM])]
 
-        eb = EasyConfig(self.eb_file, extra_vars)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
         self.assertEqual(eb['custom_key'], 'default')
 
         eb['custom_key'] = "not so default"
@@ -239,7 +242,7 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 
         self.setUp()
 
-        eb = EasyConfig(self.eb_file, extra_vars)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
         self.assertEqual(eb['custom_key'], 'test')
 
         eb['custom_key'] = "not so default"
@@ -256,7 +259,7 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         self.contents += '\nmandatory_key = "value"'
         self.setUp()
 
-        eb = EasyConfig(self.eb_file, extra_vars)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
 
         self.assertEqual(eb['mandatory_key'], 'value')
 
@@ -318,14 +321,14 @@ patches = %s
                  }
         tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
 
-        eb = EasyConfig(self.tweaked_fn)
+        eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['versionprefix'], verpref)
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], extra_patches + self.patches)
 
-        eb = EasyConfig(self.eb_file)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         eb['version'] = ver
         eb['toolchain']['version'] = tcver
         eb.dump(self.eb_file)
@@ -339,7 +342,7 @@ patches = %s
 
         tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
 
-        eb = EasyConfig(self.tweaked_fn)
+        eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['toolchain']['name'], tcname)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], extra_patches[0:1] + self.patches)
@@ -468,7 +471,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1])
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['name'], specs['name'])
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
@@ -483,7 +486,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         specs.update({'version': ver})
         res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1])
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
         txt = open(res[1], "r").read()
         self.assertTrue(re.search("version = [\"']%s[\"'] .*was: [\"']3.13[\"']" % ver, txt))
@@ -496,7 +499,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                      })
         res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1])
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['toolchain']['version'], specs['toolchain_version'])
         txt = open(res[1], "r").read()
@@ -514,7 +517,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                      })
         res = obtain_ec_for(specs, self.ec_dir, None, self.log)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1])
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['patches'], specs['patches'] + patches)
         self.assertEqual(ec['dependencies'], specs['dependencies'])
         os.remove(res[1])
@@ -548,7 +551,7 @@ class TestObtainEasyconfig(EasyConfigTest):
             specs.update({'name': 'nosuchsoftware'})
             res = obtain_ec_for(specs, self.ec_dir, None, self.log)
             self.assertEqual(res[0], True)
-            ec = EasyConfig(res[1])
+            ec = EasyConfig(res[1], valid_stops=self.all_stops)
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 

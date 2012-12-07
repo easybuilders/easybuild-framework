@@ -95,7 +95,8 @@ class EasyBlock(object):
         self.module_extra_extensions = ''  # extra stuff for module file required by extentions
 
         # easyconfig for this application
-        self.cfg = EasyConfig(path, self.extra_options())
+        all_stops = [x[0] for x in self.get_steps()]
+        self.cfg = EasyConfig(path, self.extra_options(), valid_stops=all_stops)
 
         # module generator
         self.moduleGenerator = None
@@ -1405,7 +1406,8 @@ class EasyBlock(object):
             self.log.info("Stopping after %s step." % step)
             raise StopException(step)
 
-    def get_steps(self, run_test_cases=True):
+    @staticmethod
+    def get_steps(run_test_cases=True):
         """Return a list of all steps to be performed."""
 
         steps = [
@@ -1436,10 +1438,8 @@ class EasyBlock(object):
                   ('module', 'creating module', [lambda x: x.make_module_step()], False),
                   ]
 
-        if run_test_cases and self.cfg['tests']:
+        if run_test_cases:
             steps.append(('testcases', 'running test cases', [lambda x: x.test_cases_step()], False))
-        else:
-            self.log.debug('Skipping test cases')
 
         return steps
 

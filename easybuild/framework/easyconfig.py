@@ -63,8 +63,6 @@ class EasyConfig(object):
     """
     # validations
     validmoduleclasses = ['base', 'compiler', 'lib']
-    validstops = ['cfg', 'source', 'patch', 'prepare', 'configure', 'make',
-                  'install', 'test', 'postproc', 'cleanup', 'extensions']
 
     # List of tuples. Each tuple has the following format (key, [default, help text, category])
     default_config = [
@@ -93,8 +91,7 @@ class EasyConfig(object):
           ('preinstallopts', ['', 'Extra prefix options for installation (default: nothing)', BUILD]),
           ('installopts', ['', 'Extra options for installation (default: nothing)', BUILD]),
           ('unpack_options', [None, "Extra options for unpacking source (default: None)", BUILD]),
-          ('stop', [None, 'Keyword to halt the buildprocess at certain points. Valid are %s' % validstops,
-                    BUILD]),
+          ('stop', [None, 'Keyword to halt the build process after a certain step.', BUILD]),
           ('skip', [False, "Skip existing software (default: False)", BUILD]),
           ('parallel', [None, 'Degree of parallelism for e.g. make (default: based on the number of ' \
                               'cores and restrictions in ulimit)', BUILD]),
@@ -150,7 +147,7 @@ class EasyConfig(object):
           ('buildstats', [None, "A list of dicts with build statistics", OTHER]),
         ]
 
-    def __init__(self, path, extra_options=[], validate=True):
+    def __init__(self, path, extra_options=[], validate=True, valid_stops=None):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
@@ -170,6 +167,12 @@ class EasyConfig(object):
 
         self.log = get_log("EasyConfig")
 
+        # set valid stops
+        self.valid_stops = []
+        if valid_stops:
+            self.valid_stops = valid_stops
+            self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
+
         # store toolchain
         self._toolchain = None
 
@@ -178,7 +181,7 @@ class EasyConfig(object):
 
         self.validations = {
                             'moduleclass': self.validmoduleclasses,
-                            'stop': self.validstops
+                            'stop': self.valid_stops
                            }
 
         self.parse(path)
@@ -389,7 +392,7 @@ class EasyConfig(object):
         if the value of the attribute is not in the is array, it will report an error
         """
         if self[attr] and self[attr] not in values:
-            self.log.error("%s provided %s is not valid: %s" % (attr, self[attr], values))
+            self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
 
     # private method
     def _os_dependency_check(self, dep):
