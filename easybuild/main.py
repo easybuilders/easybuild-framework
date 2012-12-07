@@ -181,8 +181,7 @@ def add_cmdline_options(parser):
     override_options.add_option("-C", "--config", help = "path to EasyBuild config file " \
                                                          "[default: $EASYBUILDCONFIG or easybuild/easybuild_config.py]")
     override_options.add_option("-e", "--easyblock", metavar="CLASS",
-                        help="loads the class from module to process the spec file or dump " \
-                               "the options for [default: Application class]")
+                        help="easyblock to use for processing the spec file or dumping the options")
     override_options.add_option("-p", "--pretend", action="store_true", help="does the build/installation in " \
                                 "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLPATH " \
                                 "or install_path in EasyBuild config file]")
@@ -195,12 +194,12 @@ def add_cmdline_options(parser):
                                       "Obtain information about EasyBuild.")
 
     informative_options.add_option("-a", "--avail-easyconfig-params", action="store_true",
-                                   help="show available easyconfig parameters")
+                                   help="show all easyconfig parameters (include easyblock-specific ones by using -e)")
     # TODO: figure out a way to set a default choice for --list-easyblocks
     # adding default="simple" doesn't work, it always enables --list-easyblocks
     # see https://github.com/hpcugent/VSC-tools/issues/8
     informative_options.add_option("--list-easyblocks", type="choice", choices=["simple", "detailed"], default=None,
-                                   help="show list of available easyblocks")
+                                   help="show list of available easyblocks ('simple' or 'detailed')")
     informative_options.add_option("--search", metavar="STR", help="search for module-files in the robot-directory")
     informative_options.add_option("-v", "--version", action="store_true", help="show version")
     informative_options.add_option("--dep-graph", metavar="depgraph.<ext>", help="create dependency graph")
