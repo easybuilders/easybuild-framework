@@ -56,3 +56,5 @@ class IntelMPI(Mpich2):
             self.variables.nappend("I_MPI_%s" % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
         super(IntelMPI, self)._set_mpi_compiler_variables()
+
+    MPI_LINK_INFO_OPTION = '-show'

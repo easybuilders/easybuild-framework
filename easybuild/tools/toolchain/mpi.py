@@ -65,6 +65,8 @@ class Mpi(Toolchain):
     MPI_COMPILER_MPIF77 = 'mpif77'
     MPI_COMPILER_MPIF90 = 'mpif90'
 
+    MPI_LINK_INFO_OPTION = None
+
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
