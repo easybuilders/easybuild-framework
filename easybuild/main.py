@@ -76,7 +76,7 @@ import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
-from easybuild.framework.easyblock import get_class
+from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
@@ -112,6 +112,9 @@ def add_cmdline_options(parser):
     """
     Add build options to options parser
     """
+
+    all_stops = [x[0] for x in EasyBlock.get_steps()]
+
     # runtime options
     basic_options = OptionGroup(parser, "Basic options", "Basic runtime options for EasyBuild.")
 
@@ -126,8 +129,8 @@ def add_cmdline_options(parser):
     basic_options.add_option("-r", "--robot", metavar="PATH", action='callback', callback=optional_arg(True), dest='robot',
                         help="path to search for easyconfigs for missing dependencies " \
                              "(default: easybuild-easyconfigs install path)")
-    basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
-                        help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
+    basic_options.add_option("-s", "--stop", type="choice", choices=all_stops,
+                        help="stop the installation after certain step (valid: %s)" % ', '.join(all_stops))
     strictness_options = ['ignore', 'warn', 'error']
     basic_options.add_option("--strict", type="choice", choices=strictness_options, help="set strictness " + \
                                "level (possible levels: %s)" % ', '.join(strictness_options))
@@ -569,7 +572,8 @@ def process_easyconfig(path, log, onlyBlocks=None, regtest_online=False, validat
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, validate=validate)
+            all_stops = [x[0] for x in EasyBlock.get_steps()]
+            ec = EasyConfig(spec, validate=validate, valid_stops=all_stops)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             log.exception(msg)
@@ -977,7 +981,8 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
     # timing info
     starttime = time.time()
     try:
-        result = app.run_all_steps(run_test_cases=not options.skip_test_cases, regtest_online=options.regtest_online)
+        result = app.run_all_steps(run_test_cases=(not options.skip_test_cases and app.cfg['tests']),
+                                   regtest_online=options.regtest_online)
     except EasyBuildError, err:
         lastn = 300
         errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
@@ -1251,7 +1256,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             os.chdir(base_dir)
             modify_env(os.environ, base_env)
 
-            steps = app.get_steps()
+            steps = EasyBlock.get_steps()
 
             for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:
