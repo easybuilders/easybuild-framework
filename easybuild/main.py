@@ -76,7 +76,7 @@ import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
-from easybuild.framework.easyblock import get_class
+from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
@@ -112,6 +112,9 @@ def add_cmdline_options(parser):
     """
     Add build options to options parser
     """
+
+    all_stops = [x[0] for x in EasyBlock.get_steps()]
+
     # runtime options
     basic_options = OptionGroup(parser, "Basic options", "Basic runtime options for EasyBuild.")
 
@@ -126,8 +129,8 @@ def add_cmdline_options(parser):
     basic_options.add_option("-r", "--robot", metavar="PATH", action='callback', callback=optional_arg(True), dest='robot',
                         help="path to search for easyconfigs for missing dependencies " \
                              "(default: easybuild-easyconfigs install path)")
-    basic_options.add_option("-s", "--stop", type="choice", choices=EasyConfig.validstops,
-                        help="stop the installation after certain step (valid: %s)" % ', '.join(EasyConfig.validstops))
+    basic_options.add_option("-s", "--stop", type="choice", choices=all_stops,
+                        help="stop the installation after certain step (valid: %s)" % ', '.join(all_stops))
     strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
     basic_options.add_option("--strict", type="choice", choices=strictness_options, help="set strictness " + \
                                "level (possible levels: %s)" % ', '.join(strictness_options))
@@ -178,10 +181,9 @@ def add_cmdline_options(parser):
     override_options.add_option("-C", "--config", help = "path to EasyBuild config file " \
                                                          "[default: $EASYBUILDCONFIG or easybuild/easybuild_config.py]")
     override_options.add_option("-e", "--easyblock", metavar="CLASS",
-                        help="loads the class from module to process the spec file or dump " \
-                               "the options for [default: Application class]")
+                        help="easyblock to use for processing the spec file or dumping the options")
     override_options.add_option("-p", "--pretend", action="store_true", help="does the build/installation in " \
-                                "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLDIR " \
+                                "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLPATH " \
                                 "or install_path in EasyBuild config file]")
     override_options.add_option("-t", "--skip-test-cases", action="store_true", help="skip running test cases")
 
@@ -192,12 +194,12 @@ def add_cmdline_options(parser):
                                       "Obtain information about EasyBuild.")
 
     informative_options.add_option("-a", "--avail-easyconfig-params", action="store_true",
-                                   help="show available easyconfig parameters")
+                                   help="show all easyconfig parameters (include easyblock-specific ones by using -e)")
     # TODO: figure out a way to set a default choice for --list-easyblocks
     # adding default="simple" doesn't work, it always enables --list-easyblocks
     # see https://github.com/hpcugent/VSC-tools/issues/8
     informative_options.add_option("--list-easyblocks", type="choice", choices=["simple", "detailed"], default=None,
-                                   help="show list of available easyblocks")
+                                   help="show list of available easyblocks ('simple' or 'detailed')")
     informative_options.add_option("--search", metavar="STR", help="search for module-files in the robot-directory")
     informative_options.add_option("-v", "--version", action="store_true", help="show version")
     informative_options.add_option("--dep-graph", metavar="depgraph.<ext>", help="create dependency graph")
@@ -582,7 +584,8 @@ def process_easyconfig(path, log, onlyBlocks=None, regtest_online=False, validat
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes())
+            all_stops = [x[0] for x in EasyBlock.get_steps()]
+            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             log.exception(msg)
@@ -990,7 +993,8 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
     # timing info
     starttime = time.time()
     try:
-        result = app.run_all_steps(run_test_cases=not options.skip_test_cases, regtest_online=options.regtest_online)
+        result = app.run_all_steps(run_test_cases=(not options.skip_test_cases and app.cfg['tests']),
+                                   regtest_online=options.regtest_online)
     except EasyBuildError, err:
         lastn = 300
         errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
@@ -1264,7 +1268,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             os.chdir(base_dir)
             modify_env(os.environ, base_env)
 
-            steps = app.get_steps()
+            steps = EasyBlock.get_steps()
 
             for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:
