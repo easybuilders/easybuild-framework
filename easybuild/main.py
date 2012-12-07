@@ -466,9 +466,17 @@ def main(options, orig_paths, log, logfile, hn, parser):
         # the options to ignore
         ignore = map(parser.get_option, ['--robot', '--help', '--job'])
 
+        def flatten(lst):
+            """Flatten a list of lists."""
+            res = []
+            for x in lst:
+                res.extend(x)
+            return res
+
         # loop over all the different options.
         result_opts = []
-        relevant_opts = [o for o in parser.option_list if o not in ignore]
+        all_options = parser.option_list + flatten([g.option_list for g in parser.option_groups])
+        relevant_opts = [o for o in all_options if o not in ignore]
         for opt in relevant_opts:
             value = getattr(options, opt.dest)
             # explicit check for None (some option are store_false)
@@ -482,7 +490,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         opts = ' '.join(result_opts)
 
-        command = "cd %s && eb %%s %s" % (curdir, opts)
+        command = "cd %s && eb %%(spec)s %s" % (curdir, opts)
+        log.debug("Command template for jobs: %s" % command)
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
         for job in jobs:

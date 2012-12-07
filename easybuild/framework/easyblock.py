@@ -1455,6 +1455,8 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases)
 
         try:
+            full_name = "%s-%s" % (self.name, self.get_installversion())
+            print_msg("building and installing %s..." % full_name, self.log)
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log)
                 self.run_step(stop_name, step_methods, skippable=skippable)
