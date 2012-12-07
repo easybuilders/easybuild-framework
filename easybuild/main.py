@@ -181,7 +181,7 @@ def add_cmdline_options(parser):
                         help="loads the class from module to process the spec file or dump " \
                                "the options for [default: Application class]")
     override_options.add_option("-p", "--pretend", action="store_true", help="does the build/installation in " \
-                                "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLDIR " \
+                                "a test directory located in $HOME/easybuildinstall [default: $EASYBUILDINSTALLPATH " \
                                 "or install_path in EasyBuild config file]")
     override_options.add_option("-t", "--skip-test-cases", action="store_true", help="skip running test cases")
 
