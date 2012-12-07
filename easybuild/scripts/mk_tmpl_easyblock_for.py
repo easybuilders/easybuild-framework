@@ -142,8 +142,8 @@ class EB_%(name)s(%(parent)s):
     def configure_step(self):
         \"\"\"Custom configuration procedure for %(name)s.\"\"\"
 
-        # always use env.setenv instead of os.putenv or os.environ for defining environment variables
-        env.setenv('CUSTOM_ENV_VAR', 'foo')
+        # always use env.setvar instead of os.putenv or os.environ for defining environment variables
+        env.setvar('CUSTOM_ENV_VAR', 'foo')
  
         cmd = "configure command" 
         run_cmd(cmd, log_all=True, simple=True, log_output=True)
