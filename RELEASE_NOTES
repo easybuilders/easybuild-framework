@@ -1,6 +1,18 @@
 This file contains a description of the major changes to EasyBuild.
 For more detailed information, please see the git log.
 
+v1.0.2 (December 8th 2012)
+---------------------------
+
+bugfix release
+- properly catch failing sanity check commands
+- fix bug in toolchain support which cause linking environment variables set by toolchain to include too many libraries
+    - elements in toolchain variables were being passed by reference instead of by value
+- fix selecting a compiler toolchain for a specified software package (--software-name) if only a template is a viable option
+- fix passing command line parameters with --job
+- fix list of valid stops (-s/--stop)
+- fix minor issues in help messages (-h/--help)
+
 v1.0.1 (November 24th 2012)
 ---------------------------
 
