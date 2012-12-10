@@ -93,7 +93,7 @@ class EasyBlock(object):
         self.exts = None
         self.ext_instances = []
         self.skip = None
-        self.module_extra_extensions = ''  # extra stuff for module file required by extentions
+        self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
@@ -702,7 +702,14 @@ class EasyBlock(object):
         """
         Sets optional variables for extensions.
         """
-        return self.module_extra_extensions
+        txt = self.module_extra_extensions
+
+        # set environment variable that specifies list of extensions
+        if self.exts:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext['version']) for ext in self.exts])
+            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s', (exts_list, self.name.upper()))
+
+        return txt
 
     def make_module_req(self):
         """
