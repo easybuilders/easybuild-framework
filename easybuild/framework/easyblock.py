@@ -706,7 +706,7 @@ class EasyBlock(object):
 
         # set environment variable that specifies list of extensions
         if self.exts:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext['version']) for ext in self.exts])
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
 
         return txt
@@ -780,6 +780,8 @@ class EasyBlock(object):
             self.log.error('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = self.cfg['exts_filter'][0]
         cmdinputtmpl = self.cfg['exts_filter'][1]
+        if not self.exts:
+            self.exts = [] 
 
         res = []
         for ext in self.exts:
