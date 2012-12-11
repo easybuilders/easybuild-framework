@@ -52,6 +52,9 @@ class EasyBlockTest(TestCase):
         """ setup """
         self.eb_file = "/tmp/easyblock_test_file.eb"
         config.variables['log_dir'] = tempfile.mkdtemp()
+        config.variables['install_path'] = tempfile.mkdtemp()
+        config.variables['build_path'] = tempfile.mkdtemp()
+        config.variables['log_format'] = ("temp","temp")
         self.cwd = os.getcwd()
 
     def test_empty(self):
@@ -113,7 +116,7 @@ exts_list = ['ext1']
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
 
         # test if everything works fine if set
-        self.contents += "exts_defaultclass = ['easybuild.framework.extension', 'Extension']"
+        self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
@@ -122,6 +125,13 @@ exts_list = ['ext1']
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
+        
+        # check if skip skips correct extensions
+        self.contents += '\nexts_filter = "echo ok"'
+        self.writeEC()
+        eb = EasyBlock(self.eb_file)
+        eb.installdir = config.variables['install_path']
+        eb.skip_extensions()
 
 
     
@@ -129,6 +139,8 @@ exts_list = ['ext1']
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
         shutil.rmtree(config.variables['log_dir'])
+        shutil.rmtree(config.variables['install_path'])
+        shutil.rmtree(config.variables['build_path'])
         os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
