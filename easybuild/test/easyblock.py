@@ -139,6 +139,8 @@ exts_list = ['ext1']
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
         shutil.rmtree(config.variables['log_dir'])
+        shutil.rmtree(config.variables['install_path'])
+        shutil.rmtree(config.variables['build_path'])
         os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
