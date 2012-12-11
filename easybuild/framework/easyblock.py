@@ -780,6 +780,8 @@ class EasyBlock(object):
             self.log.error('exts_filter should be a list or tuple of ("command","input")')
         cmdtmpl = self.cfg['exts_filter'][0]
         cmdinputtmpl = self.cfg['exts_filter'][1]
+        if not self.exts:
+            self.exts = [] 
 
         res = []
         for ext in self.exts:
