@@ -40,7 +40,7 @@ from socket import gethostname
 from vsc import fancylogger
 
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
-EASYBLOCKS_VERSION = None
+EASYBLOCKS_VERSION = 'UNKNOWN'
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except:
