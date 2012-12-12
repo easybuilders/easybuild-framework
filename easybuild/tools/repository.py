@@ -258,7 +258,7 @@ class GitRepository(FileRepository):
         try:
             res = self.client.pull()
             log.debug("pulled succesfully to %s in %s" % (res, self.wc))
-        except (git.GitCommandError, OSError) err:
+        except (git.GitCommandError, OSError), err:
             log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):
