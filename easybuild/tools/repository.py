@@ -233,6 +233,7 @@ class GitRepository(FileRepository):
         """
         Create git working copy.
         """
+
         reponame = 'UNKNOWN'
         ## try to get a copy of
         try:
@@ -252,10 +253,12 @@ class GitRepository(FileRepository):
             self.client = git.Git(self.wc)
         except git.GitCommandError, err:
             log.error("Could not create a local git repo in wc %s: %s" % (self.wc, err))
+
         # try to get the remote data in the local repo
         try:
-            res = self.client.pull()
-            log.debug("pulled succesfully to %s in %s" % (res, self.wc))
+            if self.client:
+                res = self.client.pull()
+                log.debug("pulled succesfully to %s in %s" % (res, self.wc))
         except git.GitCommandError, err:
             log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
 
