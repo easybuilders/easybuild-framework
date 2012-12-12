@@ -233,6 +233,8 @@ class GitRepository(FileRepository):
         """
         Create git working copy.
         """
+
+        reponame = 'UNKNOWN'
         ## try to get a copy of
         try:
             client = git.Git(self.wc)
@@ -249,13 +251,14 @@ class GitRepository(FileRepository):
             self.wc = os.path.join(self.wc, reponame)
             log.debug("connectiong to git repo in %s" % self.wc)
             self.client = git.Git(self.wc)
-        except git.GitCommandError, err:
+        except (git.GitCommandError, OSError), err:
             log.error("Could not create a local git repo in wc %s: %s" % (self.wc, err))
+
         # try to get the remote data in the local repo
         try:
             res = self.client.pull()
             log.debug("pulled succesfully to %s in %s" % (res, self.wc))
-        except git.GitCommandError, err:
+        except (git.GitCommandError, OSError), err:
             log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):

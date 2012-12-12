@@ -78,6 +78,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig
+from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
 from easybuild.tools.config import get_repository, module_classes
@@ -85,8 +86,12 @@ from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.version import VERBOSE_VERSION
-from easybuild.tools import systemtools
+from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
+EASYBLOCKS_VERSION = None
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    pass
 
 
 # applications use their own logger, we need to tell them to debug or not
@@ -272,7 +277,10 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
     # show version
     if options.version:
-        print_msg("This is EasyBuild %s" % VERBOSE_VERSION, log)
+        top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+        print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
+                                                                            FRAMEWORK_VERSION,
+                                                                            EASYBLOCKS_VERSION), log)
 
     # determine easybuild-easyconfigs package install path
     # we may need for the robot (default path), or for finding easyconfig files
@@ -933,7 +941,8 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild_version', str(VERBOSE_VERSION)),
+                              ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
+                              ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
@@ -1187,9 +1196,12 @@ def write_to_xml(succes, failed, filename):
         return el
 
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
     properties.appendChild(version)
 
     time = root.createElement("property")
@@ -1322,9 +1334,12 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     root = dom.createDocument(None, "testsuite", None)
     root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
     properties.appendChild(version)
 
     time_el = root.createElement("property")

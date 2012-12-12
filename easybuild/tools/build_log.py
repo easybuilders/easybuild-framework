@@ -35,11 +35,16 @@ import logging
 import os
 import sys
 import time
-from socket import gethostname
 from copy import copy
+from socket import gethostname
 from vsc import fancylogger
 
-from easybuild.tools.version import VERBOSE_VERSION
+from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
+EASYBLOCKS_VERSION = None
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    pass
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -161,7 +166,10 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
                                                                                 filename,
                                                                                 gethostname()
                                                                                 ))
-    log.info("This is EasyBuild %s" % VERBOSE_VERSION)
+    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+    log.info("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
+                                                                       FRAMEWORK_VERSION,
+                                                                       EASYBLOCKS_VERSION))
 
     return filename, log, hand
 
