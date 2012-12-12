@@ -941,7 +941,8 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild_version', str(VERBOSE_VERSION)),
+                              ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
+                              ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
@@ -1195,9 +1196,12 @@ def write_to_xml(succes, failed, filename):
         return el
 
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
     properties.appendChild(version)
 
     time = root.createElement("property")
@@ -1330,9 +1334,12 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     root = dom.createDocument(None, "testsuite", None)
     root.documentElement.setAttribute("name", base_dir)
     properties = root.createElement("properties")
-    version = root.createElement("property")
-    version.setAttribute("name", "easybuild-version")
-    version.setAttribute("value", str(VERBOSE_VERSION))
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
     properties.appendChild(version)
 
     time_el = root.createElement("property")
