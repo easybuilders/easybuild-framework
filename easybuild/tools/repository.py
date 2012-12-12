@@ -233,7 +233,7 @@ class GitRepository(FileRepository):
         """
         Create git working copy.
         """
-        reponame = None
+        reponame = 'UNKNOWN'
         ## try to get a copy of
         try:
             client = git.Git(self.wc)
