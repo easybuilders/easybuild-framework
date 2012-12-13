@@ -32,6 +32,8 @@ import os
 import sys
 from optparse import OptionParser, OptionGroup
 
+from easybuild.tools.filetools import encode_class_name
+
 # parse options
 parser = OptionParser()
 parser.usage = "%prog <software name> [--path <path to easyblocks repository>]"
@@ -120,7 +122,7 @@ from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 from easybuild.tools.filetools import run_cmd
 
 
-class EB_%(name)s(%(parent)s):
+class %(class_name)s(%(parent)s):
     \"\"\"Support for building/installing %(name)s.\"\"\"
 
     def __init__(self, *args, **kwargs):
@@ -213,6 +215,7 @@ class EB_%(name)s(%(parent)s):
 txt = tmpl % {
               'year': datetime.date.today().year,
               'name': name,
+              'class_name': encode_class_name(name),
               'parent_import': parent_import,
               'parent': options.parent,
              }
