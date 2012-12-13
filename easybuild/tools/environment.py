@@ -27,6 +27,7 @@
 utility module for modifying os.environ
 """
 import os
+from vsc import fancylogger
 
 changes = {}
 
@@ -59,3 +60,5 @@ def setvar(key, value):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     changes[key] = value
+    log = fancylogger.getLogger('environment')
+    log.info("Environment variable %s set to %s" % (key, value))
