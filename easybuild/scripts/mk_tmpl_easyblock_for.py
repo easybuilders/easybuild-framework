@@ -154,7 +154,7 @@ class %(class_name)s(%(parent)s):
         super(EB_%(name)s, self).configure_step()
 
     def build_step(self):
-        \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
+        \"\"\"Custom build procedure for %(name)s.\"\"\"
 
         comp_map = {
                     toolchain.INTELCOMP: 'intel',
