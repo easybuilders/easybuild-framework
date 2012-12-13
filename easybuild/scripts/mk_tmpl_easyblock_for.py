@@ -127,7 +127,7 @@ class %(class_name)s(%(parent)s):
 
     def __init__(self, *args, **kwargs):
         \"\"\"Initialisation of custom class variables for %(name)s.\"\"\"
-        super(EB_%(name)s, self).__init__(*args, **kwargs)
+        super(%(class_name)s, self).__init__(*args, **kwargs)
 
         self.example = None
 
@@ -151,7 +151,7 @@ class %(class_name)s(%(parent)s):
         run_cmd(cmd, log_all=True, simple=True, log_output=True)
 
         # complete configuration with configure_method of parent
-        super(EB_%(name)s, self).configure_step()
+        super(%(class_name)s, self).configure_step()
 
     def build_step(self):
         \"\"\"Custom build procedure for %(name)s.\"\"\"
@@ -188,12 +188,12 @@ class %(class_name)s(%(parent)s):
                         'dirs': ['dir1', 'dir2'],
                        }
 
-        super(EB_%(name)s, self).sanity_check_step(custom_paths=custom_paths)
+        super(%(class_name)s, self).sanity_check_step(custom_paths=custom_paths)
 
     def make_module_req_guess(self):
         \"\"\"Custom guesses for environment variables (PATH, ...) for %(name)s.\"\"\"
 
-        guesses = super(EB_%(name)s, self).make_module_req_guess()
+        guesses = super(%(class_name)s, self).make_module_req_guess()
 
         guesses.update({
                         'VARIABLE': ['value1', 'value2'],
@@ -204,7 +204,7 @@ class %(class_name)s(%(parent)s):
     def make_module_extra(self):
         \"\"\"Custom extra module file entries for %(name)s.\"\"\"
 
-        txt = super(EB_%(name)s, self).make_module_extra()
+        txt = super(%(class_name)s, self).make_module_extra()
 
         txt += self.moduleGenerator.set_environment("VARIABLE", 'value')
         txt += self.moduleGenerator.prepend_paths("PATH_VAR", ['path1', 'path2'])
