@@ -32,6 +32,8 @@ import os
 import sys
 from optparse import OptionParser, OptionGroup
 
+from easybuild.tools.filetools import encode_class_name
+
 # parse options
 parser = OptionParser()
 parser.usage = "%prog <software name> [--path <path to easyblocks repository>]"
@@ -120,12 +122,12 @@ from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 from easybuild.tools.filetools import run_cmd
 
 
-class EB_%(name)s(%(parent)s):
+class %(class_name)s(%(parent)s):
     \"\"\"Support for building/installing %(name)s.\"\"\"
 
     def __init__(self, *args, **kwargs):
         \"\"\"Initialisation of custom class variables for %(name)s.\"\"\"
-        super(EB_%(name)s, self).__init__(*args, **kwargs)
+        super(%(class_name)s, self).__init__(*args, **kwargs)
 
         self.example = None
 
@@ -149,10 +151,10 @@ class EB_%(name)s(%(parent)s):
         run_cmd(cmd, log_all=True, simple=True, log_output=True)
 
         # complete configuration with configure_method of parent
-        super(EB_%(name)s, self).configure_step()
+        super(%(class_name)s, self).configure_step()
 
     def build_step(self):
-        \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
+        \"\"\"Custom build procedure for %(name)s.\"\"\"
 
         comp_map = {
                     toolchain.INTELCOMP: 'intel',
@@ -186,12 +188,12 @@ class EB_%(name)s(%(parent)s):
                         'dirs': ['dir1', 'dir2'],
                        }
 
-        super(EB_%(name)s, self).sanity_check_step(custom_paths=custom_paths)
+        super(%(class_name)s, self).sanity_check_step(custom_paths=custom_paths)
 
     def make_module_req_guess(self):
         \"\"\"Custom guesses for environment variables (PATH, ...) for %(name)s.\"\"\"
 
-        guesses = super(EB_%(name)s, self).make_module_req_guess()
+        guesses = super(%(class_name)s, self).make_module_req_guess()
 
         guesses.update({
                         'VARIABLE': ['value1', 'value2'],
@@ -202,7 +204,7 @@ class EB_%(name)s(%(parent)s):
     def make_module_extra(self):
         \"\"\"Custom extra module file entries for %(name)s.\"\"\"
 
-        txt = super(EB_%(name)s, self).make_module_extra()
+        txt = super(%(class_name)s, self).make_module_extra()
 
         txt += self.moduleGenerator.set_environment("VARIABLE", 'value')
         txt += self.moduleGenerator.prepend_paths("PATH_VAR", ['path1', 'path2'])
@@ -213,6 +215,7 @@ class EB_%(name)s(%(parent)s):
 txt = tmpl % {
               'year': datetime.date.today().year,
               'name': name,
+              'class_name': encode_class_name(name),
               'parent_import': parent_import,
               'parent': options.parent,
              }
