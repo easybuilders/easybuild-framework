@@ -767,7 +767,7 @@ class EasyBlock(object):
         res = []
         for ext in self.exts:
             name = ext['name']
-            if 'modulename' in ext['options']:
+            if 'options' in ext and 'modulename' in ext['options']:
                 modname = ext['options']['modulename']
             else:
                 modname = name
@@ -1106,15 +1106,11 @@ class EasyBlock(object):
             self.log.debug("No extensions in exts_list")
             return
 
-        if not self.skip:
-            modpath = self.make_module_step(fake=True)
 
         # adjust MODULEPATH and load module
-        if self.skip:
-            m = Modules()
-        else:
-            self.log.debug("Adding %s to MODULEPATH" % modpath)
-            m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
+        modpath = self.make_module_step(fake=True)
+        self.log.debug("Adding %s to MODULEPATH" % modpath)
+        m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
 
         if m.exists(self.name, self.get_installversion()):
