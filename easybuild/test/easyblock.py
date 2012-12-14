@@ -32,12 +32,15 @@ import os
 import re
 import shutil
 import tempfile
+import sys
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools import config
 from unittest import TestCase, TestLoader
 from easybuild.tools.build_log import EasyBuildError
-import sys
+from vsc import fancylogger
+
+fancylogger.logToScreen()
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
@@ -125,14 +128,30 @@ exts_list = ['ext1']
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
-        
+
+    def test_skip_extensions_step(self):
+        """Test the skip_extensions_step"""
+        self.contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+exts_list = ['ext1', 'ext2']
+exts_filter = ("if [ %(name)s == 'ext2' ]; then exit 0; else exit 1; fi", '')
+exts_defaultclass = ['easybuild.framework.extension', 'Extension']
+"""
         # check if skip skips correct extensions
-        self.contents += '\nexts_filter = "exit 1"'
         self.writeEC()
         eb = EasyBlock(self.eb_file)
+        #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
         eb.installdir = config.variables['install_path']
         eb.skip = True
         eb.extensions_step()
+        # 'ext1' should be in eb.exts
+        self.assertTrue([True for x in eb.exts if 'ext1' in x.values()])
+        # 'ext2' should not
+        self.assertFalse([True for x in eb.exts if 'ext2' in x.values()])
 
 
     
