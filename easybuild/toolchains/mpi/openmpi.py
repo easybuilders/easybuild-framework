@@ -50,3 +50,15 @@ class OpenMPI(Mpi):
                              }
 
     MPI_LINK_INFO_OPTION = '-showme:link'
+
+    def _set_mpi_compiler_variables(self):
+        """Add OMPI_MPIXX variables to set."""
+
+        # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
+        for var in ["CC", "CXX", "F77", "F90"]:
+            suff = var
+            if var == "CXX":
+                suff = "XX"
+            self.variables.nappend("OMPI_MPI%s" % suff, str(self.variables[var].get_first()), var_class=CommandFlagList)
+
+        super(OpenMPI, self)._set_mpi_compiler_variables()
