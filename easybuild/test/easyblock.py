@@ -125,13 +125,6 @@ exts_list = ['ext1']
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
-        
-        # check if skip skips correct extensions
-        self.contents += '\nexts_filter = "echo ok"'
-        self.writeEC()
-        eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['install_path']
-        eb.skip_extensions()
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
