@@ -127,11 +127,12 @@ exts_list = ['ext1']
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
         
         # check if skip skips correct extensions
-        self.contents += '\nexts_filter = "echo ok"'
+        self.contents += '\nexts_filter = "exit 1"'
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
-        eb.skip_extensions()
+        eb.skip = True
+        eb.extensions_step()
 
 
     
