@@ -38,9 +38,6 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools import config
 from unittest import TestCase, TestLoader
 from easybuild.tools.build_log import EasyBuildError
-from vsc import fancylogger
-
-fancylogger.logToScreen()
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
@@ -149,10 +146,9 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         eb.skip = True
         eb.extensions_step()
         # 'ext1' should be in eb.exts
-        self.assertTrue([True for x in eb.exts if 'ext1' in x.values()])
+        self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
         # 'ext2' should not
-        self.assertFalse([True for x in eb.exts if 'ext2' in x.values()])
-
+        self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
 
     
     def tearDown(self):

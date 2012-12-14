@@ -1112,6 +1112,7 @@ class EasyBlock(object):
         # adjust MODULEPATH and load module
         modpath = self.make_module_step(fake=True)
         self.log.debug("Adding %s to MODULEPATH" % modpath)
+         
         m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
 
