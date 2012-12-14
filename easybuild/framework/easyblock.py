@@ -755,12 +755,13 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
-        if not self.cfg['exts_filter'] or len(self.cfg['exts_filter']) == 0:
+        exts_filter = self.cfg['exts_filter']
+        if not exts_filter or len(exts_filter) == 0:
             self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
-        elif len(self.cfg['exts_filter']) == 1:
+        elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
             self.log.error('exts_filter should be a list or tuple of ("command","input")')
-        cmdtmpl = self.cfg['exts_filter'][0]
-        cmdinputtmpl = self.cfg['exts_filter'][1]
+        cmdtmpl = exts_filter[0]
+        cmdinputtmpl = exts_filter[1]
         if not self.exts:
             self.exts = [] 
 
@@ -779,12 +780,13 @@ class EasyBlock(object):
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
-                (cmdStdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
+                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             else:
-                (cmdStdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+            self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
                 self.log.info("Not skipping %s" % name)
-                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdStdouterr))
+                self.log.debug("exit code: %s, stdout/err: %s" % (ec, cmdstdouterr))
                 res.append(ext)
             else:
                 self.log.info("Skipping %s" % name)
