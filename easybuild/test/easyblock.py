@@ -32,12 +32,12 @@ import os
 import re
 import shutil
 import tempfile
+import sys
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools import config
 from unittest import TestCase, TestLoader
 from easybuild.tools.build_log import EasyBuildError
-import sys
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
@@ -133,6 +133,29 @@ exts_list = ['ext1']
         eb.installdir = config.variables['install_path']
         eb.skip_extensions()
 
+    def test_skip_extensions_step(self):
+        """Test the skip_extensions_step"""
+        self.contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+exts_list = ['ext1', 'ext2']
+exts_filter = ("if [ %(name)s == 'ext2' ]; then exit 0; else exit 1; fi", '')
+exts_defaultclass = ['easybuild.framework.extension', 'Extension']
+"""
+        # check if skip skips correct extensions
+        self.writeEC()
+        eb = EasyBlock(self.eb_file)
+        #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
+        eb.installdir = config.variables['install_path']
+        eb.skip = True
+        eb.extensions_step()
+        # 'ext1' should be in eb.exts
+        self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
+        # 'ext2' should not
+        self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
 
     
     def tearDown(self):

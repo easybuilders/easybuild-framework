@@ -53,9 +53,17 @@ class Modules(object):
     Interact with modules.
     """
     def __init__(self, modulePath=None):
+        """
+        Create a Modules object
+        @param modulePath: A list of paths where the modules can be located
+        @type modulePath: list
+        """
         self.log = get_log(self.__class__.__name__)
-
-        self.modulePath = modulePath
+        # make sure we don't have the same path twice
+        if modulePath:
+            self.modulePath = set(modulePath)
+        else:
+            self.modulePath = None
         self.modules = []
 
         self.check_module_path()
