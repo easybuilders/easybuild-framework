@@ -25,19 +25,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
+EasyBuild support for Intel compilers toolchain (icc, ifort)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Ictce(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
-    """
-    NAME = 'ictce'
+class IccIfort(IntelIccIfort):
+    """Compiler toolchain with Intel compilers (icc/ifort)."""
+    NAME = 'iccifort'
