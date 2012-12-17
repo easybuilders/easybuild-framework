@@ -142,7 +142,7 @@ class IntelMKL(LinAlg):
 
         elif self.options.get('i8', None):
             ## ilp64/i8
-            self.SCALAPACK_LIB_MAP.update({"lp64":'_ilp64'})
+            self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_ilp64'})
 
         super(IntelMKL, self)._set_scalapack_variables()
 
