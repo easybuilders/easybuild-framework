@@ -30,6 +30,7 @@ Support for MPICH2 as toolchain MPI library.
 
 from easybuild.tools.toolchain.mpi import Mpi
 from easybuild.tools.variables import CommandFlagList
+from easybuild.toolchains import mpi
 
 
 TC_CONSTANT_MPICH2 = "MPICH2"
@@ -39,6 +40,7 @@ class Mpich2(Mpi):
     """MPICH2 MPI class"""
     MPI_MODULE_NAME = ["MPICH2"]
     MPI_FAMILY = TC_CONSTANT_MPICH2
+    MPI_TYPE = mpi.MPI_TYPE_MPICH
 
     MPI_LIBRARY_NAME = 'mpich'
 

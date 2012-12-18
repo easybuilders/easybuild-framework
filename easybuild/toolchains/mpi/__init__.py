@@ -24,7 +24,12 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Mpi toolchain package
+"""
 from pkgutil import extend_path
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+MPI_TYPE_OPENMPI = "OPENMPI"
+MPI_TYPE_MPICH = "MPICH"
