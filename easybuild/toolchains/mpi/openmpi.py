@@ -29,7 +29,7 @@ Support for OpenMPI as toolchain MPI library.
 """
 
 from easybuild.tools.toolchain.mpi import Mpi
-from easybuild.tools import mpi
+from easybuild.toolchains import mpi
 
 TC_CONSTANT_OPENMPI = "OpenMPI"
 
