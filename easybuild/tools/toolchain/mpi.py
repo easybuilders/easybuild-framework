@@ -43,6 +43,7 @@ class Mpi(Toolchain):
 
     MPI_MODULE_NAME = None
     MPI_FAMILY = None
+    MPI_TYPE = None
 
     MPI_LIBRARY_NAME = None
 

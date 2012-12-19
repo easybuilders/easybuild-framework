@@ -31,5 +31,5 @@ from pkgutil import extend_path
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
-MPI_TYPE_OPENMPI = "OPENMPI"
-MPI_TYPE_MPICH = "MPICH"
+
+

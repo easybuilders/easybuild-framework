@@ -29,16 +29,16 @@ Support for OpenMPI as toolchain MPI library.
 """
 
 from easybuild.tools.toolchain.mpi import Mpi
-from easybuild.toolchains import mpi
 
 TC_CONSTANT_OPENMPI = "OpenMPI"
+TC_CONSTANT_MPI_TYPE_OPENMPI = "MPI_TYPE_OPENMPI"
 
 
 class OpenMPI(Mpi):
     """OpenMPI MPI class"""
     MPI_MODULE_NAME = ["OpenMPI"]
     MPI_FAMILY = TC_CONSTANT_OPENMPI
-    MPI_TYPE = mpi.MPI_TYPE_OPENMPI
+    MPI_TYPE = TC_CONSTANT_MPI_TYPE_OPENMPI
 
     MPI_LIBRARY_NAME = 'mpi'
 
