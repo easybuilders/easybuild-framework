@@ -36,7 +36,7 @@ from easybuild.tools.filetools import encode_class_name
 
 # parse options
 parser = OptionParser()
-parser.usage = "%prog <software name> [--path <path to easyblocks repository>]"
+parser.usage = "%prog <software name> [options]"
 parser.description = "Generates template easyblock for given software name. " \
                      "Use -h or --help for more information."
 parser.add_option("--path", help="path to easyblocks repository (default: '.')", default='.')

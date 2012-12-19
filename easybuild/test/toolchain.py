@@ -73,6 +73,54 @@ class ToolchainTest(TestCase):
         self.assertEqual(f77, "gfortran")
         f90 = tc.get_variable('F90')
         self.assertEqual(f90, "gfortran")
+        mpicc = tc.get_variable('MPICC')
+        self.assertEqual(mpicc, "mpicc")
+        mpicxx = tc.get_variable('MPICXX')
+        self.assertEqual(mpicxx, "mpicxx")
+        mpif77 = tc.get_variable('MPIF77')
+        self.assertEqual(mpif77, "mpif77")
+        mpif90 = tc.get_variable('MPIF90')
+        self.assertEqual(mpif90, "mpif90")
+
+    def test_get_variable_mpi_compilers(self):
+        """Test get_variable function to obtain compiler variables."""
+        tc_class, _ = search_toolchain("goalf")
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        cc = tc.get_variable('CC')
+        self.assertEqual(cc, "mpicc")
+        cxx = tc.get_variable('CXX')
+        self.assertEqual(cxx, "mpicxx")
+        f77 = tc.get_variable('F77')
+        self.assertEqual(f77, "mpif77")
+        f90 = tc.get_variable('F90')
+        self.assertEqual(f90, "mpif90")
+        mpicc = tc.get_variable('MPICC')
+        self.assertEqual(mpicc, "mpicc")
+        mpicxx = tc.get_variable('MPICXX')
+        self.assertEqual(mpicxx, "mpicxx")
+        mpif77 = tc.get_variable('MPIF77')
+        self.assertEqual(mpif77, "mpif77")
+        mpif90 = tc.get_variable('MPIF90')
+        self.assertEqual(mpif90, "mpif90")
+
+    def test_get_variable_seq_compilers(self):
+        """Test get_variable function to obtain compiler variables."""
+        tc_class, _ = search_toolchain("goalf")
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({'usempi': True})
+        tc.prepare()
+
+        cc_seq = tc.get_variable('CC_SEQ')
+        self.assertEqual(cc_seq, "gcc")
+        cxx_seq = tc.get_variable('CXX_SEQ')
+        self.assertEqual(cxx_seq, "g++")
+        f77_seq = tc.get_variable('F77_SEQ')
+        self.assertEqual(f77_seq, "gfortran")
+        f90_seq = tc.get_variable('F90_SEQ')
+        self.assertEqual(f90_seq, "gfortran")
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
