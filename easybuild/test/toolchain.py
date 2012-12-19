@@ -157,6 +157,126 @@ class ToolchainTest(TestCase):
 
         self.assertTrue(pass_by_value)
 
+    def test_optimization_flags(self):
+        """Test whether optimization flags are being set correctly."""
+
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # check default optimization flag (e.g. -O2)
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.prepare()
+        for var in flag_vars:
+            flags = tc.get_variable(var)
+            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['defaultopt'] in flags)
+
+        # check other optimization flags
+        for opt in ['noopt', 'lowopt', 'opt']:
+            tc = tc_class(version="1.1.0-no-OFED")
+            tc.set_options({opt: True})
+            tc.prepare()
+            for var in flag_vars:
+                flags = tc.get_variable(var)
+                self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+
+    def test_optimization_flags_combos(self):
+        """Test whether combining optimization levels works as expected."""
+
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # check combining of optimization flags (doesn't make much sense)
+        # lowest optimization should always be picked
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({'lowopt': True, 'opt':True})
+        tc.prepare()
+        for var in flag_vars:
+            flags = tc.get_variable(var)
+            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['lowopt'] in flags)
+
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({'noopt': True, 'lowopt':True})
+        tc.prepare()
+        for var in flag_vars:
+            flags = tc.get_variable(var)
+            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['noopt'] in flags)
+
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
+        tc.prepare()
+        for var in flag_vars:
+            flags = tc.get_variable(var)
+            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['noopt'] in flags)
+
+    def test_misc_flags_shared(self):
+        """Test whether shared compiler flags are set correctly."""
+
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # setting option should result in corresponding flag to be set (shared options)
+        for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
+            tc = tc_class(version="1.1.0-no-OFED")
+            tc.set_options({opt: True})
+            tc.prepare()
+            for var in flag_vars:
+                flags = tc.get_variable(var)
+                self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+
+    def test_misc_flags_unique(self):
+        """Test whether unique compiler flags are set correctly."""
+
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # setting option should result in corresponding flag to be set (unique options)
+        for opt in ['unroll', 'optarch', 'openmp']:
+            tc = tc_class(version="1.1.0-no-OFED")
+            tc.set_options({opt: True})
+            tc.prepare()
+            for var in flag_vars:
+                flags = tc.get_variable(var)
+                self.assertTrue(tc.COMPILER_UNIQUE_OPTION_MAP[opt] in flags)
+
+    def test_misc_flags_unique_fortran(self):
+        """Test whether unique Fortran compiler flags are set correctly."""
+
+        flag_vars = ['FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # setting option should result in corresponding flag to be set (Fortran unique options)
+        for opt in ['i8', 'r8']:
+            tc = tc_class(version="1.1.0-no-OFED")
+            tc.set_options({opt: True})
+            tc.prepare()
+            for var in flag_vars:
+                flags = tc.get_variable(var)
+                self.assertTrue(tc.COMPILER_UNIQUE_OPTION_MAP[opt] in flags)
+
+    def test_precision_flags(self):
+        """Test whether precision flags are being set correctly."""
+
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        tc_class, _ = search_toolchain("goalf")
+
+        # check default precision flag
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.prepare()
+        for var in flag_vars:
+            flags = tc.get_variable(var)
+            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP['defaultprec']])
+            self.assertTrue(val in flags)
+
+        # check other precision flags
+        for opt in ['strict', 'precise', 'loose', 'veryloose']:
+            tc = tc_class(version="1.1.0-no-OFED")
+            tc.set_options({opt: True})
+            tc.prepare()
+            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
+            for var in flag_vars:
+                flags = tc.get_variable(var)
+                self.assertTrue(val in flags)
+
     def tearDown(self):
         """Cleanup."""
         os.environ['MODULEPATH'] = self.orig_modpath

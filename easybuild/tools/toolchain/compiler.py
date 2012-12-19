@@ -85,7 +85,7 @@ class Compiler(Toolchain):
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic']  ## any compiler
+    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  ## any compiler
     COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt'] ## optimisation args, ordered !
     COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose'] ## precision flags, ordered !
 
@@ -177,10 +177,12 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
+        optarchflags = self.options.option('optarch')
+
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1])
+        self.variables.nextend('OPTFLAGS', optflags[:1] + [optarchflags])
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         ## precflags last
