@@ -65,6 +65,10 @@ MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
 MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var': v}, "MPI %s wrapper" % d)
                           for (v, d) in COMPILER_VARIABLES]
 
+SEQ_COMPILER_TEMPLATE = "%(c_var)s_SEQ"
+SEQ_COMPILER_VARIABLES = [(SEQ_COMPILER_TEMPLATE % {'c_var': v}, "sequential %s" % d)
+                          for (v, d) in COMPILER_VARIABLES]
+
 MPI_MAP_CLASS = {
                  AbsPathList: [
                                ('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: useful at all? shouldn't these be obtained from mpiXX --show
@@ -72,7 +76,7 @@ MPI_MAP_CLASS = {
                                ('MPI_LIB_DIR', 'MPI library directory'),
                                ('MPI_INC_DIR', 'MPI include directory'),
                                ],
-                 CommandFlagList: MPI_COMPILER_VARIABLES,
+                 CommandFlagList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
                  }
 
 BLAS_MAP_CLASS = {
