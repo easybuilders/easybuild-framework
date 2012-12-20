@@ -166,6 +166,12 @@ class Modules(object):
         for mod in self.modules:
             self.run_module('load', "/".join(mod))
 
+    def purge(self):
+        """
+        Purge loaded modules.
+        """
+        self.run_module('purge', '')
+
     def show(self, name, version):
         """
         Run 'module show' for the specified module.

@@ -1286,6 +1286,10 @@ class EasyBlock(object):
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
         try:
+            # unload all loaded modules before loading fake module
+            # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+            m = Modules()
+            m.purge()
             self.load_fake_module()
         except EasyBuildError, err:
             self.log.debug("Loading fake module failed: %s" % err)
