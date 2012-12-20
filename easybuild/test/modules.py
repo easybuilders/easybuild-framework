@@ -24,6 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
+import random
 
 import easybuild.tools.modules as modules
 from unittest import TestCase, TestLoader 
@@ -40,15 +41,25 @@ class ModulesTest(TestCase):
         """ test if we load one module it is in the loaded_modules """
         testmods = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
         ms = testmods.available('', None)
-        if len(ms) != 0:
-            import random
-            m = random.choice(ms)
-            testmods.add_module([m])
-            testmods.load()
 
-            tmp = {"name": m[0], "version": m[1]}
-            assert(tmp in testmods.loaded_modules())
+        m = random.choice(ms)
+        testmods.add_module([m])
+        testmods.load()
 
+        tmp = {"name": m[0], "version": m[1]}
+        assert(tmp in testmods.loaded_modules())
+
+    def test_purge(self):
+        """Test if purging of modules works."""
+        m = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+
+        ms = m.available('', None)
+        m.add_module([ms[0]])
+        m.load()
+        self.assertTrue(len(m.loaded_modules()) > 0)
+
+        m.purge()
+        self.assertTrue(len(m.loaded_modules()) == 0)
 
     def tearDown(self):
         """cleanup"""
