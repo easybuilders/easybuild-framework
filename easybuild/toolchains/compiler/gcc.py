@@ -90,3 +90,6 @@ class Gcc(Compiler):
         ## or remove the system gcc-gfortran
         ## also used in eg LIBBLAS variable
         self.variables.nappend('FLIBS', "gfortran", position=5)
+
+        gcc_root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
+        self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64"])
