@@ -1,8 +1,13 @@
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -23,12 +28,11 @@ from copy import deepcopy
 from unittest import TestCase, TestSuite
 
 import easybuild.tools.modules as modules
-import easybuild.build as build
-from easybuild.tools.build_log import EasyBuildError, getLog
-from easybuild.tools.modules import Modules
+import easybuild.main as main
+from easybuild.test.utilities import find_full_path
+from easybuild.tools.build_log import EasyBuildError, get_log
 
 orig_modules = modules.Modules
-base_easyconfig_dir = "easybuild/test/easyconfigs/"
 
 
 class MockModule(modules.Modules):
@@ -46,42 +50,46 @@ class RobotTest(TestCase):
         """ dynamically replace Modules class with MockModule """
         # replace Modules class with something we have control over
         modules.Modules = MockModule
-        build.Modules = MockModule
+        main.Modules = MockModule
 
-        self.log = getLog("RobotTest")
+        self.log = get_log("RobotTest")
+        self.cwd = os.getcwd()
+
+        self.base_easyconfig_dir = find_full_path(os.path.join("easybuild", "test", "easyconfigs"))
+        self.assertTrue(self.base_easyconfig_dir)
 
     def runTest(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
-        package = {
+        easyconfig = {
             'spec': '_',
             'module': ("name", "version"),
             'dependencies': []
         }
-        res = build.resolveDependencies([deepcopy(package)], None, self.log)
-        self.assertEqual([package], res)
+        res = main.resolve_dependencies([deepcopy(easyconfig)], None, self.log)
+        self.assertEqual([easyconfig], res)
 
-        package_dep = {
+        easyconfig_dep = {
             'spec': '_',
             'module': ("name", "version"),
             'dependencies': [('gzip', '1.4')]
         }
-        res = build.resolveDependencies([deepcopy(package_dep)], base_easyconfig_dir, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
-        # here we have include a Dependency in the package list
-        package['module'] = ("gzip", "1.4")
+        # here we have include a Dependency in the easyconfig list
+        easyconfig['module'] = ("gzip", "1.4")
 
-        res = build.resolveDependencies([deepcopy(package_dep), deepcopy(package)], None, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None, self.log)
         # all dependencies should be resolved
-        self.assertEqual(0, sum(len(pkg['dependencies']) for pkg in res))
+        self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb)
-        self.assertRaises(EasyBuildError, build.resolveDependencies, [deepcopy(package_dep)], None, self.log)
+        self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None, self.log)
 
         # test if dependencies of an automatically found file are also loaded
-        package_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
-        res = build.resolveDependencies([deepcopy(package_dep)], base_easyconfig_dir, self.log)
+        easyconfig_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual(('GCC', '4.6.3'), res[0]['module'])
@@ -91,6 +99,7 @@ class RobotTest(TestCase):
     def tearDown(self):
         """ reset the Modules back to its original """
         modules.Modules = orig_modules
+        os.chdir(self.cwd)
 
 
 def suite():

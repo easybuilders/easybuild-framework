@@ -1,8 +1,13 @@
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -19,11 +24,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
-import re
 import shutil
 from unittest import TestCase, TestSuite
 
-import easybuild.tools.config as config
 from easybuild.tools.repository import FileRepository
 
 
@@ -34,6 +37,7 @@ class RepositoryTest(TestCase):
         """ make sure temporary path does not exist """
         self.path = '/tmp/tmp-easybuild-repo'
         shutil.rmtree(self.path, True)
+        self.cwd = os.getcwd()
 
     def runTest(self):
         """ after initialization it should be the working copy """
@@ -43,6 +47,7 @@ class RepositoryTest(TestCase):
     def tearDown(self):
         """ clean up after myself """
         shutil.rmtree(self.path, True)
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """

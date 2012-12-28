@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -7,7 +8,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -42,13 +47,14 @@ def create_dir(prefix, dirname, withinit=False, init_txt=''):
         fh.write(init_txt)
         fh.close()
 
-def create_subdirs(prefix, withinit=False, init_txt=''):
+def create_subdirs(prefix):
     # create subdirectories a, b, ..., z, 0 (catchall)
     alphabet = [chr(x) for x in xrange(ord('a'), ord('z') + 1)]
     for letter in alphabet:
-        create_dir(prefix, letter, withinit=withinit, init_txt=init_txt)
+        create_dir(prefix, letter)
 
-    create_dir(prefix, "0", withinit=withinit, init_txt=init_txt)
+    create_dir(prefix, "0")
+    create_dir(prefix, "_generic_")
 
 #
 # MAIN
@@ -66,11 +72,18 @@ try:
     dirname = "easyblocks"
     os.mkdir(dirname)
 
-    init_txt="""from pkgutil import extend_path
+    init_txt="""import os
+from pkgutil import extend_path
+
+# Extend path so python finds our easyblocks in the subdirectories where they are located
+subdirs = [chr(l) for l in range(ord('a'),ord('z')+1)] + ['0', '_generic_']
+__path__.extend([os.path.join(__path__[0], subdir) for subdir in subdirs])
+# And let python know this is not the only place to look for them,
+# so we can have 2 easybuild/easyblock paths in your pythonpath, one for public, one for private easyblocks.
 __path__ = extend_path(__path__, __name__)
 """
 
-    create_subdirs(dirname, withinit=True, init_txt=init_txt)
+    create_subdirs(dirname)
 
     # create easyconfigs dir and subdirs
     dirname = "easyconfigs"

@@ -1,0 +1,8 @@
+include eb
+recursive-include easybuild *py *eb
+recursive-include easybuild/test/modules *
+include CONTRIBUTING.md
+include LICENSE
+include README.rst
+include RELEASE_NOTES
+include setup.py

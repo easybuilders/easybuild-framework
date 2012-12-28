@@ -1,8 +1,13 @@
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -19,30 +24,48 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
+import random
 
 import easybuild.tools.modules as modules
-from unittest import TestCase, TestSuite
-from easybuild.tools.build_log import EasyBuildError, initLogger
+from unittest import TestCase, TestLoader 
 
 
 class ModulesTest(TestCase):
     """ small test for Modules """
 
-    def runTest(self):
-        """ test if we load one module it is in the loaded_modules """
-        testmods = modules.Modules()
-        ms = testmods.available('', None)
-        if len(ms) != 0:
-            import random
-            m = random.choice(ms)
-            testmods.addModule([m])
-            testmods.load()
+    def setUp(self):
+        """setup"""
+        self.cwd = os.getcwd()
 
-            tmp = {"name": m[0], "version": m[1]}
-            assert(tmp in testmods.loaded_modules())
+    def test_load(self):
+        """ test if we load one module it is in the loaded_modules """
+        testmods = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+        ms = testmods.available('', None)
+
+        m = random.choice(ms)
+        testmods.add_module([m])
+        testmods.load()
+
+        tmp = {"name": m[0], "version": m[1]}
+        assert(tmp in testmods.loaded_modules())
+
+    def test_purge(self):
+        """Test if purging of modules works."""
+        m = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+
+        ms = m.available('', None)
+        m.add_module([ms[0]])
+        m.load()
+        self.assertTrue(len(m.loaded_modules()) > 0)
+
+        m.purge()
+        self.assertTrue(len(m.loaded_modules()) == 0)
+
+    def tearDown(self):
+        """cleanup"""
+        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([ModulesTest()])
-
+    return TestLoader().loadTestsFromTestCase(ModulesTest)
 

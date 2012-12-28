@@ -1,4 +1,5 @@
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -7,7 +8,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -30,20 +35,22 @@ EasyBuild configuration (paths, preferences, etc.)
 import os
 import tempfile
 
-from easybuild.tools.build_log import getLog
+from easybuild.tools.build_log import get_log
 import easybuild.tools.repository as repo
 
 
-log = getLog('config')
+log = get_log('config')
 
 variables = {}
-requiredVariables = ['buildPath', 'installPath', 'sourcePath', 'logFormat', 'repository', 'repositoryPath']
+requiredVariables = ['build_path', 'install_path', 'source_path', 'log_format', 'repository']
 environmentVariables = {
-    'buildPath': 'EASYBUILDBUILDPATH', # temporary build path
-    'installPath': 'EASYBUILDINSTALLPATH', # final install path
-    'logDir': 'EASYBUILDLOGDIR', # log directory where temporary log files are stored
-    'configFile': 'EASYBUILDCONFIG', # path to the config file
-    'testOutputPath': 'EASYBUILDTESTOUTPUT', # path to where jobs should place test output
+    'build_path': 'EASYBUILDBUILDPATH',  # temporary build path
+    'install_path': 'EASYBUILDINSTALLPATH',  # final install path
+    'log_dir': 'EASYBUILDLOGDIR',  # log directory where temporary log files are stored
+    'config_file': 'EASYBUILDCONFIG',  # path to the config file
+    'test_output_path': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
+    'source_path': 'EASYBUILDSOURCEPATH',  # path to where sources should be downloaded
+    'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
 def init(filename, **kwargs):
@@ -52,8 +59,8 @@ def init(filename, **kwargs):
     Variables are read in this order of preference: CLI option > environment > config file
     """
 
-    variables.update(readConfiguration(filename)) # config file
-    variables.update(readEnvironment(environmentVariables)) # environment
+    variables.update(read_configuration(filename)) # config file
+    variables.update(read_environment(environmentVariables)) # environment
     variables.update(kwargs) # CLI options
 
     def create_dir(dirtype, dirname):
@@ -72,20 +79,20 @@ def init(filename, **kwargs):
 
         # verify directories, try and create them if they don't exist
         value = variables[key]
-        dirNotFound = key in ['buildPath', 'installPath'] and not os.path.isdir(value)
-        srcDirNotFound = key in ['sourcePath'] and type(value) == str and not os.path.isdir(value)
+        dirNotFound = key in ['build_path', 'install_path'] and not os.path.isdir(value)
+        srcDirNotFound = key in ['source_path'] and type(value) == str and not os.path.isdir(value)
         if dirNotFound or srcDirNotFound:
             log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
             create_dir(key, value)
             continue
-        if key in ['sourcePath'] and type(value) == list:
+        if key in ['source_path'] and type(value) == list:
             for d in value:
                 if not os.path.isdir(d):
                     create_dir(key, d)
                     continue
 
     # update MODULEPATH if required
-    ebmodpath = os.path.join(installPath(typ='mod'), 'all')
+    ebmodpath = os.path.join(install_path(typ='mod'), 'all')
     modulepath = os.getenv('MODULEPATH')
     if not modulepath or not ebmodpath in modulepath:
         if modulepath:
@@ -94,7 +101,7 @@ def init(filename, **kwargs):
             os.environ['MODULEPATH'] = ebmodpath
         log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
 
-def readConfiguration(filename):
+def read_configuration(filename):
     """
     Read variables from the config file
     """
@@ -109,7 +116,7 @@ def readConfiguration(filename):
 
     return fileVariables
 
-def readEnvironment(envVars, strict=False):
+def read_environment(envVars, strict=False):
     """
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
@@ -124,19 +131,19 @@ def readEnvironment(envVars, strict=False):
 
     return result
 
-def buildPath():
+def build_path():
     """
     Return the build path
     """
-    return variables['buildPath']
+    return variables['build_path']
 
 def source_path():
     """
     Return the source path
     """
-    return variables['sourcePath']
+    return variables['source_path']
 
-def installPath(typ=None):
+def install_path(typ=None):
     """
     Returns the install path
     - subdir 'software' for actual installation (default)
@@ -147,40 +154,34 @@ def installPath(typ=None):
     else:
         suffix = 'software'
 
-    return os.path.join(variables['installPath'], suffix)
+    return os.path.join(variables['install_path'], suffix)
 
-def getRepository():
+def get_repository():
     """
     Return the repository (git, svn or file)
     """
     return variables['repository']
 
-def repositoryPath():
-    """
-    Return the repository path
-    """
-    return variables['repositoryPath']
-
-def logFormat():
+def log_format():
     """
     Return the log format
     """
-    if 'logFormat' in variables:
-        return variables['logFormat'][1]
+    if 'log_format' in variables:
+        return variables['log_format'][1]
     else:
         return "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"
 
-def logPath():
+def log_path():
     """
     Return the log path
     """
-    return variables['logFormat'][0]
+    return variables['log_format'][0]
 
 def get_build_log_path():
     """
     return temporary log directory
     """
-    return variables.get('logDir', tempfile.gettempdir())
+    return variables.get('log_dir', tempfile.gettempdir())
 
 def read_only_installdir():
     """
@@ -190,3 +191,14 @@ def read_only_installdir():
     # this also needs to be checked when --force is used;
     # install dir will have to (temporarily) be made writeable again for owner in that case
     return False
+
+def module_classes():
+    """
+    Return list of module classes specified in config file.
+    """
+    if 'module_classes' in variables:
+        return variables['module_classes']
+    else:
+        legacy_module_classes = ['base', 'compiler', 'lib']
+        log.debug('module_classes not set in config, so returning legacy list (%s)' % legacy_module_classes)
+        return legacy_module_classes

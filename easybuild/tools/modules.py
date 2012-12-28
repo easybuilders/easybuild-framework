@@ -1,4 +1,5 @@
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -6,7 +7,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -30,11 +35,10 @@ import re
 import subprocess
 import sys
 
-from easybuild.tools.build_log import getLog, EasyBuildError
-from easybuild.tools.filetools import convertName, run_cmd
+from easybuild.tools.build_log import get_log, EasyBuildError
+from easybuild.tools.filetools import convert_name, run_cmd
 
 
-log = getLog('Modules')
 outputMatchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
@@ -44,25 +48,35 @@ outputMatchers = {
     'available': re.compile(r"\b(?P<name>\S+?)/(?P<version>[^\(\s]+)(?P<default>\(default\))?(?:\s|$)")
 }
 
-class Modules:
+class Modules(object):
     """
     Interact with modules.
     """
     def __init__(self, modulePath=None):
-        self.modulePath = modulePath
+        """
+        Create a Modules object
+        @param modulePath: A list of paths where the modules can be located
+        @type modulePath: list
+        """
+        self.log = get_log(self.__class__.__name__)
+        # make sure we don't have the same path twice
+        if modulePath:
+            self.modulePath = set(modulePath)
+        else:
+            self.modulePath = None
         self.modules = []
 
-        self.checkModulePath()
+        self.check_module_path()
 
         # make sure environment-modules is installed
         ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if ec:
             msg = "Could not find the modulecmd command, environment-modules is not installed?\n"
             msg += "Exit code of 'which modulecmd': %d" % ec
-            log.error(msg)
+            self.log.error(msg)
             raise EasyBuildError(msg)
 
-    def checkModulePath(self):
+    def check_module_path(self):
         """
         Check if MODULEPATH is set and change it if necessary.
         """
@@ -75,7 +89,7 @@ class Modules:
             if ec != 0 or not module_regexp.match(out):
                 errormsg += "; environment-modules doesn't seem to be installed: "
                 errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
-            log.error(errormsg)
+            self.log.error(errormsg)
 
         if self.modulePath:
             ## set the module path environment accordingly
@@ -98,14 +112,14 @@ class Modules:
         if version:
             txt = "%s/%s" % (name, version)
 
-        modules = self.runModule('available', txt, modulePath=modulePath)
+        modules = self.run_module('available', txt, modulePath=modulePath)
 
-        ## sort the answers in [name,version] pairs
+        ## sort the answers in [name, version] pairs
         ## alphabetical order, default last
         modules.sort(key=lambda m: (m['name'] + (m['default'] or ''), m['version']))
         ans = [(mod['name'], mod['version']) for mod in modules]
 
-        log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
+        self.log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
             (name, version, modulePath, len(ans), ans))
         return ans
 
@@ -115,7 +129,7 @@ class Modules:
         """
         return (name, version) in self.available(name, version, modulePath)
 
-    def addModule(self, modules):
+    def add_module(self, modules):
         """
         Check if module exist, if so add to list.
         """
@@ -126,13 +140,13 @@ class Modules:
                 (name, version) = mod.split('/')
             elif type(mod) == dict:
                 name = mod['name']
-                ## deal with toolkit dependency calls
-                if 'tk' in mod:
-                    version = mod['tk']
+                ## deal with toolchain dependency calls
+                if 'tc' in mod:
+                    version = mod['tc']
                 else:
                     version = mod['version']
             else:
-                log.error("Can't add module %s: unknown type" % str(mod))
+                self.log.error("Can't add module %s: unknown type" % str(mod))
 
             mods = self.available(name, version)
             if (name, version) in mods:
@@ -140,9 +154,9 @@ class Modules:
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:
-                    log.warning('No module %s available' % mod)
+                    self.log.warning('No module %s available' % mod)
                 else:
-                    log.warning('More then one module found for %s: %s' % (mod, mods))
+                    self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
 
     def load(self):
@@ -150,13 +164,19 @@ class Modules:
         Load all requested modules.
         """
         for mod in self.modules:
-            self.runModule('load', "/".join(mod))
+            self.run_module('load', "/".join(mod))
+
+    def purge(self):
+        """
+        Purge loaded modules.
+        """
+        self.run_module('purge', '')
 
     def show(self, name, version):
         """
         Run 'module show' for the specified module.
         """
-        return self.runModule('show', "%s/%s" % (name, version), return_output=True)
+        return self.run_module('show', "%s/%s" % (name, version), return_output=True)
 
     def modulefile_path(self, name, version):
         """
@@ -170,7 +190,7 @@ class Modules:
             # second line of module show output contains full path of module file
             return modinfo.split('\n')[1].replace(':', '')
 
-    def runModule(self, *args, **kwargs):
+    def run_module(self, *args, **kwargs):
         """
         Run module command.
         """
@@ -183,6 +203,7 @@ class Modules:
         if kwargs.get('modulePath', None):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
 
+        self.log.debug("Running 'modulecmd python %s' ..." % ' '.join(args))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stdout will contain python code (to change environment etc)
@@ -202,18 +223,18 @@ class Modules:
 
             # Process stderr
             result = []
-            for line in stderr.split('\n'): #IGNORE:E1103
+            for line in stderr.split('\n'):  #IGNORE:E1103
                 if outputMatchers['whitespace'].search(line):
                     continue
 
                 error = outputMatchers['error'].search(line)
                 if error:
-                    log.error(line)
+                    self.log.error(line)
                     raise EasyBuildError(line)
 
-                packages = outputMatchers['available'].finditer(line)
-                for package in packages:
-                    result.append(package.groupdict())
+                modules = outputMatchers['available'].finditer(line)
+                for module in modules:
+                    result.append(module.groupdict())
             return result
 
     def loaded_modules(self):
@@ -228,15 +249,38 @@ class Modules:
             mods = ['/'.join(modfile.split('/')[-2:]) for modfile in os.getenv('_LMFILES_').split(':')]
 
         else:
-            log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
+            self.log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
 
         # filter devel modules, since they cannot be split like this
         mods = [mod for mod in mods if not mod.endswith("easybuild-devel")]
         for mod in mods:
-            (mod_name, mod_version) = mod.split('/')
+            mod_name = None
+            mod_version = None
+            modparts = mod.split('/')
+
+            if len(modparts) == 2:
+                # this is what we expect, e.g. GCC/4.7.2
+                mod_name = modparts[0]
+                mod_version = modparts[1]
+
+            elif len(modparts) > 2:
+                # different module naming scheme
+                # let's assume first part is name, rest is version
+                mod_name = modparts[0]
+                mod_version = '/'.join(modparts[1:])
+
+            elif len(modparts) == 1:
+                # only name, no version
+                mod_name = modparts[0]
+                mod_version = ''
+
+            else:
+                # length after splitting is 0, so empty module name?
+                self.log.error("Module with empty name loaded? ('%s')" % mod)
+
             loaded_modules.append({
-                                   'name':mod_name,
-                                   'version':mod_version
+                                   'name': mod_name,
+                                   'version': mod_version
                                    })
 
         return loaded_modules
@@ -247,14 +291,14 @@ class Modules:
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
         """
         modfilepath = self.modulefile_path(name, version)
-        log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
+        self.log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
 
         try:
             f = open(modfilepath, "r")
             modtxt = f.read()
             f.close()
         except IOError, err:
-            log.error("Failed to read module file %s to determine toolkit dependencies: %s" % (modfilepath, err))
+            self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
 
         loadregex = re.compile("^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
@@ -277,7 +321,7 @@ class Modules:
         return deps
 
 
-def searchModule(path, query):
+def search_module(path, query):
     """
     Search for a particular module (only prints)
     """
@@ -305,9 +349,9 @@ def searchModule(path, query):
 
 def get_software_root(name, with_env_var=False):
     """
-    Return the software root set for a particular package.
+    Return the software root set for a particular software name.
     """
-    name = convertName(name, upper=True)
+    name = convert_name(name, upper=True)
     environment_key = "EBROOT%s" % name
     legacy_key = "SOFTROOT%s" % name
 
@@ -326,9 +370,9 @@ def get_software_root(name, with_env_var=False):
 
 def get_software_version(name):
     """
-    Return the software version set for a particular package.
+    Return the software version set for a particular software name.
     """
-    name = convertName(name, upper=True)
+    name = convert_name(name, upper=True)
     environment_key = "EBVERSION%s" % name
     legacy_key = "SOFTVERSION%s" % name
 

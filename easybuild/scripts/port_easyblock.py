@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -7,7 +8,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -67,7 +72,7 @@ def warning(msg):
 
 # ensure lowercase module name
 def rename_module(path):
-    """Rename module is it's not lowercase."""
+    """Rename module if it's not lowercase."""
     try:
         if os.path.isfile(path):
             d = os.path.dirname(path)
@@ -88,76 +93,126 @@ def rename_module(path):
 # refactor function and argument names that have changed during cleanup
 def refactor(txt):
     """Refactor given text, by refactoring function names, etc."""
-    refactor_map = {
-                    'addDependency': 'add_dependency',
-                    'addPatch': 'addpatch',
-                    'addSource': 'addsource',
-                    'apps.Application import Application': 'framework.application import Application',
-                    'applyPatch': 'apply_patch',
-                    'autoBuild': 'autobuild',
-                    'buildInInstallDir': 'build_in_installdir',
-                    'buildLog': 'build_log',
-                    'checkOsdeps': 'check_osdeps',
-                    'classDumper': 'class_dumper',
-                    'closeLog': 'closelog',
-                    'dumpConfigurationOptions': 'dump_cfg_options',
-                    'easybuild.buildsoft': 'easybuild.tools',
-                    'escapeSpecial': 'escapespecial',
-                    'extraPackages': 'extra_packages',
-                    'extraPackagesPre': 'extra_packages_pre',
-                    'fileLocate': 'file_locate',
-                    'fileTools': 'filetools',
-                    'filterPackages': 'filter_packages',
-                    'findPackagePatches': 'find_package_patches',
-                    'genInstallDir': 'gen_installdir',
-                    'getCfg': 'getcfg',
-                    'getSoftwareRoot': 'get_software_root',
-                    'getInstance': 'get_instance',
-                    'importCfg': 'process_ebfile',
-                    'logall': 'log_all',
-                    'logok': 'log_ok',
-                    'logOutput': 'log_output',
-                    'makeBuildDir': 'make_builddir',
-                    'makeDir': 'make_dir',
-                    'makeInstall': 'make_install',
-                    'makeInstallDir': 'make_installdir',
-                    'makeInstallVersion': 'make_installversion',
-                    'makeModule': 'make_module',
-                    'makeModuleDescription': 'make_module_description',
-                    'makeModuleDep': 'make_module_dep',
-                    'makeModuleReq': 'make_module_req',
-                    'makeModuleReqGuess': 'make_module_req_guess',
-                    'makeModuleExtra': 'make_module_extra',
-                    'makeModuleExtraPackages': 'make_module_extra_packages',
-                    'moduleGenerator': 'module_generator',
-                    'noqanda=': 'no_qa=',
-                    'parseDependency': 'parse_dependency',
-                    'readyToBuild': 'ready2build',
-                    'runrun': 'run_cmd',
-                    'runqanda': 'run_cmd_qa',
-                    'runTests': 'runtests',
-                    'runStep': 'runstep',
-                    'packagesFindSource': 'find_package_sources',
-                    'postProc': 'postproc',
-                    'sanityCheck': 'sanitycheck',
-                    'self.tk': 'self.toolkit()',
-                    'setCfg': 'setcfg',
-                    'setLogger': 'setlogger',
-                    'setNameVersion': 'set_name_version',
-                    'setParallelism': 'setparallelism',
-                    'setToolkit': 'settoolkit',
-                    'startFrom': 'startfrom',
-                    'stdqa=': 'std_qa=',
-                    'unpackSrc': 'unpack_src',
-                    }
+    refactor_list = [
+                    # refactorings due to code/style cleanup
+                    ('addDependency', 'add_dependency'),
+                    ('addPatch', 'addpatch'),
+                    ('addSource', 'addsource'),
+                    ('framework.application import', 'easyblocks.generic import'),
+                    ('easyblocks.cmake import EB_CMake', 'easyblocks.generic.cmakemake import CMakeMake'),
+                    ('Application', 'ConfigureMake'),
+                    ('EB_CMake', 'CMakeMake'),
+                    ('applyPatch', 'apply_patch'),
+                    ('autoBuild', 'autobuild'),
+                    ('buildInInstallDir', 'build_in_installdir'),
+                    ('buildLog', 'build_log'),
+                    ('checkOsdeps', 'check_osdeps'),
+                    ('classDumper', 'class_dumper'),
+                    ('closeLog', 'closelog'),
+                    ('dumpConfigurationOptions', 'dump_cfg_options'),
+                    ('easybuild.buildsoft', 'easybuild.tools'),
+                    ('escapeSpecial', 'escapespecial'),
+                    ('extraPackages', 'extra_packages'),
+                    ('extraPackagesPre', 'extra_packages_pre'),
+                    ('fileLocate', 'file_locate'),
+                    ('fileTools', 'filetools'),
+                    ('filterPackages', 'filter_packages'),
+                    ('findPackagePatches', 'find_package_patches'),
+                    ('genInstallDir', 'gen_installdir'),
+                    ('getCfg', 'getcfg'),
+                    ('getSoftwareRoot', 'get_software_root'),
+                    ('getInstance', 'get_instance'),
+                    ('importCfg', 'process_ebfile'),
+                    ('logall', 'log_all'),
+                    ('logok', 'log_ok'),
+                    ('logOutput', 'log_output'),
+                    ('makeBuildDir', 'make_builddir'),
+                    ('makeDir', 'make_dir'),
+                    ('makeInstall', 'make_install'),
+                    ('makeInstallDir', 'make_installdir'),
+                    ('makeInstallVersion', 'make_installversion'),
+                    ('makeModule', 'make_module'),
+                    ('makeModuleDescription', 'make_module_description'),
+                    ('makeModuleDep', 'make_module_dep'),
+                    ('makeModuleReq', 'make_module_req'),
+                    ('makeModuleReqGuess', 'make_module_req_guess'),
+                    ('makeModuleExtra', 'make_module_extra'),
+                    ('makeModuleExtraPackages', 'make_module_extra_packages'),
+                    ('tools.moduleGenerator', 'tools.module_generator'),
+                    ('noqanda=', 'no_qa='),
+                    ('parseDependency', 'parse_dependency'),
+                    ('readyToBuild', 'ready2build'),
+                    ('runrun', 'run_cmd'),
+                    ('runqanda', 'run_cmd_qa'),
+                    ('runTests', 'runtests'),
+                    ('runStep', 'runstep'),
+                    ('packagesFindSource', 'find_package_sources'),
+                    ('postProc', 'postproc'),
+                    ('sanityCheck', 'sanitycheck'),
+                    ('self.tk', 'self.toolkit()'),
+                    ('setCfg', 'setcfg'),
+                    ('setLogger', 'setlogger'),
+                    ('setNameVersion', 'set_name_version'),
+                    ('setParallelism', 'setparallelism'),
+                    ('setToolkit', 'settoolkit'),
+                    ('startFrom', 'startfrom'),
+                    ('stdqa=', 'std_qa='),
+                    ('unpackSrc', 'unpack_src'),
+                    # refactorings due to function renaming and up Application (see issues #99, #136)
+                    ('module_path_for_easyblock', 'get_module_path'),
+                    ('autobuild', 'run_all_steps'),
+                    ('setlogger', 'init_log'),
+                    ('closelog', 'close_log'),
+                    ('setparallelism', 'set_parallelism'),
+                    ('addpatch', 'fetch_patches'),
+                    ('addsource', 'fetch_sources'),
+                    ('prepare_build', 'fetch_step'),
+                    ('ready2build', 'check_readiness'),
+                    ('file_locate', 'obtain_file'),
+                    ('apply_patch', 'patch_step'),
+                    ('unpack_src', 'extract_step'),
+                    ('unpack', 'extract_file'),
+                    ('.build', 'build_and_install'),
+                    ('runstep', 'run_step'),
+                    ('postproc', 'post_install_step'),
+                    ('sanitycheck', 'sanity_check'),
+                    ('startfrom', 'guess_start_dir'),
+                    ('prepare', 'prepare_step'),
+                    ('make', 'build_step'),
+                    ('make_install', 'install_step'),
+                    ('toolkit_name', "toolkit['name']"),
+                    ('toolkit_version', "toolkit['version']"),
+                    ('installversion', 'get_installversion'),
+                    ('installsize', 'det_installsize'),
+                    ('packages', 'extensions_step'),
+                    ('find_package_patches', 'fetch_extension_patches'),
+                    ('find_package_sources', 'fetch_extension_sources'),
+                    ('extra_packages', 'extra_extensions'),
+                    ('extra_packages_pre', 'prepare_for_extensions'),
+                    ('filter_packages', 'skip_extensions'),
+                    ('runtests', 'run_test_cases'),
+                    ('name', 'get_name'),
+                    ('version', 'get_version'),
+                    ('patch', 'apply_patch'), # filetools.patch -> filetools.apply_patch
+                    ('[\'"]startfrom[\'"]', "'start_dir'"),
+                    ('def configure', 'def configure_step'),
+                    ('sanity_check', 'sanity_check_step'),
+                    ('toolkit', 'toolchain'),
+                    ('sanityCheckPaths', 'sanity_check_paths'),
+                    ('sourceURLs', 'source_urls'),
+                    ('unpackOptions', 'unpack_options'),
+                    ('sanityCheckCommands', 'sanity_check_commands'),
+                    ('licenseServer', 'license_server'),
+                    ('licenseServerPort', 'license_server_port'),
+                    ]
 
     totn = 0
 
     print "Refactoring..."
 
-    for old, new in refactor_map.items():
+    for old, new in refactor_list:
 
-        regexp = re.compile("^(.*\W)%s(\W.*)$" % old, re.M)
+        regexp = re.compile("^(.*[^a-zA-Z0-9_'\"])%s([^a-zA-Z0-9_'\" ].*)$" % old, re.M)
 
         def repl(m):
             return "%s%s%s" % (m.group(1), new, m.group(2))
@@ -165,7 +220,8 @@ def refactor(txt):
         (txt, n) = regexp.subn(repl, txt)
         totn += n
 
-        print "%s => %s (%d), " % (old, new, n),
+        if n > 0:
+            print "%s => %s (%d), " % (old, new, n),
 
     print ""
 

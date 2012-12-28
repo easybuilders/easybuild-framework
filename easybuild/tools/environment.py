@@ -1,8 +1,13 @@
 ##
+# Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -22,6 +27,7 @@
 utility module for modifying os.environ
 """
 import os
+from vsc import fancylogger
 
 changes = {}
 
@@ -29,7 +35,7 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = open(filename,'w')
+    script = open(filename, 'w')
 
     for key in changes:
         script.write('export %s="%s"\n' % (key, changes[key]))
@@ -46,7 +52,7 @@ def reset_changes():
     changes = {}
 
 
-def set(key, value):
+def setvar(key, value):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
@@ -54,3 +60,5 @@ def set(key, value):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     changes[key] = value
+    log = fancylogger.getLogger('environment')
+    log.info("Environment variable %s set to %s" % (key, value))

@@ -1,4 +1,5 @@
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -7,7 +8,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -30,18 +35,18 @@ EasyBuild configuration file.
 import os
 import tempfile
 
-from easybuild.tools.build_log import getLog
+from easybuild.tools.build_log import get_log
 import easybuild.tools.config as config
 
-log = getLog('easybuild_config')
+log = get_log('easybuild_config')
 
-# buildPath possibly overridden by EASYBUILDBUILDPATH
-# installPath possibly overridden by EASYBUILDINSTALLPATH
+# build_path possibly overridden by EASYBUILDBUILDPATH
+# install_path possibly overridden by EASYBUILDINSTALLPATH
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
-buildDir = 'build'
-installDir = ''
-sourceDir = 'sources'
+build_dir = 'build'
+install_dir = ''
+source_dir = 'sources'
 
 if os.getenv('EASYBUILDPREFIX'):
     prefix = os.getenv('EASYBUILDPREFIX')
@@ -51,9 +56,9 @@ else:
 if not prefix:
     prefix = "/tmp/easybuild"
 
-buildPath = os.path.join(prefix, buildDir)
-installPath = os.path.join(prefix, installDir)
-sourcePath = os.path.join(prefix, sourceDir)
+build_path = os.path.join(prefix, build_dir)
+install_path = os.path.join(prefix, install_dir)
+source_path = os.path.join(prefix, source_dir)
 
 # repository for eb files
 ## Currently, EasyBuild supports the following repository types:
@@ -68,15 +73,18 @@ sourcePath = os.path.join(prefix, sourceDir)
 
 ## optionally a subdir argument can be specified:
 ## `repository = FileRepository(repositoryPath, subdir)`
-repositoryPath = os.path.join(prefix, 'ebfiles_repo')
-repository = FileRepository(repositoryPath)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
+repository_path = os.path.join(prefix, 'ebfiles_repo')
+repository = FileRepository(repository_path)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
 
 # log format: (dir, filename template)
 # supported in template: name, version, data, time
-logFormat = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+log_format = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 
 # set the path where log files will be stored
-logDir = tempfile.gettempdir()
+log_dir = tempfile.gettempdir()
+
+# define set of supported module classes
+module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
 
 # general cleanliness
-del os, getLog, config, log, prefix, buildDir, installDir, sourceDir
+del os, get_log, config, log, prefix, build_dir, install_dir, source_dir

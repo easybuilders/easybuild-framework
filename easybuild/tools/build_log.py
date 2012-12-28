@@ -1,4 +1,5 @@
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -6,7 +7,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -29,12 +34,17 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 import logging
 import os
 import sys
-import tempfile
 import time
-from socket import gethostname
 from copy import copy
+from socket import gethostname
+from vsc import fancylogger
 
-import easybuild
+from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
+EASYBLOCKS_VERSION = 'UNKNOWN'
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    pass
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -51,7 +61,7 @@ class EasyBuildError(Exception):
         return repr(self.msg)
 
 
-class EasyBuildLog(logging.Logger):
+class EasyBuildLog(fancylogger.NamedLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
     """
@@ -60,7 +70,7 @@ class EasyBuildLog(logging.Logger):
     # necessary because logging.Logger.exception calls self.error
     raiseError = True
 
-    def callerInfo(self):
+    def caller_info(self):
         (filepath, line, function_name) = self.findCaller()
         filepath_dirs = filepath.split(os.path.sep)
 
@@ -72,14 +82,14 @@ class EasyBuildLog(logging.Logger):
         return "(at %s:%s in %s)" % (os.path.sep.join(filepath_dirs), line, function_name)
 
     def error(self, msg, *args, **kwargs):
-        newMsg = "EasyBuild crashed with an error %s: %s" % (self.callerInfo(), msg)
+        newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
         logging.Logger.error(self, newMsg, *args, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
     def exception(self, msg, *args):
         ## don't raise the exception from within error
-        newMsg = "EasyBuild encountered an exception %s: %s" % (self.callerInfo(), msg)
+        newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
         logging.Logger.exception(self, newMsg, *args)
@@ -96,24 +106,28 @@ formatter = logging.Formatter(logging_format)
 # without this, everything is logged twice (one by root logger, once by descendant logger)
 logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
 
+# disable logging to screen by default
+fancylogger.logToScreen(enable=False)
+
 logging.setLoggerClass(EasyBuildLog)
 
-def getLog(name=None):
+def get_log(name=None):
     """
     Generate logger object
     """
-    log = logging.getLogger(name)
+    #log = logging.getLogger(name)
+    log = fancylogger.getLogger(name)
     log.info("Logger started for %s." % name)
     return log
 
-def removeLogHandler(hnd):
+def remove_log_handler(hnd):
     """
     Remove handler from root log
     """
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
     log.removeHandler(hnd)
 
-def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
+def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
     """
     Return filename of the log file being written
     - does not append
@@ -121,7 +135,7 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
     """
 
     # obtain root logger
-    log = logging.getLogger()
+    log = fancylogger.getLogger()
 
     # determine log level
     if debug:
@@ -134,7 +148,7 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
 
     if (name and version) or filename:
         if not filename:
-            filename = logFilename(name, version)
+            filename = log_filename(name, version)
         hand = logging.FileHandler(filename)
     else:
         hand = logging.StreamHandler(sys.stdout)
@@ -143,7 +157,7 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
     log.addHandler(hand)
 
     # initialize our logger
-    log = logging.getLogger(typ)
+    log = fancylogger.getLogger(typ)
     log.setLevel(defaultLogLevel)
 
     ## init message
@@ -152,21 +166,24 @@ def initLogger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN
                                                                                 filename,
                                                                                 gethostname()
                                                                                 ))
-    log.info("This is EasyBuild %s" % easybuild.VERBOSE_VERSION)
+    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+    log.info("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
+                                                                       FRAMEWORK_VERSION,
+                                                                       EASYBLOCKS_VERSION))
 
     return filename, log, hand
 
-def logFilename(name, version):
+def log_filename(name, version):
     """
     Generate a filename to be used
     """
     # this can't be imported at the top, otherwise we'd have a cyclic dependency
-    from easybuild.tools.config import logFormat, get_build_log_path
+    from easybuild.tools.config import log_format, get_build_log_path
 
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = os.path.join(get_build_log_path(), logFormat() % {'name':name,
+    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
                                                                  'version':version,
                                                                  'date':date,
                                                                  'time':timeStamp
@@ -189,7 +206,7 @@ def print_msg(msg, log=None):
     print "%s %s" % (EB_MSG_PREFIX, msg)
 
 if __name__ == '__main__':
-    initLogger('test', '1.0.0')
-    fn, testlog, _ = initLogger(typ='build_log')
-    testlog.info('Testing buildLog...')
-    "Tested buildLog, see %s" % fn
+    init_logger('test', '1.0.0')
+    fn, testlog, _ = init_logger(typ='build_log')
+    testlog.info('Testing build_log...')
+    "Tested build_log, see %s" % fn

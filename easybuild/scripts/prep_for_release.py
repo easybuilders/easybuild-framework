@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 ##
+# Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
@@ -8,7 +9,11 @@
 # Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -58,29 +63,32 @@ def warning(msg):
     """Warning function: print message to stderr."""
     sys.stderr.write("WARNING: %s\n" % msg)
 
-# determine EasyBuild version
-def get_easybuild_version(home):
-    """Determine current EasyBuild version, as set in init file."""
+# determine version
+def get_easybuild_version(home, version_file=None):
+    """Determine current version, as set in tools/version file."""
 
-    initfile = os.path.join(home, "easybuild", "__init__.py")
+    if not version_file:
+        version_file = os.path.join(home, "easybuild", "tools", "version.py")
 
-    inittxt = None
+    versiontxt = None
     try:
-        f = open(initfile, "r")
-        inittxt = f.read()
+        f = open(version_file, "r")
+        versiontxt = f.read()
         f.close()
     except IOError, err:
-        error("Failed to read EasyBuild's init file at %s: %s" % (initfile, err))
+        error("Failed to read %s's version file at %s: %s" % (easybuild_package, version_file, err))
 
     # determine current version set
-    version_re = re.compile("^VERSION\s*=\s*[a-zA-Z(\"']*\s*(?P<version>[0-9.]+).*$", re.M)
+    version_re = re.compile("^VERSION\s*=\s*[a-zA-Z(\"']*\s*(?P<version>[0-9.]+[^'\"]*).*$", re.M)
 
-    res = version_re.search(inittxt)
+    res = version_re.search(versiontxt)
 
     if res:
         return LooseVersion(res.group('version'))
     else:
-        error("Failed to determine EasyBuild version from %s (regexp pattern used: %s)." % (initfile, version_re.pattern))
+        error("Failed to determine %s version from %s (regexp pattern used: %s)." % (easybuild_package,
+                                                                                     version_file,
+                                                                                     version_re.pattern))
 
 # determine last git version tag
 def get_last_git_version_tag(home):
@@ -89,7 +97,7 @@ def get_last_git_version_tag(home):
     try:
         gitrepo = git.Git(home)
         git_tags = gitrepo.execute(["git","tag","-l"]).split('\n')
-        vertag_re = re.compile("^v([0-9]+\.[0-9]+)$")
+        vertag_re = re.compile("^v([0-9]+\.[0-9]+[0-9.]*(rc[0-9]\+)*)$")
         git_version_tags = [LooseVersion(vertag_re.match(t).group(1)) for t in git_tags if vertag_re.match(t)]
         if len(git_version_tags) >= 1:
             return git_version_tags[-1]
@@ -97,18 +105,20 @@ def get_last_git_version_tag(home):
             error("No git version tags set?")
 
     except git.GitCommandError, err:
-        error("Failed to determine last EasyBuild git tag: %s" % err)
+        error("Failed to determine last %s git tag: %s" % (easybuild_package, err))
 
-# check whether EasyBuild version has been bumped and
-# whether current git version tag matches current EasyBuild version
+# check whether version has been bumped and
+# whether current git version tag matches current version
 def check_version(easybuild_version, last_version_git_tag):
-    """Check whether EasyBuild's version has been bumped."""
+    """Check whether version has been bumped."""
 
-    print "Current EasyBuild version: %s" % easybuild_version
+    print "Current %s version: %s" % (easybuild_package, easybuild_version)
     print "Last git version tag: %s " % last_version_git_tag
 
     if not easybuild_version == last_version_git_tag:
-        warning("Current EasyBuild version %s does not match last git version tag %s." % (easybuild_version, last_version_git_tag))
+        warning("Current %s version %s does not match last git version tag %s." % (easybuild_package,
+                                                                                   easybuild_version,
+                                                                                   last_version_git_tag))
         return False
     else:
         print "Version checks passed."
@@ -229,15 +239,20 @@ def check_easyblocks_for_environment(home):
 # MAIN
 #
 
-# determine EasyBuild home dir, assuming this script is in <EasyBuild home>/easybuild/scripts
-easybuild_home = os.path.sep.join(os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
+version_file = None
+if len(sys.argv) == 2:
+    version_file = sys.argv[1]
 
-print "Found EasyBuild home: %s" % easybuild_home
+# assume current dir to be home of easybuild-X
+easybuild_home = os.getcwd()
+easybuild_package = os.path.basename(easybuild_home)
+
+print "Found %s home: %s (current dir)" % (easybuild_package, easybuild_home)
 
 all_checks = []
 
-# check EasyBuild version vs last git version tag
-easybuild_version = get_easybuild_version(easybuild_home)
+# check version vs last git version tag
+easybuild_version = get_easybuild_version(easybuild_home, version_file=version_file)
 last_git_version_tag = get_last_git_version_tag(easybuild_home)
 
 all_checks.append(check_version(easybuild_version, last_git_version_tag))
@@ -266,4 +281,4 @@ all_checks.append(check_easyblocks_for_environment(easybuild_home))
 all_checks.append(check_easyblocks_for_environment(easybuild_home))
 
 if not all(all_checks):
-    error("One or multiple checks have failed, EasyBuild is not ready to be released!")
+    error("One or multiple checks have failed, %s is not ready to be released!" % easybuild_package)

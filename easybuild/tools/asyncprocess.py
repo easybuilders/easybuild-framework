@@ -1,4 +1,5 @@
 ##
+# Copyright 2005 Ghent University
 # Copyright 2005 Josiah Carlson
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -12,7 +13,11 @@
 # Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
-# originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # http://github.com/hpcugent/easybuild
 #
@@ -133,7 +138,7 @@ class Popen(subprocess.Popen):
 
 message = "Other end disconnected!"
 
-def recv_some(p, t=.1, e=1, tr=5, stderr=0):
+def recv_some(p, t=.2, e=1, tr=5, stderr=0):
     if tr < 1:
         tr = 1
     x = time.time() + t
