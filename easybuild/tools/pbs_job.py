@@ -40,16 +40,27 @@ from easybuild.tools.build_log import get_log
 
 MAX_WALLTIME = 72
 
+def connect_to_server(pbs_server=None):
+    """Connect to PBS server and return connection."""
+    if not pbs_server:
+        pbs_server = pbs.pbs_default()
+    return pbs.pbs_connect(pbs_server)
+
+def disconnect_from_server(conn):
+    """Disconnect a given connection."""
+    pbs.pbs_disconnect(conn)
+
 class PbsJob(object):
     """Interaction with TORQUE"""
 
-    def __init__(self, script, name, env_vars=None, resources={}):
+    def __init__(self, script, name, env_vars=None, resources={}, conn=None):
         """
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
         resources is a dictionary with optional keys: ['hours', 'cores'] both of these should be integer values.
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
+        self.clean_conn = True
         self.log = get_log("PBS")
         self.script = script
         if env_vars:
@@ -68,7 +79,11 @@ class PbsJob(object):
 
         try:
             self.pbs_server = pbs.pbs_default()
-            self.pbsconn = pbs.pbs_connect(self.pbs_server)
+            if conn:
+                self.pbsconn = conn
+                self.clean_conn = False
+            else:
+                self.pbsconn = pbs.pbs_connect(self.pbs_server)
         except Exception, err:
             self.log.error("Failed to connect to the default pbs server: %s" % err)
 
@@ -245,8 +260,9 @@ class PbsJob(object):
 
 
         # get a new connection (otherwise this seems to fail)
-        pbs.pbs_disconnect(self.pbsconn)
-        self.pbsconn = pbs.pbs_connect(self.pbs_server)
+        if self.clean_conn:
+            pbs.pbs_disconnect(self.pbsconn)
+            self.pbsconn = pbs.pbs_connect(self.pbs_server)
         jobs = pbs.pbs_statjob(self.pbsconn, self.jobid, jobattr, 'NULL')
         if len(jobs) == 0:
             # no job found, return None info
@@ -295,5 +311,6 @@ class PbsJob(object):
 
     def cleanup(self):
         """Cleanup: disconnect from server."""
-        self.log.debug("Disconnecting from server.")
-        pbs.pbs_disconnect(self.pbsconn)
+        if self.clean_conn:
+            self.log.debug("Disconnecting from server.")
+            pbs.pbs_disconnect(self.pbsconn)
