@@ -504,7 +504,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         opts = ' '.join(result_opts)
 
-        command = "cd %s && eb %%(spec)s %s" % (curdir, opts)
+        command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
         log.debug("Command template for jobs: %s" % command)
         jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
         print "List of submitted jobs:"
@@ -1429,7 +1429,7 @@ def regtest(options, log, easyconfig_paths):
         resolved = resolve_dependencies(easyconfigs, options.robot, log)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
-        command = "cd %s && %s; " % (cur_dir, cmd)
+        command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
 
