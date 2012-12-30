@@ -752,8 +752,20 @@ class EasyBlock(object):
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
-        # clean up
+        return fake_mod_path
+
+    def clean_up_fake_module(self, fake_mod_path):
+        """
+        Clean up fake module.
+        """
+
+        # unload module and remove temporary module directory
         try:
+            mod_paths = [fake_mod_path]
+            mod_paths.extend(Modules().modulePath)
+            m = Modules(mod_paths)
+            m.add_module([[self.name, self.get_installversion()]])
+            m.unload()
             rmtree2(os.path.dirname(fake_mod_path))
         except OSError, err:
             self.log.error("Failed to clean up fake module dir: %s" % err)
@@ -1289,7 +1301,7 @@ class EasyBlock(object):
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
             m = Modules()
             m.purge()
-            self.load_fake_module()
+            fake_mod_path = self.load_fake_module()
         except EasyBuildError, err:
             self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
@@ -1337,6 +1349,9 @@ class EasyBlock(object):
         if failed_exts:
             self.log.info("Sanity check for extensions %s failed!" % failed_exts)
             self.sanityCheckOK = False
+
+        # cleanup
+        self.clean_up_fake_module(fake_mod_path)
 
         # pass or fail
         if not self.sanityCheckOK:

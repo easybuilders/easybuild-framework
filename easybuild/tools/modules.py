@@ -177,6 +177,7 @@ class Modules(object):
         """
         Purge loaded modules.
         """
+        self.log.debug("List of loaded modules before purge: %s" % os.getenv('_LMFILES_'))
         self.run_module('purge', '')
 
     def show(self, name, version):
