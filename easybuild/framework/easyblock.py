@@ -1128,27 +1128,17 @@ class EasyBlock(object):
             self.log.debug("No extensions in exts_list")
             return
 
-
         # adjust MODULEPATH and load module
         modpath = self.make_module_step(fake=True)
         self.log.debug("Adding %s to MODULEPATH" % modpath)
          
         m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
-
         if m.exists(self.name, self.get_installversion()):
             m.add_module([[self.name, self.get_installversion()]])
             m.load()
         else:
             self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
-
-        if not self.skip:
-            try:
-                fakemoddir = os.path.dirname(modpath)
-                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-                rmtree2(fakemoddir)
-            except OSError, err:
-                self.log.error("Failed to clean up fake module dir: %s" % err)
 
         self.prepare_for_extensions()
 
@@ -1197,6 +1187,15 @@ class EasyBlock(object):
             # Append so we can make us of it later (in sanity_check)
             self.ext_instances.append(p)
 
+        # unload fake module and remove it
+        m.unload()
+        if not self.skip:
+            try:
+                fakemoddir = os.path.dirname(modpath)
+                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+                rmtree2(fakemoddir)
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
@@ -1292,7 +1291,7 @@ class EasyBlock(object):
             m.purge()
             self.load_fake_module()
         except EasyBuildError, err:
-            self.log.debug("Loading fake module failed: %s" % err)
+            self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
 
         # chdir to installdir (better environment for running tests)

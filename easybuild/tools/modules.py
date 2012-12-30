@@ -166,6 +166,13 @@ class Modules(object):
         for mod in self.modules:
             self.run_module('load', "/".join(mod))
 
+    def unload(self):
+        """
+        Unload all requested modules.
+        """
+        for mod in self.modules:
+            self.run_module('unload', "/".join(mod))
+
     def purge(self):
         """
         Purge loaded modules.
