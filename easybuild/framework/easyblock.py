@@ -1163,6 +1163,8 @@ class EasyBlock(object):
         self.log.debug("Installing extensions")
         exts_defaultclass = self.cfg['exts_defaultclass']
         if not exts_defaultclass:
+            m.unload()
+            rmtree2(os.path.dirname(modpath))
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
         # exts_defaultclass should be a list or a tuple, but certaintly not a string
@@ -1200,10 +1202,6 @@ class EasyBlock(object):
             self.ext_instances.append(p)
 
         # unload fake module and remove it
-
-        # seems like this is required to ensure the module is actually unloaded?!?
-        self.log.debug("_LMFILES_: %s" % os.getenv('_LMFILES_'))
-
         m.unload()
         try:
             fakemoddir = os.path.dirname(modpath)
