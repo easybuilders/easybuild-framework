@@ -1200,14 +1200,17 @@ class EasyBlock(object):
             self.ext_instances.append(p)
 
         # unload fake module and remove it
+
+        # seems like this is required to ensure the module is actually unloaded?!?
+        self.log.debug("_LMFILES_: %s" % os.getenv('_LMFILES_'))
+
         m.unload()
-        if not self.skip:
-            try:
-                fakemoddir = os.path.dirname(modpath)
-                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-                rmtree2(fakemoddir)
-            except OSError, err:
-                self.log.error("Failed to clean up fake module dir: %s" % err)
+        try:
+            fakemoddir = os.path.dirname(modpath)
+            self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+            rmtree2(fakemoddir)
+        except OSError, err:
+            self.log.error("Failed to clean up fake module dir: %s" % err)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
