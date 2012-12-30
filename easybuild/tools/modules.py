@@ -166,10 +166,18 @@ class Modules(object):
         for mod in self.modules:
             self.run_module('load', "/".join(mod))
 
+    def unload(self):
+        """
+        Unload all requested modules.
+        """
+        for mod in self.modules:
+            self.run_module('unload', "/".join(mod))
+
     def purge(self):
         """
         Purge loaded modules.
         """
+        self.log.debug("List of loaded modules before purge: %s" % os.getenv('_LMFILES_'))
         self.run_module('purge', '')
 
     def show(self, name, version):
