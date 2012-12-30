@@ -188,8 +188,6 @@ if { ![is-loaded %(name)s/%(version)s] } {
                 m.unload()
                 if os.path.exists(self.tmpdir):
                     log.info("Cleaning up fake modules dir %s" % self.tmpdir)
-                    # seems like this is required to ensure the module is actually unloaded?!?
-                    log.debug("_LMFILES: %s" % os.getenv('_LMFILES_'))
                     rmtree2(self.tmpdir)
             except OSError, err:
                 log.exception("Cleaning up fake module dir failed: %s" % err)
