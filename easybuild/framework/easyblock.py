@@ -122,6 +122,9 @@ class EasyBlock(object):
         # list of loaded modules
         self.loaded_modules = []
 
+        # original module path
+        self.orig_modulepath = os.getenv('MODULEPATH')
+
     # INIT/CLOSE LOG
     def init_log(self):
         """
@@ -746,9 +749,9 @@ class EasyBlock(object):
 
         # load the module
         mod_paths = [fake_mod_path]
-        mod_paths.extend(Modules().modulePath)
+        mod_paths.extend(self.orig_modulepath.split(':'))
         m = Modules(mod_paths)
-        self.log.debug("created module instance")
+        self.log.debug("mod_paths: %s" % mod_paths)
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
@@ -760,15 +763,16 @@ class EasyBlock(object):
         """
 
         # unload module and remove temporary module directory
-        try:
-            mod_paths = [fake_mod_path]
-            mod_paths.extend(Modules().modulePath)
-            m = Modules(mod_paths)
-            m.add_module([[self.name, self.get_installversion()]])
-            m.unload()
-            rmtree2(os.path.dirname(fake_mod_path))
-        except OSError, err:
-            self.log.error("Failed to clean up fake module dir: %s" % err)
+        if fake_mod_path:
+            try:
+                mod_paths = [fake_mod_path]
+                mod_paths.extend(Modules().modulePath)
+                m = Modules(mod_paths)
+                m.add_module([[self.name, self.get_installversion()]])
+                m.unload()
+                rmtree2(os.path.dirname(fake_mod_path))
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -1297,6 +1301,7 @@ class EasyBlock(object):
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
+        fake_mod_path = None
         try:
             # unload all loaded modules before loading fake module
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
