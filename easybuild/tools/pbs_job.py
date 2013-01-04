@@ -151,7 +151,7 @@ class PbsJob(object):
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend
-            deps_attributes[0].value = ",".join(["after:%s" % dep for dep in self.deps])
+            deps_attributes[0].value = ",".join(["afterany:%s" % dep for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
