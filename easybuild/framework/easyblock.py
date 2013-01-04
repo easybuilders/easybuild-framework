@@ -739,7 +739,7 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
         }
 
-    def load_fake_module(self):
+    def load_fake_module(self, purge=False):
         """
         Create and load fake module.
         """
@@ -747,11 +747,17 @@ class EasyBlock(object):
         # make fake module
         fake_mod_path = self.make_module_step(True)
 
-        # load the module
+        # create Modules instance
         mod_paths = [fake_mod_path]
         mod_paths.extend(self.orig_modulepath.split(':'))
         m = Modules(mod_paths)
         self.log.debug("mod_paths: %s" % mod_paths)
+
+        # purge loaded modules if desired
+        if purge:
+            m.purge()
+
+        # load the module
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
@@ -1305,9 +1311,7 @@ class EasyBlock(object):
         try:
             # unload all loaded modules before loading fake module
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            m = Modules()
-            m.purge()
-            fake_mod_path = self.load_fake_module()
+            fake_mod_path = self.load_fake_module(purge=True)
         except EasyBuildError, err:
             self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
