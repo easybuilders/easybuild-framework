@@ -1421,7 +1421,7 @@ def regtest(options, log, easyconfig_paths):
         try:
             easyconfigs.extend(process_easyconfig(ecfile, log, None))
         except EasyBuildError, err:
-            test_results.append((ecfile, 'easyconfig file error', err))
+            test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error', err))
 
     if options.sequential:
         return build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
