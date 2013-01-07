@@ -85,6 +85,7 @@ from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
 EASYBLOCKS_VERSION = 'UNKNOWN'
@@ -205,6 +206,7 @@ def add_cmdline_options(parser):
     # see https://github.com/hpcugent/VSC-tools/issues/8
     informative_options.add_option("--list-easyblocks", type="choice", choices=["simple", "detailed"], default=None,
                                    help="show list of available easyblocks ('simple' or 'detailed')")
+    informative_options.add_option("--list-toolchains", action="store_true", help="show list of known toolchains")
     informative_options.add_option("--search", metavar="STR", help="search for module-files in the robot-directory")
     informative_options.add_option("-v", "--version", action="store_true", help="show version")
     informative_options.add_option("--dep-graph", metavar="depgraph.<ext>", help="create dependency graph")
@@ -340,9 +342,13 @@ def main(options, orig_paths, log, logfile, hn, parser):
     if options.avail_easyconfig_params:
         print_avail_params(options.easyblock, log)
 
-    # dump available classes
+    # dump available easyblocks
     if options.list_easyblocks:
         list_easyblocks(detailed=options.list_easyblocks=="detailed")
+
+    # dump known toolchains
+    if options.list_toolchains:
+        list_toolchains()
 
     # search for modules
     if options.search:
@@ -359,7 +365,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
-                     options.search, options.regtest, options.version]):
+                      options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
                   "options to make EasyBuild search for easyconfigs", optparser=parser)
 
@@ -398,7 +404,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
             log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
-    if options.avail_easyconfig_params or options.list_easyblocks or options.search or options.version or options.regtest:
+    if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
+             options.version, options.regtest]):
         if logfile:
             os.remove(logfile)
         sys.exit(0)
@@ -1510,6 +1517,8 @@ def list_easyblocks(detailed=False):
             print ""
 
 def print_tree(classes, classNames, detailed, depth=0):
+    """Print list of classes as a tree."""
+
     for className in classNames:
         classInfo = classes[className]
         if detailed:
@@ -1518,6 +1527,22 @@ def print_tree(classes, classNames, detailed, depth=0):
             print "%s|-- %s" % ("|   " * depth, className)
         if 'children' in classInfo:
             print_tree(classes, classInfo['children'], detailed, depth + 1)
+
+def list_toolchains():
+    """Show list of known toolchains."""
+
+    _, all_tcs = search_toolchain('')
+    all_tcs_names = [x.NAME for x in all_tcs]
+    tclist = sorted(zip(all_tcs_names, all_tcs))
+
+    print "List of known toolchains:"
+
+    for (tcname, tcc) in tclist:
+
+        tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
+        tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
+
+        print "\t%s: %s" % (tcname, ', '.join(sorted(tc_elems)))
 
 # FIXME: remove when Python version on which we rely provides any by itself
 def any(ls):
