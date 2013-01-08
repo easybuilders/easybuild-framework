@@ -210,6 +210,7 @@ class Modules(object):
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('modulePath', None):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
+        self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
 
         self.log.debug("Running 'modulecmd python %s' ..." % ' '.join(args))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
