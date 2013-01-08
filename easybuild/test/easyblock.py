@@ -92,7 +92,6 @@ description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 """
         self.writeEC()
-        # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
         eb.load_fake_module()
