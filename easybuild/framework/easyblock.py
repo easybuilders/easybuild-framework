@@ -757,6 +757,9 @@ class EasyBlock(object):
         if purge:
             m.purge()
 
+        # make sure MODULEPATH is set correctly after purging
+        m.check_module_path()
+
         # load the module
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
