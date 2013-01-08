@@ -35,6 +35,7 @@ The Extension class should serve as a base class for all extensions.
 
 from easybuild.tools.filetools import run_cmd
 
+
 class Extension(object):
     """
     Support for installing extensions.
@@ -49,13 +50,25 @@ class Extension(object):
         self.ext = ext
 
         if not 'name' in self.ext:
-            self.log.error("")
+            self.log.error("'name' is missing in supplied class instance 'ext'.")
 
-        self.name = self.ext.get('name', None)
-        self.version = self.ext.get('version', None)
         self.src = self.ext.get('src', None)
         self.patches = self.ext.get('patches', None)
         self.options = self.ext.get('options', {})
+
+    @property
+    def name(self):
+        """
+        Shortcut the get the extension name.
+        """
+        return self.ext.get('name', None)
+
+    @property
+    def version(self):
+        """
+        Shortcut the get the extension version.
+        """
+        return self.ext.get('version', None)
 
     def prerun(self):
         """
