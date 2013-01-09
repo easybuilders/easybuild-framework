@@ -131,6 +131,8 @@ class EasyConfig(object):
           ('exts_list', [[], 'List with extensions added to the base installation', EXTENSIONS]),
           ('exts_defaultclass', [None, "List of module for and name of the default extension class",
                                  EXTENSIONS]),
+          ('exts_classmap', [{}, "Map of extension name to class for handling build and installation.",
+                             EXTENSIONS]),
           ('exts_filter', [None, "Extension filter details: template for cmd and input to cmd " \
                                  "(templates for name, version and src).", EXTENSIONS]),
 
@@ -190,8 +192,21 @@ class EasyConfig(object):
         self.parse(path)
 
         # perform validations
-        if validate:
+        self.validation = validate
+        if self.validation:
             self.validate()
+
+    def copy(self):
+        """
+        Return a copy of this EasyConfig instance.
+        """
+        # create a new EasyConfig instance
+        ec = EasyConfig(self.path, extra_options={}, validate=self.validation, valid_stops=self.valid_stops,
+                        valid_module_classes=copy.deepcopy(self.valid_module_classes))
+        # take a copy of the actual config dictionary (which already contains the extra options)
+        ec.config = dict(copy.deepcopy(self.config))
+
+        return ec
 
     def update(self, key, value):
         """
