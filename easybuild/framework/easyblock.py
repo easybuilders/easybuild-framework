@@ -1223,7 +1223,7 @@ class EasyBlock(object):
                                                                                         err))
 
             # LEGACY: try and use default module path for getting extension class instance
-            if (inst is None) and legacy:
+            if inst is None and legacy:
                 try:
                     msg = "Failed to use derived module path for %s, " % class_name
                     msg += "considering specified module path as (legacy) fallback."
@@ -1273,7 +1273,7 @@ class EasyBlock(object):
                 self.module_extra_extensions += txt
             inst.postrun()
 
-            # append so we can make us of it later (in sanity_check)
+            # append so we can make us of it later (in sanity_check_step)
             self.ext_instances.append(inst)
 
         # unload fake module and remove it
