@@ -32,6 +32,7 @@
 Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 """
+import copy
 
 from easybuild.tools.filetools import run_cmd
 
@@ -46,15 +47,15 @@ class Extension(object):
         """
         self.master = mself
         self.log = self.master.log
-        self.cfg = self.master.cfg
-        self.ext = ext
+        self.cfg = self.master.cfg.copy()
+        self.ext = copy.deepcopy(ext)
 
         if not 'name' in self.ext:
             self.log.error("'name' is missing in supplied class instance 'ext'.")
 
         self.src = self.ext.get('src', None)
         self.patches = self.ext.get('patches', None)
-        self.options = self.ext.get('options', {})
+        self.options = copy.deepcopy(self.ext.get('options', {}))
 
     @property
     def name(self):
@@ -99,9 +100,9 @@ class Extension(object):
         """
         sanity check to run after installing
         """
-        try:
-            cmd, inp = self.master.cfg['exts_filter']
-        except:
+        if not self.cfg['exts_filter'] is None:
+            cmd, inp = self.cfg['exts_filter']
+        else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
 
