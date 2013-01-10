@@ -272,7 +272,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
-        sys.stderr.write("ERROR: You seem to be running EasyBuild with root priveleges.\n" \
+        sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n" \
                         "That's not wise, so let's end this here.\n" \
                         "Exiting.\n")
         sys.exit(1)
