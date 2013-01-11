@@ -58,6 +58,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
             self.cfg['version'] = self.ext.get('version', None)
+            self.builddir = self.master.builddir
+            self.installdir = self.master.installdir
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
