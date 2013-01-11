@@ -44,9 +44,9 @@ log = get_log('easybuild_config')
 # install_path possibly overridden by EASYBUILDINSTALLPATH
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
-build_dir = 'build'
-install_dir = ''
-source_dir = 'sources'
+bdir = 'build'
+idir = ''
+sdir = 'sources'
 
 if os.getenv('EASYBUILDPREFIX'):
     prefix = os.getenv('EASYBUILDPREFIX')
@@ -56,9 +56,9 @@ else:
 if not prefix:
     prefix = "/tmp/easybuild"
 
-build_path = os.path.join(prefix, build_dir)
-install_path = os.path.join(prefix, install_dir)
-source_path = os.path.join(prefix, source_dir)
+build_path = os.path.join(prefix, bdir)
+install_path = os.path.join(prefix, idir)
+source_path = os.path.join(prefix, sdir)
 
 # repository for eb files
 ## Currently, EasyBuild supports the following repository types:
@@ -87,4 +87,4 @@ log_dir = tempfile.gettempdir()
 module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
 
 # general cleanliness
-del os, get_log, config, log, prefix, build_dir, install_dir, source_dir
+del os, get_log, config, log, prefix, bdir, idir, sdir
