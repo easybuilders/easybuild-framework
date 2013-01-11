@@ -60,6 +60,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
+            self.toolchain.prepare(self.cfg['onlytcmod'])
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
