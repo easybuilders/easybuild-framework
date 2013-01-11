@@ -62,8 +62,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
 
-        self.configurevars = []
-        self.configureargs = []
+        self.ext_dir = None  # dir where extension source was unpacked
 
     # deriving classes should implement the following functions:
     # required EasyBlock functions:
@@ -78,7 +77,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # unpack file if desired
         if unpack_src:
-            targetdir = os.path.join(self.builddir, self.name)
+            targetdir = os.path.join(self.master.builddir, self.name)
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
 
         # patch if needed
