@@ -214,7 +214,7 @@ class Modules(object):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
 
-        self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd())
+        self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd()))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stdout will contain python code (to change environment etc)
