@@ -35,6 +35,14 @@ from easybuild.tools.filetools import apply_patch, extract_file
 class ExtensionEasyBlock(EasyBlock, Extension):
     """
     Install an extension as a separate module, or as an extension.
+
+    Deriving classes should implement the following functions:
+    * required EasyBlock functions:
+      - configure_step
+      - build_step
+      - install_step
+    * required Extension functions
+      - run
     """
 
     @staticmethod
@@ -65,14 +73,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
 
         self.ext_dir = None  # dir where extension source was unpacked
-
-    # deriving classes should implement the following functions:
-    # required EasyBlock functions:
-    # * configure_step
-    # * build_step
-    # * install_step
-    # required Extension functions
-    # * run
 
     def run(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
