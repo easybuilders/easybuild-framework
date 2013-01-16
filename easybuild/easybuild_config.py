@@ -83,4 +83,4 @@ log_dir = tempfile.gettempdir()
 module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
 
 # general cleanliness
-del os, get_log, config, log, prefix, build_basedir, install_basedir, source_basedir
+del os, get_log, config, log, prefix, install_basedir, source_basedir
