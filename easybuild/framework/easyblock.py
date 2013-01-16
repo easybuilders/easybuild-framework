@@ -1211,6 +1211,9 @@ class EasyBlock(object):
         for ext in self.exts:
             self.log.debug("Starting extension %s" % ext['name'])
 
+            # always go back to build dir to avoid running stuff from a dir that no longer exists
+            os.chdir(self.builddir)
+
             inst = None
 
             # try instantiating extension-specific class
