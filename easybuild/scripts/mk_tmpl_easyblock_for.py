@@ -148,7 +148,7 @@ class %(class_name)s(%(parent)s):
         env.setvar('CUSTOM_ENV_VAR', 'foo')
  
         cmd = "configure command" 
-        run_cmd(cmd, log_all=True, simple=True, log_output=True)
+        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
 
         # complete configuration with configure_method of parent
         super(%(class_name)s, self).configure_step()
@@ -165,20 +165,20 @@ class %(class_name)s(%(parent)s):
         # enable parallel build
         par = self.cfg['parallel']
         cmd = "build command --parallel %%d --compiler-family %%s" %% (par, comp_fam)
-        run_cmd(cmd, log_all=True, simple=True, log_output=True)
+        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
 
     def test_step(self):
         \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
 
         if self.cfg['runtest']:
             cmd = "test-command" 
-            run_cmd(cmd, simple=True, log_all=True, log_output=True)
+            run_cmd(cmd, simple=True, log_all=True, log_ok=True)
 
     def install_step(self):
         \"\"\"Custom install procedure for %(name)s.\"\"\"
        
         cmd = "install command" 
-        run_cmd(cmd, log_all=True, simple=True, log_output=True)
+        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
 
     def sanity_check_step(self):
         \"\"\"Custom sanity check for %(name)s.\"\"\"
