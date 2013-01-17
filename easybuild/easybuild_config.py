@@ -46,9 +46,6 @@ if os.getenv('EASYBUILDPREFIX'):
 else:
     prefix = os.path.join(os.getenv('HOME'), ".local", "easybuild")
 
-if not prefix:
-    prefix = "/tmp/easybuild"
-
 # build/install/source paths configuration for EasyBuild
 # build_path possibly overridden by EASYBUILDBUILDPATH
 # install_path possibly overridden by EASYBUILDINSTALLPATH
