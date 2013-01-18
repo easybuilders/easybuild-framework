@@ -49,7 +49,7 @@ from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, re
 from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
 from easybuild.tools.config import source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
+from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
@@ -593,8 +593,12 @@ class EasyBlock(object):
 
         WARNING: you cannot unload using $EBDEVELNAME (for now: use module unload `basename $EBDEVELNAME`)
         """
+
+        self.log.info("Making devel module...")
+
         # first try loading the fake module (might have happened during sanity check, doesn't matter anyway
         # make fake module
+        # FIXME: should be using load_fake_module here!
         mod_path = [self.make_module_step(True)]
 
         # load the module
@@ -744,6 +748,9 @@ class EasyBlock(object):
         Create and load fake module.
         """
 
+        # take a copy of the environment before loading the fake module, so we can restore it
+        orig_env = copy.deepcopy(os.environ)
+
         # make fake module
         fake_mod_path = self.make_module_step(True)
 
@@ -764,9 +771,9 @@ class EasyBlock(object):
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
-        return fake_mod_path
+        return fake_mod_path, orig_env
 
-    def clean_up_fake_module(self, fake_mod_path):
+    def clean_up_fake_module(self, fake_mod_path, orig_env):
         """
         Clean up fake module.
         """
@@ -782,6 +789,9 @@ class EasyBlock(object):
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
+
+        # restore original environment
+        modify_env(os.environ, orig_env)
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -1156,6 +1166,7 @@ class EasyBlock(object):
             return
 
         # adjust MODULEPATH and load module
+        # FIXME: should be using load_fake_module here!
         modpath = self.make_module_step(fake=True)
         self.log.debug("Adding %s to MODULEPATH" % modpath)
 
@@ -1382,7 +1393,7 @@ class EasyBlock(object):
         try:
             # unload all loaded modules before loading fake module
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            fake_mod_path = self.load_fake_module(purge=True)
+            fake_mod_path, orig_env = self.load_fake_module(purge=True)
         except EasyBuildError, err:
             self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
@@ -1432,7 +1443,7 @@ class EasyBlock(object):
             self.sanityCheckOK = False
 
         # cleanup
-        self.clean_up_fake_module(fake_mod_path)
+        self.clean_up_fake_module(fake_mod_path, orig_env)
 
         # pass or fail
         if not self.sanityCheckOK:
