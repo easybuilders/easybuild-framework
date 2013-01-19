@@ -597,7 +597,7 @@ class EasyBlock(object):
         self.log.info("Making devel module...")
 
         # load fake module
-        fake_mod_path, orig_env = self.load_fake_module(purge=True)
+        fake_mod_data = self.load_fake_module(purge=True)
 
         mod_gen = ModuleGenerator(self)
         header = "#%Module\n"
@@ -638,7 +638,7 @@ class EasyBlock(object):
         devel_module.close()
 
         # cleanup: unload fake module, remove fake module dir
-        self.clean_up_fake_module(fake_mod_path, orig_env)
+        self.clean_up_fake_module(fake_mod_data)
 
     def make_module_dep(self):
         """
@@ -761,12 +761,14 @@ class EasyBlock(object):
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
-        return fake_mod_path, orig_env
+        return (fake_mod_path, orig_env)
 
-    def clean_up_fake_module(self, fake_mod_path, orig_env):
+    def clean_up_fake_module(self, fake_mod_data):
         """
         Clean up fake module.
         """
+
+        fake_mod_path, orig_env = fake_mod_data
 
         # unload module and remove temporary module directory
         if fake_mod_path:
@@ -1156,7 +1158,7 @@ class EasyBlock(object):
             return
 
         # load fake module
-        fake_mod_path, orig_env = self.load_fake_module(purge=True)
+        fake_mod_data = self.load_fake_module(purge=True)
 
         self.prepare_for_extensions()
 
@@ -1172,7 +1174,7 @@ class EasyBlock(object):
 
         # we really need a default class
         if not exts_defaultclass:
-            self.clean_up_fake_module(fake_mod_path, orig_env)
+            self.clean_up_fake_module(fake_mod_data)
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
         # obtain name and module path for default extention class
@@ -1273,7 +1275,7 @@ class EasyBlock(object):
             self.ext_instances.append(inst)
 
         # cleanup (unload fake module, remove fake module dir)
-        self.clean_up_fake_module(fake_mod_path, orig_env)
+        self.clean_up_fake_module(fake_mod_data)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
@@ -1362,11 +1364,11 @@ class EasyBlock(object):
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
-        fake_mod_path = None
+        fake_mod_data = None
         try:
             # unload all loaded modules before loading fake module
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            fake_mod_path, orig_env = self.load_fake_module(purge=True)
+            fake_mod_data = self.load_fake_module(purge=True)
         except EasyBuildError, err:
             self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
@@ -1416,7 +1418,8 @@ class EasyBlock(object):
             self.sanityCheckOK = False
 
         # cleanup
-        self.clean_up_fake_module(fake_mod_path, orig_env)
+        if fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
 
         # pass or fail
         if not self.sanityCheckOK:
