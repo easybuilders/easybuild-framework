@@ -596,21 +596,8 @@ class EasyBlock(object):
 
         self.log.info("Making devel module...")
 
-        # first try loading the fake module (might have happened during sanity check, doesn't matter anyway
-        # make fake module
-        # FIXME: should be using load_fake_module here!
-        mod_path = [self.make_module_step(True)]
-
-        # load the module
-        mod_path.extend(Modules().modulePath)
-        m = Modules(mod_path)
-        self.log.debug("created module instance")
-        m.add_module([[self.name, self.get_installversion()]])
-        try:
-            m.load()
-        except EasyBuildError, err:
-            self.log.debug("Loading module failed: %s" % err)
-            self.log.debug("loaded modules: %s" % Modules().loaded_modules())
+        # load fake module
+        fake_mod_path, orig_env = self.load_fake_module(purge=True)
 
         mod_gen = ModuleGenerator(self)
         header = "#%Module\n"
@@ -649,6 +636,9 @@ class EasyBlock(object):
         devel_module.write(load_txt)
         devel_module.write(env_txt)
         devel_module.close()
+
+        # cleanup: unload fake module, remove fake module dir
+        self.clean_up_fake_module(fake_mod_path, orig_env)
 
     def make_module_dep(self):
         """
@@ -1165,18 +1155,8 @@ class EasyBlock(object):
             self.log.debug("No extensions in exts_list")
             return
 
-        # adjust MODULEPATH and load module
-        # FIXME: should be using load_fake_module here!
-        modpath = self.make_module_step(fake=True)
-        self.log.debug("Adding %s to MODULEPATH" % modpath)
-
-        m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
-
-        if m.exists(self.name, self.get_installversion()):
-            m.add_module([[self.name, self.get_installversion()]])
-            m.load()
-        else:
-            self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
+        # load fake module
+        fake_mod_path, orig_env = self.load_fake_module(purge=True)
 
         self.prepare_for_extensions()
 
@@ -1192,8 +1172,7 @@ class EasyBlock(object):
 
         # we really need a default class
         if not exts_defaultclass:
-            m.unload()
-            rmtree2(os.path.dirname(modpath))
+            self.clean_up_fake_module(fake_mod_path, orig_env)
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
         # obtain name and module path for default extention class
@@ -1293,14 +1272,8 @@ class EasyBlock(object):
             # append so we can make us of it later (in sanity_check_step)
             self.ext_instances.append(inst)
 
-        # unload fake module and remove it
-        m.unload()
-        try:
-            fakemoddir = os.path.dirname(modpath)
-            self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-            rmtree2(fakemoddir)
-        except OSError, err:
-            self.log.error("Failed to clean up fake module dir: %s" % err)
+        # cleanup (unload fake module, remove fake module dir)
+        self.clean_up_fake_module(fake_mod_path, orig_env)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
