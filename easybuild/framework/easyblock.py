@@ -738,7 +738,7 @@ class EasyBlock(object):
         Create and load fake module.
         """
 
-        # take a copy of the environment before loading the fake module, so we can restore it
+        # take a copy of the environment before loading the fake module
         orig_env = copy.deepcopy(os.environ)
 
         # make fake module
@@ -782,8 +782,13 @@ class EasyBlock(object):
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
 
-        # restore original environment
-        modify_env(os.environ, orig_env)
+        # restore env vars that were set before loading the fake module,
+        # but were unset after unloading it because the module also sets them
+        curr_env = copy.deepcopy(os.environ)
+        for (var, val) in orig_env.items():
+            if not var in curr_env:
+                os.environ[var] = val
+                self.log.debug("Restored value %s for %s that was unset by unloading fake module." % (val, var))
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
