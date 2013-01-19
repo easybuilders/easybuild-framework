@@ -166,10 +166,18 @@ class Modules(object):
         for mod in self.modules:
             self.run_module('load', "/".join(mod))
 
+    def unload(self):
+        """
+        Unload all requested modules.
+        """
+        for mod in self.modules:
+            self.run_module('unload', "/".join(mod))
+
     def purge(self):
         """
         Purge loaded modules.
         """
+        self.log.debug("List of loaded modules before purge: %s" % os.getenv('_LMFILES_'))
         self.run_module('purge', '')
 
     def show(self, name, version):
@@ -187,6 +195,8 @@ class Modules(object):
         else:
             modinfo = self.show(name, version)
 
+            self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
+
             # second line of module show output contains full path of module file
             return modinfo.split('\n')[1].replace(':', '')
 
@@ -202,8 +212,9 @@ class Modules(object):
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('modulePath', None):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
+        self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
 
-        self.log.debug("Running 'modulecmd python %s' ..." % ' '.join(args))
+        self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd()))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stdout will contain python code (to change environment etc)

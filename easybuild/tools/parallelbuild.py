@@ -35,7 +35,7 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
-from easybuild.tools.pbs_job import PbsJob
+from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server
 from easybuild.tools.config import get_repository
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
@@ -50,6 +50,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
+    conn = connect_to_server()
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
@@ -58,7 +59,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
 
         # the new job will only depend on already submitted jobs
         log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, log, output_dir)
+        new_job = create_job(build_command, ec, log, output_dir, conn=conn)
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
         job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
         new_job.add_dependencies(job_deps)
@@ -69,10 +70,12 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
         new_job.cleanup()
         jobs.append(new_job)
 
+    disconnect_from_server(conn)
+
     return jobs
 
 
-def create_job(build_command, easyconfig, log, output_dir=""):
+def create_job(build_command, easyconfig, log, output_dir="", conn=None):
     """
     Creates a job, to build a *single* easyconfig
     build_command is a format string in which a full path to an eb file will be substituted
@@ -110,7 +113,7 @@ def create_job(build_command, easyconfig, log, output_dir=""):
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = PbsJob(command, name, easybuild_vars, resources=resources)
+    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn)
     job.module = easyconfig['module']
 
     return job

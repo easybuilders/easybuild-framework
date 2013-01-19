@@ -122,6 +122,9 @@ class EasyBlock(object):
         # list of loaded modules
         self.loaded_modules = []
 
+        # original module path
+        self.orig_modulepath = os.getenv('MODULEPATH')
+
     # INIT/CLOSE LOG
     def init_log(self):
         """
@@ -179,7 +182,7 @@ class EasyBlock(object):
         for patchFile in list_of_patches:
 
             ## check if the patches can be located
-            copy = False
+            copy_file = False
             suff = None
             level = None
             if type(patchFile) in [list, tuple]:
@@ -192,7 +195,7 @@ class EasyBlock(object):
                 elif type(patchFile[1]) == str:
                     # non-patch files are assumed to be files to copy
                     if not patchFile[0].endswith('.patch'):
-                        copy = True
+                        copy_file = True
                     suff = patchFile[1]
                 else:
                     self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patchFile)
@@ -204,7 +207,7 @@ class EasyBlock(object):
                 self.log.debug('File %s found for patch %s' % (path, patchFile))
                 tmppatch = {'name':pf, 'path':path}
                 if suff:
-                    if copy:
+                    if copy_file:
                         tmppatch['copy'] = suff
                     else:
                         tmppatch['sourcepath'] = suff
@@ -578,7 +581,7 @@ class EasyBlock(object):
         except OSError, err:
             self.log.exception("Can't create directory %s: %s" % (dirName, err))
 
-    # 
+    #
     # MODULE UTILITY FUNCTIONS
     #
 
@@ -736,7 +739,7 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
         }
 
-    def load_fake_module(self):
+    def load_fake_module(self, purge=False):
         """
         Create and load fake module.
         """
@@ -744,19 +747,41 @@ class EasyBlock(object):
         # make fake module
         fake_mod_path = self.make_module_step(True)
 
-        # load the module
+        # create Modules instance
         mod_paths = [fake_mod_path]
-        mod_paths.extend(Modules().modulePath)
+        mod_paths.extend(self.orig_modulepath.split(':'))
         m = Modules(mod_paths)
-        self.log.debug("created module instance")
+        self.log.debug("mod_paths: %s" % mod_paths)
+
+        # purge loaded modules if desired
+        if purge:
+            m.purge()
+
+        # make sure MODULEPATH is set correctly after purging
+        m.check_module_path()
+
+        # load the module
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
-        # clean up
-        try:
-            rmtree2(os.path.dirname(fake_mod_path))
-        except OSError, err:
-            self.log.error("Failed to clean up fake module dir: %s" % err)
+        return fake_mod_path
+
+    def clean_up_fake_module(self, fake_mod_path):
+        """
+        Clean up fake module.
+        """
+
+        # unload module and remove temporary module directory
+        if fake_mod_path:
+            try:
+                mod_paths = [fake_mod_path]
+                mod_paths.extend(Modules().modulePath)
+                m = Modules(mod_paths)
+                m.add_module([[self.name, self.get_installversion()]])
+                m.unload()
+                rmtree2(os.path.dirname(fake_mod_path))
+            except OSError, err:
+                self.log.error("Failed to clean up fake module dir: %s" % err)
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -782,7 +807,7 @@ class EasyBlock(object):
         cmdtmpl = exts_filter[0]
         cmdinputtmpl = exts_filter[1]
         if not self.exts:
-            self.exts = [] 
+            self.exts = []
 
         res = []
         for ext in self.exts:
@@ -816,6 +841,7 @@ class EasyBlock(object):
     #
 
     def det_installsize(self):
+        """Determine size of installation."""
         installsize = 0
         try:
             # change to home dir, to avoid that cwd no longer exists
@@ -833,6 +859,7 @@ class EasyBlock(object):
         return installsize
 
     def get_installversion(self):
+        """Get full install version (including toolchain and version suffix)."""
         return self.cfg.get_installversion()
 
     def guess_start_dir(self):
@@ -1128,27 +1155,17 @@ class EasyBlock(object):
             self.log.debug("No extensions in exts_list")
             return
 
-
         # adjust MODULEPATH and load module
         modpath = self.make_module_step(fake=True)
         self.log.debug("Adding %s to MODULEPATH" % modpath)
-         
-        m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
+        m = Modules([modpath] + os.environ['MODULEPATH'].split(':'))
 
         if m.exists(self.name, self.get_installversion()):
             m.add_module([[self.name, self.get_installversion()]])
             m.load()
         else:
             self.log.error("module %s version %s doesn't exist" % (self.name, self.get_installversion()))
-
-        if not self.skip:
-            try:
-                fakemoddir = os.path.dirname(modpath)
-                self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
-                rmtree2(fakemoddir)
-            except OSError, err:
-                self.log.error("Failed to clean up fake module dir: %s" % err)
 
         self.prepare_for_extensions()
 
@@ -1160,43 +1177,119 @@ class EasyBlock(object):
         # actually install extensions
         self.log.debug("Installing extensions")
         exts_defaultclass = self.cfg['exts_defaultclass']
+        exts_classmap = self.cfg['exts_classmap']
+
+        # we really need a default class
         if not exts_defaultclass:
+            m.unload()
+            rmtree2(os.path.dirname(modpath))
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
-        # exts_defaultclass should be a list or a tuple, but certaintly not a string
-        assert not isinstance(exts_defaultclass, basestring)
-        allclassmodule = exts_defaultclass[0]
-        defaultClass = exts_defaultclass[1]
+        # obtain name and module path for default extention class
+        legacy = False
+        if hasattr(exts_defaultclass, '__iter__'):
+            # LEGACY: module path is explicitely specified
+            self.log.warning("LEGACY: using specified module path for default class (will be deprecated soon)")
+            default_class_modpath = exts_defaultclass[0]
+            default_class = exts_defaultclass[1]
+            derived_mod_path = get_module_path(default_class, generic=True)
+            if not default_class_modpath == derived_mod_path:
+                msg = "Specified module path for default class %s " % default_class_modpath
+                msg += "doesn't match derived path %s" % derived_mod_path
+                self.log.warning(msg)
+            legacy = True
+
+        elif isinstance(exts_defaultclass, basestring):
+            # proper way: derive module path from specified class name
+            default_class = exts_defaultclass
+            default_class_modpath = get_module_path(default_class, generic=True)
+
+        else:
+            self.log.error("Improper default extension class specification, should be list/tuple or string.")
+
+        # get class instances for all extensions
         for ext in self.exts:
-            name = encode_class_name(ext['name']) # Use the same encoding as get_class
-            self.log.debug("Starting extension %s" % name)
+            self.log.debug("Starting extension %s" % ext['name'])
 
+            # always go back to build dir to avoid running stuff from a dir that no longer exists
+            os.chdir(self.builddir)
+
+            inst = None
+
+            # try instantiating extension-specific class
+            class_name = encode_class_name(ext['name'])  # use the same encoding as get_class
+            mod_path = get_module_path(ext['name'])
             try:
-                cls = get_class_for(allclassmodule, name)
-                p = cls(self, ext)
-                self.log.debug("Installing extension %s through class %s" % (ext['name'], name))
+                cls = get_class_for(mod_path, class_name)
+                inst = cls(self, ext)
             except (ImportError, NameError), err:
-                self.log.debug("Couldn't load class %s for extension %s:\n%s" % (name, ext['name'], err))
-                if defaultClass:
-                    self.log.info("No class found for %s, using default %s instead." % (ext['name'], defaultClass))
-                    try:
-                        cls = get_class_for(allclassmodule, defaultClass)
-                        p = cls(self, ext)
-                        self.log.debug("Installing extension %s through default class %s" % (ext['name'], defaultClass))
-                    except (ImportError, NameError), errbis:
-                        self.log.error("Failed to use both class %s and default %s for extension %s, giving up:\n%s\n%s" % (name, defaultClass, ext['name'], err, errbis))
-                else:
-                    self.log.error("Failed to use both class %s and no default class for extension %s, giving up:\n%s" % (name, ext['name'], err))
+                self.log.debug("Failed to use class %s from %s for extension %s: %s" % (class_name,
+                                                                                        mod_path,
+                                                                                        ext['name'],
+                                                                                        err))
 
-            ## real work
-            p.prerun()
-            txt = p.run()
+            # LEGACY: try and use default module path for getting extension class instance
+            if inst is None and legacy:
+                try:
+                    msg = "Failed to use derived module path for %s, " % class_name
+                    msg += "considering specified module path as (legacy) fallback."
+                    self.log.debug(msg)
+                    mod_path = default_class_modpath
+                    cls = get_class_for(mod_path, class_name)
+                    inst = cls(self, ext)
+                except (ImportError, NameError), err:
+                    self.log.debug("Failed to use class %s from %s for extension %s: %s" % (class_name,
+                                                                                            mod_path,
+                                                                                            ext['name'],
+                                                                                            err))
+
+            # alternative attempt: use class specified in class map (if any)
+            if inst is None and ext['name'] in exts_classmap:
+
+                class_name = exts_classmap[ext['name']]
+                mod_path = get_module_path(class_name)
+                try:
+                    cls = get_class_for(mod_path, class_name)
+                    inst = cls(self, ext)
+                except (ImportError, NameError), err:
+                    self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name,
+                                                                                               ext['name'],
+                                                                                               err))
+
+            # fallback attempt: use default class
+            if not inst is None:
+                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
+            else:
+                try:
+                    cls = get_class_for(default_class_modpath, default_class)
+                    inst = cls(self, ext)
+                    self.log.debug("Installing extension %s with default class %s" % (ext['name'], default_class))
+                except (ImportError, NameError), errbis:
+                    msg = "Also failed to use default class %s from %s for extension %s: %s" % (default_class,
+                                                                                                default_class_modpath,
+                                                                                                ext['name'],
+                                                                                                err)
+                    msg += ", giving up:\n%s\n%s" % (err, errbis)
+                    self.log.error(msg)
+
+            # real work
+            inst.prerun()
+            txt = inst.run()
             if txt:
                 self.module_extra_extensions += txt
-            p.postrun()
-            # Append so we can make us of it later (in sanity_check)
-            self.ext_instances.append(p)
+            inst.postrun()
 
+            # append so we can make us of it later (in sanity_check_step)
+            self.ext_instances.append(inst)
+
+        # unload fake module and remove it
+        m.unload()
+        try:
+            fakemoddir = os.path.dirname(modpath)
+            self.log.debug("Cleaning up fake module dir %s..." % fakemoddir)
+            rmtree2(fakemoddir)
+        except OSError, err:
+            self.log.error("Failed to clean up fake module dir: %s" % err)
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
@@ -1285,14 +1378,13 @@ class EasyBlock(object):
                 else:
                     self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
+        fake_mod_path = None
         try:
             # unload all loaded modules before loading fake module
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            m = Modules()
-            m.purge()
-            self.load_fake_module()
+            fake_mod_path = self.load_fake_module(purge=True)
         except EasyBuildError, err:
-            self.log.debug("Loading fake module failed: %s" % err)
+            self.log.info("Loading fake module failed: %s" % err)
             self.sanityCheckOK = False
 
         # chdir to installdir (better environment for running tests)
@@ -1338,6 +1430,9 @@ class EasyBlock(object):
         if failed_exts:
             self.log.info("Sanity check for extensions %s failed!" % failed_exts)
             self.sanityCheckOK = False
+
+        # cleanup
+        self.clean_up_fake_module(fake_mod_path)
 
         # pass or fail
         if not self.sanityCheckOK:

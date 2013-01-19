@@ -40,39 +40,32 @@ import easybuild.tools.config as config
 
 log = get_log('easybuild_config')
 
-# build_path possibly overridden by EASYBUILDBUILDPATH
-# install_path possibly overridden by EASYBUILDINSTALLPATH
-
-# this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
-build_dir = 'build'
-install_dir = ''
-source_dir = 'sources'
-
+# this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/modules/all
 if os.getenv('EASYBUILDPREFIX'):
     prefix = os.getenv('EASYBUILDPREFIX')
 else:
     prefix = os.path.join(os.getenv('HOME'), ".local", "easybuild")
 
-if not prefix:
-    prefix = "/tmp/easybuild"
-
-build_path = os.path.join(prefix, build_dir)
-install_path = os.path.join(prefix, install_dir)
-source_path = os.path.join(prefix, source_dir)
+# build/install/source paths configuration for EasyBuild
+# build_path possibly overridden by EASYBUILDBUILDPATH
+# install_path possibly overridden by EASYBUILDINSTALLPATH
+build_path = os.path.join(prefix, 'build')
+install_path = prefix
+source_path = os.path.join(prefix, 'sources')
 
 # repository for eb files
-## Currently, EasyBuild supports the following repository types:
+# currently, EasyBuild supports the following repository types:
 
-## * `FileRepository`: a plain flat file repository. In this case, the `repositoryPath` contains the directory where the files are stored,
-## * `GitRepository`: a _non-empty_ **bare** git repository (created with `git init --bare` or `git clone --bare`).
-##   Here, the `repositoryPath` contains the git repository location, which can be a directory or an URL.
-## * `SvnRepository`: an SVN repository. In this case, the `repositoryPath` contains the subversion repository location, again, this can be a directory or an URL.
+# * `FileRepository`: a plain flat file repository. In this case, the `repositoryPath` contains the directory where the files are stored,
+# * `GitRepository`: a _non-empty_ **bare** git repository (created with `git init --bare` or `git clone --bare`).
+#   Here, the `repositoryPath` contains the git repository location, which can be a directory or an URL.
+# * `SvnRepository`: an SVN repository. In this case, the `repositoryPath` contains the subversion repository location, again, this can be a directory or an URL.
 
-## you have to set the `repository` variable inside the config like so:
-## `repository = FileRepository(repositoryPath)`
+# you have to set the `repository` variable inside the config like so:
+# `repository = FileRepository(repositoryPath)`
 
-## optionally a subdir argument can be specified:
-## `repository = FileRepository(repositoryPath, subdir)`
+# optionally a subdir argument can be specified:
+# `repository = FileRepository(repositoryPath, subdir)`
 repository_path = os.path.join(prefix, 'ebfiles_repo')
 repository = FileRepository(repository_path)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
 
@@ -87,4 +80,4 @@ log_dir = tempfile.gettempdir()
 module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
 
 # general cleanliness
-del os, get_log, config, log, prefix, build_dir, install_dir, source_dir
+del os, get_log, config, log, prefix
