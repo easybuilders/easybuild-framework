@@ -82,7 +82,7 @@ from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
 from easybuild.tools.config import get_repository, module_classes
-from easybuild.tools.filetools import modify_env
+from easybuild.tools.filetools import modify_env, run_cmd
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -288,6 +288,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
     # we may need for the robot (default path), or for finding easyconfig files
     easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
     easyconfigs_pkg_full_path = None
+
+    # setuptools install path: .egg dir with prefix easybuild_easyconfigs in the Python search path
     for syspath in sys.path:
         tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
         if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
@@ -295,11 +297,27 @@ def main(options, orig_paths, log, logfile, hn, parser):
             log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
             break
 
-    if not easyconfigs_pkg_full_path:
+    # distutils install path: easybuild/easyconfigs in install prefix
+    if easyconfigs_pkg_full_path is None:
+        log.debug("easybuild-easyconfigs not found via Python search path, checking installation prefix...")
+        (out, ec) = run_cmd("which eb", simple=False)
+        if ec:
+            log.warning("eb not found: %s" % out)
+        else:
+            # eb should reside in <install_prefix>/bin/eb
+            install_prefix = os.path.dirname(os.path.dirname(out))
+            tmppath = os.path.join(install_prefix, easyconfigs_pkg_base_path)
+            if os.path.exists(tmppath):
+                easyconfigs_pkg_full_path = tmppath
+                log.info("Found path for easyconfigs in install prefix: %s" % easyconfigs_pkg_full_path)
+            else:
+                log.debug("easybuild-easyconfigs install not found in installation prefix %s" % install_prefix)
+
+    if easyconfigs_pkg_full_path is None:
         log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
 
     if options.robot and type(options.robot) == bool:
-        if easyconfigs_pkg_full_path:
+        if not easyconfigs_pkg_full_path is None:
             options.robot = easyconfigs_pkg_full_path
             log.info("Using default robot path: %s" % options.robot)
         else:
