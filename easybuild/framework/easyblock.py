@@ -76,7 +76,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False):
+    def __init__(self, path, debug=False, robot_path=None):
         """
         Initialize the EasyBlock instance.
         """
@@ -121,6 +121,9 @@ class EasyBlock(object):
 
         # list of loaded modules
         self.loaded_modules = []
+
+        # robot path
+        self.robot_path = robot_path
 
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
@@ -353,20 +356,26 @@ class EasyBlock(object):
             # try and find file in various locations
             foundfile = None
             failedpaths = []
+
+            # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
+            common_filepaths = []
+            if not self.robot_path is None:
+                common_filepaths.append(self.robot_path)
+
+            for path in get_paths_for(self.log, "easyconfigs", robot_path=self.robot_path):
+                common_filepaths.append(os.path.join(path, self.name.lower()[0], self.name))
+
             for srcpath in srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(srcpath, self.name)
-                fst_letter_path_low = os.path.join(srcpath, self.name.lower()[0])
+                letterpath = os.path.join(srcpath, self.name.lower()[0], self.name)
 
                 # most likely paths
-                candidate_filepaths = [os.path.join(fst_letter_path_low, self.name), # easyblocks-style subdir
-                                       namepath, # subdir with software name
-                                       srcpath, # directly in sources directory
-                                       ]
-
-                # also consider easyconfigs paths as a fall back (e.g. for patch files, test cases, ...)
-                for path in get_paths_for(self.log, "easyconfigs"):
-                    candidate_filepaths.append(os.path.join(path, self.name.lower()[0], self.name))
+                candidate_filepaths = [
+                                       letterpath,  # easyblocks-style subdir
+                                       namepath,  # subdir with software name
+                                       srcpath,  # directly in sources directory
+                                      ] + common_filepaths
 
                 # see if file can be found at that location
                 for cfp in candidate_filepaths:
@@ -386,7 +395,7 @@ class EasyBlock(object):
                     for fp in fullpaths:
                         if os.path.isfile(fp):
                             self.log.info("Found file %s at %s" % (filename, fp))
-                            foundfile = fp
+                            foundfile = os.path.abspath(fp)
                             break # no need to try further
                         else:
                             failedpaths.append(fp)
