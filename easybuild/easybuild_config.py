@@ -43,7 +43,7 @@ log = get_log('easybuild_config')
 # build_path possibly overridden by EASYBUILDBUILDPATH
 # install_path possibly overridden by EASYBUILDINSTALLPATH
 
-# this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all
+# this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all (with default modules suffix)
 build_dir = 'build'
 install_dir = ''
 source_dir = 'sources'
