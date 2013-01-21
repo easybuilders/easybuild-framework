@@ -57,6 +57,8 @@ class Extension(object):
         self.patches = self.ext.get('patches', None)
         self.options = copy.deepcopy(self.ext.get('options', {}))
 
+        self.toolchain.prepare(self.cfg['onlytcmod'])
+
     @property
     def name(self):
         """
