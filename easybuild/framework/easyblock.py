@@ -361,21 +361,19 @@ class EasyBlock(object):
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
+            common_filepaths.extend(get_paths_for(self.log, "easyconfigs", robot_path=self.robot_path))
 
-            for path in get_paths_for(self.log, "easyconfigs", robot_path=self.robot_path):
-                common_filepaths.append(os.path.join(path, self.name.lower()[0], self.name))
-
-            for srcpath in srcpaths:
+            for path in common_filepaths + srcpaths:
                 # create list of candidate filepaths
-                namepath = os.path.join(srcpath, self.name)
-                letterpath = os.path.join(srcpath, self.name.lower()[0], self.name)
+                namepath = os.path.join(path, self.name)
+                letterpath = os.path.join(path, self.name.lower()[0], self.name)
 
                 # most likely paths
                 candidate_filepaths = [
                                        letterpath,  # easyblocks-style subdir
                                        namepath,  # subdir with software name
-                                       srcpath,  # directly in sources directory
-                                      ] + common_filepaths
+                                       path,  # directly in directory
+                                      ]
 
                 # see if file can be found at that location
                 for cfp in candidate_filepaths:
