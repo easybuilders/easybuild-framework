@@ -1044,7 +1044,7 @@ def get_paths_for(log, subdir="easyconfigs", robot_path=None):
 
     # primary search path is robot path
     path_list = []
-    if not robot_path is None:
+    if not robot_path is None and isinstance(robot_path, basestring):
         path_list.append(robot_path)
 
     # consider Python search path, e.g. setuptools install path for easyconfigs
