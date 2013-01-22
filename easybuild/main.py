@@ -77,12 +77,12 @@ import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import EasyConfig
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, init_logger
 from easybuild.tools.build_log import remove_log_handler, print_msg
 from easybuild.tools.config import get_repository, module_classes
-from easybuild.tools.filetools import modify_env
+from easybuild.tools.filetools import modify_env, run_cmd
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -285,23 +285,18 @@ def main(options, orig_paths, log, logfile, hn, parser):
                                                                             EASYBLOCKS_VERSION), log)
 
     # determine easybuild-easyconfigs package install path
-    # we may need for the robot (default path), or for finding easyconfig files
-    easyconfigs_pkg_base_path = os.path.join('easybuild', 'easyconfigs')
+    easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
-    for syspath in sys.path:
-        tmppath = os.path.join(syspath, easyconfigs_pkg_base_path)
-        if os.path.basename(syspath).startswith('easybuild_easyconfigs') and os.path.exists(tmppath):
-            easyconfigs_pkg_full_path = tmppath
-            log.info("Found path for easyconfigs in Python search path: %s" % easyconfigs_pkg_full_path)
-            break
 
-    if not easyconfigs_pkg_full_path:
-        log.info("Failed to determine easyconfigs path for easybuild-easyconfigs package.")
+    if easyconfigs_paths:
+        easyconfigs_pkg_full_path = easyconfigs_paths[0]
+    else:
+        log.info("Failed to determine install path for easybuild-easyconfigs package.")
 
     if options.robot and type(options.robot) == bool:
-        if easyconfigs_pkg_full_path:
+        if not easyconfigs_pkg_full_path is None:
             options.robot = easyconfigs_pkg_full_path
-            log.info("Using default robot path: %s" % options.robot)
+            log.info("Using default robot path (easyconfigs install dir): %s" % options.robot)
         else:
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
@@ -513,7 +508,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
         log.debug("Command template for jobs: %s" % command)
-        jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log)
+        jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
+                                                      robot_path=options.robot)
         print "List of submitted jobs:"
         for job in jobs:
             print "%s: %s" % (job.name, job.jobid)
@@ -990,7 +986,7 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
     name = module['module'][0]
     try:
         app_class = get_class(easyblock, log, name=name)
-        app = app_class(spec, debug=options.debug)
+        app = app_class(spec, debug=options.debug, robot_path=options.robot)
         log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg))
@@ -1249,7 +1245,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             try:
                 if step == 'initialization':
                     log.info("Running %s step" % step)
-                    return parbuild.get_instance(obj, log)
+                    return parbuild.get_instance(obj, log, robot_path=options.robot)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)
@@ -1440,7 +1436,7 @@ def regtest(options, log, easyconfig_paths):
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
 
-        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, log)
+        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, log, robot_path=options.robot)
 
         print "List of submitted jobs:"
         for job in jobs:

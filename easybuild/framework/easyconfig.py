@@ -1035,17 +1035,37 @@ def tweak(src_fn, target_fn, tweaks, log):
 
     return target_fn
 
-def get_paths_for(log, subdir="easyconfigs"):
+def get_paths_for(log, subdir="easyconfigs", robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
-    # browse through Python search path, all easyblocks repo paths should be there
+
     paths = []
-    for path in sys.path:
+
+    # primary search path is robot path
+    path_list = []
+    if not robot_path is None:
+        path_list.append(robot_path)
+
+    # consider Python search path, e.g. setuptools install path for easyconfigs
+    path_list.extend(sys.path)
+
+    # figure out installation prefix, e.g. distutils install path for easyconfigs
+    (out, ec) = run_cmd("which eb", simple=False)
+    if ec:
+        log.warning("eb not found (%s), failed to determine installation prefix" % out)
+    else:
+        # eb should reside in <install_prefix>/bin/eb
+        install_prefix = os.path.dirname(os.path.dirname(out))
+        path_list.append(install_prefix)
+        log.debug("Also considering installation prefix %s..." % install_prefix)
+
+    # look for desired subdirs
+    for path in path_list:
         path = os.path.join(path, "easybuild", subdir)
         log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
-            if os.path.isdir(path):
+            if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
