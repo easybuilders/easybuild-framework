@@ -311,25 +311,28 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
 
     return result
 
-def adjust_cmd(cmd):
+def adjust_cmd(func):
     """Make adjustments to given command, if required."""
 
-    # SuSE hack
-    # - profile is not resourced, and functions (e.g. module) is not inherited
-    if 'PROFILEREAD' in os.environ and (len(os.environ['PROFILEREAD']) > 0):
-        filepaths = ['/etc/profile.d/modules.sh']
-        extra = ''
-        for fp in filepaths:
-            if os.path.exists(fp):
-                extra = ". %s &&%s" % (fp, extra)
-            else:
-                log.warning("Can't find file %s" % fil)
+    def inner(cmd, *args, **kwargs):
+        # SuSE hack
+        # - profile is not resourced, and functions (e.g. module) is not inherited
+        if 'PROFILEREAD' in os.environ and (len(os.environ['PROFILEREAD']) > 0):
+            filepaths = ['/etc/profile.d/modules.sh']
+            extra = ''
+            for fp in filepaths:
+                if os.path.exists(fp):
+                    extra = ". %s &&%s" % (fp, extra)
+                else:
+                    log.warning("Can't find file %s" % fil)
 
-        return "%s %s" % (extra, cmd)
+            cmd = "%s %s" % (extra, cmd)
 
-    else:
-        return cmd
+        return func(cmd, *args, **kwargs)
 
+    return inner
+
+@adjust_cmd
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """
     Executes a command cmd
@@ -357,8 +360,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         runLog.write(cmd + "\n\n")
     else:
         runLog = None
-
-    cmd = adjust_cmd(cmd)
 
     readSize = 1024 * 8
 
@@ -398,6 +399,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
+@adjust_cmd
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """
     Executes a command cmd
@@ -417,8 +419,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         log.debug("run_cmd_qa: running cmd %s (in %s)" % (cmd, os.getcwd()))
     except:
         log.info("running cmd %s in non-existing directory, might fail!" % cmd)
-
-    cmd = adjust_cmd(cmd)
 
     # Part 1: process the QandA dictionary
     # given initial set of Q and A (in dict), return dict of reg. exp. and A
