@@ -1189,7 +1189,7 @@ class EasyBlock(object):
         legacy = False
         if hasattr(exts_defaultclass, '__iter__'):
             # LEGACY: module path is explicitely specified
-            self.log.warning("LEGACY: using specified module path for default class (will be deprecated soon)")
+            self.log.deprecated("Using specified module path for default class", LooseVersion("1.0"))
             default_class_modpath = exts_defaultclass[0]
             default_class = exts_defaultclass[1]
             derived_mod_path = get_module_path(default_class, generic=True)

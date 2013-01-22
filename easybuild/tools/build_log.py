@@ -98,6 +98,14 @@ class EasyBuildLog(fancylogger.NamedLogger):
         super(EasyBuildLog, self).debug(msg, *args, **kwargs)
 
     @decode_msg_to_utf8
+    def deprecated(self, msg, ver, *args, **kwargs):
+        """Log deprecation message, throw error if version difference is too big."""
+        framework_maj_ver, framework_min_ver, _ = str(FRAMEWORK_VERSION).split('.')
+        max_maj_ver, max_min_ver, _ = str(msg).split('.')
+        ver_diff = # FIXME
+        self.log.error("Version difference: %s" % ver_diff)
+
+    @decode_msg_to_utf8
     def error(self, msg, *args, **kwargs):
         """Log error message and raise EasyBuildError."""
         new_msg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
