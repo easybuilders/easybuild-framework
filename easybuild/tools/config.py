@@ -150,9 +150,13 @@ def install_path(typ=None):
     - subdir 'modules' for environment modules (typ='mod')
     """
     if typ and typ == 'mod':
-        suffix = 'modules'
+        suffix = variables.get('modules_install_suffix', None)
+        if not suffix:
+            suffix = 'modules'
     else:
-        suffix = 'software'
+        suffix = variables.get('software_install_suffix', None)
+        if not suffix:
+            suffix = 'software'
 
     return os.path.join(variables['install_path'], suffix)
 
