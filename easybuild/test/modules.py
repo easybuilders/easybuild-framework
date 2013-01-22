@@ -39,7 +39,7 @@ class ModulesTest(TestCase):
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
-        testmods = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+        testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available('', None)
 
         m = random.choice(ms)
@@ -51,7 +51,7 @@ class ModulesTest(TestCase):
 
     def test_purge(self):
         """Test if purging of modules works."""
-        m = modules.Modules([os.path.join('easybuild', 'test', 'modules')])
+        m = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
 
         ms = m.available('', None)
         m.add_module([ms[0]])
