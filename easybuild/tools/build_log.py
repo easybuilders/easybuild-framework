@@ -50,6 +50,16 @@ except:
 EB_MSG_PREFIX = "=="
 
 
+def decode_msg_to_utf8(func):
+    """Decorator to decode log messages to UTF-8."""
+
+    def inner(self, msg, *args, **kwargs):
+        new_msg = msg.decode('utf8')
+        return func(self, new_msg, *args, **kwargs)
+
+    return inner
+
+
 class EasyBuildError(Exception):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
@@ -71,6 +81,7 @@ class EasyBuildLog(fancylogger.NamedLogger):
     raiseError = True
 
     def caller_info(self):
+        """Return caller info to use in error message."""
         (filepath, line, function_name) = self.findCaller()
         filepath_dirs = filepath.split(os.path.sep)
 
@@ -81,22 +92,36 @@ class EasyBuildLog(fancylogger.NamedLogger):
                 break
         return "(at %s:%s in %s)" % (os.path.sep.join(filepath_dirs), line, function_name)
 
-    def error(self, msg, *args, **kwargs):
-        newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
-        logging.Logger.error(self, newMsg, *args, **kwargs)
-        if self.raiseError:
-            raise EasyBuildError(newMsg)
+    @decode_msg_to_utf8
+    def debug(self, msg, *args, **kwargs):
+        """Log debug message."""
+        super(EasyBuildLog, self).debug(msg, *args, **kwargs)
 
-    def exception(self, msg, *args):
+    @decode_msg_to_utf8
+    def error(self, msg, *args, **kwargs):
+        """Log error message and raise EasyBuildError."""
+        new_msg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
+
+        logging.Logger.error(self, new_msg, *args, **kwargs)
+        if self.raiseError:
+            raise EasyBuildError(new_msg)
+
+    @decode_msg_to_utf8
+    def exception(self, msg, *args, **kwargs):
+        """Log exception message and raise EasyBuildError."""
         ## don't raise the exception from within error
-        newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
+        new_msg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
-        logging.Logger.exception(self, newMsg, *args)
+        logging.Logger.exception(self, new_msg, *args, **kwargs)
         self.raiseError = True
 
-        raise EasyBuildError(newMsg)
+        raise EasyBuildError(new_msg)
 
+    @decode_msg_to_utf8
+    def warning(self, msg, *args, **kwargs):
+        """Log warning message."""
+        super(EasyBuildLog, self).warning(msg, *args, **kwargs)
 
 # set format for logger
 logging_format = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
