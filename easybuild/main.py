@@ -508,7 +508,8 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
         log.debug("Command template for jobs: %s" % command)
-        jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log, robot_path=options.robot)
+        jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
+                                                      robot_path=options.robot)
         print "List of submitted jobs:"
         for job in jobs:
             print "%s: %s" % (job.name, job.jobid)
