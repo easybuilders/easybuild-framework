@@ -40,6 +40,7 @@ import easybuild.tools.config as config
 
 log = get_log('easybuild_config')
 
+# this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/install/modules/all (with default modules suffix)
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/modules/all
 if os.getenv('EASYBUILDPREFIX'):
     prefix = os.getenv('EASYBUILDPREFIX')
