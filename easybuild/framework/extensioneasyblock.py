@@ -60,7 +60,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         return EasyBlock.extra_options(extra_vars)
 
     def __init__(self, *args, **kwargs):
-        """Initliaze either as EasyBlock or as Extension."""
+        """Initialize either as EasyBlock or as Extension."""
+
+        self.is_extension = False
 
         if isinstance(args[0], EasyBlock):
             Extension.__init__(self, *args, **kwargs)
@@ -69,6 +71,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.cfg['version'] = self.ext.get('version', None)
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
+            self.is_extension = True
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
@@ -96,14 +99,16 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if not self.cfg['exts_filter']:
             self.cfg['exts_filter'] = exts_filter
 
-        # load fake module
-        fake_mod_data = self.load_fake_module(purge=True)
+        if not self.is_extension:
+            # load fake module
+            fake_mod_data = self.load_fake_module(purge=True)
 
         # perform sanity check
         sanity_check_ok = Extension.sanity_check_step(self)
 
-        # unload fake module and clean up
-        self.clean_up_fake_module(fake_mod_data)
+        if not self.is_extension:
+            # unload fake module and clean up
+            self.clean_up_fake_module(fake_mod_data)
 
         # pass or fail sanity check
         if not sanity_check_ok:
