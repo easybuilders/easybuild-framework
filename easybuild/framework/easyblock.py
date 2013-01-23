@@ -740,6 +740,14 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
         }
 
+    def load_module(self):
+        """
+        Load module for this software package/version.
+        """
+        m = Modules()
+        m.add_module([[self.name, self.get_installversion()]])
+        m.load()
+
     def load_fake_module(self, purge=False):
         """
         Create and load fake module.
@@ -1561,7 +1569,10 @@ class EasyBlock(object):
                   ]
 
         if run_test_cases:
-            steps.append(('testcases', 'running test cases', [lambda x: x.test_cases_step()], False))
+            steps.append(('testcases', 'running test cases', [
+                                                              lambda x: x.load_module(),
+                                                              lambda x: x.test_cases_step(),
+                                                             ], False))
 
         return steps
 
