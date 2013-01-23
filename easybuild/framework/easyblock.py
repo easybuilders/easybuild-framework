@@ -1448,6 +1448,10 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             try:
+                os.chdir(build_path())  # make sure we're out of the dir we're removing
+
+                self.log.info("Cleaning up builddir %s (in %s)" % (self.builddir, os.getcwd()))
+
                 rmtree2(self.builddir)
                 base = os.path.dirname(self.builddir)
 
@@ -1457,7 +1461,6 @@ class EasyBlock(object):
                     os.rmdir(base)
                     base = os.path.dirname(base)
 
-                self.log.info("Cleaning up builddir %s" % (self.builddir))
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
 
