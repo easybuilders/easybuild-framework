@@ -24,6 +24,7 @@ implemented as an easyblock
 
 @authors: Kenneth Hoste (Ghent University)
 """
+import copy
 import os
 
 from easybuild.framework.easyblock import EasyBlock
@@ -70,7 +71,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
         else:
             EasyBlock.__init__(self, *args, **kwargs)
-            self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
+            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
 
         self.ext_dir = None  # dir where extension source was unpacked
 
@@ -95,7 +96,20 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if not self.cfg['exts_filter']:
             self.cfg['exts_filter'] = exts_filter
 
-        return Extension.sanity_check_step(self)
+        # load fake module
+        fake_mod_data = self.load_fake_module(purge=True)
+
+        # perform sanity check
+        sanity_check_ok = Extension.sanity_check_step(self)
+
+        # unload fake module and clean up
+        self.clean_up_fake_module(fake_mod_data)
+
+        # pass or fail sanity check
+        if not sanity_check_ok:
+            self.log.error("Sanity check for %s failed!" % self.name)
+        else:
+            self.log.info("Sanity check for %s successful!" % self.name)
 
     def make_module_extra(self, extra):
         """Add custom entries to module."""
