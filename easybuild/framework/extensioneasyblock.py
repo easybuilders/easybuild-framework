@@ -24,6 +24,7 @@ implemented as an easyblock
 
 @authors: Kenneth Hoste (Ghent University)
 """
+import copy
 import os
 
 from easybuild.framework.easyblock import EasyBlock
@@ -70,7 +71,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
         else:
             EasyBlock.__init__(self, *args, **kwargs)
-            self.options = self.cfg['options']  # we need this for Extension.sanity_check_step
+            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
 
         self.ext_dir = None  # dir where extension source was unpacked
 
