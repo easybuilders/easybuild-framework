@@ -488,6 +488,14 @@ class EasyConfig(object):
         """
         self.config[key][0] = value
 
+    def get(self, key, default=None):
+        """
+        Gets the value of a key in the config, with 'default' as fallback.
+        """
+        if key in self.config:
+            return self.__getitem__(key)
+        else:
+            return default
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """
