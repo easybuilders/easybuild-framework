@@ -33,6 +33,7 @@ Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 """
 import copy
+import os
 
 from easybuild.tools.config import build_path
 from easybuild.tools.filetools import run_cmd
