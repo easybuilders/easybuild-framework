@@ -33,7 +33,9 @@ Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
 """
 import copy
+import os
 
+from easybuild.tools.config import build_path
 from easybuild.tools.filetools import run_cmd
 
 
@@ -100,8 +102,14 @@ class Extension(object):
 
     def sanity_check_step(self):
         """
-        sanity check to run after installing
+        Sanity check to run after installing extension
         """
+
+        try:
+            os.chdir(build_path())
+        except OSError, err:
+            self.log.error("Failed to change directory: %s" % err)
+
         if not self.cfg['exts_filter'] is None:
             cmd, inp = self.cfg['exts_filter']
         else:
@@ -111,7 +119,7 @@ class Extension(object):
         if 'modulename' in self.options:
             modname = self.options['modulename']
         else:
-            modname = self.name
+            modname = self.name.lower()
 
         template = {
                     'name': modname,

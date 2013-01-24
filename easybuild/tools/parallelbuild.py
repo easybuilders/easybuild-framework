@@ -38,7 +38,7 @@ from easybuild.framework.easyblock import get_class
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server
 from easybuild.tools.config import get_repository
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log, robot_path=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
@@ -55,7 +55,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log):
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, log)
+        prepare_easyconfig(ec, log, robot_path=robot_path)
 
         # the new job will only depend on already submitted jobs
         log.info("creating job for ec: %s" % str(ec))
@@ -119,7 +119,7 @@ def create_job(build_command, easyconfig, log, output_dir="", conn=None):
     return job
 
 
-def get_instance(easyconfig, log):
+def get_instance(easyconfig, log, robot_path=None):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
@@ -140,13 +140,13 @@ def get_instance(easyconfig, log):
             break
 
     app_class = get_class(easyblock, log, name=name)
-    return app_class(spec, debug=True)
+    return app_class(spec, debug=True, robot_path=robot_path)
 
 
-def prepare_easyconfig(ec, log):
+def prepare_easyconfig(ec, log, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, log)
+        instance = get_instance(ec, log, robot_path=robot_path)
         instance.fetch_step()
     except:
         pass

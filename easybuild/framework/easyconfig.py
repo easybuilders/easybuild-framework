@@ -488,6 +488,14 @@ class EasyConfig(object):
         """
         self.config[key][0] = value
 
+    def get(self, key, default=None):
+        """
+        Gets the value of a key in the config, with 'default' as fallback.
+        """
+        if key in self.config:
+            return self.__getitem__(key)
+        else:
+            return default
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """
@@ -1035,17 +1043,37 @@ def tweak(src_fn, target_fn, tweaks, log):
 
     return target_fn
 
-def get_paths_for(log, subdir="easyconfigs"):
+def get_paths_for(log, subdir="easyconfigs", robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
-    # browse through Python search path, all easyblocks repo paths should be there
+
     paths = []
-    for path in sys.path:
+
+    # primary search path is robot path
+    path_list = []
+    if not robot_path is None and isinstance(robot_path, basestring):
+        path_list.append(robot_path)
+
+    # consider Python search path, e.g. setuptools install path for easyconfigs
+    path_list.extend(sys.path)
+
+    # figure out installation prefix, e.g. distutils install path for easyconfigs
+    (out, ec) = run_cmd("which eb", simple=False)
+    if ec:
+        log.warning("eb not found (%s), failed to determine installation prefix" % out)
+    else:
+        # eb should reside in <install_prefix>/bin/eb
+        install_prefix = os.path.dirname(os.path.dirname(out))
+        path_list.append(install_prefix)
+        log.debug("Also considering installation prefix %s..." % install_prefix)
+
+    # look for desired subdirs
+    for path in path_list:
         path = os.path.join(path, "easybuild", subdir)
         log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
-            if os.path.isdir(path):
+            if os.path.exists(path):
                 paths.append(os.path.abspath(path))
                 log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
