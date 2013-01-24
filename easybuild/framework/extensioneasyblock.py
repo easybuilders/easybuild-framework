@@ -112,9 +112,14 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # pass or fail sanity check
         if not sanity_check_ok:
-            self.log.error("Sanity check for %s failed!" % self.name)
+            if self.is_extension:
+                self.log.warning("Sanity check for %s failed!" % self.name)
+            else:
+                self.log.error("Sanity check for %s failed!" % self.name)
+            return False
         else:
             self.log.info("Sanity check for %s successful!" % self.name)
+            return True
 
     def make_module_extra(self, extra):
         """Add custom entries to module."""
