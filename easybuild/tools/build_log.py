@@ -100,10 +100,17 @@ class EasyBuildLog(fancylogger.NamedLogger):
     @decode_msg_to_utf8
     def deprecated(self, msg, ver, *args, **kwargs):
         """Log deprecation message, throw error if version difference is too big."""
-        framework_maj_ver, framework_min_ver, _ = str(FRAMEWORK_VERSION).split('.')
-        max_maj_ver, max_min_ver, _ = str(msg).split('.')
-        ver_diff = # FIXME
-        self.log.error("Version difference: %s" % ver_diff)
+
+        ebf_maj_ver, ebf_min_ver = [int(x) for x in str(FRAMEWORK_VERSION).split('.')[0:2]]
+        max_maj_ver, max_min_ver = [int(x) for x in str(ver).split('.')[0:2]]
+
+        if ebf_maj_ver > max_maj_ver or (ebf_maj_ver == max_maj_ver and ebf_min_ver > max_min_ver):
+            self.error("DEPRECATED (since v%s) functionality used: %s" % (ver, msg))
+
+        else:
+            deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (ver, msg)
+            self.warning(deprecation_msg)
+            print_msg(deprecation_msg)
 
     @decode_msg_to_utf8
     def error(self, msg, *args, **kwargs):
