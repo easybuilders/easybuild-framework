@@ -64,10 +64,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         self.is_extension = False
 
-        if isinstance(args[0], basestring):
-            EasyBlock.__init__(self, *args, **kwargs)
-            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
-        else:
+        if isinstance(args[0], EasyBlock):
             Extension.__init__(self, *args, **kwargs)
             # name and version properties of EasyBlock are used, so make sure name and version are correct
             self.cfg['name'] = self.ext.get('name', None)
@@ -75,6 +72,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.is_extension = True
+        else:
+            EasyBlock.__init__(self, *args, **kwargs)
+            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
 
         self.ext_dir = None  # dir where extension source was unpacked
 
