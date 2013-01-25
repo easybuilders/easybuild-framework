@@ -92,7 +92,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 if not apply_patch(patchfile, self.ext_dir):
                     self.log.error("Applying patch %s failed" % patchfile)
 
-    def sanity_check_step(self, exts_filter):
+    def sanity_check_step(self, exts_filter, custom_paths=None, custom_commands=None):
         """
         Custom sanity check for extensions, whether installed as stand-alone module or not
         """
@@ -120,6 +120,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         else:
             self.log.info("Sanity check for %s successful!" % self.name)
             return True
+
+        if custom_paths or custom_commands:
+            Easyblock.sanity_check_step(self, custom_paths=custom_paths, custom_commands=custom_commands)
 
     def make_module_extra(self, extra):
         """Add custom entries to module."""
