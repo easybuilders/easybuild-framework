@@ -119,7 +119,7 @@ class Extension(object):
         if 'modulename' in self.options:
             modname = self.options['modulename']
         else:
-            modname = self.name.lower()
+            modname = self.name
 
         template = {
                     'name': modname,
