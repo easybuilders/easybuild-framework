@@ -1,8 +1,39 @@
 This file contains a description of the major changes to EasyBuild.
 For more detailed information, please see the git log.
 
+v1.1.0 (January 27th 2013)
+--------------------------
+
+feature + bugfix release
+- improvements w.r.t. software extensions
+    - cleaned up support for building/installing extensions
+    - define ExtensionEasyblock class that implements support for installing extensions as stand-alone module as well
+    - return to build dir before building/installing each extension
+    - define EBEXTSLIST<NAME> environment variable in module if exts_list was defined
+    - make sure sanity check for extensions results in an error if it fails
+- various enhancements, including
+    - log both framework and easyblocks versions
+    - add support for iccifort, iomkl, ismkl toolchains
+    - define *_SEQ compiler variables for sequential compilers
+    - add --list-toolchains command line option for listing supported toolchains
+    - add support for customizing software and modules install path suffixes
+    - support both setuptools and distutils installation methods for finding installed easyconfigs
+    - also consider robot path in list of paths searched for patch files
+    - allow skipping of default extension sanity check (by setting 'modulename' to False in options)
+- various bug fixes, including
+    - typos in toolchain Python modules w.r.t. imkl support, handling of i8/optarch/unroll options
+    - purge before loading 'fake' module, unload 'fake' module before removing it, use original MODULEPATH
+    - restore environment after unloading fake module, set variables that were incorrectly unset, i.e., that were defined before as well
+    - unset TMPDIR for builds submitted as jobs (required by IntelBase easyblock)
+    - correctly track easyconfig parse error
+    - always run all jobs in regtest, also if dependency jobs failed
+    - cosmetic adjustments to default EasyBuild configuration file to avoid confusion between e.g. build_dir and build_path (only latter matters)
+    - fix SuSe hack, only prefix command with sourcing of /etc/profile.d/modules.sh if it is there
+    - leave build directory before it is removed during cleanup step
+    - load generated module file before running test cases
+
 v1.0.2 (December 8th 2012)
----------------------------
+--------------------------
 
 bugfix release
 - properly catch failing sanity check commands
