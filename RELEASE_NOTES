@@ -5,13 +5,13 @@ v1.1.0 (January 27th 2013)
 --------------------------
 
 feature + bugfix release
-- improvements w.r.t. software extensions
+- improvements w.r.t. support for software extensions (tested on Python and R, see easyblocks package)
     - cleaned up support for building/installing extensions
     - define ExtensionEasyblock class that implements support for installing extensions as stand-alone module as well
     - return to build dir before building/installing each extension
     - define EBEXTSLIST<NAME> environment variable in module if exts_list was defined
     - make sure sanity check for extensions results in an error if it fails
-- various enhancements, including
+- various enhancements, including:
     - log both framework and easyblocks versions
     - add support for gimkl, gmacml, iccifort, iomkl, and ismkl toolchains
     - define *_SEQ compiler variables for sequential compilers
@@ -20,7 +20,7 @@ feature + bugfix release
     - support both setuptools and distutils installation methods for finding installed easyconfigs
     - also consider robot path in list of paths searched for patch files
     - allow skipping of default extension sanity check (by setting 'modulename' to False in options)
-- various bug fixes, including
+- various bug fixes, including:
     - typos in toolchain Python modules w.r.t. imkl support, handling of i8/optarch/unroll options
     - purge before loading 'fake' module, unload 'fake' module before removing it, use original MODULEPATH
     - restore environment after unloading fake module, set variables that were incorrectly unset, i.e., that were defined before as well
