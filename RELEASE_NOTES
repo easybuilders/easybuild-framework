@@ -13,7 +13,7 @@ feature + bugfix release
     - make sure sanity check for extensions results in an error if it fails
 - various enhancements, including
     - log both framework and easyblocks versions
-    - add support for iccifort, iomkl, ismkl toolchains
+    - add support for gimkl, gmacml, iccifort, iomkl, and ismkl toolchains
     - define *_SEQ compiler variables for sequential compilers
     - add --list-toolchains command line option for listing supported toolchains
     - add support for customizing software and modules install path suffixes
