@@ -168,10 +168,10 @@ class Mpi(Toolchain):
 
         # different known mpirun commands
         mpi_cmds = {
-                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.QLOGICMPI:"mpirun -m %(nodesfile)s -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    }
+                    toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.QLOGICMPI: "mpirun -H localhost -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.INTELMPI: "mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                   }
 
         mpi_family = self.mpi_family()
 
