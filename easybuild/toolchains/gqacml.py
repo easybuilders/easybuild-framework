@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for goalf compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+EasyBuild support for gqacml compiler toolchain (includes GCC, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
