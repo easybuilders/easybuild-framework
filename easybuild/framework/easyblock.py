@@ -1362,12 +1362,14 @@ class EasyBlock(object):
                            "values should be lists (at least one non-empty)).")
 
         self.sanityCheckOK = True
+        self.sanity_check_fail_msg = "(no msg)"
 
         # check if files exist
         for f in paths['files']:
             p = os.path.join(self.installdir, f)
             if not os.path.exists(p):
-                self.log.debug("Sanity check: did not find file %s in %s" % (f, self.installdir))
+                self.sanity_check_fail_msg = "did not find file %s in %s" % (f, self.installdir)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msg)
                 self.sanityCheckOK = False
                 break
             else:
@@ -1378,7 +1380,8 @@ class EasyBlock(object):
             for d in paths['dirs']:
                 p = os.path.join(self.installdir, d)
                 if not os.path.isdir(p) or not os.listdir(p):
-                    self.log.debug("Sanity check: did not find non-empty directory %s in %s" % (d, self.installdir))
+                    self.sanity_check_fail_msg = "did not find non-empty directory %s in %s" % (d, self.installdir)
+                    self.log.warning("Sanity check: %s" % self.sanity_check_fail_msg)
                     self.sanityCheckOK = False
                     break
                 else:
@@ -1390,7 +1393,8 @@ class EasyBlock(object):
             # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
             fake_mod_data = self.load_fake_module(purge=True)
         except EasyBuildError, err:
-            self.log.info("Loading fake module failed: %s" % err)
+            self.sanity_check_fail_msg = "loading fake module failed: %s" % err
+            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msg)
             self.sanityCheckOK = False
 
         # chdir to installdir (better environment for running tests)
@@ -1427,14 +1431,16 @@ class EasyBlock(object):
             out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False)
             if ec != 0:
                 self.sanityCheckOK = False
-                self.log.warning("sanityCheckCommand %s exited with code %s (output: %s)" % (cmd, ec, out))
+                self.sanity_check_fail_msg = "sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msg)
             else:
-                self.log.info("sanityCheckCommand %s ran successfully! (output: %s)" % (cmd, out))
+                self.log.debug("sanity check command %s ran successfully! (output: %s)" % (cmd, out))
 
         failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
 
         if failed_exts:
-            self.log.info("Sanity check for extensions %s failed!" % failed_exts)
+            self.sanity_check_fail_msg = "sanity checks for %s extensions failed!" % failed_exts
+            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msg)
             self.sanityCheckOK = False
 
         # cleanup
@@ -1443,7 +1449,7 @@ class EasyBlock(object):
 
         # pass or fail
         if not self.sanityCheckOK:
-            self.log.error("Sanity check failed!")
+            self.log.error("Sanity check failed: %s" % self.sanity_check_fail_msg)
         else:
             self.log.debug("Sanity check passed!")
 
