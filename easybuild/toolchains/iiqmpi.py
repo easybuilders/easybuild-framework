@@ -1,6 +1,5 @@
 ##
 # Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,6 +24,8 @@
 ##
 """
 EasyBuild support for iiqmpi compiler toolchain (includes Intel compilers, QLogicMPI).
+
+@authors: Kenneth Hoste (UGent)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
