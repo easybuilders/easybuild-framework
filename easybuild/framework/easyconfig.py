@@ -338,7 +338,7 @@ class EasyConfig(object):
         tcname = self['toolchain']['name']
         tc, all_tcs = search_toolchain(tcname)
         if not tc:
-            all_tcs_names = ",".join([x.__name__ for x in all_tcs])
+            all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts']:
