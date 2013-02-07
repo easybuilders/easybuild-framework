@@ -27,7 +27,9 @@
 Options for eb main
 """
 import easybuild.tools.filetools as filetools
+import os
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import get_paths_for
 from easybuild.tools.ordereddict import OrderedDict
 from vsc.utils.generaloption import GeneralOption
 
@@ -38,8 +40,12 @@ class EasyBuildOptions(GeneralOption):
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
-        # robot : "(default: easybuild-easyconfigs install path)"
-        default_robot_path = '/fix/default/robot/path'  # TODO
+        try:
+            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=True)[0]
+        except:
+            # TODO : remove code from main that does the same
+            self.log.warning("basic_options: unable to determine default easyconfig path")
+            default_robot_path = None
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -47,7 +53,7 @@ class EasyBuildOptions(GeneralOption):
                             "only-blocks":("Only build blocks blk[,blk2]",
                                            None, "store_true", False, "b", {'metavar':"BLOCKS"}),
                             "force":(("Force to rebuild software even if it's already installed "
-                                      "(i.e. can be found as module)"),
+                                      "(i.e. if it can be found as module)"),
                                      None, "store_true", False, "f"),
                             "job":("Submit the build as a job", None, "store_true", False),
                             "skip":("Skip existing software (useful for installing additional packages)",
@@ -103,8 +109,11 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        # TODO "[default: $EASYBUILDCONFIG or easybuild/easybuild_config.py]"
-        default_config = ''
+        default_config = 'easybuild/easybuild_config.py'
+        if 'EASYBUILDCONFIG' in os.environ:
+            # TODO use proper EB version and max version
+            self.log.deprecated('EASYBUILDCONFIG environment variable is deprecated.', '0.0', '0.0')
+            default_config = os.environ.get('EASYBUILDCONFIG')
 
         opts = {
                 "config":("path to EasyBuild config file ",
@@ -167,12 +176,14 @@ class EasyBuildOptions(GeneralOption):
 
 
 def parse_options():
-    usage = "%prog [options] easyconfig [..]"
-    description = ("Builds software based on easyconfig (or parse a directory)\n"
+    usage = "%prog [options] easyconfig [...]"
+    description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -h or --help more information.")
 
     eb_go = EasyBuildOptions(usage=usage,
-                           description=description,
-                           )
+                             description=description,
+                             prog='eb',
+                             envvar_prefix='EASYBUILD',
+                             )
 
     return eb_go.options, eb_go.args
