@@ -84,7 +84,7 @@ class EasyBuildOptions(GeneralOption):
                              'software-name':("Search and build software with name",
                                               None, 'store', None, {'metavar':'NAME'}),
                              'software-version':("Search and build software with version",
-                                                 None, 'store', {'metavar':'VERSION'}),
+                                                 None, 'store', None, {'metavar':'VERSION'}),
                              'toolchain':("Search and build with toolchain (name and version)",
                                           None, 'store', None, {'metavar':'NAME,VERSION'}),
                              'toolchain-name':("Search and build with toolchain name",
