@@ -61,7 +61,7 @@ class EasyBuildError(Exception):
         return repr(self.msg)
 
 
-class EasyBuildLog(fancylogger.NamedLogger):
+class EasyBuildLog(fancylogger.FancyLogger):
     """
     The EasyBuild logger, with its own error and exception functions.
     """
