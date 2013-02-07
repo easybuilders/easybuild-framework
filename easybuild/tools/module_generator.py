@@ -25,8 +25,12 @@
 """
 Generating module files.
 
-@authors: Stijn De Weirdt (UGent), Dries Verdegem (UGent), Kenneth Hoste (UGent), Pieter De Baets (UGent),
-          Jens Timmerman (UGent)
+@authors: Stijn De Weirdt (UGent)
+@authors: Dries Verdegem (UGent)
+@authors: Kenneth Hoste (UGent)
+@authors: Pieter De Baets (UGent)
+@authors: Jens Timmerman (UGent)
+@authors: Fotis Georgatos (Uni.Lu)
 """
 import os
 import shutil
