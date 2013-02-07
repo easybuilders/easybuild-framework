@@ -72,9 +72,9 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
 import easybuild.framework.easyconfig as easyconfig
-import easybuild.options as options
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
+import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
@@ -100,7 +100,7 @@ except:
 LOGDEBUG = False
 
 def parse_options():
-    (options, paths) = options.parse_options()
+    (options, paths) = eboptions.parse_options()
 
     # mkstemp returns (fd,filename), fd is from os.open, not regular open!
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')

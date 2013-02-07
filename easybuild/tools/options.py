@@ -26,6 +26,8 @@
 @author: Stijn De Weirdt (Ghent University)
 Options for eb main
 """
+import easybuild.tools.filetools as filetools
+from easybuild.framework.easyblock import EasyBlock
 from optparse import OptionParser, OptionGroup
 
 # see http://stackoverflow.com/questions/1229146/parsing-empty-options-in-python
