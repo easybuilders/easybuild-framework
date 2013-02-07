@@ -200,7 +200,7 @@ class ExtOptionParser(OptionParser):
     longhelp = ('H', "--help",)
 
     VALUES_CLASS = Values
-    USAGE_DOCSTRING = False
+    DESCRIPTION_DOCSTRING = False
 
     def __init__(self, *args, **kwargs):
         self.help_to_string = kwargs.pop('help_to_string', None)
@@ -227,8 +227,8 @@ class ExtOptionParser(OptionParser):
 
         self.envvar_prefix = None
 
-    def set_usage_docstring(self):
-        """try to find the main docstring and include it in usage"""
+    def set_description_docstring(self):
+        """try to find the main docstring and add it is description is not None"""
         stack = inspect.stack()[-1]
         try:
             docstr = stack[0].f_globals.get('__doc__', None)
@@ -238,8 +238,8 @@ class ExtOptionParser(OptionParser):
         if docstr is not None:
             indent = " "
             # kwargs and ** magic to deal with width
-            kwargs = {'initial_indent':indent * 4,
-                     'subsequent_indent':indent * 5,
+            kwargs = {'initial_indent':indent * 2,
+                     'subsequent_indent':indent * 2,
                      'replace_whitespace':False,
                      }
             width = os.environ.get('COLUMNS', None)
@@ -255,13 +255,15 @@ class ExtOptionParser(OptionParser):
             for line in str(docstr).strip("\n ").split("\n"):
                 final_docstr.append(textwrap.fill(line, **kwargs))
 
-            self.usage += "\n".join(final_docstr)
+            if self.description is None:
+                self.description = ''
+            self.description += "\n".join(final_docstr)
 
     def set_usage(self, usage):
         OptionParser.set_usage(self, usage)
 
-        if self.USAGE_DOCSTRING:
-            self.set_usage_docstring()
+        if self.DESCRIPTION_DOCSTRING:
+            self.set_description_docstring()
 
     def get_default_values(self):
         """Introduce the ExtValues class with class constant
@@ -433,13 +435,18 @@ class GeneralOption(object):
     CONFIGFILES_IGNORE = []
     CONFIGFILES_MAIN_SECTION = 'MAIN'  # sectionname that contains the non-grouped/non-prefixed options
 
+    METAVAR_DEFAULT = True  # generate a default metavar
+    METAVAR_MAP = None  # metvar, list of longopts map
+
+    OPTIONGROUP_SORTED_OPTIONS = True
+
     def __init__(self, **kwargs):
         go_args = kwargs.pop('go_args', None)
         self.no_system_exit = kwargs.pop('go_nosystemexit', None)  # unit test option
         self.use_configfiles = kwargs.pop('go_useconfigfiles', self.CONFIGFILES_USE)  # use or ignore config files
         self.configfiles = kwargs.pop('go_configfiles', self.CONFIGFILES_INIT)  # configfiles to parse
         prefixloggername = kwargs.pop('go_prefixloggername', False)  # name of logger is same as envvar prefix
-        initbeforedefault = kwargs.pop('go_initbeforedefault', False)  # Set the main options before the default ones
+        mainbeforedefault = kwargs.pop('go_mainbeforedefault', False)  # Set the main options before the default ones
 
         set_columns(kwargs.pop('go_columns', None))
 
@@ -458,18 +465,22 @@ class GeneralOption(object):
         self.log = getLogger(loggername)
         self.options = None
         self.args = None
+
+        self.auto_prefix = None
+        self.auto_section_name = None
+
         self.processed_options = {}
 
         self.config_prefix_sectionnames_map = {}
 
         self.set_go_debug()
 
-        if initbeforedefault:
-            self.make_init()
-            self.make_default_options()
+        if mainbeforedefault:
+            self.main_options()
+            self._default_options()
         else:
-            self.make_default_options()
-            self.make_init()
+            self._default_options()
+            self.main_options()
 
         self.parseoptions(options_list=go_args)
 
@@ -481,7 +492,6 @@ class GeneralOption(object):
 
             self.validate()
 
-
     def set_go_debug(self):
         """Check if debug options are on and then set fancylogger to debug.
         This is not the default way to set debug, it enables debug logging
@@ -491,11 +501,12 @@ class GeneralOption(object):
             if self.DEBUG_OPTIONS_BUILD:
                 setLogLevelDebug()
 
-    def make_default_options(self):
-        self.make_debug_options()
-        self.make_configfiles_options()
+    def _default_options(self):
+        """Generate default options: debug/log and configfile"""
+        self._make_debug_options()
+        self._make_configfiles_options()
 
-    def make_debug_options(self):
+    def _make_debug_options(self):
         """Add debug/logging options: debug and info"""
         opts = {'debug':("Enable debug log mode", None, "store_debuglog", False, 'd'),
                 'info':("Enable info log mode", None, "store_infolog", False),
@@ -505,7 +516,7 @@ class GeneralOption(object):
         self.log.debug("Add debug and logging options descr %s opts %s (no prefix)" % (descr, opts))
         self.add_group_parser(opts, descr, prefix=None)
 
-    def make_configfiles_options(self):
+    def _make_configfiles_options(self):
         """Add configfiles option"""
         opts = {'configfiles':("Parse (additional) configfiles", None, "extend", None),
                 'ignoreconfigfiles':("Ignore configfiles", None, "extend", None),  # eg when set by default
@@ -514,9 +525,46 @@ class GeneralOption(object):
         self.log.debug("Add configfiles options descr %s opts %s (no prefix)" % (descr, opts))
         self.add_group_parser(opts, descr, prefix=None)
 
-    def make_init(self):
-        """Trigger all inits"""
-        self.log.error("Not implemented")
+    def main_options(self):
+        """Create the main options automatically"""
+        # make_init is deprecated
+        if hasattr(self, 'make_init'):
+            self.log.debug('main_options: make_init is deprecated. Rename function to main_options.')
+            getattr(self, 'make_init')()
+        else:
+            # function names which end with _options and do not start with main or _
+            reg_main_options = re.compile("^(?!_|main).*_options$")
+            names = [x for x in dir(self) if reg_main_options.search(x)]
+            if len(names) == 0:
+                self.log.error("main_options: no options functions implemented")
+            else:
+                for name in names:
+                    fn = getattr(self, name)
+                    if callable(fn):  # inspect.isfunction fails beacuse this is a boundmethod
+                        self.log.debug('main_options: adding options from %s' % name)
+                        self.auto_section_name = name
+                        fn()
+                        self.auto_section_name = None  # reset it
+#                        try:
+#                            self.auto_section_name = name
+#                            fn()
+#                            self.auto_section_name = None  # reset it
+#                        except:
+#                            self.log.raiseException("main_options: failed to add options from name %s (%s)" %
+#                                                    (name, fn))
+
+    def make_option_metavar(self, longopt, details):
+        """Generate the metavar for option longopt
+        @type longopt: str
+        @type details: tuple
+        """
+        if self.METAVAR_MAP is not None:
+            for metavar, longopts in self.METAVAR_MAP.items():
+                if longopt in longopts:
+                    return metavar
+
+        if self.METAVAR_DEFAULT:
+            return longopt.upper()
 
     def add_group_parser(self, opt_dict, description, prefix=None, otherdefaults=None, section_name=None):
         """Make a group parser from a dict
@@ -528,7 +576,7 @@ class GeneralOption(object):
 
         @param opt_dict: options, with the form C{"long_opt" : value}.
         Value is a C{tuple} containing
-        C{(help,type,action,default(,optional short option))}
+        C{(help,type,action,default(,optional string=short option; list/tuple=choices; dict=add_option kwargs))}
 
         help message passed through opt_dict will be extended with type and default
 
@@ -539,17 +587,23 @@ class GeneralOption(object):
             otherdefaults = {}
 
         if prefix is None:
-            prefix = ''
+            if self.auto_prefix is None:
+                prefix = ''
+            else:
+                prefix = self.auto_prefix
 
         if section_name is None:
-            if prefix is None or prefix == '':
+            if self.auto_section_name is not None:
+                section_name = self.auto_section_name
+            elif prefix is None or prefix == '':
                 section_name = self.CONFIGFILES_MAIN_SECTION
             else:
                 section_name = prefix
 
         opt_grp = OptionGroup(self.parser, description[0], description[1])
         keys = opt_dict.keys()
-        keys.sort()  # alphabetical
+        if self.OPTIONGROUP_SORTED_OPTIONS:
+            keys.sort()  # alphabetical
         for key in keys:
             details = opt_dict[key]
 
@@ -582,7 +636,13 @@ class GeneralOption(object):
 
             self.processed_options[dest] = [typ, default, action]  # add longopt
 
-            nameds = {'dest':dest, 'action':action, 'metavar':key.upper()}
+            nameds = {'dest':dest,
+                      'action':action,
+                      }
+            metavar = self.make_option_metavar(key, details)
+            if metavar is not None:
+                nameds['metavar'] = metavar
+
             if default is not None:
                 nameds['default'] = default
 
@@ -590,14 +650,17 @@ class GeneralOption(object):
                 nameds['type'] = typ
 
             args = ["--%s" % dest]
+            passed_kwargs = {}
             if len(details) >= 5:
                 for extra_detail in details[4:]:
                     if isinstance(extra_detail, (list, tuple,)):
                         # choices
                         nameds['choices'] = ["%s" % x for x in extra_detail]  # force to strings
-                        hlp += ' (choices: %s)' % ','.join(nameds['choices'])
+                        hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
                     elif isinstance(extra_detail, (str,)) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
+                    elif isinstance(extra_detail, (dict,)):
+                        passed_kwargs.update(extra_detail)
                     else:
                         self.log.raiseException("add_group_parser: unknown extra detail %s" % extra_detail)
 
@@ -607,6 +670,9 @@ class GeneralOption(object):
             if hasattr(self.parser.option_class, 'ENABLE') and hasattr(self.parser.option_class, 'DISABLE'):
                 args.append("--%s-%s" % (self.parser.option_class.ENABLE, dest))
                 args.append("--%s-%s" % (self.parser.option_class.DISABLE, dest))
+
+            # force passed_kwargs as final nameds
+            nameds.update(passed_kwargs)
             opt_grp.add_option(*args, **nameds)
 
         self.parser.add_option_group(opt_grp)
@@ -926,14 +992,14 @@ def simple_option(go_dict, descr=None, short_groupdescr=None, long_groupdescr=No
              ]
 
     class SimpleOptionParser(ExtOptionParser):
-        USAGE_DOCSTRING = True
+        DESCRIPTION_DOCSTRING = True
 
     class SimpleOption(GeneralOption):
         PARSER = SimpleOptionParser
-        def make_init(self):
+        def main_options(self):
             prefix = None
             self.add_group_parser(go_dict, descr, prefix=prefix)
 
     return SimpleOption(go_prefixloggername=True,
-                        go_initbeforedefault=True,
+                        go_mainbeforedefault=True,
                         )

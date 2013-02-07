@@ -106,7 +106,7 @@ def parse_options():
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
     os.close(fd)
 
-    if options.stdoutLog:
+    if options.logtostdout:
         os.remove(logfile)
         logfile = None
 
