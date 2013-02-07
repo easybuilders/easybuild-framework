@@ -1,34 +1,35 @@
+#!/usr/bin/env python
 ##
-# Copyright 2011-2012 Ghent University
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Stijn De Weirdt 
+# Copyright 2011-2013 Ghent University
 #
-# This file is part of VSC-tools,
+# This file is part of vsc-base,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
 # the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
-# http://github.com/hpcugent/VSC-tools
+# http://github.com/hpcugent/vsc-base
 #
-# VSC-tools is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation v2.
+# vsc-base is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Library General Public License as
+# published by the Free Software Foundation, either version 2 of
+# the License, or (at your option) any later version.
 #
-# VSC-tools is distributed in the hope that it will be useful,
+# vsc-base is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# GNU Library General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with VSC-tools. If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Library General Public License
+# along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
 Created on Oct 14, 2011
 
+@author: Jens Timmerman (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 
-@author: Jens Timmerman
 This module implements a fancy logger on top of python logging
 
 It adds:
@@ -42,7 +43,7 @@ It adds:
 f.ex the threadname specifier which will insert the name of the thread
 
 usage:
-import fancylogger
+from vsc.utils import fancylogger
 #will log to screen by default
 fancylogger.logToFile('dir/filename')
 fancylogger.setLogLevelDebug() #set global loglevel to debug
@@ -59,42 +60,43 @@ formatstring = '%(asctime)-15s %(levelname)-10s %(mpirank)-5s %(funcname)-15s %(
 handler.setFormatter(logging.Formatter(formatstring))
 
 #setting a global loglevel will impact all logers:
->>> from vsc import fancylogger
+>>> from vsc.utils import fancylogger
 >>> logger = fancylogger.getLogger("test")
 >>> logger.warning("warning")
-2012-01-05 14:03:18,238 WARNING    <stdin>.test    MainThread  warning
+2012-01-05 14:03:18,238 WARNING    <stdin>.test.<module>    MainThread  warning
 >>> logger.debug("warning")
 >>> fancylogger.setLogLevelDebug()
 >>> logger.debug("warning")
-2012-01-05 14:03:46,222 DEBUG      <stdin>.test    MainThread  warning
+2012-01-05 14:03:46,222 DEBUG      <stdin>.test.<module>    MainThread  warning
 
 ## logging to a udp server:
 # set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
 # this will make fancylogger log to that that server and port instead of the screen.
 """
-from logging import Logger
 import inspect
 import logging.handlers
-import threading
 import os
+import sys
+import threading
+import traceback
+import logging
 
-#constants
-LOGGER_NAME = "fancylogger"
+# constants
 DEFAULT_LOGGING_FORMAT = '%(asctime)-15s %(levelname)-10s %(name)-15s %(threadname)-10s  %(message)s'
-#DEFAULT_LOGGING_FORMAT= '%(asctime)-15s %(levelname)-10s %(module)-15s %(threadname)-10s %(message)s'
-MAX_BYTES = 100 * 1024 * 1024 #max bytes in a file with rotating file handler
-BACKUPCOUNT = 10 #number of rotating log files to save
+# DEFAULT_LOGGING_FORMAT= '%(asctime)-15s %(levelname)-10s %(module)-15s %(threadname)-10s %(message)s'
+MAX_BYTES = 100 * 1024 * 1024  # max bytes in a file with rotating file handler
+BACKUPCOUNT = 10  # number of rotating log files to save
 
 DEFAULT_UDP_PORT = 5005
 
-#mpi rank support
+# mpi rank support
 try:
     from mpi4py import MPI
     _MPIRANK = str(MPI.COMM_WORLD.Get_rank())
     if MPI.COMM_WORLD.Get_size() > 1:
         # enable mpi rank when mpi is used
         DEFAULT_LOGGING_FORMAT = '%(asctime)-15s %(levelname)-10s %(name)-15s' \
-                                " mpi: %(mpirank)s %(threadname)-10s  %(message)s"
+                                 " mpi: %(mpirank)s %(threadname)-10s  %(message)s"
 except ImportError:
     _MPIRANK = "N/A"
 
@@ -107,12 +109,12 @@ class FancyLogRecord(logging.LogRecord):
     def __init__(self, *args, **kwargs):
         logging.LogRecord.__init__(self, *args, **kwargs)
         #modify custom specifiers here
-        self.threadname = thread_name() #actually threadName already exists?
-        self.name = self.name.replace(LOGGER_NAME + ".", "", 1) #remove LOGGER_NAME prefix from view
+        self.threadname = thread_name()  # actually threadName already exists?
         self.mpirank = _MPIRANK
 
+
 # Custom logger that uses our log record
-class NamedLogger(logging.getLoggerClass()):
+class FancyLogger(logging.getLoggerClass()):
     """
     This is a custom Logger class that uses the FancyLogRecord
     and has an extra method raiseException
@@ -127,12 +129,32 @@ class NamedLogger(logging.getLoggerClass()):
         """
         return FancyLogRecord(name, level, pathname, lineno, msg, args, excinfo)
 
-    def raiseException(self, message, exception=Exception):
+    def raiseException(self, message, exception=None, catch=False):
         """
         logs an exception (as warning, since it can be caught higher up and handled)
         and raises it afterwards
+            catch: boolean, try to catch raised exception and add relevant info to message
+                (this will also happen if exception is not specified)
         """
-        self.warning(message)
+        fullmessage = message
+
+        if catch or exception is None:
+            # assumes no control by codemonkey
+            # lets see if there is something more to report on
+            exc, detail, tb = sys.exc_info()
+            if exc is not None:
+                if exception is None:
+                    exception = exc
+                # extend the message with the traceback and some more details
+                # or use self.exception() instead of self.warning()?
+                tb_text = "\n".join(traceback.format_tb(tb))
+                message += " (%s)" % detail
+                fullmessage += " (%s\n%s)" % (detail, tb_text)
+
+        if exception is None:
+            exception = Exception
+
+        self.warning(fullmessage)
         raise exception(message)
 
     def _handleFunction(self, function, levelno, **kwargs):
@@ -147,7 +169,7 @@ class NamedLogger(logging.getLoggerClass()):
                 if levelno >= hdlr.level:
                     function(hdlr, **kwargs)
             if not c.propagate:
-                c = None    #break out
+                c = None  # break out
             else:
                 c = c.parent
 
@@ -159,7 +181,7 @@ class NamedLogger(logging.getLoggerClass()):
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
             if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
-                ## no stream or not initialised. 
+                ## no stream or not initialised.
                 raise("write_and_flush_stream failed. No active stream attribute.")
             if data is not None:
                 hdlr.stream.write(data)
@@ -186,29 +208,21 @@ def thread_name():
     return threading.currentThread().getName()
 
 
-def getLogger(name=None, fname=False):
+def getLogger(name=None, fname=True):
     """
     returns a fancylogger
-    if fname is True, the loggers name will be 'modulename.functionname'
+    if fname is True, the loggers name will be 'name.functionname'
     where functionname is the name of the function calling this function
     """
-    fullname = getRootLoggerName()
+    nameparts = [getRootLoggerName()]
     if name:
-        fullname = ".".join([fullname, name])
+        nameparts.append(name)
     if fname:
-        fullname = ".".join([fullname, _getCallingFunctionName()])
+        nameparts.append(_getCallingFunctionName())
+    fullname = ".".join(nameparts)
 
     return logging.getLogger(fullname)
 
-def getRootLoggerName():
-    """
-    returns the name for the root logger for the particular instance
-    """
-    ret = _getRootModuleName()
-    if ret:
-        return "%s.%s" % (LOGGER_NAME, ret)
-    else:
-        return LOGGER_NAME
 
 def _getCallingFunctionName():
     """
@@ -220,7 +234,8 @@ def _getCallingFunctionName():
     except Exception:
         return None
 
-def _getRootModuleName():
+
+def getRootLoggerName():
     """
     returns the name of the root module
     this is the module that is actually running everything and so doing the logging
@@ -250,6 +265,7 @@ def logToScreen(enable=True, handler=None, name=None):
                            handler=handler,
                            )
 
+
 def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_BYTES, backup_count=BACKUPCOUNT):
     """
     enable (or disable) logging to file
@@ -263,10 +279,10 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
     if you want to disable logging to file, pass the earlier obtained filehandler
     """
     handleropts = {'filename': filename,
-                    'mode': 'a',
-                    'maxBytes': max_bytes,
-                    'backupCount': backup_count,
-                    }
+                   'mode': 'a',
+                   'maxBytes': max_bytes,
+                   'backupCount': backup_count,
+                   }
     return _logToSomething(logging.handlers.RotatingFileHandler,
                            handleropts,
                            loggeroption='logtofile',
@@ -274,6 +290,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
                            enable=enable,
                            handler=filehandler,
                            )
+
 
 def logToUDP(hostname, port=5005, enable=True, datagramhandler=None, name=None):
     """
@@ -304,11 +321,11 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
 
     if you want to disable logging to the handler, pass the earlier obtained handler
     """
-    logger = getLogger(name)
+    logger = getLogger(name, fname=False)
 
     if not hasattr(logger, loggeroption):
-        ## not set. 
-        setattr(logger, loggeroption, False) ## set default to False
+        ## not set.
+        setattr(logger, loggeroption, False)  # set default to False
 
     if enable and not getattr(logger, loggeroption):
         if handler is None:
@@ -318,34 +335,19 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
         logger.addHandler(handler)
         setattr(logger, loggeroption, True)
     elif not enable:
-        #stop logging to X (needs the handler, so fail if it's not specified)
+        # stop logging to X (needs the handler, so fail if it's not specified)
         if handler is None and len(logger.handlers) == 1:
             # removing the last logger doesn't work
             # it will be re-added if only one handler is present
             # so we will just make it quiet by setting the loglevel extremely high
             zerohandler = logger.handlers[0]
-            zerohandler.setLevel(101) # 50 is critical, so 101 should be nothing
+            zerohandler.setLevel(101)  # 50 is critical, so 101 should be nothing
         else:
             logger.removeHandler(handler)
         setattr(logger, loggeroption, False)
     return handler
 
-"""
-syslog
-    /dev/log
-    remote server
-rsyslog support
-    /dev/log
-        imuxsock
-        Provides the ability to accept syslog messages via local Unix sockets.
-        Most importantly, this is the mechanism by which the syslog(3) call delivers
-        syslog messages to rsyslogd. So you need to have this module loaded
-        to read the system log socket and be able to process log messages from
-        applications running on the local system.
-    remote server
-        To open a TCP socket (for use with the newer syslog daemons such as rsyslog),
-        specify a value of socket.SOCK_STREAM.
-"""
+
 def _getSysLogFacility(name=None):
     """Look for proper syslog facility
         typically the syslog/rsyslog config has an entry
@@ -364,22 +366,24 @@ def _getSysLogFacility(name=None):
 
     return facility
 
+
 def logToDevLog(enable=True, name=None, handler=None):
     """Log to syslog through /dev/log"""
     devlog = '/dev/log'
-    syslogoptions = {'address':devlog,
-                     'facility':_getSysLogFacility()
+    syslogoptions = {'address': devlog,
+                     'facility': _getSysLogFacility()
                      }
     return _logToSomething(logging.handlers.SysLogHandler,
-                            syslogoptions, 'logtodevlog', enable=enable, name=name, handler=handler)
+                           syslogoptions, 'logtodevlog', enable=enable, name=name, handler=handler)
+
 
 ##  Change loglevel
-
 def setLogLevel(level):
     """
     set a global log level (for this root logger)
     """
-    getLogger().setLevel(level)
+    getLogger(fname=False).setLevel(level)
+
 
 def setLogLevelDebug():
     """
@@ -387,17 +391,20 @@ def setLogLevelDebug():
     """
     setLogLevel(logging.DEBUG)
 
+
 def setLogLevelInfo():
     """
     shorthand for setting loglevel to Info
     """
     setLogLevel(logging.INFO)
 
+
 def setLogLevelWarning():
     """
     shorthand for setting loglevel to Warning
     """
     setLogLevel(logging.WARNING)
+
 
 def setLogLevelError():
     """
@@ -408,34 +415,34 @@ def setLogLevelError():
 
 def getAllExistingLoggers():
     """
-    Return the existing loggers
-        list of tuples: name and logger
+    @return: the existing loggers, in a list of C{(name, logger)} tuples
     """
-    rootlogger = logging.getLogger()
+    rootlogger = logging.getLogger(fname=False)
     ## undocumented manager (in 2.4 and later)
     manager = rootlogger.manager
 
     loggerdict = getattr(manager, 'loggerDict')
 
     ## return list of (name,logger) tuple
-    return [ x for x in loggerdict.items()]
+    return [x for x in loggerdict.items()]
+
 
 def getAllNonFancyloggers():
     """
-    Return all loggers that are not fancyloggers (based on naming prefix)
+    @return: all loggers that are not fancyloggers
     """
-    return [x for x in getAllExistingLoggers() if not x[0].startswith(LOGGER_NAME)]
+    return [x for x in getAllExistingLoggers() if not isinstance(x[1], FancyLogger)]
 
 
 def getAllFancyloggers():
     """
-    Return all loggers that are not fancyloggers (based on naming prefix)
+    Return all loggers that are not fancyloggers
     """
-    return [x for x in getAllExistingLoggers() if x[0].startswith(LOGGER_NAME)]
+    return [x for x in getAllExistingLoggers() if isinstance(x[1], FancyLogger)]
 
 
 # Register our logger
-logging.setLoggerClass(NamedLogger)
+logging.setLoggerClass(FancyLogger)
 
 #log to a server if FANCYLOG_SERVER is set.
 _default_logTo = None
@@ -458,10 +465,12 @@ else:
     _default_logTo = logToScreen
 
 
-_default_handlers = logging._handlerList[:]  ## There's always one
-def disableDefaultHandlers(name=None):
+_default_handlers = logging._handlerList[:]  # There's always one
+
+
+def disableDefaultHandlers():
     """Disable the default handlers on all fancyloggers
-        DANGEROUS: if not other handler is availabel, logging will fail (and raise)
+        DANGEROUS: if not other handler is available, logging will fail (and raise IOError [Errno 32] Broken pipe)
     """
     if _default_logTo is None:
         return
@@ -471,7 +480,8 @@ def disableDefaultHandlers(name=None):
         except:
             pass
 
-def enableDefaultHandlers(name=None):
+
+def enableDefaultHandlers():
     """(re)Enable the default handlers on all fancyloggers"""
     if _default_logTo is None:
         return
@@ -480,6 +490,3 @@ def enableDefaultHandlers(name=None):
             _default_logTo(enable=True, handler=weakref_handler())
         except:
             pass
-
-
-

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 ##
 # Copyright 2011-2013 Ghent University
 #
@@ -26,13 +25,8 @@
 ##
 """
 @author: Jens Timmerman (Ghent University)
-
-Initialize vsc package.
-the vsc namespace is used in different folders allong the system
-so explicitly declare this is also the vsc namespace
+the vsc/utils namespace is used in different folders along the system
+so explicitly declare this is also the vsc/utils namespace
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
-
-# here for backwards compatibility
-from vsc.utils import fancylogger
+from pkgutil import extend_path
+__path__ = extend_path(__path__, __name__)
