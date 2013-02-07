@@ -545,8 +545,8 @@ class GeneralOption(object):
                 for name in names:
                     fn = getattr(self, name)
                     if callable(fn):  # inspect.isfunction fails beacuse this is a boundmethod
-                        self.log.debug('main_options: adding options from %s' % name)
-                        self.auto_section_name = name
+                        self.auto_section_name = '_'.join(name.split('_')[:-1])
+                        self.log.debug('main_options: adding options from %s (auto_section_name %s)' % (name, self.auto_section_name))
                         fn()
                         self.auto_section_name = None  # reset it
 
@@ -583,6 +583,9 @@ class GeneralOption(object):
         if otherdefaults is None:
             otherdefaults = {}
 
+        self.log.debug("add_group_parser: passed prefix %s section_name %s" % (prefix, section_name))
+        self.log.debug("add_group_parser: auto_prefix %s auto_section_name %s" % (self.auto_prefix, self.auto_section_name))
+
         if prefix is None:
             if self.auto_prefix is None:
                 prefix = ''
@@ -590,12 +593,14 @@ class GeneralOption(object):
                 prefix = self.auto_prefix
 
         if section_name is None:
-            if self.auto_section_name is not None:
-                section_name = self.auto_section_name
-            elif prefix is None or prefix == '':
-                section_name = self.CONFIGFILES_MAIN_SECTION
-            else:
+            if prefix is not None and len(prefix) > 0 and not (prefix == self.auto_prefix):
                 section_name = prefix
+            elif self.auto_section_name is not None and len(self.auto_section_name) > 0:
+                section_name = self.auto_section_name
+            else:
+                section_name = self.CONFIGFILES_MAIN_SECTION
+
+        self.log.debug("add_group_parser: set prefix %s section_name %s" % (prefix, section_name))
 
         opt_grp = OptionGroup(self.parser, description[0], description[1])
         keys = opt_dict.keys()
