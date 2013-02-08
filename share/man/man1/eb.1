@@ -1,0 +1,317 @@
+.\" Man page generated from reStructeredText.
+.
+.TH EASYBUILD 1 "2012-02-07" "1.1.0" "General commands"
+.SH NAME
+EasyBuild \- EasyBuild is a software build and installation framework written in Python that allows you to install software in a structured, repeatable and robust way.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.\" TODO: Fotis Georgatos <Fotis.Georgatos@uni.lu> # Add other manpage authors as needed
+.
+.SH SYNOPSIS
+.INDENT 0.0
+.INDENT 3.5
+.sp
+\fBeb\fP [options] easyconfig [..]
+.UNINDENT
+.UNINDENT
+.SH DESCRIPTION
+.sp
+Build a software package based on easyconfig (or parse a directory).
+Provide one or more easyconfigs or directories, use \-h or \-\-help more information.
+.SH OPTIONS
+.sp
+Usage: eb [options] easyconfig [..]
+.sp
+Builds software based on easyconfig (or parse a directory) Provide one or more
+easyconfigs or directories, use \-h or \-\-help more information.
+.INDENT 0.0
+.TP
+.B Options:
+.INDENT 7.0
+.TP
+.B \-h,  \-\-help
+.
+show this help message and exit
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Basic options:
+.
+Basic runtime options for EasyBuild.
+.INDENT 7.0
+.TP
+.BI \-b \ BLOCKS, \ \-\-only\-blocks\fB= BLOCKS
+.
+Only build blocks blk[,blk2]
+.TP
+.B \-d,  \-\-debug
+.
+log debug messages
+.TP
+.B \-f,  \-\-force
+.
+force to rebuild software even if it\(aqs already
+installed (i.e. can be found as module)
+.TP
+.B \-\-job
+.
+will submit the build as a job
+.TP
+.B \-k,  \-\-skip
+.
+skip existing software (useful for installing
+additional packages)
+.TP
+.B \-l
+.
+log to stdout
+.TP
+.B \-r,  \-\-robot
+.
+path to search for easyconfigs for missing
+dependencies (default: easybuild\-easyconfigs install
+path)
+.TP
+.BI \-s \ STOP, \ \-\-stop\fB= STOP
+.
+stop the installation after certain step (valid: cfg,
+source, patch, prepare, configure, make, install,
+test, postproc, cleanup, extensions)
+.TP
+.BI \-\-strict\fB= STRICT
+.
+set strictness level (possible levels: ignore, warn,
+error)
+.UNINDENT
+.TP
+.B Software build options:
+.
+Specify software build options; the regular versions of these options
+will only search for matching easyconfigs, while the \-\-try\-X versions
+will cause EasyBuild to try and generate a matching easyconfig based
+on available ones if no matching easyconfig is found (NOTE: best
+effort, might produce wrong builds!)
+.INDENT 7.0
+.TP
+.BI \-\-software\-name\fB= NAME
+.
+build software with name
+.TP
+.BI \-\-software\-version\fB= VERSION
+.
+build software with version
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \-\-toolchain=NAME,VERSION
+.
+build with toolchain (name and version)
+.UNINDENT
+.INDENT 7.0
+.TP
+.BI \-\-toolchain\-name\fB= NAME
+.
+build with toolchain name
+.TP
+.BI \-\-toolchain\-version\fB= VERSION
+.
+build with toolchain version
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \-\-amend=VAR=VALUE[,VALUE]
+.
+specify additional build parameters (can be used
+multiple times); for example: versionprefix=foo or
+patches=one.patch,two.patch)
+.UNINDENT
+.INDENT 7.0
+.TP
+.BI \-\-try\-software\-name\fB= NAME
+.
+try to build software with name (USE WITH CARE!)
+.TP
+.BI \-\-try\-software\-version\fB= VERSION
+.
+try to build software with version (USE WITH CARE!)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \-\-try\-toolchain=NAME,VERSION
+.
+try to build with toolchain (name and version) (USE
+WITH CARE!)
+.UNINDENT
+.INDENT 7.0
+.TP
+.BI \-\-try\-toolchain\-name\fB= NAME
+.
+try to build with toolchain name (USE WITH CARE!)
+.TP
+.BI \-\-try\-toolchain\-version\fB= VERSION
+.
+try to build with toolchain version (USE WITH CARE!)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \-\-try\-amend=VAR=VALUE[,VALUE]
+.
+try to specify additional build parameters (can be
+used multiple times); for example: versionprefix=foo
+or patches=one.patch,two.patch) (USE WITH CARE!)
+.UNINDENT
+.TP
+.B Override options:
+.
+Override default EasyBuild behavior.
+.INDENT 7.0
+.TP
+.BI \-C \ CONFIG, \ \-\-config\fB= CONFIG
+.
+path to EasyBuild config file [default:
+$EASYBUILDCONFIG or easybuild/easybuild_config.py]
+.TP
+.BI \-e \ CLASS, \ \-\-easyblock\fB= CLASS
+.
+loads the class from module to process the spec file
+or dump the options for [default: Application class]
+.TP
+.B \-p,  \-\-pretend
+.
+does the build/installation in a test directory
+located in $HOME/easybuildinstall [default:
+$EASYBUILDINSTALLPATH or install_path in EasyBuild
+config file]
+.TP
+.B \-t,  \-\-skip\-test\-cases
+.
+skip running test cases
+.UNINDENT
+.TP
+.B Informative options:
+.
+Obtain information about EasyBuild.
+.INDENT 7.0
+.TP
+.B \-a,  \-\-avail\-easyconfig\-params
+.
+show available easyconfig parameters
+.TP
+.BI \-\-list\-easyblocks\fB= LIST_EASYBLOCKS
+.
+show list of available easyblocks
+.TP
+.BI \-\-search\fB= STR
+.
+search for module\-files in the robot\-directory
+.TP
+.B \-v,  \-\-version
+.
+show version
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \-\-dep\-graph=depgraph.<ext>
+.
+create dependency graph
+.UNINDENT
+.TP
+.B Regression test options:
+.
+Run and control an EasyBuild regression test.
+.INDENT 7.0
+.TP
+.B \-\-regtest
+.
+enable regression test mode
+.TP
+.B \-\-regtest\-online
+.
+enable online regression test mode
+.TP
+.B \-\-sequential
+.
+specify this option if you want to prevent parallel build
+.TP
+.BI \-\-regtest\-output\-dir\fB= DIR
+.
+set output directory for test\-run
+.TP
+.BI \-\-aggregate\-regtest\fB= DIR
+.
+collect all the xmls inside the given directory and generate a single file
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH PROBLEMS
+.sp
+#1. EasyBuild does not make coffee yet ; read Linux Coffee\-HOWTO instead
+.SH SEE ALSO
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+man eb # <\-\- YOU ARE HERE
+.IP \(bu 2
+.
+EasyBuild homepage: \fI\%http://hpcugent.github.com/easybuild/\fP # general information
+.IP \(bu 2
+.
+EasyBuild framework repository: \fI\%https://github.com/hpcugent/easybuild\-framework\fP # source
+.IP \(bu 2
+.
+EasyBuild experimental repository: \fI\%https://github.com/fgeorgatos/easybuild.experimental\fP # area51
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH BUGS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+.
+"this software has no bugs \- only features" (TM) ; read below about how to find them
+.IP \(bu 2
+.
+Report any unknown issue at the github tracker: \fI\%https://github.com/hpcugent/easybuild/issues\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH AUTHOR
+.IP \(bu 2
+.
+Copyright 2009-2013 Ghent University: Stijn De Weirdt, Dries Verdegem, Kenneth Hoste, Pieter De Baets, Jens Timmerman, Toon Willems # for all initial codebase
+.IP \(bu 2
+.
+Copyright 2012-2013 University of Luxembourg: Fotis Georgatos <fotis@cern.ch> # for the manpage and sporadic hacks
+.SH COPYRIGHT
+CC-BY-SA
+.\" Generated by docutils manpage writer.
+.\" 
+.
