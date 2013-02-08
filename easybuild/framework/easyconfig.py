@@ -124,7 +124,7 @@ class EasyConfig(object):
           ('osdependencies', [[], "OS dependencies that should be present on the system", DEPENDENCIES]),
 
           ('license_server', [None, 'License server for software', LICENSE]),
-          ('license_serverPort', [None, 'Port for license server', LICENSE]),
+          ('license_server_port', [None, 'Port for license server', LICENSE]),
           ('key', [None, 'Key for installing software', LICENSE]),
           ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
 
@@ -338,7 +338,7 @@ class EasyConfig(object):
         tcname = self['toolchain']['name']
         tc, all_tcs = search_toolchain(tcname)
         if not tc:
-            all_tcs_names = ",".join([x.__name__ for x in all_tcs])
+            all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts']:

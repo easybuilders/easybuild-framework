@@ -151,7 +151,7 @@ if { ![is-loaded %(name)s/%(version)s] } {
 }
 """ % {'name': name, 'version': version}
 
-    def prepend_paths(self, key, paths):
+    def prepend_paths(self, key, paths, allow_abs=False):
         """
         Generate prepend-path statements for the given list of paths.
         """
@@ -163,7 +163,7 @@ if { ![is-loaded %(name)s/%(version)s] } {
 
         # make sure only relative paths are passed
         for path in paths:
-            if path.startswith(os.path.sep):
+            if path.startswith(os.path.sep) and not allow_abs:
                 log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
 
         statements = [template % (key, p) for p in paths]
