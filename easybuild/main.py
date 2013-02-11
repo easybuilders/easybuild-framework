@@ -87,6 +87,7 @@ from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.utilities import any
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
 EASYBLOCKS_VERSION = 'UNKNOWN'
 try:
@@ -1539,12 +1540,6 @@ def list_toolchains():
         tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
 
         print "\t%s: %s" % (tcname, ', '.join(sorted(tc_elems)))
-
-# FIXME: remove when Python version on which we rely provides any by itself
-def any(ls):
-    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
-
-    return sum([bool(x) for x in ls]) != 0
 
 if __name__ == "__main__":
     try:
