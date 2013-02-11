@@ -40,6 +40,7 @@ from easybuild.tools.build_log import get_log
 from easybuild.tools.config import install_path
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.modules import Modules
+from easybuild.tools.utilities import quote_str
 
 
 log = get_log('moduleGenerator')
@@ -177,8 +178,8 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         Generate setenv statement for the given key/value pair.
         """
-        # Double quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setenv\t%s\t\t"%s"\n' % (key, value)
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
     def __del__(self):
         """

@@ -77,7 +77,7 @@ conflict    gzip
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
 
-        # test loadModule
+        # test load_module
         expected = """
 if { ![is-loaded name/version] } {
     module load name/version
@@ -85,7 +85,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.load_module("name", "version"))
 
-        # test unloadModule
+        # test unload_module
         expected = """
 if { ![is-loaded name/version] } {
     if { [is-loaded name] } {
@@ -95,7 +95,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
-        # test prependPaths
+        # test prepend_paths
         expected = """prepend-path	key		$root/path1
 prepend-path	key		$root/path2
 """
@@ -110,8 +110,11 @@ prepend-path	key		$root/path2
                               self.modgen.prepend_paths, "key2", ["bar", "/tmp/foo"])
 
 
-        # test setEnvironment
-        self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+        # test set_environment
+        self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
+        self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
+        self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
+        self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
 
     def tearDown(self):
         """cleanup"""
