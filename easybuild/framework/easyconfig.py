@@ -39,10 +39,11 @@ import tempfile
 from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError, get_log
-from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import quote_str
 
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
@@ -954,25 +955,6 @@ def tweak(src_fn, target_fn, tweaks, log):
 
             tweaks.pop(key)
 
-    def quoted(x):
-        """Obtain a new value to be used in string replacement context.
-
-        For non-string values, it just returns the exact same value.
-
-        For string values, it tries to escape the string in quotes, e.g.,
-        foo becomes 'foo', foo'bar becomes "foo'bar",
-        foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
-        """
-        if type(x) == str:
-            if "'" in x and '"' in x:
-                return '"""%s"""' % x
-            elif "'" in x:
-                return '"%s"' % x
-            else:
-                return "'%s'" % x
-        else:
-            return x
-
     # add parameters or replace existing ones
     for (key,val) in tweaks.items():
 
@@ -992,10 +974,10 @@ def tweak(src_fn, target_fn, tweaks, log):
                 diff = not res.group(1) == val
 
             if diff:
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quoted(val), res.group(1)), ectxt)
-                log.info("Tweaked '%s' to '%s'" % (key, quoted(val)))
+                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
+                log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
-            additions.append("%s = %s" % (key, quoted(val)))
+            additions.append("%s = %s" % (key, quote_str(val)))
 
 
     if additions:

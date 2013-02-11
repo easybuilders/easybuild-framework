@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +24,13 @@
 ##
 """
 Generating module files.
+
+@authors: Stijn De Weirdt (UGent)
+@authors: Dries Verdegem (UGent)
+@authors: Kenneth Hoste (UGent)
+@authors: Pieter De Baets (UGent)
+@authors: Jens Timmerman (UGent)
+@authors: Fotis Georgatos (Uni.Lu)
 """
 import os
 import shutil
@@ -38,6 +40,7 @@ from easybuild.tools.build_log import get_log
 from easybuild.tools.config import install_path
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.modules import Modules
+from easybuild.tools.utilities import quote_str
 
 
 log = get_log('moduleGenerator')
@@ -175,7 +178,8 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         Generate setenv statement for the given key/value pair.
         """
-        return "setenv\t%s\t\t%s\n" % (key, value)
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
     def __del__(self):
         """
