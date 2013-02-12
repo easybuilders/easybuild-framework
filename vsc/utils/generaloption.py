@@ -26,9 +26,9 @@
 #
 
 """
-@author: Stijn De Weirdt (Ghent University)
-
 A class that can be used to generated options to python scripts in a general way.
+
+@author: Stijn De Weirdt (Ghent University)
 """
 
 import ConfigParser
@@ -391,7 +391,7 @@ class ExtOptionParser(OptionParser):
 
         return env_long_opts
 
-    def get_option_by_long(self, name):
+    def get_option_by_long_name(self, name):
         """Return the option matching the long option name"""
         for opt in self._get_all_options():
             if opt._long_opts is None: continue
@@ -634,11 +634,13 @@ class GeneralOption(object):
             if len(extra_help) > 0:
                 hlp += " (%s)" % ("; ".join(extra_help))
 
-            dest = self.make_options_option_name(prefix, key)
+            opt_name, opt_dest = self.make_options_option_name_and_destination(prefix, key)
 
-            self.processed_options[dest] = [typ, default, action]  # add longopt
+            args = ["--%s" % opt_name]
 
-            nameds = {'dest':dest,
+            self.processed_options[opt_dest] = [typ, default, action, opt_name]  # add longopt
+
+            nameds = {'dest':opt_dest,
                       'action':action,
                       }
             metavar = self.make_option_metavar(key, details)
@@ -651,7 +653,6 @@ class GeneralOption(object):
             if typ:
                 nameds['type'] = typ
 
-            args = ["--%s" % dest]
             passed_kwargs = {}
             if len(details) >= 5:
                 for extra_detail in details[4:]:
@@ -670,8 +671,8 @@ class GeneralOption(object):
             nameds['help'] = hlp
 
             if hasattr(self.parser.option_class, 'ENABLE') and hasattr(self.parser.option_class, 'DISABLE'):
-                args.append("--%s-%s" % (self.parser.option_class.ENABLE, dest))
-                args.append("--%s-%s" % (self.parser.option_class.DISABLE, dest))
+                args.append("--%s-%s" % (self.parser.option_class.ENABLE, opt_name))
+                args.append("--%s-%s" % (self.parser.option_class.DISABLE, opt_name))
 
             # force passed_kwargs as final nameds
             nameds.update(passed_kwargs)
@@ -789,12 +790,12 @@ class GeneralOption(object):
                 for opt, val in cfg_opts.items(section):
                     self.log.debug('parseconfigfiles: section %s option %s val %s' % (section, opt, val))
 
-                    dest = self.make_options_option_name(prefix, opt)
-                    actual_option = self.parser.get_option_by_long(dest)
+                    opt_name, opt_dest = self.make_options_option_name_and_destination(prefix, opt)
+                    actual_option = self.parser.get_option_by_long_name(opt_name)
                     if actual_option is None:
-                        self.log.raiseException('parseconfigfiles: no option corresponding with dest %s' % dest)
+                        self.log.raiseException('parseconfigfiles: no option corresponding with dest %s' % opt_dest)
 
-                    configfile_options_default[dest] = actual_option.default
+                    configfile_options_default[opt_dest] = actual_option.default
 
                     if actual_option.action in ('store_true', 'store_false',):
                         try:
@@ -802,10 +803,10 @@ class GeneralOption(object):
                             self.log.debug('parseconfigfiles: getboolean for option %s value %s in section %s returned %s' % (opt, val, section, newval))
                         except:
                             self.log.raiseException('parseconfigfiles: failed to getboolean for option %s value %s in section %s' % (opt, val, section))
-                        configfile_values[dest] = newval
+                        configfile_values[opt_dest] = newval
                     else:
-                        configfile_cmdline_dest.append(dest)
-                        configfile_cmdline.append("--%s" % dest)
+                        configfile_cmdline_dest.append(opt_dest)
+                        configfile_cmdline.append("--%s" % opt_name)
                         configfile_cmdline.append(val)
 
         # reparse
@@ -818,35 +819,38 @@ class GeneralOption(object):
         if len(parsed_configfile_args) > 0:
             self.log.raiseException('parseconfigfiles: not all options were parsed: %s' % parsed_configfile_args)
 
-        for dest in configfile_cmdline_dest:
+        for opt_dest in configfile_cmdline_dest:
             try:
-                configfile_values[dest] = getattr(parsed_configfile_options, dest)
+                configfile_values[opt_dest] = getattr(parsed_configfile_options, opt_dest)
             except:
-                self.log.raiseException('parseconfigfiles: failed to retrieve dest %s from parsed_configfile_options' % dest)
+                self.log.raiseException('parseconfigfiles: failed to retrieve dest %s from parsed_configfile_options' % opt_dest)
 
         self.log.debug('parseconfigfiles: parsed values from configfiles: %s' % configfile_values)
 
-        for dest, val in configfile_values.items():
-            if not hasattr(self.options, dest):
-                self.log.debug('parseconfigfiles: added new option %s with value %s' % (dest, val))
-                setattr(self.options, dest, val)
+        for opt_dest, val in configfile_values.items():
+            if not hasattr(self.options, opt_dest):
+                self.log.debug('parseconfigfiles: added new option %s with value %s' % (opt_dest, val))
+                setattr(self.options, opt_dest, val)
             else:
-                if hasattr(self.options, '_action_taken') and self.options._action_taken.get(dest, None):
+                if hasattr(self.options, '_action_taken') and self.options._action_taken.get(opt_dest, None):
                     # value set through take_action. do not modify by configfile
-                    self.log.debug('parseconfigfiles: option %s found in _action_taken' % (dest))
+                    self.log.debug('parseconfigfiles: option %s found in _action_taken' % (opt_dest))
                     continue
                 else:
-                    self.log.debug('parseconfigfiles: option %s not found in _action_taken, setting to %s' % (dest, val))
-                    setattr(self.options, dest, val)
+                    self.log.debug('parseconfigfiles: option %s not found in _action_taken, setting to %s' % (opt_dest, val))
+                    setattr(self.options, opt_dest, val)
 
-    def make_options_option_name(self, prefix, key):
+    def make_options_option_name_and_destination(self, prefix, key):
         """Make the options option name"""
         if prefix == '':
-            dest = key
+            name = key
         else:
-            dest = "".join([prefix, self.OPTIONNAME_SEPARATOR, key])
+            name = "".join([prefix, self.OPTIONNAME_SEPARATOR, key])
 
-        return dest
+        # dest : replace '-' with '_'
+        dest = name.replace('-', '_')
+
+        return name, dest
 
     def postprocess(self):
         """Some additional processing"""
@@ -883,19 +887,21 @@ class GeneralOption(object):
             self.log.debug("generate_cmd_line no ignore")
 
         args = []
-        opt_names = self.options.__dict__.keys()
-        opt_names.sort()
+        opt_dests = self.options.__dict__.keys()
+        opt_dests.sort()
 
-        for opt_name in opt_names:
-            opt_value = self.options.__dict__[opt_name]
-            if ignore is not None and ignore.search(opt_name):
+        for opt_dest in opt_dests:
+            opt_value = self.options.__dict__[opt_dest]
+
+            # this is the action as parsed by the class, not the actual action set in option
+            # (eg action store_or_None is shown here as store_or_None, not as callback)
+            default, action, opt_name = self.processed_options[opt_dest][1:]  # skip 0th element type
+
+            if ignore is not None and ignore.search(opt_dest):
                 self.log.debug("generate_cmd_line adding %s value %s matches ignore. Not adding to args." %
                                (opt_name, opt_value))
                 continue
 
-            # this is the action as parsed by the class, not the actual action set in option
-            # (eg action store_or_None is shown here as store_or_None, not as callback)
-            default, action = self.processed_options[opt_name][1:]  # skip 0th element type
 
             if opt_value == default:
                 # do nothing
