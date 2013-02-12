@@ -116,9 +116,9 @@ def parse_options():
     # initialize logger
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
 
-    return options, paths, log, logfile, hn, parser
+    return options, paths, log, logfile, hn
 
-def main(options, orig_paths, log, logfile, hn, parser):
+def main(options, orig_paths, log, logfile, hn):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -223,7 +223,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", optparser=parser)
+                  "options to make EasyBuild search for easyconfigs", show_help=True)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -341,7 +341,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
         # Reverse option parser -> string
 
         # the options to ignore
-        ignore = map(parser.get_option, ['--robot', '--help', '--job'])
+        ignore = map(eboptions.get_option, ['--robot', '--help', '--job'])
 
         def flatten(lst):
             """Flatten a list of lists."""
@@ -352,7 +352,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
 
         # loop over all the different options.
         result_opts = []
-        all_options = parser.option_list + flatten([g.option_list for g in parser.option_groups])
+        all_options = eboptions.option_list + flatten([g.option_list for g in eboptions.option_groups])
         relevant_opts = [o for o in all_options if o not in ignore]
         for opt in relevant_opts:
             value = getattr(options, opt.dest)
@@ -405,13 +405,13 @@ def main(options, orig_paths, log, logfile, hn, parser):
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-def error(message, exitCode=1, optparser=None):
+def error(message, exitCode=1, show_help=False):
     """
     Print error message and exit EasyBuild
     """
     print_msg("ERROR: %s\n" % message)
-    if optparser:
-        optparser.print_help()
+    if show_help:
+        eboptions.print_help()
         print_msg("ERROR: %s\n" % message)
     sys.exit(exitCode)
 
@@ -1409,8 +1409,8 @@ def any(ls):
 
 if __name__ == "__main__":
     try:
-        options, orig_paths, log, logfile, hn, parser = parse_options()
-        main(options, orig_paths, log, logfile, hn, parser)
+        options, orig_paths, log, logfile, hn = parse_options()
+        main(options, orig_paths, log, logfile, hn)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
