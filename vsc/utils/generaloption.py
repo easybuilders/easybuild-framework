@@ -995,9 +995,11 @@ def simple_option(go_dict, descr=None, short_groupdescr=None, long_groupdescr=No
 
     returns instance of trivial subclass of GeneralOption
     """
-    descr = [short_groupdescr if short_groupdescr is not None else 'Main options',
-             long_groupdescr if long_groupdescr is not None else '',
-             ]
+    if short_groupdescr is None:
+        short_groupdescr = 'Main options'
+    if long_groupdescr is None:
+        long_groupdescr = ''
+    descr = [short_groupdescr, long_groupdescr ]
 
     class SimpleOptionParser(ExtOptionParser):
         DESCRIPTION_DOCSTRING = True
