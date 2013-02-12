@@ -1,5 +1,5 @@
-# #
-# Copyright 2009-2012 Ghent University
+##
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,10 +21,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
+Command line options for eb
+
 @author: Stijn De Weirdt (Ghent University)
-Options for eb main
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import easybuild.tools.filetools as filetools
 import os
