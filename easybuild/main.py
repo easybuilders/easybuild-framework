@@ -100,7 +100,7 @@ except:
 LOGDEBUG = False
 
 def parse_options():
-    (options, paths) = eboptions.parse_options()
+    (options, paths, opt_parser) = eboptions.parse_options()
 
     # mkstemp returns (fd,filename), fd is from os.open, not regular open!
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
@@ -116,9 +116,9 @@ def parse_options():
     # initialize logger
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
 
-    return options, paths, log, logfile, hn
+    return options, paths, log, logfile, hn, opt_parser
 
-def main(options, orig_paths, log, logfile, hn):
+def main(options, orig_paths, log, logfile, hn, opt_parser):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -223,7 +223,7 @@ def main(options, orig_paths, log, logfile, hn):
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", show_help=True)
+                  "options to make EasyBuild search for easyconfigs", opt_parser=opt_parser)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -405,13 +405,13 @@ def main(options, orig_paths, log, logfile, hn):
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-def error(message, exitCode=1, show_help=False):
+def error(message, exitCode=1, opt_parser=None):
     """
     Print error message and exit EasyBuild
     """
     print_msg("ERROR: %s\n" % message)
-    if show_help:
-        eboptions.print_help()
+    if opt_parser:
+        opt_parser.print_shorthelp()
         print_msg("ERROR: %s\n" % message)
     sys.exit(exitCode)
 
@@ -1409,8 +1409,8 @@ def any(ls):
 
 if __name__ == "__main__":
     try:
-        options, orig_paths, log, logfile, hn = parse_options()
-        main(options, orig_paths, log, logfile, hn)
+        options, orig_paths, log, logfile, hn, opt_parser = parse_options()
+        main(options, orig_paths, log, logfile, hn, opt_parser)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)

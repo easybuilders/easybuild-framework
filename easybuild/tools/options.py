@@ -192,4 +192,4 @@ def parse_options():
                              envvar_prefix='EASYBUILD',
                              )
 
-    return eb_go.options, eb_go.args
+    return eb_go.options, eb_go.args, eb_go.parser
