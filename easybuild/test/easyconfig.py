@@ -478,7 +478,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         # can't check for key 'foo', because EasyConfig ignores parameter names it doesn't know about
         txt = open(res[1], "r").read()
-        self.assertTrue(re.search("foo = '%s'" % specs['foo'], txt))
+        self.assertTrue(re.search('foo = "%s"' % specs['foo'], txt))
         os.remove(res[1])
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
