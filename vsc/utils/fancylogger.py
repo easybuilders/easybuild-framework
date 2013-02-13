@@ -25,41 +25,31 @@
 # along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Created on Oct 14, 2011
-
-@author: Jens Timmerman (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
-
 This module implements a fancy logger on top of python logging
 
 It adds:
-- custom specifiers for mpi loggin (the mpirank) with autodetection of mpi
-- custom specifier for always showing the calling function's name
-- rotating file handler
-- a default formatter.
-- logging to an UDP server (vsc.logging.logdaemon.py f.ex.)
-- easily setting loglevel
-
-f.ex the threadname specifier which will insert the name of the thread
+ - custom specifiers for mpi logging (the mpirank) with autodetection of mpi
+ - custom specifier for always showing the calling function's name
+ - rotating file handler
+ - a default formatter.
+ - logging to an UDP server (vsc.logging.logdaemon.py f.ex.)
+ - easily setting loglevel
+ - easily add extra specifiers in the log record
 
 usage:
-from vsc.utils import fancylogger
-#will log to screen by default
-fancylogger.logToFile('dir/filename')
-fancylogger.setLogLevelDebug() #set global loglevel to debug
-logger = fancylogger.getLogger(name) #get a logger with a specific name
-logger.setLevel(level) #set local debugging level
-
-#if you want the logger to be showing modulename.functionname as the name, use
-fancylogger.getLogger(fname=True)
-#creating a logger like this will use the name of the function calling the getLogger function, to be the loggers name.
-
-#you can now even use the handler to set a different formatter by using
-handler = fancylogger.logToFile('dir/filename')
-formatstring = '%(asctime)-15s %(levelname)-10s %(mpirank)-5s %(funcname)-15s %(threadname)-10s %(message)s'
-handler.setFormatter(logging.Formatter(formatstring))
-
-#setting a global loglevel will impact all logers:
+>>> from vsc.utils import fancylogger
+>>> # will log to screen by default
+>>> fancylogger.logToFile('dir/filename')
+>>> fancylogger.setLogLevelDebug()  # set global loglevel to debug
+>>> logger = fancylogger.getLogger(name)  # get a logger with a specific name
+>>> logger.setLevel(level)  # set local debugging level
+>>> # If you want the logger to be showing modulename.functionname as the name, use
+>>> fancylogger.getLogger(fname=True)
+>>> # you can use the handler to set a different formatter by using
+>>> handler = fancylogger.logToFile('dir/filename')
+>>> formatstring = '%(asctime)-15s %(levelname)-10s %(mpirank)-5s %(funcname)-15s %(threadname)-10s %(message)s'
+>>> handler.setFormatter(logging.Formatter(formatstring))
+>>> # setting a global loglevel will impact all logers:
 >>> from vsc.utils import fancylogger
 >>> logger = fancylogger.getLogger("test")
 >>> logger.warning("warning")
@@ -69,10 +59,16 @@ handler.setFormatter(logging.Formatter(formatstring))
 >>> logger.debug("warning")
 2012-01-05 14:03:46,222 DEBUG      <stdin>.test.<module>    MainThread  warning
 
-## logging to a udp server:
-# set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
-# this will make fancylogger log to that that server and port instead of the screen.
+Logging to a udp server:
+ - set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
+ - this will make fancylogger log to that that server and port instead of the screen.
+
+@date: Oct 14, 2011
+@author: Jens Timmerman (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+
 import inspect
 import logging.handlers
 import os
@@ -88,6 +84,17 @@ MAX_BYTES = 100 * 1024 * 1024  # max bytes in a file with rotating file handler
 BACKUPCOUNT = 10  # number of rotating log files to save
 
 DEFAULT_UDP_PORT = 5005
+
+# log level constants, in order of severity
+DEBUG = logging.DEBUG
+INFO = logging.INFO
+WARN = logging.WARN
+WARNING = logging.WARNING
+ERROR = logging.ERROR
+EXCEPTION = logging.ERROR  # exception and error have same logging level, see logging docs
+FATAL = logging.FATAL
+CRITICAL = logging.CRITICAL
+APOCALYPTIC = logging.CRITICAL * 2 + 1  # when log level is set to this, silence happens
 
 # mpi rank support
 try:
@@ -108,7 +115,7 @@ class FancyLogRecord(logging.LogRecord):
     """
     def __init__(self, *args, **kwargs):
         logging.LogRecord.__init__(self, *args, **kwargs)
-        #modify custom specifiers here
+        # modify custom specifiers here
         self.threadname = thread_name()  # actually threadName already exists?
         self.mpirank = _MPIRANK
 
@@ -119,7 +126,7 @@ class FancyLogger(logging.getLoggerClass()):
     This is a custom Logger class that uses the FancyLogRecord
     and has an extra method raiseException
     """
-    #this attribute can be checked to know if the logger is thread aware
+    # this attribute can be checked to know if the logger is thread aware
     _thread_aware = True
 
     # method definition as it is in logging, can't change this
@@ -127,7 +134,8 @@ class FancyLogger(logging.getLoggerClass()):
         """
         overwrite make record to use a fancy record (with more options)
         """
-        return FancyLogRecord(name, level, pathname, lineno, msg, args, excinfo)
+        new_msg = msg.decode('utf8', 'replace')
+        return FancyLogRecord(name, level, pathname, lineno, new_msg, args, excinfo)
 
     def raiseException(self, message, exception=None, catch=False):
         """
@@ -181,13 +189,13 @@ class FancyLogger(logging.getLoggerClass()):
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
             if (not hasattr(hdlr, 'stream')) or hdlr.stream is None:
-                ## no stream or not initialised.
+                # no stream or not initialised.
                 raise("write_and_flush_stream failed. No active stream attribute.")
             if data is not None:
                 hdlr.stream.write(data)
                 hdlr.flush()
 
-        ## only log when appropriate (see logging.Logger.log())
+        # only log when appropriate (see logging.Logger.log())
         if self.isEnabledFor(levelno):
             self._handleFunction(write_and_flush_stream, levelno, data=data)
 
@@ -199,6 +207,28 @@ class FancyLogger(logging.getLoggerClass()):
 
     def streamError(self, data):
         self.streamLog(logging.ERROR, data)
+
+    def deprecated(self, msg, cur_ver, max_ver, depth=2, exception=None, *args, **kwargs):
+        """
+        Log deprecation message, throw error if current version is passed given threshold.
+
+        Checks only major/minor version numbers (MAJ.MIN.x) by default, controlled by 'depth' argument.
+        """
+
+        cur_ver_parts = [int(x) for x in str(cur_ver).split('.')]
+        max_ver_parts = [int(x) for x in str(max_ver).split('.')]
+
+        deprecated = True
+        for i in xrange(0, depth):
+            if cur_ver_parts[i] < max_ver_parts[i]:
+                deprecated = False
+                break
+
+        if deprecated:
+            self.raiseException("DEPRECATED (since v%s) functionality used: %s" % (max_ver, msg), exception=exception)
+        else:
+            deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg)
+            self.warning(deprecation_msg)
 
 
 def thread_name():
@@ -324,7 +354,7 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
     logger = getLogger(name, fname=False)
 
     if not hasattr(logger, loggeroption):
-        ## not set.
+        # not set.
         setattr(logger, loggeroption, False)  # set default to False
 
     if enable and not getattr(logger, loggeroption):
@@ -333,15 +363,19 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
             handler = handlerclass(**handleropts)
             handler.setFormatter(formatter)
         logger.addHandler(handler)
-        setattr(logger, loggeroption, True)
+        setattr(logger, loggeroption, handler)
     elif not enable:
-        # stop logging to X (needs the handler, so fail if it's not specified)
-        if handler is None and len(logger.handlers) == 1:
-            # removing the last logger doesn't work
-            # it will be re-added if only one handler is present
-            # so we will just make it quiet by setting the loglevel extremely high
-            zerohandler = logger.handlers[0]
-            zerohandler.setLevel(101)  # 50 is critical, so 101 should be nothing
+        # stop logging to X
+        if handler is None:
+            if len(logger.handlers) == 1:
+                # removing the last logger doesn't work
+                # it will be re-added if only one handler is present
+                # so we will just make it quiet by setting the loglevel extremely high
+                zerohandler = logger.handlers[0]
+                zerohandler.setLevel(APOCALYPTIC)  # no logging should be done with APOCALYPTIC, so silence happens
+            else:  # remove the handler set with this loggeroption
+                handler = getattr(logger, loggeroption)
+                logger.removeHandler(handler)
         else:
             logger.removeHandler(handler)
         setattr(logger, loggeroption, False)
@@ -377,7 +411,7 @@ def logToDevLog(enable=True, name=None, handler=None):
                            syslogoptions, 'logtodevlog', enable=enable, name=name, handler=handler)
 
 
-##  Change loglevel
+#  Change loglevel
 def setLogLevel(level):
     """
     set a global log level (for this root logger)
@@ -418,12 +452,12 @@ def getAllExistingLoggers():
     @return: the existing loggers, in a list of C{(name, logger)} tuples
     """
     rootlogger = logging.getLogger(fname=False)
-    ## undocumented manager (in 2.4 and later)
+    # undocumented manager (in 2.4 and later)
     manager = rootlogger.manager
 
     loggerdict = getattr(manager, 'loggerDict')
 
-    ## return list of (name,logger) tuple
+    # return list of (name,logger) tuple
     return [x for x in loggerdict.items()]
 
 
@@ -444,7 +478,7 @@ def getAllFancyloggers():
 # Register our logger
 logging.setLoggerClass(FancyLogger)
 
-#log to a server if FANCYLOG_SERVER is set.
+# log to a server if FANCYLOG_SERVER is set.
 _default_logTo = None
 if 'FANCYLOG_SERVER' in os.environ:
     server = os.environ['FANCYLOG_SERVER']
@@ -452,7 +486,7 @@ if 'FANCYLOG_SERVER' in os.environ:
     if ':' in server:
         server, port = server.split(':')
 
-    #maybe the port was specified in the FANCYLOG_SERVER_PORT env var. this takes precedence
+    # maybe the port was specified in the FANCYLOG_SERVER_PORT env var. this takes precedence
     if 'FANCYLOG_SERVER_PORT' in os.environ:
         port = int(os.environ['FANCYLOG_SERVER_PORT'])
     port = int(port)
@@ -460,7 +494,7 @@ if 'FANCYLOG_SERVER' in os.environ:
     logToUDP(server, port)
     _default_logTo = logToUDP
 else:
-    #log to screen by default
+    # log to screen by default
     logToScreen(enable=True)
     _default_logTo = logToScreen
 

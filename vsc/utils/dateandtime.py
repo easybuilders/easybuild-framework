@@ -1,4 +1,4 @@
-# #
+##
 #
 # Copyright 2012-2013 Ghent University
 #
@@ -23,11 +23,11 @@
 #
 # You should have received a copy of the GNU Library General Public License
 # along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
-@author: Stijn De Weirdt (Ghent University)
+Module with various convenience functions and classes to deal with date, time and timezone
 
-module with various convenience functions and classes to deal with date, time and timezone
+@author: Stijn De Weirdt (Ghent University)
 """
 
 import calendar
@@ -238,17 +238,17 @@ def datetime_parser(txt):
 
     datetuple = [tmpdate.year, tmpdate.month, tmpdate.day]
     if len(tmpts) > 1:
-        # # add hour and minutes
+        # add hour and minutes
         datetuple.extend([int(x) for x in tmpts[1].split(':')[:2]])
 
         try:
             sects = tmpts[1].split(':')[2].split('.')
         except:
             sects = [0]
-        # # add seconds
+        # add seconds
         datetuple.append(int(sects[0]))
         if len(sects) > 1:
-            # # add microseconds
+            # add microseconds
             datetuple.append(int(float('.%s' % sects[1]) * 10 ** 6))
 
     res = datetime(*datetuple)
