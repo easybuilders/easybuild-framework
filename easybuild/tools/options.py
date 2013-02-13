@@ -47,11 +47,10 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
         try:
-            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=True)[0]
+            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
         except:
-            # TODO : remove code from main that does the same
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = None
+            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 

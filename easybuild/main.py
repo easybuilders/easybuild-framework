@@ -154,10 +154,9 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
     else:
         log.info("Failed to determine install path for easybuild-easyconfigs package.")
 
-    if options.robot and type(options.robot) == bool:
-        if not easyconfigs_pkg_full_path is None:
-            options.robot = easyconfigs_pkg_full_path
-            log.info("Using default robot path (easyconfigs install dir): %s" % options.robot)
+    if not options.robot is None:
+        if options.robot:
+            log.info("Using robot path: %s" % options.robot)
         else:
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
