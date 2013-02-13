@@ -87,7 +87,7 @@ from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import any
+from easybuild.tools.utilities import any, flatten
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
 EASYBLOCKS_VERSION = 'UNKNOWN'
 try:
@@ -341,18 +341,11 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
         # Reverse option parser -> string
 
         # the options to ignore
-        ignore = map(eboptions.get_option, ['--robot', '--help', '--job'])
-
-        def flatten(lst):
-            """Flatten a list of lists."""
-            res = []
-            for x in lst:
-                res.extend(x)
-            return res
+        ignore = map(opt_parser.get_option, ['--robot', '--help', '--job'])
 
         # loop over all the different options.
         result_opts = []
-        all_options = eboptions.option_list + flatten([g.option_list for g in eboptions.option_groups])
+        all_options = opt_parser.option_list + flatten([g.option_list for g in opt_parser.option_groups])
         relevant_opts = [o for o in all_options if o not in ignore]
         for opt in relevant_opts:
             value = getattr(options, opt.dest)

@@ -34,6 +34,13 @@ def any(ls):
 
     return sum([bool(x) for x in ls]) != 0
 
+def flatten(lst):
+    """Flatten a list of lists."""
+    res = []
+    for x in lst:
+        res.extend(x)
+    return res
+
 def quote_str(x):
     """
     Obtain a new value to be used in string replacement context.
