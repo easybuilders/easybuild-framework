@@ -37,6 +37,7 @@ It adds:
  - easily add extra specifiers in the log record
 
 usage:
+
 >>> from vsc.utils import fancylogger
 >>> # will log to screen by default
 >>> fancylogger.logToFile('dir/filename')
@@ -276,7 +277,7 @@ def getRootLoggerName():
         return None
 
 
-def logToScreen(enable=True, handler=None, name=None):
+def logToScreen(enable=True, handler=None, name=None, stdout=False):
     """
     enable (or disable) logging to screen
     returns the screenhandler (this can be used to later disable logging to screen)
@@ -285,8 +286,17 @@ def logToScreen(enable=True, handler=None, name=None):
 
     you can also pass the name of the logger for which to log to the screen
     otherwise you'll get all logs on the screen
+
+    by default, logToScreen will log to stderr; logging to stderr instead can be done
+    by setting the 'stdout' parameter to True
     """
     handleropts = {}
+
+    if stdout:
+        handleropts.update({'stream': sys.stdout})
+    else:
+        handleropts.update({'stream': sys.stderr})
+
     return _logToSomething(logging.StreamHandler,
                            handleropts,
                            loggeroption='logtoscreen',
