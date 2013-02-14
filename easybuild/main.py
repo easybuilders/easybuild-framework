@@ -341,7 +341,7 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
         # Reverse option parser -> string
 
         # the options to ignore
-        ignore = map(opt_parser.get_option, ['--robot', '--help', '--job'])
+        ignore = map(opt_parser.get_option, ['--robot', '--help', '--shorthelp', '--job'])
 
         # loop over all the different options.
         result_opts = []
