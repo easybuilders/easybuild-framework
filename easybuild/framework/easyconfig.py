@@ -1,6 +1,6 @@
-##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
+# #
+# Copyright 2009-2013 Ghent University
+# Copyright 2009-2013 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
 # Copyright 2011 Pieter De Baets
@@ -27,7 +27,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 
 import copy
 import difflib
@@ -57,6 +57,19 @@ EXTENSIONS = (7, 'extensions')
 MODULES = (8, 'modules')
 OTHER = (9, 'other')
 
+# the templating names
+TEMPLATE_NAMES_SEPARATOR = '_'
+TEMPLATE_NAMES = ['name', 'version',
+                  ('toolchain', 'name'), ('toolchain', 'version'),
+                  'versionsuffix', 'versionprefix',
+                  ]
+TEMPLATE_NAMES_LOWER = ['name']
+TEMPLATE_NAMES_LOWER_TEMPLATE = "%slower"
+TEMPLATE_NAMES_EASYBLOCK = ['installdir', 'builddir', ]  # values taken from the EasyBlock before each step
+
+TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version).tar.gz',
+                      'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version).tar.gz',
+                      }
 
 class EasyConfig(object):
     """
@@ -127,7 +140,7 @@ class EasyConfig(object):
           ('license_server', [None, 'License server for software', LICENSE]),
           ('license_server_port', [None, 'Port for license server', LICENSE]),
           ('key', [None, 'Key for installing software', LICENSE]),
-          ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
+          ('group', [None, "Name of the user group for which the software should be available", LICENSE]),
 
           ('exts_list', [[], 'List with extensions added to the base installation', EXTENSIONS]),
           ('exts_defaultclass', [None, "List of module for and name of the default extension class",
@@ -197,6 +210,8 @@ class EasyConfig(object):
         if self.validation:
             self.validate()
 
+        self._template_values = None
+
     def copy(self):
         """
         Return a copy of this EasyConfig instance.
@@ -225,6 +240,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
+        global_vars.update(TEMPLATE_CONSTANTS)
         local_vars = {}
 
         try:
@@ -405,7 +421,7 @@ class EasyConfig(object):
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
 
-    def _validate(self, attr, values):     # private method
+    def _validate(self, attr, values):  # private method
         """
         validation helper method. attr is the attribute it will check, values are the possible values.
         if the value of the attribute is not in the is array, it will report an error
@@ -476,11 +492,57 @@ class EasyConfig(object):
 
         return dependency
 
+    def _getitem_string(self, value, ignore=None):
+        """Try to get to complete the templated string.
+            - value: string to complete
+            - key: ignore these keys from self.config
+        """
+        if self._template_values is None:
+            self._template_values = {}
+
+        if ignore is None:
+            ignore = []
+
+        # make dict
+        template_values = {}
+        for key in TEMPLATE_NAMES:
+            if isinstance(key, (list, tuple,)):
+                key_copy = key[:]
+                v = self.get(key_copy.pop(0), None)
+                while len(key_copy) > 0 and v is not None:
+                    v = v.get(key_copy.pop(0), None)
+                template_values[TEMPLATE_NAMES_SEPARATOR.join(key)] = v
+            else:
+                template_values[key] = self.get(key, None)
+
+        # make lower
+        for key in TEMPLATE_NAMES_LOWER:
+            t_v = template_values.get(key, None)
+            if t_v is not None:
+                try:
+                    template_values[ TEMPLATE_NAMES_LOWER_TEMPLATE % key] = t_v.lower()
+                except:
+                    self.log.debug("_getitem_string: can't get .lower() for key %s value %s (type %s)" %
+                                   (key, t_v, type(t_v)))
+
+        self._template_values.update(template_values)
+
+        # copy to remove the ignores
+        template_values = self._template_values.copy()
+        for key in ignore:
+            if key in template_values:
+                del template_values[key]
+
+        return value % template_values
+
     def __getitem__(self, key):
         """
         will return the value without the help text
         """
-        return self.config[key][0]
+        value = self.config[key][0]
+        if isinstance(value, str):
+            value = self._getitem_string(ignore=[key])
+        return value
 
     def __setitem__(self, key, value):
         """
@@ -523,7 +585,7 @@ def sorted_categories():
     """
     categories = [MANDATORY, CUSTOM , TOOLCHAIN, BUILD, FILEMANAGEMENT,
                   DEPENDENCIES, LICENSE , EXTENSIONS, MODULES, OTHER]
-    categories.sort(key = lambda c: c[0])
+    categories.sort(key=lambda c: c[0])
     return categories
 
 def convert_to_help(opts):
@@ -878,7 +940,7 @@ def select_or_generate_ec(fp, paths, specs, log):
         # if no file path was specified, generate a file name
         if not fp:
             installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-            fp= "%s-%s.eb" % (name, installver)
+            fp = "%s-%s.eb" % (name, installver)
 
         # generate tweaked easyconfig file
         tweak(selected_ec_file, fp, specs, log)
@@ -956,7 +1018,7 @@ def tweak(src_fn, target_fn, tweaks, log):
             tweaks.pop(key)
 
     # add parameters or replace existing ones
-    for (key,val) in tweaks.items():
+    for (key, val) in tweaks.items():
 
         regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
         log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
@@ -1080,7 +1142,7 @@ def stats_to_str(stats, log):
         else:
             return str(x)
 
-    for (k,v) in stats.items():
+    for (k, v) in stats.items():
         txt += "%s%s: %s,\n" % (pref, tostr(k), tostr(v))
 
     txt += "}"
