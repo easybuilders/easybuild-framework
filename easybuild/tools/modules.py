@@ -38,6 +38,10 @@ import sys
 from easybuild.tools.build_log import get_log, EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 
+# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules, and actually breaking modulcmd
+# see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
+
+LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
 
 outputMatchers = {
     # matches whitespace and module-listing headers
@@ -215,7 +219,8 @@ class Modules(object):
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
 
         self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd()))
-        proc = subprocess.Popen(['modulecmd', 'python'] + args,
+        ld_library_path = 'LD_LIBRARY_PATH="%s"' % LD_LIBRARY_PATH
+        proc = subprocess.Popen([ld_library_path, 'modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
