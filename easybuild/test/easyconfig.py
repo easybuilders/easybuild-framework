@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 # Copyright 2012 Kenneth Hoste
@@ -23,7 +23,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 import os
 import re
 import shutil
@@ -560,9 +560,32 @@ class TestObtainEasyconfig(EasyConfigTest):
         EasyConfigTest.tearDown(self)
         shutil.rmtree(self.ec_dir)
 
+
+class TestTemplating(EasyConfigTest):
+    """ test templating validations """
+
+    contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig %(name)s"
+toolchain = {"name":"dummy", "version": "dummy2"}
+source_urls = [(GOOGLECODE_SOURCE)]
+sources = [SOURCE_TAR_GZ]
+"""
+
+    def runTest(self):
+        """ test easyconfig templating """
+        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        eb.validate()
+
+        # dummy toolchain, installversion == version
+        print "TEMPLATING", eb['sources'], eb['description']
+        self.assertEqual(eb['description'], "test easyconfig pi")
+
 def suite():
     """ return all the tests in this file """
     return TestSuite([TestDependency(), TestEmpty(), TestExtraOptions(),
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
-                      TestObtainEasyconfig()])
+                      TestObtainEasyconfig(), TestTemplating()])
