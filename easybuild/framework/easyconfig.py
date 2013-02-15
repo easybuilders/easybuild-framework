@@ -69,6 +69,10 @@ TEMPLATE_NAMES_EASYBLOCK = ['installdir', 'builddir', ]  # values taken from the
 
 TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version).tar.gz',
                       'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version).tar.gz',
+
+                      'GOOGLECODE_SOURCE':'http://%(namelower)s.googlecode.com/files/',
+                      'SOURCEFORGE_SOURCE':('http://sourceforge.net/projects/%(namelower)s/'
+                                            'files/%(namelower)s/%(version)s'),
                       }
 
 class EasyConfig(object):
@@ -506,6 +510,8 @@ class EasyConfig(object):
         # make dict
         template_values = {}
         for key in TEMPLATE_NAMES:
+            if key in ignore:
+                continue
             if isinstance(key, (list, tuple,)):
                 key_copy = key[:]
                 v = self.get(key_copy.pop(0), None)
@@ -541,7 +547,7 @@ class EasyConfig(object):
         """
         value = self.config[key][0]
         if isinstance(value, str):
-            value = self._getitem_string(ignore=[key])
+            value = self._getitem_string(value, ignore=[key])
         return value
 
     def __setitem__(self, key, value):
