@@ -406,7 +406,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     if keep_logs:
         return logfile
 
-def error(message, log, exitCode=1, opt_parser=None, exit_on_error=True):
+def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True):
     """
     Print error message and exit EasyBuild
     """
@@ -416,7 +416,7 @@ def error(message, log, exitCode=1, opt_parser=None, exit_on_error=True):
             opt_parser.print_shorthelp()
             print_msg("ERROR: %s\n" % message)
         sys.exit(exitCode)
-    else:
+    elif log:
         log.error(message)
 
 def warning(message):
