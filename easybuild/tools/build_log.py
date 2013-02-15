@@ -149,7 +149,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     if (name and version) or filename:
         if not filename:
             filename = log_filename(name, version)
-        hand = fancylogger.logToFile(filename)
+        hand = fancylogger.logToFile(filename, name=typ)
     else:
         hand = fancylogger.logToScreen(True)
 
