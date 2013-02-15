@@ -149,9 +149,9 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     if (name and version) or filename:
         if not filename:
             filename = log_filename(name, version)
-        hand = logging.FileHandler(filename)
+        hand = fancylogger.logToFile(filename, name=typ)
     else:
-        hand = logging.StreamHandler(sys.stdout)
+        hand = fancylogger.logToScreen(True)
 
     hand.setFormatter(formatter)
     log.addHandler(hand)

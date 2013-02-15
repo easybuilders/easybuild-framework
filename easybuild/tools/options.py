@@ -1,5 +1,5 @@
-# #
-# Copyright 2009-2012 Ghent University
+##
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,10 +21,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
+Command line options for eb
+
 @author: Stijn De Weirdt (Ghent University)
-Options for eb main
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import easybuild.tools.filetools as filetools
 import os
@@ -41,11 +47,10 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
         try:
-            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=True)[0]
+            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
         except:
-            # TODO : remove code from main that does the same
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = None
+            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -175,15 +180,17 @@ class EasyBuildOptions(GeneralOption):
         self.add_group_parser(opts, descr)
 
 
-def parse_options():
+def parse_options(args=None):
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -h or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage,
+    eb_go = EasyBuildOptions(
+                             usage=usage,
                              description=description,
                              prog='eb',
                              envvar_prefix='EASYBUILD',
+                             go_args=args,
                              )
 
-    return eb_go.options, eb_go.args
+    return eb_go.options, eb_go.args, eb_go.parser

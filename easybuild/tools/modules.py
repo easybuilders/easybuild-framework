@@ -230,7 +230,7 @@ class Modules(object):
             try:
                 exec stdout
             except Exception, err:
-                raise EasyBuildError("Changing environment as dictated by module failed: %s" % err)
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, stdout))
 
             # Process stderr
             result = []
