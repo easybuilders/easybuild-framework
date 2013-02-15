@@ -104,9 +104,9 @@ def parse_options(args=None, logfile=None):
     (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
     if not logfile:
-       # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-       fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
-       os.close(fd)
+        # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+        os.close(fd)
 
     if options.logtostdout:
         if os.path.exists(logfile):
@@ -267,7 +267,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
 
     if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
              options.version, options.regtest]):
-        if logfile and not keep_log:
+        if logfile and not keep_logs:
             os.remove(logfile)
         sys.exit(0)
 
@@ -393,7 +393,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     try:
         remove_log_handler(hn)
         hn.close()
-        if logfile and not keep_log:
+        if logfile and not keep_logs:
             os.remove(logfile)
 
         for ec in easyconfigs:
@@ -403,10 +403,10 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-    if keep_log:
+    if keep_logs:
         return logfile
 
-def error(message, log, exitCode=1, opt_parser=None, exit_on_error=True):
+def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True):
     """
     Print error message and exit EasyBuild
     """
@@ -416,7 +416,7 @@ def error(message, log, exitCode=1, opt_parser=None, exit_on_error=True):
             opt_parser.print_shorthelp()
             print_msg("ERROR: %s\n" % message)
         sys.exit(exitCode)
-    else:
+    elif log:
         log.error(message)
 
 def warning(message):
