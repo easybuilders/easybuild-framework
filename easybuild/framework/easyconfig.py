@@ -59,14 +59,19 @@ OTHER = (9, 'other')
 
 # the templating names
 TEMPLATE_NAMES_SEPARATOR = '_'
-TEMPLATE_NAMES = ['name', 'version',
-                  ('toolchain', 'name'), ('toolchain', 'version'),
+# derived from .config
+TEMPLATE_NAMES_CONFIG = ['name', 'version',
                   'versionsuffix', 'versionprefix',
                   ]
+# derived from easyconfig, but not from .config
+TEMPLATE_NAMES_EASYCONFIG = [ 'toolchain_name', 'toolchain_version',
+                            ]
+# lower
 TEMPLATE_NAMES_LOWER = ['name']
-TEMPLATE_NAMES_LOWER_TEMPLATE = "%slower"
+TEMPLATE_NAMES_LOWER_TEMPLATE = "%(key)slower"
+# derived from easyblock
 TEMPLATE_NAMES_EASYBLOCK = ['installdir', 'builddir', ]  # values taken from the EasyBlock before each step
-
+# constants that can be used in easyconfigs
 TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version).tar.gz',
                       'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version).tar.gz',
 
@@ -170,6 +175,8 @@ class EasyConfig(object):
         validate specifies whether validations should happen
         """
 
+        self._template_values = None
+
         self.log = get_log("EasyConfig")
 
         self.valid_module_classes = None
@@ -213,8 +220,6 @@ class EasyConfig(object):
         self.validation = validate
         if self.validation:
             self.validate()
-
-        self._template_values = None
 
     def copy(self):
         """
@@ -496,59 +501,87 @@ class EasyConfig(object):
 
         return dependency
 
-    def _getitem_string(self, value, ignore=None):
-        """Try to get to complete the templated string.
-            - value: string to complete
-            - key: ignore these keys from self.config
-        """
+    def _generate_template_values(self, ignore=None, skip_lower=True):
+        """Try to generate all template values."""
+        # TODO figure out way to make it properly recursive
         if self._template_values is None:
             self._template_values = {}
 
+        # ignore self
         if ignore is None:
             ignore = []
 
+        print "ignore", ignore
         # make dict
         template_values = {}
-        for key in TEMPLATE_NAMES:
+
+        # step 1: add TEMPLATE_NAMES_EASYCONFIG
+        tc = self.config.get('toolchain')[0]
+        print 'toolchain', tc
+        if tc is not None:
+            template_values['toolchain_name'] = tc.get('name', None)
+            template_values['toolchain_version'] = tc.get('version', None)
+
+        # step 2: add remaining self.config
+        for key in TEMPLATE_NAMES_CONFIG:
             if key in ignore:
                 continue
-            if isinstance(key, (list, tuple,)):
-                key_copy = key[:]
-                v = self.get(key_copy.pop(0), None)
-                while len(key_copy) > 0 and v is not None:
-                    v = v.get(key_copy.pop(0), None)
-                template_values[TEMPLATE_NAMES_SEPARATOR.join(key)] = v
-            else:
-                template_values[key] = self.get(key, None)
+            print "process", key
+            if key in self.config:
+                template_values[key] = self.config[key]
 
-        # make lower
+        # step 3. make lower variants
         for key in TEMPLATE_NAMES_LOWER:
+            if key in ignore:
+                continue
             t_v = template_values.get(key, None)
-            if t_v is not None:
-                try:
-                    template_values[ TEMPLATE_NAMES_LOWER_TEMPLATE % key] = t_v.lower()
-                except:
-                    self.log.debug("_getitem_string: can't get .lower() for key %s value %s (type %s)" %
-                                   (key, t_v, type(t_v)))
+            if t_v is None:
+                continue
+            try:
+                template_values[ TEMPLATE_NAMES_LOWER_TEMPLATE % {'key':key}] = t_v.lower()
+            except:
+                self.log.debug("_getitem_string: can't get .lower() for key %s value %s (type %s)" %
+                               (key, t_v, type(t_v)))
 
+        # self._template_values can/should be updated from outside easyconfig
         self._template_values.update(template_values)
 
         # copy to remove the ignores
-        template_values = self._template_values.copy()
-        for key in ignore:
-            if key in template_values:
-                del template_values[key]
+        for k, v in self._template_values.items():
+            if v is None:
+                del self._template_values[k]
 
-        return value % template_values
+        template_values = {}
+        for k, v in self._template_values.items():
+            template_values[k] = v % self._template_values
 
+        # rerun, with lower values as well
+        if skip_lower:
+            self._generate_template_values(ignore=ignore, skip_lower=False)
+
+    def _resolve_template(self, value):
+        """Given a value, try to susbistitute the templated strings with actual values.
+            - value: some python object (supported are string, tuple/list, dict or some mix thereof)
+        """
+        if self._template_values is None or len(self._template_values) == 0:
+            self._generate_template_values()
+
+        if isinstance(value, str):
+            value = value % self._template_values
+        elif isinstance(value, list):
+            value = [self._resolve_template(val) for val in value]
+        elif isinstance(value, tuple):
+            value=tuple(self._resolve_template(list(value)))
+        elif isinstance(value, dict):
+            value=dict([(key,self._resolve_template(val)) for key,val in value.items()])
+
+        return value
     def __getitem__(self, key):
         """
         will return the value without the help text
         """
         value = self.config[key][0]
-        if isinstance(value, str):
-            value = self._getitem_string(value, ignore=[key])
-        return value
+        return self._resolve_template(value)
 
     def __setitem__(self, key, value):
         """
