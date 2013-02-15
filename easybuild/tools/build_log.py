@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
@@ -26,7 +26,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 """
@@ -88,7 +88,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             raise EasyBuildError(newMsg)
 
     def exception(self, msg, *args):
-        ## don't raise the exception from within error
+        # # don't raise the exception from within error
         newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
@@ -99,12 +99,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
 
 # set format for logger
-logging_format = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
-formatter = logging.Formatter(logging_format)
-
-# redirect standard handler of root logger to /dev/null
-# without this, everything is logged twice (one by root logger, once by descendant logger)
-logging.basicConfig(level=logging.ERROR, format=logging_format, filename='/dev/null')
+LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
+fancylogger.setLogFormat(LOGGING_FORMAT)
 
 # disable logging to screen by default
 fancylogger.logToScreen(enable=False)
@@ -115,7 +111,7 @@ def get_log(name=None):
     """
     Generate logger object
     """
-    #log = logging.getLogger(name)
+    # log = logging.getLogger(name)
     log = fancylogger.getLogger(name)
     log.info("Logger started for %s." % name)
     return log
@@ -134,17 +130,12 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     - sets log handlers
     """
 
-    # obtain root logger
-    log = fancylogger.getLogger()
 
     # determine log level
     if debug:
-        defaultLogLevel = logging.DEBUG
+        fancylogger.setLogLevelDebug()
     else:
-        defaultLogLevel = logging.INFO
-
-    # set log level for root logger
-    log.setLevel(defaultLogLevel)
+        fancylogger.setLogLevelInfo()
 
     if (name and version) or filename:
         if not filename:
@@ -153,14 +144,10 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
     else:
         hand = fancylogger.logToScreen(True)
 
-    hand.setFormatter(formatter)
-    log.addHandler(hand)
-
     # initialize our logger
     log = fancylogger.getLogger(typ)
-    log.setLevel(defaultLogLevel)
 
-    ## init message
+    # # init message
     log.info("Log initialized with name %s version %s to file %s on host %s" % (name,
                                                                                 version,
                                                                                 filename,
