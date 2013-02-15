@@ -416,7 +416,7 @@ def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True):
             opt_parser.print_shorthelp()
             print_msg("ERROR: %s\n" % message)
         sys.exit(exitCode)
-    elif log:
+    elif log is not None:
         log.error(message)
 
 def warning(message):
