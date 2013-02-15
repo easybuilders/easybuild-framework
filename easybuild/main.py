@@ -87,7 +87,7 @@ from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import any
+from easybuild.tools.utilities import any, flatten
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
 EASYBLOCKS_VERSION = 'UNKNOWN'
 try:
@@ -101,7 +101,7 @@ except:
 LOGDEBUG = False
 
 def parse_options():
-    (options, paths) = eboptions.parse_options()
+    (options, paths, opt_parser) = eboptions.parse_options()
 
     # mkstemp returns (fd,filename), fd is from os.open, not regular open!
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
@@ -117,9 +117,9 @@ def parse_options():
     # initialize logger
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
 
-    return options, paths, log, logfile, hn, parser
+    return options, paths, log, logfile, hn, opt_parser
 
-def main(options, orig_paths, log, logfile, hn, parser):
+def main(options, orig_paths, log, logfile, hn, opt_parser):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -155,10 +155,9 @@ def main(options, orig_paths, log, logfile, hn, parser):
     else:
         log.info("Failed to determine install path for easybuild-easyconfigs package.")
 
-    if options.robot and type(options.robot) == bool:
-        if not easyconfigs_pkg_full_path is None:
-            options.robot = easyconfigs_pkg_full_path
-            log.info("Using default robot path (easyconfigs install dir): %s" % options.robot)
+    if not options.robot is None:
+        if options.robot:
+            log.info("Using robot path: %s" % options.robot)
         else:
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
@@ -224,7 +223,7 @@ def main(options, orig_paths, log, logfile, hn, parser):
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", optparser=parser)
+                  "options to make EasyBuild search for easyconfigs", opt_parser=opt_parser)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -342,18 +341,11 @@ def main(options, orig_paths, log, logfile, hn, parser):
         # Reverse option parser -> string
 
         # the options to ignore
-        ignore = map(parser.get_option, ['--robot', '--help', '--job'])
-
-        def flatten(lst):
-            """Flatten a list of lists."""
-            res = []
-            for x in lst:
-                res.extend(x)
-            return res
+        ignore = map(opt_parser.get_option, ['--robot', '--help', '--shorthelp', '--job'])
 
         # loop over all the different options.
         result_opts = []
-        all_options = parser.option_list + flatten([g.option_list for g in parser.option_groups])
+        all_options = opt_parser.option_list + flatten([g.option_list for g in opt_parser.option_groups])
         relevant_opts = [o for o in all_options if o not in ignore]
         for opt in relevant_opts:
             value = getattr(options, opt.dest)
@@ -406,13 +398,13 @@ def main(options, orig_paths, log, logfile, hn, parser):
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-def error(message, exitCode=1, optparser=None):
+def error(message, exitCode=1, opt_parser=None):
     """
     Print error message and exit EasyBuild
     """
     print_msg("ERROR: %s\n" % message)
-    if optparser:
-        optparser.print_help()
+    if opt_parser:
+        opt_parser.print_shorthelp()
         print_msg("ERROR: %s\n" % message)
     sys.exit(exitCode)
 
@@ -1404,8 +1396,8 @@ def list_toolchains():
 
 if __name__ == "__main__":
     try:
-        options, orig_paths, log, logfile, hn, parser = parse_options()
-        main(options, orig_paths, log, logfile, hn, parser)
+        options, orig_paths, log, logfile, hn, opt_parser = parse_options()
+        main(options, orig_paths, log, logfile, hn, opt_parser)
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
