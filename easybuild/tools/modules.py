@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,7 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Modules functionality: loading modules, checking for available modules, ...
+This python module implements the environment modules functionality:
+ - loading modules
+ - checking for available modules
+ - ...
+
+@author Stijnd De Weirdt
+@author Dries Verdegem
+@author Kenneth Hoste
+@author Pieter De Baets
+@author Jens Timmerman
 """
 import os
 import re
@@ -51,6 +55,7 @@ outputMatchers = {
     # matches modules such as "... ictce/3.2.1.015.u4(default) ..."
     'available': re.compile(r"\b(?P<name>\S+?)/(?P<version>[^\(\s]+)(?P<default>\(default\))?(?:\s|$)")
 }
+
 
 class Modules(object):
     """
@@ -109,8 +114,10 @@ class Modules(object):
         """
         Return list of available modules.
         """
-        if not name: name = ''
-        if not version: version = ''
+        if not name:
+            name = ''
+        if not version:
+            version = ''
 
         txt = name
         if version:
@@ -124,7 +131,7 @@ class Modules(object):
         ans = [(mod['name'], mod['version']) for mod in modules]
 
         self.log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
-            (name, version, modulePath, len(ans), ans))
+                       (name, version, modulePath, len(ans), ans))
         return ans
 
     def exists(self, name, version, modulePath=None):
@@ -239,7 +246,7 @@ class Modules(object):
 
             # Process stderr
             result = []
-            for line in stderr.split('\n'):  #IGNORE:E1103
+            for line in stderr.split('\n'):  # IGNORE:E1103
                 if outputMatchers['whitespace'].search(line):
                     continue
 
@@ -294,10 +301,7 @@ class Modules(object):
                 # length after splitting is 0, so empty module name?
                 self.log.error("Module with empty name loaded? ('%s')" % mod)
 
-            loaded_modules.append({
-                                   'name': mod_name,
-                                   'version': mod_version
-                                   })
+            loaded_modules.append({'name': mod_name, 'version': mod_version})
 
         return loaded_modules
 
@@ -321,7 +325,7 @@ class Modules(object):
 
         if depth > 0:
             # recursively determine dependencies for these dependency modules, until depth is non-positive
-            moddeps = [self.dependencies_for(modname, modversion, depth=depth-1) for (modname, modversion) in mods]
+            moddeps = [self.dependencies_for(modname, modversion, depth=depth - 1) for (modname, modversion) in mods]
         else:
             # ignore any deeper dependencies
             moddeps = []
@@ -363,6 +367,7 @@ def search_module(path, query):
         except ValueError:
             pass
 
+
 def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
@@ -384,6 +389,7 @@ def get_software_root(name, with_env_var=False):
     else:
         return root
 
+
 def get_software_version(name):
     """
     Return the software version set for a particular software name.
@@ -398,11 +404,13 @@ def get_software_version(name):
     else:
         return os.getenv(legacy_key)
 
+
 def curr_module_paths():
     """
     Return a list of current module paths.
     """
     return os.environ['MODULEPATH'].split(':')
+
 
 def mk_module_path(paths):
     """
