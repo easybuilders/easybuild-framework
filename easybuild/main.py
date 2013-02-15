@@ -104,9 +104,9 @@ def parse_options(args=None, logfile=None):
     (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
     if not logfile:
-       # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-       fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
-       os.close(fd)
+        # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+        os.close(fd)
 
     if options.logtostdout:
         if os.path.exists(logfile):
