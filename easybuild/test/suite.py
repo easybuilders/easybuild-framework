@@ -45,6 +45,7 @@ import easybuild.test.variables as v
 import easybuild.test.github as g
 import easybuild.test.toolchainvariables as tcv
 import easybuild.test.toolchain as tc
+import easybuild.test.options as o
 
 from easybuild.tools.build_log import init_logger, remove_log_handler
 
@@ -54,7 +55,7 @@ log_fn = "/tmp/easybuild_tests.log"
 _, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc]])
+SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""
