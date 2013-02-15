@@ -100,15 +100,17 @@ except:
 # so this global variable is used.
 LOGDEBUG = False
 
-def parse_options():
-    (options, paths, opt_parser) = eboptions.parse_options()
+def parse_options(args=None, logfile=None):
+    (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
-    # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
-    os.close(fd)
+    if not logfile:
+       # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+       fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+       os.close(fd)
 
     if options.logtostdout:
-        os.remove(logfile)
+        if os.path.exists(logfile):
+            os.remove(logfile)
         logfile = None
 
     global LOGDEBUG
@@ -119,7 +121,7 @@ def parse_options():
 
     return options, paths, log, logfile, hn, opt_parser
 
-def main(options, orig_paths, log, logfile, hn, opt_parser):
+def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -127,6 +129,9 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
     - read easyconfig
     - build software
     """
+
+    # parse (command line) options
+    options, orig_paths, log, logfile, hn, opt_parser = parse_options(args=args, logfile=logfile)
 
     # set strictness of filetools module
     if options.strict:
@@ -223,7 +228,7 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", opt_parser=opt_parser)
+                  "options to make EasyBuild search for easyconfigs", log, opt_parser=opt_parser, exit_on_error=exit_on_error)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -262,7 +267,7 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
 
     if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
              options.version, options.regtest]):
-        if logfile:
+        if logfile and not keep_log:
             os.remove(logfile)
         sys.exit(0)
 
@@ -388,7 +393,7 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
     try:
         remove_log_handler(hn)
         hn.close()
-        if logfile:
+        if logfile and not keep_log:
             os.remove(logfile)
 
         for ec in easyconfigs:
@@ -398,15 +403,21 @@ def main(options, orig_paths, log, logfile, hn, opt_parser):
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-def error(message, exitCode=1, opt_parser=None):
+    if keep_log:
+        return logfile
+
+def error(message, log, exitCode=1, opt_parser=None, exit_on_error=True):
     """
     Print error message and exit EasyBuild
     """
-    print_msg("ERROR: %s\n" % message)
-    if opt_parser:
-        opt_parser.print_shorthelp()
+    if exit_on_error:
         print_msg("ERROR: %s\n" % message)
-    sys.exit(exitCode)
+        if opt_parser:
+            opt_parser.print_shorthelp()
+            print_msg("ERROR: %s\n" % message)
+        sys.exit(exitCode)
+    else:
+        log.error(message)
 
 def warning(message):
     """
@@ -1396,8 +1407,7 @@ def list_toolchains():
 
 if __name__ == "__main__":
     try:
-        options, orig_paths, log, logfile, hn, opt_parser = parse_options()
-        main(options, orig_paths, log, logfile, hn, opt_parser)
+        main()
     except EasyBuildError, e:
         sys.stderr.write('ERROR: %s\n' % e.msg)
         sys.exit(1)
