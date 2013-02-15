@@ -25,7 +25,7 @@
 """
 Module with various utility functions
 
-@authors: Kenneth Hoste (UGent)
+@author: Kenneth Hoste (Ghent University)
 """
 
 # FIXME: remove when Python version on which we rely provides any by itself

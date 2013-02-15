@@ -93,7 +93,7 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
 
         try:
-            logf = main(args=[], exit_on_error=False, logfile=logfile)
+            main(args=[], exit_on_error=False, logfile=logfile, keep_logs=True)
         except:
             pass
         outtxt = open(logfile, 'r').read()
