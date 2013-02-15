@@ -180,15 +180,17 @@ class EasyBuildOptions(GeneralOption):
         self.add_group_parser(opts, descr)
 
 
-def parse_options():
+def parse_options(args=None):
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -h or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage,
+    eb_go = EasyBuildOptions(
+                             usage=usage,
                              description=description,
                              prog='eb',
                              envvar_prefix='EASYBUILD',
+                             go_args=args,
                              )
 
     return eb_go.options, eb_go.args, eb_go.parser
