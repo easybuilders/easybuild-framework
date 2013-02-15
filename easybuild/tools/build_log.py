@@ -151,7 +151,7 @@ def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOW
             filename = log_filename(name, version)
         hand = fancylogger.logToFile(filename, name=typ)
     else:
-        hand = fancylogger.logToScreen(True)
+        hand = fancylogger.logToScreen(True, name=typ)
 
     hand.setFormatter(formatter)
     log.addHandler(hand)
