@@ -166,6 +166,55 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
 
+    def test_force(self):
+        """Test forcing installation even if the module is already available."""
+
+        # set MODULEPATH to included modules
+        orig_modulepath = os.getenv('MODULEPATH', None)
+        os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
+
+        # use GCC-4.6.3.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'GCC-4.6.3.eb')
+
+        # check log message without --force
+        args = [
+                eb_file,
+               ]
+
+        error_thrown = False
+        try:
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
+        except Exception, err:
+            error_thrown = err
+
+        outtxt = open(self.logfile, 'r').read()
+
+        self.assertTrue(not error_thrown, "No error is thrown if software is already installed")
+
+        already_msg = "GCC \(version 4.6.3\) is already installed"
+        self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force")
+
+        outtxt = open(self.logfile, 'w').write('')
+
+        # check that --force works
+        args = [
+                eb_file,
+                '--force',
+               ]
+        try:
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
+        except:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
+
+        # restore original MODULEPATH
+        if orig_modulepath is not None:
+            os.environ['MODULEPATH'] = orig_modulepath
+        else:
+            os.environ.pop('MODULEPATH')
+
     def test_no_such_software(self):
         """Test using no arguments."""
 
