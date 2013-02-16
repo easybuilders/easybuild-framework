@@ -30,7 +30,7 @@ import shutil
 import tempfile
 
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
@@ -589,3 +589,6 @@ def suite():
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
                       TestObtainEasyconfig(), TestTemplating()])
+
+if __name__ == '__main__':
+    main()

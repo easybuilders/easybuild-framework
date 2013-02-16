@@ -27,7 +27,7 @@ import os
 import random
 
 import easybuild.tools.modules as modules
-from unittest import TestCase, TestLoader 
+from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
@@ -69,3 +69,5 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(ModulesTest)
 
+if __name__ == '__main__':
+    main()
