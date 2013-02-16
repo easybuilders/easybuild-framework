@@ -427,6 +427,7 @@ class EasyConfig(object):
             if not key in printed_keys and val != self.config[key][0]:
                 ebtxt.append("%s = %s" % (key, to_str(self.config[key][0])))
 
+        print 'DUMP TEXT', ebtxt
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
 
@@ -568,19 +569,29 @@ class EasyConfig(object):
         if self._template_values is None or len(self._template_values) == 0:
             self.generate_template_values()
 
+        print '_resolve begin', value
         if isinstance(value, str):
             try:
                 value = value % self._template_values
             except KeyError:
                 self.log.warning("Unable to resolve template value %s with dict %s" %
                                  (value, self._template_values))
-        elif isinstance(value, list):
-            value = [self._resolve_template(val) for val in value]
-        elif isinstance(value, tuple):
-            value = tuple(self._resolve_template(list(value)))
-        elif isinstance(value, dict):
-            value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
+        else:
+            # TODO: is this ok or not?
+            # this block deals with references to objects and returns other references
+            # for reading this is ok, but for self['x'] = {}
+            # self['x']['y'] = z does not work
+            # self['x'] is a get, will return a references to a templated version of self.config['x']
+            # and the ['y] = z part will be against this new reference
+            # you will need to do self.config['x']['y'] = z
+            if isinstance(value, list):
+                value = [self._resolve_template(val) for val in value]
+            elif isinstance(value, tuple):
+                value = tuple(self._resolve_template(list(value)))
+            elif isinstance(value, dict):
+                value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
 
+        print '_resolve end', value
         return value
 
     def __getitem__(self, key):
@@ -595,7 +606,9 @@ class EasyConfig(object):
         sets the value of key in config.
         help text is untouched
         """
+        print '__setitem', key, value, self.config[key]
         self.config[key][0] = value
+        print '__setitem after', key, value, self.config[key], self.config[key][0]
 
     def get(self, key, default=None):
         """
@@ -1021,7 +1034,7 @@ def tweak(src_fn, target_fn, tweaks, log):
         log.error("Failed to read easyconfig file %s: %s" % (src_fn, err))
 
     log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
-
+    print "tweak_orig_ec", ectxt
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
@@ -1068,7 +1081,7 @@ def tweak(src_fn, target_fn, tweaks, log):
 
         regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
         log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
-
+        print 'tweakkk_add', key, val, regexp.pattern
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
@@ -1094,7 +1107,7 @@ def tweak(src_fn, target_fn, tweaks, log):
         ectxt += '\n'.join(additions) + '\n'
 
     log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
-
+    print ectxt
     # come up with suiting file name for tweaked easyconfig file if none was specified
     if not target_fn:
 

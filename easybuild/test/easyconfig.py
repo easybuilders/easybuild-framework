@@ -332,8 +332,11 @@ patches = %s
 
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         eb['version'] = ver
+        print 'DUMPTC0', eb['toolchain'], eb['toolchain']['version'], tcver
         eb['toolchain']['version'] = tcver
+        print 'DUMPTC1', eb['toolchain'], eb['toolchain']['version'], tcver
         eb.dump(self.eb_file)
+        print 'DUMPTC2', eb['toolchain'], eb['toolchain']['version'], tcver
 
         tweaks = {
                   'toolchain_name': tcname,
@@ -342,6 +345,7 @@ patches = %s
                   'foo': "bar"
                  }
 
+        print "BEGINTEST"
         tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
 
         eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
