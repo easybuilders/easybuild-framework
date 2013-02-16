@@ -120,6 +120,23 @@ class CommandLineOptionsTest(TestCase):
         error_msg = "ERROR .* Unable to find an easyconfig for the given specifications"
         self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name")
 
+    def test_list_toolchains(self):
+        """Test listing known compiler toolchains."""
+
+        args = [
+                '--list-toolchains',
+               ]
+        try:
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
+        except:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        info_msg = "INFO List of known toolchains:"
+        self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
+        for tc in ["dummy", "goalf", "ictce"]:
+            self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")
+
 
 def suite():
     """ returns all the testcases in this module """
