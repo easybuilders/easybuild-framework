@@ -122,7 +122,7 @@ def parse_options(args=None, logfile=None):
 
     return options, paths, log, logfile, hn, opt_parser
 
-def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=False):
+def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=False, dry_run=False):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -370,24 +370,26 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
 
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
         log.debug("Command template for jobs: %s" % command)
-        jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
-                                                      robot_path=options.robot)
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
+        if not dry_run:
+            jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
+                                                          robot_path=options.robot)
+            print "List of submitted jobs:"
+            for job in jobs:
+                print "%s: %s" % (job.name, job.jobid)
+            print "(%d jobs submitted)" % len(jobs)
 
-        log.info("Submitted parallel build jobs, exiting now")
-        sys.exit(0)
+            log.info("Submitted parallel build jobs, exiting now")
+            sys.exit(0)
 
     # build software, will exit when errors occurs (except when regtesting)
     correct_built_cnt = 0
     all_built_cnt = 0
-    for spec in orderedSpecs:
-        (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=silent)
-        if success:
-            correct_built_cnt += 1
-        all_built_cnt += 1
+    if not dry_run:
+         for spec in orderedSpecs:
+             (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=silent)
+             if success:
+                 correct_built_cnt += 1
+             all_built_cnt += 1
 
     print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log, silent=silent)
 
