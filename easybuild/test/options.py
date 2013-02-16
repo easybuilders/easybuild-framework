@@ -109,7 +109,7 @@ class CommandLineOptionsTest(TestCase):
 
         args = [
                 '--software-name=nosuchsoftware',
-                '--robot',
+                '--robot=.',
                ]
         try:
             main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
@@ -117,7 +117,7 @@ class CommandLineOptionsTest(TestCase):
             pass
         outtxt = open(self.logfile, 'r').read()
 
-        error_msg = "ERROR .* Unable to find an easyconfig for the given specifications"
+        error_msg = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
         self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name")
 
     def test_list_toolchains(self):
