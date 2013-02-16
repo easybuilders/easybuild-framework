@@ -183,7 +183,7 @@ class CommandLineOptionsTest(TestCase):
 
         error_thrown = False
         try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
         except Exception, err:
             error_thrown = err
 
@@ -202,12 +202,43 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                ]
         try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
+
+        # restore original MODULEPATH
+        if orig_modulepath is not None:
+            os.environ['MODULEPATH'] = orig_modulepath
+        else:
+            os.environ.pop('MODULEPATH')
+
+    def test_job(self):
+        """Test submitting build as a job."""
+
+        # set MODULEPATH to included modules
+        orig_modulepath = os.getenv('MODULEPATH', None)
+        os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
+
+        # use gzip-1.4.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
+
+        # check debug log message with --job
+        args = [
+                eb_file,
+                '--job',
+                '--debug',
+               ]
+        try:
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
+        except:
+            pass  # main may crash
+        outtxt = open(self.logfile, 'r').read()
+
+        job_msg = "DEBUG.* Command template for jobs: .* && eb .*"
+        self.assertTrue(re.search(job_msg, outtxt), "Debug log message with job command template when using --job")
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
