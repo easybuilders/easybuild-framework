@@ -100,6 +100,7 @@ except:
 # so this global variable is used.
 LOGDEBUG = False
 
+
 def parse_options(args=None, logfile=None):
     (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
@@ -149,7 +150,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
         print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
                                                                             FRAMEWORK_VERSION,
-                                                                            EASYBLOCKS_VERSION), log)
+                                                                            EASYBLOCKS_VERSION), log, silent=silent)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
@@ -315,7 +316,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
             modspath = mk_module_path(curr_module_paths() + [os.path.join(config.install_path("mod"), 'all')])
             if m.exists(module[0], module[1], modspath):
                 msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
-                print_msg(msg, log)
+                print_msg(msg, log, silent=silent)
                 log.info(msg)
             else:
                 log.debug("%s is not installed yet, so retaining it" % mod)
@@ -323,12 +324,12 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        print_msg("resolving dependencies ...", log)
+        print_msg("resolving dependencies ...", log, silent=silent)
         # force all dependencies to be retained and validation to be skipped for building dep graph
         force = retain_all_deps and not validate_easyconfigs
         orderedSpecs = resolve_dependencies(easyconfigs, options.robot, log, force=force)
     else:
-        print_msg("No easyconfigs left to be built.", log)
+        print_msg("No easyconfigs left to be built.", log, silent=silent)
         orderedSpecs = []
 
     # create dependency graph and exit
@@ -383,12 +384,12 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     correct_built_cnt = 0
     all_built_cnt = 0
     for spec in orderedSpecs:
-        (success, _) = build_and_install_software(spec, options, log, origEnviron)
+        (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=silent)
         if success:
             correct_built_cnt += 1
         all_built_cnt += 1
 
-    print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log)
+    print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log, silent=silent)
 
     get_repository().cleanup()
     # cleanup tmp log file (all is well, all modules have their own log file)
@@ -408,24 +409,25 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     if keep_logs:
         return logfile
 
-def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True):
+def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
     Print error message and exit EasyBuild
     """
     if exit_on_error:
-        print_msg("ERROR: %s\n" % message)
-        if opt_parser:
-            opt_parser.print_shorthelp()
+        if not silent:
             print_msg("ERROR: %s\n" % message)
+            if opt_parser:
+                opt_parser.print_shorthelp()
+                print_msg("ERROR: %s\n" % message)
         sys.exit(exitCode)
     elif log is not None:
         log.error(message)
 
-def warning(message):
+def warning(message, silent=False):
     """
     Print warning message.
     """
-    print_msg("WARNING: %s\n" % message)
+    print_msg("WARNING: %s\n" % message, silent=silent)
 
 def find_easyconfigs(path, log):
     """
@@ -687,7 +689,7 @@ def process_software_build_specs(options):
 
     return (try_to_generate, buildopts)
 
-def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True):
+def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True, silent=False):
     """Obtain a path for an easyconfig that matches the given specifications."""
 
     # if no easyconfig files/paths were provided, but we did get a software name,
@@ -698,7 +700,7 @@ def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True):
     else:
         # if an easyconfig was generated, make sure we're allowed to use it
         if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % fn)
+            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
             return (fn, generated)
         else:
             try:
@@ -725,7 +727,7 @@ def robot_find_easyconfig(log, path, module):
 
     return None
 
-def retrieve_blocks_in_spec(spec, log, onlyBlocks):
+def retrieve_blocks_in_spec(spec, log, onlyBlocks, silent=False):
     """
     Easyconfigs can contain blocks (headed by a [Title]-line)
     which contain commands specific to that block. Commands in the beginning of the file
@@ -769,7 +771,7 @@ def retrieve_blocks_in_spec(spec, log, onlyBlocks):
         for block in blocks:
             name = block['name']
             if onlyBlocks and not (name in onlyBlocks):
-                print_msg("Skipping block %s-%s" % (cfgName, name))
+                print_msg("Skipping block %s-%s" % (cfgName, name), silent=silent)
                 continue
 
             (fd, blockPath) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (cfgName, name))
@@ -824,13 +826,13 @@ def get_build_stats(app, starttime):
 
     return buildstats
 
-def build_and_install_software(module, options, log, origEnviron, exitOnFailure=True):
+def build_and_install_software(module, options, log, origEnviron, exitOnFailure=True, silent=False):
     """
     Build the software
     """
     spec = module['spec']
 
-    print_msg("processing EasyBuild easyconfig %s" % spec, log)
+    print_msg("processing EasyBuild easyconfig %s" % spec, log, silent=silent)
 
     # restore original environment
     log.info("Resetting environment")
@@ -856,7 +858,7 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
         app = app_class(spec, debug=options.debug, robot_path=options.robot)
         log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
-        error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg))
+        error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg), silent=silent)
 
     # application settings
     if options.stop:
@@ -942,18 +944,18 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
         app.close_log()
         applicationLog = app.logfile
 
-    print_msg("%s: Installation %s %s" % (summary, ended, succ), log)
+    print_msg("%s: Installation %s %s" % (summary, ended, succ), log, silent=silent)
 
     # check for errors
     if exitCode > 0 or filetools.errorsFoundInLog > 0:
         print_msg("\nWARNING: Build exited with exit code %d. %d possible error(s) were detected in the " \
                   "build logs, please verify the build.\n" % (exitCode, filetools.errorsFoundInLog),
-                  log)
+                  log, silent=silent)
 
     if app.postmsg:
-        print_msg("\nWARNING: %s\n" % app.postmsg, log)
+        print_msg("\nWARNING: %s\n" % app.postmsg, log, silent=silent)
 
-    print_msg("Results of the build can be found in the log file %s" % applicationLog, log)
+    print_msg("Results of the build can be found in the log file %s" % applicationLog, log, silent=silent)
 
     del app
     os.chdir(cwd)
