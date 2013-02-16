@@ -39,12 +39,17 @@ from easybuild.tools.options import EasyBuildOptions
 class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
+    # create log file
+    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
+    os.close(fd)
+
     def setUp(self):
         """Prepare for running unit tests."""
-        pass
+        open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
         """Post-test cleanup."""
+        # removing of self.logfile can't be done here, because it breaks logging
         pass
 
     def test_help_short(self, txt=None):
@@ -89,19 +94,31 @@ class CommandLineOptionsTest(TestCase):
     def test_no_args(self):
         """Test using no arguments."""
 
-        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
-        os.close(fd)
-
         try:
-            main(args=[], exit_on_error=False, logfile=logfile, keep_logs=True)
+            main(args=[], exit_on_error=False, logfile=self.logfile, keep_logs=True)
         except:
             pass
-        outtxt = open(logfile, 'r').read()
-        os.remove(logfile)  # clean up log file left behind by main
+        outtxt = open(self.logfile, 'r').read()
 
-        error_msg = "Please provide one or multiple easyconfig files,"
+        error_msg = "ERROR .* Please provide one or multiple easyconfig files,"
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
-        self.assertTrue(re.search(error_msg, outtxt), "Suitable error message when eb is run without arguments")
+        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb is run without arguments")
+
+    def test_no_such_software(self):
+        """Test using no arguments."""
+
+        args = [
+                '--software-name=nosuchsoftware',
+                '--robot',
+               ]
+        try:
+            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+        except:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        error_msg = "ERROR .* Unable to find an easyconfig for the given specifications"
+        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name")
 
 
 def suite():

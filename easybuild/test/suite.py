@@ -29,6 +29,7 @@
 This script is a collection of all the testcases.
 Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
 """
+import os
 import sys
 import unittest
 
@@ -67,6 +68,9 @@ try:
 except ImportError, err:
     sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
     res = unittest.TextTestRunner().run(SUITE)
+
+# test specific cleanups
+os.remove(o.CommandLineOptionsTest.logfile)
 
 remove_log_handler(logh)
 logh.close()
