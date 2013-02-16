@@ -224,11 +224,13 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     paths = []
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, options.robot, log, try_to_generate)]
+            paths = [obtain_path(software_build_specs, options.robot, log,
+                                 try_to_generate=try_to_generate, exit_on_error=exit_on_error)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
             error("Please provide one or multiple easyconfig files, or use software build " \
-                  "options to make EasyBuild search for easyconfigs", log, opt_parser=opt_parser, exit_on_error=exit_on_error)
+                  "options to make EasyBuild search for easyconfigs",
+                  log=log, opt_parser=opt_parser, exit_on_error=exit_on_error)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -685,7 +687,7 @@ def process_software_build_specs(options):
 
     return (try_to_generate, buildopts)
 
-def obtain_path(specs, robot, log, try_to_generate=False):
+def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True):
     """Obtain a path for an easyconfig that matches the given specifications."""
 
     # if no easyconfig files/paths were provided, but we did get a software name,
@@ -705,7 +707,7 @@ def obtain_path(specs, robot, log, try_to_generate=False):
                 warning("Failed to remove generated easyconfig file %s." % fn)
             error("Unable to find an easyconfig for the given specifications: %s; " \
                   "to make EasyBuild try to generate a matching easyconfig, " \
-                  "use the --try-X options " % specs)
+                  "use the --try-X options " % specs, log=log, exit_on_error=exit_on_error)
 
 
 def robot_find_easyconfig(log, path, module):
