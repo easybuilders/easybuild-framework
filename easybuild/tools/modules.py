@@ -228,7 +228,7 @@ class Modules(object):
         # change our ld library path here.
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug("Adjusted LD_LIBRARY_PATH from %s to %s" % (os.environ['LD_LIBRARY_PATH'],
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (os.environ.get('LD_LIBRARY_PATH', ''),
                                                                    environ['LD_LIBRARY_PATH']))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
