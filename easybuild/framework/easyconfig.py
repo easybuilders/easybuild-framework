@@ -72,8 +72,8 @@ TEMPLATE_NAMES_LOWER_TEMPLATE = "%(key)slower"
 # derived from easyblock
 TEMPLATE_NAMES_EASYBLOCK = ['installdir', 'builddir', ]  # values taken from the EasyBlock before each step
 # constants that can be used in easyconfigs
-TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version).tar.gz',
-                      'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version).tar.gz',
+TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version)s.tar.gz',
+                      'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version)s.tar.gz',
 
                       'GOOGLECODE_SOURCE':'http://%(namelower)s.googlecode.com/files/',
                       'SOURCEFORGE_SOURCE':('http://sourceforge.net/projects/%(namelower)s/'
@@ -501,9 +501,14 @@ class EasyConfig(object):
 
         return dependency
 
-    def _generate_template_values(self, ignore=None, skip_lower=True):
+    def generate_template_values(self):
         """Try to generate all template values."""
         # TODO figure out way to make it properly recursive
+        self._generate_template_values(skip_lower=True)
+        self._generate_template_values(skip_lower=False)
+
+    def _generate_template_values(self, ignore=None, skip_lower=True):
+        """Actual code to generate the template values"""
         if self._template_values is None:
             self._template_values = {}
 
@@ -511,13 +516,11 @@ class EasyConfig(object):
         if ignore is None:
             ignore = []
 
-        print "ignore", ignore
         # make dict
         template_values = {}
 
         # step 1: add TEMPLATE_NAMES_EASYCONFIG
         tc = self.config.get('toolchain')[0]
-        print 'toolchain', tc
         if tc is not None:
             template_values['toolchain_name'] = tc.get('name', None)
             template_values['toolchain_version'] = tc.get('version', None)
@@ -526,9 +529,8 @@ class EasyConfig(object):
         for key in TEMPLATE_NAMES_CONFIG:
             if key in ignore:
                 continue
-            print "process", key
             if key in self.config:
-                template_values[key] = self.config[key]
+                template_values[key] = self.config[key][0]
 
         # step 3. make lower variants
         for key in TEMPLATE_NAMES_LOWER:
@@ -553,29 +555,34 @@ class EasyConfig(object):
 
         template_values = {}
         for k, v in self._template_values.items():
-            template_values[k] = v % self._template_values
-
-        # rerun, with lower values as well
-        if skip_lower:
-            self._generate_template_values(ignore=ignore, skip_lower=False)
+            try:
+                template_values[k] = v % self._template_values
+            except KeyError:
+                # not all converted
+                template_values[k] = v
 
     def _resolve_template(self, value):
         """Given a value, try to susbistitute the templated strings with actual values.
             - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         """
         if self._template_values is None or len(self._template_values) == 0:
-            self._generate_template_values()
+            self.generate_template_values()
 
         if isinstance(value, str):
-            value = value % self._template_values
+            try:
+                value = value % self._template_values
+            except KeyError:
+                self.log.warning("Unable to resolve template value %s with dict %s" %
+                                 (value, self._template_values))
         elif isinstance(value, list):
             value = [self._resolve_template(val) for val in value]
         elif isinstance(value, tuple):
-            value=tuple(self._resolve_template(list(value)))
+            value = tuple(self._resolve_template(list(value)))
         elif isinstance(value, dict):
-            value=dict([(key,self._resolve_template(val)) for key,val in value.items()])
+            value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
 
         return value
+
     def __getitem__(self, key):
         """
         will return the value without the help text

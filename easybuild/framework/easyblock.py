@@ -1521,7 +1521,7 @@ class EasyBlock(object):
             # update the config templates
             for key in TEMPLATE_NAMES_EASYBLOCK:
                 self.cfg._template_values[key] = getattr(self, key, None)
-            self.cfg._generate_template_values()
+            self.cfg.generate_template_values()
 
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))

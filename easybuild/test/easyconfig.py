@@ -32,13 +32,14 @@ import tempfile
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
+from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for, TEMPLATE_CONSTANTS
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 class EasyConfigTest(TestCase):
     """ Baseclass for easyblock testcases """
+    contents = None
 
     def setUp(self):
         """ create temporary easyconfig file """
@@ -119,7 +120,7 @@ stop = 'notvalid'
     def runTest(self):
         """ test other validations beside mandatory variables """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
-        self.assertErrorRegex(EasyBuildError, "\w* provided '\w*' is not valid", eb.validate)
+        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
 
         eb['stop'] = 'patch'
         # this should now not crash
@@ -254,7 +255,8 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
 
         # test extra mandatory vars
-        self.assertErrorRegex(EasyBuildError, "mandatory variables \S* not provided", EasyConfig, self.eb_file, extra_vars)
+        self.assertErrorRegex(EasyBuildError, r"mandatory variables \S* not provided",
+                              EasyConfig, self.eb_file, extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
         self.setUp()
@@ -564,9 +566,15 @@ class TestObtainEasyconfig(EasyConfigTest):
 class TestTemplating(EasyConfigTest):
     """ test templating validations """
 
+    input = {'name':'PI',
+             'version':'3.14',
+             'namelower':'pi',
+             }
+
     contents = """
-name = "pi"
-version = "3.14"
+name = "%(name)s"
+version = "%(version)s"
+""" % input + """
 homepage = "http://google.com"
 description = "test easyconfig %(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
@@ -578,10 +586,12 @@ sources = [SOURCE_TAR_GZ]
         """ test easyconfig templating """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
         eb.validate()
+        eb._generate_template_values()
 
-        # dummy toolchain, installversion == version
-        print "TEMPLATING", eb['sources'], eb['description']
-        self.assertEqual(eb['description'], "test easyconfig pi")
+        self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
+        self.assertEqual(eb['sources'][0], TEMPLATE_CONSTANTS['SOURCE_TAR_GZ'] % self.input)
+        self.assertEqual(eb['source_urls'][0], TEMPLATE_CONSTANTS['GOOGLECODE_SOURCE'] % self.input)
+
 
 def suite():
     """ return all the tests in this file """
@@ -589,6 +599,7 @@ def suite():
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
                       TestObtainEasyconfig(), TestTemplating()])
+
 
 if __name__ == '__main__':
     main()
