@@ -121,7 +121,7 @@ def parse_options(args=None, logfile=None):
 
     return options, paths, log, logfile, hn, opt_parser
 
-def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
+def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=False):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -209,7 +209,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
 
     # dump known toolchains
     if options.list_toolchains:
-        list_toolchains()
+        list_toolchains(log, silent=silent)
 
     # search for modules
     if options.search:
@@ -1391,21 +1391,27 @@ def print_tree(classes, classNames, detailed, depth=0):
         if 'children' in classInfo:
             print_tree(classes, classInfo['children'], detailed, depth + 1)
 
-def list_toolchains():
+def list_toolchains(log, silent=False):
     """Show list of known toolchains."""
 
     _, all_tcs = search_toolchain('')
     all_tcs_names = [x.NAME for x in all_tcs]
     tclist = sorted(zip(all_tcs_names, all_tcs))
 
-    print "List of known toolchains:"
+    lines = ["List of known toolchains:"]
 
     for (tcname, tcc) in tclist:
 
         tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
         tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
 
-        print "\t%s: %s" % (tcname, ', '.join(sorted(tc_elems)))
+        lines.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
+
+    txt = '\n'.join(lines)
+    log.info(txt)
+    if not silent:
+        print txt
+
 
 if __name__ == "__main__":
     try:
