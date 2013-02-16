@@ -104,6 +104,68 @@ class CommandLineOptionsTest(TestCase):
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
         self.assertTrue(re.search(error_msg, outtxt), "Error message when eb is run without arguments")
 
+    def test_debug(self):
+        """Test enabling debug logging."""
+
+        for debug_arg in ['-d', '--debug']:
+            args = [
+                    '--software-name=somethingrandom',
+                    debug_arg,
+                   ]
+            try:
+                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+            except:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
+                res = re.search(' %s ' % log_msg_type, outtxt)
+                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, debug_arg))
+
+    def test_info(self):
+        """Test enabling info logging."""
+
+        for info_arg in ['--info']:
+            args = [
+                    '--software-name=somethingrandom',
+                    info_arg,
+                   ]
+            try:
+                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+            except:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            for log_msg_type in ['INFO', 'ERROR']:
+                res = re.search(' %s ' % log_msg_type, outtxt)
+                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, info_arg))
+
+            for log_msg_type in ['DEBUG']:
+                res = re.search(' %s ' % log_msg_type, outtxt)
+                self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
+
+    def test_quiet(self):
+        """Test enabling quiet logging (errors only)."""
+
+        for quiet_arg in ['--quiet']:
+            args = [
+                    '--software-name=somethingrandom',
+                    quiet_arg,
+                   ]
+            try:
+                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+            except:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            for log_msg_type in ['ERROR']:
+                res = re.search(' %s ' % log_msg_type, outtxt)
+                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, quiet_arg))
+
+            for log_msg_type in ['DEBUG']:  #, 'INFO']: --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
+                res = re.search(' %s ' % log_msg_type, outtxt)
+                self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
+
     def test_no_such_software(self):
         """Test using no arguments."""
 
