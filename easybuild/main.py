@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-##
+# #
 # Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
@@ -28,7 +28,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Main entry point for EasyBuild: build software from .eb input file
 """
@@ -175,29 +175,8 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
     else:
         blocks = None
 
-    # initialize configuration
-    # - check command line option -C/--config
-    # - then, check environment variable EASYBUILDCONFIG
-    # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
-    # - last, use default config file easybuild_config.py in main.py directory
-    config_file = options.config
-    if not config_file:
-        log.debug("No config file specified on command line, trying other options.")
-
-        config_env_var = config.environmentVariables['config_file']
-        home_config_file = os.path.join(os.getenv('HOME'), ".easybuild", "config.py")
-        if os.getenv(config_env_var):
-            log.debug("Environment variable %s, so using that as config file." % config_env_var)
-            config_file = os.getenv(config_env_var)
-        elif os.path.exists(home_config_file):
-            config_file = home_config_file
-            log.debug("Found EasyBuild configuration file at %s." % config_file)
-        else:
-            appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
-            config_file = os.path.join(appPath, "easybuild_config.py")
-            log.debug("Falling back to default config: %s" % config_file)
-
-    config.init(config_file, **configOptions)
+    # default location of configfile is set as default in the config option
+    config.init(options.config, **configOptions)
 
     # dump possible options
     if options.avail_easyconfig_params:
@@ -205,7 +184,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True):
 
     # dump available easyblocks
     if options.list_easyblocks:
-        list_easyblocks(detailed=options.list_easyblocks=="detailed")
+        list_easyblocks(detailed=options.list_easyblocks == "detailed")
 
     # dump known toolchains
     if options.list_toolchains:
@@ -1003,7 +982,7 @@ def dep_graph(fn, specs, log):
     # enhance list of specs
     for spec in specs:
         spec['module'] = mk_node_name(spec['module'])
-        spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']] #[s[0] for s in spec['unresolvedDependencies']]
+        spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']]  # [s[0] for s in spec['unresolvedDependencies']]
 
     # build directed graph
     dgr = digraph()
@@ -1102,7 +1081,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
 
     build_stopped = {}
 
-    apploginfo = lambda x,y: x.log.info(y)
+    apploginfo = lambda x, y: x.log.info(y)
 
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
