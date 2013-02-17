@@ -36,6 +36,7 @@ import easybuild.tools.filetools as filetools
 import os
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import get_paths_for
+from easybuild.tools.config import get_default_configfile
 from easybuild.tools.ordereddict import OrderedDict
 from vsc.utils.generaloption import GeneralOption
 
@@ -114,11 +115,7 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        default_config = 'easybuild/easybuild_config.py'
-        if 'EASYBUILDCONFIG' in os.environ:
-            # TODO use proper EB version and max version
-            self.log.deprecated('EASYBUILDCONFIG environment variable is deprecated.', '0.0', '0.0')
-            default_config = os.environ.get('EASYBUILDCONFIG')
+        default_config = get_default_configfile()
 
         opts = {
                 "config":("path to EasyBuild config file ",
