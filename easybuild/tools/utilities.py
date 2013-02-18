@@ -25,7 +25,7 @@
 """
 Module with various utility functions
 
-@authors: Kenneth Hoste (UGent)
+@author: Kenneth Hoste (Ghent University)
 """
 
 # FIXME: remove when Python version on which we rely provides any by itself
@@ -33,6 +33,13 @@ def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
     return sum([bool(x) for x in ls]) != 0
+
+def flatten(lst):
+    """Flatten a list of lists."""
+    res = []
+    for x in lst:
+        res.extend(x)
+    return res
 
 def quote_str(x):
     """
