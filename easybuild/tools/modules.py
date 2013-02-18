@@ -28,11 +28,11 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-@author Stijnd De Weirdt
-@author Dries Verdegem
-@author Kenneth Hoste
-@author Pieter De Baets
-@author Jens Timmerman
+@author Stijn De Weirdt (Ghent University)
+@author Dries Verdegem (Ghent University)
+@author Kenneth Hoste (Ghent University)
+@author Pieter De Baets (Ghent University)
+@author Jens Timmerman (Ghent University)
 """
 import os
 import re
@@ -42,7 +42,7 @@ import sys
 from easybuild.tools.build_log import get_log, EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 
-# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules, and actually breaking modulcmd
+# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 
 LD_LIBRARY_PATH =  os.getenv('LD_LIBRARY_PATH', '')
@@ -228,7 +228,8 @@ class Modules(object):
         # change our ld library path here.
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug('environment: %s', environ)
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (os.environ.get('LD_LIBRARY_PATH', ''),
+                                                                   environ['LD_LIBRARY_PATH']))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
