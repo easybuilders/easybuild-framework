@@ -182,7 +182,7 @@ class CommandLineOptionsTest(TestCase):
 
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
-        os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'GCC-4.6.3.eb')
