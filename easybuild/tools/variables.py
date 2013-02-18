@@ -29,11 +29,11 @@ Module that contains a set of classes and function to generate variables to be u
 eg in compiling or linking
 """
 
-from vsc.fancylogger import getLogger
+from vsc import fancylogger
 import copy
 import os
 
-_log = getLogger()
+_log = fancylogger.getLogger()
 
 def get_class(name, default_class, map_class=None):
     """Return class based on default
@@ -94,7 +94,7 @@ class StrList(list):
 
     def __init__(self, *args , **kwargs):
         super(StrList, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__)
 
     def str_convert(self, x):
         """Convert members of list to string (no prefix of begin and end)"""
@@ -145,7 +145,7 @@ class StrList(list):
         res = copy.deepcopy(self)
 
         # reinstate a (new) logger
-        res.log = getLogger(self.__class__.__name__)
+        res.log = fancylogger.getLogger(self.__class__.__name__)
 
         # also copy begin/end
         try:
@@ -349,7 +349,7 @@ class ListOfLists(list):
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__)
         self._first = None
 
 
@@ -558,7 +558,7 @@ class Variables(dict):
 
     def __init__(self, *args, **kwargs):
         super(Variables, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__)
 
     def get_list_class(self, name):
         """Return the class associated with the name according to the DEFAULT_LISTCLASS and MAP_LISTCLASS"""
