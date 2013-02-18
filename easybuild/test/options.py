@@ -200,7 +200,7 @@ class CommandLineOptionsTest(TestCase):
 
         outtxt = open(self.logfile, 'r').read()
 
-        self.assertTrue(not error_thrown, "No error is thrown if software is already installed")
+        self.assertTrue(not error_thrown, "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown)
 
         already_msg = "GCC \(version 4.6.3\) is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
