@@ -25,7 +25,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
@@ -44,7 +43,7 @@ import urllib
 from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
 from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
 from easybuild.tools.config import source_path, module_classes
@@ -1519,8 +1518,8 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             # update the config templates
-            for key in TEMPLATE_NAMES_EASYBLOCK:
-                self.cfg._template_values[key] = getattr(self, key, None)
+            for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+                self.cfg._template_values[key[0]] = str(getattr(self, key[0], None))
             self.cfg.generate_template_values()
 
             for m in methods:

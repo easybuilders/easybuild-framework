@@ -32,7 +32,7 @@ import tempfile
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for, TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -567,7 +567,7 @@ class TestObtainEasyconfig(EasyConfigTest):
 
 
 class TestTemplating(EasyConfigTest):
-    """ test templating validations """
+    """test templating validations """
 
     input = {'name':'PI',
              'version':'3.14',
@@ -592,8 +592,26 @@ sources = [SOURCE_TAR_GZ]
         eb._generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
-        self.assertEqual(eb['sources'][0], TEMPLATE_CONSTANTS['SOURCE_TAR_GZ'] % self.input)
-        self.assertEqual(eb['source_urls'][0], TEMPLATE_CONSTANTS['GOOGLECODE_SOURCE'] % self.input)
+        const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.input)
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.input)
+
+
+class TestTemplatingDoc(EasyConfigTest):
+    """test templating validations """
+    contents = ''  # not needed, but otherwise runSetup crashes
+
+    def runTest(self):
+        """test templating validations """
+        doc = easyconfig.generate_template_values_doc()
+        # expected length: 1 per constant and 1 extraper constantgroup
+        temps = [easyconfig.TEMPLATE_NAMES_EASYCONFIG,
+                 easyconfig.TEMPLATE_NAMES_CONFIG,
+                 easyconfig.TEMPLATE_NAMES_LOWER,
+                 easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+                 easyconfig.TEMPLATE_CONSTANTS,
+                 ]
+        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
 
 def suite():
@@ -601,7 +619,9 @@ def suite():
     return TestSuite([TestDependency(), TestEmpty(), TestExtraOptions(),
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
-                      TestObtainEasyconfig(), TestTemplating()])
+                      TestObtainEasyconfig(),
+                      TestTemplating(), TestTemplatingDoc(),
+                      ])
 
 
 if __name__ == '__main__':

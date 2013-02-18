@@ -57,28 +57,35 @@ EXTENSIONS = (7, 'extensions')
 MODULES = (8, 'modules')
 OTHER = (9, 'other')
 
-# the templating names
-TEMPLATE_NAMES_SEPARATOR = '_'
-# derived from .config
-TEMPLATE_NAMES_CONFIG = ['name', 'version',
-                  'versionsuffix', 'versionprefix',
-                  ]
-# derived from easyconfig, but not from .config
-TEMPLATE_NAMES_EASYCONFIG = [ 'toolchain_name', 'toolchain_version',
+# derived from easyconfig, but not from .config directly
+TEMPLATE_NAMES_EASYCONFIG = [('toolchain_name', "Toolchain name"),
+                             ('toolchain_version', "Toolchain version"),
                             ]
-# lower
-TEMPLATE_NAMES_LOWER = ['name']
+# derived from .config
+TEMPLATE_NAMES_CONFIG = ['name',
+                         'version',
+                         'versionsuffix',
+                         'versionprefix',
+                         ]
+# lowercase versions of .config
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(key)slower"
-# derived from easyblock
-TEMPLATE_NAMES_EASYBLOCK = ['installdir', 'builddir', ]  # values taken from the EasyBlock before each step
+TEMPLATE_NAMES_LOWER = ['name',
+                        ]
+# values taken from the EasyBlock before each step
+TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [('installdir', "Installation directory"),
+                                     ('builddir', "Build directory"),
+                                     ]
 # constants that can be used in easyconfigs
-TEMPLATE_CONSTANTS = {'SOURCE_TAR_GZ':'%(name)s-%(version)s.tar.gz',
-                      'SOURCELOWER_TAR_GZ':'%(namelower)s-%(version)s.tar.gz',
+TEMPLATE_CONSTANTS = [('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
+                      ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
+                       "Source .tar.gz tarball with lowercase name"),
 
-                      'GOOGLECODE_SOURCE':'http://%(namelower)s.googlecode.com/files/',
-                      'SOURCEFORGE_SOURCE':('http://sourceforge.net/projects/%(namelower)s/'
+                      ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files/',
+                       'googlecode.com source url'),
+                      ('SOURCEFORGE_SOURCE',('http://sourceforge.net/projects/%(namelower)s/'
                                             'files/%(namelower)s/%(version)s'),
-                      }
+                       'sourceforge.net source url'),
+                      ]
 
 class EasyConfig(object):
     """
@@ -250,7 +257,8 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        global_vars.update(TEMPLATE_CONSTANTS)
+        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])
+        global_vars.update(const_dict)
         local_vars = {}
 
         try:
@@ -521,10 +529,14 @@ class EasyConfig(object):
         template_values = {}
 
         # step 1: add TEMPLATE_NAMES_EASYCONFIG
-        tc = self.config.get('toolchain')[0]
-        if tc is not None:
-            template_values['toolchain_name'] = tc.get('name', None)
-            template_values['toolchain_version'] = tc.get('version', None)
+        for name in TEMPLATE_NAMES_EASYCONFIG:
+            if name[0].startswith('toolchain_'):
+                tc = self.config.get('toolchain')[0]
+                if tc is not None:
+                    template_values['toolchain_name'] = tc.get('name', None)
+                    template_values['toolchain_version'] = tc.get('version', None)
+            else:
+                self.log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
 
         # step 2: add remaining self.config
         for key in TEMPLATE_NAMES_CONFIG:
@@ -546,7 +558,8 @@ class EasyConfig(object):
                 self.log.debug("_getitem_string: can't get .lower() for key %s value %s (type %s)" %
                                (key, t_v, type(t_v)))
 
-        # self._template_values can/should be updated from outside easyconfig
+        # step 4. self._template_values can/should be updated from outside easyconfig
+        # (eg the run_setp code in EasyBlock)
         self._template_values.update(template_values)
 
         # copy to remove the ignores
@@ -582,7 +595,12 @@ class EasyConfig(object):
             # self['x']['y'] = z does not work
             # self['x'] is a get, will return a reference to a templated version of self.config['x']
             # and the ['y] = z part will be against this new reference
-            # you will need to do self.config['x']['y'] = z
+            # you will need to do
+            # self.config['x']['y'] = z
+            # or
+            # self.enable_templating = False
+            # self['x']['y'] = z
+            # self.enable_templating = True
             # it can not be intercepted with __setitem__ because the set is done at a deeper level
             if isinstance(value, list):
                 value = [self._resolve_template(val) for val in value]
@@ -620,6 +638,38 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
+
+def generate_template_values_doc():
+    """Generate the templating documentation"""
+    # This has to reflect the methods/steps used in _generate_template_values
+    # step 1: add TEMPLATE_NAMES_EASYCONFIG
+    indent_l0 = " "*2
+    indent_l1 = indent_l0 + " "*2
+    doc = []
+    doc.append('Template names/values derived from easyconfig instance')
+    for name in TEMPLATE_NAMES_EASYCONFIG:
+        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+    # step 2: add remaining self.config
+    doc.append('Template names/values as set in easyconfig')
+    for key in TEMPLATE_NAMES_CONFIG:
+        doc.append("%s%s" % (indent_l1, key))
+
+    # step 3. make lower variants
+    doc.append('Lowercase values of template values')
+    for key in TEMPLATE_NAMES_LOWER:
+        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'key':key}, key))
+
+    # step 4. self._template_values can/should be updated from outside easyconfig
+    # (eg the run_setp code in EasyBlock)
+    doc.append('Template values set outside EasyBlock runstep')
+    for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+        doc.append("%s%s: %s" % (indent_l1, key[0], key[1]))
+
+    doc.append('Template constants that can be used in easyconfigs')
+    for x in TEMPLATE_CONSTANTS:
+        doc.append('%s%s: %s (%s)' % (indent_l1, x[0], x[2], x[1]))
+
+    return "\n".join(doc)
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """
