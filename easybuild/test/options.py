@@ -194,6 +194,7 @@ class CommandLineOptionsTest(TestCase):
         already_msg = "GCC \(version 4.6.3\) is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force")
 
+        # clear log file
         outtxt = open(self.logfile, 'w').write('')
 
         # check that --force works
@@ -225,20 +226,28 @@ class CommandLineOptionsTest(TestCase):
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
 
-        # check debug log message with --job
-        args = [
-                eb_file,
-                '--job',
-                '--debug',
-               ]
-        try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
-        except:
-            pass  # main may crash
-        outtxt = open(self.logfile, 'r').read()
+        # check log message with --job
+        for job_args in [  # options passed are reordered, so order here matters to make tests pass
+                         ['--debug'],
+                         ['--debug', '--stop=configure', '--try-software-name=foo'],
+                        ]:
 
-        job_msg = "DEBUG.* Command template for jobs: .* && eb .*"
-        self.assertTrue(re.search(job_msg, outtxt), "Debug log message with job command template when using --job")
+            # clear log file
+            outtxt = open(self.logfile, 'w').write('')
+
+            args = [
+                    eb_file,
+                    '--job',
+                   ] + job_args
+            try:
+                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
+            except:
+                pass  # main may crash
+            outtxt = open(self.logfile, 'r').read()
+            #print '\n\n\n\n%s\n\n\n\n\n' % outtxt
+
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join([x.replace('=', ' ', 1) for x in job_args])
+            self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
