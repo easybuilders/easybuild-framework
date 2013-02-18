@@ -154,7 +154,7 @@ class Modules(object):
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:
-                    self.log.warning('No module %s available' % mod)
+                    self.log.warning('No module %s available' % str(mod))
                 else:
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
