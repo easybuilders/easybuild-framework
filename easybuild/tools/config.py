@@ -69,7 +69,7 @@ def get_default_configfile():
         config_file = home_config_file
         _log.debug("Found EasyBuild configuration file at %s." % config_file)
     else:
-        appPath = os.path.dirname(os.path.realpath(sys.argv[0]))
+        appPath = os.path.dirname(os.path.realpath(sys.modules['easybuild'].__file__))
         config_file = os.path.join(appPath, "easybuild_config.py")
         _log.debug("Falling back to default config: %s" % config_file)
     return config_file
