@@ -26,6 +26,7 @@
 import os
 from copy import deepcopy
 from unittest import TestCase, TestSuite
+from unittest import main as unittestmain
 
 import easybuild.tools.modules as modules
 import easybuild.main as main
@@ -105,3 +106,6 @@ class RobotTest(TestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([RobotTest()])
+
+if __name__ == '__main__':
+    unittestmain()

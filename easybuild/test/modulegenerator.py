@@ -27,7 +27,7 @@
 
 import os
 import re
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
@@ -52,7 +52,7 @@ class ModuleGeneratorTest(TestCase):
         eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
-            
+
         self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = "/tmp"
@@ -77,7 +77,7 @@ conflict    gzip
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
 
-        # test loadModule
+        # test load_module
         expected = """
 if { ![is-loaded name/version] } {
     module load name/version
@@ -85,7 +85,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.load_module("name", "version"))
 
-        # test unloadModule
+        # test unload_module
         expected = """
 if { ![is-loaded name/version] } {
     if { [is-loaded name] } {
@@ -95,7 +95,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
-        # test prependPaths
+        # test prepend_paths
         expected = """prepend-path	key		$root/path1
 prepend-path	key		$root/path2
 """
@@ -110,8 +110,11 @@ prepend-path	key		$root/path2
                               self.modgen.prepend_paths, "key2", ["bar", "/tmp/foo"])
 
 
-        # test setEnvironment
-        self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+        # test set_environment
+        self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
+        self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
+        self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
+        self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
 
     def tearDown(self):
         """cleanup"""
@@ -121,3 +124,6 @@ prepend-path	key		$root/path2
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([ModuleGeneratorTest()])
+
+if __name__ == '__main__':
+    main()

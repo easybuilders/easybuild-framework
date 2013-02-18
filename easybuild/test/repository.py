@@ -25,7 +25,7 @@
 ##
 import os
 import shutil
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.repository import FileRepository
 
@@ -52,3 +52,6 @@ class RepositoryTest(TestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([RepositoryTest()])
+
+if __name__ == '__main__':
+    main()

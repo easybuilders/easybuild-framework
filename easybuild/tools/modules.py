@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
@@ -26,7 +26,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Modules functionality: loading modules, checking for available modules, ...
 """
@@ -44,8 +44,10 @@ outputMatchers = {
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>\d+):\s+(?P<msg>.*)$"),
-    # matches modules such as "... ictce/3.2.1.015.u4(default) ..."
-    'available': re.compile(r"\b(?P<name>\S+?)/(?P<version>[^\(\s]+)(?P<default>\(default\))?(?:\s|$)")
+    # available with --terse has one module per line
+    # matches modules such as "ictce/3.2.1.015.u4(default)"
+    # line ending with : is ignored (the modulepath in --terse)
+    'available': re.compile(r"^\s*(?P<name>\S+?)/(?P<version>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
 }
 
 class Modules(object):
@@ -92,10 +94,10 @@ class Modules(object):
             self.log.error(errormsg)
 
         if self.modulePath:
-            ## set the module path environment accordingly
+            # # set the module path environment accordingly
             os.environ['MODULEPATH'] = ":".join(self.modulePath)
         else:
-            ## take module path from environment
+            # # take module path from environment
             self.modulePath = os.environ['MODULEPATH'].split(':')
 
         if not 'LOADEDMODULES' in os.environ:
@@ -114,8 +116,8 @@ class Modules(object):
 
         modules = self.run_module('available', txt, modulePath=modulePath)
 
-        ## sort the answers in [name, version] pairs
-        ## alphabetical order, default last
+        # # sort the answers in [name, version] pairs
+        # # alphabetical order, default last
         modules.sort(key=lambda m: (m['name'] + (m['default'] or ''), m['version']))
         ans = [(mod['name'], mod['version']) for mod in modules]
 
@@ -140,7 +142,7 @@ class Modules(object):
                 (name, version) = mod.split('/')
             elif type(mod) == dict:
                 name = mod['name']
-                ## deal with toolchain dependency calls
+                # # deal with toolchain dependency calls
                 if 'tc' in mod:
                     version = mod['tc']
                 else:
@@ -150,11 +152,11 @@ class Modules(object):
 
             mods = self.available(name, version)
             if (name, version) in mods:
-                ## ok
+                # # ok
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:
-                    self.log.warning('No module %s available' % mod)
+                    self.log.warning('No module %s available' % str(mod))
                 else:
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
@@ -204,10 +206,13 @@ class Modules(object):
         """
         Run module command.
         """
-        if type(args[0]) == list:
+        if isinstance(args[0], (list, tuple,)):
             args = args[0]
         else:
             args = list(args)
+
+        if args[0] in ('available', 'list',):
+            args.insert(0, '--terse')  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('modulePath', None):
@@ -223,18 +228,18 @@ class Modules(object):
         os.environ['MODULEPATH'] = originalModulePath
 
         if kwargs.get('return_output', False):
-            return (stdout + stderr)
-
+            # TODO: shouldn't this redirect mixed stdout and stderr instead of stdout + stderr?
+            return stdout + stderr
         else:
             # Change the environment
             try:
                 exec stdout
             except Exception, err:
-                raise EasyBuildError("Changing environment as dictated by module failed: %s" % err)
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, stdout))
 
             # Process stderr
             result = []
-            for line in stderr.split('\n'):  #IGNORE:E1103
+            for line in stderr.split('\n'):  # IGNORE:E1103
                 if outputMatchers['whitespace'].search(line):
                     continue
 
@@ -316,7 +321,7 @@ class Modules(object):
 
         if depth > 0:
             # recursively determine dependencies for these dependency modules, until depth is non-positive
-            moddeps = [self.dependencies_for(modname, modversion, depth=depth-1) for (modname, modversion) in mods]
+            moddeps = [self.dependencies_for(modname, modversion, depth=depth - 1) for (modname, modversion) in mods]
         else:
             # ignore any deeper dependencies
             moddeps = []
@@ -347,7 +352,7 @@ def search_module(path, query):
 
         # TODO: get directories to ignore from  easybuild.tools.repository ?
         # remove all hidden directories?:
-        #dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+        # dirnames[:] = [d for d in dirnames if not d.startswith('.')]
         try:
             dirnames.remove('.svn')
         except ValueError:

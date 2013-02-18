@@ -1,6 +1,6 @@
-##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
+# #
+# Copyright 2009-2013 Ghent University
+# Copyright 2009-2013 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
 # Copyright 2010-2012 Kenneth Hoste
 # Copyright 2011 Pieter De Baets
@@ -27,7 +27,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 
 import copy
 import difflib
@@ -39,10 +39,11 @@ import tempfile
 from distutils.version import LooseVersion
 
 from easybuild.tools.build_log import EasyBuildError, get_log
-from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import quote_str
 
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
@@ -56,6 +57,35 @@ EXTENSIONS = (7, 'extensions')
 MODULES = (8, 'modules')
 OTHER = (9, 'other')
 
+# derived from easyconfig, but not from .config directly
+TEMPLATE_NAMES_EASYCONFIG = [('toolchain_name', "Toolchain name"),
+                             ('toolchain_version', "Toolchain version"),
+                            ]
+# derived from .config
+TEMPLATE_NAMES_CONFIG = ['name',
+                         'version',
+                         'versionsuffix',
+                         'versionprefix',
+                         ]
+# lowercase versions of .config
+TEMPLATE_NAMES_LOWER_TEMPLATE = "%(key)slower"
+TEMPLATE_NAMES_LOWER = ['name',
+                        ]
+# values taken from the EasyBlock before each step
+TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [('installdir', "Installation directory"),
+                                     ('builddir', "Build directory"),
+                                     ]
+# constants that can be used in easyconfigs
+TEMPLATE_CONSTANTS = [('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
+                      ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
+                       "Source .tar.gz tarball with lowercase name"),
+
+                      ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files/',
+                       'googlecode.com source url'),
+                      ('SOURCEFORGE_SOURCE',('http://sourceforge.net/projects/%(namelower)s/'
+                                            'files/%(namelower)s/%(version)s'),
+                       'sourceforge.net source url'),
+                      ]
 
 class EasyConfig(object):
     """
@@ -91,6 +121,7 @@ class EasyConfig(object):
           ('unpack_options', [None, "Extra options for unpacking source", BUILD]),
           ('stop', [None, 'Keyword to halt the build process after a certain step.', BUILD]),
           ('skip', [False, "Skip existing software", BUILD]),
+          ('skipsteps', [[], "Skip these steps", BUILD]),
           ('parallel', [None, 'Degree of parallelism for e.g. make (default: based on the number of ' \
                               'cores and restrictions in ulimit)', BUILD]),
           ('maxparallel', [None, 'Max degree of parallelism', BUILD]),
@@ -124,9 +155,9 @@ class EasyConfig(object):
           ('osdependencies', [[], "OS dependencies that should be present on the system", DEPENDENCIES]),
 
           ('license_server', [None, 'License server for software', LICENSE]),
-          ('license_serverPort', [None, 'Port for license server', LICENSE]),
+          ('license_server_port', [None, 'Port for license server', LICENSE]),
           ('key', [None, 'Key for installing software', LICENSE]),
-          ('group', [None, "Name of the user group for which the software should be available",  LICENSE]),
+          ('group', [None, "Name of the user group for which the software should be available", LICENSE]),
 
           ('exts_list', [[], 'List with extensions added to the base installation', EXTENSIONS]),
           ('exts_defaultclass', [None, "List of module for and name of the default extension class",
@@ -151,6 +182,9 @@ class EasyConfig(object):
         extra_options is a dict of extra variables that can be set in this specific instance
         validate specifies whether validations should happen
         """
+
+        self._template_values = None
+        self.enable_templating = True  # a boolean to control templating
 
         self.log = get_log("EasyConfig")
 
@@ -186,8 +220,8 @@ class EasyConfig(object):
 
         self.validations = {
                             'moduleclass': self.valid_module_classes,
-                            'stop': self.valid_stops
-                           }
+                            'stop': self.valid_stops,
+                            }
 
         self.parse(path)
 
@@ -224,6 +258,8 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
+        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])
+        global_vars.update(const_dict)
         local_vars = {}
 
         try:
@@ -269,6 +305,11 @@ class EasyConfig(object):
 
         self.log.info("Checking OS dependencies")
         self.validate_os_deps()
+
+        self.log.info("Checking skipsteps")
+        if not isinstance(self.config['skipsteps'][0], (list, tuple,)):
+            self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
+                           (type(self.config['skipsteps'][0]), self.config['skipsteps'][0]))
 
         return True
 
@@ -338,7 +379,7 @@ class EasyConfig(object):
         tcname = self['toolchain']['name']
         tc, all_tcs = search_toolchain(tcname)
         if not tc:
-            all_tcs_names = ",".join([x.__name__ for x in all_tcs])
+            all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts']:
@@ -404,7 +445,7 @@ class EasyConfig(object):
         eb_file.write('\n'.join(ebtxt))
         eb_file.close()
 
-    def _validate(self, attr, values):     # private method
+    def _validate(self, attr, values):  # private method
         """
         validation helper method. attr is the attribute it will check, values are the possible values.
         if the value of the attribute is not in the is array, it will report an error
@@ -475,11 +516,118 @@ class EasyConfig(object):
 
         return dependency
 
+    def generate_template_values(self):
+        """Try to generate all template values."""
+        # TODO figure out way to make it properly recursive
+        self._generate_template_values(skip_lower=True)
+        self._generate_template_values(skip_lower=False)
+
+    def _generate_template_values(self, ignore=None, skip_lower=True):
+        """Actual code to generate the template values"""
+        if self._template_values is None:
+            self._template_values = {}
+
+        # ignore self
+        if ignore is None:
+            ignore = []
+
+        # make dict
+        template_values = {}
+
+        # step 1: add TEMPLATE_NAMES_EASYCONFIG
+        for name in TEMPLATE_NAMES_EASYCONFIG:
+            if name[0].startswith('toolchain_'):
+                tc = self.config.get('toolchain')[0]
+                if tc is not None:
+                    template_values['toolchain_name'] = tc.get('name', None)
+                    template_values['toolchain_version'] = tc.get('version', None)
+            else:
+                self.log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
+
+        # step 2: add remaining self.config
+        for key in TEMPLATE_NAMES_CONFIG:
+            if key in ignore:
+                continue
+            if key in self.config:
+                template_values[key] = self.config[key][0]
+
+        # step 3. make lower variants
+        for key in TEMPLATE_NAMES_LOWER:
+            if key in ignore:
+                continue
+            t_v = template_values.get(key, None)
+            if t_v is None:
+                continue
+            try:
+                template_values[ TEMPLATE_NAMES_LOWER_TEMPLATE % {'key':key}] = t_v.lower()
+            except:
+                self.log.debug("_getitem_string: can't get .lower() for key %s value %s (type %s)" %
+                               (key, t_v, type(t_v)))
+
+        # step 4. self._template_values can/should be updated from outside easyconfig
+        # (eg the run_setp code in EasyBlock)
+        self._template_values.update(template_values)
+
+        # copy to remove the ignores
+        for k, v in self._template_values.items():
+            if v is None:
+                del self._template_values[k]
+
+        template_values = {}
+        for k, v in self._template_values.items():
+            try:
+                template_values[k] = v % self._template_values
+            except KeyError:
+                # not all converted
+                template_values[k] = v
+
+    def _resolve_template(self, value):
+        """Given a value, try to susbistitute the templated strings with actual values.
+            - value: some python object (supported are string, tuple/list, dict or some mix thereof)
+        """
+        if self._template_values is None or len(self._template_values) == 0:
+            self.generate_template_values()
+
+        if isinstance(value, str):
+            try:
+                value = value % self._template_values
+            except KeyError:
+                self.log.warning("Unable to resolve template value %s with dict %s" %
+                                 (value, self._template_values))
+        else:
+            # TODO: is this ok or not?
+            # this block deals with references to objects and returns other references
+            # for reading this is ok, but for self['x'] = {}
+            # self['x']['y'] = z does not work
+            # self['x'] is a get, will return a reference to a templated version of self.config['x']
+            # and the ['y] = z part will be against this new reference
+            # you will need to do
+            # self.config['x']['y'] = z
+            # or
+            # self.enable_templating = False
+            # self['x']['y'] = z
+            # self.enable_templating = True
+            # it can not be intercepted with __setitem__ because the set is done at a deeper level
+            if isinstance(value, list):
+                value = [self._resolve_template(val) for val in value]
+            elif isinstance(value, tuple):
+                value = tuple(self._resolve_template(list(value)))
+            elif isinstance(value, dict):
+                value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
+
+        return value
+
     def __getitem__(self, key):
         """
         will return the value without the help text
         """
-        return self.config[key][0]
+        value = self.config[key][0]
+        if self.enable_templating:
+            # if you want templated value, you have to use self['x'], not self.config['x']
+            # TODO make self.config private?
+            return self._resolve_template(value)
+        else:
+            return value
 
     def __setitem__(self, key, value):
         """
@@ -496,6 +644,38 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
+
+def generate_template_values_doc():
+    """Generate the templating documentation"""
+    # This has to reflect the methods/steps used in _generate_template_values
+    # step 1: add TEMPLATE_NAMES_EASYCONFIG
+    indent_l0 = " "*2
+    indent_l1 = indent_l0 + " "*2
+    doc = []
+    doc.append('Template names/values derived from easyconfig instance')
+    for name in TEMPLATE_NAMES_EASYCONFIG:
+        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
+    # step 2: add remaining self.config
+    doc.append('Template names/values as set in easyconfig')
+    for key in TEMPLATE_NAMES_CONFIG:
+        doc.append("%s%s" % (indent_l1, key))
+
+    # step 3. make lower variants
+    doc.append('Lowercase values of template values')
+    for key in TEMPLATE_NAMES_LOWER:
+        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'key':key}, key))
+
+    # step 4. self._template_values can/should be updated from outside easyconfig
+    # (eg the run_setp code in EasyBlock)
+    doc.append('Template values set outside EasyBlock runstep')
+    for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+        doc.append("%s%s: %s" % (indent_l1, key[0], key[1]))
+
+    doc.append('Template constants that can be used in easyconfigs')
+    for x in TEMPLATE_CONSTANTS:
+        doc.append('%s%s: %s (%s)' % (indent_l1, x[0], x[2], x[1]))
+
+    return "\n".join(doc)
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """
@@ -522,7 +702,7 @@ def sorted_categories():
     """
     categories = [MANDATORY, CUSTOM , TOOLCHAIN, BUILD, FILEMANAGEMENT,
                   DEPENDENCIES, LICENSE , EXTENSIONS, MODULES, OTHER]
-    categories.sort(key = lambda c: c[0])
+    categories.sort(key=lambda c: c[0])
     return categories
 
 def convert_to_help(opts):
@@ -877,7 +1057,7 @@ def select_or_generate_ec(fp, paths, specs, log):
         # if no file path was specified, generate a file name
         if not fp:
             installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-            fp= "%s-%s.eb" % (name, installver)
+            fp = "%s-%s.eb" % (name, installver)
 
         # generate tweaked easyconfig file
         tweak(selected_ec_file, fp, specs, log)
@@ -912,7 +1092,6 @@ def tweak(src_fn, target_fn, tweaks, log):
         log.error("Failed to read easyconfig file %s: %s" % (src_fn, err))
 
     log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
-
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
@@ -954,27 +1133,8 @@ def tweak(src_fn, target_fn, tweaks, log):
 
             tweaks.pop(key)
 
-    def quoted(x):
-        """Obtain a new value to be used in string replacement context.
-
-        For non-string values, it just returns the exact same value.
-
-        For string values, it tries to escape the string in quotes, e.g.,
-        foo becomes 'foo', foo'bar becomes "foo'bar",
-        foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
-        """
-        if type(x) == str:
-            if "'" in x and '"' in x:
-                return '"""%s"""' % x
-            elif "'" in x:
-                return '"%s"' % x
-            else:
-                return "'%s'" % x
-        else:
-            return x
-
     # add parameters or replace existing ones
-    for (key,val) in tweaks.items():
+    for (key, val) in tweaks.items():
 
         regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
         log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
@@ -992,10 +1152,10 @@ def tweak(src_fn, target_fn, tweaks, log):
                 diff = not res.group(1) == val
 
             if diff:
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quoted(val), res.group(1)), ectxt)
-                log.info("Tweaked '%s' to '%s'" % (key, quoted(val)))
+                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
+                log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
-            additions.append("%s = %s" % (key, quoted(val)))
+            additions.append("%s = %s" % (key, quote_str(val)))
 
 
     if additions:
@@ -1098,7 +1258,7 @@ def stats_to_str(stats, log):
         else:
             return str(x)
 
-    for (k,v) in stats.items():
+    for (k, v) in stats.items():
         txt += "%s%s: %s,\n" % (pref, tostr(k), tostr(v))
 
     txt += "}"
