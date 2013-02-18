@@ -31,6 +31,7 @@ Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
 """
 import os
 import sys
+import tempfile
 import unittest
 
 # toolkit should be first to allow hacks to work
@@ -52,7 +53,8 @@ from easybuild.tools.build_log import init_logger, remove_log_handler
 
 
 # initialize logger for all the unit tests
-log_fn = "/tmp/easybuild_tests.log"
+fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
+os.close(fd)
 _, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
 
 # call suite() for each module and then run them all
@@ -74,8 +76,10 @@ os.remove(o.CommandLineOptionsTest.logfile)
 
 remove_log_handler(logh)
 logh.close()
-print "Log available at %s" % log_fn, xml_msg
 
 if not res.wasSuccessful():
     sys.stderr.write("ERROR: Not all tests were successful.\n")
+    print "Log available at %s" % log_fn, xml_msg
     sys.exit(2)
+else:
+    os.remove(log_fn)

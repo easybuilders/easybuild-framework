@@ -25,9 +25,12 @@
 # THE SOFTWARE.
 ##
 import base64
-import httplib, urllib
-import json
 import re
+import httplib, urllib
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from functools import partial, update_wrapper
 
