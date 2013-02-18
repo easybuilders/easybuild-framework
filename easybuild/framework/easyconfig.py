@@ -121,6 +121,7 @@ class EasyConfig(object):
           ('unpack_options', [None, "Extra options for unpacking source", BUILD]),
           ('stop', [None, 'Keyword to halt the build process after a certain step.', BUILD]),
           ('skip', [False, "Skip existing software", BUILD]),
+          ('skipsteps', [[], "Skip these steps", BUILD]),
           ('parallel', [None, 'Degree of parallelism for e.g. make (default: based on the number of ' \
                               'cores and restrictions in ulimit)', BUILD]),
           ('maxparallel', [None, 'Max degree of parallelism', BUILD]),
@@ -219,8 +220,8 @@ class EasyConfig(object):
 
         self.validations = {
                             'moduleclass': self.valid_module_classes,
-                            'stop': self.valid_stops
-                           }
+                            'stop': self.valid_stops,
+                            }
 
         self.parse(path)
 
@@ -304,6 +305,11 @@ class EasyConfig(object):
 
         self.log.info("Checking OS dependencies")
         self.validate_os_deps()
+
+        self.log.info("Checking skipsteps")
+        if not isinstance(self.config['skipsteps'][0], (list, tuple,)):
+            self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
+                           (type(self.config['skipsteps'][0]), self.config['skipsteps'][0]))
 
         return True
 

@@ -1513,7 +1513,7 @@ class EasyBlock(object):
         """
         Run step, returns false when execution should be stopped
         """
-        if skippable and self.skip:
+        if skippable and self.skip or step in self.cfg['skipsteps'][0]:
             self.log.info("Skipping %s step" % step)
         else:
             self.log.info("Starting %s step" % step)
