@@ -137,7 +137,8 @@ def main(testing_data=None):
     """
 
     # steer behavior when testing main
-    testid, args, logfile = None, None, None
+    testid, testargs, testlog= None, None, None
+    testing = False
     if testing_data is not None:
         testid, testargs, testlog = testing_data
         testing = True
@@ -508,7 +509,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
         availableModules = Modules().available()
 
         if len(availableModules) == 0:
-            log.warning("No installed modules. Your MODULEPATH is probably incomplete.")
+            log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
     orderedSpecs = []
     # All available modules can be used for resolving dependencies except
