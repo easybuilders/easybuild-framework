@@ -44,17 +44,19 @@ class EasyConfigTest(TestCase):
     def setUp(self):
         """ create temporary easyconfig file """
         self.log = get_log("EasyConfigTest")
-        self.eb_file = "/tmp/easyconfig_test_file.eb"
-        f = open(self.eb_file, "w")
-        f.write(self.contents)
-        f.close()
+        if self.contents is not None:
+            self.eb_file = "/tmp/easyconfig_test_file.eb"
+            f = open(self.eb_file, "w")
+            f.write(self.contents)
+            f.close()
         self.cwd = os.getcwd()
 
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
 
     def tearDown(self):
         """ make sure to remove the temporary file """
-        os.remove(self.eb_file)
+        if self.contents is not None:
+            os.remove(self.eb_file)
         os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
@@ -598,11 +600,9 @@ sources = [SOURCE_TAR_GZ]
 
 
 class TestTemplatingDoc(EasyConfigTest):
-    """test templating validations """
-    contents = ''  # not needed, but otherwise runSetup crashes
-
+    """test templating documenatation"""
     def runTest(self):
-        """test templating validations """
+        """test templating documentation"""
         doc = easyconfig.generate_template_values_doc()
         # expected length: 1 per constant and 1 extraper constantgroup
         temps = [easyconfig.TEMPLATE_NAMES_EASYCONFIG,
