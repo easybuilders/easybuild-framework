@@ -84,22 +84,19 @@ from distutils.version import LooseVersion
 TEST_LOGGING_FORMAT = '%(levelname)-10s %(name)-15s %(threadname)-10s  %(message)s'
 DEFAULT_LOGGING_FORMAT = '%(asctime)-15s ' + TEST_LOGGING_FORMAT
 FANCYLOG_LOGGING_FORMAT = None
+
 # DEFAULT_LOGGING_FORMAT= '%(asctime)-15s %(levelname)-10s %(module)-15s %(threadname)-10s %(message)s'
 MAX_BYTES = 100 * 1024 * 1024  # max bytes in a file with rotating file handler
 BACKUPCOUNT = 10  # number of rotating log files to save
 
 DEFAULT_UDP_PORT = 5005
 
-# log level constants, in order of severity
-DEBUG = logging.DEBUG
-INFO = logging.INFO
-WARN = logging.WARN
-WARNING = logging.WARNING
-ERROR = logging.ERROR
-EXCEPTION = logging.ERROR  # exception and error have same logging level, see logging docs
-FATAL = logging.FATAL
-CRITICAL = logging.CRITICAL
-APOCALYPTIC = logging.CRITICAL * 2 + 1  # when log level is set to this, silence happens
+# register new loglevelname
+logging.addLevelName(logging.CRITICAL * 2 + 1, 'APOCALYPTIC')
+# register EXCEPTION and FATAL alias
+logging._levelNames['EXCEPTION'] = logging.ERROR
+logging._levelNames['FATAL'] = logging.CRITICAL
+
 
 # mpi rank support
 try:
@@ -111,6 +108,22 @@ try:
                                  " mpi: %(mpirank)s %(threadname)-10s  %(message)s"
 except ImportError:
     _MPIRANK = "N/A"
+
+
+class MissingLevelName(KeyError):
+    pass
+
+
+def getLevelInt(level_name):
+    """Given a level name, return the int value"""
+    if not isinstance(level_name, basestring):
+        raise TypeError('Provided name %s is not a string (type %s)' % (level_name, type(level_name)))
+
+    level = logging.getLevelName(level_name)
+    if isinstance(level, basestring):
+        raise MissingLevelName('Unknown loglevel name %s' % level_name)
+
+    return level
 
 
 class FancyStreamHandler(logging.StreamHandler):
@@ -227,6 +240,8 @@ class FancyLogger(logging.getLoggerClass()):
         """
         Add (continuous) data to an existing message stream (eg a stream after a logging.info()
         """
+        if isinstance(levelno, str):
+            levelno = getLevelInt(levelno)
 
         def write_and_flush_stream(hdlr, data=None):
             """Write to stream and flush the handler"""
@@ -242,14 +257,27 @@ class FancyLogger(logging.getLoggerClass()):
             self._handleFunction(write_and_flush_stream, levelno, data=data)
 
     def streamDebug(self, data):
-        self.streamLog(logging.DEBUG, data)
+        """Get a DEBUG loglevel streamLog"""
+        self.streamLog('DEBUG', data)
 
     def streamInfo(self, data):
-        self.streamLog(logging.INFO, data)
+        """Get a INFO loglevel streamLog"""
+        self.streamLog('INFO', data)
 
     def streamError(self, data):
-        self.streamLog(logging.ERROR, data)
+        """Get a ERROR loglevel streamLog"""
+        self.streamLog('ERROR', data)
 
+    def _get_parent_info(self):
+        """Return some logger parent related information"""
+        def info(x):
+            return (x, x.name, x.getEffectiveLevel(), x.level, x.disabled)
+        parentinfo = []
+        logger = self
+        while logger.parent is not None:
+            logger = logger.parent
+            parentinfo.append(info(logger))
+        return parentinfo
 
 def thread_name():
     """
@@ -381,17 +409,20 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
         # not set.
         setattr(logger, loggeroption, False)  # set default to False
 
-    if enable and not getattr(logger, loggeroption):
-        if handler is None:
-            if FANCYLOG_LOGGING_FORMAT is None:
-                f_format = DEFAULT_LOGGING_FORMAT
-            else:
-                f_format = FANCYLOG_LOGGING_FORMAT
-            formatter = logging.Formatter(f_format)
-            handler = handlerclass(**handleropts)
-            handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        setattr(logger, loggeroption, handler)
+    if enable:
+        if not getattr(logger, loggeroption):
+            if handler is None:
+                if FANCYLOG_LOGGING_FORMAT is None:
+                    f_format = DEFAULT_LOGGING_FORMAT
+                else:
+                    f_format = FANCYLOG_LOGGING_FORMAT
+                formatter = logging.Formatter(f_format)
+                handler = handlerclass(**handleropts)
+                handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            setattr(logger, loggeroption, handler)
+        else:
+            handler = getattr(logger, loggeroption)
     elif not enable:
         # stop logging to X
         if handler is None:
@@ -400,7 +431,8 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
                 # it will be re-added if only one handler is present
                 # so we will just make it quiet by setting the loglevel extremely high
                 zerohandler = logger.handlers[0]
-                zerohandler.setLevel(APOCALYPTIC)  # no logging should be done with APOCALYPTIC, so silence happens
+                # no logging should be done with APOCALYPTIC, so silence happens
+                zerohandler.setLevel(getLevelInt('APOCALYPTIC'))
             else:  # remove the handler set with this loggeroption
                 handler = getattr(logger, loggeroption)
                 logger.removeHandler(handler)
@@ -424,7 +456,8 @@ def _getSysLogFacility(name=None):
     if name is None:
         name = 'user'
 
-    facility = getattr(logging.handlers.SysLogHandler, "LOG_%s" % name.upper(), logging.handlers.SysLogHandler.LOG_USER)
+    facility = getattr(logging.handlers.SysLogHandler,
+                       "LOG_%s" % name.upper(), logging.handlers.SysLogHandler.LOG_USER)
 
     return facility
 
@@ -444,6 +477,8 @@ def setLogLevel(level):
     """
     set a global log level (for this root logger)
     """
+    if isinstance(level, basestring):
+        level = getLevelInt(level)
     getLogger(fname=False).setLevel(level)
 
 
@@ -451,28 +486,28 @@ def setLogLevelDebug():
     """
     shorthand for setting debug level
     """
-    setLogLevel(logging.DEBUG)
+    setLogLevel('DEBUG')
 
 
 def setLogLevelInfo():
     """
     shorthand for setting loglevel to Info
     """
-    setLogLevel(logging.INFO)
+    setLogLevel('INFO')
 
 
 def setLogLevelWarning():
     """
     shorthand for setting loglevel to Warning
     """
-    setLogLevel(logging.WARNING)
+    setLogLevel('WARNING')
 
 
 def setLogLevelError():
     """
     shorthand for setting loglevel to Error
     """
-    setLogLevel(logging.ERROR)
+    setLogLevel('ERROR')
 
 
 def getAllExistingLoggers():
@@ -547,10 +582,10 @@ def _enable_disable_default_handlers(enable):
         return
     for hndlr in _default_handlers:
         # py2.7 are weakrefs, 2.6 not
-        if isinstance(hndlr,weakref.ref):
-            handler=hndlr()
+        if isinstance(hndlr, weakref.ref):
+            handler = hndlr()
         else:
-            handler=hndlr
+            handler = hndlr
 
         try:
             _default_logTo(enable=enable, handler=handler)
