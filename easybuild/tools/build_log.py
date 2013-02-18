@@ -184,13 +184,14 @@ def log_filename(name, version):
 
     return filename
 
-def print_msg(msg, log=None):
+def print_msg(msg, log=None, silent=False):
     """
     Print a message to stdout.
     """
     if log:
         log.info(msg)
-    print "%s %s" % (EB_MSG_PREFIX, msg)
+    if not silent:
+        print "%s %s" % (EB_MSG_PREFIX, msg)
 
 if __name__ == '__main__':
     init_logger('test', '1.0.0')
