@@ -28,11 +28,11 @@ This python module implements the environment modules functionality:
  - checking for available modules
  - ...
 
-@author Stijn De Weirdt (Ghent University)
-@author Dries Verdegem (Ghent University)
-@author Kenneth Hoste (Ghent University)
-@author Pieter De Baets (Ghent University)
-@author Jens Timmerman (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
 import os
 import re
