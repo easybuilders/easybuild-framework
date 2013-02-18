@@ -259,7 +259,7 @@ def main(testing_data=None):
 
     if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
              options.version, options.regtest]):
-        if logfile and not keep_logs:
+        if logfile and not testing:
             os.remove(logfile)
         sys.exit(0)
 
@@ -387,7 +387,7 @@ def main(testing_data=None):
     try:
         remove_log_handler(hn)
         hn.close()
-        if logfile and not keep_logs:
+        if logfile and not testing:
             os.remove(logfile)
 
         for ec in easyconfigs:
