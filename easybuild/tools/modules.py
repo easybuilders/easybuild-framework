@@ -45,7 +45,7 @@ from easybuild.tools.filetools import convert_name, run_cmd
 # keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 
-LD_LIBRARY_PATH =  os.getenv('LD_LIBRARY_PATH', '')
+LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
 outputMatchers = {
     # matches whitespace and module-listing headers
@@ -228,8 +228,8 @@ class Modules(object):
         # change our ld library path here.
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (os.environ.get('LD_LIBRARY_PATH', ''),
-                                                                   environ['LD_LIBRARY_PATH']))
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
+                       (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
