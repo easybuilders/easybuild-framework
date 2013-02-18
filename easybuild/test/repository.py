@@ -25,6 +25,7 @@
 ##
 import os
 import shutil
+import tempfile
 from unittest import TestCase, TestSuite
 
 from easybuild.tools.repository import FileRepository
@@ -35,7 +36,7 @@ class RepositoryTest(TestCase):
 
     def setUp(self):
         """ make sure temporary path does not exist """
-        self.path = '/tmp/tmp-easybuild-repo'
+        self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
         self.cwd = os.getcwd()
 

@@ -33,6 +33,7 @@ from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 
 orig_modules = modules.Modules
+orig_main_modules = main.Modules
 
 
 class MockModule(modules.Modules):
@@ -99,6 +100,7 @@ class RobotTest(TestCase):
     def tearDown(self):
         """ reset the Modules back to its original """
         modules.Modules = orig_modules
+        main.Modules = orig_main_modules
         os.chdir(self.cwd)
 
 

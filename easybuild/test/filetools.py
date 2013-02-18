@@ -55,22 +55,23 @@ class FileToolsTest(TestCase):
         cmd = ft.extract_cmd("test.zip")
         self.assertEqual("unzip -qq test.zip", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tar")
-        self.assertEqual("tar xf /tmp/test.tar", cmd)
+        cmd = ft.extract_cmd("/some/path/test.tar")
+        self.assertEqual("tar xf /some/path/test.tar", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tar.gz")
-        self.assertEqual("tar xzf /tmp/test.tar.gz", cmd)
+        cmd = ft.extract_cmd("test.tar.gz")
+        self.assertEqual("tar xzf test.tar.gz", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tgz")
-        self.assertEqual("tar xzf /tmp/test.tgz", cmd)
+        cmd = ft.extract_cmd("test.tgz")
+        self.assertEqual("tar xzf test.tgz", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.bz2")
-        self.assertEqual("bunzip2 /tmp/test.bz2", cmd)
+        cmd = ft.extract_cmd("test.bz2")
+        self.assertEqual("bunzip2 test.bz2", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tbz")
-        self.assertEqual("tar xjf /tmp/test.tbz", cmd)
-        cmd = ft.extract_cmd("/tmp/test.tar.bz2")
-        self.assertEqual("tar xjf /tmp/test.tar.bz2", cmd)
+        cmd = ft.extract_cmd("test.tbz")
+        self.assertEqual("tar xjf test.tbz", cmd)
+
+        cmd = ft.extract_cmd("test.tar.bz2")
+        self.assertEqual("tar xjf test.tar.bz2", cmd)
 
 
         (out, ec) = ft.run_cmd("echo hello")
