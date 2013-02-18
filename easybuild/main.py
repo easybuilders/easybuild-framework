@@ -102,6 +102,8 @@ LOGDEBUG = False
 
 
 def parse_options(mid=None, args=None, logfile=None):
+    """Parse eb command line options (and initialize logger)."""
+
     (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
     if not logfile:
@@ -119,7 +121,7 @@ def parse_options(mid=None, args=None, logfile=None):
 
     # initialize logger
     logger_name = "main"
-    if mid:
+    if mid is not None:
         logger_name += str(mid)
     logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ=logger_name)
 
