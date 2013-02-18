@@ -358,10 +358,10 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         for opt in relevant_opts:
             value = getattr(options, opt.dest)
             # explicit check for None (some option are store_false)
-            if value != None:
+            if value is not None and not value == opt.default:
                 # get_opt_string is not documented (but is a public method)
                 name = opt.get_opt_string()
-                if opt.action == 'store':
+                if opt.action in ['extend', 'store', 'store_or_None'] or name in ['--stop']:
                     result_opts.append("%s %s" % (name, value))
                 else:
                     result_opts.append(name)
@@ -369,7 +369,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         opts = ' '.join(result_opts)
 
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
-        log.debug("Command template for jobs: %s" % command)
+        log.info("Command template for jobs: %s" % command)
         if not dry_run:
             jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
                                                           robot_path=options.robot)
