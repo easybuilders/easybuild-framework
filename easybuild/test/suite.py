@@ -1,5 +1,5 @@
 #!/usr/bin/python
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 # Copyright 2012 Kenneth Hoste
@@ -24,7 +24,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 This script is a collection of all the testcases.
 Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
@@ -33,6 +33,7 @@ import os
 import sys
 import tempfile
 import unittest
+from vsc import fancylogger
 
 # toolkit should be first to allow hacks to work
 import easybuild.test.asyncprocess as a
@@ -49,13 +50,13 @@ import easybuild.test.toolchainvariables as tcv
 import easybuild.test.toolchain as tc
 import easybuild.test.options as o
 
-from easybuild.tools.build_log import init_logger, remove_log_handler
-
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
-_, log, logh = init_logger(filename=log_fn, debug=True, logname="easybuild_test")
+fancylogger.logToFile(log_fn)
+log = fancylogger.getLogger()
+log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
 SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
@@ -74,8 +75,7 @@ except ImportError, err:
 # test specific cleanups
 os.remove(o.CommandLineOptionsTest.logfile)
 
-remove_log_handler(logh)
-logh.close()
+fancylogger.logToFile(log_fn, enable=False)
 
 if not res.wasSuccessful():
     sys.stderr.write("ERROR: Not all tests were successful.\n")
