@@ -37,7 +37,7 @@ import sys
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.extension import Extension
 from easybuild.tools import config
-from unittest import TestCase, TestLoader
+from unittest import TestCase, TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
 
 class EasyBlockTest(TestCase):
@@ -97,7 +97,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
         eb.load_fake_module()
-        
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = """
@@ -153,7 +153,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # 'ext2' should not
         self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
 
-    
+
     def tearDown(self):
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
@@ -177,3 +177,5 @@ def suite():
     """ return all the tests in this file """
     return TestLoader().loadTestsFromTestCase(EasyBlockTest)
 
+if __name__ == '__main__':
+    main()

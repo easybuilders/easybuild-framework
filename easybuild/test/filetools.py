@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 # Copyright 2012 Kenneth Hoste
@@ -23,9 +23,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 import os
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
@@ -39,7 +39,7 @@ class FileToolsTest(TestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-        
+
         config.init(cfg_full_path)
         self.cwd = os.getcwd()
 
@@ -85,7 +85,7 @@ class FileToolsTest(TestCase):
         self.assertEqual(ec, 0)
 
         self.assertEqual(True, ft.run_cmd("echo hello", simple=True))
-        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False,log_ok=False))
+        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
         name = ft.convert_name("test+test-test")
         self.assertEqual(name, "testplustestmintest")
@@ -102,3 +102,6 @@ class FileToolsTest(TestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([FileToolsTest()])
+
+if __name__ == '__main__':
+    main()

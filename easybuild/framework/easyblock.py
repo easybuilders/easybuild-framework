@@ -1528,10 +1528,15 @@ class EasyBlock(object):
         """
         Run step, returns false when execution should be stopped
         """
-        if skippable and self.skip:
+        if skippable and (self.skip or step in self.cfg['skipsteps']):
             self.log.info("Skipping %s step" % step)
         else:
             self.log.info("Starting %s step" % step)
+            # update the config templates
+            for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+                self.cfg._template_values[key[0]] = str(getattr(self, key[0], None))
+            self.cfg.generate_template_values()
+
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)

@@ -142,20 +142,27 @@ def main(testing_data=(None, None)):
     if options.version:
         print_msg(this_is_easybuild(), log, silent=testing)
 
+    if not options.robot is None:
+        if options.robot:
+            log.info("Using robot path: %s" % options.robot)
+        else:
+            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
+
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
 
     if easyconfigs_paths:
         easyconfigs_pkg_full_path = easyconfigs_paths[0]
+        if not options.robot:
+            search_path = easyconfigs_pkg_full_path
+        else:
+            search_path = options.robot
     else:
         log.info("Failed to determine install path for easybuild-easyconfigs package.")
 
-    if not options.robot is None:
-        if options.robot:
-            log.info("Using robot path: %s" % options.robot)
-        else:
-            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
+    if options.robot:
+        easyconfigs_paths = [options.robot] + easyconfigs_paths
 
     configOptions = {}
     if options.pretend:
@@ -183,9 +190,7 @@ def main(testing_data=(None, None)):
 
     # search for modules
     if options.search:
-        if not options.robot:
-            error("Please provide a search-path to --robot when using --search")
-        search_module(options.robot, options.search)
+        search_module(search_path, options.search)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -194,7 +199,7 @@ def main(testing_data=(None, None)):
     paths = []
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, options.robot, log,
+            paths = [obtain_path(software_build_specs, easyconfigs_paths, log,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
@@ -662,12 +667,12 @@ def process_software_build_specs(options):
 
     return (try_to_generate, buildopts)
 
-def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True, silent=False):
+def obtain_path(specs, paths, log, try_to_generate=False, exit_on_error=True, silent=False):
     """Obtain a path for an easyconfig that matches the given specifications."""
 
     # if no easyconfig files/paths were provided, but we did get a software name,
     # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = easyconfig.obtain_ec_for(specs, robot, None, log)
+    (generated, fn) = easyconfig.obtain_ec_for(specs, paths, None, log)
     if not generated:
         return (fn, generated)
     else:
