@@ -45,7 +45,8 @@ class EasyConfigTest(TestCase):
         """ create temporary easyconfig file """
         self.log = get_log("EasyConfigTest")
         if self.contents is not None:
-            self.eb_file = "/tmp/easyconfig_test_file.eb"
+            fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
+            os.close(fd)
             f = open(self.eb_file, "w")
             f.write(self.contents)
             f.close()
@@ -294,7 +295,8 @@ sourceURLs = ['http://google.com']
 class TestTweaking(EasyConfigTest):
     """test tweaking ability of easyconfigs"""
 
-    tweaked_fn = "/tmp/tweaked.eb"
+    fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
+    os.close(fd)
 
     patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
     contents = """
@@ -579,13 +581,12 @@ class TestTemplating(EasyConfigTest):
     contents = """
 name = "%(name)s"
 version = "%(version)s"
-""" % input + """
 homepage = "http://google.com"
-description = "test easyconfig %(name)s"
+description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ]
-"""
+""" % input
 
     def runTest(self):
         """ test easyconfig templating """
@@ -600,11 +601,11 @@ sources = [SOURCE_TAR_GZ]
 
 
 class TestTemplatingDoc(EasyConfigTest):
-    """test templating documenatation"""
+    """test templating documentation"""
     def runTest(self):
         """test templating documentation"""
         doc = easyconfig.generate_template_values_doc()
-        # expected length: 1 per constant and 1 extraper constantgroup
+        # expected length: 1 per constant and 1 extra per constantgroup
         temps = [easyconfig.TEMPLATE_NAMES_EASYCONFIG,
                  easyconfig.TEMPLATE_NAMES_CONFIG,
                  easyconfig.TEMPLATE_NAMES_LOWER,

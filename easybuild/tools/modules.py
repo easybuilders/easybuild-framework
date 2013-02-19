@@ -1,10 +1,5 @@
-# #
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+##
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,7 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Modules functionality: loading modules, checking for available modules, ...
+This python module implements the environment modules functionality:
+ - loading modules
+ - checking for available modules
+ - ...
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
 import os
 import re
@@ -38,6 +42,10 @@ import sys
 from easybuild.tools.build_log import get_log, EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 
+# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
+# see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
+
+LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
 outputMatchers = {
     # matches whitespace and module-listing headers
@@ -49,6 +57,7 @@ outputMatchers = {
     # line ending with : is ignored (the modulepath in --terse)
     'available': re.compile(r"^\s*(?P<name>\S+?)/(?P<version>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
 }
+
 
 class Modules(object):
     """
@@ -107,8 +116,10 @@ class Modules(object):
         """
         Return list of available modules.
         """
-        if not name: name = ''
-        if not version: version = ''
+        if not name:
+            name = ''
+        if not version:
+            version = ''
 
         txt = name
         if version:
@@ -122,7 +133,7 @@ class Modules(object):
         ans = [(mod['name'], mod['version']) for mod in modules]
 
         self.log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
-            (name, version, modulePath, len(ans), ans))
+                       (name, version, modulePath, len(ans), ans))
         return ans
 
     def exists(self, name, version, modulePath=None):
@@ -218,17 +229,20 @@ class Modules(object):
         if kwargs.get('modulePath', None):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
-
         self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd()))
+        # change our ld library path here.
+        environ = os.environ.copy()
+        environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
+                       (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         os.environ['MODULEPATH'] = originalModulePath
 
         if kwargs.get('return_output', False):
-            # TODO: shouldn't this redirect mixed stdout and stderr instead of stdout + stderr?
             return stdout + stderr
         else:
             # Change the environment
@@ -294,10 +308,7 @@ class Modules(object):
                 # length after splitting is 0, so empty module name?
                 self.log.error("Module with empty name loaded? ('%s')" % mod)
 
-            loaded_modules.append({
-                                   'name': mod_name,
-                                   'version': mod_version
-                                   })
+            loaded_modules.append({'name': mod_name, 'version': mod_version})
 
         return loaded_modules
 
@@ -363,6 +374,7 @@ def search_module(path, query):
         except ValueError:
             pass
 
+
 def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
@@ -384,6 +396,7 @@ def get_software_root(name, with_env_var=False):
     else:
         return root
 
+
 def get_software_version(name):
     """
     Return the software version set for a particular software name.
@@ -398,11 +411,13 @@ def get_software_version(name):
     else:
         return os.getenv(legacy_key)
 
+
 def curr_module_paths():
     """
     Return a list of current module paths.
     """
     return os.environ['MODULEPATH'].split(':')
+
 
 def mk_module_path(paths):
     """
