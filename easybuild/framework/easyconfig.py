@@ -1037,7 +1037,7 @@ def get_paths_for(log, subdir="easyconfigs", robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    (out, ec) = run_cmd("which eb", simple=False)
+    (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
     if ec:
         log.warning("eb not found (%s), failed to determine installation prefix" % out)
     else:
