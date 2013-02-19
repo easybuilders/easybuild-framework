@@ -51,7 +51,8 @@ class EasyBlockTest(TestCase):
 
     def setUp(self):
         """ setup """
-        self.eb_file = "/tmp/easyblock_test_file.eb"
+        fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(fd)
         config.variables['log_dir'] = tempfile.mkdtemp()
         config.variables['install_path'] = tempfile.mkdtemp()
         config.variables['build_path'] = tempfile.mkdtemp()
