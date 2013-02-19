@@ -45,6 +45,7 @@ import time
 import traceback
 import xml.dom.minidom as xml
 from datetime import datetime
+from vsc import fancylogger
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -79,56 +80,18 @@ import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError, init_logger
-from easybuild.tools.build_log import remove_log_handler, print_msg
+from easybuild.tools.build_log import this_is_easybuild, EasyBuildError, print_msg
+from easybuild.tools.build_log import FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
-from easybuild.tools.filetools import modify_env, run_cmd
+from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import any, flatten
-from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
-EASYBLOCKS_VERSION = 'UNKNOWN'
-try:
-    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except:
-    pass
 
 
-# applications use their own logger, we need to tell them to debug or not
-# so this global variable is used.
-LOGDEBUG = False
-
-
-def parse_options(mid=None, args=None, logfile=None):
-    """Parse eb command line options (and initialize logger)."""
-
-    (options, paths, opt_parser) = eboptions.parse_options(args=args)
-
-    if not logfile:
-        # mkstemp returns (fd,filename), fd is from os.open, not regular open!
-        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
-        os.close(fd)
-
-    if options.logtostdout:
-        if os.path.exists(logfile):
-            os.remove(logfile)
-        logfile = None
-
-    global LOGDEBUG
-    LOGDEBUG = options.debug
-
-    # initialize logger
-    logger_name = "main"
-    if mid is not None:
-        logger_name += str(mid)
-    logger_name = None
-    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, logname=logger_name)
-
-    return options, paths, log, logfile, hn, opt_parser
-
-def main(testing_data=None):
+def main(testing_data=(None, None)):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -138,14 +101,30 @@ def main(testing_data=None):
     """
 
     # steer behavior when testing main
-    testid, testargs, testlog = None, None, None
-    testing = False
-    if testing_data is not None:
-        testid, testargs, testlog = testing_data
-        testing = True
+    testing = testing_data[0] is not None
+    args, logfile = testing_data
 
-    # parse (command line) options
-    options, orig_paths, log, logfile, hn, opt_parser = parse_options(mid=testid, args=testargs, logfile=testlog)
+    # initialise options
+    (options, orig_paths, opt_parser) = eboptions.parse_options(args=args)
+
+    # initialise logging for main
+    if options.logtostdout:
+        fancylogger.logToScreen(enable=True, stdout=True)
+    else:
+        if logfile is None:
+            # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            os.close(fd)
+
+        fancylogger.logToFile(logfile)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
+
+    log = fancylogger.getLogger(fname=False)
+    # TODO isn't this set in generaloption?
+    log.setLevelName(['INFO', 'DEBUG'][options.debug])
+
+    # hello world!
+    log.info(this_is_easybuild())
 
     # set strictness of filetools module
     if options.strict:
@@ -158,12 +137,11 @@ def main(testing_data=None):
                         "Exiting.\n")
         sys.exit(1)
 
+    # TODO move to generaloption / tools.options
     # show version
     if options.version:
-        top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-        print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
-                                                                            FRAMEWORK_VERSION,
-                                                                            EASYBLOCKS_VERSION), log, silent=testing)
+        print_msg(this_is_easybuild(), log, silent=testing)
+
     if not options.robot is None:
         if options.robot:
             log.info("Using robot path: %s" % options.robot)
@@ -391,22 +369,23 @@ def main(testing_data=None):
     print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log, silent=testing)
 
     get_repository().cleanup()
+
+    # cleanup and spec files
+    for ec in easyconfigs:
+        if 'originalSpec' in ec and os.path.isfile(ec['spec']):
+            os.remove(ec['spec'])
+
     # cleanup tmp log file (all is well, all modules have their own log file)
-    try:
-        remove_log_handler(hn)
-        hn.close()
-        if logfile and not testing:
+    if options.logtostdout:
+        fancylogger.logToScreen(enable=False, stdout=True)
+    else:
+        fancylogger.logToFile(logfile, enable=False)
+        if not testing:
             os.remove(logfile)
+            print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+            logfile = None
 
-        for ec in easyconfigs:
-            if 'originalSpec' in ec:
-                os.remove(ec['spec'])
-
-    except IOError, err:
-        error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
-
-    if testing:
-        return logfile
+    return logfile
 
 def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """

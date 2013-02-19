@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """Unit tests for eb command line options.
 
 @author: Kenneth Hoste (Ghent University)
@@ -41,15 +41,12 @@ from vsc import fancylogger
 class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
-    tid = 0
-
     # create log file
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
     os.close(fd)
 
     def setUp(self):
         """Prepare for running unit tests."""
-        self.tid += 1
         open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
@@ -60,6 +57,7 @@ class CommandLineOptionsTest(TestCase):
     def test_help_short(self, txt=None):
         """Test short help message."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         if txt is None:
             topt = EasyBuildOptions(
                                     go_args=['-h'],
@@ -82,6 +80,7 @@ class CommandLineOptionsTest(TestCase):
     def test_help_long(self):
         """Test long help message."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
@@ -99,8 +98,9 @@ class CommandLineOptionsTest(TestCase):
     def test_no_args(self):
         """Test using no arguments."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         try:
-            main((self.tid, [], self.logfile))
+            main(([], self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -112,26 +112,26 @@ class CommandLineOptionsTest(TestCase):
     def test_debug(self):
         """Test enabling debug logging."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         for debug_arg in ['-d', '--debug']:
             args = [
                     '--software-name=somethingrandom',
                     debug_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except Exception, err:
-                pass
+                myerr = err
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, debug_arg))
 
-            self.tid += 1
-
     def test_info(self):
         """Test enabling info logging."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         for info_arg in ['--info']:
             args = [
                     '--software-name=somethingrandom',
@@ -140,7 +140,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             myerr = None
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except Exception, err:
                 myerr = err
             outtxt = open(self.logfile, 'r').read()
@@ -153,18 +153,17 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
 
-            self.tid += 1
-
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         for quiet_arg in ['--quiet']:
             args = [
                     '--software-name=somethingrandom',
                     quiet_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except:
                 pass
             outtxt = open(self.logfile, 'r').read()
@@ -173,15 +172,14 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, quiet_arg))
 
-            for log_msg_type in ['DEBUG']:  #, 'INFO']: --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
+            for log_msg_type in ['DEBUG']:  # , 'INFO']: --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
-
-            self.tid += 1
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
@@ -196,7 +194,7 @@ class CommandLineOptionsTest(TestCase):
 
         error_thrown = False
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except Exception, err:
             error_thrown = err
 
@@ -209,7 +207,6 @@ class CommandLineOptionsTest(TestCase):
 
         # clear log file
         open(self.logfile, 'w').write('')
-        self.tid += 1
 
         # check that --force works
         args = [
@@ -217,7 +214,7 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                ]
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -233,6 +230,7 @@ class CommandLineOptionsTest(TestCase):
     def test_job(self):
         """Test submitting build as a job."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
@@ -254,16 +252,14 @@ class CommandLineOptionsTest(TestCase):
                     '--job',
                    ] + job_args
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except:
                 pass  # main may crash
             outtxt = open(self.logfile, 'r').read()
-            #print '\n\n\n\n%s\n\n\n\n\n' % outtxt
+            # print '\n\n\n\n%s\n\n\n\n\n' % outtxt
 
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join([x.replace('=', ' ', 1) for x in job_args])
             self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
-
-            self.tid += 1
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
@@ -276,6 +272,7 @@ class CommandLineOptionsTest(TestCase):
     def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         for stdout_arg in ['--logtostdout', '-l']:
 
             _stdout = sys.stdout
@@ -292,14 +289,14 @@ class CommandLineOptionsTest(TestCase):
                     stdout_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, None))
             except Exception, err:
                 myerr = err
 
             # make sure we restore
             sys.stdout.flush()
             sys.stdout = _stdout
-            #fancylogger.logToScreen(enable=False)
+            # fancylogger.logToScreen(enable=False)
 
             outtxt = open(fn, 'r').read()
 
@@ -308,18 +305,17 @@ class CommandLineOptionsTest(TestCase):
             # cleanup
             os.remove(fn)
 
-            self.tid += 1
-
         fancylogger.logToFile(self.logfile)
 
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         args = [
                 '--list-toolchains',
                ]
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -332,13 +328,14 @@ class CommandLineOptionsTest(TestCase):
     def test_no_such_software(self):
         """Test using no arguments."""
 
+        open(self.logfile, 'w').write('')  # clear logfile
         args = [
                 '--software-name=nosuchsoftware',
                 '--robot=.',
                ]
         myerr = None
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except Exception, err:
             myerr = err
         outtxt = open(self.logfile, 'r').read()
