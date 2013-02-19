@@ -123,7 +123,8 @@ def parse_options(mid=None, args=None, logfile=None):
     logger_name = "main"
     if mid is not None:
         logger_name += str(mid)
-    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ=logger_name)
+    logger_name = None
+    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, logname=logger_name)
 
     return options, paths, log, logfile, hn, opt_parser
 
@@ -137,7 +138,7 @@ def main(testing_data=None):
     """
 
     # steer behavior when testing main
-    testid, testargs, testlog= None, None, None
+    testid, testargs, testlog = None, None, None
     testing = False
     if testing_data is not None:
         testid, testargs, testlog = testing_data

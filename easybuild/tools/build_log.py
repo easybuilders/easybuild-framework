@@ -111,52 +111,44 @@ def get_log(name=None):
     """
     Generate logger object
     """
-    # log = logging.getLogger(name)
-    log = fancylogger.getLogger(name)
+    # fname is always get_log, useless
+    log = fancylogger.getLogger(name, fname=False)
     log.info("Logger started for %s." % name)
     return log
 
-def remove_log_handler(hnd):
+def remove_log_handler(hnd, name=None):
     """
     Remove handler from root log
     """
-    log = fancylogger.getLogger()
+    # fname is always remove_log_handler, useless
+    # and you want the root logger?
+    log = fancylogger.getLogger(name=name, fname=False)
     log.removeHandler(hnd)
 
-def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
+def init_logger(name=None, version=None, debug=False, filename=None, logname='UNKNOWN'):
     """
     Return filename of the log file being written
     - does not append
     - sets log handlers
     """
-
-
-    # determine log level
-    if debug:
-        fancylogger.setLogLevelDebug()
-    else:
-        fancylogger.setLogLevelInfo()
-
     if (name and version) or filename:
         if not filename:
             filename = log_filename(name, version)
-        hand = fancylogger.logToFile(filename, name=typ)
+        hand = fancylogger.logToFile(filename, name=logname)
     else:
-        hand = fancylogger.logToScreen(True, stdout=True, name=typ)
+        hand = fancylogger.logToScreen(enable=True, stdout=True, name=logname)
 
-    # initialize our logger
-    log = fancylogger.getLogger(typ)
+    # initialize our logger, no fname
+    log = fancylogger.getLogger(name=logname, fname=False)
 
-    # # init message
-    log.info("Log initialized with name %s version %s to file %s on host %s" % (name,
-                                                                                version,
-                                                                                filename,
-                                                                                gethostname()
-                                                                                ))
+    log.setLevelName(['INFO', 'DEBUG'][debug])
+
+    # init message
+    log.info("Log initialized with name %s version %s to file %s on host %s" %
+             (name, version, filename, gethostname()))
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    log.info("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
-                                                                       FRAMEWORK_VERSION,
-                                                                       EASYBLOCKS_VERSION))
+    log.info("This is EasyBuild %s (framework: %s, easyblocks: %s)" %
+             (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION))
 
     return filename, log, hand
 
@@ -195,6 +187,6 @@ def print_msg(msg, log=None, silent=False):
 
 if __name__ == '__main__':
     init_logger('test', '1.0.0')
-    fn, testlog, _ = init_logger(typ='build_log')
+    fn, testlog, _ = init_logger(logname='build_log')
     testlog.info('Testing build_log...')
     "Tested build_log, see %s" % fn

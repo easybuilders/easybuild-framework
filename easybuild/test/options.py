@@ -34,7 +34,6 @@ import tempfile
 from unittest import TestCase, TestLoader
 
 from easybuild.main import main
-from easybuild.tools.build_log import EasyBuildLog, init_logger, remove_log_handler
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -72,7 +71,7 @@ class CommandLineOptionsTest(TestCase):
             outtxt = topt.parser.help_to_file.getvalue()
         else:
             outtxt = txt
-       
+
         self.assertTrue(re.search(' -h ', outtxt), "Only short options included in short help")
         self.assertTrue(re.search("show short help message and exit", outtxt), "Documentation included in short help")
         self.assertEqual(re.search("--short-help ", outtxt), None, "Long options not included in short help")
@@ -81,7 +80,7 @@ class CommandLineOptionsTest(TestCase):
 
     def test_help_long(self):
         """Test long help message."""
-        
+
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
@@ -90,7 +89,7 @@ class CommandLineOptionsTest(TestCase):
                                 prog='easybuildoptions_test',  # generate as if called from generaloption.py
                                )
         outtxt = topt.parser.help_to_file.getvalue()
-        
+
         self.assertTrue(re.search("-H, --help", outtxt), "Long documentation expanded in long help")
         self.assertTrue(re.search("show short help message and exit", outtxt), "Documentation included in long help")
         self.assertTrue(re.search("Software search and build options", outtxt), "Not all option groups included in short help (1)")
@@ -293,7 +292,7 @@ class CommandLineOptionsTest(TestCase):
                 main((self.tid, args, self.logfile))
             except Exception, err:
                 myerr = err
- 
+
             # make sure we restore
             sys.stdout.flush()
             sys.stdout = _stdout

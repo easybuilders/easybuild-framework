@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Command line options for eb
 
@@ -48,7 +48,7 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
         try:
-            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
+            default_robot_path = get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
             default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
@@ -189,5 +189,4 @@ def parse_options(args=None):
                              envvar_prefix='EASYBUILD',
                              go_args=args,
                              )
-
     return eb_go.options, eb_go.args, eb_go.parser

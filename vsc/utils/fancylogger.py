@@ -236,6 +236,11 @@ class FancyLogger(logging.getLoggerClass()):
             else:
                 c = c.parent
 
+    def setLevelName(self, level_name):
+        """Set the level by name."""
+        # This is supported in py27 setLevel code, but not in py24
+        self.setLevel(getLevelInt(level_name))
+
     def streamLog(self, levelno, data):
         """
         Add (continuous) data to an existing message stream (eg a stream after a logging.info()
@@ -268,12 +273,17 @@ class FancyLogger(logging.getLoggerClass()):
         """Get a ERROR loglevel streamLog"""
         self.streamLog('ERROR', data)
 
-    def _get_parent_info(self):
+    def _get_parent_info(self, verbose=True):
         """Return some logger parent related information"""
         def info(x):
-            return (x, x.name, x.getEffectiveLevel(), x.level, x.disabled)
+            res = [x, x.name, logging.getLevelName(x.getEffectiveLevel()), logging.getLevelName(x.level), x.disabled]
+            if verbose:
+                res.append([(h, logging.getLevelName(h.level)) for h in x.handlers])
+            return res
+
         parentinfo = []
         logger = self
+        parentinfo.append(info(logger))
         while logger.parent is not None:
             logger = logger.parent
             parentinfo.append(info(logger))
@@ -299,8 +309,12 @@ def getLogger(name=None, fname=True):
         nameparts.append(_getCallingFunctionName())
     fullname = ".".join(nameparts)
 
-    return logging.getLogger(fullname)
-
+    l = logging.getLogger(fullname)
+    if os.environ.get('FANCYLOGGER_GETLOGGER_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
+        print 'FANCYLOGGER_GETLOGGER_DEBUG',
+        print 'name', name, 'fname', fname, 'fullname', fullname,
+        print 'parent_info verbose', l._get_parent_info(verbose=True)
+    return l
 
 def _getCallingFunctionName():
     """
