@@ -58,25 +58,30 @@ MODULES = (8, 'modules')
 OTHER = (9, 'other')
 
 # derived from easyconfig, but not from .config directly
-TEMPLATE_NAMES_EASYCONFIG = [('toolchain_name', "Toolchain name"),
+TEMPLATE_NAMES_EASYCONFIG = [
+                             ('toolchain_name', "Toolchain name"),
                              ('toolchain_version', "Toolchain version"),
                             ]
-# derived from .config
-TEMPLATE_NAMES_CONFIG = ['name',
+# derived from EasyConfig.config
+TEMPLATE_NAMES_CONFIG = [
+                         'name',
                          'version',
                          'versionsuffix',
                          'versionprefix',
                          ]
 # lowercase versions of .config
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(key)slower"
-TEMPLATE_NAMES_LOWER = ['name',
+TEMPLATE_NAMES_LOWER = [
+                        'name',
                         ]
 # values taken from the EasyBlock before each step
-TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [('installdir', "Installation directory"),
+TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
+                                     ('installdir', "Installation directory"),
                                      ('builddir', "Build directory"),
                                      ]
 # constants that can be used in easyconfigs
-TEMPLATE_CONSTANTS = [('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
+TEMPLATE_CONSTANTS = [
+                      ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
                       ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
                        "Source .tar.gz tarball with lowercase name"),
 
@@ -512,7 +517,7 @@ class EasyConfig(object):
 
     def generate_template_values(self):
         """Try to generate all template values."""
-        # TODO figure out way to make it properly recursive
+        # TODO proper recursive code https://github.com/hpcugent/easybuild-framework/issues/474
         self._generate_template_values(skip_lower=True)
         self._generate_template_values(skip_lower=False)
 
