@@ -335,14 +335,15 @@ class CommandLineOptionsTest(TestCase):
                 '--software-name=nosuchsoftware',
                 '--robot=.',
                ]
+        myerr = None
         try:
             main((self.tid, args, self.logfile))
-        except:
-            pass
+        except Exception, err:
+            myerr = err
         outtxt = open(self.logfile, 'r').read()
 
         error_msg = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
-        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name")
+        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt))
 
 
 def suite():
