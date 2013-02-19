@@ -44,7 +44,7 @@ import urllib
 from distutils.version import LooseVersion
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
 from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
 from easybuild.tools.config import source_path, module_classes
@@ -1518,6 +1518,11 @@ class EasyBlock(object):
             self.log.info("Skipping %s step" % step)
         else:
             self.log.info("Starting %s step" % step)
+            # update the config templates
+            for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+                self.cfg._template_values[key[0]] = str(getattr(self, key[0], None))
+            self.cfg.generate_template_values()
+
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)
