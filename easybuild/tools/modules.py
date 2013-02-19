@@ -228,7 +228,6 @@ class Modules(object):
         os.environ['MODULEPATH'] = originalModulePath
 
         if kwargs.get('return_output', False):
-            # TODO: shouldn't this redirect mixed stdout and stderr instead of stdout + stderr?
             return stdout + stderr
         else:
             # Change the environment
