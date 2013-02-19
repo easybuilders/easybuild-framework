@@ -31,9 +31,7 @@
 EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
-import logging
 import os
-import sys
 import time
 from copy import copy
 from socket import gethostname
@@ -83,7 +81,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
-        logging.Logger.error(self, newMsg, *args, **kwargs)
+        fancylogger.FancyLogger.error(self, newMsg, *args, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
@@ -92,7 +90,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
-        logging.Logger.exception(self, newMsg, *args)
+        fancylogger.FancyLogger.exception(self, newMsg, *args)
         self.raiseError = True
 
         raise EasyBuildError(newMsg)
@@ -102,10 +100,12 @@ class EasyBuildLog(fancylogger.FancyLogger):
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
-# disable logging to screen by default
-fancylogger.logToScreen(enable=False)
+# set the default LoggerClass to EasyBuildLog
+fancylogger.logging.setLoggerClass(EasyBuildLog)
 
-logging.setLoggerClass(EasyBuildLog)
+# you can't easily set a LoggerClass before fancylogger calls getLogger on import
+_init_fancylog = fancylogger.getLogger(fname=False)
+del _init_fancylog.manager.loggerDict[_init_fancylog.name]
 
 def get_log(name=None):
     """
