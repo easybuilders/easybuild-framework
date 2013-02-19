@@ -601,7 +601,7 @@ def create_paths(path, name, version):
             os.path.join(path, "%s-%s.eb" % (name, version)),
            ]
 
-def obtain_ec_for(specs, ecs_path, fp, log):
+def obtain_ec_for(specs, paths, fp, log):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -618,10 +618,6 @@ def obtain_ec_for(specs, ecs_path, fp, log):
         log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
 
     # collect paths to search in
-    paths = []
-    if ecs_path:
-        paths.append(ecs_path)
-
     if not paths:
         log.error("No paths to look for easyconfig files, specify a path with --robot.")
 

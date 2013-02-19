@@ -163,6 +163,11 @@ def main(testing_data=None):
         print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
                                                                             FRAMEWORK_VERSION,
                                                                             EASYBLOCKS_VERSION), log, silent=testing)
+    if not options.robot is None:
+        if options.robot:
+            log.info("Using robot path: %s" % options.robot)
+        else:
+            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
@@ -170,14 +175,12 @@ def main(testing_data=None):
 
     if easyconfigs_paths:
         easyconfigs_pkg_full_path = easyconfigs_paths[0]
+        if not options.robot:
+            search_path = easyconfigs_pkg_full_path
+        else:
+            search_path = options.robot
     else:
         log.info("Failed to determine install path for easybuild-easyconfigs package.")
-
-    if not options.robot is None:
-        if options.robot:
-            log.info("Using robot path: %s" % options.robot)
-        else:
-            log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
     configOptions = {}
     if options.pretend:
@@ -205,9 +208,7 @@ def main(testing_data=None):
 
     # search for modules
     if options.search:
-        if not options.robot:
-            error("Please provide a search-path to --robot when using --search")
-        search_module(options.robot, options.search)
+        search_module(search_path, options.search)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -216,7 +217,7 @@ def main(testing_data=None):
     paths = []
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, options.robot, log,
+            paths = [obtain_path(software_build_specs, easyconfigs_paths, log,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
