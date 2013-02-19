@@ -87,8 +87,7 @@ TEMPLATE_CONSTANTS = [
 
                       ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files/',
                        'googlecode.com source url'),
-                      ('SOURCEFORGE_SOURCE',('http://sourceforge.net/projects/%(namelower)s/'
-                                            'files/%(namelower)s/%(version)s'),
+                      ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s/',
                        'sourceforge.net source url'),
                       ]
 
