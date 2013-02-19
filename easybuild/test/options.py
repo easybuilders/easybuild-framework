@@ -41,23 +41,23 @@ from vsc import fancylogger
 class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
-    # create log file
-    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
-    os.close(fd)
+    logfile = None
 
     def setUp(self):
         """Prepare for running unit tests."""
-        open(self.logfile, 'w').write('')  # clear logfile
+        # create log file
+        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
+        os.close(fd)
+        #open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
-        pass
+        os.remove(self.logfile)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         if txt is None:
             topt = EasyBuildOptions(
                                     go_args=['-h'],
@@ -80,7 +80,6 @@ class CommandLineOptionsTest(TestCase):
     def test_help_long(self):
         """Test long help message."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         topt = EasyBuildOptions(
                                 go_args=['-H'],
                                 go_nosystemexit=True,  # when printing help, optparse ends with sys.exit
@@ -98,7 +97,6 @@ class CommandLineOptionsTest(TestCase):
     def test_no_args(self):
         """Test using no arguments."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         try:
             main(([], self.logfile))
         except:
@@ -112,7 +110,6 @@ class CommandLineOptionsTest(TestCase):
     def test_debug(self):
         """Test enabling debug logging."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         for debug_arg in ['-d', '--debug']:
             args = [
                     '--software-name=somethingrandom',
@@ -131,12 +128,10 @@ class CommandLineOptionsTest(TestCase):
     def test_info(self):
         """Test enabling info logging."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         for info_arg in ['--info']:
             args = [
                     '--software-name=somethingrandom',
                     info_arg,
-                    '-ld',
                    ]
             myerr = None
             try:
@@ -156,7 +151,6 @@ class CommandLineOptionsTest(TestCase):
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         for quiet_arg in ['--quiet']:
             args = [
                     '--software-name=somethingrandom',
@@ -170,16 +164,15 @@ class CommandLineOptionsTest(TestCase):
 
             for log_msg_type in ['ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, quiet_arg))
+                self.assertTrue(res, "%s log messages are included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
-            for log_msg_type in ['DEBUG']:  # , 'INFO']: --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
+            for log_msg_type in ['DEBUG', 'INFO']: # --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
+                self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
@@ -230,7 +223,6 @@ class CommandLineOptionsTest(TestCase):
     def test_job(self):
         """Test submitting build as a job."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
@@ -272,7 +264,6 @@ class CommandLineOptionsTest(TestCase):
     def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         for stdout_arg in ['--logtostdout', '-l']:
 
             _stdout = sys.stdout
@@ -296,11 +287,11 @@ class CommandLineOptionsTest(TestCase):
             # make sure we restore
             sys.stdout.flush()
             sys.stdout = _stdout
-            # fancylogger.logToScreen(enable=False)
+            fancylogger.logToScreen(enable=False, stdout=True)
 
             outtxt = open(fn, 'r').read()
 
-            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when -l/--logtostdout is used")
+            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when %s is used (outtxt: %s)" % (stdout_arg, outtxt))
 
             # cleanup
             os.remove(fn)
@@ -310,7 +301,6 @@ class CommandLineOptionsTest(TestCase):
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         args = [
                 '--list-toolchains',
                ]
@@ -328,10 +318,10 @@ class CommandLineOptionsTest(TestCase):
     def test_no_such_software(self):
         """Test using no arguments."""
 
-        open(self.logfile, 'w').write('')  # clear logfile
         args = [
                 '--software-name=nosuchsoftware',
                 '--robot=.',
+                '--debug',
                ]
         myerr = None
         try:
@@ -340,8 +330,12 @@ class CommandLineOptionsTest(TestCase):
             myerr = err
         outtxt = open(self.logfile, 'r').read()
 
-        error_msg = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
-        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt))
+        # error message when template is not found
+        error_msg1 = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
+        # error message when template is found
+        error_msg2 = "ERROR .* Unable to find an easyconfig for the given specifications"
+        msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
+        self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
 
 def suite():

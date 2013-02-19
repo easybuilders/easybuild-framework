@@ -72,9 +72,6 @@ except ImportError, err:
     sys.stderr.write("WARNING: xmlrunner module not available, falling back to using unittest...\n\n")
     res = unittest.TextTestRunner().run(SUITE)
 
-# test specific cleanups
-os.remove(o.CommandLineOptionsTest.logfile)
-
 fancylogger.logToFile(log_fn, enable=False)
 
 if not res.wasSuccessful():
