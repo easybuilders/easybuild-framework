@@ -42,9 +42,12 @@ import sys
 from easybuild.tools.build_log import get_log, EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 
+# software root/version environment variable name prefixes
+ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
+VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
+
 # keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
-
 LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
 outputMatchers = {
@@ -375,13 +378,18 @@ def search_module(path, query):
             pass
 
 
+def get_software_root_env_var_name(name):
+    """Return name of environment variable for software root."""
+    newname = convert_name(name, upper=True)
+    return ''.join([ROOT_ENV_VAR_NAME_PREFIX, newname])
+
 def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
     """
-    name = convert_name(name, upper=True)
-    environment_key = "EBROOT%s" % name
-    legacy_key = "SOFTROOT%s" % name
+    environment_key = get_software_root_env_var_name(name)
+    newname = convert_name(name, upper=True)
+    legacy_key = "SOFTROOT%s" % newname
 
     # keep on supporting legacy installations
     if environment_key in os.environ:
@@ -397,13 +405,18 @@ def get_software_root(name, with_env_var=False):
         return root
 
 
+def get_software_version_env_var_name(name):
+    """Return name of environment variable for software root."""
+    newname = convert_name(name, upper=True)
+    return ''.join([VERSION_ENV_VAR_NAME_PREFIX, newname])
+
 def get_software_version(name):
     """
     Return the software version set for a particular software name.
     """
-    name = convert_name(name, upper=True)
-    environment_key = "EBVERSION%s" % name
-    legacy_key = "SOFTVERSION%s" % name
+    environment_key = get_software_version_env_var_name(name)
+    newname = convert_name(name, upper=True)
+    legacy_key = "SOFTVERSION%s" % newname
 
     # keep on supporting legacy installations
     if environment_key in os.environ:
