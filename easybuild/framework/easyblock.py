@@ -45,7 +45,7 @@ from distutils.version import LooseVersion
 from vsc import fancylogger
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg, this_is_easybuild
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
@@ -1533,8 +1533,8 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             # update the config templates
-            for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-                self.cfg._template_values[key[0]] = str(getattr(self, key[0], None))
+            for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+                self.cfg._template_values[name[0]] = str(getattr(self, name[0], None))
             self.cfg.generate_template_values()
 
             for m in methods:
