@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
@@ -58,3 +58,5 @@ def suite():
     """ returns all the testcases in this module """
     return TestSuite([AsyncProcessTest()])
 
+if __name__ == '__main__':
+    main()

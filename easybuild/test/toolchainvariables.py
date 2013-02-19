@@ -26,7 +26,7 @@
 ##
 import re
 
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 from easybuild.tools.toolchain.variables import ToolchainVariables
 from easybuild.tools.variables import CommandFlagList
 
@@ -101,3 +101,6 @@ class ToolchainVariablesTest(TestCase):
 def suite():
     """ return all the tests"""
     return TestSuite([ToolchainVariablesTest()])
+
+if __name__ == '__main__':
+    main()
