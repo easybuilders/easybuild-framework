@@ -28,7 +28,7 @@
 import os
 import re
 import tempfile
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
@@ -53,7 +53,7 @@ class ModuleGeneratorTest(TestCase):
         eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
-            
+
         self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
@@ -125,3 +125,6 @@ prepend-path	key		$root/path2
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([ModuleGeneratorTest()])
+
+if __name__ == '__main__':
+    main()
