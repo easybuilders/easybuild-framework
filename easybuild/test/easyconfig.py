@@ -599,11 +599,11 @@ sources = [SOURCE_TAR_GZ]
 
 
 class TestTemplatingDoc(EasyConfigTest):
-    """test templating documenatation"""
+    """test templating documentation"""
     def runTest(self):
         """test templating documentation"""
         doc = easyconfig.generate_template_values_doc()
-        # expected length: 1 per constant and 1 extraper constantgroup
+        # expected length: 1 per constant and 1 extra per constantgroup
         temps = [easyconfig.TEMPLATE_NAMES_EASYCONFIG,
                  easyconfig.TEMPLATE_NAMES_CONFIG,
                  easyconfig.TEMPLATE_NAMES_LOWER,
