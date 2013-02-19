@@ -81,25 +81,15 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import this_is_easybuild, EasyBuildError, print_msg
+from easybuild.tools.build_log import FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
-from easybuild.tools.filetools import modify_env, run_cmd
+from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import any, flatten
-from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
-EASYBLOCKS_VERSION = 'UNKNOWN'
-try:
-    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except:
-    pass
 
-
-def parse_options(args=None, logfile=None):
-    """Parse eb command line options (and initialize logger)."""
-
-    return options, paths, log, logfile, opt_parser
 
 def main(testing_data=(None, None)):
     """
@@ -127,6 +117,7 @@ def main(testing_data=(None, None)):
             os.close(fd)
 
         fancylogger.logToFile(logfile)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
 
     log = fancylogger.getLogger(fname=False)
     # TODO isn't this set in generaloption?
@@ -146,13 +137,10 @@ def main(testing_data=(None, None)):
                         "Exiting.\n")
         sys.exit(1)
 
-    # show version
     # TODO move to generaloption / tools.options
+    # show version
     if options.version:
-        top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-        print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
-                                                                            FRAMEWORK_VERSION,
-                                                                            EASYBLOCKS_VERSION), log, silent=testing)
+        print_msg(this_is_easybuild(), log, silent=testing)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
@@ -389,6 +377,7 @@ def main(testing_data=(None, None)):
         fancylogger.logToFile(logfile, enable=False)
         if not testing:
             os.remove(logfile)
+            print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
             logfile = None
 
     return logfile

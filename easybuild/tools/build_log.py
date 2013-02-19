@@ -40,7 +40,7 @@ from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except:
-    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller the anything
+    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
