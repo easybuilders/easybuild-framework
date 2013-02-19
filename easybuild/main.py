@@ -182,6 +182,9 @@ def main(testing_data=None):
     else:
         log.info("Failed to determine install path for easybuild-easyconfigs package.")
 
+    if options.robot:
+        easyconfigs_paths = [options.robot] + easyconfigs_paths
+
     configOptions = {}
     if options.pretend:
         configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
@@ -684,12 +687,12 @@ def process_software_build_specs(options):
 
     return (try_to_generate, buildopts)
 
-def obtain_path(specs, robot, log, try_to_generate=False, exit_on_error=True, silent=False):
+def obtain_path(specs, paths, log, try_to_generate=False, exit_on_error=True, silent=False):
     """Obtain a path for an easyconfig that matches the given specifications."""
 
     # if no easyconfig files/paths were provided, but we did get a software name,
     # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = easyconfig.obtain_ec_for(specs, robot, None, log)
+    (generated, fn) = easyconfig.obtain_ec_for(specs, paths, None, log)
     if not generated:
         return (fn, generated)
     else:
