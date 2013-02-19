@@ -38,6 +38,7 @@ import sys
 import tempfile
 from distutils.version import LooseVersion
 
+import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.ordereddict import OrderedDict
@@ -157,6 +158,7 @@ class EasyConfig(object):
           ('dependencies', [[], "List of dependencies", DEPENDENCIES]),
           ('builddependencies', [[], "List of build dependencies", DEPENDENCIES]),
           ('osdependencies', [[], "OS dependencies that should be present on the system", DEPENDENCIES]),
+          ('allow_system_deps', [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES]),
 
           ('license_server', [None, 'License server for software', LICENSE]),
           ('license_server_port', [None, 'Port for license server', LICENSE]),
@@ -227,7 +229,11 @@ class EasyConfig(object):
                             'stop': self.valid_stops,
                             }
 
+        # parse easyconfig file
         self.parse(path)
+
+        # handle allowed system dependencies
+        self.handle_allowed_system_deps()
 
         # perform validations
         self.validation = validate
@@ -297,6 +303,12 @@ class EasyConfig(object):
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
 
+    def handle_allowed_system_deps(self):
+        """Handle allowed system dependencies."""
+        for (name, version) in self['allow_system_deps']:
+            env.setvar(get_software_root_env_var_name(name), True)  # root is set to True, not an actual path
+            env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
+
     def validate(self):
         """
         Validate this EasyConfig
@@ -311,9 +323,9 @@ class EasyConfig(object):
         self.validate_os_deps()
 
         self.log.info("Checking skipsteps")
-        if not isinstance(self.config['skipsteps'][0], (list, tuple,)):
+        if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
             self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
-                           (type(self.config['skipsteps'][0]), self.config['skipsteps'][0]))
+                           (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
 
         return True
 
@@ -791,7 +803,7 @@ def obtain_ec_for(specs, paths, fp, log):
     Either select between available ones, or use the best suited available one
     to generate a new easyconfig file.
 
-    <ecs_path> is a path where easyconfig files can be found
+    <paths> is a list of paths where easyconfig files can be found
     <fp> is the desired file name
     <log> is an EasyBuildLog instance
     """
