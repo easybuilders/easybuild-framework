@@ -55,7 +55,7 @@ from easybuild.tools.build_log import init_logger, remove_log_handler
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
-_, log, logh = init_logger(filename=log_fn, debug=True, typ="easybuild_test")
+_, log, logh = init_logger(filename=log_fn, debug=True, logname="easybuild_test")
 
 # call suite() for each module and then run them all
 SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
