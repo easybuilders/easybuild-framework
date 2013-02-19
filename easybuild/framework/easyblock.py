@@ -731,7 +731,7 @@ class EasyBlock(object):
         A dictionary of possible directories to look for.
         """
         return {
-            'PATH': ['bin'],
+            'PATH': ['bin', 'sbin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
