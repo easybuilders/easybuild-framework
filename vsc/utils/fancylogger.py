@@ -64,7 +64,6 @@ Logging to a udp server:
  - set an environment variable FANCYLOG_SERVER and FANCYLOG_SERVER_PORT (optionally)
  - this will make fancylogger log to that that server and port instead of the screen.
 
-@date: Oct 14, 2011
 @author: Jens Timmerman (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -355,7 +354,7 @@ def logToScreen(enable=True, handler=None, name=None, stdout=False):
 
     return _logToSomething(FancyStreamHandler,
                            handleropts,
-                           loggeroption='logtoscreen',
+                           loggeroption='logtoscreen_stdout_%s' % str(stdout),
                            name=name,
                            enable=enable,
                            handler=handler,
@@ -381,7 +380,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
                    }
     return _logToSomething(logging.handlers.RotatingFileHandler,
                            handleropts,
-                           loggeroption='logtofile',
+                           loggeroption='logtofile_%s' % filename,
                            name=name,
                            enable=enable,
                            handler=filehandler,
@@ -401,7 +400,7 @@ def logToUDP(hostname, port=5005, enable=True, datagramhandler=None, name=None):
     handleropts = {'hostname': hostname, 'port': port}
     return _logToSomething(logging.handlers.DatagramHandler,
                            handleropts,
-                           loggeroption='logtoudp',
+                           loggeroption='logtoudp_%s:%s' %( hostname,str(port)),
                            name=name,
                            enable=enable,
                            handler=datagramhandler,
