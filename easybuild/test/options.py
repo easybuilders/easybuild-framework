@@ -135,16 +135,18 @@ class CommandLineOptionsTest(TestCase):
             args = [
                     '--software-name=somethingrandom',
                     info_arg,
+                    '-ld',
                    ]
+            myerr = None
             try:
                 main((self.tid, args, self.logfile))
-            except:
-                pass
+            except Exception, err:
+                myerr = err
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, info_arg))
+                self.assertTrue(res, "%s log messages are included when using %s (err: %s, out: %s)" % (log_msg_type, info_arg, myerr, outtxt))
 
             for log_msg_type in ['DEBUG']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -268,9 +270,9 @@ class CommandLineOptionsTest(TestCase):
         else:
             os.environ.pop('MODULEPATH')
 
-    # double underscore in the test name is intentional to make this test run last,
+    # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
-    def test__logtostdout(self):
+    def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
         for stdout_arg in ['--logtostdout', '-l']:

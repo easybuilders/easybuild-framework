@@ -68,7 +68,6 @@ class Modules(object):
         @type modulePath: list
         """
         self.log = get_log(self.__class__.__name__)
-        print 'modules', self.log._get_parent_info()
         # make sure we don't have the same path twice
         if modulePath:
             self.modulePath = set(modulePath)
