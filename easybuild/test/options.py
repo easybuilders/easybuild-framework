@@ -29,16 +29,20 @@
 
 import os
 import re
+import sys
 import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
 from easybuild.main import main
-from easybuild.tools.build_log import init_logger
+from easybuild.tools.build_log import EasyBuildLog, init_logger, remove_log_handler
 from easybuild.tools.options import EasyBuildOptions
+from vsc import fancylogger
 
 class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
+
+    tid = 0
 
     # create log file
     fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
@@ -46,6 +50,7 @@ class CommandLineOptionsTest(TestCase):
 
     def setUp(self):
         """Prepare for running unit tests."""
+        self.tid += 1
         open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
@@ -96,7 +101,7 @@ class CommandLineOptionsTest(TestCase):
         """Test using no arguments."""
 
         try:
-            main(args=[], exit_on_error=False, logfile=self.logfile, keep_logs=True)
+            main((self.tid, [], self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -114,14 +119,16 @@ class CommandLineOptionsTest(TestCase):
                     debug_arg,
                    ]
             try:
-                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
-            except:
+                main((self.tid, args, self.logfile))
+            except Exception, err:
                 pass
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, debug_arg))
+
+            self.tid += 1
 
     def test_info(self):
         """Test enabling info logging."""
@@ -132,7 +139,7 @@ class CommandLineOptionsTest(TestCase):
                     info_arg,
                    ]
             try:
-                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+                main((self.tid, args, self.logfile))
             except:
                 pass
             outtxt = open(self.logfile, 'r').read()
@@ -145,6 +152,8 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
 
+            self.tid += 1
+
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
 
@@ -154,7 +163,7 @@ class CommandLineOptionsTest(TestCase):
                     quiet_arg,
                    ]
             try:
-                main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+                main((self.tid, args, self.logfile))
             except:
                 pass
             outtxt = open(self.logfile, 'r').read()
@@ -167,12 +176,14 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
 
+            self.tid += 1
+
     def test_force(self):
         """Test forcing installation even if the module is already available."""
 
         # set MODULEPATH to included modules
         orig_modulepath = os.getenv('MODULEPATH', None)
-        os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'GCC-4.6.3.eb')
@@ -184,18 +195,20 @@ class CommandLineOptionsTest(TestCase):
 
         error_thrown = False
         try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
+            main((self.tid, args, self.logfile))
         except Exception, err:
             error_thrown = err
 
         outtxt = open(self.logfile, 'r').read()
 
-        self.assertTrue(not error_thrown, "No error is thrown if software is already installed")
+        self.assertTrue(not error_thrown, "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown)
 
         already_msg = "GCC \(version 4.6.3\) is already installed"
-        self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force")
+        self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
-        outtxt = open(self.logfile, 'w').write('')
+        # clear log file
+        open(self.logfile, 'w').write('')
+        self.tid += 1
 
         # check that --force works
         args = [
@@ -203,7 +216,7 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                ]
         try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
+            main((self.tid, args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -226,26 +239,94 @@ class CommandLineOptionsTest(TestCase):
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
 
-        # check debug log message with --job
-        args = [
-                eb_file,
-                '--job',
-                '--debug',
-               ]
-        try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True, dry_run=True)
-        except:
-            pass  # main may crash
-        outtxt = open(self.logfile, 'r').read()
+        # check log message with --job
+        for job_args in [  # options passed are reordered, so order here matters to make tests pass
+                         ['--debug'],
+                         ['--debug', '--stop=configure', '--try-software-name=foo'],
+                        ]:
 
-        job_msg = "DEBUG.* Command template for jobs: .* && eb .*"
-        self.assertTrue(re.search(job_msg, outtxt), "Debug log message with job command template when using --job")
+            # clear log file
+            outtxt = open(self.logfile, 'w').write('')
+
+            args = [
+                    eb_file,
+                    '--job',
+                   ] + job_args
+            try:
+                main((self.tid, args, self.logfile))
+            except:
+                pass  # main may crash
+            outtxt = open(self.logfile, 'r').read()
+            #print '\n\n\n\n%s\n\n\n\n\n' % outtxt
+
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join([x.replace('=', ' ', 1) for x in job_args])
+            self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
+
+            self.tid += 1
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
             os.environ['MODULEPATH'] = orig_modulepath
         else:
             os.environ.pop('MODULEPATH')
+
+    # double underscore in the test name is intentional to make this test run last,
+    # since it fiddles with the logging infrastructure which may break things
+    def test__logtostdout(self):
+        """Testing redirecting log to stdout."""
+
+        for stdout_arg in ['--logtostdout', '-l']:
+
+            _stdout = sys.stdout
+
+            myerr = None
+            fd, fn = tempfile.mkstemp()
+            fh = os.fdopen(fd, 'w')
+            sys.stdout = fh
+
+            args = [
+                    '--software-name=somethingrandom',
+                    '--robot=.',
+                    '--debug',
+                    stdout_arg,
+                   ]
+            try:
+                main((self.tid, args, self.logfile))
+            except Exception, err:
+                myerr = err
+ 
+            # make sure we restore
+            sys.stdout.flush()
+            sys.stdout = _stdout
+            #fancylogger.logToScreen(enable=False)
+
+            outtxt = open(fn, 'r').read()
+
+            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when -l/--logtostdout is used")
+
+            # cleanup
+            os.remove(fn)
+
+            self.tid += 1
+
+        fancylogger.logToFile(self.logfile)
+
+    def test_list_toolchains(self):
+        """Test listing known compiler toolchains."""
+
+        args = [
+                '--list-toolchains',
+               ]
+        try:
+            main((self.tid, args, self.logfile))
+        except:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        info_msg = "INFO List of known toolchains:"
+        self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
+        for tc in ["dummy", "goalf", "ictce"]:
+            self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -255,30 +336,13 @@ class CommandLineOptionsTest(TestCase):
                 '--robot=.',
                ]
         try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True)
+            main((self.tid, args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
 
         error_msg = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
         self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name")
-
-    def test_list_toolchains(self):
-        """Test listing known compiler toolchains."""
-
-        args = [
-                '--list-toolchains',
-               ]
-        try:
-            main(args=args, exit_on_error=False, logfile=self.logfile, keep_logs=True, silent=True)
-        except:
-            pass
-        outtxt = open(self.logfile, 'r').read()
-
-        info_msg = "INFO List of known toolchains:"
-        self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
-        for tc in ["dummy", "goalf", "ictce"]:
-            self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")
 
 
 def suite():
