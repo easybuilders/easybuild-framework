@@ -101,7 +101,9 @@ except:
 LOGDEBUG = False
 
 
-def parse_options(args=None, logfile=None):
+def parse_options(mid=None, args=None, logfile=None):
+    """Parse eb command line options (and initialize logger)."""
+
     (options, paths, opt_parser) = eboptions.parse_options(args=args)
 
     if not logfile:
@@ -118,11 +120,14 @@ def parse_options(args=None, logfile=None):
     LOGDEBUG = options.debug
 
     # initialize logger
-    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ="main")
+    logger_name = "main"
+    if mid is not None:
+        logger_name += str(mid)
+    logfile, log, hn = init_logger(filename=logfile, debug=options.debug, typ=logger_name)
 
     return options, paths, log, logfile, hn, opt_parser
 
-def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=False, dry_run=False):
+def main(testing_data=None):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -131,8 +136,15 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     - build software
     """
 
+    # steer behavior when testing main
+    testid, testargs, testlog= None, None, None
+    testing = False
+    if testing_data is not None:
+        testid, testargs, testlog = testing_data
+        testing = True
+
     # parse (command line) options
-    options, orig_paths, log, logfile, hn, opt_parser = parse_options(args=args, logfile=logfile)
+    options, orig_paths, log, logfile, hn, opt_parser = parse_options(mid=testid, args=testargs, logfile=testlog)
 
     # set strictness of filetools module
     if options.strict:
@@ -150,7 +162,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
         print_msg("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
                                                                             FRAMEWORK_VERSION,
-                                                                            EASYBLOCKS_VERSION), log, silent=silent)
+                                                                            EASYBLOCKS_VERSION), log, silent=testing)
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
@@ -189,7 +201,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
 
     # dump known toolchains
     if options.list_toolchains:
-        list_toolchains(log, silent=silent)
+        list_toolchains(log, silent=testing)
 
     # search for modules
     if options.search:
@@ -205,12 +217,13 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, options.robot, log,
-                                 try_to_generate=try_to_generate, exit_on_error=exit_on_error)]
+                                 try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
                       options.list_toolchains, options.search, options.regtest, options.version]):
+
             error("Please provide one or multiple easyconfig files, or use software build " \
                   "options to make EasyBuild search for easyconfigs",
-                  log=log, opt_parser=opt_parser, exit_on_error=exit_on_error)
+                  log=log, opt_parser=opt_parser, exit_on_error=not testing)
 
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
@@ -249,7 +262,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
 
     if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
              options.version, options.regtest]):
-        if logfile and not keep_logs:
+        if logfile and not testing:
             os.remove(logfile)
         sys.exit(0)
 
@@ -295,7 +308,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
             modspath = mk_module_path(curr_module_paths() + [os.path.join(config.install_path("mod"), 'all')])
             if m.exists(module[0], module[1], modspath):
                 msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
-                print_msg(msg, log, silent=silent)
+                print_msg(msg, log, silent=testing)
                 log.info(msg)
             else:
                 log.debug("%s is not installed yet, so retaining it" % mod)
@@ -303,12 +316,12 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        print_msg("resolving dependencies ...", log, silent=silent)
+        print_msg("resolving dependencies ...", log, silent=testing)
         # force all dependencies to be retained and validation to be skipped for building dep graph
         force = retain_all_deps and not validate_easyconfigs
         orderedSpecs = resolve_dependencies(easyconfigs, options.robot, log, force=force)
     else:
-        print_msg("No easyconfigs left to be built.", log, silent=silent)
+        print_msg("No easyconfigs left to be built.", log, silent=testing)
         orderedSpecs = []
 
     # create dependency graph and exit
@@ -337,10 +350,10 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         for opt in relevant_opts:
             value = getattr(options, opt.dest)
             # explicit check for None (some option are store_false)
-            if value != None:
+            if value is not None and not value == opt.default:
                 # get_opt_string is not documented (but is a public method)
                 name = opt.get_opt_string()
-                if opt.action == 'store':
+                if opt.action in ['extend', 'store', 'store_or_None'] or name in ['--stop']:
                     result_opts.append("%s %s" % (name, value))
                 else:
                     result_opts.append(name)
@@ -348,8 +361,8 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
         opts = ' '.join(result_opts)
 
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, opts)
-        log.debug("Command template for jobs: %s" % command)
-        if not dry_run:
+        log.info("Command template for jobs: %s" % command)
+        if not testing:
             jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build", log,
                                                           robot_path=options.robot)
             print "List of submitted jobs:"
@@ -363,21 +376,21 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     # build software, will exit when errors occurs (except when regtesting)
     correct_built_cnt = 0
     all_built_cnt = 0
-    if not dry_run:
-         for spec in orderedSpecs:
-             (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=silent)
-             if success:
-                 correct_built_cnt += 1
-             all_built_cnt += 1
+    if not testing:
+        for spec in orderedSpecs:
+            (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=testing)
+            if success:
+                correct_built_cnt += 1
+            all_built_cnt += 1
 
-    print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log, silent=silent)
+    print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log, silent=testing)
 
     get_repository().cleanup()
     # cleanup tmp log file (all is well, all modules have their own log file)
     try:
         remove_log_handler(hn)
         hn.close()
-        if logfile and not keep_logs:
+        if logfile and not testing:
             os.remove(logfile)
 
         for ec in easyconfigs:
@@ -387,7 +400,7 @@ def main(args=None, keep_logs=False, logfile=None, exit_on_error=True, silent=Fa
     except IOError, err:
         error("Something went wrong closing and removing the log %s : %s" % (logfile, err))
 
-    if keep_logs:
+    if testing:
         return logfile
 
 def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
@@ -496,7 +509,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
         availableModules = Modules().available()
 
         if len(availableModules) == 0:
-            log.warning("No installed modules. Your MODULEPATH is probably incomplete.")
+            log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
     orderedSpecs = []
     # All available modules can be used for resolving dependencies except
