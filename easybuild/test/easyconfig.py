@@ -579,13 +579,12 @@ class TestTemplating(EasyConfigTest):
     contents = """
 name = "%(name)s"
 version = "%(version)s"
-""" % input + """
 homepage = "http://google.com"
-description = "test easyconfig %(name)s"
+description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ]
-"""
+""" % input
 
     def runTest(self):
         """ test easyconfig templating """

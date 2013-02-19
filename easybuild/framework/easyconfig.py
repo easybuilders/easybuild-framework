@@ -655,23 +655,23 @@ def generate_template_values_doc():
         doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
     # step 2: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
-    for key in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%s" % (indent_l1, key))
+    for name in TEMPLATE_NAMES_CONFIG:
+        doc.append("%s%s" % (indent_l1, name))
 
     # step 3. make lower variants
     doc.append('Lowercase values of template values')
-    for key in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'key':key}, key))
+    for name in TEMPLATE_NAMES_LOWER:
+        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name':name}, name))
 
     # step 4. self._template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
-    for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%s: %s" % (indent_l1, key[0], key[1]))
+    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+        doc.append("%s%s: %s" % (indent_l1, name[0], name[1]))
 
     doc.append('Template constants that can be used in easyconfigs')
-    for x in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, x[0], x[2], x[1]))
+    for cst in TEMPLATE_CONSTANTS:
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
 
     return "\n".join(doc)
 
