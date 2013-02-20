@@ -116,7 +116,7 @@ class Extension(object):
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
-        self.cfg.enable_templating = False
+        self.cfg.enable_templating = True
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
