@@ -545,8 +545,8 @@ class GeneralOption(object):
 
     def _make_configfiles_options(self):
         """Add configfiles option"""
-        opts = {'configfiles':("Parse (additional) configfiles", self.DEFAULT_CONFIGFILES, "extend", None),
-                'ignoreconfigfiles':("Ignore configfiles", self.DEFAULT_IGNORECONFIGFILES, "extend", None),
+        opts = {'configfiles':("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
+                'ignoreconfigfiles':("Ignore configfiles", None, "extend", self.DEFAULT_IGNORECONFIGFILES),
                 }
         descr = ['Configfile options', '']
         self.log.debug("Add configfiles options descr %s opts %s (no prefix)" % (descr, opts))

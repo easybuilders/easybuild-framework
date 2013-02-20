@@ -36,12 +36,19 @@ import easybuild.tools.filetools as filetools
 import os
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import get_paths_for
-from easybuild.tools.config import get_default_configfile
+from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.version import this_is_easybuild
 from vsc.utils.generaloption import GeneralOption
 
 
 class EasyBuildOptions(GeneralOption):
+    """Easybuild generaloption class"""
+    VERSION = this_is_easybuild()
+
+    DEFAULT_LOGLEVEL = 'INFO'
+    DEFAULT_CONFIGFILES = get_default_configfiles()
+
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -115,7 +122,7 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        default_config = get_default_configfile()
+        default_config = get_default_oldstyle_configfile()
 
         opts = {
                 "config":("path to EasyBuild config file ",
@@ -144,12 +151,11 @@ class EasyBuildOptions(GeneralOption):
                 "list-easyblocks":("Show list of available easyblocks",
                                    "choice", "store_or_None", "simple", ["simple", "detailed"]),
                 "list-toolchains":("Show list of known toolchains",
-                                  None, "store_true", False),
+                                   None, "store_true", False),
                 "search":("Search for module-files in the robot-directory",
-                         None, "store", None, {'metavar':"STR"}),
-                 "version":("Show version", None, "store_true", None, "v",),
-                 "dep-graph":("Create dependency graph",
-                              None, "store", None, {'metavar':"depgraph.<ext>"},),
+                          None, "store", None, {'metavar':"STR"}),
+                "dep-graph":("Create dependency graph",
+                             None, "store", None, {'metavar':"depgraph.<ext>"},),
                 }
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
@@ -199,7 +205,7 @@ class EasyBuildOptions(GeneralOption):
 def parse_options(args=None):
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
-                   "Provide one or more easyconfigs or directories, use -h or --help more information.")
+                   "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
     eb_go = EasyBuildOptions(
                              usage=usage,

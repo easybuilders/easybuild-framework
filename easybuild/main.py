@@ -80,8 +80,8 @@ import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import this_is_easybuild, EasyBuildError, print_msg
-from easybuild.tools.build_log import FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
+from easybuild.tools.build_log import  EasyBuildError, print_msg
+from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
@@ -134,11 +134,6 @@ def main(testing_data=(None, None)):
                         "That's not wise, so let's end this here.\n" \
                         "Exiting.\n")
         sys.exit(1)
-
-    # TODO move to generaloption / tools.options
-    # show version
-    if options.version:
-        print_msg(this_is_easybuild(), log, silent=testing)
 
     if not options.robot is None:
         if options.robot:
@@ -200,8 +195,8 @@ def main(testing_data=(None, None)):
             paths = [obtain_path(software_build_specs, easyconfigs_paths, log,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.avail_easyconfig_params, options.list_easyblocks,
-                      options.list_toolchains, options.search, options.regtest, options.version]):
-
+                      options.list_toolchains, options.search, options.regtest]):
+            # TODO leave aggregate_regtest, regtest and search
             error("Please provide one or multiple easyconfig files, or use software build " \
                   "options to make EasyBuild search for easyconfigs",
                   log=log, opt_parser=opt_parser, exit_on_error=not testing)
@@ -242,7 +237,8 @@ def main(testing_data=(None, None)):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     if any([options.avail_easyconfig_params, options.list_easyblocks, options.list_toolchains, options.search,
-             options.version, options.regtest]):
+              options.regtest]):
+        # TODO only regtest and search here
         if logfile and not testing:
             os.remove(logfile)
         sys.exit(0)
