@@ -105,9 +105,11 @@ fancylogger.logging.setLoggerClass(EasyBuildLog)
 _init_fancylog = fancylogger.getLogger(fname=False)
 del _init_fancylog.manager.loggerDict[_init_fancylog.name]
 
+# we need to make sure there is a handler
+fancylogger.logToFile(filename=os.devnull)
+
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
-
 
 def get_log(name=None):
     """

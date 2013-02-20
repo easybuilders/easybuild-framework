@@ -606,12 +606,14 @@ class TestTemplatingDoc(EasyConfigTest):
         """test templating documentation"""
         doc = easyconfig.generate_template_values_doc()
         # expected length: 1 per constant and 1 extra per constantgroup
-        temps = [easyconfig.TEMPLATE_NAMES_EASYCONFIG,
+        temps = [
+                 easyconfig.TEMPLATE_NAMES_EASYCONFIG,
                  easyconfig.TEMPLATE_NAMES_CONFIG,
                  easyconfig.TEMPLATE_NAMES_LOWER,
                  easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
                  easyconfig.TEMPLATE_CONSTANTS,
-                 ]
+                 easyconfig.EASYCONFIG_CONSTANTS,
+                ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
 
