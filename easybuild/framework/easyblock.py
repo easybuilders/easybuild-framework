@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
@@ -27,14 +27,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Generic EasyBuild support for building and installing software.
 The EasyBlock class should serve as a base class for all easyblocks.
 """
 
 import copy
-import grp  #@UnresolvedImport
+import grp  # @UnresolvedImport
 import re
 import os
 import shutil
@@ -42,12 +42,13 @@ import stat
 import time
 import urllib
 from distutils.version import LooseVersion
+from vsc import fancylogger
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
-from easybuild.tools.build_log import EasyBuildError, init_logger, print_msg, remove_log_handler
-from easybuild.tools.config import build_path, install_path, log_path, read_only_installdir
-from easybuild.tools.config import source_path, module_classes
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.tools.build_log import EasyBuildError, print_msg, this_is_easybuild
+from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
+from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
@@ -97,8 +98,11 @@ class EasyBlock(object):
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
-        self.cfg = EasyConfig(path, extra_options=self.extra_options(), valid_module_classes=module_classes(),
-                              valid_stops=all_stops)
+        self.cfg = EasyConfig(path,
+                              extra_options=self.extra_options(),
+                              valid_module_classes=module_classes(),
+                              valid_stops=all_stops
+                              )
 
         # module generator
         self.moduleGenerator = None
@@ -109,10 +113,8 @@ class EasyBlock(object):
         # logging
         self.log = None
         self.logfile = None
-        self.loghandler = None
         self.logdebug = debug
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
-        self.init_log()
 
         # original environ will be set later
         self.orig_environ = {}
@@ -126,23 +128,34 @@ class EasyBlock(object):
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
 
+        # at the end of __init__, initialise the logging
+        self._init_log()
+
+        self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+
+
     # INIT/CLOSE LOG
-    def init_log(self):
+    def _init_log(self):
         """
         Initialize the logger.
         """
-        if not self.log:
-            self.logfile, self.log, self.loghandler = init_logger(self.name, self.version,
-                                                                  self.logdebug, typ=self.__class__.__name__)
-            self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+        if not self.log is None:
+            return
+
+        self.logfile = get_log_filename(self.name, self.version)
+        fancylogger.logToFile(self.logfile)
+
+        self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
+
+        self.log.info(this_is_easybuild())
+
 
     def close_log(self):
         """
         Shutdown the logger.
         """
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
-        remove_log_handler(self.loghandler)
-        self.loghandler.close()
+        fancylogger.logToFile(self.logfile, enable=False)
 
 
     #
@@ -182,7 +195,7 @@ class EasyBlock(object):
         patches = []
         for patchFile in list_of_patches:
 
-            ## check if the patches can be located
+            # # check if the patches can be located
             copy_file = False
             suff = None
             level = None
@@ -382,7 +395,7 @@ class EasyBlock(object):
                     if extension:
                         fullpaths = [
                                      os.path.join(cfp, "extensions", filename),
-                                     os.path.join(cfp, "packages", filename), # legacy
+                                     os.path.join(cfp, "packages", filename),  # legacy
                                      fullpath
                                     ]
                     else:
@@ -392,12 +405,12 @@ class EasyBlock(object):
                         if os.path.isfile(fp):
                             self.log.info("Found file %s at %s" % (filename, fp))
                             foundfile = os.path.abspath(fp)
-                            break # no need to try further
+                            break  # no need to try further
                         else:
                             failedpaths.append(fp)
 
                 if foundfile:
-                    break # no need to try other source paths
+                    break  # no need to try other source paths
 
             if foundfile:
                 return foundfile
@@ -429,8 +442,8 @@ class EasyBlock(object):
                         else:
                             fullurl = "%s/%s" % (url, filename)
                     elif type(url) == tuple:
-                        ## URLs that require a suffix, e.g., SourceForge download links
-                        ## e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
+                        # # URLs that require a suffix, e.g., SourceForge download links
+                        # # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
                         fullurl = "%s/%s/%s" % (url[0], filename, url[1])
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
@@ -492,7 +505,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             # make a unique build dir
-            ## if a tookitversion starts with a -, remove the - so prevent a -- in the path name
+            # # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
             tcversion = self.toolchain.version
             if tcversion.startswith('-'):
                 tcversion = tcversion[1:]
@@ -579,7 +592,7 @@ class EasyBlock(object):
             self.log.info("Cleaning only, no actual creation of %s, only verification/creation of dirname %s" % (olddir, dirName))
             if os.path.exists(dirName):
                 return
-            ## if not, create dir as usual
+            # # if not, create dir as usual
 
         try:
             os.makedirs(dirName)
@@ -731,7 +744,7 @@ class EasyBlock(object):
         A dictionary of possible directories to look for.
         """
         return {
-            'PATH': ['bin'],
+            'PATH': ['bin', 'sbin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
@@ -945,13 +958,13 @@ class EasyBlock(object):
                 self.log.error("Parallelism %s not integer: %s" % (nr, err))
         else:
             nr = get_core_count()
-            ## check ulimit -u
+            # # check ulimit -u
             out, ec = run_cmd('ulimit -u')
             try:
                 if out.startswith("unlimited"):
                     out = 2 ** 32 - 1
                 maxuserproc = int(out)
-                ## assume 6 processes per build thread + 15 overhead
+                # # assume 6 processes per build thread + 15 overhead
                 maxnr = int((maxuserproc - 15) / 6)
                 if maxnr < nr:
                     nr = maxnr
@@ -1035,7 +1048,7 @@ class EasyBlock(object):
         prepare for building
         """
 
-        ## check EasyBuild version
+        # # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! Assuming the latest version")
@@ -1101,7 +1114,7 @@ class EasyBlock(object):
             self.log.info("Applying patch %s" % tmp['name'])
 
             copy = False
-            ## default: patch first source
+            # # default: patch first source
             srcind = 0
             if 'source' in tmp:
                 srcind = tmp['source']
@@ -1514,10 +1527,15 @@ class EasyBlock(object):
         """
         Run step, returns false when execution should be stopped
         """
-        if skippable and self.skip:
+        if skippable and (self.skip or step in self.cfg['skipsteps']):
             self.log.info("Skipping %s step" % step)
         else:
             self.log.info("Starting %s step" % step)
+            # update the config templates
+            for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+                self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
+            self.cfg.generate_template_values()
+
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
                 m(self)
@@ -1623,9 +1641,9 @@ def get_module_path(easyblock, generic=False):
 
     # construct character translation table for module name
     # only 0-9, a-z, A-Z are retained, everything else is mapped to _
-    charmap = 48 * '_' + ''.join([chr(x) for x in range(48, 58)]) # 0-9
-    charmap += 7 * '_' + ''.join([chr(x) for x in range(65, 91)]) # A-Z
-    charmap += 6 * '_' + ''.join([chr(x) for x in range(97, 123)]) + 133 * '_' # a-z
+    charmap = 48 * '_' + ''.join([chr(x) for x in range(48, 58)])  # 0-9
+    charmap += 7 * '_' + ''.join([chr(x) for x in range(65, 91)])  # A-Z
+    charmap += 6 * '_' + ''.join([chr(x) for x in range(97, 123)]) + 133 * '_'  # a-z
 
     module_name = easyblock.translate(charmap)
 

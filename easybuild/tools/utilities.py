@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Ghent University
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,19 +23,42 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
+Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.acml import Acml
-from easybuild.toolchains.linalg.blacs import Blacs
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
+# FIXME: remove when Python version on which we rely provides any by itself
+def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
+    return sum([bool(x) for x in ls]) != 0
 
-class Iqacml(IntelIccIfort, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with Intel compilers, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
-    NAME = 'iqacml'
+def flatten(lst):
+    """Flatten a list of lists."""
+    res = []
+    for x in lst:
+        res.extend(x)
+    return res
+
+def quote_str(x):
+    """
+    Obtain a new value to be used in string replacement context.
+    
+    For non-string values, it just returns the exact same value.
+    
+    For string values, it tries to escape the string in quotes, e.g.,
+    foo becomes 'foo', foo'bar becomes "foo'bar",
+    foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
+    """
+
+    if isinstance(x, basestring):
+        if "'" in x and '"' in x:
+            return '"""%s"""' % x
+        elif '"' in x:
+            return "'%s'" % x
+        else:
+            return '"%s"' % x
+    else:
+        return x
+

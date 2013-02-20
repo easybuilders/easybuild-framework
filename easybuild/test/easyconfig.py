@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 # Copyright 2012 Kenneth Hoste
@@ -23,14 +23,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 import os
 import re
 import shutil
 import tempfile
 
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
@@ -39,21 +39,25 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 class EasyConfigTest(TestCase):
     """ Baseclass for easyblock testcases """
+    contents = None
 
     def setUp(self):
         """ create temporary easyconfig file """
         self.log = get_log("EasyConfigTest")
-        self.eb_file = "/tmp/easyconfig_test_file.eb"
-        f = open(self.eb_file, "w")
-        f.write(self.contents)
-        f.close()
+        if self.contents is not None:
+            fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
+            os.close(fd)
+            f = open(self.eb_file, "w")
+            f.write(self.contents)
+            f.close()
         self.cwd = os.getcwd()
 
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
 
     def tearDown(self):
         """ make sure to remove the temporary file """
-        os.remove(self.eb_file)
+        if self.contents is not None:
+            os.remove(self.eb_file)
         os.chdir(self.cwd)
 
     def assertErrorRegex(self, error, regex, call, *args):
@@ -119,7 +123,7 @@ stop = 'notvalid'
     def runTest(self):
         """ test other validations beside mandatory variables """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
-        self.assertErrorRegex(EasyBuildError, "\w* provided '\w*' is not valid", eb.validate)
+        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
 
         eb['stop'] = 'patch'
         # this should now not crash
@@ -254,7 +258,8 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
 
         # test extra mandatory vars
-        self.assertErrorRegex(EasyBuildError, "mandatory variables \S* not provided", EasyConfig, self.eb_file, extra_vars)
+        self.assertErrorRegex(EasyBuildError, r"mandatory variables \S* not provided",
+                              EasyConfig, self.eb_file, extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
         self.setUp()
@@ -290,7 +295,8 @@ sourceURLs = ['http://google.com']
 class TestTweaking(EasyConfigTest):
     """test tweaking ability of easyconfigs"""
 
-    tweaked_fn = "/tmp/tweaked.eb"
+    fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
+    os.close(fd)
 
     patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
     contents = """
@@ -329,8 +335,11 @@ patches = %s
         self.assertEqual(eb['patches'], extra_patches + self.patches)
 
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
+        eb.enable_templating = False
         eb['version'] = ver
         eb['toolchain']['version'] = tcver
+        eb.enable_templating = True
         eb.dump(self.eb_file)
 
         tweaks = {
@@ -439,11 +448,11 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
 
         # should find matching easyconfig file
         specs = {'name': 'foo', 'version': '1.2.3'}
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
         self.assertEqual(res[0], False)
         self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
 
@@ -457,7 +466,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'versionsuffix': suff
                      })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, self.ec_dir, None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -467,7 +476,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': ver,
                       'foo': 'bar123'
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
@@ -478,13 +487,13 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         # can't check for key 'foo', because EasyConfig ignores parameter names it doesn't know about
         txt = open(res[1], "r").read()
-        self.assertTrue(re.search("foo = '%s'" % specs['foo'], txt))
+        self.assertTrue(re.search('foo = "%s"' % specs['foo'], txt))
         os.remove(res[1])
 
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -497,7 +506,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': '3.15',
                       'toolchain_version': '4.4.5',
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -515,7 +524,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'patches': extra_patches,
                       'dependencies': deps
                      })
-        res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['patches'], specs['patches'] + patches)
@@ -524,7 +533,7 @@ class TestObtainEasyconfig(EasyConfigTest):
 
         # should use supplied filename
         fn = "my.eb"
-        res = obtain_ec_for(specs, self.ec_dir, fn, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], fn, self.log)
         self.assertEqual(res[0], True)
         self.assertEqual(res[1], fn)
         os.remove(res[1])
@@ -549,7 +558,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         if tpl_full_path:
             shutil.copy2(tpl_full_path, self.ec_dir)
             specs.update({'name': 'nosuchsoftware'})
-            res = obtain_ec_for(specs, self.ec_dir, None, self.log)
+            res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
             self.assertEqual(res[0], True)
             ec = EasyConfig(res[1], valid_stops=self.all_stops)
             self.assertEqual(ec['name'], specs['name'])
@@ -560,9 +569,63 @@ class TestObtainEasyconfig(EasyConfigTest):
         EasyConfigTest.tearDown(self)
         shutil.rmtree(self.ec_dir)
 
+
+class TestTemplating(EasyConfigTest):
+    """test templating validations """
+
+    input = {'name':'PI',
+             'version':'3.14',
+             'namelower':'pi',
+             }
+
+    contents = """
+name = "%(name)s"
+version = "%(version)s"
+homepage = "http://google.com"
+description = "test easyconfig %%(name)s"
+toolchain = {"name":"dummy", "version": "dummy2"}
+source_urls = [(GOOGLECODE_SOURCE)]
+sources = [SOURCE_TAR_GZ]
+""" % input
+
+    def runTest(self):
+        """ test easyconfig templating """
+        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        eb.validate()
+        eb._generate_template_values()
+
+        self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
+        const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.input)
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.input)
+
+
+class TestTemplatingDoc(EasyConfigTest):
+    """test templating documentation"""
+    def runTest(self):
+        """test templating documentation"""
+        doc = easyconfig.generate_template_values_doc()
+        # expected length: 1 per constant and 1 extra per constantgroup
+        temps = [
+                 easyconfig.TEMPLATE_NAMES_EASYCONFIG,
+                 easyconfig.TEMPLATE_NAMES_CONFIG,
+                 easyconfig.TEMPLATE_NAMES_LOWER,
+                 easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+                 easyconfig.TEMPLATE_CONSTANTS,
+                 easyconfig.EASYCONFIG_CONSTANTS,
+                ]
+        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+
+
 def suite():
     """ return all the tests in this file """
     return TestSuite([TestDependency(), TestEmpty(), TestExtraOptions(),
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
-                      TestObtainEasyconfig()])
+                      TestObtainEasyconfig(),
+                      TestTemplating(), TestTemplatingDoc(),
+                      ])
+
+
+if __name__ == '__main__':
+    main()
