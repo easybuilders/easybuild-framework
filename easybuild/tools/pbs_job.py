@@ -31,24 +31,35 @@ Interface module to TORQUE (PBS).
 import os
 from easybuild.tools.build_log import get_log
 
-pbs_import_failed = True
+_log = get_log('pbs_job')
+
+pbs_import_failed = None
 try:
     from PBSQuery import PBSQuery
     import pbs
-    pbs_import_failed = False
 except ImportError:
-    pass
+    _log.debug("Failed to import pbs from pbs_python. Silently ignoring, is only a real issue with --job")
+    pbs_import_failed = ("PBSQuery or pbs modules not available. "
+                         "Please make sure pbs_python is installed and usable.")
 
 MAX_WALLTIME = 72
 
 def connect_to_server(pbs_server=None):
     """Connect to PBS server and return connection."""
+    if pbs_import_failed:
+        _log.error(pbs_import_failed)
+        return None
+
     if not pbs_server:
         pbs_server = pbs.pbs_default()
     return pbs.pbs_connect(pbs_server)
 
 def disconnect_from_server(conn):
     """Disconnect a given connection."""
+    if pbs_import_failed:
+        _log.error(pbs_import_failed)
+        return None
+
     pbs.pbs_disconnect(conn)
 
 class PbsJob(object):
@@ -62,7 +73,7 @@ class PbsJob(object):
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
         self.clean_conn = True
-        self.log = get_log("PbsJob")
+        self.log = get_log(self.__class__.__name__)
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
@@ -70,13 +81,8 @@ class PbsJob(object):
             self.env_vars = {}
         self.name = name
 
-        try:
-            # try and use pbs and PBSQuery to see if they're there
-            pbs.pbs_default()
-            PBSQuery()
-        except NameError, err:
-            self.log.error("PBSQuery or pbs modules not available: %s\n" \
-                           "Please make sure pbs_python is installed and usable." % err)
+        if pbs_import_failed:
+            self.log.error(pbs_import_failed)
 
         try:
             self.pbs_server = pbs.pbs_default()
@@ -216,11 +222,13 @@ class PbsJob(object):
 
         jstate = state.get('job_state', None)
 
-        def get_uniq_hosts(txt, num= -1):
+        def get_uniq_hosts(txt, num=None):
             """
             - txt: format: host1/cpuid+host2/cpuid
             - num: number of nodes to return (default: all)
             """
+            if num is None:
+                num = -1
             res = []
             for h_c in txt.split('+'):
                 h = h_c.split('/')[0]

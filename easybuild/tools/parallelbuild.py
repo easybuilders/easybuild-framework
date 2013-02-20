@@ -37,24 +37,26 @@ import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server
 from easybuild.tools.config import get_repository
+from vsc import fancylogger
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log, robot_path=None):
+_log = fancylogger.getLogger('parllelbuild', fname=False)
+
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
 
     returns the jobs
     """
-    log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
+    _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
     job_module_dict = {}
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
 
-    try:
-        conn = connect_to_server()
-    except:
-        log.raiseException('Failed to connect_to_server')
+    conn = connect_to_server()
+    if conn is None:
+        _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
 
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
@@ -63,13 +65,15 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log, r
         prepare_easyconfig(ec, log, robot_path=robot_path)
 
         # the new job will only depend on already submitted jobs
-        log.info("creating job for ec: %s" % str(ec))
+        _log.info("creating job for ec: %s" % str(ec))
         new_job = create_job(build_command, ec, log, output_dir, conn=conn)
+
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
         job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
         new_job.add_dependencies(job_deps)
         new_job.submit()
-        log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+        _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+
         # update dictionary
         job_module_dict[new_job.module] = new_job.jobid
         new_job.cleanup()
@@ -103,7 +107,7 @@ def create_job(build_command, easyconfig, log, output_dir="", conn=None):
         if env_var in os.environ:
             easybuild_vars[env_var] = os.environ[env_var]
 
-    log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
+    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
 
     # create unique name based on module name
     name = "%s-%s" % easyconfig['module']
@@ -124,7 +128,7 @@ def create_job(build_command, easyconfig, log, output_dir="", conn=None):
     return job
 
 
-def get_instance(easyconfig, log, robot_path=None):
+def get_instance(easyconfig, robot_path=None):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
@@ -144,14 +148,14 @@ def get_instance(easyconfig, log, robot_path=None):
             easyblock = eval(match.group(1))
             break
 
-    app_class = get_class(easyblock, log, name=name)
+    app_class = get_class(easyblock, _log, name=name)
     return app_class(spec, debug=True, robot_path=robot_path)
 
 
-def prepare_easyconfig(ec, log, robot_path=None):
+def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, log, robot_path=robot_path)
+        instance = get_instance(ec, _log, robot_path=robot_path)
         instance.fetch_step()
     except:
         pass
