@@ -46,7 +46,7 @@ from vsc import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.tools.build_log import EasyBuildError, print_msg, this_is_easybuild
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
@@ -54,7 +54,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, 
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
-from easybuild.tools.version import VERBOSE_VERSION, VERSION
+from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 
 class EasyBlock(object):
