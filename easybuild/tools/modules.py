@@ -233,11 +233,13 @@ class Modules(object):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
         self.log.debug("Running 'modulecmd python %s' from %s..." % (' '.join(args), os.getcwd()))
-        # change our ld library path here.
+        # change our LD_LIBRARY_PATH here
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
+        # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be updated (prepend-path) on loading a module
+        # this needs to be taken into account when actually updating the environment as dictated by the output produced, see below
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
@@ -248,11 +250,25 @@ class Modules(object):
         if kwargs.get('return_output', False):
             return stdout + stderr
         else:
+            # keep track of current LD_LIBRARY_PATH, so we can correct the adjusted LD_LIBRARY_PATH below
+            cur_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
+
             # Change the environment
             try:
                 exec stdout
             except Exception, err:
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, stdout))
+
+            # correct LD_LIBRARY_PATH as yielded by the adjustments made
+            if LD_LIBRARY_PATH:
+                # make sure paths are separated by ':'
+                cur_ld_library_path = ':%s' % cur_ld_library_path
+
+            # correct LD_LIBRARY_PATH by replacing part at the end with the original LD_LIBRARY_PATH by the previous updated value
+            corrected_ld_library_path = re.sub('%s$' % LD_LIBRARY_PATH, cur_ld_library_path, os.environ.get('LD_LIBRARY_PATH', ''))
+
+            self.log.debug("Correcting LD_LIBRARY_PATH from %s  to  %s" % (os.environ.get('LD_LIBRARY_PATH', ''), corrected_ld_library_path))
+            os.environ['LD_LIBRARY_PATH'] = corrected_ld_library_path
 
             # Process stderr
             result = []
