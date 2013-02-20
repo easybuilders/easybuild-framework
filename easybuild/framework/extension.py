@@ -110,11 +110,13 @@ class Extension(object):
         except OSError, err:
             self.log.error("Failed to change directory: %s" % err)
 
+        self.cfg.enable_templating = False
         if not self.cfg['exts_filter'] is None:
             cmd, inp = self.cfg['exts_filter']
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
+        self.cfg.enable_templating = False
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
