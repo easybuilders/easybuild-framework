@@ -96,7 +96,8 @@ TEMPLATE_CONSTANTS = [
 
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = [
-                        ('SYS_PYTHON_VERSION', platform.python_version(), "System Python version (platform.python_version())"),
+                        ('SYS_PYTHON_VERSION', platform.python_version(),
+                         "System Python version (platform.python_version())"),
                        ]
 
 class EasyConfig(object):
