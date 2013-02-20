@@ -176,6 +176,25 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
+    def easyconfig_options(self):
+        # easyconfig options (to be passed to easyconfig instance)
+        descr = ("Options for Easyconfigs",
+                 "Options to be passed to all Easyconfig.")
+
+        opts = {'x':('x', None, "store", None)}
+        self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
+        # self.add_group_parser(opts, descr, prefix='easyconfig')
+
+    def easyblock_options(self):
+        # easyblock options (to be passed to easyblock instance)
+        descr = ("Options for Easyblocks",
+                 "Options to be passed to all Easyblocks.")
+
+        opts = {'x':('x', None, "store", None)}
+        self.log.debug("easyblock_options: descr %s opts %s" % (descr, opts))
+        # self.add_group_parser(opts, descr, prefix='easyblock')
+
+
 
 def parse_options(args=None):
     usage = "%prog [options] easyconfig [...]"
