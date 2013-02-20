@@ -32,15 +32,19 @@ Command line options for eb
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
-import easybuild.tools.filetools as filetools
 import os
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import get_paths_for
+import re
+import sys
+from easybuild.framework.easyblock import EasyBlock, get_class
+from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help
+from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
+from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.version import this_is_easybuild
+from vsc import fancylogger
 from vsc.utils.generaloption import GeneralOption
-
 
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
@@ -48,6 +52,8 @@ class EasyBuildOptions(GeneralOption):
 
     DEFAULT_LOGLEVEL = 'INFO'
     DEFAULT_CONFIGFILES = get_default_configfiles()
+
+    ALLOPTSMANDATORY = False  # allow more then one argument
 
     def basic_options(self):
         """basic runtime options"""
@@ -63,8 +69,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-                            "only-blocks":("Only build blocks blk[,blk2]",
-                                           None, "store_true", False, "b", {'metavar':"BLOCKS"}),
+                            "only-blocks":("Only build listed blocks",
+                                           None, "extend", None, "b", {'metavar':"BLOCKS"}),
                             "force":(("Force to rebuild software even if it's already installed "
                                       "(i.e. if it can be found as module)"),
                                      None, "store_true", False, "f"),
@@ -200,9 +206,146 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("easyblock_options: descr %s opts %s" % (descr, opts))
         # self.add_group_parser(opts, descr, prefix='easyblock')
 
+    def unittest_options(self):
+        # unittest options
+        descr = ("Unittest options",
+                 "Options dedicated to unittesting (experts only).")
+
+        opts = {
+                "file":("Log to this file in unittest mode", None, "store", None),
+                }
+
+        self.log.debug("unittest_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr, prefix='unittest')
+
+    def postprocess(self):
+        """Do some postprocessing, in particular print stuff"""
+        if self.options.unittest_file:
+            fancylogger.logToFile(self.options.unittest_file)
+        msg = ''
+        # dump possible easyconfig params
+        if self.options.avail_easyconfig_params:
+            msg += self.avail_easyconfig_params()
+
+        # dump available easyblocks
+        if self.options.list_easyblocks:
+            msg += self.avail_easyblocks()
+
+        # dump known toolchains
+        if self.options.list_toolchains:
+            msg += self.avail_toolchains()
+
+        if any([self.options.avail_easyconfig_params, self.options.list_easyblocks, self.options.list_toolchains]):
+            print msg
+            if self.options.unittest_file:
+                self.log.info(msg)
+            sys.exit(0)
+
+    def avail_easyconfig_params(self):
+        """
+        Print the available easyconfig parameters, for the given easyblock.
+        """
+        app = get_class(self.options.easyblock, self.log)
+        extra = app.extra_options()
+        mapping = convert_to_help(EasyConfig.default_config + extra)
+
+        txt = []
+        for key, values in mapping.items():
+            txt.append("%s" % key.upper())
+            txt.append('-' * len(key))
+            for name, value in values:
+                tabs = "\t" * (3 - (len(name) + 1) / 8)
+                txt.append("%s:%s%s" % (name, tabs, value))
+            txt.append('')
+
+        return "\n".join(txt)
+
+    def avail_classes_tree(self, classes, classNames, detailed, depth=0):
+        """Print list of classes as a tree."""
+        txt = []
+        for className in classNames:
+            classInfo = classes[className]
+            if detailed:
+                txt.append("%s|-- %s (%s)" % ("|   " * depth, className, classInfo['module']))
+            else:
+                txt.append("%s|-- %s" % ("|   " * depth, className))
+            if 'children' in classInfo:
+                txt.extend(self.avail_classes_tree(classes, classInfo['children'], detailed, depth + 1))
+        return txt
+
+    def avail_easyblocks(self):
+        """Get a class tree for easyblocks."""
+        detailed = self.options.list_easyblocks == "detailed"
+        module_regexp = re.compile(r"^([^_].*)\.py$")
+
+        for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
+            __import__(package)
+
+            # determine paths for this package
+            paths = sys.modules[package].__path__
+
+            # import all modules in these paths
+            for path in paths:
+                if os.path.exists(path):
+                    for f in os.listdir(path):
+                        res = module_regexp.match(f)
+                        if res:
+                            __import__("%s.%s" % (package, res.group(1)))
+
+        def add_class(classes, cls):
+            """Add a new class, and all of its subclasses."""
+            children = cls.__subclasses__()
+            classes.update({cls.__name__: {
+                                           'module': cls.__module__,
+                                           'children': [x.__name__ for x in children]
+                                           }
+                            })
+            for child in children:
+                add_class(classes, child)
+
+        roots = [EasyBlock, Extension]
+
+        classes = {}
+        for root in roots:
+            add_class(classes, root)
+
+        # Print the tree, start with the roots
+        txt = []
+        for root in roots:
+            root = root.__name__
+            if detailed:
+                txt.append("%s (%s)" % (root, classes[root]['module']))
+            else:
+                txt.append("%s" % root)
+            if 'children' in classes[root]:
+                txt.extend(self.avail_classes_tree(classes, classes[root]['children'], detailed))
+                txt.append("")
+
+        return "\n".join(txt)
+
+    def avail_toolchains(self):
+        """Show list of known toolchains."""
+        _, all_tcs = search_toolchain('')
+        all_tcs_names = [x.NAME for x in all_tcs]
+        tclist = sorted(zip(all_tcs_names, all_tcs))
+
+        txt = ["List of known toolchains (toolchainname: module[,module...]):"]
+
+        for (tcname, tcc) in tclist:
+            tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
+            tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
+
+            txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
+
+        return '\n'.join(txt)
 
 
 def parse_options(args=None):
+    """wrapper function for option parsing"""
+    if os.environ.get('PRIVATE_EASYBUILD_PARSE_OPTIONS_DEBUG', '0').lower() in ('1', 'true', 'yes', 'y'):
+        fancylogger.logToScreen(enable=True)
+        fancylogger.setLogLevel('DEBUG')
+
     usage = "%prog [options] easyconfig [...]"
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
@@ -214,4 +357,6 @@ def parse_options(args=None):
                              envvar_prefix='EASYBUILD',
                              go_args=args,
                              )
-    return eb_go.options, eb_go.args, eb_go.parser
+    return eb_go.options, eb_go.args, eb_go.parser, eb_go.generate_cmd_line()
+
+

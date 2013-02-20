@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Stijn De Weirdt
 # Copyright 2012 Toon Willems
@@ -23,20 +23,21 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Interface module to TORQUE (PBS).
 """
 
 import os
+from easybuild.tools.build_log import get_log
 
+pbs_import_failed = True
 try:
     from PBSQuery import PBSQuery
     import pbs
+    pbs_import_failed = False
 except ImportError:
     pass
-
-from easybuild.tools.build_log import get_log
 
 MAX_WALLTIME = 72
 
@@ -61,7 +62,7 @@ class PbsJob(object):
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
         self.clean_conn = True
-        self.log = get_log("PBS")
+        self.log = get_log("PbsJob")
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
@@ -155,8 +156,8 @@ class PbsJob(object):
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
-        ## add a bunch of variables (added by qsub)
-        ## also set PBS_O_WORKDIR to os.getcwd()
+        # # add a bunch of variables (added by qsub)
+        # # also set PBS_O_WORKDIR to os.getcwd()
         os.environ.setdefault('WORKDIR', os.getcwd())
 
         defvars = ['MAIL', 'HOME', 'PATH', 'SHELL', 'WORKDIR']
@@ -215,7 +216,7 @@ class PbsJob(object):
 
         jstate = state.get('job_state', None)
 
-        def get_uniq_hosts(txt, num=-1):
+        def get_uniq_hosts(txt, num= -1):
             """
             - txt: format: host1/cpuid+host2/cpuid
             - num: number of nodes to return (default: all)
@@ -285,7 +286,7 @@ class PbsJob(object):
 
     def remove(self):
         """Remove the job with id jobid"""
-        result = pbs.pbs_deljob(self.pbsconn, self.jobid, '') ## use empty string, not NULL
+        result = pbs.pbs_deljob(self.pbsconn, self.jobid, '')  # # use empty string, not NULL
         if result:
             self.log.error("Failed to delete job %s: error %s" % (self.jobid, result))
         else:
@@ -294,14 +295,14 @@ class PbsJob(object):
     def get_ppn(self):
         """Guess the ppn for full node"""
         pq = PBSQuery()
-        node_vals = pq.getnodes().values() ## only the values, not the names
+        node_vals = pq.getnodes().values()  # # only the values, not the names
         interesting_nodes = ('free', 'job-exclusive',)
         res = {}
         for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
             res.setdefault(np, 0)
             res[np] += 1
 
-        ## return most frequent
+        # # return most frequent
         freq_count, freq_np = max([(j, i) for i, j in res.items()])
         self.log.debug("Found most frequent np %s (%s times) in interesni nodes %s" % (freq_np,
                                                                                        freq_count,
