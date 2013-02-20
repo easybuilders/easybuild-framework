@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Command line options for eb
 
@@ -48,7 +48,7 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
         try:
-            default_robot_path=get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
+            default_robot_path = get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
             default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
@@ -69,7 +69,7 @@ class EasyBuildOptions(GeneralOption):
                             "stop":("Stop the installation after certain step",
                                     "choice", "store_or_None", "unpack", "s", all_stops),
                             "strict":("Set strictness level",
-                                      "choice", "store", filetools.ERROR, strictness_options),
+                                      "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
                             })
 
@@ -176,6 +176,25 @@ class EasyBuildOptions(GeneralOption):
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
+    def easyconfig_options(self):
+        # easyconfig options (to be passed to easyconfig instance)
+        descr = ("Options for Easyconfigs",
+                 "Options to be passed to all Easyconfig.")
+
+        opts = {'x':('x', None, "store", None)}
+        self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
+        # self.add_group_parser(opts, descr, prefix='easyconfig')
+
+    def easyblock_options(self):
+        # easyblock options (to be passed to easyblock instance)
+        descr = ("Options for Easyblocks",
+                 "Options to be passed to all Easyblocks.")
+
+        opts = {'x':('x', None, "store", None)}
+        self.log.debug("easyblock_options: descr %s opts %s" % (descr, opts))
+        # self.add_group_parser(opts, descr, prefix='easyblock')
+
+
 
 def parse_options(args=None):
     usage = "%prog [options] easyconfig [...]"
@@ -189,5 +208,4 @@ def parse_options(args=None):
                              envvar_prefix='EASYBUILD',
                              go_args=args,
                              )
-
     return eb_go.options, eb_go.args, eb_go.parser

@@ -33,6 +33,7 @@ import copy
 import difflib
 import glob
 import os
+import platform
 import re
 import sys
 import tempfile
@@ -41,6 +42,7 @@ from distutils.version import LooseVersion
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -80,7 +82,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
                                      ('installdir', "Installation directory"),
                                      ('builddir', "Build directory"),
                                      ]
-# constants that can be used in easyconfigs
+# constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
                       ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
                       ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
@@ -91,6 +93,12 @@ TEMPLATE_CONSTANTS = [
                       ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s/',
                        'sourceforge.net source url'),
                       ]
+
+# constants that can be used in easyconfig
+EASYCONFIG_CONSTANTS = [
+                        ('SYS_PYTHON_VERSION', platform.python_version(),
+                         "System Python version (platform.python_version())"),
+                       ]
 
 class EasyConfig(object):
     """
@@ -189,7 +197,7 @@ class EasyConfig(object):
         validate specifies whether validations should happen
         """
 
-        self._template_values = None
+        self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = get_log("EasyConfig")
@@ -268,7 +276,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])
+        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS+EASYCONFIG_CONSTANTS])
         global_vars.update(const_dict)
         local_vars = {}
 
@@ -306,7 +314,7 @@ class EasyConfig(object):
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
-            env.setvar(get_software_root_env_var_name(name), True)  # root is set to True, not an actual path
+            env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
             env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
 
     def validate(self):
@@ -540,8 +548,8 @@ class EasyConfig(object):
 
     def _generate_template_values(self, ignore=None, skip_lower=True):
         """Actual code to generate the template values"""
-        if self._template_values is None:
-            self._template_values = {}
+        if self.template_values is None:
+            self.template_values = {}
 
         # ignore self
         if ignore is None:
@@ -582,19 +590,19 @@ class EasyConfig(object):
                 self.log.debug("_getitem_string: can't get .lower() for name %s value %s (type %s)" %
                                (name, t_v, type(t_v)))
 
-        # step 4. self._template_values can/should be updated from outside easyconfig
+        # step 4. self.template_values can/should be updated from outside easyconfig
         # (eg the run_setp code in EasyBlock)
-        self._template_values.update(template_values)
+        self.template_values.update(template_values)
 
         # copy to remove the ignores
-        for k, v in self._template_values.items():
+        for k, v in self.template_values.items():
             if v is None:
-                del self._template_values[k]
+                del self.template_values[k]
 
         template_values = {}
-        for k, v in self._template_values.items():
+        for k, v in self.template_values.items():
             try:
-                template_values[k] = v % self._template_values
+                template_values[k] = v % self.template_values
             except KeyError:
                 # not all converted
                 template_values[k] = v
@@ -603,15 +611,15 @@ class EasyConfig(object):
         """Given a value, try to susbstitute the templated strings with actual values.
             - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         """
-        if self._template_values is None or len(self._template_values) == 0:
+        if self.template_values is None or len(self.template_values) == 0:
             self.generate_template_values()
 
         if isinstance(value, str):
             try:
-                value = value % self._template_values
+                value = value % self.template_values
             except KeyError:
                 self.log.warning("Unable to resolve template value %s with dict %s" %
-                                 (value, self._template_values))
+                                 (value, self.template_values))
         else:
             # this block deals with references to objects and returns other references
             # for reading this is ok, but for self['x'] = {}
@@ -681,7 +689,7 @@ def generate_template_values_doc():
     for name in TEMPLATE_NAMES_LOWER:
         doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name':name}, name))
 
-    # step 4. self._template_values can/should be updated from outside easyconfig
+    # step 4. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
     for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
@@ -689,6 +697,10 @@ def generate_template_values_doc():
 
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+
+    doc.append("Constants that can be used in easyconfigs")
+    for cst in EASYCONFIG_CONSTANTS:
         doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
 
     return "\n".join(doc)

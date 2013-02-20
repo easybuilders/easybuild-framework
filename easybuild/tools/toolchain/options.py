@@ -38,7 +38,7 @@ from vsc import fancylogger
 
 class ToolchainOptions(dict):
     def __init__(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.options_map = {}  # map between options name and value
         self.description = {}  # short description of the options

@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """Unit tests for eb command line options.
 
 @author: Kenneth Hoste (Ghent University)
@@ -35,28 +35,25 @@ from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
 from easybuild.main import main
-from easybuild.tools.build_log import EasyBuildLog, init_logger, remove_log_handler
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
 class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
-    tid = 0
-
-    # create log file
-    fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
-    os.close(fd)
+    logfile = None
 
     def setUp(self):
         """Prepare for running unit tests."""
-        self.tid += 1
-        open(self.logfile, 'w').write('')  # clear logfile
+        # create log file
+        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
+        os.close(fd)
+        #open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
-        pass
+        os.remove(self.logfile)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -101,7 +98,7 @@ class CommandLineOptionsTest(TestCase):
         """Test using no arguments."""
 
         try:
-            main((self.tid, [], self.logfile))
+            main(([], self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -119,16 +116,14 @@ class CommandLineOptionsTest(TestCase):
                     debug_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except Exception, err:
-                pass
+                myerr = err
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, debug_arg))
-
-            self.tid += 1
 
     def test_info(self):
         """Test enabling info logging."""
@@ -138,21 +133,20 @@ class CommandLineOptionsTest(TestCase):
                     '--software-name=somethingrandom',
                     info_arg,
                    ]
+            myerr = None
             try:
-                main((self.tid, args, self.logfile))
-            except:
-                pass
+                main((args, self.logfile))
+            except Exception, err:
+                myerr = err
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, info_arg))
+                self.assertTrue(res, "%s log messages are included when using %s (err: %s, out: %s)" % (log_msg_type, info_arg, myerr, outtxt))
 
             for log_msg_type in ['DEBUG']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
-
-            self.tid += 1
 
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
@@ -163,20 +157,18 @@ class CommandLineOptionsTest(TestCase):
                     quiet_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except:
                 pass
             outtxt = open(self.logfile, 'r').read()
 
             for log_msg_type in ['ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, quiet_arg))
+                self.assertTrue(res, "%s log messages are included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
-            for log_msg_type in ['DEBUG']:  #, 'INFO']: --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
+            for log_msg_type in ['DEBUG', 'INFO']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, quiet_arg))
-
-            self.tid += 1
+                self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
@@ -195,7 +187,7 @@ class CommandLineOptionsTest(TestCase):
 
         error_thrown = False
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except Exception, err:
             error_thrown = err
 
@@ -208,7 +200,6 @@ class CommandLineOptionsTest(TestCase):
 
         # clear log file
         open(self.logfile, 'w').write('')
-        self.tid += 1
 
         # check that --force works
         args = [
@@ -216,7 +207,7 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                ]
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -253,16 +244,14 @@ class CommandLineOptionsTest(TestCase):
                     '--job',
                    ] + job_args
             try:
-                main((self.tid, args, self.logfile))
+                main((args, self.logfile))
             except:
                 pass  # main may crash
             outtxt = open(self.logfile, 'r').read()
-            #print '\n\n\n\n%s\n\n\n\n\n' % outtxt
+            # print '\n\n\n\n%s\n\n\n\n\n' % outtxt
 
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join([x.replace('=', ' ', 1) for x in job_args])
             self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
-
-            self.tid += 1
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
@@ -270,9 +259,9 @@ class CommandLineOptionsTest(TestCase):
         else:
             os.environ.pop('MODULEPATH')
 
-    # double underscore in the test name is intentional to make this test run last,
+    # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
-    def test__logtostdout(self):
+    def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
         for stdout_arg in ['--logtostdout', '-l']:
@@ -291,23 +280,21 @@ class CommandLineOptionsTest(TestCase):
                     stdout_arg,
                    ]
             try:
-                main((self.tid, args, self.logfile))
+                main((args, None))
             except Exception, err:
                 myerr = err
- 
+
             # make sure we restore
             sys.stdout.flush()
             sys.stdout = _stdout
-            #fancylogger.logToScreen(enable=False)
+            fancylogger.logToScreen(enable=False, stdout=True)
 
             outtxt = open(fn, 'r').read()
 
-            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when -l/--logtostdout is used")
+            self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when %s is used (outtxt: %s)" % (stdout_arg, outtxt))
 
             # cleanup
             os.remove(fn)
-
-            self.tid += 1
 
         fancylogger.logToFile(self.logfile)
 
@@ -318,7 +305,7 @@ class CommandLineOptionsTest(TestCase):
                 '--list-toolchains',
                ]
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -334,16 +321,21 @@ class CommandLineOptionsTest(TestCase):
         args = [
                 '--software-name=nosuchsoftware',
                 '--robot=.',
+                '--debug',
                ]
         myerr = None
         try:
-            main((self.tid, args, self.logfile))
+            main((args, self.logfile))
         except Exception, err:
             myerr = err
         outtxt = open(self.logfile, 'r').read()
 
-        error_msg = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
-        self.assertTrue(re.search(error_msg, outtxt), "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt))
+        # error message when template is not found
+        error_msg1 = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
+        # error message when template is found
+        error_msg2 = "ERROR .* Unable to find an easyconfig for the given specifications"
+        msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
+        self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
 
 def suite():
