@@ -24,6 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 import os
+import time
 from unittest import TestCase, TestSuite, main
 
 import easybuild.tools.asyncprocess as p
@@ -41,12 +42,15 @@ class AsyncProcessTest(TestCase):
     def runTest(self):
         """ try echoing some text and see if it comes back out """
         p.send_all(self.shell, "echo hello\n")
+        time.sleep(0.1)
         self.assertEqual(p.recv_some(self.shell), "hello\n")
 
         p.send_all(self.shell, "echo hello world\n")
+        time.sleep(0.1)
         self.assertEqual(p.recv_some(self.shell), "hello world\n")
 
         p.send_all(self.shell, "exit\n")
+        time.sleep(0.1)
         self.assertEqual("", p.recv_some(self.shell, e=0))
         self.assertRaises(Exception, p.recv_some, self.shell)
 
