@@ -53,7 +53,7 @@ class EasyBuildOptions(GeneralOption):
     DEFAULT_LOGLEVEL = 'INFO'
     DEFAULT_CONFIGFILES = get_default_configfiles()
 
-    ALLOPTSMANDATORY = False  # allow more then one argument
+    ALLOPTSMANDATORY = False  # allow more than one argument
 
     def basic_options(self):
         """basic runtime options"""
@@ -291,6 +291,9 @@ class EasyBuildOptions(GeneralOption):
         """Get a class tree for easyblocks."""
         detailed = self.options.list_easyblocks == "detailed"
         module_regexp = re.compile(r"^([^_].*)\.py$")
+
+        # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
+        search_toolchain('')
 
         for package in ["easybuild.easyblocks", "easybuild.easyblocks.generic"]:
             __import__(package)
