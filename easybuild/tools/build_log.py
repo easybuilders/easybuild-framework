@@ -33,15 +33,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 
 import os
 from copy import copy
-from socket import gethostname
 from vsc import fancylogger
-
-from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
-try:
-    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
-except:
-    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
-
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
 
@@ -119,15 +111,6 @@ def get_log(name=None):
     log = fancylogger.getLogger(name, fname=False)
     log.info("Logger started for %s." % name)
     return log
-
-
-def this_is_easybuild():
-    """Standard starting message"""
-    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
-         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
-
-    return msg
 
 
 def print_msg(msg, log=None, silent=False):
