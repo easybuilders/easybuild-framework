@@ -134,7 +134,6 @@ def main(testing_data=(None, None)):
     if options.strict:
         filetools.strictness = options.strict
 
-
     if not options.robot is None:
         if options.robot:
             log.info("Using robot path: %s" % options.robot)

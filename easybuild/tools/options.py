@@ -36,7 +36,7 @@ import os
 import re
 import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help
+from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, generate_template_values_doc
 from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
 from easybuild.tools import filetools
@@ -154,6 +154,9 @@ class EasyBuildOptions(GeneralOption):
                 "avail-easyconfig-params":(("Show all easyconfig parameters (include "
                                             "easyblock-specific ones by using -e)"),
                                             None, "store_true", False, "a",),
+                "avail-easyconfig-templates":(("Show all template names, template constants "
+                                               "and constants that can be used in easyconfigs."),
+                                              None, "store_true", False),
                 "list-easyblocks":("Show list of available easyblocks",
                                    "choice", "store_or_None", "simple", ["simple", "detailed"]),
                 "list-toolchains":("Show list of known toolchains",
@@ -193,18 +196,18 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Options for Easyconfigs",
                  "Options to be passed to all Easyconfig.")
 
-        opts = {'x':('x', None, "store", None)}
+        opts = None
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
-        # self.add_group_parser(opts, descr, prefix='easyconfig')
+        self.add_group_parser(opts, descr, prefix='easyconfig')
 
     def easyblock_options(self):
         # easyblock options (to be passed to easyblock instance)
         descr = ("Options for Easyblocks",
                  "Options to be passed to all Easyblocks.")
 
-        opts = {'x':('x', None, "store", None)}
+        opts = None
         self.log.debug("easyblock_options: descr %s opts %s" % (descr, opts))
-        # self.add_group_parser(opts, descr, prefix='easyblock')
+        self.add_group_parser(opts, descr, prefix='easyblock')
 
     def unittest_options(self):
         # unittest options
@@ -222,10 +225,21 @@ class EasyBuildOptions(GeneralOption):
         """Do some postprocessing, in particular print stuff"""
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
+
+        if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
+                self.options.list_easyblocks, self.options.list_toolchains]):
+            self._postprocess_list_avail()
+
+    def _postprocess_list_avail(self):
+        """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
             msg += self.avail_easyconfig_params()
+
+        # dump easyconfig template options
+        if self.options.avail_easyconfig_templates:
+            msg += generate_template_values_doc()
 
         # dump available easyblocks
         if self.options.list_easyblocks:
@@ -235,11 +249,11 @@ class EasyBuildOptions(GeneralOption):
         if self.options.list_toolchains:
             msg += self.avail_toolchains()
 
-        if any([self.options.avail_easyconfig_params, self.options.list_easyblocks, self.options.list_toolchains]):
+        if self.options.unittest_file:
+            self.log.info(msg)
+        else:
             print msg
-            if self.options.unittest_file:
-                self.log.info(msg)
-            sys.exit(0)
+        sys.exit(0)
 
     def avail_easyconfig_params(self):
         """
@@ -342,7 +356,8 @@ class EasyBuildOptions(GeneralOption):
 
 def parse_options(args=None):
     """wrapper function for option parsing"""
-    if os.environ.get('PRIVATE_EASYBUILD_PARSE_OPTIONS_DEBUG', '0').lower() in ('1', 'true', 'yes', 'y'):
+    if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
+        # very early debug, to debug the generaloption itself
         fancylogger.logToScreen(enable=True)
         fancylogger.setLogLevel('DEBUG')
 
