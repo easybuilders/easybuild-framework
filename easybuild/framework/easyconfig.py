@@ -41,6 +41,7 @@ from distutils.version import LooseVersion
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -306,7 +307,7 @@ class EasyConfig(object):
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
-            env.setvar(get_software_root_env_var_name(name), True)  # root is set to True, not an actual path
+            env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
             env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
 
     def validate(self):
