@@ -69,7 +69,7 @@ class EasyBuildOptions(GeneralOption):
                             "stop":("Stop the installation after certain step",
                                     "choice", "store_or_None", "unpack", "s", all_stops),
                             "strict":("Set strictness level",
-                                      "choice", "store", filetools.ERROR, strictness_options),
+                                      "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
                             })
 
