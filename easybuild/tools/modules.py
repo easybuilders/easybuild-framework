@@ -251,7 +251,7 @@ class Modules(object):
             return stdout + stderr
         else:
             # keep track of current LD_LIBRARY_PATH, so we can correct the adjusted LD_LIBRARY_PATH below
-            cur_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
+            prev_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
 
             # Change the environment
             try:
@@ -259,16 +259,26 @@ class Modules(object):
             except Exception, err:
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, stdout))
 
-            # correct LD_LIBRARY_PATH as yielded by the adjustments made
-            if LD_LIBRARY_PATH:
-                # make sure paths are separated by ':'
-                cur_ld_library_path = ':%s' % cur_ld_library_path
+            # correct LD_LIBRARY_PATH as yielded by the adjustments made, make sure we get the order right (reverse lists with [::-1])
+            curr_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
+            if curr_ld_library_path:
+                new_ld_library_paths = curr_ld_library_path.split(':')
+            else:
+                # ''.split(':') yields [''], which is not what we want
+                new_ld_library_paths = []
 
-            # correct LD_LIBRARY_PATH by replacing part at the end with the original LD_LIBRARY_PATH by the previous updated value
-            corrected_ld_library_path = re.sub('%s$' % LD_LIBRARY_PATH, cur_ld_library_path, os.environ.get('LD_LIBRARY_PATH', ''))
+            if prev_ld_library_path:
+                ld_library_paths = prev_ld_library_path.split(':')
+            else:
+                ld_library_paths = []
+            ld_library_paths_set = set(ld_library_paths)  # for faster checking for doubles
 
-            self.log.debug("Correcting LD_LIBRARY_PATH from %s  to  %s" % (os.environ.get('LD_LIBRARY_PATH', ''), corrected_ld_library_path))
-            os.environ['LD_LIBRARY_PATH'] = corrected_ld_library_path
+            for path in new_ld_library_paths[::-1]:
+                if path not in ld_library_paths_set:
+                    ld_library_paths.insert(0, path)  # insert paths at the front (like prepend-path does)
+
+            self.log.debug("Correcting paths in LD_LIBRARY_PATH from %s to %s" % (new_ld_library_paths, ld_library_paths))
+            os.environ['LD_LIBRARY_PATH'] = ':'.join(ld_library_paths)
 
             # Process stderr
             result = []
