@@ -166,7 +166,7 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
-            for log_msg_type in ['DEBUG', 'INFO']: # --> FIXME fails currently, needs to be fixed in generaloption/fancylogger
+            for log_msg_type in ['DEBUG', 'INFO']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 

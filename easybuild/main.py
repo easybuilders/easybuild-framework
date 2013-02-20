@@ -120,8 +120,6 @@ def main(testing_data=(None, None)):
         print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
 
     log = fancylogger.getLogger(fname=False)
-    # TODO isn't this set in generaloption?
-    log.setLevelName(['INFO', 'DEBUG'][options.debug])
 
     # hello world!
     log.info(this_is_easybuild())

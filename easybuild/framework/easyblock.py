@@ -146,7 +146,6 @@ class EasyBlock(object):
         fancylogger.logToFile(self.logfile)
 
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
-        self.log.setLevelName(['INFO', 'DEBUG'][self.logdebug])  # TODO set in generaloption?
 
         self.log.info(this_is_easybuild())
 
@@ -1534,7 +1533,7 @@ class EasyBlock(object):
             self.log.info("Starting %s step" % step)
             # update the config templates
             for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-                self.cfg._template_values[name[0]] = str(getattr(self, name[0], None))
+                self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
             self.cfg.generate_template_values()
 
             for m in methods:
