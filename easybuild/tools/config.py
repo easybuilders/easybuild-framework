@@ -33,12 +33,11 @@ EasyBuild configuration (paths, preferences, etc.)
 """
 
 import os
-import sys
 import tempfile
+import time
 
 from easybuild.tools.build_log import get_log
 import easybuild.tools.repository as repo
-
 
 _log = get_log('config')
 
@@ -191,8 +190,9 @@ def get_repository():
 
 def log_format():
     """
-    Return the log format
+    Return the logfilename format
     """
+    # TODO needs renaming, is actually a formatter for the logfilename
     if 'log_format' in variables:
         return variables['log_format'][1]
     else:
@@ -209,6 +209,28 @@ def get_build_log_path():
     return temporary log directory
     """
     return variables.get('log_dir', tempfile.gettempdir())
+
+def get_log_filename(name, version):
+    """
+    Generate a filename to be used for logging
+    """
+    # this can't be imported at the top, otherwise we'd have a cyclic dependency
+    date = time.strftime("%Y%m%d")
+    timeStamp = time.strftime("%H%M%S")
+
+    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
+                                                                  'version':version,
+                                                                  'date':date,
+                                                                  'time':timeStamp
+                                                                  })
+
+    # Append numbers if the log file already exist
+    counter = 1
+    while os.path.isfile(filename):
+        counter += 1
+        filename = "%s.%d" % (filename, counter)
+
+    return filename
 
 def read_only_installdir():
     """

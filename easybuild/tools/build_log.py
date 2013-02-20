@@ -31,20 +31,16 @@
 EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
-import logging
 import os
-import sys
-import time
 from copy import copy
 from socket import gethostname
 from vsc import fancylogger
 
 from easybuild.tools.version import VERBOSE_VERSION as FRAMEWORK_VERSION
-EASYBLOCKS_VERSION = 'UNKNOWN'
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except:
-    pass
+    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -83,7 +79,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
-        logging.Logger.error(self, newMsg, *args, **kwargs)
+        fancylogger.FancyLogger.error(self, newMsg, *args, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
@@ -92,7 +88,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False
-        logging.Logger.exception(self, newMsg, *args)
+        fancylogger.FancyLogger.exception(self, newMsg, *args)
         self.raiseError = True
 
         raise EasyBuildError(newMsg)
@@ -102,87 +98,37 @@ class EasyBuildLog(fancylogger.FancyLogger):
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
-# disable logging to screen by default
-fancylogger.logToScreen(enable=False)
+# set the default LoggerClass to EasyBuildLog
+fancylogger.logging.setLoggerClass(EasyBuildLog)
 
-logging.setLoggerClass(EasyBuildLog)
+# you can't easily set another LoggerClass before fancylogger calls getLogger on import
+_init_fancylog = fancylogger.getLogger(fname=False)
+del _init_fancylog.manager.loggerDict[_init_fancylog.name]
+
+# we need to make sure there is a handler
+fancylogger.logToFile(filename=os.devnull)
+
+# EasyBuildLog
+_init_easybuildlog = fancylogger.getLogger(fname=False)
 
 def get_log(name=None):
     """
     Generate logger object
     """
-    # log = logging.getLogger(name)
-    log = fancylogger.getLogger(name)
+    # fname is always get_log, useless
+    log = fancylogger.getLogger(name, fname=False)
     log.info("Logger started for %s." % name)
     return log
 
-def remove_log_handler(hnd):
-    """
-    Remove handler from root log
-    """
-    log = fancylogger.getLogger()
-    log.removeHandler(hnd)
 
-def init_logger(name=None, version=None, debug=False, filename=None, typ='UNKNOWN'):
-    """
-    Return filename of the log file being written
-    - does not append
-    - sets log handlers
-    """
-
-
-    # determine log level
-    if debug:
-        fancylogger.setLogLevelDebug()
-    else:
-        fancylogger.setLogLevelInfo()
-
-    if (name and version) or filename:
-        if not filename:
-            filename = log_filename(name, version)
-        hand = fancylogger.logToFile(filename, name=typ)
-    else:
-        hand = fancylogger.logToScreen(True, stdout=True, name=typ)
-
-    # initialize our logger
-    log = fancylogger.getLogger(typ)
-
-    # # init message
-    log.info("Log initialized with name %s version %s to file %s on host %s" % (name,
-                                                                                version,
-                                                                                filename,
-                                                                                gethostname()
-                                                                                ))
+def this_is_easybuild():
+    """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    log.info("This is EasyBuild %s (framework: %s, easyblocks: %s)" % (top_version,
-                                                                       FRAMEWORK_VERSION,
-                                                                       EASYBLOCKS_VERSION))
+    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
+         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 
-    return filename, log, hand
+    return msg
 
-def log_filename(name, version):
-    """
-    Generate a filename to be used
-    """
-    # this can't be imported at the top, otherwise we'd have a cyclic dependency
-    from easybuild.tools.config import log_format, get_build_log_path
-
-    date = time.strftime("%Y%m%d")
-    timeStamp = time.strftime("%H%M%S")
-
-    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
-                                                                 'version':version,
-                                                                 'date':date,
-                                                                 'time':timeStamp
-                                                                 })
-
-    # Append numbers if the log file already exist
-    counter = 1
-    while os.path.isfile(filename):
-        counter += 1
-        filename = "%s.%d" % (filename, counter)
-
-    return filename
 
 def print_msg(msg, log=None, silent=False):
     """
@@ -193,8 +139,3 @@ def print_msg(msg, log=None, silent=False):
     if not silent:
         print "%s %s" % (EB_MSG_PREFIX, msg)
 
-if __name__ == '__main__':
-    init_logger('test', '1.0.0')
-    fn, testlog, _ = init_logger(typ='build_log')
-    testlog.info('Testing build_log...')
-    "Tested build_log, see %s" % fn
