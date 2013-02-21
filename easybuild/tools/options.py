@@ -42,6 +42,7 @@ from easybuild.tools.config import get_default_oldstyle_configfile, get_default_
 from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import any
 from easybuild.tools.version import this_is_easybuild
 from vsc import fancylogger
 from vsc.utils.generaloption import GeneralOption
