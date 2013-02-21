@@ -41,7 +41,7 @@ import sys
 
 from easybuild.tools.build_log import get_log, EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
-from vsc.utisl.missing import nub
+from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
