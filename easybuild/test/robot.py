@@ -55,6 +55,8 @@ class RobotTest(TestCase):
         main.Modules = MockModule
 
         self.log = get_log("RobotTest")
+        main.log = get_log("main")  # redefine the main log when calling the main functions directly
+
         self.cwd = os.getcwd()
 
         self.base_easyconfig_dir = find_full_path(os.path.join("easybuild", "test", "easyconfigs"))

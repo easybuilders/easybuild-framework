@@ -239,13 +239,13 @@ def main(testing_data=(None, None)):
             error("Can't find path %s" % path)
 
         try:
-            files = find_easyconfigs(path, log)
+            files = find_easyconfigs(path)
             for f in files:
                 if not generated and try_to_generate and software_build_specs:
                     ec_file = easyconfig.tweak(f, None, software_build_specs)
                 else:
                     ec_file = f
-                easyconfigs.extend(process_easyconfig(ec_file, log, options.only_blocks,
+                easyconfigs.extend(process_easyconfig(ec_file, options.only_blocks,
                                                       validate=validate_easyconfigs))
         except IOError, err:
             log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
@@ -322,7 +322,7 @@ def main(testing_data=(None, None)):
     all_built_cnt = 0
     if not testing:
         for spec in orderedSpecs:
-            (success, _) = build_and_install_software(spec, options, log, origEnviron, silent=testing)
+            (success, _) = build_and_install_software(spec, options, origEnviron, silent=testing)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1
@@ -374,7 +374,7 @@ def warning(message, silent=False):
     """
     print_msg("WARNING: %s\n" % message, silent=silent)
 
-def find_easyconfigs(path, log):
+def find_easyconfigs(path):
     """
     Find .eb easyconfig files in path
     """
@@ -395,7 +395,7 @@ def find_easyconfigs(path, log):
 
     return files
 
-def process_easyconfig(path, log, onlyBlocks=None, regtest_online=False, validate=True):
+def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True):
     """
     Process easyconfig, returning some information for each block
     """
@@ -508,7 +508,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
                 if path:
                     log.info("Robot: resolving dependency %s with %s" % (candidates[0], path))
 
-                    processedSpecs = process_easyconfig(path, log, validate=(not force))
+                    processedSpecs = process_easyconfig(path, validate=(not force))
 
                     # ensure the pathname is equal to the module
                     mods = [spec['module'] for spec in processedSpecs]
@@ -771,7 +771,7 @@ def get_build_stats(app, starttime):
 
     return buildstats
 
-def build_and_install_software(module, options, log, origEnviron, exitOnFailure=True, silent=False):
+def build_and_install_software(module, options, origEnviron, exitOnFailure=True, silent=False):
     """
     Build the software
     """
@@ -1210,7 +1210,7 @@ def regtest(options, log, easyconfig_paths):
     ecfiles = []
     if easyconfig_paths:
         for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path, log)
+            ecfiles += find_easyconfigs(path)
     else:
         log.error("No easyconfig paths specified.")
 
@@ -1220,7 +1220,7 @@ def regtest(options, log, easyconfig_paths):
     easyconfigs = []
     for ecfile in ecfiles:
         try:
-            easyconfigs.extend(process_easyconfig(ecfile, log, None))
+            easyconfigs.extend(process_easyconfig(ecfile, None))
         except EasyBuildError, err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, log))
 
