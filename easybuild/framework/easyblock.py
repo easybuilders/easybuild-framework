@@ -373,7 +373,7 @@ class EasyBlock(object):
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
-            common_filepaths.extend(get_paths_for(self.log, "easyconfigs", robot_path=self.robot_path))
+            common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
             for path in common_filepaths + srcpaths:
                 # create list of candidate filepaths

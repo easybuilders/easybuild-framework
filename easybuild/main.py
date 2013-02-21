@@ -90,6 +90,7 @@ from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import any, flatten
 
+log = None
 
 def main(testing_data=(None, None)):
     """
@@ -125,6 +126,7 @@ def main(testing_data=(None, None)):
         fancylogger.logToFile(logfile)
         print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
 
+    global log
     log = fancylogger.getLogger(fname=False)
 
     # hello world!
@@ -141,7 +143,7 @@ def main(testing_data=(None, None)):
             log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
 
     # determine easybuild-easyconfigs package install path
-    easyconfigs_paths = get_paths_for(log, "easyconfigs", robot_path=options.robot)
+    easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
 
     if easyconfigs_paths:
@@ -637,7 +639,7 @@ def obtain_path(specs, paths, log, try_to_generate=False, exit_on_error=True, si
 
     # if no easyconfig files/paths were provided, but we did get a software name,
     # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = easyconfig.obtain_ec_for(specs, paths, None, log)
+    (generated, fn) = easyconfig.obtain_ec_for(specs, paths, None)
     if not generated:
         return (fn, generated)
     else:
