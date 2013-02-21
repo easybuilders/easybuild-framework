@@ -48,7 +48,7 @@ class CommandLineOptionsTest(TestCase):
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
-        #open(self.logfile, 'w').write('')  # clear logfile
+        # open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
         """Post-test cleanup."""
@@ -250,7 +250,7 @@ class CommandLineOptionsTest(TestCase):
             outtxt = open(self.logfile, 'r').read()
             # print '\n\n\n\n%s\n\n\n\n\n' % outtxt
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join([x.replace('=', ' ', 1) for x in job_args])
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join(job_args)
             self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
 
         # restore original MODULEPATH
@@ -303,14 +303,15 @@ class CommandLineOptionsTest(TestCase):
 
         args = [
                 '--list-toolchains',
+                '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, self.logfile))
+            main((args, None))
         except:
             pass
         outtxt = open(self.logfile, 'r').read()
 
-        info_msg = "INFO List of known toolchains:"
+        info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
         for tc in ["dummy", "goalf", "ictce"]:
             self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")

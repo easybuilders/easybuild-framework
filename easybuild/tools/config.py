@@ -53,14 +53,18 @@ environmentVariables = {
     'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
-def get_default_configfile():
-    """Get the default location of the config file to be set as default in the options"""
+def get_user_easybuild_dir():
+    """Return the per-user easybuild dir (e.g. to store config files)"""
+    return os.path.join(os.path.expanduser('~'), ".easybuild")
+
+def get_default_oldstyle_configfile():
+    """Get the default location of the oldstyle config file to be set as default in the options"""
     # TODO these _log here can't be controlled/shown with the generaloption
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
     config_env_var = environmentVariables['config_file']
-    home_config_file = os.path.join(os.getenv('HOME'), ".easybuild", "config.py")
+    home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
     if os.getenv(config_env_var):
         _log.debug("Environment variable %s, so using that as config file." % config_env_var)
         config_file = os.getenv(config_env_var)
@@ -74,6 +78,10 @@ def get_default_configfile():
         config_file = os.path.join(appPath, "easybuild_config.py")
         _log.debug("Falling back to default config: %s" % config_file)
     return config_file
+
+def get_default_configfiles():
+    """Return a list of default configfiles for tools.options/generaloption"""
+    return [os.path.join(get_user_easybuild_dir(), "config.cfg")]
 
 def init(filename, **kwargs):
     """
