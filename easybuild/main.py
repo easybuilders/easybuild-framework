@@ -221,7 +221,8 @@ def main(testing_data=(None, None)):
             for i in range(len(orig_paths)):
                 if not os.path.isabs(orig_paths[i]) and not os.path.exists(orig_paths[i]):
                     if orig_paths[i] in easyconfigs_map:
-                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path, easyconfigs_map[orig_paths[i]]))
+                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path,
+                                                         easyconfigs_map[orig_paths[i]]))
                         orig_paths[i] = easyconfigs_map[orig_paths[i]]
 
         # indicate that specified paths do not contain generated easyconfig files
