@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
@@ -22,12 +22,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 import os
 import random
 
 import easybuild.tools.modules as modules
-from unittest import TestCase, TestLoader 
+from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
@@ -41,10 +41,10 @@ class ModulesTest(TestCase):
         """ test if we load one module it is in the loaded_modules """
         testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available('', None)
-
-        m = random.choice(ms)
-        testmods.add_module([m])
-        testmods.load()
+        for m in ms:
+            testmods.purge()
+            testmods.add_module([m])
+            testmods.load()
 
         tmp = {"name": m[0], "version": m[1]}
         assert(tmp in testmods.loaded_modules())
@@ -69,3 +69,5 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(ModulesTest)
 
+if __name__ == '__main__':
+    main()

@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,42 +23,42 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for modifying os.environ
+Module with various utility functions
+
+@author: Kenneth Hoste (Ghent University)
 """
-import os
-from vsc import fancylogger
 
-_log = fancylogger.getLogger('environment', fname=False)
+# FIXME: remove when Python version on which we rely provides any by itself
+def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
-changes = {}
+    return sum([bool(x) for x in ls]) != 0
 
-def write_changes(filename):
+def flatten(lst):
+    """Flatten a list of lists."""
+    res = []
+    for x in lst:
+        res.extend(x)
+    return res
+
+def quote_str(x):
     """
-    Write current changes to filename and reset environment afterwards
+    Obtain a new value to be used in string replacement context.
+    
+    For non-string values, it just returns the exact same value.
+    
+    For string values, it tries to escape the string in quotes, e.g.,
+    foo becomes 'foo', foo'bar becomes "foo'bar",
+    foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
     """
-    script = open(filename, 'w')
 
-    for key in changes:
-        script.write('export %s="%s"\n' % (key, changes[key]))
+    if isinstance(x, basestring):
+        if "'" in x and '"' in x:
+            return '"""%s"""' % x
+        elif '"' in x:
+            return "'%s'" % x
+        else:
+            return '"%s"' % x
+    else:
+        return x
 
-    script.close()
-    reset_changes()
-
-
-def reset_changes():
-    """
-    Reset the changes tracked by this module
-    """
-    global changes
-    changes = {}
-
-
-def setvar(key, value):
-    """
-    put key in the environment with value
-    tracks added keys until write_changes has been called
-    """
-    # os.putenv() is not necessary. os.environ will call this.
-    os.environ[key] = value
-    changes[key] = value
-    _log.info("Environment variable %s set to %s" % (key, value))

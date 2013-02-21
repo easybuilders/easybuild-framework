@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2012 Ghent University
 # Copyright 2009-2012 Stijn De Weirdt
 # Copyright 2010 Dries Verdegem
@@ -26,16 +26,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Module that takes control of versioning.
 """
-from distutils.version import LooseVersion
 import os
+from distutils.version import LooseVersion
+from socket import gethostname
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
 # 1.1-rc1 would indicate a post-release, i.e., and update of 1.1, so beware!
-VERSION = LooseVersion("1.1.0")
+VERSION = LooseVersion("1.2.0dev")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():
@@ -61,3 +62,20 @@ if git_rev == UNKNOWN:
     VERBOSE_VERSION = VERSION
 else:
     VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
+
+# alias
+FRAMEWORK_VERSION = VERBOSE_VERSION
+
+# EasyBlock version
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+
+def this_is_easybuild():
+    """Standard starting message"""
+    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
+         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
+
+    return msg

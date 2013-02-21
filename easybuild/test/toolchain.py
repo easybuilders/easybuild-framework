@@ -25,7 +25,7 @@
 ##
 import os
 import re
-from unittest import TestCase, TestLoader
+from unittest import TestCase, TestLoader, main
 
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -284,3 +284,6 @@ class ToolchainTest(TestCase):
 def suite():
     """ return all the tests"""
     return TestLoader().loadTestsFromTestCase(ToolchainTest)
+
+if __name__ == '__main__':
+    main()
