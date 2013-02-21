@@ -81,14 +81,14 @@ import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import  EasyBuildError, print_msg
+from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import any, flatten
+from easybuild.tools.utilities import any
 
 log = None
 
@@ -179,7 +179,7 @@ def main(testing_data=(None, None)):
             paths = [obtain_path(software_build_specs, easyconfigs_paths,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.search, options.regtest]):
-            error(("Please provide one or multiple easyconfig files, or use software build "
+            print_error(("Please provide one or multiple easyconfig files, or use software build "
                   "options to make EasyBuild search for easyconfigs"),
                   log=log, opt_parser=opt_parser, exit_on_error=not testing)
     else:
@@ -236,7 +236,7 @@ def main(testing_data=(None, None)):
     for (path, generated) in paths:
         path = os.path.abspath(path)
         if not (os.path.exists(path)):
-            error("Can't find path %s" % path)
+            print_error("Can't find path %s" % path)
 
         try:
             files = find_easyconfigs(path)
@@ -353,26 +353,6 @@ def cleanup_logfile_and_exit(logfile, testing, doexit):
         print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
     if doexit:
         sys.exit(0)
-
-def error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
-    """
-    Print error message and exit EasyBuild
-    """
-    if exit_on_error:
-        if not silent:
-            print_msg("ERROR: %s\n" % message)
-            if opt_parser:
-                opt_parser.print_shorthelp()
-                print_msg("ERROR: %s\n" % message)
-        sys.exit(exitCode)
-    elif log is not None:
-        log.error(message)
-
-def warning(message, silent=False):
-    """
-    Print warning message.
-    """
-    print_msg("WARNING: %s\n" % message, silent=silent)
 
 def find_easyconfigs(path):
     """
@@ -594,16 +574,16 @@ def process_software_build_specs(options):
         if options.toolchain:
             tc = options.toolchain.split(',')
             if options.try_toolchain:
-                warning("Ignoring --try-toolchain, only using --toolchain specification.")
+                print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
         elif options.try_toolchain:
             tc = options.try_toolchain.split(',')
             try_to_generate = True
         else:
             # shouldn't happen
-            error("Huh, neither --toolchain or --try-toolchain used?")
+            print_error("Huh, neither --toolchain or --try-toolchain used?")
 
         if not len(tc) == 2:
-            error("Please specify to toolchain to use as 'name,version' (e.g., 'goalf,1.1.0').")
+            print_error("Please specify to toolchain to use as 'name,version' (e.g., 'goalf,1.1.0').")
 
         [toolchain_name, toolchain_version] = tc
         buildopts.update({'toolchain_name': toolchain_name})
@@ -616,7 +596,7 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+                print_warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
         if options.try_amend:
             amends += options.try_amend
             try_to_generate = True
@@ -650,8 +630,8 @@ def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=
             try:
                 os.remove(fn)
             except OSError, err:
-                warning("Failed to remove generated easyconfig file %s." % fn)
-            error(("Unable to find an easyconfig for the given specifications: %s; "
+                print_warning("Failed to remove generated easyconfig file %s." % fn)
+            print_error(("Unable to find an easyconfig for the given specifications: %s; "
                   "to make EasyBuild try to generate a matching easyconfig, "
                   "use the --try-X options ") % specs, log=log, exit_on_error=exit_on_error)
 
@@ -802,7 +782,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
         app = app_class(spec, debug=options.debug, robot_path=options.robot)
         log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
-        error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg), silent=silent)
+        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg), silent=silent)
 
     # application settings
     if options.stop:
@@ -867,12 +847,12 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
             applicationLog = os.path.join(newLogDir, os.path.basename(app.logfile))
             shutil.move(app.logfile, applicationLog)
         except IOError, err:
-            error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
+            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
 
         try:
             shutil.copy(spec, os.path.join(newLogDir, "%s-%s.eb" % (app.name, app.get_installversion())))
         except IOError, err:
-            error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
+            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
 
     # build failed
     else:
@@ -1103,7 +1083,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
                 shutil.move(app.logfile, applog)
                 log.info("Log file moved to %s" % applog)
             except IOError, err:
-                error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applog, err))
+                print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applog, err))
 
             if app not in build_stopped:
                 # gather build stats
