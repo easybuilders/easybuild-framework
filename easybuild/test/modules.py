@@ -24,6 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 import os
+import re
 
 import easybuild.tools.modules as modules
 from unittest import TestCase, TestLoader, main
@@ -59,8 +60,8 @@ class ModulesTest(TestCase):
         testmods.add_module([('GCC', '4.6.3')])
         testmods.load()
 
-        self.assertTrue(testpath in os.environ['LD_LIBRARY_PATH'])
-
+        # check that previous LD_LIBRARY_PATH is still there, at the end
+        self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
 
     def test_purge(self):
         """Test if purging of modules works."""

@@ -59,7 +59,8 @@ log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
+SUITE = unittest.TestSuite([x.suite() for x in [m]])
+#SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""
