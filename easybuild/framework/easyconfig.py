@@ -39,6 +39,7 @@ import sys
 import tempfile
 from distutils.version import LooseVersion
 from vsc import fancylogger
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
@@ -279,7 +280,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS+EASYCONFIG_CONSTANTS])
+        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS + EASYCONFIG_CONSTANTS])
         global_vars.update(const_dict)
         local_vars = {}
 
@@ -908,8 +909,6 @@ def select_or_generate_ec(fp, paths, specs):
         if len(ec_files) == 0:
             _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
 
-    _log.debug("ec_files: %s" % ec_files)
-
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
     def unique(l):
         """Retain unique elements in a sorted list."""
@@ -922,6 +921,10 @@ def select_or_generate_ec(fp, paths, specs):
             return l2
         else:
             return l
+
+    # filter unique
+    ec_files = nub(ec_files)
+    _log.debug("Unique ec_files: %s" % ec_files)
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
@@ -962,8 +965,8 @@ def select_or_generate_ec(fp, paths, specs):
                 # we can't just pick one, how would we prefer one over the other?
                 _log.error("No toolchain name specified, and more than one available: %s." % tcnames)
 
+    _log.debug("Filtering easyconfigs based on toolchain name '%s'..." % selected_tcname)
     ecs_and_files = [x for x in ecs_and_files if x[0]['toolchain']['name'] == selected_tcname]
-
     _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # TOOLCHAIN VERSION
