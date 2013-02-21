@@ -812,7 +812,7 @@ def create_paths(path, name, version):
             os.path.join(path, "%s-%s.eb" % (name, version)),
            ]
 
-def obtain_ec_for(specs, paths, fp, log):
+def obtain_ec_for(specs, paths, fp):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -826,11 +826,11 @@ def obtain_ec_for(specs, paths, fp, log):
 
     # ensure that at least name is specified
     if not specs.get('name'):
-        log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
+        _log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
 
     # collect paths to search in
     if not paths:
-        log.error("No paths to look for easyconfig files, specify a path with --robot.")
+        _log.error("No paths to look for easyconfig files, specify a path with --robot.")
 
     # create glob patterns based on supplied info
 
@@ -848,7 +848,7 @@ def obtain_ec_for(specs, paths, fp, log):
 
     cnt = len(easyconfig_files)
 
-    log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
+    _log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
 
     # select best easyconfig, or try to generate one that fits the requirements
     res = select_or_generate_ec(fp, paths, specs)
@@ -856,7 +856,7 @@ def obtain_ec_for(specs, paths, fp, log):
     if res:
         return res
     else:
-        log.error("No easyconfig found for requested software, and also failed to generate one.")
+        _log.error("No easyconfig found for requested software, and also failed to generate one.")
 
 def select_or_generate_ec(fp, paths, specs):
     """
@@ -1231,7 +1231,7 @@ def tweak(src_fn, target_fn, tweaks):
 
     return target_fn
 
-def get_paths_for(log, subdir="easyconfigs", robot_path=None):
+def get_paths_for(subdir="easyconfigs", robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
@@ -1249,21 +1249,21 @@ def get_paths_for(log, subdir="easyconfigs", robot_path=None):
     # figure out installation prefix, e.g. distutils install path for easyconfigs
     (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
     if ec:
-        log.warning("eb not found (%s), failed to determine installation prefix" % out)
+        _log.warning("eb not found (%s), failed to determine installation prefix" % out)
     else:
         # eb should reside in <install_prefix>/bin/eb
         install_prefix = os.path.dirname(os.path.dirname(out))
         path_list.append(install_prefix)
-        log.debug("Also considering installation prefix %s..." % install_prefix)
+        _log.debug("Also considering installation prefix %s..." % install_prefix)
 
     # look for desired subdirs
     for path in path_list:
         path = os.path.join(path, "easybuild", subdir)
-        log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
+        _log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
-                log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
+                _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
             raise EasyBuildError(str(err))
 

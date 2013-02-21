@@ -62,11 +62,11 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, log, robot_path=robot_path)
+        prepare_easyconfig(ec, robot_path=robot_path)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, log, output_dir, conn=conn)
+        new_job = create_job(build_command, ec, output_dir, conn=conn)
 
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
         job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
@@ -84,7 +84,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     return jobs
 
 
-def create_job(build_command, easyconfig, log, output_dir="", conn=None):
+def create_job(build_command, easyconfig, output_dir="", conn=None):
     """
     Creates a job, to build a *single* easyconfig
     build_command is a format string in which a full path to an eb file will be substituted
@@ -148,14 +148,14 @@ def get_instance(easyconfig, robot_path=None):
             easyblock = eval(match.group(1))
             break
 
-    app_class = get_class(easyblock, _log, name=name)
+    app_class = get_class(easyblock, name=name)
     return app_class(spec, debug=True, robot_path=robot_path)
 
 
 def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, _log, robot_path=robot_path)
+        instance = get_instance(ec, robot_path=robot_path)
         instance.fetch_step()
     except:
         pass
