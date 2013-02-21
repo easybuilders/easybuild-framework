@@ -176,7 +176,7 @@ def main(testing_data=(None, None)):
     paths = []
     if len(orig_paths) == 0:
         if software_build_specs.has_key('name'):
-            paths = [obtain_path(software_build_specs, easyconfigs_paths, log,
+            paths = [obtain_path(software_build_specs, easyconfigs_paths,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.search, options.regtest]):
             error(("Please provide one or multiple easyconfig files, or use software build "
@@ -210,9 +210,9 @@ def main(testing_data=(None, None)):
     if options.regtest or options.aggregate_regtest:
         log.info("Running regression test")
         if paths:
-            regtest_ok = regtest(options, log, [path[0] for path in paths])
+            regtest_ok = regtest(options, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
-            regtest_ok = regtest(options, log, [easyconfigs_pkg_full_path])
+            regtest_ok = regtest(options, [easyconfigs_pkg_full_path])
 
         if not regtest_ok:
             log.info("Regression test failed (partially)!")
@@ -275,7 +275,7 @@ def main(testing_data=(None, None)):
         print_msg("resolving dependencies ...", log, silent=testing)
         # force all dependencies to be retained and validation to be skipped for building dep graph
         force = retain_all_deps and not validate_easyconfigs
-        orderedSpecs = resolve_dependencies(easyconfigs, options.robot, log, force=force)
+        orderedSpecs = resolve_dependencies(easyconfigs, options.robot, force=force)
     else:
         print_msg("No easyconfigs left to be built.", log, silent=testing)
         orderedSpecs = []
@@ -284,7 +284,7 @@ def main(testing_data=(None, None)):
     if options.dep_graph:
         log.info("Creating dependency graph %s" % options.dep_graph)
         try:
-            dep_graph(options.dep_graph, orderedSpecs, log)
+            dep_graph(options.dep_graph, orderedSpecs)
         except NameError, err:
             log.error("An optional Python packages required to " \
                       "generate dependency graphs is missing: %s" % "\n".join(graph_errors))
@@ -399,7 +399,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
     """
     Process easyconfig, returning some information for each block
     """
-    blocks = retrieve_blocks_in_spec(path, log, onlyBlocks)
+    blocks = retrieve_blocks_in_spec(path, onlyBlocks)
 
     easyconfigs = []
     for spec in blocks:
@@ -445,7 +445,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
     return easyconfigs
 
-def resolve_dependencies(unprocessed, robot, log, force=False):
+def resolve_dependencies(unprocessed, robot, force=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     enabling force results in retaining all dependencies and skipping validation of easyconfigs
@@ -486,7 +486,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
         lastProcessedCount = -1
         while len(processed) > lastProcessedCount:
             lastProcessedCount = len(processed)
-            orderedSpecs.extend(find_resolved_modules(unprocessed, processed, log))
+            orderedSpecs.extend(find_resolved_modules(unprocessed, processed))
 
         # robot: look for an existing dependency, add one
         if robot and len(unprocessed) > 0:
@@ -499,7 +499,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
                 candidates = [d for d in module['dependencies'] if not d in beingInstalled]
                 if len(candidates) > 0:
                     # find easyconfig, might not find any
-                    path = robot_find_easyconfig(log, robot, candidates[0])
+                    path = robot_find_easyconfig(robot, candidates[0])
 
                 else:
                     path = None
@@ -533,7 +533,7 @@ def resolve_dependencies(unprocessed, robot, log, force=False):
     log.info("Dependency resolution complete, building as follows:\n%s" % orderedSpecs)
     return orderedSpecs
 
-def find_resolved_modules(unprocessed, processed, log):
+def find_resolved_modules(unprocessed, processed):
     """
     Find modules in unprocessed which can be fully resolved using easyconfigs in processed
     """
@@ -591,14 +591,13 @@ def process_software_build_specs(options):
 
     # process --toolchain --try-toolchain
     if options.toolchain or options.try_toolchain:
-
         if options.toolchain:
-                tc = options.toolchain.split(',')
-                if options.try_toolchain:
-                    warning("Ignoring --try-toolchain, only using --toolchain specification.")
+            tc = options.toolchain.split(',')
+            if options.try_toolchain:
+                warning("Ignoring --try-toolchain, only using --toolchain specification.")
         elif options.try_toolchain:
-                tc = options.try_toolchain.split(',')
-                try_to_generate = True
+            tc = options.try_toolchain.split(',')
+            try_to_generate = True
         else:
             # shouldn't happen
             error("Huh, neither --toolchain or --try-toolchain used?")
@@ -634,7 +633,7 @@ def process_software_build_specs(options):
 
     return (try_to_generate, buildopts)
 
-def obtain_path(specs, paths, log, try_to_generate=False, exit_on_error=True, silent=False):
+def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
     """Obtain a path for an easyconfig that matches the given specifications."""
 
     # if no easyconfig files/paths were provided, but we did get a software name,
@@ -652,12 +651,12 @@ def obtain_path(specs, paths, log, try_to_generate=False, exit_on_error=True, si
                 os.remove(fn)
             except OSError, err:
                 warning("Failed to remove generated easyconfig file %s." % fn)
-            error("Unable to find an easyconfig for the given specifications: %s; " \
-                  "to make EasyBuild try to generate a matching easyconfig, " \
-                  "use the --try-X options " % specs, log=log, exit_on_error=exit_on_error)
+            error(("Unable to find an easyconfig for the given specifications: %s; "
+                  "to make EasyBuild try to generate a matching easyconfig, "
+                  "use the --try-X options ") % specs, log=log, exit_on_error=exit_on_error)
 
 
-def robot_find_easyconfig(log, path, module):
+def robot_find_easyconfig(path, module):
     """
     Find an easyconfig for module in path
     """
@@ -672,7 +671,7 @@ def robot_find_easyconfig(log, path, module):
 
     return None
 
-def retrieve_blocks_in_spec(spec, log, onlyBlocks, silent=False):
+def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
     """
     Easyconfigs can contain blocks (headed by a [Title]-line)
     which contain commands specific to that block. Commands in the beginning of the file
@@ -914,7 +913,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
     else:
         return (True, applicationLog)
 
-def dep_graph(fn, specs, log):
+def dep_graph(fn, specs):
     """
     Create a dependency graph for the given easyconfigs.
     """
@@ -1029,7 +1028,7 @@ def write_to_xml(succes, failed, filename):
     root.writexml(output_file)
     output_file.close()
 
-def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
+def build_easyconfigs(easyconfigs, output_dir, test_results, options):
     """Build the list of easyconfigs."""
 
     build_stopped = {}
@@ -1179,7 +1178,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     print "Aggregate regtest results written to %s" % output_filename
 
 
-def regtest(options, log, easyconfig_paths):
+def regtest(options, easyconfig_paths):
     """Run regression test, using easyconfigs available in given path."""
 
     cur_dir = os.getcwd()
@@ -1225,9 +1224,9 @@ def regtest(options, log, easyconfig_paths):
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, log))
 
     if options.sequential:
-        return build_easyconfigs(easyconfigs, output_dir, test_results, options, log)
+        return build_easyconfigs(easyconfigs, output_dir, test_results, options)
     else:
-        resolved = resolve_dependencies(easyconfigs, options.robot, log)
+        resolved = resolve_dependencies(easyconfigs, options.robot)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)

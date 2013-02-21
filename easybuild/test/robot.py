@@ -69,7 +69,7 @@ class RobotTest(TestCase):
             'module': ("name", "version"),
             'dependencies': []
         }
-        res = main.resolve_dependencies([deepcopy(easyconfig)], None, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig)], None)
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
@@ -77,23 +77,23 @@ class RobotTest(TestCase):
             'module': ("name", "version"),
             'dependencies': [('gzip', '1.4')]
         }
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
         # here we have include a Dependency in the easyconfig list
         easyconfig['module'] = ("gzip", "1.4")
 
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb)
-        self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None, self.log)
+        self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir, self.log)
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual(('GCC', '4.6.3'), res[0]['module'])
