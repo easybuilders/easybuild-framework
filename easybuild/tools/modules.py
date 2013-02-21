@@ -97,7 +97,7 @@ class Modules(object):
         if not 'MODULEPATH' in os.environ:
             errormsg = 'MODULEPATH not found in environment'
             # check if environment-modules is found
-            module_regexp = re.compile("^module is a function\s*\nmodule\s*()")
+            module_regexp = re.compile(r"^module is a function\s*\nmodule\s*()")
             cmd = "type module"
             (out, ec) = run_cmd(cmd, log_all=False, log_ok=False)
             if ec != 0 or not module_regexp.match(out):
@@ -330,7 +330,7 @@ class Modules(object):
         except IOError, err:
             self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
 
-        loadregex = re.compile("^\s+module load\s+(.*)$", re.M)
+        loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
 
         if depth > 0:

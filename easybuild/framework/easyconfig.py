@@ -1121,7 +1121,7 @@ def tweak(src_fn, target_fn, tweaks):
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
 
-        tc_regexp = re.compile("^\s*toolchain\s*=\s*(.*)$", re.M)
+        tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
 
         res = tc_regexp.search(ectxt)
         if not res:
@@ -1146,7 +1146,7 @@ def tweak(src_fn, target_fn, tweaks):
 
         if type(val) == list:
 
-            regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
+            regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
 
             res = regexp.search(ectxt)
             if res:
@@ -1161,7 +1161,7 @@ def tweak(src_fn, target_fn, tweaks):
     # add parameters or replace existing ones
     for (key, val) in tweaks.items():
 
-        regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
+        regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
 
         res = regexp.search(ectxt)
