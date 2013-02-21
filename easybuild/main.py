@@ -797,7 +797,7 @@ def build_and_install_software(module, options, log, origEnviron, exitOnFailure=
 
     name = module['module'][0]
     try:
-        app_class = get_class(easyblock, log, name=name)
+        app_class = get_class(easyblock, name=name)
         app = app_class(spec, debug=options.debug, robot_path=options.robot)
         log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
@@ -1040,7 +1040,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options, log):
             try:
                 if step == 'initialization':
                     log.info("Running %s step" % step)
-                    return parbuild.get_instance(obj, log, robot_path=options.robot)
+                    return parbuild.get_instance(obj, robot_path=options.robot)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)

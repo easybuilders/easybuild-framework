@@ -260,7 +260,7 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_class(self.options.easyblock, self.log)
+        app = get_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(EasyConfig.default_config + extra)
 
