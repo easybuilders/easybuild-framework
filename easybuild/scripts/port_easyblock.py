@@ -212,7 +212,7 @@ def refactor(txt):
 
     for old, new in refactor_list:
 
-        regexp = re.compile("^(.*[^a-zA-Z0-9_'\"])%s([^a-zA-Z0-9_'\" ].*)$" % old, re.M)
+        regexp = re.compile(r"^(.*[^a-zA-Z0-9_'\"])%s([^a-zA-Z0-9_'\" ].*)$" % old, re.M)
 
         def repl(m):
             return "%s%s%s" % (m.group(1), new, m.group(2))
@@ -238,8 +238,8 @@ def check_exception(txt):
 
     print "Checking except blocks..."
 
-    empty_except_re = re.compile("except\s*:")
-    exception_re = re.compile("except\s*Exception")
+    empty_except_re = re.compile(r"except\s*:")
+    exception_re = re.compile(r"except\s*Exception")
 
     if empty_except_re.search(txt) or exception_re.search(txt):
         warning("One or multiple except blocks found that don't specify an error class or use Exception.\n")
@@ -272,13 +272,13 @@ def run_pylint(fn):
     pylint.lint.Run([fn, "-r", "n"], reporter=TextReporter(pylint_output), exit=False)
 
     # count number of warnings/errors
-    warning_re = re.compile("^W:")
-    error_re = re.compile("^E:")
+    warning_re = re.compile(r"^W:")
+    error_re = re.compile(r"^E:")
 
     # warnings/errors we choose to ignore
     ignores_re = [
-                  re.compile("^W:\s*[0-9,]*:[A-Za-z0-9_]*.configure: Arguments number differs from overridden method"),
-                  re.compile("^W:\s*[0-9,]*:[A-Za-z0-9_]*.make: Arguments number differs from overridden method")
+                  re.compile(r"^W:\s*[0-9,]*:[A-Za-z0-9_]*.configure: Arguments number differs from overridden method"),
+                  re.compile(r"^W:\s*[0-9,]*:[A-Za-z0-9_]*.make: Arguments number differs from overridden method")
                   ]
 
     warning_cnt = 0

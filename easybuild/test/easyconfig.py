@@ -325,7 +325,7 @@ patches = %s
                   'toolchain_version': tcver,
                   'patches': extra_patches
                  }
-        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks)
 
         eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['version'], ver)
@@ -349,7 +349,7 @@ patches = %s
                   'foo': "bar"
                  }
 
-        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks)
 
         eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['toolchain']['name'], tcname)

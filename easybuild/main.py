@@ -240,7 +240,7 @@ def main(testing_data=(None, None)):
             files = find_easyconfigs(path, log)
             for f in files:
                 if not generated and try_to_generate and software_build_specs:
-                    ec_file = easyconfig.tweak(f, None, software_build_specs, log)
+                    ec_file = easyconfig.tweak(f, None, software_build_specs)
                 else:
                     ec_file = f
                 easyconfigs.extend(process_easyconfig(ec_file, log, options.only_blocks,
