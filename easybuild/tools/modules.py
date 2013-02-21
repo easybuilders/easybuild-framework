@@ -262,11 +262,11 @@ class Modules(object):
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
-            curr_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')[::-1]
-            new_ld_library_path = [x for x in nub(prev_ld_library_path + curr_ld_library_path) if len(x)][::-1]
+            curr_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')
+            new_ld_library_path = [x for x in nub(prev_ld_library_path + curr_ld_library_path[::-1]) if len(x)][::-1]
 
             self.log.debug("Correcting paths in LD_LIBRARY_PATH from %s to %s" %
-                           (curr_ld_library_path[::-1], new_ld_library_path))
+                           (curr_ld_library_path, new_ld_library_path))
             os.environ['LD_LIBRARY_PATH'] = ':'.join(new_ld_library_path)
 
             # Process stderr
