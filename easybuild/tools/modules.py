@@ -239,8 +239,8 @@ class Modules(object):
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
-        # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be updated (prepend-path) on loading a module
-        # this needs to be taken into account when actually updating the environment as dictated by the output produced, see below
+        # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
+        # this needs to be taken into account when updating the environment via produced output, see below
         proc = subprocess.Popen(['modulecmd', 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
