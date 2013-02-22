@@ -195,6 +195,14 @@ def extract_cmd(fn, overwrite=False):
     if ff[-1] == 'tbz':
         ftype = 'tar xjf %s'
 
+    # xzipped or xzipped tarball
+    if ff[-1] == 'xz':
+        ftype = 'unxz %s'
+        if ff[-2] == 'tar':
+            ftype = 'unxz %s | tar xf'
+    if ff[-1] == 'txz':
+        ftype = 'unxz %s | tar xf'
+
     # tarball
     if ff[-1] == 'tar':
         ftype = 'tar xf %s'
