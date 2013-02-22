@@ -618,7 +618,9 @@ class EasyConfig(object):
         if self.template_values is None or len(self.template_values) == 0:
             self.generate_template_values()
 
-        if isinstance(value, str):
+        if isinstance(value, basestring):
+            reg = re.compile(r'(%)(?!\()')  # match all % except %( for escapin the %
+            value = reg.sub(r'\1\1', value)
             try:
                 value = value % self.template_values
             except KeyError:
