@@ -27,7 +27,8 @@
 
 import os
 import re
-from unittest import TestCase, TestSuite
+import tempfile
+from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
@@ -52,15 +53,15 @@ class ModuleGeneratorTest(TestCase):
         eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
-            
+
         self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
-        self.modgen.app.installdir = "/tmp"
+        self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
         self.cwd = os.getcwd()
 
     def runTest(self):
         """ since we set the installdir above, we can predict the output """
-        expected = """#%Module
+        expected = """#%%Module
 
 proc ModulesHelp { } {
     puts stderr {   gzip (GNU zip) is a popular data compression program as a replacement for compress - Homepage: http://www.gzip.org/
@@ -69,15 +70,15 @@ proc ModulesHelp { } {
 
 module-whatis {gzip (GNU zip) is a popular data compression program as a replacement for compress - Homepage: http://www.gzip.org/}
 
-set root    /tmp
+set root    %s
 
 conflict    gzip
-"""
+""" % self.modgen.app.installdir
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
 
-        # test loadModule
+        # test load_module
         expected = """
 if { ![is-loaded name/version] } {
     module load name/version
@@ -85,7 +86,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.load_module("name", "version"))
 
-        # test unloadModule
+        # test unload_module
         expected = """
 if { ![is-loaded name/version] } {
     if { [is-loaded name] } {
@@ -95,7 +96,7 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
-        # test prependPaths
+        # test prepend_paths
         expected = """prepend-path	key		$root/path1
 prepend-path	key		$root/path2
 """
@@ -105,13 +106,16 @@ prepend-path	key		$root/path2
 """
         self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path /tmp/foo passed to prepend_paths " \
-                                              "which only expects relative paths.",
-                              self.modgen.prepend_paths, "key2", ["bar", "/tmp/foo"])
+        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
+                                              "which only expects relative paths." % self.modgen.app.installdir,
+                              self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
 
-        # test setEnvironment
-        self.assertEqual("setenv\tkey\t\tvalue\n", self.modgen.set_environment("key", "value"))
+        # test set_environment
+        self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
+        self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
+        self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
+        self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
 
     def tearDown(self):
         """cleanup"""
@@ -121,3 +125,6 @@ prepend-path	key		$root/path2
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([ModuleGeneratorTest()])
+
+if __name__ == '__main__':
+    main()

@@ -22,7 +22,7 @@
 EasyBuild support for building and installing extensions as actual extensions or as stand-alone modules,
 implemented as an easyblock
 
-@authors: Kenneth Hoste (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import copy
 import os
@@ -110,6 +110,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # unload fake module and clean up
             self.clean_up_fake_module(fake_mod_data)
 
+        if custom_paths or custom_commands:
+            EasyBlock.sanity_check_step(self, custom_paths=custom_paths, custom_commands=custom_commands)
+
         # pass or fail sanity check
         if not sanity_check_ok:
             if self.is_extension:
@@ -120,9 +123,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         else:
             self.log.info("Sanity check for %s successful!" % self.name)
             return True
-
-        if custom_paths or custom_commands:
-            Easyblock.sanity_check_step(self, custom_paths=custom_paths, custom_commands=custom_commands)
 
     def make_module_extra(self, extra):
         """Add custom entries to module."""

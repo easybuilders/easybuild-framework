@@ -79,7 +79,7 @@ def get_easybuild_version(home, version_file=None):
         error("Failed to read %s's version file at %s: %s" % (easybuild_package, version_file, err))
 
     # determine current version set
-    version_re = re.compile("^VERSION\s*=\s*[a-zA-Z(\"']*\s*(?P<version>[0-9.]+[^'\"]*).*$", re.M)
+    version_re = re.compile(r"^VERSION\s*=\s*[a-zA-Z(\"']*\s*(?P<version>[0-9.]+[^'\"]*).*$", re.M)
 
     res = version_re.search(versiontxt)
 
@@ -97,7 +97,7 @@ def get_last_git_version_tag(home):
     try:
         gitrepo = git.Git(home)
         git_tags = gitrepo.execute(["git","tag","-l"]).split('\n')
-        vertag_re = re.compile("^v([0-9]+\.[0-9]+[0-9.]*(rc[0-9]\+)*)$")
+        vertag_re = re.compile(r"^v([0-9]+\.[0-9]+[0-9.]*(rc[0-9]\+)*)$")
         git_version_tags = [LooseVersion(vertag_re.match(t).group(1)) for t in git_tags if vertag_re.match(t)]
         if len(git_version_tags) >= 1:
             return git_version_tags[-1]
@@ -137,7 +137,7 @@ def check_release_notes(home, easybuild_version):
     except IOError, err:
         error("Failed to read %s: %s" % (fn, err))
 
-    ver_re = re.compile("^v%s\s\([A-Z][a-z]+\s[0-9]+[a-z]+\s[0-9]+\)$" % easybuild_version, re.M)
+    ver_re = re.compile(r"^v%s\s\([A-Z][a-z]+\s[0-9]+[a-z]+\s[0-9]+\)$" % easybuild_version, re.M)
 
     if ver_re.search(releasenotes):
         print "Found entry in %s for version %s." % (fn, easybuild_version)
@@ -190,8 +190,8 @@ def check_clean_master_branch(home):
     except git.GitCommandError, err:
         error("Failed to determine status of git repository.")
 
-    master_re = re.compile("^# On branch master$", re.M)
-    clean_re = re.compile("^nothing to commit \(working directory clean\)$", re.M)
+    master_re = re.compile(r"^# On branch master$", re.M)
+    clean_re = re.compile(r"^nothing to commit \(working directory clean\)$", re.M)
 
     if not master_re.search(git_status):
         warning("Make sure you're on the master branch when running this script.")
@@ -214,8 +214,8 @@ def check_easyblocks_for_environment(home):
     files = glob.glob(os.path.join(home, 'easybuild/easyblocks/[a-z]/*.py'))
     eb_files = filter(lambda x: os.path.basename(x) != '__init__.py', files)
 
-    os_env_re = re.compile("os\.environ\[\w+\]\s*=\s*")
-    os_putenv_re = re.compile("os\.putenv")
+    os_env_re = re.compile(r"os\.environ\[\w+\]\s*=\s*")
+    os_putenv_re = re.compile(r"os\.putenv")
 
     found = []
     for eb_file in eb_files:
@@ -262,11 +262,11 @@ all_checks.append(check_release_notes(easybuild_home, max(easybuild_version, las
 
 # check for license headers
 
-license_header_re = re.compile("[#\n]*#\s+Copyright\s+\d*", re.M)
+license_header_re = re.compile(r"[#\n]*#\s+Copyright\s+\d*", re.M)
 # only code files, i.e. that don't start with a '.', and end in either '.py' or '.sh'
-filename_re = re.compile("^((?!\.).)*\.(py|sh)$")
+filename_re = re.compile(r"^((?!\.).)*\.(py|sh)$")
 # only paths that don't have subdirs that start with '.'
-dirname_re = re.compile("^((?!\.).)*$")
+dirname_re = re.compile(r"^((?!\.).)*$")
 
 print "Checking for license header in all code files..."
 all_checks.append(check_license_headers(easybuild_home, license_header_re, filename_re, dirname_re))

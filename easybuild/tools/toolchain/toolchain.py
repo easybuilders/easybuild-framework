@@ -86,7 +86,7 @@ class Toolchain(object):
 
     def base_init(self):
         if not hasattr(self, 'log'):
-            self.log = fancylogger.getLogger(self.__class__.__name__)
+            self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         if not hasattr(self, 'options'):
             self.options = self.OPTIONS_CLASS()

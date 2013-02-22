@@ -168,10 +168,10 @@ class Mpi(Toolchain):
 
         # different known mpirun commands
         mpi_cmds = {
-                    toolchain.OPENMPI:"mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.INTELMPI:"mpirun %(mpdbootfile)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
                     toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
                    }
 
         mpi_family = self.mpi_family()
@@ -196,7 +196,7 @@ class Mpi(Toolchain):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'mpdbootfile':"--file=%s"%fn})
+            params.update({'mpdbf':"--file=%s"%fn})
 
             # create nodes file
             fn = "/tmp/nodes"

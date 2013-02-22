@@ -1,6 +1,5 @@
 ##
 # Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,36 +22,16 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-import os
-import shutil
-import tempfile
-from unittest import TestCase, TestSuite, main
+"""
+EasyBuild support for iiqmpi compiler toolchain (includes Intel compilers, QLogicMPI).
 
-from easybuild.tools.repository import FileRepository
+@author: Kenneth Hoste (Ghent University)
+"""
+
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class RepositoryTest(TestCase):
-    """ very basis FileRepository test, we don't want git / svn dependency """
-
-    def setUp(self):
-        """ make sure temporary path does not exist """
-        self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
-        shutil.rmtree(self.path, True)
-        self.cwd = os.getcwd()
-
-    def runTest(self):
-        """ after initialization it should be the working copy """
-        repo = FileRepository(self.path)
-        self.assertEqual(repo.wc, self.path)
-
-    def tearDown(self):
-        """ clean up after myself """
-        shutil.rmtree(self.path, True)
-        os.chdir(self.cwd)
-
-def suite():
-    """ returns all the testcases in this module """
-    return TestSuite([RepositoryTest()])
-
-if __name__ == '__main__':
-    main()
+class Iiqmpi(IntelIccIfort, QLogicMPI):
+    """Compiler toolchain with Intel compilers and QLogic MPI."""
+    NAME = 'iiqmpi'
