@@ -106,7 +106,7 @@ class EasyBuildOptions(GeneralOption):
                              'software-version':("Search and build software with version",
                                                  None, 'store', None, {'metavar':'VERSION'}),
                              'toolchain':("Search and build with toolchain (name and version)",
-                                          None, 'store', None, {'metavar':'NAME,VERSION'}),
+                                          None, 'extend', None, {'metavar':'NAME,VERSION'}),
                              'toolchain-name':("Search and build with toolchain name",
                                                None, 'store', None, {'metavar':'NAME'}),
                              'toolchain-version':("Search and build with toolchain version",
@@ -221,6 +221,22 @@ class EasyBuildOptions(GeneralOption):
 
         self.log.debug("unittest_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='unittest')
+
+    def validate(self):
+        """Additional validation of options"""
+        stop_msg = []
+
+        if self.options.toolchain and not len(self.options.toolchain) == 2:
+            stop_msg.append('--toolchain requires NAME,VERSION (given %s)' % (','.join(self.options.toolchain)))
+        if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
+            stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' % (','.join(self.options.try_toolchain)))
+
+        if len(stop_msg) > 0:
+            indent = " "*2
+            stop_msg = ['%s%s' % (indent, x) for x in stop_msg]
+            stop_msg.insert(0, 'ERROR: Found %s problems validating the options:' % len(stop_msg))
+            print "\n".join(stop_msg)
+            sys.exit(1)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
