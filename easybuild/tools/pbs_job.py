@@ -62,10 +62,29 @@ def disconnect_from_server(conn):
 
     pbs.pbs_disconnect(conn)
 
+def get_ppn():
+    """Guess the ppn for full node"""
+
+    log = get_log('pbs_job.get_ppn')
+
+    pq = PBSQuery()
+    node_vals = pq.getnodes().values()  # # only the values, not the names
+    interesting_nodes = ('free', 'job-exclusive',)
+    res = {}
+    for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
+        res.setdefault(np, 0)
+        res[np] += 1
+
+    # # return most frequent
+    freq_count, freq_np = max([(j, i) for i, j in res.items()])
+    log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+
+    return freq_np
+
 class PbsJob(object):
     """Interaction with TORQUE"""
 
-    def __init__(self, script, name, env_vars=None, resources={}, conn=None):
+    def __init__(self, script, name, env_vars=None, resources={}, conn=None, ppn=None):
         """
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
@@ -102,7 +121,10 @@ class PbsJob(object):
             self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, MAX_WALLTIME))
             hours = MAX_WALLTIME
 
-        max_cores = self.get_ppn()
+        if ppn is None:
+            max_cores = get_ppn()
+        else:
+            max_cores = ppn
         cores = resources.get('cores', max_cores)
         if cores > max_cores:
             self.log.warn("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
@@ -299,24 +321,6 @@ class PbsJob(object):
             self.log.error("Failed to delete job %s: error %s" % (self.jobid, result))
         else:
             self.log.debug("Succesfully deleted job %s" % self.jobid)
-
-    def get_ppn(self):
-        """Guess the ppn for full node"""
-        pq = PBSQuery()
-        node_vals = pq.getnodes().values()  # # only the values, not the names
-        interesting_nodes = ('free', 'job-exclusive',)
-        res = {}
-        for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
-            res.setdefault(np, 0)
-            res[np] += 1
-
-        # # return most frequent
-        freq_count, freq_np = max([(j, i) for i, j in res.items()])
-        self.log.debug("Found most frequent np %s (%s times) in interesni nodes %s" % (freq_np,
-                                                                                       freq_count,
-                                                                                       interesting_nodes))
-
-        return freq_np
 
     def cleanup(self):
         """Cleanup: disconnect from server."""
