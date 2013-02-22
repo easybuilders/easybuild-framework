@@ -199,9 +199,9 @@ def extract_cmd(fn, overwrite=False):
     if ff[-1] == 'xz':
         ftype = 'unxz %s'
         if ff[-2] == 'tar':
-            ftype = 'unxz %s | tar x'
+            ftype = 'unxz %s --stdout | tar x'
     if ff[-1] == 'txz':
-        ftype = 'unxz %s | tar x'
+        ftype = 'unxz %s --stdout | tar x'
 
     # tarball
     if ff[-1] == 'tar':
