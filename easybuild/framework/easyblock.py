@@ -1718,7 +1718,6 @@ def get_class(easyblock, name=None):
 
     except Exception, err:
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
-        raise EasyBuildError(str(err))
 
 class StopException(Exception):
     """
