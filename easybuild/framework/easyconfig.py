@@ -619,7 +619,7 @@ class EasyConfig(object):
             self.generate_template_values()
 
         if isinstance(value, basestring):
-            reg = re.compile(r'(%)(?!\()')  # match all % except %( for escapin the %
+            reg = re.compile(r'(%)(?!\(\w+\)s)')  # match all % except %(somename)s to escape the %
             value = reg.sub(r'\1\1', value)
             try:
                 value = value % self.template_values
