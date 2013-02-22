@@ -619,8 +619,40 @@ class EasyConfig(object):
             self.generate_template_values()
 
         if isinstance(value, basestring):
-            reg = re.compile(r'(%)(?!\(\w+\)s)')  # match all % except %(somename)s to escape the %
-            value = reg.sub(r'\1\1', value)
+
+            # OPTION 1: simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+            #           but doesn't allow that a string like '%(name)s' is ever preserved (no way of escaping it)
+
+            # escape all '%'s not directly involved in a named string template
+            # examples:
+            # '10% ' -> '10%% '
+            # ' %s' -> ' %%s'
+            # ' %% ' -> ' %%%% '
+            # ' %(name)s' -> ' %(name)s'
+            # ' %%(name)s' -> ' %%%(name)s'
+            # ' %%%(name)s' -> ' %%%%%(name)s'
+            value = re.sub(r'(%)(?!\(\w+\)s)', r'\1\1', value)
+
+
+            # OPTION 2: complex escaping to be able to preserve original '%(name)s',
+            #           but with side-effect that post-templating strings like '%foo' or '%%%foo' are impossible
+
+            # escaping step 1: escape all '%'s not involved in a named string template
+            # examples:
+            # '10% ' -> '10%% '
+            # ' %s' -> ' %%s'
+            # ' %% ' -> ' %%%% '
+            #value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+
+            # escaping step 2: escape '%'s that are already escaped and involved in a named string template
+            # examples (with name ='foo'):
+            # non-escaped string template: '%(name)s' -> '%(name)s', so final result is 'foo'
+            # escaped string template: '%%(name)s' -> '%%%%(name)s', so final result is '%%(name)s' (no replacing!)
+            # string template preceded by an escaped %: '%%%(name)s' -> '%%%%%(name)s', so final result is '%%foo'
+            # escaped string template preceded by an escaped %: '%%%%(name)s' -> '%%%%%%%%(name)s' 
+            # NOTE w.r.t. above: with this in place you can never obtain a post-template value like '%foo' or '%%%foo'
+            #value = re.sub(r'((?:(?:%%)*)?)(%?)(?=\(\w+\)s)', r'\1\1\2', value)
+
             try:
                 value = value % self.template_values
             except KeyError:
