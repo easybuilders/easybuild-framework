@@ -569,25 +569,16 @@ def process_software_build_specs(options):
             # only when a try option is set do we enable generating easyconfigs
             try_to_generate = True
 
-    # process --toolchain --try-toolchain
-    if options.toolchain or options.try_toolchain:
-        if options.toolchain:
-            tc = options.toolchain.split(',')
-            if options.try_toolchain:
-                print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
+    # process --toolchain --try-toolchain (sanity check done in tools.options)
+    tc = options.toolchain or options.try_toolchain
+    if tc:
+        if options.toolchain and options.try_toolchain:
+            print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
         elif options.try_toolchain:
-            tc = options.try_toolchain.split(',')
             try_to_generate = True
-        else:
-            # shouldn't happen
-            print_error("Huh, neither --toolchain or --try-toolchain used?")
-
-        if not len(tc) == 2:
-            print_error("Please specify to toolchain to use as 'name,version' (e.g., 'goalf,1.1.0').")
-
-        [toolchain_name, toolchain_version] = tc
-        buildopts.update({'toolchain_name': toolchain_name})
-        buildopts.update({'toolchain_version': toolchain_version})
+        buildopts.update({'toolchain_name': tc[0],
+                          'toolchain_version': tc[1],
+                          })
 
     # process --amend and --try-amend
     if options.amend or options.try_amend:
