@@ -62,7 +62,7 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
 
         try:
-            default_robot_path = get_paths_for(self.log, "easyconfigs", robot_path=None)[0]
+            default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
             default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
@@ -260,7 +260,7 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_class(self.options.easyblock, self.log)
+        app = get_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(EasyConfig.default_config + extra)
 

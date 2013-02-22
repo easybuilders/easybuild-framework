@@ -56,6 +56,7 @@ from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
+_log = fancylogger.getLogger('easyblock')
 
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
@@ -372,7 +373,7 @@ class EasyBlock(object):
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
-            common_filepaths.extend(get_paths_for(self.log, "easyconfigs", robot_path=self.robot_path))
+            common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
             for path in common_filepaths + srcpaths:
                 # create list of candidate filepaths
@@ -1654,7 +1655,7 @@ def get_module_path(easyblock, generic=False):
 
     return '.'.join([modpath, module_name.lower()])
 
-def get_class(easyblock, log, name=None):
+def get_class(easyblock, name=None):
     """
     Get class for a particular easyblock (or ConfigureMake by default)
     """
@@ -1673,22 +1674,22 @@ def get_class(easyblock, log, name=None):
 
             # try and find easyblock
             try:
-                log.debug("getting class for %s.%s" % (modulepath, class_name))
+                _log.debug("getting class for %s.%s" % (modulepath, class_name))
                 cls = get_class_for(modulepath, class_name)
-                log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
                 return cls
             except ImportError, err:
 
                 # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
                 # and not because of a broken import statement in the easyblock module
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
-                log.debug("error regexp: %s" % error_re.pattern)
+                _log.debug("error regexp: %s" % error_re.pattern)
                 if not error_re.match(str(err)):
-                    log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
 
                 else:
                     # no easyblock could be found, so fall back to default class.
-                    log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
+                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
                                 (class_name, app_mod_class, err))
                     (modulepath, class_name) = app_mod_class
                     cls = get_class_for(modulepath, class_name)
@@ -1698,7 +1699,7 @@ def get_class(easyblock, log, name=None):
             class_name = easyblock.split('.')[-1]
             # figure out if full path was specified or not
             if len(easyblock.split('.')) > 1:
-                log.info("Assuming that full easyblock module path was specified.")
+                _log.info("Assuming that full easyblock module path was specified.")
                 modulepath = '.'.join(easyblock.split('.')[:-1])
                 cls = get_class_for(modulepath, class_name)
             else:
@@ -1710,13 +1711,13 @@ def get_class(easyblock, log, name=None):
                     # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
                     modulepath = get_module_path(easyblock)
                     cls = get_class_for(modulepath, class_name)
-                log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
 
-        log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+        _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
         return cls
 
     except Exception, err:
-        log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
+        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
         raise EasyBuildError(str(err))
 
 class StopException(Exception):

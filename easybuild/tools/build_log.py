@@ -32,6 +32,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
 import os
+import sys
 from copy import copy
 from vsc import fancylogger
 # EasyBuild message prefix
@@ -121,4 +122,24 @@ def print_msg(msg, log=None, silent=False):
         log.info(msg)
     if not silent:
         print "%s %s" % (EB_MSG_PREFIX, msg)
+
+def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
+    """
+    Print error message and exit EasyBuild
+    """
+    if exit_on_error:
+        if not silent:
+            print_msg("ERROR: %s\n" % message)
+            if opt_parser:
+                opt_parser.print_shorthelp()
+                print_msg("ERROR: %s\n" % message)
+        sys.exit(exitCode)
+    elif log is not None:
+        log.error(message)
+
+def print_warning(message, silent=False):
+    """
+    Print warning message.
+    """
+    print_msg("WARNING: %s\n" % message, silent=silent)
 

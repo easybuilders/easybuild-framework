@@ -448,11 +448,11 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
 
         # should find matching easyconfig file
         specs = {'name': 'foo', 'version': '1.2.3'}
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], False)
         self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
 
@@ -466,7 +466,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'versionsuffix': suff
                      })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -476,7 +476,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': ver,
                       'foo': 'bar123'
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
@@ -493,7 +493,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -506,7 +506,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': '3.15',
                       'toolchain_version': '4.4.5',
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -524,7 +524,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'patches': extra_patches,
                       'dependencies': deps
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['patches'], specs['patches'] + patches)
@@ -533,7 +533,7 @@ class TestObtainEasyconfig(EasyConfigTest):
 
         # should use supplied filename
         fn = "my.eb"
-        res = obtain_ec_for(specs, [self.ec_dir], fn, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], fn)
         self.assertEqual(res[0], True)
         self.assertEqual(res[1], fn)
         os.remove(res[1])
@@ -558,7 +558,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         if tpl_full_path:
             shutil.copy2(tpl_full_path, self.ec_dir)
             specs.update({'name': 'nosuchsoftware'})
-            res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+            res = obtain_ec_for(specs, [self.ec_dir], None)
             self.assertEqual(res[0], True)
             ec = EasyConfig(res[1], valid_stops=self.all_stops)
             self.assertEqual(ec['name'], specs['name'])
