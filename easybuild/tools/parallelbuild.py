@@ -35,7 +35,7 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server
+from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
 
@@ -54,9 +54,14 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     # so one can linearly walk over the list and use previous job id's
     jobs = []
 
+    # create a single connection, and reuse it
     conn = connect_to_server()
     if conn is None:
         _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
+
+    # determine ppn once, and pass is to each job being created
+    # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
+    ppn = get_ppn()
 
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
@@ -66,7 +71,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, output_dir, conn=conn)
+        new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
 
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
         job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
@@ -84,7 +89,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     return jobs
 
 
-def create_job(build_command, easyconfig, output_dir="", conn=None):
+def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     """
     Creates a job, to build a *single* easyconfig
     build_command is a format string in which a full path to an eb file will be substituted
@@ -122,7 +127,7 @@ def create_job(build_command, easyconfig, output_dir="", conn=None):
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn)
+    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
     job.module = easyconfig['module']
 
     return job
