@@ -573,20 +573,24 @@ class TestObtainEasyconfig(EasyConfigTest):
 class TestTemplating(EasyConfigTest):
     """test templating validations """
 
-    input = {'name':'PI',
-             'version':'3.14',
-             'namelower':'pi',
-             }
+    inp = {
+           'name':'PI',
+           'version':'3.14',
+           'namelower':'pi',
+           'cmd': 'tar xfvz %s',
+          }
 
     contents = """
 name = "%(name)s"
 version = "%(version)s"
 homepage = "http://google.com"
-description = "test easyconfig %%(name)s"
+description = "test easyconfig %%s 10%% %%(name)s 10%% %%%% %%%%(name)s %%%%%%(name)s %%%%%%%%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
-sources = [SOURCE_TAR_GZ]
-""" % input
+sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
+""" % inp
+
+    print contents
 
     def runTest(self):
         """ test easyconfig templating """
@@ -594,10 +598,12 @@ sources = [SOURCE_TAR_GZ]
         eb.validate()
         eb._generate_template_values()
 
-        self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
+        self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %PI %%PI %%%PI")
+        #self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %%(name)s %%PI %%%%(name)s")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.input)
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.input)
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
 
 
 class TestTemplatingDoc(EasyConfigTest):
