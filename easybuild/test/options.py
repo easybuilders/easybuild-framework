@@ -35,6 +35,8 @@ from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
 from easybuild.main import main
+from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
+from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -297,6 +299,35 @@ class CommandLineOptionsTest(TestCase):
             os.remove(fn)
 
         fancylogger.logToFile(self.logfile)
+
+    def test_avail_easyconfig_params(self):
+        """Test listing available easyconfig parameters."""
+
+        for avail_arg in [
+                          '-a',
+                          '--avail-easyconfig-params',
+                         ]:
+            args = [
+                    avail_arg,
+                    '--unittest-file=%s' % self.logfile,
+                   ]
+            try:
+                main((args, None))
+            except:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            # check whether all parameter types are listed
+            for param_type in [x[1] for x in [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE, MANDATORY, MODULES, OTHER, TOOLCHAIN]]:
+                self.assertTrue(re.search("%s\n%s" % (param_type.upper(), '-'*len(param_type)), outtxt),
+                                "Parameter type %s is featured in output of eb %s" % (param_type, avail_arg))
+
+            # check a couple of easyconfig parameters
+            for param in ["name", "version", "toolchain", "versionsuffix", "makeopts", "sources", "start_dir",
+                          "dependencies", "group", "exts_list", "moduleclass", "buildstats"]:
+                self.assertTrue(re.search("%s:\s*\w.*" % param, outtxt), "Parameter %s is listed with help in output of eb %s" % (param, avail_arg))
+
+        # FIXME also write an additional unit test for CUSTOM (-a -e foo)
 
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
