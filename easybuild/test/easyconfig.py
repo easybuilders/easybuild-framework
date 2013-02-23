@@ -597,7 +597,6 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         eb._generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
-        # self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %%(name)s %%PI %%%%(name)s")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
@@ -605,7 +604,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
-        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %%(name)s %PI %%%%(name)s")
+        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
 
 class TestTemplatingDoc(EasyConfigTest):
