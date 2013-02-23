@@ -641,7 +641,7 @@ class EasyConfig(object):
             # if a an even number of % prefixes the (name)s,
             # we assume that no templating is desired and the behaviour is as follows
             # '%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
-            # '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+            # '%%%%(name)s' -> '%%%%%%%%(name)s', and after templating with {'name':'x'} -> '%%%%(name)s'
             value = re.sub(r'(?<!%)((?:%%)+)(?=\(\w+\)s)', r'\1\1', value)
 
             try:
