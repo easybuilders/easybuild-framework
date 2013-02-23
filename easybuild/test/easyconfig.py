@@ -575,6 +575,7 @@ class TestTemplating(EasyConfigTest):
 
     inp = {
            'name':'PI',
+           'namelower':'pi',
            'version':'3.14',
            'namelower':'pi',
            'cmd': 'tar xfvz %s',
@@ -590,8 +591,6 @@ source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
 """ % inp
 
-    print contents
-
     def runTest(self):
         """ test easyconfig templating """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
@@ -602,6 +601,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         #self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %%(name)s %%PI %%%%(name)s")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
 
