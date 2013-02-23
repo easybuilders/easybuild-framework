@@ -579,18 +579,16 @@ class TestTemplating(EasyConfigTest):
            'namelower':'pi',
            'cmd': 'tar xfvz %s',
           }
-
+    # don't use any escaping insanity here, since it is templated itself
     contents = """
 name = "%(name)s"
 version = "%(version)s"
 homepage = "http://google.com"
-description = "test easyconfig %%s 10%% %%(name)s 10%% %%%% %%%%(name)s %%%%%%(name)s %%%%%%%%(name)s"
+description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
 """ % inp
-
-    print contents
 
     def runTest(self):
         """ test easyconfig templating """
@@ -598,12 +596,16 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         eb.validate()
         eb._generate_template_values()
 
-        self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %PI %%PI %%%PI")
-        #self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %%(name)s %%PI %%%%(name)s")
+        self.assertEqual(eb['description'], "test easyconfig PI")
+        # self.assertEqual(eb['description'], "test easyconfig %s 10% PI 10% %% %%(name)s %%PI %%%%(name)s")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+
+        # test the escaping insanity here (ie all the crap we allow in easyconfigs)
+        eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
+        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %%(name)s %PI %%%%(name)s")
 
 
 class TestTemplatingDoc(EasyConfigTest):

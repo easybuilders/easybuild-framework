@@ -619,39 +619,30 @@ class EasyConfig(object):
             self.generate_template_values()
 
         if isinstance(value, basestring):
-
-            # OPTION 1: simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
-            #           but doesn't allow that a string like '%(name)s' is ever preserved (no way of escaping it)
-
-            # escape all '%'s not directly involved in a named string template
+            # step 1: simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+            #         but ignore a string like '%(name)s'
             # examples:
-            # '10% ' -> '10%% '
-            # ' %s' -> ' %%s'
-            # ' %% ' -> ' %%%% '
-            # ' %(name)s' -> ' %(name)s'
-            # ' %%(name)s' -> ' %%%(name)s'
-            # ' %%%(name)s' -> ' %%%%%(name)s'
-            value = re.sub(r'(%)(?!\(\w+\)s)', r'\1\1', value)
+            # '10%' -> '10%%'
+            # '%s' -> '%%s'
+            # '%%' -> '%%%%'
+            # '%(name)s' -> '%(name)s'
+            # '%%(name)s' -> '%%(name)s'
+            value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
 
-
-            # OPTION 2: complex escaping to be able to preserve original '%(name)s',
-            #           but with side-effect that post-templating strings like '%foo' or '%%%foo' are impossible
-
-            # escaping step 1: escape all '%'s not involved in a named string template
-            # examples:
-            # '10% ' -> '10%% '
-            # ' %s' -> ' %%s'
-            # ' %% ' -> ' %%%% '
-            #value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
-
-            # escaping step 2: escape '%'s that are already escaped and involved in a named string template
-            # examples (with name ='foo'):
-            # non-escaped string template: '%(name)s' -> '%(name)s', so final result is 'foo'
-            # escaped string template: '%%(name)s' -> '%%%%(name)s', so final result is '%%(name)s' (no replacing!)
-            # string template preceded by an escaped %: '%%%(name)s' -> '%%%%%(name)s', so final result is '%%foo'
-            # escaped string template preceded by an escaped %: '%%%%(name)s' -> '%%%%%%%%(name)s' 
-            # NOTE w.r.t. above: with this in place you can never obtain a post-template value like '%foo' or '%%%foo'
-            #value = re.sub(r'((?:(?:%%)*)?)(%?)(?=\(\w+\)s)', r'\1\1\2', value)
+            # step 2: escaping to be able to preserve original '%(name)s',
+            #         make sure that constructs like %%(name)s are preserved
+            #         higher order escaping in the original text is considered advanced users only,
+            #         and a big no-no otherwise. It indicates that want some new functionality
+            #         in easyconfigs, so just open an issue for it.
+            # if a an odd number of % prefixes the (name)s,
+            # we assume that templating is assumed and the behaviour is as follows
+            # '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
+            # '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
+            # if a an even number of % prefixes the (name)s,
+            # we assume that no templating is desired and the behaviour is as follows
+            # '%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+            # '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+            value = re.sub(r'(?<!%)((?:%%)+)(?=\(\w+\)s)', r'\1\1', value)
 
             try:
                 value = value % self.template_values
