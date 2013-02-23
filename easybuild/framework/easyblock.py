@@ -1524,6 +1524,13 @@ class EasyBlock(object):
             except EasyBuildError, err:
                 self.log.exception("Running test %s failed: %s" % (path, err))
 
+    def update_config_template_run_step(self):
+        """Update the the easyconfig template dictionary with easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP names"""
+
+        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
+        self.cfg.generate_template_values()
+
     def run_step(self, step, methods, skippable=False):
         """
         Run step, returns false when execution should be stopped
@@ -1533,7 +1540,7 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             # update the config templates
-            template_config_update_easyblock_run_step(self)
+            self.update_config_template_run_step()
 
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
@@ -1607,17 +1614,6 @@ class EasyBlock(object):
         # return True for successfull build (or stopped build)
         return True
 
-
-def template_config_update_easyblock_run_step(easyblock_instance):
-    """Update the easyconfig templating in the run_step part.
-        easyblock_instance : an EasyBlock instance
-    """
-    if not isinstance(easyblock_instance, EasyBlock):
-        _log.error("Passed instance %s is not an EasyBlock instance." % (easyblock_instance))
-
-    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        easyblock_instance.cfg.template_values[name[0]] = str(getattr(easyblock_instance, name[0], None))
-    easyblock_instance.cfg.generate_template_values()
 
 
 def get_class_for(modulepath, class_name):

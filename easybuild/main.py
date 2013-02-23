@@ -78,7 +78,7 @@ import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
-from easybuild.framework.easyblock import EasyBlock, get_class, template_config_update_easyblock_run_step
+from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
@@ -1008,11 +1008,11 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
-        if (type(obj) == dict and obj['spec'] not in build_stopped) or obj not in build_stopped:
-            if not isinstance(obj, dict):
+        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
+            if isinstance(obj, EasyBlock):
                 # TODO is this code ever reached? and what is obj?
                 # and why do we need to set the runstep here if this is part of teh parbuild.get_easyblock_instance
-                template_config_update_easyblock_run_step(obj)
+                obj.update_config_template_run_step()
 
             try:
                 if step == 'initialization':
