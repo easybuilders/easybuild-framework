@@ -35,6 +35,7 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
+from easybuild.framework.easyconfig import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
@@ -161,6 +162,12 @@ def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
         instance = get_instance(ec, robot_path=robot_path)
+
+        # update the config templates
+        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            instance.cfg.template_values[name[0]] = str(getattr(instance, name[0], None))
+        instance.cfg.generate_template_values()
+
         instance.fetch_step()
     except:
         pass
