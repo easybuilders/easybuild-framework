@@ -619,8 +619,22 @@ class EasyConfig(object):
             self.generate_template_values()
 
         if isinstance(value, basestring):
-            # step 1: simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+            # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
             #         but ignore a string like '%(name)s'
+            # behaviour of strings like '%(name)s',
+            #   make sure that constructs like %%(name)s are preserved
+            #   higher order escaping in the original text is considered advanced users only,
+            #   and a big no-no otherwise. It indicates that want some new functionality
+            #   in easyconfigs, so just open an issue for it.
+            #   detailed behaviour:
+            #     if a an odd number of % prefixes the (name)s,
+            #     we assume that templating is assumed and the behaviour is as follows
+            #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
+            #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
+            #     if a an even number of % prefixes the (name)s,
+            #     we assume that no templating is desired and the behaviour is as follows
+            #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
+            #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
             # examples:
             # '10%' -> '10%%'
             # '%s' -> '%%s'
@@ -628,21 +642,6 @@ class EasyConfig(object):
             # '%(name)s' -> '%(name)s'
             # '%%(name)s' -> '%%(name)s'
             value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
-
-            # step 2: escaping to be able to preserve original '%(name)s',
-            #         make sure that constructs like %%(name)s are preserved
-            #         higher order escaping in the original text is considered advanced users only,
-            #         and a big no-no otherwise. It indicates that want some new functionality
-            #         in easyconfigs, so just open an issue for it.
-            # if a an odd number of % prefixes the (name)s,
-            # we assume that templating is assumed and the behaviour is as follows
-            # '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
-            # '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
-            # if a an even number of % prefixes the (name)s,
-            # we assume that no templating is desired and the behaviour is as follows
-            # '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
-            # '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
-            value = re.sub(r'(?<!%)((?:%%)+)(?=\(\w+\)s)', r'\1\1', value)
 
             try:
                 value = value % self.template_values
