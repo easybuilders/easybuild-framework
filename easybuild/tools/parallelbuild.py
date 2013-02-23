@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012 Ghent University
 # Copyright 2012 Toon Willems
 #
@@ -22,7 +22,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
 dependencies)
@@ -34,8 +34,7 @@ import os
 import re
 
 import easybuild.tools.config as config
-from easybuild.framework.easyblock import get_class
-from easybuild.framework.easyconfig import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.easyblock import get_class, template_config_update_easyblock_run_step
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
@@ -134,13 +133,13 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     return job
 
 
-def get_instance(easyconfig, robot_path=None):
+def get_easyblock_instance(easyconfig, robot_path=None):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
     log is a logger object
 
-    returns an instance of Application (or subclass thereof)
+    returns an instance of EasyBlock (or subclass thereof)
     """
     spec = easyconfig['spec']
     name = easyconfig['module'][0]
@@ -161,13 +160,8 @@ def get_instance(easyconfig, robot_path=None):
 def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, robot_path=robot_path)
-
-        # update the config templates
-        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            instance.cfg.template_values[name[0]] = str(getattr(instance, name[0], None))
-        instance.cfg.generate_template_values()
-
-        instance.fetch_step()
+        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path)
+        template_config_update_easyblock_run_step(easyblock_instance)
+        easyblock_instance.fetch_step()
     except:
         pass
