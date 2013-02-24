@@ -163,13 +163,15 @@ class Mpi(Toolchain):
     def mpi_cmd_for(self, cmd, nr_ranks):
         """Construct an MPI command for the given command and number of ranks."""
 
+        hostname = os.getenv('HOSTNAME')
+
         # parameter values for mpirun command
         params = {'nr_ranks':nr_ranks, 'cmd':cmd}
 
         # different known mpirun commands
         mpi_cmds = {
                     toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.QLOGICMPI: "mpirun -H %s -np %%(nr_ranks)d %%(cmd)s" % hostname,  #@UndefinedVariable
                     toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
                     toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
                    }
@@ -191,7 +193,7 @@ class Mpi(Toolchain):
                 if os.path.exists(fn):
                     os.remove(fn)
                 f = open(fn, "w")
-                f.write("localhost ifhn=localhost")
+                f.write("%(hostname)s ifhn=%(hostname)s" % {'hostname': hostname})
                 f.close()
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
@@ -204,7 +206,7 @@ class Mpi(Toolchain):
                 if os.path.exists(fn):
                     os.remove(fn)
                 f = open(fn, "w")
-                f.write("localhost\n" * nr_ranks)
+                f.write("%s\n" % hostname * nr_ranks)
                 f.close()
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
