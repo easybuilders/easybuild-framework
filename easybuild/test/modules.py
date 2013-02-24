@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 import os
-import random
+import re
 
 import easybuild.tools.modules as modules
 from unittest import TestCase, TestLoader, main
@@ -46,8 +46,22 @@ class ModulesTest(TestCase):
             testmods.add_module([m])
             testmods.load()
 
-        tmp = {"name": m[0], "version": m[1]}
-        assert(tmp in testmods.loaded_modules())
+            tmp = {"name": m[0], "version": m[1]}
+            assert(tmp in testmods.loaded_modules())
+
+    def test_LD_LIBRARY_PATH(self):
+        """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
+
+        testpath = '/this/is/just/a/test'
+
+        os.environ['LD_LIBRARY_PATH'] = testpath
+
+        testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
+        testmods.add_module([('GCC', '4.6.3')])
+        testmods.load()
+
+        # check that previous LD_LIBRARY_PATH is still there, at the end
+        self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
 
     def test_purge(self):
         """Test if purging of modules works."""

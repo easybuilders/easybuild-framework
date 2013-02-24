@@ -38,15 +38,19 @@ import re
 import sys
 import tempfile
 from distutils.version import LooseVersion
+from vsc import fancylogger
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.tools.build_log import EasyBuildError, get_log
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
+
+_log = fancylogger.getLogger('easyconfig', fname=False)
 
 # we use a tuple here so we can sort them based on the numbers
 MANDATORY = (0, 'mandatory')
@@ -200,7 +204,7 @@ class EasyConfig(object):
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
-        self.log = get_log("EasyConfig")
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.valid_module_classes = None
         if valid_module_classes:
@@ -276,7 +280,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS+EASYCONFIG_CONSTANTS])
+        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS + EASYCONFIG_CONSTANTS])
         global_vars.update(const_dict)
         local_vars = {}
 
@@ -614,7 +618,31 @@ class EasyConfig(object):
         if self.template_values is None or len(self.template_values) == 0:
             self.generate_template_values()
 
-        if isinstance(value, str):
+        if isinstance(value, basestring):
+            # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+            #         but ignore a string like '%(name)s'
+            # behaviour of strings like '%(name)s',
+            #   make sure that constructs like %%(name)s are preserved
+            #   higher order escaping in the original text is considered advanced users only,
+            #   and a big no-no otherwise. It indicates that want some new functionality
+            #   in easyconfigs, so just open an issue for it.
+            #   detailed behaviour:
+            #     if a an odd number of % prefixes the (name)s,
+            #     we assume that templating is assumed and the behaviour is as follows
+            #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
+            #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
+            #     if a an even number of % prefixes the (name)s,
+            #     we assume that no templating is desired and the behaviour is as follows
+            #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
+            #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+            # examples:
+            # '10%' -> '10%%'
+            # '%s' -> '%%s'
+            # '%%' -> '%%%%'
+            # '%(name)s' -> '%(name)s'
+            # '%%(name)s' -> '%%(name)s'
+            value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+
             try:
                 value = value % self.template_values
             except KeyError:
@@ -758,7 +786,7 @@ def ec_filename_for(path):
 
     return fn
 
-def pick_version(req_ver, avail_vers, log):
+def pick_version(req_ver, avail_vers):
     """Pick version based on an optionally desired version and available versions.
 
     If a desired version is specifed, the most recent version that is less recent
@@ -769,7 +797,7 @@ def pick_version(req_ver, avail_vers, log):
     """
 
     if not avail_vers:
-        log.error("Empty list of available versions passed.")
+        _log.error("Empty list of available versions passed.")
 
     selected_ver = None
     if req_ver:
@@ -808,7 +836,7 @@ def create_paths(path, name, version):
             os.path.join(path, "%s-%s.eb" % (name, version)),
            ]
 
-def obtain_ec_for(specs, paths, fp, log):
+def obtain_ec_for(specs, paths, fp):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -822,11 +850,11 @@ def obtain_ec_for(specs, paths, fp, log):
 
     # ensure that at least name is specified
     if not specs.get('name'):
-        log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
+        _log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
 
     # collect paths to search in
     if not paths:
-        log.error("No paths to look for easyconfig files, specify a path with --robot.")
+        _log.error("No paths to look for easyconfig files, specify a path with --robot.")
 
     # create glob patterns based on supplied info
 
@@ -844,17 +872,17 @@ def obtain_ec_for(specs, paths, fp, log):
 
     cnt = len(easyconfig_files)
 
-    log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
+    _log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
 
     # select best easyconfig, or try to generate one that fits the requirements
-    res = select_or_generate_ec(fp, paths, specs, log)
+    res = select_or_generate_ec(fp, paths, specs)
 
     if res:
         return res
     else:
-        log.error("No easyconfig found for requested software, and also failed to generate one.")
+        _log.error("No easyconfig found for requested software, and also failed to generate one.")
 
-def select_or_generate_ec(fp, paths, specs, log):
+def select_or_generate_ec(fp, paths, specs):
     """
     Select or generate an easyconfig file with the given requirements, from existing easyconfig files.
 
@@ -878,7 +906,7 @@ def select_or_generate_ec(fp, paths, specs, log):
 
     # ensure that at least name is specified
     if not specs.get('name'):
-        log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
+        _log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
     name = specs['name']
     handled_params = ['name']
 
@@ -900,12 +928,10 @@ def select_or_generate_ec(fp, paths, specs, log):
                 ec_files = [templ_file]
                 break
             else:
-                log.debug("No template found at %s." % templ_file)
+                _log.debug("No template found at %s." % templ_file)
 
         if len(ec_files) == 0:
-            log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
-
-    log.debug("ec_files: %s" % ec_files)
+            _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
     def unique(l):
@@ -920,20 +946,24 @@ def select_or_generate_ec(fp, paths, specs, log):
         else:
             return l
 
+    # filter unique
+    ec_files = nub(ec_files)
+    _log.debug("Unique ec_files: %s" % ec_files)
+
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
     # TOOLCHAIN NAME
 
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
-    log.debug("Found %d unique toolchain names: %s" % (len(tcnames), tcnames))
+    _log.debug("Found %d unique toolchain names: %s" % (len(tcnames), tcnames))
 
     # if a toolchain was selected, and we have no easyconfig files for it, try and use a template
     if specs.get('toolchain_name') and not specs['toolchain_name'] in tcnames:
         if "TEMPLATE" in tcnames:
-            log.info("No easyconfig file for specified toolchain, but template is available.")
+            _log.info("No easyconfig file for specified toolchain, but template is available.")
         else:
-            log.error("No easyconfig file for %s with toolchain %s, " \
+            _log.error("No easyconfig file for %s with toolchain %s, " \
                       "and no template available." % (name, specs['toolchain_name']))
 
     tcname = specs.pop('toolchain_name', None)
@@ -957,24 +987,24 @@ def select_or_generate_ec(fp, paths, specs, log):
             else:
                 # if multiple toolchains are available, and none is specified, we quit
                 # we can't just pick one, how would we prefer one over the other?
-                log.error("No toolchain name specified, and more than one available: %s." % tcnames)
+                _log.error("No toolchain name specified, and more than one available: %s." % tcnames)
 
+    _log.debug("Filtering easyconfigs based on toolchain name '%s'..." % selected_tcname)
     ecs_and_files = [x for x in ecs_and_files if x[0]['toolchain']['name'] == selected_tcname]
-
-    log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
+    _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # TOOLCHAIN VERSION
 
     tcvers = unique([x[0]['toolchain']['version'] for x in ecs_and_files])
-    log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
+    _log.debug("Found %d unique toolchain versions: %s" % (len(tcvers), tcvers))
 
     tcver = specs.pop('toolchain_version', None)
     handled_params.append('toolchain_version')
-    (tcver, selected_tcver) = pick_version(tcver, tcvers, log)
+    (tcver, selected_tcver) = pick_version(tcver, tcvers)
 
-    log.debug("Filtering easyconfigs based on toolchain version '%s'..." % selected_tcver)
+    _log.debug("Filtering easyconfigs based on toolchain version '%s'..." % selected_tcver)
     ecs_and_files = [x for x in ecs_and_files if x[0]['toolchain']['version'] == selected_tcver]
-    log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
+    _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # add full toolchain specification to specs
     if tcname and tcver:
@@ -989,17 +1019,17 @@ def select_or_generate_ec(fp, paths, specs, log):
     # SOFTWARE VERSION
 
     vers = unique([x[0]['version'] for x in ecs_and_files])
-    log.debug("Found %d unique software versions: %s" % (len(vers), vers))
+    _log.debug("Found %d unique software versions: %s" % (len(vers), vers))
 
     ver = specs.pop('version', None)
     handled_params.append('version')
-    (ver, selected_ver) = pick_version(ver, vers, log)
+    (ver, selected_ver) = pick_version(ver, vers)
     if ver:
         specs.update({'version': ver})
 
-    log.debug("Filtering easyconfigs based on software version '%s'..." % selected_ver)
+    _log.debug("Filtering easyconfigs based on software version '%s'..." % selected_ver)
     ecs_and_files = [x for x in ecs_and_files if x[0]['version'] == selected_ver]
-    log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
+    _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
     # go through parameters specified via --amend
     # always include versionprefix/suffix, because we might need it to generate a file name
@@ -1010,7 +1040,7 @@ def select_or_generate_ec(fp, paths, specs, log):
         if not param in handled_params:
             other_params.update({param: val})
 
-    log.debug("Filtering based on other parameters (specified via --amend): %s" % other_params)
+    _log.debug("Filtering based on other parameters (specified via --amend): %s" % other_params)
     for (param, val) in other_params.items():
 
         if param in ecs_and_files[0][0]._config:
@@ -1023,27 +1053,27 @@ def select_or_generate_ec(fp, paths, specs, log):
         if val in vals:
             # if the specified value is available, use it
             selected_val = val
-            log.debug("Specified %s is available, so using it: %s" % (param, selected_val))
+            _log.debug("Specified %s is available, so using it: %s" % (param, selected_val))
             filter_ecs = True
         elif val:
             # if a value is specified, use that, even if it's not available yet
             selected_val = val
-            log.debug("%s is specified, so using it (even though it's not available yet): %s" % (param, selected_val))
+            _log.debug("%s is specified, so using it (even though it's not available yet): %s" % (param, selected_val))
         elif len(vals) == 1:
             # if only one value is available, use that
             selected_val = vals[0]
-            log.debug("Only one %s available ('%s'), so picking that" % (param, selected_val))
+            _log.debug("Only one %s available ('%s'), so picking that" % (param, selected_val))
             filter_ecs = True
         else:
             # otherwise, we fail, because we don't know how to pick between different fixes
-            log.error("No %s specified, and can't pick from available %ses %s" % (param,
+            _log.error("No %s specified, and can't pick from available %ses %s" % (param,
                                                                                   param,
                                                                                   vals))
 
         if filter_ecs:
-            log.debug("Filtering easyconfigs based on %s '%s'..." % (param, selected_val))
+            _log.debug("Filtering easyconfigs based on %s '%s'..." % (param, selected_val))
             ecs_and_files = [x for x in ecs_and_files if x[0][param] == selected_val]
-            log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
+            _log.debug("Filtered easyconfigs: %s" % [x[1] for x in ecs_and_files])
 
         # keep track of versionprefix/suffix
         if param == "versionprefix":
@@ -1054,10 +1084,8 @@ def select_or_generate_ec(fp, paths, specs, log):
     cnt = len(ecs_and_files)
     if not cnt == 1:
         fs = [x[1] for x in ecs_and_files]
-        log.error("Failed to select a single easyconfig from available ones, %s left: %s" % (cnt, fs))
-
+        _log.error("Failed to select a single easyconfig from available ones, %s left: %s" % (cnt, fs))
     else:
-
         (selected_ec, selected_ec_file) = ecs_and_files[0]
 
         # check whether selected easyconfig matches requirements
@@ -1073,7 +1101,7 @@ def select_or_generate_ec(fp, paths, specs, log):
 
         # if it matches, no need to tweak
         if match:
-            log.info("Perfect match found: %s" % selected_ec_file)
+            _log.info("Perfect match found: %s" % selected_ec_file)
             return (False, selected_ec_file)
 
         # GENERATE
@@ -1084,13 +1112,13 @@ def select_or_generate_ec(fp, paths, specs, log):
             fp = "%s-%s.eb" % (name, installver)
 
         # generate tweaked easyconfig file
-        tweak(selected_ec_file, fp, specs, log)
+        tweak(selected_ec_file, fp, specs)
 
-        log.info("Generated easyconfig file %s, and using it to build the requested software." % fp)
+        _log.info("Generated easyconfig file %s, and using it to build the requested software." % fp)
 
         return (True, fp)
 
-def tweak(src_fn, target_fn, tweaks, log):
+def tweak(src_fn, target_fn, tweaks):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
@@ -1113,18 +1141,18 @@ def tweak(src_fn, target_fn, tweaks, log):
         ectxt = f.read()
         f.close()
     except IOError, err:
-        log.error("Failed to read easyconfig file %s: %s" % (src_fn, err))
+        _log.error("Failed to read easyconfig file %s: %s" % (src_fn, err))
 
-    log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
+    _log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
 
-        tc_regexp = re.compile("^\s*toolchain\s*=\s*(.*)$", re.M)
+        tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
 
         res = tc_regexp.search(ectxt)
         if not res:
-            log.error("No toolchain found in easyconfig file %s?" % src_fn)
+            _log.error("No toolchain found in easyconfig file %s?" % src_fn)
 
         toolchain = eval(res.group(1))
 
@@ -1136,7 +1164,7 @@ def tweak(src_fn, target_fn, tweaks, log):
 
         tweaks.update({'toolchain': {'name': toolchain['name'], 'version': toolchain['version']}})
 
-        log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
+        _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
     additions = []
 
@@ -1145,13 +1173,13 @@ def tweak(src_fn, target_fn, tweaks, log):
 
         if type(val) == list:
 
-            regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
+            regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
 
             res = regexp.search(ectxt)
             if res:
                 newval = "%s + %s" % (val, res.group(1))
                 ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
-                log.info("Tweaked %s list to '%s'" % (key, newval))
+                _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
                 additions.append("%s = %s # added by EasyBuild" % (key, val))
 
@@ -1160,34 +1188,34 @@ def tweak(src_fn, target_fn, tweaks, log):
     # add parameters or replace existing ones
     for (key, val) in tweaks.items():
 
-        regexp = re.compile("^\s*%s\s*=\s*(.*)$" % key, re.M)
-        log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
+        regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+        _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
 
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
             diff = True
             try:
-                log.debug("eval(%s): %s" % (res.group(1), eval(res.group(1))))
+                _log.debug("eval(%s): %s" % (res.group(1), eval(res.group(1))))
                 diff = not eval(res.group(1)) == val
             except (NameError, SyntaxError):
                 # if eval fails, just fall back to string comparison
-                log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % (res.group(1), val))
+                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % (res.group(1), val))
                 diff = not res.group(1) == val
 
             if diff:
                 ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
-                log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
+                _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
             additions.append("%s = %s" % (key, quote_str(val)))
 
 
     if additions:
-        log.info("Adding additional parameters to tweaked easyconfig file: %s")
+        _log.info("Adding additional parameters to tweaked easyconfig file: %s")
         ectxt += "\n\n# added by EasyBuild as dictated by command line options\n"
         ectxt += '\n'.join(additions) + '\n'
 
-    log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
+    _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
     if not target_fn:
@@ -1211,23 +1239,23 @@ def tweak(src_fn, target_fn, tweaks, log):
             os.remove(tmpfn)
 
         except (IOError, OSError), err:
-            log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
+            _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
 
         target_fn = os.path.join(tempfile.gettempdir(), fn)
-        log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
+        _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
 
     # write out tweaked easyconfig file
     try:
         f = open(target_fn, "w")
         f.write(ectxt)
         f.close()
-        log.info("Tweaked easyconfig file written to %s" % target_fn)
+        _log.info("Tweaked easyconfig file written to %s" % target_fn)
     except IOError, err:
-        log.error("Failed to write tweaked easyconfig file to %s: %s" % (target_fn, err))
+        _log.error("Failed to write tweaked easyconfig file to %s: %s" % (target_fn, err))
 
     return target_fn
 
-def get_paths_for(log, subdir="easyconfigs", robot_path=None):
+def get_paths_for(subdir="easyconfigs", robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
@@ -1245,32 +1273,32 @@ def get_paths_for(log, subdir="easyconfigs", robot_path=None):
     # figure out installation prefix, e.g. distutils install path for easyconfigs
     (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
     if ec:
-        log.warning("eb not found (%s), failed to determine installation prefix" % out)
+        _log.warning("eb not found (%s), failed to determine installation prefix" % out)
     else:
         # eb should reside in <install_prefix>/bin/eb
         install_prefix = os.path.dirname(os.path.dirname(out))
         path_list.append(install_prefix)
-        log.debug("Also considering installation prefix %s..." % install_prefix)
+        _log.debug("Also considering installation prefix %s..." % install_prefix)
 
     # look for desired subdirs
     for path in path_list:
         path = os.path.join(path, "easybuild", subdir)
-        log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
+        _log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
         try:
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
-                log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
+                _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
         except OSError, err:
             raise EasyBuildError(str(err))
 
     return paths
 
-def stats_to_str(stats, log):
+def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
     if not (type(stats) == OrderedDict or type(stats) == dict):
-        log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
+        _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
 
     txt = "{\n"
 

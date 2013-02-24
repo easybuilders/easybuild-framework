@@ -325,7 +325,7 @@ patches = %s
                   'toolchain_version': tcver,
                   'patches': extra_patches
                  }
-        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks)
 
         eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['version'], ver)
@@ -349,7 +349,7 @@ patches = %s
                   'foo': "bar"
                  }
 
-        tweak(self.eb_file, self.tweaked_fn, tweaks, self.log)
+        tweak(self.eb_file, self.tweaked_fn, tweaks)
 
         eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['toolchain']['name'], tcname)
@@ -448,11 +448,11 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
 
         # should find matching easyconfig file
         specs = {'name': 'foo', 'version': '1.2.3'}
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], False)
         self.assertEqual(res[1], os.path.join(self.ec_dir, fns[-1]))
 
@@ -466,7 +466,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'versionsuffix': suff
                      })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None, self.log)
+        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -476,7 +476,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': ver,
                       'foo': 'bar123'
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
@@ -493,7 +493,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         # should pick correct version, i.e. not newer than what's specified, if a choice needs to be made
         ver = '3.14'
         specs.update({'version': ver})
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -506,7 +506,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'version': '3.15',
                       'toolchain_version': '4.4.5',
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
@@ -524,7 +524,7 @@ class TestObtainEasyconfig(EasyConfigTest):
                       'patches': extra_patches,
                       'dependencies': deps
                      })
-        res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['patches'], specs['patches'] + patches)
@@ -533,7 +533,7 @@ class TestObtainEasyconfig(EasyConfigTest):
 
         # should use supplied filename
         fn = "my.eb"
-        res = obtain_ec_for(specs, [self.ec_dir], fn, self.log)
+        res = obtain_ec_for(specs, [self.ec_dir], fn)
         self.assertEqual(res[0], True)
         self.assertEqual(res[1], fn)
         os.remove(res[1])
@@ -558,7 +558,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         if tpl_full_path:
             shutil.copy2(tpl_full_path, self.ec_dir)
             specs.update({'name': 'nosuchsoftware'})
-            res = obtain_ec_for(specs, [self.ec_dir], None, self.log)
+            res = obtain_ec_for(specs, [self.ec_dir], None)
             self.assertEqual(res[0], True)
             ec = EasyConfig(res[1], valid_stops=self.all_stops)
             self.assertEqual(ec['name'], specs['name'])
@@ -573,11 +573,13 @@ class TestObtainEasyconfig(EasyConfigTest):
 class TestTemplating(EasyConfigTest):
     """test templating validations """
 
-    input = {'name':'PI',
-             'version':'3.14',
-             'namelower':'pi',
-             }
-
+    inp = {
+           'name':'PI',
+           'version':'3.14',
+           'namelower':'pi',
+           'cmd': 'tar xfvz %s',
+          }
+    # don't use any escaping insanity here, since it is templated itself
     contents = """
 name = "%(name)s"
 version = "%(version)s"
@@ -585,8 +587,8 @@ homepage = "http://google.com"
 description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
-sources = [SOURCE_TAR_GZ]
-""" % input
+sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
+""" % inp
 
     def runTest(self):
         """ test easyconfig templating """
@@ -594,10 +596,15 @@ sources = [SOURCE_TAR_GZ]
         eb.validate()
         eb._generate_template_values()
 
-        self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
+        self.assertEqual(eb['description'], "test easyconfig PI")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.input)
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.input)
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+
+        # test the escaping insanity here (ie all the crap we allow in easyconfigs)
+        eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
+        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
 
 class TestTemplatingDoc(EasyConfigTest):

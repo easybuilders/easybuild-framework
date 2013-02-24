@@ -180,7 +180,7 @@ class FileRepository(Repository):
                 statsprefix = "\nbuildstats.append("
                 statssuffix = ")\n"
 
-            dest_file.write(statsprefix + stats_to_str(stats, log) + statssuffix)
+            dest_file.write(statsprefix + stats_to_str(stats) + statssuffix)
             dest_file.close()
 
         except IOError, err:
