@@ -854,6 +854,8 @@ class EasyBlock(object):
                         'ext_version': ext.get('version'),
                         'src': ext.get('source')
                         # the ones below are only there for legacy purposes
+                        # TODO deprecated, remove in v2.0
+                        # TODO same dict is used in extension.py sanity_check_step, resolve this
                         'name': modname,
                         'version': ext.get('version'),
                        }
