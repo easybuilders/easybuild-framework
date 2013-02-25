@@ -575,7 +575,6 @@ class TestTemplating(EasyConfigTest):
 
     inp = {
            'name':'PI',
-           'namelower':'pi',
            'version':'3.14',
            'namelower':'pi',
            'cmd': 'tar xfvz %s',
