@@ -831,7 +831,11 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
+        # disabling templating is required here to support legacy string templates like name/version
+        self.cfg.enable_templating = False
         exts_filter = self.cfg['exts_filter']
+        self.cfg.enable_templating = True
+
         if not exts_filter or len(exts_filter) == 0:
             self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
         elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
@@ -849,9 +853,14 @@ class EasyBlock(object):
             else:
                 modname = name
             tmpldict = {
+                        'ext_name': modname,
+                        'ext_version': ext.get('version'),
+                        'src': ext.get('source')
+                        # the ones below are only there for legacy purposes
+                        # TODO deprecated, remove in v2.0
+                        # TODO same dict is used in extension.py sanity_check_step, resolve this
                         'name': modname,
                         'version': ext.get('version'),
-                        'src': ext.get('source')
                        }
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
