@@ -186,6 +186,7 @@ class Mpi(Toolchain):
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
 
             # make sure we're always using mpd as process manager
+            # only required for/picked up by Intel MPI v4.1 or higher, no harm done for others
             env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
 
             # create mpdboot file
