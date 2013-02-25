@@ -134,7 +134,7 @@ class Extension(object):
             template = {
                         'ext_name': modname,
                         'ext_version': self.version,
-                        'src': self.src
+                        'src': self.src,
                         # the ones below are only there for legacy purposes
                         # TODO deprecated, remove in v2.0
                         # TODO same dict is used in easyblock.py skip_extensions, resolve this
