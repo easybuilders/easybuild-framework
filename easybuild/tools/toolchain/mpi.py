@@ -185,6 +185,9 @@ class Mpi(Toolchain):
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
 
+            # make sure we're always using mpd as process manager
+            env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
+
             # create mpdboot file
             fn = "/tmp/mpdboot"
             try:
