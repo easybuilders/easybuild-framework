@@ -247,7 +247,10 @@ class EasyBlock(object):
         Find source file for extensions.
         """
         exts_sources = []
-        for ext in self.cfg['exts_list']:
+        self.cfg.enable_templating = False
+        exts_list = self.cfg['exts_list']
+        self.cfg.enable_templating = True
+        for ext in exts_list:
             if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
 
                 # expected format: (name, version, options (dict))
