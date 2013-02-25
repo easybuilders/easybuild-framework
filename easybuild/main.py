@@ -79,7 +79,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
@@ -1008,17 +1008,16 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
-        if (type(obj) == dict and obj['spec'] not in build_stopped) or obj not in build_stopped:
-            if not type(obj) == dict:
-                # update the config templates
-                for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-                    obj.cfg.template_values[name[0]] = str(getattr(obj, name[0], None))
-                obj.cfg.generate_template_values()
+        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
+
+            # update templates before every step (except for initialization)
+            if isinstance(obj, EasyBlock):
+                obj.update_config_template_run_step()
 
             try:
                 if step == 'initialization':
                     log.info("Running %s step" % step)
-                    return parbuild.get_instance(obj, robot_path=options.robot)
+                    return parbuild.get_easyblock_instance(obj, robot_path=options.robot)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)
@@ -1084,7 +1083,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
             if app not in build_stopped:
                 # gather build stats
-                build_time = round(time.time() - start_time, 2)
                 buildstats = get_build_stats(app, start_time)
                 succes.append((app, buildstats))
 
