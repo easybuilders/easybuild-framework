@@ -1009,9 +1009,9 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
         if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
+
+            # update templates before every step (except for initialization)
             if isinstance(obj, EasyBlock):
-                # TODO is this code ever reached? and what is obj?
-                # and why do we need to set the runstep here if this is part of teh parbuild.get_easyblock_instance
                 obj.update_config_template_run_step()
 
             try:
@@ -1083,8 +1083,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
             if app not in build_stopped:
                 # gather build stats
-                # TODO if build_time is unused, remove this line
-                build_time = round(time.time() - start_time, 2)
                 buildstats = get_build_stats(app, start_time)
                 succes.append((app, buildstats))
 
