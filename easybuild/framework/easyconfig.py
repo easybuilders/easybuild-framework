@@ -697,6 +697,7 @@ class EasyConfig(object):
         else:
             return default
 
+
 def generate_template_values_doc():
     """Generate the templating documentation"""
     # This has to reflect the methods/steps used in _generate_template_values
