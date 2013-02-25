@@ -110,13 +110,16 @@ class Extension(object):
         except OSError, err:
             self.log.error("Failed to change directory: %s" % err)
 
+        # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False
-        if not self.cfg['exts_filter'] is None:
-            cmd, inp = self.cfg['exts_filter']
+        exts_filter = self.cfg['exts_filter']
+        self.cfg.enable_templating = True
+
+        if not exts_filter is None:
+            cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
-        self.cfg.enable_templating = True
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
@@ -129,9 +132,12 @@ class Extension(object):
 
         else:
             template = {
+                        'ext_name': modname,
+                        'ext_version': self.version,
+                        'src': self.src
+                        # the ones below are only there for legacy purposes
                         'name': modname,
                         'version': self.version,
-                        'src': self.src
                        }
             cmd = cmd % template
 
