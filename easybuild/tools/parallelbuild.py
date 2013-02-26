@@ -166,5 +166,8 @@ def prepare_easyconfig(ec, robot_path=None):
         easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step()
+        _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
+        easyblock_instance.close_log()
+        os.remove(easyblock_instance.logfile)
     except:
         pass
