@@ -756,11 +756,15 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
         }
 
-    def load_module(self):
+    def load_module(self, mod_paths=None, purge=True):
         """
-        Load module for this software package/version.
+        Load module for this software package/version, after purging all currently loaded modules.
         """
-        m = Modules()
+        m = Modules(mod_paths)
+        # purge all loaded modules if desired
+        if purge:
+            m.purge()
+        m.check_module_path()  # make sure MODULEPATH is set correctly after purging
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
@@ -778,19 +782,9 @@ class EasyBlock(object):
         # create Modules instance
         mod_paths = [fake_mod_path]
         mod_paths.extend(self.orig_modulepath.split(':'))
-        m = Modules(mod_paths)
         self.log.debug("mod_paths: %s" % mod_paths)
 
-        # purge loaded modules if desired
-        if purge:
-            m.purge()
-
-        # make sure MODULEPATH is set correctly after purging
-        m.check_module_path()
-
-        # load the module
-        m.add_module([[self.name, self.get_installversion()]])
-        m.load()
+        self.load_module(mod_paths=mod_paths, purge=purge)
 
         return (fake_mod_path, orig_env)
 
