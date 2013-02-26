@@ -177,12 +177,12 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
-        optarchflags = self.options.option('optarch')
+        optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1] + [optarchflags])
+        self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         ## precflags last

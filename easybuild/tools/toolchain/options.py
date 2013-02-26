@@ -92,9 +92,10 @@ class ToolchainOptions(dict):
                 ## allow for template
                 if templatedict is None:
                     templatedict = {}
-                templatedict.update({'opt':name,
+                templatedict.update({
+                                     'opt':name,
                                      'value':value,
-                                     })
+                                    })
                 res = self.options_map[name] % templatedict
             else:
                 ## check if True?
