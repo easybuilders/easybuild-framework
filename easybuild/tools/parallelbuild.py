@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,10 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
+Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
 dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 """
 import math
 import os
@@ -39,7 +42,7 @@ from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_s
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
 
-_log = fancylogger.getLogger('parllelbuild', fname=False)
+_log = fancylogger.getLogger('parallelbuild', fname=False)
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
     """
@@ -133,13 +136,13 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     return job
 
 
-def get_instance(easyconfig, robot_path=None):
+def get_easyblock_instance(easyconfig, robot_path=None):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
     log is a logger object
 
-    returns an instance of Application (or subclass thereof)
+    returns an instance of EasyBlock (or subclass thereof)
     """
     spec = easyconfig['spec']
     name = easyconfig['module'][0]
@@ -160,7 +163,11 @@ def get_instance(easyconfig, robot_path=None):
 def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, robot_path=robot_path)
-        instance.fetch_step()
+        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path)
+        easyblock_instance.update_config_template_run_step()
+        easyblock_instance.fetch_step()
+        _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
+        easyblock_instance.close_log()
+        os.remove(easyblock_instance.logfile)
     except:
         pass

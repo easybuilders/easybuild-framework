@@ -1,7 +1,5 @@
-# #
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
-# Copyright 2012 Kenneth Hoste
+##
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +21,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
+"""
+Unit tests for easyconfig.py
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+"""
+
 import os
 import re
 import shutil
@@ -573,11 +579,13 @@ class TestObtainEasyconfig(EasyConfigTest):
 class TestTemplating(EasyConfigTest):
     """test templating validations """
 
-    input = {'name':'PI',
-             'version':'3.14',
-             'namelower':'pi',
-             }
-
+    inp = {
+           'name':'PI',
+           'version':'3.14',
+           'namelower':'pi',
+           'cmd': 'tar xfvz %s',
+          }
+    # don't use any escaping insanity here, since it is templated itself
     contents = """
 name = "%(name)s"
 version = "%(version)s"
@@ -585,8 +593,8 @@ homepage = "http://google.com"
 description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
-sources = [SOURCE_TAR_GZ]
-""" % input
+sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
+""" % inp
 
     def runTest(self):
         """ test easyconfig templating """
@@ -594,10 +602,16 @@ sources = [SOURCE_TAR_GZ]
         eb.validate()
         eb._generate_template_values()
 
-        self.assertEqual(eb['description'], "test easyconfig %(name)s" % self.input)
+        self.assertEqual(eb['description'], "test easyconfig PI")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.input)
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.input)
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+
+        # test the escaping insanity here (ie all the crap we allow in easyconfigs)
+        eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
+        self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
 
 class TestTemplatingDoc(EasyConfigTest):

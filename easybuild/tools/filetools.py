@@ -1,11 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,7 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Set of file tools
+Set of file tools.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import errno
 import os
@@ -194,6 +195,14 @@ def extract_cmd(fn, overwrite=False):
             ftype = 'tar xjf %s'
     if ff[-1] == 'tbz':
         ftype = 'tar xjf %s'
+
+    # xzipped or xzipped tarball
+    if ff[-1] == 'xz':
+        ftype = 'unxz %s'
+        if ff[-2] == 'tar':
+            ftype = 'unxz %s --stdout | tar x'
+    if ff[-1] == 'txz':
+        ftype = 'unxz %s --stdout | tar x'
 
     # tarball
     if ff[-1] == 'tar':

@@ -1,16 +1,11 @@
 ##
-# Copyright 2005 Ghent University
 # Copyright 2005 Josiah Carlson
+# Copyright 2009-2013 Ghent University
+#
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
 #
 # http://code.activestate.com/recipes/440554/
-#
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,8 +28,8 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-
-"""Module to allow Asynchronous subprocess use on Windows and Posix platforms
+"""
+Module to allow Asynchronous subprocess use on Windows and Posix platforms
 
 The 'subprocess' module in Python 2.4 has made creating and accessing subprocess
 streams in Python relatively convenient for all supported platforms,
@@ -61,6 +56,13 @@ and the methods will return None.
 - downloaded 05/08/2010
 - modified
 -- added STDOUT handle
+
+@author: Josiah Carlson
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
 
 import errno

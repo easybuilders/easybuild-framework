@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This initializes the framework submodule of EasyBuild,
+This declares the namespace of the framework submodule of EasyBuild,
 which is a collection of additional modules/classes to be used for software compilation
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """

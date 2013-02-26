@@ -1,11 +1,5 @@
 # #
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +25,13 @@
 """
 Generic EasyBuild support for building and installing software.
 The EasyBlock class should serve as a base class for all easyblocks.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 
 import copy
@@ -247,7 +248,10 @@ class EasyBlock(object):
         Find source file for extensions.
         """
         exts_sources = []
-        for ext in self.cfg['exts_list']:
+        self.cfg.enable_templating = False
+        exts_list = self.cfg['exts_list']
+        self.cfg.enable_templating = True
+        for ext in exts_list:
             if (isinstance(ext, list) or isinstance(ext, tuple)) and ext:
 
                 # expected format: (name, version, options (dict))
@@ -752,11 +756,15 @@ class EasyBlock(object):
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
         }
 
-    def load_module(self):
+    def load_module(self, mod_paths=None, purge=True):
         """
-        Load module for this software package/version.
+        Load module for this software package/version, after purging all currently loaded modules.
         """
-        m = Modules()
+        m = Modules(mod_paths)
+        # purge all loaded modules if desired
+        if purge:
+            m.purge()
+        m.check_module_path()  # make sure MODULEPATH is set correctly after purging
         m.add_module([[self.name, self.get_installversion()]])
         m.load()
 
@@ -774,19 +782,9 @@ class EasyBlock(object):
         # create Modules instance
         mod_paths = [fake_mod_path]
         mod_paths.extend(self.orig_modulepath.split(':'))
-        m = Modules(mod_paths)
         self.log.debug("mod_paths: %s" % mod_paths)
 
-        # purge loaded modules if desired
-        if purge:
-            m.purge()
-
-        # make sure MODULEPATH is set correctly after purging
-        m.check_module_path()
-
-        # load the module
-        m.add_module([[self.name, self.get_installversion()]])
-        m.load()
+        self.load_module(mod_paths=mod_paths, purge=purge)
 
         return (fake_mod_path, orig_env)
 
@@ -828,7 +826,11 @@ class EasyBlock(object):
         - use this to detect existing extensions and to remove them from self.exts
         - based on initial R version
         """
+        # disabling templating is required here to support legacy string templates like name/version
+        self.cfg.enable_templating = False
         exts_filter = self.cfg['exts_filter']
+        self.cfg.enable_templating = True
+
         if not exts_filter or len(exts_filter) == 0:
             self.log.error("Skipping of extensions, but no exts_filter set in easyconfig")
         elif isinstance(exts_filter, basestring) or len(exts_filter) != 2:
@@ -846,9 +848,14 @@ class EasyBlock(object):
             else:
                 modname = name
             tmpldict = {
+                        'ext_name': modname,
+                        'ext_version': ext.get('version'),
+                        'src': ext.get('source'),
+                        # the ones below are only there for legacy purposes
+                        # TODO deprecated, remove in v2.0
+                        # TODO same dict is used in extension.py sanity_check_step, resolve this
                         'name': modname,
                         'version': ext.get('version'),
-                        'src': ext.get('source')
                        }
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
@@ -1524,6 +1531,13 @@ class EasyBlock(object):
             except EasyBuildError, err:
                 self.log.exception("Running test %s failed: %s" % (path, err))
 
+    def update_config_template_run_step(self):
+        """Update the the easyconfig template dictionary with easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP names"""
+
+        for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
+            self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
+        self.cfg.generate_template_values()
+
     def run_step(self, step, methods, skippable=False):
         """
         Run step, returns false when execution should be stopped
@@ -1533,9 +1547,7 @@ class EasyBlock(object):
         else:
             self.log.info("Starting %s step" % step)
             # update the config templates
-            for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-                self.cfg.template_values[name[0]] = str(getattr(self, name[0], None))
-            self.cfg.generate_template_values()
+            self.update_config_template_run_step()
 
             for m in methods:
                 self.log.info("Running method %s part of step %s" % ('_'.join(m.func_code.co_names), step))
@@ -1608,6 +1620,7 @@ class EasyBlock(object):
 
         # return True for successfull build (or stopped build)
         return True
+
 
 
 def get_class_for(modulepath, class_name):
@@ -1718,7 +1731,6 @@ def get_class(easyblock, name=None):
 
     except Exception, err:
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
-        raise EasyBuildError(str(err))
 
 class StopException(Exception):
     """

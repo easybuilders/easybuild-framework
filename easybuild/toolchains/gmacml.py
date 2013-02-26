@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,6 +22,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+EasyBuild support for gmacml compiler toolchain (includes GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW.
+
+@author: Kenneth Hoste (Ghent University)
+"""
 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw

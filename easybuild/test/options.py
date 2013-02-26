@@ -22,7 +22,8 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
-"""Unit tests for eb command line options.
+"""
+Unit tests for eb command line options.
 
 @author: Kenneth Hoste (Ghent University)
 """

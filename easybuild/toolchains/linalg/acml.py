@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Support for ACML (AMD Core Math Library) as toolchain linear algebra library.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
@@ -38,8 +39,7 @@ from easybuild.tools.toolchain.linalg import LinAlg
 
 class Acml(LinAlg):
     """
-    Trivial class
-        provides ACML BLAS and LAPACK
+    Provides ACML BLAS/LAPACK support.
     """
     BLAS_MODULE_NAME = ['ACML']
     # full list of libraries is highly dependent on ACML version and toolchain compiler (ifort, gfortran, ...)
