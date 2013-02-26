@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Support for Intel MKL as toolchain linear algebra library.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -36,7 +37,8 @@ from easybuild.tools.toolchain.linalg import LinAlg
 
 
 class IntelMKL(LinAlg):
-    """Interface to Intel MKL"""
+    """Support for Intel MKL."""
+
     BLAS_MODULE_NAME = ['imkl']
     BLAS_LIB_MAP = {"lp64":'_lp64',
                     "interface":None,

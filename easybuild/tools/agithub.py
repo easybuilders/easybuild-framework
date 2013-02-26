@@ -24,6 +24,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 ##
+"""
+Interface to GitHub.
+
+@author: Jonathan Paugh
+"""
+
 import base64
 import re
 import httplib, urllib

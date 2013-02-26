@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,10 @@
 ##
 """
 Interface module to TORQUE (PBS).
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
