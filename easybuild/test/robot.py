@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,6 +22,12 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for robot (dependency resolution).
+
+@author: Toon Willems (Ghent University)
+"""
+
 import os
 from copy import deepcopy
 from unittest import TestCase, TestSuite

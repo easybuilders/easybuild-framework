@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Support for ATLAS as toolchain linear algebra library.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools.toolchain.linalg import LinAlg
@@ -33,9 +34,8 @@ from easybuild.tools.toolchain.linalg import LinAlg
 
 class Atlas(LinAlg):
     """
-    Trivial class
-        provides ATLAS BLAS and LAPACK
-            LAPACK is a build dependency only
+    Provides ATLAS BLAS/LAPACK support.
+    LAPACK is a build dependency only
     """
     BLAS_MODULE_NAME = ['ATLAS']
     BLAS_LIB = ["cblas", "f77blas", "atlas"]

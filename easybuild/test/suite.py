@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # #
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +26,9 @@
 """
 This script is a collection of all the testcases.
 Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import os
 import sys

@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,4 +46,7 @@ TooclchainVariables: list of environment variables that are set when the toolcha
 
 This module initializes the tools.toolchain package of EasyBuild,
 which contains toolchain related modules.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """

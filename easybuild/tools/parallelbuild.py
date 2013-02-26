@@ -1,6 +1,5 @@
-# #
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+##
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,12 +21,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
-module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
+Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
 dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 """
 import math
 import os
@@ -39,7 +42,7 @@ from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_s
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
 
-_log = fancylogger.getLogger('parllelbuild', fname=False)
+_log = fancylogger.getLogger('parellelbuild', fname=False)
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
     """
