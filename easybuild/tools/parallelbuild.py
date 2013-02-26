@@ -42,7 +42,7 @@ from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_s
 from easybuild.tools.config import get_repository
 from vsc import fancylogger
 
-_log = fancylogger.getLogger('parellelbuild', fname=False)
+_log = fancylogger.getLogger('parallelbuild', fname=False)
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
     """

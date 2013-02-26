@@ -1,7 +1,7 @@
 ##
+# Copyright 2005 Josiah Carlson
 # Copyright 2009-2013 Ghent University
 #
-# Copyright 2005 Josiah Carlson
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
 #
@@ -57,6 +57,7 @@ and the methods will return None.
 - modified
 -- added STDOUT handle
 
+@author: Josiah Carlson
 @author: Stijn De Weirdt (Ghent University)
 @author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
