@@ -316,6 +316,8 @@ def main(testing_data=(None, None)):
             log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
+            cleanup_logfile_and_exit(logfile, testing, True)
+
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when regtesting)
