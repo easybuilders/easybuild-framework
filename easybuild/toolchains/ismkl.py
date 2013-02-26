@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +23,11 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for iomkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH2 (ScaleMP MPI),
+EasyBuild support for ismkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH2 (ScaleMP MPI),
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort

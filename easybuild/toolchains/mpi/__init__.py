@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +23,10 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Mpi toolchain package
+Declares toolchains.mpi namespace.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 from pkgutil import extend_path
 
