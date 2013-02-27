@@ -249,6 +249,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
+        # TODO add sanity check to make sure no names are reused / redefined
         const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS + EASYCONFIG_CONSTANTS])
         global_vars.update(const_dict)
         local_vars = {}
@@ -605,7 +606,6 @@ class EasyConfig(object):
         """
         value = self._config[key][0]
         if self.enable_templating:
-            # TODO make self._config private?
             return self._resolve_template(value)
         else:
             return value

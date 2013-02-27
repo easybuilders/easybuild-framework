@@ -31,6 +31,10 @@ be used within an Easyconfig file.
 """
 import platform
 
+from vsc import fancylogger
+
+_log = fancylogger.getLogger('easyconfig.constants', fname=False)
+
 # constants that can be used in easyconfig
 EASYCONFIG_CONSTANTS = [
                         ('SYS_PYTHON_VERSION', platform.python_version(),
