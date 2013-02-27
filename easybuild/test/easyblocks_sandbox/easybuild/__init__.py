@@ -1,1 +1,4 @@
-# this file is intentionally empty, it's only here because Python requires it to recognize a package
+from pkgutil import extend_path
+
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
