@@ -34,6 +34,12 @@ def any(ls):
 
     return sum([bool(x) for x in ls]) != 0
 
+# FIXME: remove when Python version on which we rely provides any by itself
+def all(ls):
+    """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
+
+    return sum([bool(x) for x in ls]) == len(s)
+
 def flatten(lst):
     """Flatten a list of lists."""
     res = []
