@@ -64,7 +64,7 @@ class IntelFFTW(Fftw):
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set
-        if all([os.path.exists(os.path.join(self.FFT_LIB_DIR, "lib%s.a" % lib)) for lib in fftw_libs]):
+        if all(any([os.path.exists(os.path.join(libdir, "lib%s.a" % lib)) for libdir in self.FFT_LIB_DIR]) for lib in fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
             self.log.info("Not all FFTW interface libraries (%s) are found in %s, setting FFT_LIB empty." % \
