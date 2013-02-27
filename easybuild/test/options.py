@@ -404,8 +404,8 @@ class CommandLineOptionsTest(TestCase):
 
             for pat in [
                         r"EasyBlock\n",
-                        r"|-- EB_foo\n|   |-- EB_foofoo\n",
-                        r"|-- bar\n",
+                        r"|--\s+EB_foo\n|\s+|--\s+EB_foofoo\n",
+                        r"|--\s+bar\n",
                        ]:
             
                 self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
@@ -425,9 +425,9 @@ class CommandLineOptionsTest(TestCase):
         outtxt = open(self.logfile, 'r').read()
 
         for pat in [
-                    r"EasyBlock \(easybuild.framework.easyblock\)\n",
-                    r"|-- EB_foo \(easybuild.easyblocks.foo\)\n|   |-- EB_foofoo \(easybuild.easyblocks.foofoo\)\n",
-                    r"|-- bar \(easybuild.easyblocks.bar\)\n",
+                    r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
+                    r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
+                    r"|--\s+bar\s+\(easybuild.easyblocks.bar\)\n",
                    ]:
         
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
