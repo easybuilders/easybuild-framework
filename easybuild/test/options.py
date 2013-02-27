@@ -35,6 +35,7 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.easyblocks
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
@@ -346,17 +347,18 @@ class CommandLineOptionsTest(TestCase):
         run_test()
 
         # also check whether available custom easyconfig parameters are listed
-        orig_pythonpath = os.getenv('PYTHONPATH', '').split(':')
+        orig_sys_path = sys.path
 
-        pythonpath = orig_pythonpath
-        pythonpath.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
-        os.environ['PYTHONPATH'] = ':'.join(pythonpath)
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        global easybuild
+        easybuild.easyblocks = reload(easybuild.easyblocks)
 
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
         run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
 
-        os.environ['PYTHONPATH'] = ':'.join(orig_pythonpath)
+        # restore original Python search path
+        sys.path = orig_sys_path
 
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
@@ -380,11 +382,11 @@ class CommandLineOptionsTest(TestCase):
         """Test listing easyblock hierarchy."""
 
         # adjust PYTHONPATH such that test easyblocks are found
-        orig_pythonpath = os.getenv('PYTHONPATH', '').split(':')
+        orig_sys_path = sys.path
 
-        pythonpath = orig_pythonpath
-        pythonpath.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
-        os.environ['PYTHONPATH'] = ':'.join(pythonpath)
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        global easybuild
+        easybuild.easyblocks = reload(easybuild.easyblocks)
 
         # simple view
         for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:
@@ -433,8 +435,8 @@ class CommandLineOptionsTest(TestCase):
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
 
-        # restore original PYTHONPATH
-        os.environ['PYTHONPATH'] = ':'.join(orig_pythonpath)
+        # restore original Python search path
+        sys.path = orig_sys_path
 
     def test_no_such_software(self):
         """Test using no arguments."""
