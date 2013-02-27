@@ -38,7 +38,7 @@ def any(ls):
 def all(ls):
     """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
 
-    return sum([bool(x) for x in ls]) == len(s)
+    return sum([bool(x) for x in ls]) == len(ls)
 
 def flatten(lst):
     """Flatten a list of lists."""
