@@ -600,7 +600,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         """ test easyconfig templating """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
         eb.validate()
-        eb._generate_template_values()
+        eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
@@ -618,15 +618,25 @@ class TestTemplatingDoc(EasyConfigTest):
     """test templating documentation"""
     def runTest(self):
         """test templating documentation"""
-        doc = easyconfig.generate_template_values_doc()
+        doc = easyconfig.templates.template_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
-                 easyconfig.TEMPLATE_NAMES_EASYCONFIG,
-                 easyconfig.TEMPLATE_NAMES_CONFIG,
-                 easyconfig.TEMPLATE_NAMES_LOWER,
-                 easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
-                 easyconfig.TEMPLATE_CONSTANTS,
-                 easyconfig.EASYCONFIG_CONSTANTS,
+                 easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
+                 easyconfig.templates.TEMPLATE_NAMES_CONFIG,
+                 easyconfig.templates.TEMPLATE_NAMES_LOWER,
+                 easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+                 easyconfig.templates.TEMPLATE_CONSTANTS,
+                ]
+        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+
+class TestConstantDoc(EasyConfigTest):
+    """test constant documentation"""
+    def runTest(self):
+        """test constant documentation"""
+        doc = easyconfig.constants.constant_documentation()
+        # expected length: 1 per constant and 1 extra per constantgroup
+        temps = [
+                 easyconfig.constants.EASYCONFIG_CONSTANTS,
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
@@ -637,7 +647,7 @@ def suite():
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
                       TestObtainEasyconfig(),
-                      TestTemplating(), TestTemplatingDoc(),
+                      TestTemplating(), TestTemplatingDoc(), TestConstantDoc(),
                       ])
 
 
