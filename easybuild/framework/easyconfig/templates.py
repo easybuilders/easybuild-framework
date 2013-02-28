@@ -68,6 +68,9 @@ TEMPLATE_CONSTANTS = [
                        'sourceforge.net source url'),
                       ]
 
+# TODO derived config templates
+# versionmajor, verisonminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
+
 def template_constant_dict(config, ignore=None, skip_lower=True):
     """Create a dict for templating the values in the easyconfigs.
         - config is a dict with the structure of EasyConfig._config
