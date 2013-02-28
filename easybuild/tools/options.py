@@ -36,7 +36,7 @@ import os
 import re
 import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help
+from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -253,6 +253,7 @@ class EasyBuildOptions(GeneralOption):
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.list_easyblocks, self.options.list_toolchains]):
+            build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
     def _postprocess_list_avail(self):
