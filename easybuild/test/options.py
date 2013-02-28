@@ -35,7 +35,10 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.easyblocks
 from easybuild.main import main
+from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
+from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -276,7 +279,7 @@ class CommandLineOptionsTest(TestCase):
 
             args = [
                     '--software-name=somethingrandom',
-                    '--robot=.',
+                    '--robot', '.',
                     '--debug',
                     stdout_arg,
                    ]
@@ -299,6 +302,64 @@ class CommandLineOptionsTest(TestCase):
 
         fancylogger.logToFile(self.logfile)
 
+    def test_avail_easyconfig_params(self):
+        """Test listing available easyconfig parameters."""
+
+        def run_test(custom=None, extra_params=[]):
+            """Inner function to run actual test in current setting."""
+            for avail_arg in [
+                              '-a',
+                              '--avail-easyconfig-params',
+                             ]:
+
+                # clear log
+                open(self.logfile, 'w').write('')
+
+                args = [
+                        avail_arg,
+                        '--unittest-file=%s' % self.logfile,
+                       ]
+                if custom is not None:
+                    args.extend(['-e', custom])
+
+                try:
+                    main((args, None))
+                except:
+                    pass
+                outtxt = open(self.logfile, 'r').read()
+
+                # check whether all parameter types are listed
+                par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE, MANDATORY, MODULES, OTHER, TOOLCHAIN]
+                if custom is not None:
+                    par_types.append(CUSTOM)
+
+                for param_type in [x[1] for x in par_types]:
+                    self.assertTrue(re.search("%s\n%s" % (param_type.upper(), '-'*len(param_type)), outtxt),
+                                    "Parameter type %s is featured in output of eb %s (args: %s): %s" % (param_type, avail_arg, args, outtxt))
+
+                # check a couple of easyconfig parameters
+                for param in ["name", "version", "toolchain", "versionsuffix", "makeopts", "sources", "start_dir",
+                              "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
+                    self.assertTrue(re.search("%s:\s*\w.*" % param, outtxt),
+                                    "Parameter %s is listed with help in output of eb %s (args: %s): %s" % (param, avail_arg, args, outtxt))
+
+        # run test without checks for easyblock-custom easyconfig parameters
+        run_test()
+
+        # also check whether available custom easyconfig parameters are listed
+        orig_sys_path = sys.path
+
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        global easybuild
+        easybuild.easyblocks = reload(easybuild.easyblocks)
+
+        run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
+        run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
+        run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
+
+        # restore original Python search path
+        sys.path = orig_sys_path
+
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
 
@@ -316,6 +377,66 @@ class CommandLineOptionsTest(TestCase):
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
         for tc in ["dummy", "goalf", "ictce"]:
             self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")
+
+    def test_list_easyblocks(self):
+        """Test listing easyblock hierarchy."""
+
+        # adjust PYTHONPATH such that test easyblocks are found
+        orig_sys_path = sys.path
+
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        global easybuild
+        easybuild.easyblocks = reload(easybuild.easyblocks)
+
+        # simple view
+        for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:
+
+            # clear log
+            open(self.logfile, 'w').write('')
+
+            args = [
+                    list_arg,
+                    '--unittest-file=%s' % self.logfile,
+                   ]
+            try:
+                main((args, None))
+            except:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            for pat in [
+                        r"EasyBlock\n",
+                        r"|--\s+EB_foo\n|\s+|--\s+EB_foofoo\n",
+                        r"|--\s+bar\n",
+                       ]:
+            
+                self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
+    
+        # clear log
+        open(self.logfile, 'w').write('')
+
+        # detailed view
+        args = [
+                '--list-easyblocks=detailed',
+                '--unittest-file=%s' % self.logfile,
+               ]
+        try:
+            main((args, None))
+        except:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        for pat in [
+                    r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
+                    r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
+                    r"|--\s+bar\s+\(easybuild.easyblocks.bar\)\n",
+                   ]:
+        
+            self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
+
+
+        # restore original Python search path
+        sys.path = orig_sys_path
 
     def test_no_such_software(self):
         """Test using no arguments."""
