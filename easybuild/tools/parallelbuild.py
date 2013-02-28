@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,10 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
+Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
 dependencies)
 
 Support for PBS is provided via the PbsJob class. If you want you could create other job classes and use them here.
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
 """
 import math
 import os
@@ -35,36 +38,50 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server
+from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository
+from vsc import fancylogger
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log, robot_path=None):
+_log = fancylogger.getLogger('parallelbuild', fname=False)
+
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
 
     returns the jobs
     """
-    log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
+    _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
     job_module_dict = {}
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
+
+    # create a single connection, and reuse it
     conn = connect_to_server()
+    if conn is None:
+        _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
+
+    # determine ppn once, and pass is to each job being created
+    # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
+    ppn = get_ppn()
+
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, log, robot_path=robot_path)
+        prepare_easyconfig(ec, robot_path=robot_path)
 
         # the new job will only depend on already submitted jobs
-        log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, log, output_dir, conn=conn)
+        _log.info("creating job for ec: %s" % str(ec))
+        new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
+
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
         job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
         new_job.add_dependencies(job_deps)
         new_job.submit()
-        log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+        _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+
         # update dictionary
         job_module_dict[new_job.module] = new_job.jobid
         new_job.cleanup()
@@ -75,7 +92,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, log, r
     return jobs
 
 
-def create_job(build_command, easyconfig, log, output_dir="", conn=None):
+def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     """
     Creates a job, to build a *single* easyconfig
     build_command is a format string in which a full path to an eb file will be substituted
@@ -98,7 +115,7 @@ def create_job(build_command, easyconfig, log, output_dir="", conn=None):
         if env_var in os.environ:
             easybuild_vars[env_var] = os.environ[env_var]
 
-    log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
+    _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
 
     # create unique name based on module name
     name = "%s-%s" % easyconfig['module']
@@ -113,19 +130,19 @@ def create_job(build_command, easyconfig, log, output_dir="", conn=None):
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn)
+    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
     job.module = easyconfig['module']
 
     return job
 
 
-def get_instance(easyconfig, log, robot_path=None):
+def get_easyblock_instance(easyconfig, robot_path=None):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
     log is a logger object
 
-    returns an instance of Application (or subclass thereof)
+    returns an instance of EasyBlock (or subclass thereof)
     """
     spec = easyconfig['spec']
     name = easyconfig['module'][0]
@@ -139,14 +156,18 @@ def get_instance(easyconfig, log, robot_path=None):
             easyblock = eval(match.group(1))
             break
 
-    app_class = get_class(easyblock, log, name=name)
+    app_class = get_class(easyblock, name=name)
     return app_class(spec, debug=True, robot_path=robot_path)
 
 
-def prepare_easyconfig(ec, log, robot_path=None):
+def prepare_easyconfig(ec, robot_path=None):
     """ prepare for building """
     try:
-        instance = get_instance(ec, log, robot_path=robot_path)
-        instance.fetch_step()
+        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path)
+        easyblock_instance.update_config_template_run_step()
+        easyblock_instance.fetch_step()
+        _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
+        easyblock_instance.close_log()
+        os.remove(easyblock_instance.logfile)
     except:
         pass

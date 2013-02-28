@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,13 +30,16 @@ Map values can be string with named templates
     By default following named options is filled
         %(opt)s : option name
         %(value)s : option value
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.fancylogger import getLogger
+from vsc import fancylogger
 
 class ToolchainOptions(dict):
     def __init__(self):
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.options_map = {}  # map between options name and value
         self.description = {}  # short description of the options
@@ -92,9 +93,10 @@ class ToolchainOptions(dict):
                 ## allow for template
                 if templatedict is None:
                     templatedict = {}
-                templatedict.update({'opt':name,
+                templatedict.update({
+                                     'opt':name,
                                      'value':value,
-                                     })
+                                    })
                 res = self.options_map[name] % templatedict
             else:
                 ## check if True?

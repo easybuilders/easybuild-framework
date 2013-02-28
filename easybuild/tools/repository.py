@@ -1,11 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +26,13 @@
 Set of repository tools
 
 We have a plain filesystem, an svn and a git repository
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import getpass
 import os
@@ -180,7 +181,7 @@ class FileRepository(Repository):
                 statsprefix = "\nbuildstats.append("
                 statssuffix = ")\n"
 
-            dest_file.write(statsprefix + stats_to_str(stats, log) + statssuffix)
+            dest_file.write(statsprefix + stats_to_str(stats) + statssuffix)
             dest_file.close()
 
         except IOError, err:

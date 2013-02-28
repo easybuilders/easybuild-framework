@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Jens Timmerman
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,8 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-this module contains unit tests for easyblock
+Unit tests for easyblock.py
+
+@author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+
 #TODO: implement testcases for each step method
 import os
 import re
@@ -37,7 +39,7 @@ import sys
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.extension import Extension
 from easybuild.tools import config
-from unittest import TestCase, TestLoader
+from unittest import TestCase, TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
 
 class EasyBlockTest(TestCase):
@@ -51,7 +53,8 @@ class EasyBlockTest(TestCase):
 
     def setUp(self):
         """ setup """
-        self.eb_file = "/tmp/easyblock_test_file.eb"
+        fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(fd)
         config.variables['log_dir'] = tempfile.mkdtemp()
         config.variables['install_path'] = tempfile.mkdtemp()
         config.variables['build_path'] = tempfile.mkdtemp()
@@ -96,7 +99,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
         eb.load_fake_module()
-        
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = """
@@ -152,7 +155,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # 'ext2' should not
         self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
 
-    
+
     def tearDown(self):
         """ make sure to remove the temporary file """
         os.remove(self.eb_file)
@@ -176,3 +179,5 @@ def suite():
     """ return all the tests in this file """
     return TestLoader().loadTestsFromTestCase(EasyBlockTest)
 
+if __name__ == '__main__':
+    main()

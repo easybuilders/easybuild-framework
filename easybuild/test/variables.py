@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,9 +22,16 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for tools/variables.py.
+
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+"""
+
 import re
 
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 from easybuild.tools.variables import CommaList, CommandFlagList, StrList, Variables
 
 
@@ -46,7 +52,7 @@ class VariablesTest(TestCase):
         v = TestVariables()
         self.assertEqual(str(v), "{}")
 
-        ## DEFAULTCLASS is StrList
+        # # DEFAULTCLASS is StrList
         v['BAR'] = range(3)
         self.assertEqual(str(v), "{'BAR': [[0, 1, 2]]}")
         self.assertEqual(str(v['BAR']), "0 1 2")
@@ -81,3 +87,6 @@ class VariablesTest(TestCase):
 def suite():
     """ return all the tests"""
     return TestSuite([VariablesTest()])
+
+if __name__ == '__main__':
+    main()

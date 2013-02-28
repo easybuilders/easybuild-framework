@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,9 +22,15 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for toolchain support.
+
+@author: Kenneth Hoste (Ghent University)
+"""
+
 import os
 import re
-from unittest import TestCase, TestLoader
+from unittest import TestCase, TestLoader, main
 
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -173,11 +178,15 @@ class ToolchainTest(TestCase):
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
             tc = tc_class(version="1.1.0-no-OFED")
-            tc.set_options({opt: True})
-            tc.prepare()
-            for var in flag_vars:
-                flags = tc.get_variable(var)
-                self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+            for enable in [True, False]:
+                tc.set_options({opt: enable})
+                tc.prepare()
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+                    else:
+                        self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
 
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
@@ -192,21 +201,24 @@ class ToolchainTest(TestCase):
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['lowopt'] in flags)
+            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
+            self.assertTrue(flag in flags)
 
         tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['noopt'] in flags)
+            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
+            self.assertTrue(flag in flags)
 
         tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
-            self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP['noopt'] in flags)
+            flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
+            self.assertTrue(flag in flags)
 
     def test_misc_flags_shared(self):
         """Test whether shared compiler flags are set correctly."""
@@ -216,12 +228,18 @@ class ToolchainTest(TestCase):
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
-            tc = tc_class(version="1.1.0-no-OFED")
-            tc.set_options({opt: True})
-            tc.prepare()
-            for var in flag_vars:
-                flags = tc.get_variable(var)
-                self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({opt: enable})
+                tc.prepare()
+                # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
+                flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP[opt]
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                    else:
+                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
 
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
@@ -231,12 +249,17 @@ class ToolchainTest(TestCase):
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
-            tc = tc_class(version="1.1.0-no-OFED")
-            tc.set_options({opt: True})
-            tc.prepare()
-            for var in flag_vars:
-                flags = tc.get_variable(var)
-                self.assertTrue(tc.COMPILER_UNIQUE_OPTION_MAP[opt] in flags)
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({opt: enable})
+                tc.prepare()
+                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                    else:
+                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
@@ -246,12 +269,17 @@ class ToolchainTest(TestCase):
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
-            tc = tc_class(version="1.1.0-no-OFED")
-            tc.set_options({opt: True})
-            tc.prepare()
-            for var in flag_vars:
-                flags = tc.get_variable(var)
-                self.assertTrue(tc.COMPILER_UNIQUE_OPTION_MAP[opt] in flags)
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({opt: enable})
+                tc.prepare()
+                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
+                    else:
+                        self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
 
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
@@ -269,13 +297,17 @@ class ToolchainTest(TestCase):
 
         # check other precision flags
         for opt in ['strict', 'precise', 'loose', 'veryloose']:
-            tc = tc_class(version="1.1.0-no-OFED")
-            tc.set_options({opt: True})
-            tc.prepare()
-            val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
-            for var in flag_vars:
-                flags = tc.get_variable(var)
-                self.assertTrue(val in flags)
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({opt: enable})
+                tc.prepare()
+                val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(val in flags)
+                    else:
+                        self.assertTrue(val not in flags)
 
     def tearDown(self):
         """Cleanup."""
@@ -284,3 +316,6 @@ class ToolchainTest(TestCase):
 def suite():
     """ return all the tests"""
     return TestLoader().loadTestsFromTestCase(ToolchainTest)
+
+if __name__ == '__main__':
+    main()

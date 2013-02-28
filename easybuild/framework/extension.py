@@ -1,11 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +25,13 @@
 """
 Generic EasyBuild support for software extensions (e.g. Python packages).
 The Extension class should serve as a base class for all extensions.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import copy
 import os
@@ -110,8 +111,13 @@ class Extension(object):
         except OSError, err:
             self.log.error("Failed to change directory: %s" % err)
 
-        if not self.cfg['exts_filter'] is None:
-            cmd, inp = self.cfg['exts_filter']
+        # disabling templating is required here to support legacy string templates like name/version
+        self.cfg.enable_templating = False
+        exts_filter = self.cfg['exts_filter']
+        self.cfg.enable_templating = True
+
+        if not exts_filter is None:
+            cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return
@@ -127,9 +133,14 @@ class Extension(object):
 
         else:
             template = {
+                        'ext_name': modname,
+                        'ext_version': self.version,
+                        'src': self.src,
+                        # the ones below are only there for legacy purposes
+                        # TODO deprecated, remove in v2.0
+                        # TODO same dict is used in easyblock.py skip_extensions, resolve this
                         'name': modname,
                         'version': self.version,
-                        'src': self.src
                        }
             cmd = cmd % template
 

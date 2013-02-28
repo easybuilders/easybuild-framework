@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,10 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for modifying os.environ
+Utility module for modifying os.environ
+
+@author: Toon Willems (Ghent University)
 """
 import os
 from vsc import fancylogger
+
+_log = fancylogger.getLogger('environment', fname=False)
 
 changes = {}
 
@@ -60,5 +63,4 @@ def setvar(key, value):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     changes[key] = value
-    log = fancylogger.getLogger('environment')
-    log.info("Environment variable %s set to %s" % (key, value))
+    _log.info("Environment variable %s set to %s" % (key, value))

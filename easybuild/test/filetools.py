@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,8 +22,15 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for filetools.py
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+"""
 import os
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
@@ -39,7 +44,7 @@ class FileToolsTest(TestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-        
+
         config.init(cfg_full_path)
         self.cwd = os.getcwd()
 
@@ -55,22 +60,23 @@ class FileToolsTest(TestCase):
         cmd = ft.extract_cmd("test.zip")
         self.assertEqual("unzip -qq test.zip", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tar")
-        self.assertEqual("tar xf /tmp/test.tar", cmd)
+        cmd = ft.extract_cmd("/some/path/test.tar")
+        self.assertEqual("tar xf /some/path/test.tar", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tar.gz")
-        self.assertEqual("tar xzf /tmp/test.tar.gz", cmd)
+        cmd = ft.extract_cmd("test.tar.gz")
+        self.assertEqual("tar xzf test.tar.gz", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tgz")
-        self.assertEqual("tar xzf /tmp/test.tgz", cmd)
+        cmd = ft.extract_cmd("test.tgz")
+        self.assertEqual("tar xzf test.tgz", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.bz2")
-        self.assertEqual("bunzip2 /tmp/test.bz2", cmd)
+        cmd = ft.extract_cmd("test.bz2")
+        self.assertEqual("bunzip2 test.bz2", cmd)
 
-        cmd = ft.extract_cmd("/tmp/test.tbz")
-        self.assertEqual("tar xjf /tmp/test.tbz", cmd)
-        cmd = ft.extract_cmd("/tmp/test.tar.bz2")
-        self.assertEqual("tar xjf /tmp/test.tar.bz2", cmd)
+        cmd = ft.extract_cmd("test.tbz")
+        self.assertEqual("tar xjf test.tbz", cmd)
+
+        cmd = ft.extract_cmd("test.tar.bz2")
+        self.assertEqual("tar xjf test.tar.bz2", cmd)
 
 
         (out, ec) = ft.run_cmd("echo hello")
@@ -84,7 +90,7 @@ class FileToolsTest(TestCase):
         self.assertEqual(ec, 0)
 
         self.assertEqual(True, ft.run_cmd("echo hello", simple=True))
-        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False,log_ok=False))
+        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
         name = ft.convert_name("test+test-test")
         self.assertEqual(name, "testplustestmintest")
@@ -101,3 +107,6 @@ class FileToolsTest(TestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([FileToolsTest()])
+
+if __name__ == '__main__':
+    main()

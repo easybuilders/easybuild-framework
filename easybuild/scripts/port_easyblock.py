@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +35,13 @@ It checks (and fixes, if needed and possible) whether:
  * the code is free of errors and warnings, according to PyLint
 *
 
-usage: check_code_cleanup.py
+Usage: check_code_cleanup.py
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
 import re
 import os
@@ -212,7 +213,7 @@ def refactor(txt):
 
     for old, new in refactor_list:
 
-        regexp = re.compile("^(.*[^a-zA-Z0-9_'\"])%s([^a-zA-Z0-9_'\" ].*)$" % old, re.M)
+        regexp = re.compile(r"^(.*[^a-zA-Z0-9_'\"])%s([^a-zA-Z0-9_'\" ].*)$" % old, re.M)
 
         def repl(m):
             return "%s%s%s" % (m.group(1), new, m.group(2))
@@ -238,8 +239,8 @@ def check_exception(txt):
 
     print "Checking except blocks..."
 
-    empty_except_re = re.compile("except\s*:")
-    exception_re = re.compile("except\s*Exception")
+    empty_except_re = re.compile(r"except\s*:")
+    exception_re = re.compile(r"except\s*Exception")
 
     if empty_except_re.search(txt) or exception_re.search(txt):
         warning("One or multiple except blocks found that don't specify an error class or use Exception.\n")
@@ -272,13 +273,13 @@ def run_pylint(fn):
     pylint.lint.Run([fn, "-r", "n"], reporter=TextReporter(pylint_output), exit=False)
 
     # count number of warnings/errors
-    warning_re = re.compile("^W:")
-    error_re = re.compile("^E:")
+    warning_re = re.compile(r"^W:")
+    error_re = re.compile(r"^E:")
 
     # warnings/errors we choose to ignore
     ignores_re = [
-                  re.compile("^W:\s*[0-9,]*:[A-Za-z0-9_]*.configure: Arguments number differs from overridden method"),
-                  re.compile("^W:\s*[0-9,]*:[A-Za-z0-9_]*.make: Arguments number differs from overridden method")
+                  re.compile(r"^W:\s*[0-9,]*:[A-Za-z0-9_]*.configure: Arguments number differs from overridden method"),
+                  re.compile(r"^W:\s*[0-9,]*:[A-Za-z0-9_]*.make: Arguments number differs from overridden method")
                   ]
 
     warning_cnt = 0

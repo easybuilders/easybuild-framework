@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,14 +24,17 @@
 ##
 """
 Module that contains a set of classes and function to generate variables to be used
-eg in compiling or linking
+e.g., in compiling or linking
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
-from vsc.fancylogger import getLogger
+from vsc import fancylogger
 import copy
 import os
 
-_log = getLogger()
+_log = fancylogger.getLogger('variables', fname=False)
 
 def get_class(name, default_class, map_class=None):
     """Return class based on default
@@ -94,7 +95,7 @@ class StrList(list):
 
     def __init__(self, *args , **kwargs):
         super(StrList, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def str_convert(self, x):
         """Convert members of list to string (no prefix of begin and end)"""
@@ -145,7 +146,7 @@ class StrList(list):
         res = copy.deepcopy(self)
 
         # reinstate a (new) logger
-        res.log = getLogger(self.__class__.__name__)
+        res.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         # also copy begin/end
         try:
@@ -349,7 +350,7 @@ class ListOfLists(list):
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self._first = None
 
 
@@ -558,7 +559,7 @@ class Variables(dict):
 
     def __init__(self, *args, **kwargs):
         super(Variables, self).__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def get_list_class(self, name):
         """Return the class associated with the name according to the DEFAULT_LISTCLASS and MAP_LISTCLASS"""
@@ -583,7 +584,8 @@ class Variables(dict):
 
             JOIN_BEGIN_END = element_class.JOIN_BEGIN_END
 
-        klass.__name__ = "%s_%s" % (self.__class__.__name__, name)  ## better log messages (most use self.__class__.__name__; would give klass otherwise)
+        # better log messages (most use self.__class__.__name__; would give klass otherwise)
+        klass.__name__ = "%s_%s" % (self.__class__.__name__, name)
         return klass()
 
     def join(self, name, *others):

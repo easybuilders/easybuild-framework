@@ -1,11 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,16 +24,23 @@
 ##
 """
 EasyBuild configuration (paths, preferences, etc.)
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 
 import os
 import tempfile
+import time
 
 from easybuild.tools.build_log import get_log
 import easybuild.tools.repository as repo
 
-
-log = get_log('config')
+_log = get_log('config')
 
 variables = {}
 requiredVariables = ['build_path', 'install_path', 'source_path', 'log_format', 'repository']
@@ -53,27 +54,57 @@ environmentVariables = {
     'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
+def get_user_easybuild_dir():
+    """Return the per-user easybuild dir (e.g. to store config files)"""
+    return os.path.join(os.path.expanduser('~'), ".easybuild")
+
+def get_default_oldstyle_configfile():
+    """Get the default location of the oldstyle config file to be set as default in the options"""
+    # TODO these _log here can't be controlled/shown with the generaloption
+    # - check environment variable EASYBUILDCONFIG
+    # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
+    # - last, use default config file easybuild_config.py in main.py directory
+    config_env_var = environmentVariables['config_file']
+    home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
+    if os.getenv(config_env_var):
+        _log.debug("Environment variable %s, so using that as config file." % config_env_var)
+        config_file = os.getenv(config_env_var)
+    elif os.path.exists(home_config_file):
+        config_file = home_config_file
+        _log.debug("Found EasyBuild configuration file at %s." % config_file)
+    else:
+        # this should be easybuild.tools.config, the default config file is
+        # part of framework in easybuild (ie in tool/..)
+        appPath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        config_file = os.path.join(appPath, "easybuild_config.py")
+        _log.debug("Falling back to default config: %s" % config_file)
+    return config_file
+
+def get_default_configfiles():
+    """Return a list of default configfiles for tools.options/generaloption"""
+    return [os.path.join(get_user_easybuild_dir(), "config.cfg")]
+
 def init(filename, **kwargs):
     """
     Gather all variables and check if they're valid
     Variables are read in this order of preference: CLI option > environment > config file
     """
 
-    variables.update(read_configuration(filename)) # config file
-    variables.update(read_environment(environmentVariables)) # environment
-    variables.update(kwargs) # CLI options
+    variables.update(read_configuration(filename))  # config file
+    variables.update(read_environment(environmentVariables))  # environment
+    variables.update(kwargs)  # CLI options
 
     def create_dir(dirtype, dirname):
-        log.warn('Will try to create the %s directory %s.' % (dirtype, dirname))
+        _log.warn('Will try to create the %s directory %s.' % (dirtype, dirname))
         try:
             os.makedirs(dirname)
         except OSError, err:
-            log.error("Failed to create directory %s: %s" % (dirname, err))
-        log.warn("%s directory %s created" % (dirtype, dirname))
+            _log.error("Failed to create directory %s: %s" % (dirname, err))
+        _log.warn("%s directory %s created" % (dirtype, dirname))
 
     for key in requiredVariables:
         if not key in variables:
-            log.error('Cannot determine value for configuration variable %s. ' \
+            _log.error('Cannot determine value for configuration variable %s. ' \
                       'Please specify it in your config file %s.' % (key, filename))
             continue
 
@@ -82,7 +113,7 @@ def init(filename, **kwargs):
         dirNotFound = key in ['build_path', 'install_path'] and not os.path.isdir(value)
         srcDirNotFound = key in ['source_path'] and type(value) == str and not os.path.isdir(value)
         if dirNotFound or srcDirNotFound:
-            log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
+            _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
             create_dir(key, value)
             continue
         if key in ['source_path'] and type(value) == list:
@@ -99,7 +130,7 @@ def init(filename, **kwargs):
             os.environ['MODULEPATH'] = "%s:%s" % (ebmodpath, modulepath)
         else:
             os.environ['MODULEPATH'] = ebmodpath
-        log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
+        _log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
 
 def read_configuration(filename):
     """
@@ -112,7 +143,7 @@ def read_configuration(filename):
     try:
         execfile(filename, {}, fileVariables)
     except (IOError, SyntaxError), err:
-        log.exception("Failed to read config file %s %s" % (filename, err))
+        _log.exception("Failed to read config file %s %s" % (filename, err))
 
     return fileVariables
 
@@ -127,7 +158,7 @@ def read_environment(envVars, strict=False):
         if environmentKey in os.environ:
             result[key] = os.environ[environmentKey]
         elif strict:
-            log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environmentKey))
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environmentKey))
 
     return result
 
@@ -168,8 +199,9 @@ def get_repository():
 
 def log_format():
     """
-    Return the log format
+    Return the logfilename format
     """
+    # TODO needs renaming, is actually a formatter for the logfilename
     if 'log_format' in variables:
         return variables['log_format'][1]
     else:
@@ -186,6 +218,28 @@ def get_build_log_path():
     return temporary log directory
     """
     return variables.get('log_dir', tempfile.gettempdir())
+
+def get_log_filename(name, version):
+    """
+    Generate a filename to be used for logging
+    """
+    # this can't be imported at the top, otherwise we'd have a cyclic dependency
+    date = time.strftime("%Y%m%d")
+    timeStamp = time.strftime("%H%M%S")
+
+    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
+                                                                  'version':version,
+                                                                  'date':date,
+                                                                  'time':timeStamp
+                                                                  })
+
+    # Append numbers if the log file already exist
+    counter = 1
+    while os.path.isfile(filename):
+        counter += 1
+        filename = "%s.%d" % (filename, counter)
+
+    return filename
 
 def read_only_installdir():
     """
@@ -204,5 +258,5 @@ def module_classes():
         return variables['module_classes']
     else:
         legacy_module_classes = ['base', 'compiler', 'lib']
-        log.debug('module_classes not set in config, so returning legacy list (%s)' % legacy_module_classes)
+        _log.debug('module_classes not set in config, so returning legacy list (%s)' % legacy_module_classes)
         return legacy_module_classes

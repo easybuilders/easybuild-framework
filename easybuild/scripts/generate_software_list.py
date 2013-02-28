@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Jens Timmerman
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -28,6 +27,8 @@ by walking over a directory of easyconfig files and parsing them all
 Sine this script will actually parse all easyconfigs and easyblocks
 it will only produce a list of Packages that can actually be handled
 correctly by easybuild.
+
+@author: Jens Timmerman (Ghent University)
 """
 from datetime import date
 from optparse import OptionParser
@@ -79,17 +80,17 @@ if not options.repo:
 if not options.path:
     options.path = "easybuild/easyconfigs"
 if options.local:
-    import os   
+    import os
     walk = os.walk
     join = os.path.join
-    read = lambda file_ : file_ 
+    read = lambda file_ : file_
 else:
     fs = Githubfs(options.username, options.repo, options.branch)
     walk = Githubfs(options.username, options.repo, options.branch).walk
     join = fs.join
     read = lambda file_ : fs.read(file_, api=False)
-    
-    
+
+
 
 log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
@@ -101,7 +102,7 @@ names = []
 # fs.walk yields the same results as os.walk, so should be interchangable
 # same for fs.join and os.path.join
 
-for root, subfolders, files in walk(options.path):    
+for root, subfolders, files in walk(options.path):
     if '.git' in subfolders:
         log.info("found .git subfolder, ignoring it")
         subfolders.remove('.git')
@@ -109,13 +110,13 @@ for root, subfolders, files in walk(options.path):
         file_ = join(root,file_)
         file_ = read(file_)
         try:
-            
+
             ec = EasyConfig(file_, validate=False)
-            log.info("found valid easyconfig %s" % ec) 
+            log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
                 log.info("found new software package %s" % ec)
                 # check if an easyblock exists
-                module = easyblock.get_class(None, log, name=ec.name).__module__.split('.')[-1]
+                module = easyblock.get_class(None, name=ec.name).__module__.split('.')[-1]
                 if module != "configuremake":
                     ec.easyblock = module
                 else:
@@ -134,17 +135,17 @@ configs = sorted(configs, key=lambda config : config.name.lower())
 firstl = ""
 
 # print out the configs in markdown format for the wiki
-print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) " 
+print "Click on ![easyconfig logo](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png) "
 print "to see to the list of easyconfig files."
 print "And on ![easyblock logo](http://hpc.ugent.be/easybuild/images/easyblocks_easyblocks_logo_16x16.png) "
-print "to go to the easyblock for this package." 
-print "## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat()) 
+print "to go to the easyblock for this package."
+print "## Supported Packages (%d in %s as of %s) " % (len(configs), options.branch, date.today().isoformat())
 print "<center>"
 print " - ".join(["[%(letter)s](#%(letter)s)" % \
     {'letter': x} for x in  sorted(set([config.name[0].upper() for config in configs]))])
 print "</center>"
 
-for config in configs: 
+for config in configs:
     if config.name[0].lower() != firstl:
         firstl = config.name[0].lower()
         # print the first letter and the number of packages starting with this letter we support
@@ -152,7 +153,7 @@ for config in configs:
                 'letter': firstl.upper(),
                 'count': len([x for x in configs if x.name[0].lower() == firstl]),
             }
-    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] " 
+    print "* [![EasyConfigs](http://hpc.ugent.be/easybuild/images/easyblocks_configs_logo_16x16.png)] "
     print "(https://github.com/hpcugent/easybuild-easyconfigs/tree/%s/easybuild/easyconfigs/%s/%s)" % \
             (options.branch, firstl, config.name)
     if config.easyblock:

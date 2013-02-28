@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,9 +22,16 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for repository.py.
+
+@author: Toon Willems (Ghent University)
+"""
+
 import os
 import shutil
-from unittest import TestCase, TestSuite
+import tempfile
+from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.repository import FileRepository
 
@@ -35,7 +41,7 @@ class RepositoryTest(TestCase):
 
     def setUp(self):
         """ make sure temporary path does not exist """
-        self.path = '/tmp/tmp-easybuild-repo'
+        self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
         self.cwd = os.getcwd()
 
@@ -52,3 +58,6 @@ class RepositoryTest(TestCase):
 def suite():
     """ returns all the testcases in this module """
     return TestSuite([RepositoryTest()])
+
+if __name__ == '__main__':
+    main()

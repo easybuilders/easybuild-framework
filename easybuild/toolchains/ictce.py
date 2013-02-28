@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,6 +25,9 @@
 """
 EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort

@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Jens Timmerman
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC-UGent team.
@@ -24,7 +22,7 @@
 ##
 
 """
-This script attempts to add a header to each file in the given directory 
+This script attempts to add a header to each file in the given directory
 The header will be put the line after a shebang (#!) if present.
 If a line starting with a regular expression 'skip' is present as first line or after the shebang it will ignore that file.
 If filename is given only files matching the filename regexp will be considered for adding the license to,
@@ -33,11 +31,14 @@ by default this is '*'
 Usage: python addheader.py <header file> <directory> [<filename regexp> [<dirname regexp> [<skip regexp>]]]
 
 easy example: add header to all files in this directory:
-    python addheader.py licenseheader.txt . 
+    python addheader.py licenseheader.txt .
 
 harder example, adding someone as copyright holder to all .py files in a source directory,except directories named 'includes' where he isn't added yet:
-    python addheader.py licenseheader.txt src/ ".*\.py" "^((?!includes).)*$" "# Copyright .* Jens Timmerman*" 
+    python addheader.py licenseheader.txt src/ ".*\.py" "^((?!includes).)*$" "# Copyright .* Jens Timmerman*"
 where licenseheader.txt contains '# Copyright 2012 Jens Timmerman'
+
+@author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import os
 import re
@@ -45,7 +46,7 @@ import sys
 
 def write_header(filename, header, skip=None):
     """
-    write a header to filename, 
+    write a header to filename,
     skip files where first line after optional shebang matches the skip regex
     filename should be the name of the file to write to
     header should be a list of strings
@@ -109,7 +110,7 @@ def main(arguments):
         sys.exit(1)
 
     # default skip regexp avoids readding the license header if it's already there
-    skipreg = re.compile("[#\n]*#\s+Copyright\s+\d*")
+    skipreg = re.compile(r"[#\n]*#\s+Copyright\s+\d*")
     # only files that don't start with '.' and end with .py or .sh
     fileregex = "^((?!\.).)*\.(py|sh)$"
     # only paths that don't have subdirs that start with '.'

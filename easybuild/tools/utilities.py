@@ -23,13 +23,42 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declaration of toolchains.linalg namespace.
+Module with various utility functions
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
 
-from pkgutil import extend_path
+# FIXME: remove when Python version on which we rely provides any by itself
+def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+    return sum([bool(x) for x in ls]) != 0
+
+def flatten(lst):
+    """Flatten a list of lists."""
+    res = []
+    for x in lst:
+        res.extend(x)
+    return res
+
+def quote_str(x):
+    """
+    Obtain a new value to be used in string replacement context.
+    
+    For non-string values, it just returns the exact same value.
+    
+    For string values, it tries to escape the string in quotes, e.g.,
+    foo becomes 'foo', foo'bar becomes "foo'bar",
+    foo'bar"baz becomes \"\"\"foo'bar"baz\"\"\", etc.
+    """
+
+    if isinstance(x, basestring):
+        if "'" in x and '"' in x:
+            return '"""%s"""' % x
+        elif '"' in x:
+            return "'%s'" % x
+        else:
+            return '"%s"' % x
+    else:
+        return x
+

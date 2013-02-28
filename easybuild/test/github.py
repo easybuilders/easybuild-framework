@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Jens Timmerman
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,8 +22,14 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for talking to GitHub.
+
+@author: Jens Timmerman (Ghent University)
+"""
+
 import os
-from unittest import TestCase, TestLoader 
+from unittest import TestCase, TestLoader, main
 
 
 from easybuild.tools.github import Githubfs
@@ -54,7 +59,7 @@ class GithubTest(TestCase):
 
     def test_walk(self):
         """test the gitubfs walk function"""
-        #TODO: this will not work when rate limited, so we should have a test account token here
+        # TODO: this will not work when rate limited, so we should have a test account token here
         try:
             self.assertEquals([x for x in self.ghfs.walk(None)], [(None, ['a_directory', 'second_dir'], ['README.md']),
                      ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
@@ -86,3 +91,5 @@ def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(GithubTest)
 
+if __name__ == '__main__':
+    main()

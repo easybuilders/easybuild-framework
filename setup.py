@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +28,8 @@ This script can be used to install easybuild-framework, e.g. using:
   easy_install --user .
 or
   python setup.py --prefix=$HOME/easybuild
+
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
@@ -68,7 +69,9 @@ implement support for installing particular (groups of) software packages.""",
     url = "http://hpcugent.github.com/easybuild",
     packages = ["easybuild", "easybuild.framework", "easybuild.toolchains", "easybuild.toolchains.compiler",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
-                "easybuild.tools.toolchain", "easybuild.test", "vsc"],
+                "easybuild.tools.toolchain", "easybuild.test",
+                "vsc", "vsc.utils",
+                ],
     package_dir = {'easybuild.test': "easybuild/test"},
     package_data = {"easybuild.test": ["easyconfigs/*eb", "modules/*/*"]},
     scripts = ["eb"],

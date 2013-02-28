@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,9 +22,16 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Unit tests for tools/toolchain/variables.py.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+"""
+
 import re
 
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestSuite, main
 from easybuild.tools.toolchain.variables import ToolchainVariables
 from easybuild.tools.variables import CommandFlagList
 
@@ -101,3 +106,6 @@ class ToolchainVariablesTest(TestCase):
 def suite():
     """ return all the tests"""
     return TestSuite([ToolchainVariablesTest()])
+
+if __name__ == '__main__':
+    main()
