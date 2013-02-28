@@ -111,9 +111,8 @@ def license_documentation():
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")
-    for lic in EASYCONFIG_LICENSES:
-        doc.append('%s%s: %s (version %s)' % (indent_l1, lic, EASYCONFIG_LICENSES_DICT[lic].description,
-                                              EASYCONFIG_LICENSES_DICT[lic].version))
+    for lic_name, lic in EASYCONFIG_LICENSES_DICT.items():
+        doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
 
     return "\n".join(doc)
 
