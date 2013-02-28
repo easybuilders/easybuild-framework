@@ -56,6 +56,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
+from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 _log = fancylogger.getLogger('easyconfig', fname=False)
@@ -249,8 +250,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        # TODO add sanity check to make sure no names are reused / redefined
-        const_dict = dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS + EASYCONFIG_CONSTANTS])
+        const_dict = build_easyconfig_constants_dict()
         global_vars.update(const_dict)
         local_vars = {}
 
@@ -625,6 +625,35 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
+
+
+def build_easyconfig_constants_dict():
+    """Make a dictionary with all constants that can be used"""
+    # sanity check
+    all_consts = [
+                  (dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS]), 'TEMPLATE_CONSTANTS'),
+                  (dict([(x[0], x[1]) for x in EASYCONFIG_CONSTANTS]), 'EASYCONFIG_CONSTANTS'),
+                  (EASYCONFIG_LICENSES_DICT, 'EASYCONFIG_LICENSES')
+                  ]
+    err=[]
+    const_dict = {}
+
+    for (csts, name) in all_consts:
+        for cst_key, cst_val in csts.items():
+            ok = True
+            for (other_csts, other_name) in all_consts:
+                if name == other_name:
+                    continue
+                if cst_key in other_csts:
+                    err.append('Found name %s from %s also in %s' % (cst_key, name, other_name))
+                    ok = False
+            if ok:
+                const_dict[cst_key] = cst_val
+    print all_consts, const_dict
+    if len(err) > 0:
+        _log.error("EasyConfig constants sanity check failed: %s" % ("\n".join(err)))
+    else:
+        return const_dict
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):

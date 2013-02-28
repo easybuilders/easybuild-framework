@@ -34,47 +34,49 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
-class EB_License(object):
+class License(object):
     """EasyBuild easyconfig license class"""
     HIDDEN = False  # disable subclasses from being seen/used
-    NAME=None
-    VERSION=None
-    DESCRIPTION=None
+    NAME = None
+    VERSION = None
+    DESCRIPTION = None
 
-    DISTRIBUTE_SOURCE = False    # does the license allows to (re)distribute the code
+    DISTRIBUTE_SOURCE = False  # does the license allows to (re)distribute the code
     GROUP_SOURCE = True  # does the license require to keep the source under dedicated group
     GROUP_BINARY = True  # does the license require to install the binaries under dedicated group
 
+    CLASSNAME_PREFIX = 'License_'
+
     def __init__(self):
         if self.NAME is None:
-            name=self.__class__.__name__
-            if name.startswith('EB_'):
-                name = name[3:]
+            name = self.__class__.__name__
+            if name.startswith(self.CLASSNAME_PREFIX):
+                name = name[len(self.CLASSNAME_PREFIX):]
         else:
-            name=self.NAME
+            name = self.NAME
         self.name = name
         self.version = self.VERSION
-        self.description= self.DESCRIPTION
+        self.description = self.DESCRIPTION
         self.distribute_source = self.DISTRIBUTE_SOURCE
         self.group_source = self.GROUP_SOURCE
         self.group_binary = self.GROUP_BINARY
 
-class EB_OpenLicense(EB_License):
+class License_Open(License):
     HIDDEN = True
     DISTRIBUTE_SOURCE = True
     GROUP_SOURCE = False
     GROUP_BINARY = False
 
-class EB_GPL(EB_OpenLicense):
+class License_GPL(License_Open):
     DESCRIPTION = ("The GNU General Public License is a free, "
                    "copyleft license for software and other kinds of works.")
 
-class EB_GPLv2(EB_GPL):
+class License_GPLv2(License_GPL):
     HIDDEN = False
-    VERSION=2
+    VERSION = (2)
 
-class EB_GPLv3(EB_GPLv2):
-    VERSION=3
+class License_GPLv3(License_GPLv2):
+    VERSION = (3)
 
 
 def get_subclasses(klass):
@@ -89,7 +91,7 @@ def get_subclasses(klass):
 def what_licenses():
     """Return a dict of EB_License subclasses names and license instances"""
     res = {}
-    for lic in get_subclasses(EB_License):
+    for lic in get_subclasses(License):
         if lic.HIDDEN:
             continue
         lic_instance = lic()
