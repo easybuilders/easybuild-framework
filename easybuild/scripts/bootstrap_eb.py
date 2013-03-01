@@ -267,11 +267,13 @@ def main():
 
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
-    os.system("which modulecmd &> %s" % out)
-    modcmd_re = re.compile('.*modulecmd$')
+    cmd = "modulecmd python -H"
+    os.system("%s &> %s" % (cmd, out))
+    modcmd_re = re.compile('Usage: module')
     txt = open(out, "r").read()
     if not modcmd_re.search(txt):
-        error("Could not find 'modulecmd', make sure it's available in your PATH.")
+        error("Could not find 'modulecmd', make sure it's available in your PATH. \
+               Output from %s: %s" % (cmd, txt))
 
     # install EasyBuild in stages
 
