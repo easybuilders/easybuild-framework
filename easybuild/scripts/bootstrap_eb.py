@@ -24,10 +24,13 @@ import sys
 import tempfile
 
 # set print_debug to True for detailed progress info
-print_debug = True
-#print_debug = False
+#print_debug = True
+print_debug = False
 
-# keep track of original environment
+# clean PYTHONPATH to avoid finding readily installed stuff
+os.environ['PYTHONPATH'] = ''
+
+# keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
 #
@@ -160,7 +163,8 @@ def stage1(tmpdir):
 
     # install latest EasyBuild with easy_install from PyPi
     cmd = []
-    cmd.append('--always-copy')
+    cmd.append('--always-copy')  # copy eggs if they're found somewhere
+    cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
     cmd.append('--prefix=%s' % targetdir_stage1)
     cmd.append('easybuild')
     if not print_debug:
@@ -168,8 +172,7 @@ def stage1(tmpdir):
     debug("installing EasyBuild with 'easy_install %s'" % (" ".join(cmd)))
     easy_install.main(cmd)
 
-    # we need to make sure we're in charge, so we clear the PYTHONPATH
-    # we only want the individual eggs dirs that were just installed to be in the PYTHONPATH (see below)
+    # clear the Python search path, we only want the individual eggs dirs to be in the PYTHONPATH (see below)
     # this is needed to avoid easy-install.pth controlling what Python packages are actually used
     os.environ['PYTHONPATH'] = ''
 
@@ -256,9 +259,9 @@ def main():
     """Main script: bootstrap EasyBuild in stages."""
 
     # see if an install dir was specified
-    install_path = None
-    if len(sys.argv) > 1:
-        install_path = sys.argv[1]
+    if not len(sys.argv) == 2:
+        error("Usage: %s <install path>" % sys.argv[0])
+    install_path = sys.argv[1]
 
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
@@ -271,19 +274,6 @@ def main():
     txt = open(out, "r").read()
     if not modcmd_re.search(txt):
         error("Could not find 'modulecmd', make sure it's available in your PATH.")
-
-    # clean PYTHONPATH to avoid finding readily installed stuff
-    os.environ['PYTHONPATH'] = ''
-
-    # keep track of original EASYBUILDINSTALLPATH (which controls where final EasyBuild gets installed
-    eb_ipath = os.getenv('EASYBUILDINSTALLPATH', None)
-
-    # make sure MODULEPATH is set
-    modulepath = os.getenv('MODULEPATH')
-    if not modulepath:
-        sys.exit('Please make sure MODULEPATH is set, this script produces a module for EasyBuild.')
-    else:
-        info("Found MODULEPATH=%s, going to assume this works out well..." % modulepath)
 
     # install EasyBuild in stages
 
