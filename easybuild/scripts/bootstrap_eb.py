@@ -16,6 +16,7 @@ License: GPLv2
 inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py (via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
 """
 
+import copy
 import os
 import re
 import shutil
@@ -25,6 +26,9 @@ import tempfile
 # set print_debug to True for detailed progress info
 print_debug = True
 #print_debug = False
+
+# keep track of original environment
+orig_os_environ = copy.deepcopy(os.environ)
 
 #
 # Utility functions
@@ -52,8 +56,7 @@ def det_lib_path():
 
 def find_egg_dir_for(path, pkg):
     """Find full path of egg dir for given package."""
-    # TODO check pkg_resource.require and see if it can replace this function
-    # TODO pkg_resource.require will also adjust the sys.path properly
+
     full_libpath = os.path.join(path, det_lib_path())
 
     eggdir_regex = re.compile('%s-[0-9a-z.]+-py[0-9.]+.egg' % pkg.replace('-', '_'))
@@ -68,14 +71,24 @@ def find_egg_dir_for(path, pkg):
 
 def prep(path):
     """Prepare for installing a Python package in the specified path."""
+
+    debug("Preparing for path %s" % path)
+
+    # restore original environment first
+    os.environ = copy.deepcopy(orig_os_environ)
+    debug("os.environ['PYTHONPATH'] after reset: %s" % os.environ['PYTHONPATH'])
+
+    # make sure directory exists (this is required by setuptools)
     full_libpath = os.path.join(path, det_lib_path())
     if not os.path.exists(full_libpath):
         os.makedirs(full_libpath)
-    os.environ['PATH'] = ':'.join([os.path.join(path, 'bin'), os.getenv('PATH', '')])
+
+    # update PATH
+    os.environ['PATH'] = ':'.join([os.path.join(path, 'bin'), os.environ.get('PATH', '')])
     # update actual Python search path
     sys.path.insert(0, path)
     # PYTHONPATH needs to be set as well, otherwise setuptools will fail
-    os.environ['PYTHONPATH'] = ':'.join([full_libpath, os.getenv('PYTHONPATH', '')])
+    os.environ['PYTHONPATH'] = ':'.join([full_libpath, os.environ.get('PYTHONPATH', '')])
 
 #
 # Stage functions
@@ -143,40 +156,31 @@ def stage1(tmpdir):
 
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
-    # TODO prep does not cleanup the PATH?PYTHON/.. from stage0?
-    # TODO prep should restore the environement from an original copy of os.environ
     prep(targetdir_stage1)  # set PATH, Python search path
 
     # install latest EasyBuild with easy_install from PyPi
     cmd = []
     cmd.append('--always-copy')
-    cmd.append('--prefix=%s easybuild' % targetdir_stage1)
+    cmd.append('--prefix=%s' % targetdir_stage1)
+    cmd.append('easybuild')
     if not print_debug:
         cmd.insert(0, '--quiet')
     debug("installing EasyBuild with 'easy_install %s'" % (" ".join(cmd)))
     easy_install.main(cmd)
 
-    # figure out EasyBuild version
-    # NOTE: we can't rely on importing VERSION, because other EasyBuild installations may be in sys.path
-    # TODO checking the output is not a garantee for anything (eg imagine the latest eb is already on your system, just not as module)
-    version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
-    version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("eb --version &> %s" % version_out_file)
-    txt = open(version_out_file, "r").read()
-    res = version_re.search(txt)
-    if res:
-        eb_version = res.group(1)
-        debug("installing EasyBuild v%s" % eb_version)
-    else:
-        error("Stage 1 failed, could not determine EasyBuild version (txt: %s)." % txt)
+    # we need to make sure we're in charge, so we clear the PYTHONPATH
+    # we only want the individual eggs dirs that were just installed to be in the PYTHONPATH (see below)
+    # this is needed to avoid easy-install.pth controlling what Python packages are actually used
+    os.environ['PYTHONPATH'] = ''
 
-    versions = {'version': eb_version}
+    versions = {}
 
     for pkg in ['easyconfigs', 'easyblocks', 'framework']:
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, 'easybuild-%s' % pkg)
 
-        # prepend EasyBuild egg dirs to sys.path, so we know which EasyBuild we're using
+        # prepend EasyBuild egg dirs to Python search path, so we know which EasyBuild we're using
         sys.path.insert(0, pkg_egg_dir)
+        os.environ['PYTHONPATH'] = ':'.join([pkg_egg_dir, os.environ.get('PYTHONPATH', '')])
 
         # determine per-package versions based on egg dirs
         version_regex = re.compile('easybuild_%s-([0-9a-z.-]*)-py[0-9.]*.egg' % pkg)
@@ -189,12 +193,20 @@ def stage1(tmpdir):
         else:
             error("Failed to determine version for easybuild-%s package from %s with %s" % (pkg, pkg_egg_dirname, version_regex.pattern))
 
-    # get rid of easy-install.pth file
-    try:
-        # TODO if you don't want easy-install.pth, install with easy_install -m, and set all you need explicitly with pkg_resource.require()
-        os.remove(os.path.join(targetdir_stage1, det_lib_path(), 'easy-install.pth'))
-    except OSError, err:
-        debug("Failed to remove easy-install.pth: %s" % err)
+    # figure out EasyBuild version via eb command line
+    # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
+    version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
+    version_out_file = os.path.join(tmpdir, 'eb_version.out')
+    os.system("eb --version &> %s" % version_out_file)
+    txt = open(version_out_file, "r").read()
+    res = version_re.search(txt)
+    if res:
+        eb_version = res.group(1)
+        debug("installing EasyBuild v%s" % eb_version)
+    else:
+        error("Stage 1 failed, could not determine EasyBuild version (txt: %s)." % txt)
+
+    versions.update({'version': eb_version})
 
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
