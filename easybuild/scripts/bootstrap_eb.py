@@ -228,6 +228,9 @@ def stage2(tmpdir, versions, install_path):
 
     info("\n\n+++ STAGE 2: installing EasyBuild in temporary dir with EasyBuild from stage 1...\n\n")
 
+    # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
+    os.environ['PYTHONPATH'] = ':'.join([find_egg_dir_for(tmpdir, 'distribute'), os.environ.get('PYTHONPATH', '')])
+
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % versions['version'])
     f = open(ebfile, "w")
