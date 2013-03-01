@@ -154,9 +154,6 @@ def stage1(tmpdir):
 
     from setuptools.command import easy_install
 
-    # avoid having an 'easybuild' directory in the current dir
-    os.chdir(tmpdir)
-
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
     prep(targetdir_stage1)  # set PATH, Python search path
@@ -266,6 +263,7 @@ def main():
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
     debug("Going to use %s as temporary directory" % tmpdir)
+    os.chdir(tmpdir)
 
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
