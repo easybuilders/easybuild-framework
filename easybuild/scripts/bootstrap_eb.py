@@ -52,7 +52,8 @@ def det_lib_path():
 
 def find_egg_dir_for(path, pkg):
     """Find full path of egg dir for given package."""
-
+    # TODO check pkg_resource.require and see if it can replace this function
+    # TODO pkg_resource.require will also adjust the sys.path properly
     full_libpath = os.path.join(path, det_lib_path())
 
     eggdir_regex = re.compile('%s-[0-9a-z.]+-py[0-9.]+.egg' % pkg.replace('-', '_'))
@@ -82,13 +83,13 @@ def prep(path):
 
 def stage0(tmpdir):
     """STAGE 0: Prepare and install distribute via included (patched) distribute_setup.py script."""
-    
+
     info("\n\n+++ STAGE 0: installing distribute via included (patched) distribute_setup.py...\n\n")
 
     txt = DISTRIBUTE_SETUP_PY
     if not print_debug:
         # silence distribute_setup.py by redirecting output to /dev/null
-        txt = re.sub(r'([^\n]*)(return subprocess.call\(args)(\) == 0)', 
+        txt = re.sub(r'([^\n]*)(return subprocess.call\(args)(\) == 0)',
                      r"\1f = open(os.devnull, 'w'); \2, stdout=f, stderr=f\3",
                      txt)
         # silence distribute_setup.py completely by setting high log level threshold
@@ -109,7 +110,7 @@ def stage0(tmpdir):
 
     # install easy_install to temporary directory
     from distribute_setup import main as distribute_setup_main
-    orig_sys_argv = sys.argv
+    orig_sys_argv = sys.argv[:]  # make a copy
     sys.argv.append('--prefix=%s' % tmpdir)
     distribute_setup_main()
     sys.argv = orig_sys_argv
@@ -134,7 +135,7 @@ def stage1(tmpdir):
     """STAGE 1: temporary install EasyBuild."""
 
     info("\n\n+++ STAGE 1: installing EasyBuild in temporary dir with easy_install...\n\n")
-    
+
     from setuptools.command import easy_install
 
     # avoid having an 'easybuild' directory in the current dir
@@ -142,17 +143,22 @@ def stage1(tmpdir):
 
     # prepare install dir
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
+    # TODO prep does not cleanup the PATH?PYTHON/.. from stage0?
+    # TODO prep should restore the environement from an original copy of os.environ
     prep(targetdir_stage1)  # set PATH, Python search path
 
     # install latest EasyBuild with easy_install from PyPi
-    cmd = '--always-copy --prefix=%s easybuild' % targetdir_stage1
+    cmd = []
+    cmd.append('--always-copy')
+    cmd.append('--prefix=%s easybuild' % targetdir_stage1)
     if not print_debug:
-        cmd = '--quiet ' + cmd
-    debug("installing EasyBuild with 'easy_install %s'" % cmd)
-    easy_install.main(cmd.split(' '))
- 
+        cmd.insert(0, '--quiet')
+    debug("installing EasyBuild with 'easy_install %s'" % (" ".join(cmd)))
+    easy_install.main(cmd)
+
     # figure out EasyBuild version
     # NOTE: we can't rely on importing VERSION, because other EasyBuild installations may be in sys.path
+    # TODO checking the output is not a garantee for anything (eg imagine the latest eb is already on your system, just not as module)
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
     os.system("eb --version &> %s" % version_out_file)
@@ -168,10 +174,10 @@ def stage1(tmpdir):
 
     for pkg in ['easyconfigs', 'easyblocks', 'framework']:
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, 'easybuild-%s' % pkg)
-    
+
         # prepend EasyBuild egg dirs to sys.path, so we know which EasyBuild we're using
         sys.path.insert(0, pkg_egg_dir)
- 
+
         # determine per-package versions based on egg dirs
         version_regex = re.compile('easybuild_%s-([0-9a-z.-]*)-py[0-9.]*.egg' % pkg)
         pkg_egg_dirname = os.path.basename(pkg_egg_dir)
@@ -185,6 +191,7 @@ def stage1(tmpdir):
 
     # get rid of easy-install.pth file
     try:
+        # TODO if you don't want easy-install.pth, install with easy_install -m, and set all you need explicitly with pkg_resource.require()
         os.remove(os.path.join(targetdir_stage1, det_lib_path(), 'easy-install.pth'))
     except OSError, err:
         debug("Failed to remove easy-install.pth: %s" % err)
@@ -195,7 +202,7 @@ def stage1(tmpdir):
         error("Found another easybuild-framework than expected: %s" % easybuild.framework.__file__)
     else:
         debug("Found easybuild-framework in expected path, good!")
-    
+
     import easybuild.easyblocks
     if not tmpdir in easybuild.easyblocks.__file__:
         error("Found another easybuild-easyblocks than expected: %s" % easybuild.easyblocks.__file__)
@@ -209,14 +216,14 @@ def stage2(tmpdir, versions, install_path):
 
     info("\n\n+++ STAGE 2: installing EasyBuild in temporary dir with EasyBuild from stage 1...\n\n")
 
-    # create easyconfig file 
+    # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % versions['version'])
     f = open(ebfile, "w")
     f.write(EB_EC_FILE % versions)
     f.close()
-   
-    # set build path to tmp dir 
-    os.environ['EASYBUILBUILDPATH'] = tmpdir
+
+    # set build path to tmp dir
+    os.environ['EASYBUILDBUILDPATH'] = tmpdir
 
     # set install dir
     if install_path is not None:
@@ -282,7 +289,7 @@ def main():
     shutil.rmtree(tmpdir)
 
     info('Done!')
-   
+
     if install_path is not None:
         info('EasyBuild v%s was installed to %s, so make sure your MODULEPATH includes %s' % \
              (versions['version'], install_path, os.path.join(install_path, 'modules', 'all')))
@@ -290,7 +297,7 @@ def main():
         info('EasyBuild v%s was installed to configured install path, make sure your MODULEPATH is set correctly.' % \
              versions['version'])
         info('(default config => add "$HOME/.local/easybuild/modules/all" in MODULEPATH)')
-    
+
     info("Run 'module load EasyBuild', and run 'eb --help' to get help on using EasyBuild.")
 
 # template easyconfig file for EasyBuild
@@ -341,7 +348,7 @@ allow_system_deps = [('Python', SYS_PYTHON_VERSION)]
 #+    if options.prefix_install:
 #+        install_args.append('--prefix=%s' % options.prefix_install)
 #     return install_args
-# 
+#
 # def _parse_args():
 #@@ -529,6 +531,8 @@
 #         '--user', dest='user_install', action='store_true', default=False,
