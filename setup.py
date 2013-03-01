@@ -93,4 +93,5 @@ implement support for installing particular (groups of) software packages.""",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg",
                 "easybuild.tools", "easybuild.tools.toolchain", "easybuild.test", "vsc"],
     test_suite = "easybuild.test.suite",
+    zip_safe = False,
 )
