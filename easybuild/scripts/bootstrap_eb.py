@@ -291,6 +291,9 @@ def main():
     debug("Going to use %s as temporary directory" % tmpdir)
     os.chdir(tmpdir)
 
+    # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
+    os.environ['EASYBUILDPREFIX'] = tmpdir
+
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
     cmd = "modulecmd python -H"
