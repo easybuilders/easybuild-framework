@@ -231,6 +231,10 @@ def stage1(tmpdir):
 
     versions.update({'version': eb_version})
 
+    # clear PYTHONPATH before we go to stage2
+    # PYTHONPATH doesn't need to (and shouldn't) include the stage1 egg dirs
+    os.environ['PYTHONPATH'] = ''
+
     # make sure we're getting the expected EasyBuild packages
     import easybuild.framework
     if not tmpdir in easybuild.framework.__file__:
