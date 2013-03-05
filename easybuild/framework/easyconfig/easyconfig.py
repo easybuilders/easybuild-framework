@@ -51,6 +51,7 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
+# TODO add license here to make it really MANDATORY
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 
@@ -217,6 +218,14 @@ class EasyConfig(object):
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
             self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
                            (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
+
+        self.log.info("Checking licenses")
+        # TODO when mandatory, remove this possibility
+        if self._config['license'][0] is None:
+            if 'license' in self.mandatory:
+                self.log.error('Invalid license %s. License is mandatory' % (self._config['license'][0]))
+        elif not self._config['license'][0] in EASYCONFIG_LICENSES_DICT.values():
+            self.log.error('Invalid license %s.' % (self._config['license'][0]))
 
         return True
 

@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
                   'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
                   'description': [None, 'A short description of the software', "MANDATORY"],
                   'homepage': [None, 'The homepage of the software', "MANDATORY"],
+                  'license': [None, 'Software license', "MANDATORY"],
 
                   'toolchainopts': ['', 'Extra options for compilers', "TOOLCHAIN"],
                   'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
