@@ -80,7 +80,8 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
@@ -243,7 +244,7 @@ def main(testing_data=(None, None)):
             files = find_easyconfigs(path)
             for f in files:
                 if not generated and try_to_generate and software_build_specs:
-                    ec_file = easyconfig.tweak(f, None, software_build_specs)
+                    ec_file = easyconfig.tools.tweak(f, None, software_build_specs)
                 else:
                     ec_file = f
                 easyconfigs.extend(process_easyconfig(ec_file, options.only_blocks,
@@ -610,7 +611,7 @@ def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=
 
     # if no easyconfig files/paths were provided, but we did get a software name,
     # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = easyconfig.obtain_ec_for(specs, paths, None)
+    (generated, fn) = easyconfig.tools.obtain_ec_for(specs, paths, None)
     if not generated:
         return (fn, generated)
     else:
@@ -634,7 +635,7 @@ def robot_find_easyconfig(path, module):
     """
     name, version = module
     # candidate easyconfig paths
-    easyconfigsPaths = easyconfig.create_paths(path, name, version)
+    easyconfigsPaths = easyconfig.tools.create_paths(path, name, version)
     for easyconfigPath in easyconfigsPaths:
         log.debug("Checking easyconfig path %s" % easyconfigPath)
         if os.path.isfile(easyconfigPath):

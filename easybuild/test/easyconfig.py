@@ -38,7 +38,8 @@ import tempfile
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -382,11 +383,11 @@ class TestInstallVersion(EasyConfigTest):
         tcver = "4.6.3"
         dummy = "dummy"
 
-        installver = easyconfig.det_installversion(ver, tcname, tcver, verpref, versuff)
+        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
 
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
 
-        installver = easyconfig.det_installversion(ver, dummy, tcver, verpref, versuff)
+        installver = det_installversion(ver, dummy, tcver, verpref, versuff)
 
         self.assertEqual(installver, "%s%s%s" % (verpref, ver, versuff))
 
@@ -603,7 +604,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
-        const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
+        const_dict = dict([(x[0], x[1]) for x in easyconfig.templates.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')

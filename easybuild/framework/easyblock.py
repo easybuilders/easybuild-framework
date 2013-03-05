@@ -46,7 +46,8 @@ from distutils.version import LooseVersion
 from vsc import fancylogger
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
