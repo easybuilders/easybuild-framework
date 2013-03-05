@@ -220,7 +220,7 @@ def stage1(tmpdir):
     # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("eb --version &> %s" % version_out_file)
+    os.system("eb --version > %s 2>&1" % version_out_file)
     txt = open(version_out_file, "r").read()
     res = version_re.search(txt)
     if res:
@@ -294,7 +294,7 @@ def main():
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
     cmd = "modulecmd python -H"
-    os.system("%s &> %s" % (cmd, out))
+    os.system("%s > %s 2>&1" % (cmd, out))
     modcmd_re = re.compile('Usage: module')
     txt = open(out, "r").read()
     if not modcmd_re.search(txt):
