@@ -35,7 +35,6 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
-import easybuild.easyblocks
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
@@ -103,7 +102,7 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main(([], self.logfile))
-        except:
+        except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
@@ -121,7 +120,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, self.logfile))
-            except Exception, err:
+            except (SystemExit, Exception), err:
                 myerr = err
             outtxt = open(self.logfile, 'r').read()
 
@@ -140,7 +139,7 @@ class CommandLineOptionsTest(TestCase):
             myerr = None
             try:
                 main((args, self.logfile))
-            except Exception, err:
+            except (SystemExit, Exception), err:
                 myerr = err
             outtxt = open(self.logfile, 'r').read()
 
@@ -162,7 +161,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, self.logfile))
-            except:
+            except (SystemExit, Exception), err:
                 pass
             outtxt = open(self.logfile, 'r').read()
 
@@ -192,7 +191,7 @@ class CommandLineOptionsTest(TestCase):
         error_thrown = False
         try:
             main((args, self.logfile))
-        except Exception, err:
+        except (SystemExit, Exception), err:
             error_thrown = err
 
         outtxt = open(self.logfile, 'r').read()
@@ -212,7 +211,7 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, self.logfile))
-        except:
+        except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
@@ -249,8 +248,8 @@ class CommandLineOptionsTest(TestCase):
                    ] + job_args
             try:
                 main((args, self.logfile))
-            except:
-                pass  # main may crash
+            except (SystemExit, Exception), err:
+                pass
             outtxt = open(self.logfile, 'r').read()
             # print '\n\n\n\n%s\n\n\n\n\n' % outtxt
 
@@ -285,7 +284,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, None))
-            except Exception, err:
+            except (SystemExit, Exception), err:
                 myerr = err
 
             # make sure we restore
@@ -324,7 +323,7 @@ class CommandLineOptionsTest(TestCase):
 
                 try:
                     main((args, None))
-                except:
+                except (SystemExit, Exception), err:
                     pass
                 outtxt = open(self.logfile, 'r').read()
 
@@ -343,15 +342,16 @@ class CommandLineOptionsTest(TestCase):
                     self.assertTrue(re.search("%s:\s*\w.*" % param, outtxt),
                                     "Parameter %s is listed with help in output of eb %s (args: %s): %s" % (param, avail_arg, args, outtxt))
 
-        # run test without checks for easyblock-custom easyconfig parameters
-        run_test()
-
         # also check whether available custom easyconfig parameters are listed
         orig_sys_path = sys.path
 
-        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
-        global easybuild
+        import easybuild
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        easybuild = reload(easybuild)
+        import easybuild.easyblocks
         easybuild.easyblocks = reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        easybuild.easyblocks.generic = reload(easybuild.easyblocks.generic)
 
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
@@ -369,7 +369,7 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, None))
-        except:
+        except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
@@ -384,8 +384,10 @@ class CommandLineOptionsTest(TestCase):
         # adjust PYTHONPATH such that test easyblocks are found
         orig_sys_path = sys.path
 
-        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
-        global easybuild
+        import easybuild
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        easybuild = reload(easybuild)
+        import easybuild.easyblocks
         easybuild.easyblocks = reload(easybuild.easyblocks)
 
         # simple view
@@ -400,7 +402,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, None))
-            except:
+            except (SystemExit, Exception), err:
                 pass
             outtxt = open(self.logfile, 'r').read()
 
@@ -422,14 +424,14 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, None))
-        except:
+        except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
         for pat in [
                     r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
                     r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
-                    r"|--\s+bar\s+\(easybuild.easyblocks.bar\)\n",
+                    r"|--\s+bar\s+\(easybuild.easyblocks.generic.bar\)\n",
                    ]:
         
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
@@ -449,7 +451,7 @@ class CommandLineOptionsTest(TestCase):
         myerr = None
         try:
             main((args, self.logfile))
-        except Exception, err:
+        except (SystemExit, Exception), err:
             myerr = err
         outtxt = open(self.logfile, 'r').read()
 
