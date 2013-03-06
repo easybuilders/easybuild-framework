@@ -334,6 +334,9 @@ def main():
         info('(default config => add "$HOME/.local/easybuild/modules/all" in MODULEPATH)')
 
     info("Run 'module load EasyBuild', and run 'eb --help' to get help on using EasyBuild.")
+    info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
+    info("To install software with EasyBuild to %s, make sure EASYBUILDINSTALLPATH is set accordingly." % install_path)
+    info("See https://github.com/hpcugent/easybuild/wiki/Configuration for details on configuring EasyBuild.")
 
 # template easyconfig file for EasyBuild
 EB_EC_FILE = """
