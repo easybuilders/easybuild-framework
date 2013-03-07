@@ -64,7 +64,7 @@ class IntelFFTW(Fftw):
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set
-        imklroot = get_software_root(FFT_MODULE_NAME[0])
+        imklroot = get_software_root(self.FFT_MODULE_NAME[0])
         if all([any([os.path.exists(os.path.join(imklroot, libdir, "lib%s.a" % lib)) for libdir in self.FFT_LIB_DIR])
                 for lib in fftw_libs]):
             self.FFT_LIB = fftw_libs
