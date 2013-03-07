@@ -31,8 +31,8 @@ Support for Intel FFTW as toolchain FFT library.
 import os
 
 from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.tools.modules import get_software_root
 from easybuild.tools.utilities import all
-
 
 class IntelFFTW(Fftw):
     """FFTW wrapper functionality of Intel MKL"""
@@ -64,7 +64,7 @@ class IntelFFTW(Fftw):
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set
-        imklroot = os.getenv('EBROOTIMKL')
+        imklroot = get_software_root(FFT_MODULE_NAME[0])
         if all([any([os.path.exists(os.path.join(imklroot, libdir, "lib%s.a" % lib)) for libdir in self.FFT_LIB_DIR])
                 for lib in fftw_libs]):
             self.FFT_LIB = fftw_libs
