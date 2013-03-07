@@ -46,6 +46,7 @@ from vsc.utils.missing import nub
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
+DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
 # keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
