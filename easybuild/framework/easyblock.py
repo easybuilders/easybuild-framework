@@ -1055,6 +1055,7 @@ class EasyBlock(object):
         if self.cfg['group']:
             gid = grp.getgrnam(self.cfg['group'])[2]
             os.setgid(gid)
+            self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
 
     def fetch_step(self):
         """
