@@ -288,7 +288,7 @@ def main():
     # see if an install dir was specified
     if not len(sys.argv) == 2:
         error("Usage: %s <install path>" % sys.argv[0])
-    install_path = sys.argv[1]
+    install_path = os.path.abspath(sys.argv[1])
 
     # create temporary dir for temporary installations
     tmpdir = tempfile.mkdtemp()
