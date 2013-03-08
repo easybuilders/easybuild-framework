@@ -54,6 +54,8 @@ environmentVariables = {
     'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
 }
 
+SUPPORTED_MODULECLASSES = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
     return os.path.join(os.path.expanduser('~'), ".easybuild")
@@ -79,6 +81,26 @@ def get_default_oldstyle_configfile():
         config_file = os.path.join(appPath, "easybuild_config.py")
         _log.debug("Falling back to default config: %s" % config_file)
     return config_file
+
+def get_default_oldstyle_configfile_defaults():
+    """Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environemnt varaibles"""
+    # TODO make sure somehow that these are kept in sync with the old style config file
+    prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+
+    defaults = {
+                'prefix': prefix,
+                'buildpath': os.path.join(prefix, 'build'),
+                'installpath': prefix,
+                'sourcepath': os.path.join(prefix, 'sources'),
+                'repositorypath': os.path.join(prefix, 'ebfiles_repo'),
+                'repository': 'FileRepository',
+                'logformat': ["easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"],
+                'logdir': tempfile.gettempdir(),
+                'moduleclasses': SUPPORTED_MODULECLASSES,
+                # this is from parallelbuild.create_jobs
+                'testoutput' : os.path.join(os.path.abspath(output_dir), name),
+                }
+    return defaults
 
 def get_default_configfiles():
     """Return a list of default configfiles for tools.options/generaloption"""
@@ -205,6 +227,7 @@ def log_format():
     if 'log_format' in variables:
         return variables['log_format'][1]
     else:
+        # TODO yet another default here?
         return "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"
 
 def log_path():

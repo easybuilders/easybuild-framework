@@ -39,9 +39,11 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, generate_template_values_doc
 from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
+from easybuild.tools.config import get_default_oldstyle_configfile_defaults
 from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.repository import get_repositories
 from easybuild.tools.utilities import any
 from easybuild.tools.version import this_is_easybuild
 from vsc import fancylogger
@@ -132,7 +134,7 @@ class EasyBuildOptions(GeneralOption):
         default_config = get_default_oldstyle_configfile()
 
         opts = {
-                "config":("path to EasyBuild config file ",
+                "config":("path to EasyBuild config file",
                           None, 'store', default_config, "C",),
                 "easyblock":("easyblock to use for processing the spec file or dumping the options",
                              None, "store", None, "e", {'metavar':"CLASS"},),
@@ -144,6 +146,39 @@ class EasyBuildOptions(GeneralOption):
                 }
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
+    def config_options(self):
+        # config options
+        descr = ("Configuration options", "Configure EasyBuild behavior.")
+
+        legacy_defaults = get_default_oldstyle_configfile_defaults()
+
+        opts = {
+                'prefix': ('Prefix for buildpath, installpath and sourcepath',
+                               None, 'store', legacy_defaults['prefix']),
+                'buildpath': ('Temporary build path',
+                               None, 'store', legacy_defaults['buildpath']),
+                'installpath':  ('Final install path',
+                                  None, 'store', legacy_defaults['installpath']),
+                'repository':  ('Repository type, using repositorypath',
+                                'choice', 'store', legacy_defaults['repository'], sorted(get_repositories().keys())),
+                'repositorypath':  ('Repository path, used by repository (if applicable)',
+                                    None, 'store', legacy_defaults['repositorypath']),
+                # TODO possibly very confusing name, it's format the log file filename, not the logging itself
+                'logformat': ('Directory name and format of the log file ',
+                              None, 'extend', legacy_defaults['logformat'], {'metavar':'DIR,FORMAT'}),
+                'logdir': ('Log directory where temporary log files are stored',
+                            None, 'store', legacy_defaults['logdir']),
+                'testoutput': ('Path to where jobs should place test output',
+                               None, 'store', legacy_defaults['testoutput']),
+                'sourcepath': ('Path to where sources should be downloaded',
+                               None, 'store', legacy_defaults['sourcepath']),
+                'moduleclasses': ('Set of supported module classes',
+                                  None, 'store', legacy_defaults['moduleclasses']),
+                }
+
+        self.log.debug("config_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def informative_options(self):
