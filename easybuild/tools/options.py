@@ -78,6 +78,10 @@ class EasyBuildOptions(GeneralOption):
                                       "(i.e. if it can be found as module)"),
                                      None, "store_true", False, "f"),
                             "job":("Submit the build as a job", None, "store_true", False),
+                            # this one is sort of an exception, it's something jobscripts can set,
+                            #  has no real meaning for regular eb usage
+                            "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
+                                           None, "store", None),
                             "skip":("Skip existing software (useful for installing additional packages)",
                                     None, "store_true", False, "k"),
                             "robot":("Path to search for easyconfigs for missing dependencies." ,
@@ -170,12 +174,10 @@ class EasyBuildOptions(GeneralOption):
                               None, 'extend', legacy_defaults['logformat'], {'metavar':'DIR,FORMAT'}),
                 'logdir': ('Log directory where temporary log files are stored',
                             None, 'store', legacy_defaults['logdir']),
-                'testoutput': ('Path to where jobs should place test output',
-                               None, 'store', legacy_defaults['testoutput']),
                 'sourcepath': ('Path to where sources should be downloaded',
                                None, 'store', legacy_defaults['sourcepath']),
-                'moduleclasses': ('Set of supported module classes',
-                                  None, 'store', legacy_defaults['moduleclasses']),
+                'moduleclasses': ('Extend supported module classes',
+                                  None, 'extend', legacy_defaults['moduleclasses']),
                 }
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))

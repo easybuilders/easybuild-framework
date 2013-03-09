@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 EasyBuild configuration (paths, preferences, etc.)
 
@@ -49,12 +49,20 @@ environmentVariables = {
     'install_path': 'EASYBUILDINSTALLPATH',  # final install path
     'log_dir': 'EASYBUILDLOGDIR',  # log directory where temporary log files are stored
     'config_file': 'EASYBUILDCONFIG',  # path to the config file
-    'test_output_path': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
     'source_path': 'EASYBUILDSOURCEPATH',  # path to where sources should be downloaded
     'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
+    # this one is sort of an exception, it's something jobscripts can set, has no real meaning for regular eb usage
+    'test_output_path': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
 }
 
-SUPPORTED_MODULECLASSES = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+DEFAULT_MODULECLASSES = [('base',),
+                         ('bio',),
+                         ('chem',),
+                         ('compiler',),
+                         ('lib',),
+                         ('phys',),
+                         ('tools',),
+                         ]
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
@@ -82,10 +90,13 @@ def get_default_oldstyle_configfile():
         _log.debug("Falling back to default config: %s" % config_file)
     return config_file
 
-def get_default_oldstyle_configfile_defaults():
-    """Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environemnt varaibles"""
-    # TODO make sure somehow that these are kept in sync with the old style config file
-    prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+def get_default_oldstyle_configfile_defaults(prefix=None):
+    """Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environemnt variables
+        when prefix is provided, it use that value as prefix for the other defaults (where applicable)
+    """
+    # TODO make sure somehow that these are kept in sync with the old style easybuild_config.py file
+    if prefix is None:
+        prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
     defaults = {
                 'prefix': prefix,
@@ -96,9 +107,7 @@ def get_default_oldstyle_configfile_defaults():
                 'repository': 'FileRepository',
                 'logformat': ["easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"],
                 'logdir': tempfile.gettempdir(),
-                'moduleclasses': SUPPORTED_MODULECLASSES,
-                # this is from parallelbuild.create_jobs
-                'testoutput' : os.path.join(os.path.abspath(output_dir), name),
+                'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
                 }
     return defaults
 
