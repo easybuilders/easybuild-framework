@@ -153,7 +153,7 @@ class ExtOption(Option):
                 elif action in ('store_false',):
                     action = 'store_true'
 
-            if orig_action in('store_debuglog', 'store_infolog', 'store_warninglog') and action == 'store_true':
+            if orig_action in ('store_debuglog', 'store_infolog', 'store_warninglog') and action == 'store_true':
                 setLogLevel(orig_action.split('_')[1][:-3].upper())
 
             Option.take_action(self, action, dest, opt, value, values, parser)
@@ -923,6 +923,10 @@ class GeneralOption(object):
             new_dest = dest[len(prefix) + len(self.OPTIONNAME_PREFIX_SEPARATOR):]
             prefix_dict[new_dest] = value
         return prefix_dict
+
+    def get_options_by_section(self, section):
+        """Get all options from section. Return a dict."""
+        return self._get_options_by_property('section_name', section).items()
 
     def postprocess(self):
         """Some additional processing"""
