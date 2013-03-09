@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Generating module files.
 
@@ -33,13 +33,10 @@ Generating module files.
 @author: Fotis Georgatos (Uni.Lu)
 """
 import os
-import shutil
 import tempfile
 
 from easybuild.tools.build_log import get_log
 from easybuild.tools.config import install_path
-from easybuild.tools.filetools import rmtree2
-from easybuild.tools.modules import Modules
 from easybuild.tools.utilities import quote_str
 
 
