@@ -329,19 +329,23 @@ class CommandLineOptionsTest(TestCase):
                 outtxt = open(self.logfile, 'r').read()
 
                 # check whether all parameter types are listed
-                par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE, MANDATORY, MODULES, OTHER, TOOLCHAIN]
+                par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT,
+                             LICENSE, MANDATORY, MODULES, OTHER, TOOLCHAIN]
                 if custom is not None:
                     par_types.append(CUSTOM)
 
                 for param_type in [x[1] for x in par_types]:
                     self.assertTrue(re.search("%s\n%s" % (param_type.upper(), '-'*len(param_type)), outtxt),
-                                    "Parameter type %s is featured in output of eb %s (args: %s): %s" % (param_type, avail_arg, args, outtxt))
+                                    "Parameter type %s is featured in output of eb %s (args: %s): %s" %
+                                    (param_type, avail_arg, args, outtxt))
 
                 # check a couple of easyconfig parameters
                 for param in ["name", "version", "toolchain", "versionsuffix", "makeopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
                     self.assertTrue(re.search("%s:\s*\w.*" % param, outtxt),
-                                    "Parameter %s is listed with help in output of eb %s (args: %s): %s" % (param, avail_arg, args, outtxt))
+                                    "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
+                                    (param, avail_arg, args, outtxt)
+                                    )
 
         # run test without checks for easyblock-custom easyconfig parameters
         run_test()
@@ -409,9 +413,9 @@ class CommandLineOptionsTest(TestCase):
                         r"|--\s+EB_foo\n|\s+|--\s+EB_foofoo\n",
                         r"|--\s+bar\n",
                        ]:
-            
+
                 self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
-    
+
         # clear log
         open(self.logfile, 'w').write('')
 
@@ -431,7 +435,7 @@ class CommandLineOptionsTest(TestCase):
                     r"|--\s+EB_foo\s+\(easybuild.easyblocks.foo\)\n|\s+|--\s+EB_foofoo\s+\(easybuild.easyblocks.foofoo\)\n",
                     r"|--\s+bar\s+\(easybuild.easyblocks.bar\)\n",
                    ]:
-        
+
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
 

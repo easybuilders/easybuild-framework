@@ -75,6 +75,9 @@ class Repository(object):
     """
     Interface for repositories
     """
+
+    DESCRIPTION = None
+
     USABLE = True  # can this be used?
 
     def __init__(self, repo_path, subdir=''):
@@ -135,6 +138,10 @@ class Repository(object):
 
 class FileRepository(Repository):
     """Class for file repositories."""
+
+    DESCRIPTION = ("A plain flat file repository. "
+                   "The 1st argument contains the directory where the files are stored. "
+                   "The optional 2nd argument is a subdir in that path.")
 
     def setup_repo(self):
         """
@@ -217,6 +224,10 @@ class GitRepository(FileRepository):
     """
     Class for git repositories.
     """
+    DESCRIPTION = ("A non-empty bare git repository (created with 'git init --bare' or 'git clone --bare'). "
+                   "The 1st argumentcontains the git repository location, which can be a directory or an URL. "
+                   "The second arhument  is a path inside the repository where to save the files.")
+
     USABLE = HAVE_GIT
 
     def __init__(self, *args):
@@ -316,6 +327,9 @@ class SvnRepository(FileRepository):
     """
     Class for svn repositories
     """
+
+    DESCRIPTION = ("A SVN repository. The 1st argument contains the "
+                   "subversion repository location, this can be a directory or an URL.")
 
     USABLE = HAVE_PYSVN
 
@@ -418,9 +432,11 @@ class SvnRepository(FileRepository):
         except OSError, err:
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
-def get_repositories():
-    """Return all usable repositories"""
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE])
+def get_repositories(check_usable=True):
+    """Return all repositories.
+        check_usable: boolean, if True, only return usbale repositories
+    """
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_usable])
 
     if not 'FileRepository' in class_dict:
         _log.error('get_repositories: FileRepository missing from list of repositories')

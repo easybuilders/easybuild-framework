@@ -41,11 +41,14 @@ class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
     def setUp(self):
+        self.legacy_setUp()
+
+    def legacy_setUp(self):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
 
-        config.init(cfg_full_path)
+        config.oldstyle_init(cfg_full_path)
         self.cwd = os.getcwd()
 
     def tearDown(self):
