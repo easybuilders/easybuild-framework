@@ -300,7 +300,7 @@ def main():
 
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
-    cmd = "modulecmd python -H"
+    cmd = "modulecmd python help"
     os.system("%s > %s 2>&1" % (cmd, out))
     modcmd_re = re.compile('Usage: module')
     txt = open(out, "r").read()
