@@ -29,6 +29,7 @@ Module with various utility functions
 """
 
 # FIXME: remove when Python version on which we rely provides any by itself
+# TODO cleanup, now part of vsc-base vsc.utils.missing 1.2
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
@@ -64,6 +65,7 @@ def quote_str(x):
 
 
 # TODO this code is also in the easyconfig refactor pullrequest
+# TODO cleanup, now part of vsc-base vsc.utils.missing 1.2
 def get_subclasses(klass):
     """
     Get all subclasses recursively
