@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Toolchain compiler module, provides abstract class for compilers.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.tools import systemtools
@@ -177,12 +178,12 @@ class Compiler(Toolchain):
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
-        optarchflags = self.options.option('optarch')
+        optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
 
         precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
                     [self.options.option('defaultprec')]
 
-        self.variables.nextend('OPTFLAGS', optflags[:1] + [optarchflags])
+        self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
         ## precflags last

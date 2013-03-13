@@ -1,11 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +24,14 @@
 ##
 """
 EasyBuild configuration file.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import os
@@ -77,7 +79,8 @@ log_format = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log
 log_dir = tempfile.gettempdir()
 
 # define set of supported module classes
-module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools',
+  'cae', 'data', 'debugger', 'devel', 'ide', 'math', 'mpi', 'numlib', 'perf', 'system', 'vis']
 
 # general cleanliness
 del os, get_log, config, log, prefix

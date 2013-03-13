@@ -1,6 +1,5 @@
 ##
-# Copyright 2011-2012 Ghent University
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2011-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,6 +24,8 @@
 ##
 """
 Module with useful functions for getting system information
+
+@author: Jens Timmerman (Ghent University)
 """
 import os
 import re

@@ -1,7 +1,5 @@
-# #
-# Copyright 2012 Ghent University
-# Copyright 2012 Toon Willems
-# Copyright 2012 Kenneth Hoste
+##
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +21,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
+"""
+Unit tests for easyconfig.py
+
+@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Stijn De Weirdt (Ghent University)
+"""
+
 import os
 import re
 import shutil
@@ -599,6 +605,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         self.assertEqual(eb['description'], "test easyconfig PI")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
 

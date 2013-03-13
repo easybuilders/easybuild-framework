@@ -1,5 +1,38 @@
-This file contains a description of the major changes to EasyBuild.
+This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
+
+v1.2.0 (February 28th 2013)
+---------------------------
+
+feature + bugfix release
+- new backend module for option parsing: generaloption
+- support for using constants and string templates in easyconfig files
+    - currently disabled for 'exts_filter' and 'exts_list' easyconfog parameters, for backward compatibility
+- various other enhancements, including:
+    - support for iqacml and iiqmpi toolchains (Intel compilers + QLogic MPI based)
+    - clearer errors messages when sanity check failed
+    - unit tests for (about half of) the 'eb' command line options
+    - support for specifying build/install steps to skip in easyconfig file ('skipsteps')
+    - support for allowing certain dependencies to be resolved by the system instead of modules ('allow_system_deps')
+    - cache ppn value required by regtest, clean up temporary files let behind by --regtest/--job
+    - make sure MPD is used as process manager for Intel MPI (required for impi v4.1 and later)
+    - rename template names 'name' and 'version' used in exts_filter to 'ext_name', 'ext_version'
+        - 'name' and 'version' are still supported for legacy reasons
+    - cleaned up module docstrings w.r.t. list of authors
+- various bug fixes, including:
+    - print correct (lowercase) toolchain names with --list-toolchains
+    - correct easyconfig parameter name 'license_server_port'
+    - fix string quoting in develop modules
+    - ensure modulecmd is run with original LD_LIBRARY_PATH value
+        - to avoid breaking modulecmd, see https://bugzilla.redhat.com/show_bug.cgi?id=719785
+    - remove use of hardcoded files/dirs in unit tests
+    - fix various inconsistencies w.r.t. paths considered with --robot
+    - various cleanup and fixes w.r.t. logging
+        - use correct logger instance in main script
+        - stop passing logger instances around
+        - make module logging variables private
+    - get rid of ModuleGenerator deconstructor, clean up via EasyBlock.clean_up_fake_module
+    - fix disabling of 'optarch' toolchain option (and extend unit tests to check on this)
 
 v1.1.0 (January 27th 2013)
 --------------------------

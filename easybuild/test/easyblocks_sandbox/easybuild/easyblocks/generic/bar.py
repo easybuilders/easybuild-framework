@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,13 +23,24 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declaration of toolchains.linalg namespace.
+Generic EasyBuild support for building and installing bar, implemented as an easyblock
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
 
-from pkgutil import extend_path
+from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+
+class bar(EasyBlock):
+    """Generic support for building/installing bar."""
+
+    @staticmethod
+    def extra_options():
+        """Custom easyconfig parameters for bar."""
+
+        extra_vars = [
+                      ('bar_extra1', [None, "first bar-specific easyconfig parameter (mandatory)", MANDATORY]),
+                      ('bar_extra2', ['BAR', "second bar-specific easyconfig parameter", CUSTOM]),
+                     ]
+        return EasyBlock.extra_options(extra_vars)

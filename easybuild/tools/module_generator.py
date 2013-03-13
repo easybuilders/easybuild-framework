@@ -181,17 +181,3 @@ if { ![is-loaded %(name)s/%(version)s] } {
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
-    def __del__(self):
-        """
-        Desconstructor: clean up temporary directory used for fake modules, if any.
-        """
-        if self.fake:
-            try:
-                m = Modules([os.path.join(self.tmpdir, GENERAL_CLASS)])
-                m.add_module([[self.app.name, self.app.get_installversion()]])
-                m.unload()
-                if os.path.exists(self.tmpdir):
-                    log.info("Cleaning up fake modules dir %s" % self.tmpdir)
-                    rmtree2(self.tmpdir)
-            except OSError, err:
-                log.exception("Cleaning up fake module dir failed: %s" % err)

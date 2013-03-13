@@ -1,11 +1,5 @@
 # #
 # Copyright 2009-2013 Ghent University
-# Copyright 2009-2013 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,6 +22,18 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
+
+"""
+Easyconfig module that provides functionality for dealing with easyconfig (.eb) files,
+alongside the EasyConfig class to represent parsed easyconfig files.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
+"""
 
 import copy
 import difflib
@@ -696,6 +702,7 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
+
 
 def generate_template_values_doc():
     """Generate the templating documentation"""

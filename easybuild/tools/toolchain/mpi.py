@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Toolchain mpi module. Contains all MPI related classes
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
@@ -184,6 +185,10 @@ class Mpi(Toolchain):
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
+
+            # make sure we're always using mpd as process manager
+            # only required for/picked up by Intel MPI v4.1 or higher, no harm done for others
+            env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
 
             # create mpdboot file
             fn = "/tmp/mpdboot"

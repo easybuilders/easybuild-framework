@@ -1,12 +1,6 @@
 #!/usr/bin/env python
-# #
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
-# Copyright 2012 Toon Willems
+##
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,9 +22,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 Main entry point for EasyBuild: build software from .eb input file
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 
 import copy
@@ -146,6 +147,7 @@ def main(testing_data=(None, None)):
     easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
 
+    search_path = os.getcwd()
     if easyconfigs_paths:
         easyconfigs_pkg_full_path = easyconfigs_paths[0]
         if not options.robot:
@@ -314,6 +316,8 @@ def main(testing_data=(None, None)):
             msg = "\n".join(txt)
             log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
+
+            cleanup_logfile_and_exit(logfile, testing, True)
 
             sys.exit(0)
 
@@ -1008,11 +1012,16 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
     def perform_step(step, obj, method, logfile):
         """Perform method on object if it can be built."""
-        if (type(obj) == dict and obj['spec'] not in build_stopped) or obj not in build_stopped:
+        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
+
+            # update templates before every step (except for initialization)
+            if isinstance(obj, EasyBlock):
+                obj.update_config_template_run_step()
+
             try:
                 if step == 'initialization':
                     log.info("Running %s step" % step)
-                    return parbuild.get_instance(obj, robot_path=options.robot)
+                    return parbuild.get_easyblock_instance(obj, robot_path=options.robot)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)
@@ -1078,7 +1087,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
             if app not in build_stopped:
                 # gather build stats
-                build_time = round(time.time() - start_time, 2)
                 buildstats = get_build_stats(app, start_time)
                 succes.append((app, buildstats))
 
