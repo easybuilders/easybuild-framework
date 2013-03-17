@@ -43,3 +43,4 @@ class Goolf(Gcc, OpenMPI, OpenBLAS, Lapack, ScaLAPACK, Fftw):
     # no BLACS
     BLACS_MODULE_NAME = []
     BLACS_LIB = []
+    BLACS_LIB_MT = []
