@@ -49,7 +49,7 @@ from easybuild.tools.asyncprocess import send_all, recv_some
 from easybuild.tools.build_log import get_log
 
 
-log = get_log('fileTools')
+log = get_log('filetools')
 errorsFoundInLog = 0
 
 # constants for strictness levels
