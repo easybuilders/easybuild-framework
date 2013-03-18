@@ -199,7 +199,7 @@ def get_platform_name(withversion=False):
 def get_system_name():
     """
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
-    'red hat enterprise linux server' (RHEL), 'SL' (Scientific Linux), 'opensuse', ...
+    'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
     """
     try:
         # platform.linux_distribution is more useful, but only available since Python 2.6
