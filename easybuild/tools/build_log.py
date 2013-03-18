@@ -36,6 +36,9 @@ import os
 import sys
 from copy import copy
 from vsc import fancylogger
+
+from easybuild.tools.version import VERSION
+
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
 
@@ -61,6 +64,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
     raiseError = True
 
     def caller_info(self):
+        """Return string with caller info."""
         (filepath, line, function_name) = self.findCaller()
         filepath_dirs = filepath.split(os.path.sep)
 
@@ -71,13 +75,19 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 break
         return "(at %s:%s in %s)" % (os.path.sep.join(filepath_dirs), line, function_name)
 
+    def deprecated(self, msg, max_ver):
+        """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
+        fancylogger.FancyLogger.deprecated(self, msg, str(VERSION), max_ver, exception=EasyBuildError)
+
     def error(self, msg, *args, **kwargs):
+        """Print error message and raise an EasyBuildError."""
         newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
         fancylogger.FancyLogger.error(self, newMsg, *args, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
     def exception(self, msg, *args):
+        """Print exception message and raise EasyBuildError."""
         # # don't raise the exception from within error
         newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
@@ -86,7 +96,6 @@ class EasyBuildLog(fancylogger.FancyLogger):
         self.raiseError = True
 
         raise EasyBuildError(newMsg)
-
 
 # set format for logger
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
