@@ -219,6 +219,7 @@ def get_os_name():
         'red hat enterprise linux server': 'RHEL',
         'scientific linux sl': 'SL',
         'scientific linux': 'SL',
+        'suse linux enterprise server': 'SLES',
     }
 
     if os_name:
@@ -230,7 +231,7 @@ def get_os_version():
     """Determine system version."""
     os_version = platform.dist()[1]
     if os_version:
-        if get_os_name() == "suse":
+        if get_os_name() in ["suse", "SLES"]:
 
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
