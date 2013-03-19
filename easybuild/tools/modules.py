@@ -74,7 +74,7 @@ class Modules(object):
         @param modulePath: A list of paths where the modules can be located
         @type modulePath: list
         """
-        self.log = fancylogger.getLogger(self.__class__.__name__), fname=False)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if modulePath:
             self.modulePath = set(modulePath)
