@@ -213,6 +213,7 @@ def get_os_name():
         # platform.dist can be used as a fallback
         # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
         os_name = platform.dist()[0].strip().lower()
+        _log.deprecated("platform.dist as fallback for platform.linux_distribution", "2.0")
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
