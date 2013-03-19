@@ -209,7 +209,7 @@ def get_os_name():
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         os_name = platform.linux_distribution()[0].strip().lower()
-    except AttributeErrror, err:
+    except AttributeError, err:
         # platform.dist can be used as a fallback
         # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
         os_name = platform.dist()[0].strip().lower()
