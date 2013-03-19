@@ -37,10 +37,7 @@ EasyBuild configuration file.
 import os
 import tempfile
 
-from easybuild.tools.build_log import get_log
 import easybuild.tools.config as config
-
-log = get_log('easybuild_config')
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/<modules install suffix>/all
 if os.getenv('EASYBUILDPREFIX'):
@@ -83,4 +80,4 @@ module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools',
   'cae', 'data', 'debugger', 'devel', 'ide', 'math', 'mpi', 'numlib', 'perf', 'system', 'vis']
 
 # general cleanliness
-del os, get_log, config, log, prefix
+del os, tempfile, config, prefix
