@@ -245,11 +245,14 @@ def get_os_version():
             # append suitable suffix to system version
             if os_version in version_suffixes.keys():
                 kernel_version = platform.uname()[2]
+                known_sp = False
                 for (kver, suff) in version_suffixes[os_version].items():
                     if kernel_version.startswith(ver):
                         os_version += suff
+                        known_sp = True
                         break
-                        suff = '_UNKNOWN_SP'
+                if not known_sp:
+                    suff = '_UNKNOWN_SP'
             else:
                 _log.error("Don't know how to determine subversions for SLES %s" % os_version)
 
