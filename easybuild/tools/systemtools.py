@@ -144,18 +144,18 @@ def get_kernel_name():
 
     e.g., 'Linux', 'Darwin', ...
     """
-    _log.deprecated("get_kernel_name() (replaced by system_type())", "2.0")
+    _log.deprecated("get_kernel_name() (replaced by os_type())", "2.0")
     try:
         kernel_name = os.uname()[0]
         return kernel_name
     except OSError, err:
         raise SystemToolsException("Failed to determine kernel name: %s" % err)
 
-def get_system_type():
+def get_os_type():
     """Determine system type, e.g., 'Linux', 'Darwin', 'Java'."""
-    system_type = platform.system()
-    if len(system_type) > 0:
-        return system_type
+    os_type = platform.system()
+    if len(os_type) > 0:
+        return os_type
     else:
         raise SystemToolsException("Failed to determine system name using platform.system().")
 
@@ -169,38 +169,38 @@ def get_shared_lib_ext():
         'Darwin': 'dylib'
     }
 
-    system_type = get_system_type()
-    if system_type in shared_lib_exts.keys():
-        return shared_lib_exts[system_type]
+    os_type = get_os_type()
+    if os_type in shared_lib_exts.keys():
+        return shared_lib_exts[os_type]
 
     else:
         raise SystemToolsException("Unable to determine extention for shared libraries,"
-                                   "unknown system name: %s" % system_type)
+                                   "unknown system name: %s" % os_type)
 
 def get_platform_name(withversion=False):
     """Try and determine platform name
     e.g., x86_64-unknown-linux, x86_64-apple-darwin
     """
-    system_type = get_system_type()
+    os_type = get_os_type()
     release = platform.release()
     machine = platform.machine()
 
-    if system_type == 'Linux':
+    if os_type == 'Linux':
         vendor = 'unknown'
         release = '-gnu'
-    elif system_type == 'Darwin':
+    elif os_type == 'Darwin':
         vendor = 'apple'
     else:
-        raise SystemToolsException("Failed to determine platform name, unknown system name: %s" % system_type)
+        raise SystemToolsException("Failed to determine platform name, unknown system name: %s" % os_type)
 
     if withversion:
-        platform_name = '%s-%s-%s%s' % (machine, vendor, system_type.lower(), release)
+        platform_name = '%s-%s-%s%s' % (machine, vendor, os_type.lower(), release)
     else:
-        platform_name = '%s-%s-%s' % (machine, vendor, system_type.lower())
+        platform_name = '%s-%s-%s' % (machine, vendor, os_type.lower())
 
     return platform_name
 
-def get_system_name():
+def get_os_name():
     """
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
     'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
@@ -208,28 +208,28 @@ def get_system_name():
     try:
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        system_name = platform.linux_distribution()[0].strip().lower()
+        os_name = platform.linux_distribution()[0].strip().lower()
     except AttributeErrror, err:
         # platform.dist can be used as a fallback
         # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
-        system_name = platform.dist()[0].strip().lower()
+        os_name = platform.dist()[0].strip().lower()
 
-    system_name_map = {
+    os_name_map = {
         'red hat enterprise linux server': 'RHEL',
         'scientific linux sl': 'SL',
         'scientific linux': 'SL',
     }
 
-    if system_name:
-        return system_name_map.get(system_name, system_name)
+    if os_name:
+        return os_name_map.get(os_name, os_name)
     else:
         return "UNKNOWN_SYSTEM_NAME"
 
-def get_system_version():
+def get_os_version():
     """Determine system version."""
-    system_version = platform.dist()[1]
-    if system_version:
-        if get_system_name() == "suse":
+    os_version = platform.dist()[1]
+    if os_version:
+        if get_os_name() == "suse":
 
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
@@ -242,17 +242,17 @@ def get_system_version():
                                }
 
             # append suitable suffix to system version
-            if system_version in version_suffixes.keys():
+            if os_version in version_suffixes.keys():
                 kernel_version = platform.uname()[2]
-                for (kver, suff) in version_suffixes[system_version].items():
+                for (kver, suff) in version_suffixes[os_version].items():
                     if kernel_version.startswith(ver):
-                        system_version += suff
+                        os_version += suff
                         break
                         suff = '_UNKNOWN_SP'
             else:
-                _log.error("Don't know how to determine subversions for SLES %s" % system_version)
+                _log.error("Don't know how to determine subversions for SLES %s" % os_version)
 
-        return system_version
+        return os_version
     else:
         return "UNKNOWN_SYSTEM_VERSION"
 
