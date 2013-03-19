@@ -247,7 +247,7 @@ def get_os_version():
             if os_version in version_suffixes.keys():
                 kernel_version = platform.uname()[2]
                 known_sp = False
-                for (kver, suff) in version_suffixes[os_version].items():
+                for (kver, suff) in version_suffixes[os_version]:
                     if kernel_version.startswith(ver):
                         os_version += suff
                         known_sp = True
