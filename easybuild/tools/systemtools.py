@@ -229,22 +229,28 @@ def get_system_version():
     """Determine system version."""
     system_version = platform.dist()[1]
     if system_version:
-        # SLES 11 subversions can only be told apart based on kernel version,
-        # see http://wiki.novell.com/index.php/Kernel_versions
         if get_system_name() == "suse":
-            if system_version == "11":
-                kernel_version = platform.uname()[2].split('.')
 
-                if kernel_version.startswith(['2', '6', '27']):
-                    suff = ''
-                elif kernel_version.startswith(['2', '6', '32']):
-                    suff = '_SP1'
-                elif kernel_version.startswith(['3', '0']):
-                    suff = '_SP2'
-                else:
-                    suff = '_UNKNOWN_SP'
+            # SLES subversions can only be told apart based on kernel version,
+            # see http://wiki.novell.com/index.php/Kernel_versions
+            version_suffixes = {
+                                "11": [
+                                       ('2.6.27', ''),
+                                       ('2.6.32', '_SP1'),
+                                       ('3.0', '_SP2'),
+                                      ],
+                               }
 
-                system_version += suff
+            # append suitable suffix to system version
+            if system_version in version_suffixes.keys():
+                kernel_version = platform.uname()[2]
+                for (kver, suff) in version_suffixes[system_version].items():
+                    if kernel_version.startswith(ver):
+                        system_version += suff
+                        break
+                        suff = '_UNKNOWN_SP'
+            else:
+                _log.error("Don't know how to determine subversions for SLES %s" % system_version)
 
         return system_version
     else:
