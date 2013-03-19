@@ -52,7 +52,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_version
+from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str
 
@@ -108,8 +108,9 @@ TEMPLATE_CONSTANTS = [
 EASYCONFIG_CONSTANTS = [
                         ('SYS_PYTHON_VERSION', platform.python_version(),
                          "System Python version (platform.python_version())"),
-                        ('SYSTEM_NAME', get_os_name(), "System name (e.g. 'fedora' or 'suse')"),
-                        ('SYSTEM_VERSION', get_os_version(), "System version"),
+                        ('OS_TYPE', get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
+                        ('OS_NAME', get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
+                        ('OS_VERSION', get_os_version(), "System version"),
                        ]
 
 class EasyConfig(object):
