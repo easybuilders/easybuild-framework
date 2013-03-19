@@ -36,11 +36,11 @@ EasyBuild configuration (paths, preferences, etc.)
 import os
 import tempfile
 import time
+from vsc import fancylogger
 
-from easybuild.tools.build_log import get_log
 import easybuild.tools.repository as repo
 
-_log = get_log('config')
+_log = fancylogger.getLogger('config', fname=False)
 
 variables = {}
 requiredVariables = ['build_path', 'install_path', 'source_path', 'log_format', 'repository']
