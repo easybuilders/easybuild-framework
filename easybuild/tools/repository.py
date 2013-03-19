@@ -40,8 +40,11 @@ import shutil
 import socket
 import tempfile
 import time
+from vsc import fancylogger
 
+from easybuild.framework.easyconfig import EasyConfig, stats_to_str
 from easybuild.tools.filetools import rmtree2
+from easybuild.tools.version import VERBOSE_VERSION
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -61,12 +64,8 @@ try:
 except ImportError:
     pass
 
-from easybuild.framework.easyconfig import EasyConfig, stats_to_str
-from easybuild.tools.build_log import get_log
-from easybuild.tools.version import VERBOSE_VERSION
 
-
-log = get_log('repo')
+_log = fancylogger.getLogger('repository', fname=False)
 
 class Repository(object):
     """
@@ -185,7 +184,7 @@ class FileRepository(Repository):
             dest_file.close()
 
         except IOError, err:
-            log.exception("Copying file %s to %s (wc: %s) failed (%s)" % (cfg, dest, self.wc, err))
+            _log.exception("Copying file %s to %s (wc: %s) failed (%s)" % (cfg, dest, self.wc, err))
 
         return dest
 
@@ -195,12 +194,12 @@ class FileRepository(Repository):
         """
         full_path = os.path.join(self.wc, self.subdir, name)
         if not os.path.isdir(full_path):
-            log.debug("module (%s) has not been found in the repo" % name)
+            _log.debug("module (%s) has not been found in the repo" % name)
             return []
 
         dest = os.path.join(full_path, "%s.eb" % version)
         if not os.path.isfile(dest):
-            log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
+            _log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
             return []
 
         eb = EasyConfig(dest, validate=False)
@@ -227,7 +226,7 @@ class GitRepository(FileRepository):
         try:
             git.GitCommandError
         except NameError, err:
-            log.exception("It seems like GitPython is not available: %s" % err)
+            _log.exception("It seems like GitPython is not available: %s" % err)
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
     def create_working_copy(self):
@@ -242,25 +241,25 @@ class GitRepository(FileRepository):
             out = client.clone(self.repo)
             # out  = 'Cloning into easybuild...'
             reponame = out.split("\n")[0].split()[-1].strip(".").strip("'")
-            log.debug("rep name is %s" % reponame)
+            _log.debug("rep name is %s" % reponame)
         except git.GitCommandError, err:
             # it might already have existed
-            log.warning("Git local repo initialization failed, it might already exist: %s" % err)
+            _log.warning("Git local repo initialization failed, it might already exist: %s" % err)
 
         # local repo should now exist, let's connect to it again
         try:
             self.wc = os.path.join(self.wc, reponame)
-            log.debug("connectiong to git repo in %s" % self.wc)
+            _log.debug("connectiong to git repo in %s" % self.wc)
             self.client = git.Git(self.wc)
         except (git.GitCommandError, OSError), err:
-            log.error("Could not create a local git repo in wc %s: %s" % (self.wc, err))
+            _log.error("Could not create a local git repo in wc %s: %s" % (self.wc, err))
 
         # try to get the remote data in the local repo
         try:
             res = self.client.pull()
-            log.debug("pulled succesfully to %s in %s" % (res, self.wc))
+            _log.debug("pulled succesfully to %s in %s" % (res, self.wc))
         except (git.GitCommandError, OSError), err:
-            log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
+            _log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -272,25 +271,25 @@ class GitRepository(FileRepository):
             try:
                 self.client.add(dest)
             except GitCommandError, err:
-                log.warning("adding %s to git failed: %s" % (dest, err))
+                _log.warning("adding %s to git failed: %s" % (dest, err))
 
     def commit(self, msg=None):
         """
         Commit working copy to git repository
         """
-        log.debug("committing in git: %s" % msg)
+        _log.debug("committing in git: %s" % msg)
         completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), getpass.getuser(), msg)
-        log.debug("git status: %s" % self.client.status())
+        _log.debug("git status: %s" % self.client.status())
         try:
             self.client.commit('-am "%s"' % completemsg)
-            log.debug("succesfull commit")
+            _log.debug("succesfull commit")
         except GitCommandError, err:
-            log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
+            _log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
         try:
             info = self.client.push()
-            log.debug("push info: %s " % info)
+            _log.debug("push info: %s " % info)
         except GitCommandError, err:
-            log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc, self.repo, msg, err))
+            _log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc, self.repo, msg, err))
 
     def cleanup(self):
         """
@@ -299,7 +298,7 @@ class GitRepository(FileRepository):
         try:
             rmtree2(self.wc)
         except IOError, err:
-            log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+            _log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
 
 class SvnRepository(FileRepository):
@@ -322,22 +321,22 @@ class SvnRepository(FileRepository):
         try:
             raise pysvn.ClientError #IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
-            log.exception("pysvn not available (%s). Make sure it is installed " % err +
+            _log.exception("pysvn not available (%s). Make sure it is installed " % err +
                           "properly. Run 'python -c \"import pysvn\"' to test.")
 
         ## try to connect to the repository
-        log.debug("Try to connect to repository %s" % self.repo)
+        _log.debug("Try to connect to repository %s" % self.repo)
         try:
             self.client = pysvn.Client()
             self.client.exception_style = 0
         except ClientError:
-            log.exception("Svn Client initialization failed.")
+            _log.exception("Svn Client initialization failed.")
 
         try:
             if not self.client.is_url(self.repo):
-                log.error("Provided repository %s is not a valid svn url" % self.repo)
+                _log.error("Provided repository %s is not a valid svn url" % self.repo)
         except ClientError:
-            log.exception("Can't connect to svn repository %s" % self.repo)
+            _log.exception("Can't connect to svn repository %s" % self.repo)
 
     def create_working_copy(self):
         """
@@ -350,38 +349,38 @@ class SvnRepository(FileRepository):
         try:
             self.client.info2(self.repo, recurse=False)
         except ClientError:
-            log.exception("Getting info from %s failed." % self.wc)
+            _log.exception("Getting info from %s failed." % self.wc)
 
         try:
             res = self.client.update(self.wc)
-            log.debug("Updated to revision %s in %s" % (res, self.wc))
+            _log.debug("Updated to revision %s in %s" % (res, self.wc))
         except ClientError:
-            log.exception("Update in wc %s went wrong" % self.wc)
+            _log.exception("Update in wc %s went wrong" % self.wc)
 
         if len(res) == 0:
-            log.error("Update returned empy list (working copy: %s)" % (self.wc))
+            _log.error("Update returned empy list (working copy: %s)" % (self.wc))
 
         if res[0].number == -1:
             ## revision number of update is -1
             ## means nothing has been checked out
             try:
                 res = self.client.checkout(self.repo, self.wc)
-                log.debug("Checked out revision %s in %s" % (res.number, self.wc))
+                _log.debug("Checked out revision %s in %s" % (res.number, self.wc))
             except ClientError, err:
-                log.exception("Checkout of path / in working copy %s went wrong: %s" % (self.wc, err))
+                _log.exception("Checkout of path / in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
         Add easyconfig to SVN repository.
         """
         dest = FileRepository.add_easyconfig(self, cfg, name, version, stats, append)
-        log.debug("destination = %s" % dest)
+        _log.debug("destination = %s" % dest)
         if dest:
-            log.debug("destination status: %s" % self.client.status(dest))
+            _log.debug("destination status: %s" % self.client.status(dest))
 
             if self.client and not self.client.status(dest)[0].is_versioned:
                 ## add it to version control
-                log.debug("Going to add %s (working copy: %s, cwd %s)" % (dest, self.wc, os.getcwd()))
+                _log.debug("Going to add %s (working copy: %s, cwd %s)" % (dest, self.wc, os.getcwd()))
                 self.client.add(dest)
 
 
@@ -393,7 +392,7 @@ class SvnRepository(FileRepository):
         try:
             self.client.checkin(self.wc, completemsg, recurse=True)
         except ClientError, err:
-            log.exception("Commit from working copy %s (msg: %s) failed: %s" % (self.wc, msg, err))
+            _log.exception("Commit from working copy %s (msg: %s) failed: %s" % (self.wc, msg, err))
 
     def cleanup(self):
         """
@@ -402,5 +401,5 @@ class SvnRepository(FileRepository):
         try:
             rmtree2(self.wc)
         except OSError, err:
-            log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+            _log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 

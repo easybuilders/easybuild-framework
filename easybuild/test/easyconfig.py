@@ -34,13 +34,13 @@ import os
 import re
 import shutil
 import tempfile
+from vsc import fancylogger
 
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
-from easybuild.tools.build_log import EasyBuildError, get_log
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 class EasyConfigTest(TestCase):
@@ -49,7 +49,7 @@ class EasyConfigTest(TestCase):
 
     def setUp(self):
         """ create temporary easyconfig file """
-        self.log = get_log("EasyConfigTest")
+        self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
         if self.contents is not None:
             fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
             os.close(fd)

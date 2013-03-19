@@ -38,8 +38,9 @@ import os
 import re
 import subprocess
 import sys
+from vsc import fancylogger
 
-from easybuild.tools.build_log import get_log, EasyBuildError
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 from vsc.utils.missing import nub
 
@@ -73,7 +74,7 @@ class Modules(object):
         @param modulePath: A list of paths where the modules can be located
         @type modulePath: list
         """
-        self.log = get_log(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__), fname=False)
         # make sure we don't have the same path twice
         if modulePath:
             self.modulePath = set(modulePath)

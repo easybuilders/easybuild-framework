@@ -115,15 +115,6 @@ fancylogger.logToFile(filename=os.devnull)
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
-def get_log(name=None):
-    """
-    Generate logger object
-    """
-    # fname is always get_log, useless
-    log = fancylogger.getLogger(name, fname=False)
-    log.info("Logger started for %s." % name)
-    return log
-
 
 def print_msg(msg, log=None, silent=False):
     """
