@@ -30,11 +30,12 @@ Module with useful functions for getting system information
 import os
 import platform
 import re
-from easybuild.tools.build_log import get_log
+from vsc import fancylogger
+
 from easybuild.tools.filetools import run_cmd
 
 
-log = get_log('systemtools')
+_log = fancylogger.getLogger('systemtools', fname=False)
 
 INTEL = 'Intel'
 AMD = 'AMD'
@@ -92,7 +93,10 @@ def get_cpu_vendor():
     will return INTEL or AMD constant
     """
     regexp = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
-    VENDORS = {'GenuineIntel': INTEL, 'AuthenticAMD': AMD}
+    VENDORS = {
+        'GenuineIntel': INTEL,
+        'AuthenticAMD': AMD,
+    }
 
     # Linux
     try:
@@ -140,7 +144,7 @@ def get_kernel_name():
 
     e.g., 'Linux', 'Darwin', ...
     """
-    log.deprecated("get_kernel_name() (replaced by system_type())", "2.0")
+    _log.deprecated("get_kernel_name() (replaced by system_type())", "2.0")
     try:
         kernel_name = os.uname()[0]
         return kernel_name
@@ -170,8 +174,8 @@ def get_shared_lib_ext():
         return shared_lib_exts[system_type]
 
     else:
-        raise SystemToolsException("Unable to determine extention for shared libraries," \
-                                   " unknown system name: %s" % system_type)
+        raise SystemToolsException("Unable to determine extention for shared libraries, \
+                                    unknown system name: %s" % system_type)
 
 def get_platform_name(withversion=False):
     """Try and determine platform name
@@ -225,7 +229,6 @@ def get_system_version():
     """Determine system version."""
     system_version = platform.dist()[1]
     if system_version:
-
         # SLES 11 subversions can only be told apart based on kernel version,
         # see http://wiki.novell.com/index.php/Kernel_versions
         if get_system_name() == "suse":

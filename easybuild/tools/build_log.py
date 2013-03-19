@@ -97,6 +97,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
         raise EasyBuildError(newMsg)
 
+
 # set format for logger
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
