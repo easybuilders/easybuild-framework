@@ -41,6 +41,7 @@ from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 class EasyConfigTest(TestCase):
