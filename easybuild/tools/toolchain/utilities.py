@@ -37,9 +37,9 @@ import glob
 import os
 import re
 import sys
+from vsc import fancylogger
 
 import easybuild.tools.toolchain
-from easybuild.tools.build_log import get_log
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -60,7 +60,7 @@ def search_toolchain(name):
     returns toolchain (or None), found_toolchains
     """
 
-    log = get_log("search_toolchain")
+    log = fancylogger.getLogger("search_toolchain")
 
     # import all available toolchains, so we know about them
     tc_modules = []
