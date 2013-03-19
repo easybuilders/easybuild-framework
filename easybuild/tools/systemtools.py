@@ -174,8 +174,8 @@ def get_shared_lib_ext():
         return shared_lib_exts[system_type]
 
     else:
-        raise SystemToolsException("Unable to determine extention for shared libraries, \
-                                    unknown system name: %s" % system_type)
+        raise SystemToolsException("Unable to determine extention for shared libraries,"
+                                   "unknown system name: %s" % system_type)
 
 def get_platform_name(withversion=False):
     """Try and determine platform name
