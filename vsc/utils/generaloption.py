@@ -996,6 +996,10 @@ class GeneralOption(object):
             prefix_dict[new_dest] = value
         return prefix_dict
 
+    def get_options_by_section(self, section):
+        """Get all options from section. Return a dict."""
+        return self._get_options_by_property('section_name', section)
+
     def postprocess(self):
         """Some additional processing"""
         pass
