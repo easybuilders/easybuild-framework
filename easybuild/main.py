@@ -48,6 +48,7 @@ import traceback
 import xml.dom.minidom as xml
 from datetime import datetime
 from vsc import fancylogger
+from vsc.utils.missing import any
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -89,9 +90,10 @@ from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import any
+
 
 log = None
+
 
 def main(testing_data=(None, None)):
     """

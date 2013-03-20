@@ -38,8 +38,11 @@ import tempfile
 import time
 from vsc import fancylogger
 
-from vsc import fancylogger
 from easybuild.tools.repository import Repository, get_repositories
+
+
+_log = fancylogger.getLogger('config', fname=False)
+
 
 # class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
 SUPPORT_OLDSTYLE = True
@@ -59,9 +62,6 @@ DEFAULT_MODULECLASSES = [
                          ]
 
 
-_log = fancylogger.getLogger('config', fname=False)
-
-
 oldstyle_environment_variables = {
     'build_path': 'EASYBUILDBUILDPATH',
     'install_path': 'EASYBUILDINSTALLPATH',
@@ -74,6 +74,7 @@ oldstyle_environment_variables = {
 
 
 class ConfigurationVariables(dict):
+    """This is a dict that supports legacy config names transparantly."""
     REQUIRED = [
                 'buildpath',
                 'installpath',
@@ -134,9 +135,6 @@ class ConfigurationVariables(dict):
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
 
-variables = ConfigurationVariables()
-
-
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
     return os.path.join(os.path.expanduser('~'), ".easybuild")
@@ -144,7 +142,7 @@ def get_user_easybuild_dir():
 
 def get_default_oldstyle_configfile():
     """Get the default location of the oldstyle config file to be set as default in the options"""
-    # TODO these _log here can't be controlled/shown with the generaloption
+    # TODO these _log.debug here can't be controlled/set with the generaloption
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
@@ -162,6 +160,9 @@ def get_default_oldstyle_configfile():
         appPath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         config_file = os.path.join(appPath, "easybuild_config.py")
         _log.debug("Falling back to default config: %s" % config_file)
+
+    _log.deprecated("get_default_oldstyle_configfile oldstyle configfile %s used" % config_file, "2.0")
+
     return config_file
 
 
@@ -169,13 +170,12 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
     """Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environemnt variables
         when prefix is provided, it use that value as prefix for the other defaults (where applicable)
     """
-    # TODO make sure somehow that these are kept in sync with the old style easybuild_config.py file
     if prefix is None:
         prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
     # keys are the options dest
     defaults = {
-                'config':get_default_oldstyle_configfile(),
+                'config': get_default_oldstyle_configfile(),
                 'prefix': prefix,
                 'buildpath': os.path.join(prefix, 'build'),
                 'installpath': prefix,
@@ -188,6 +188,9 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
                 'subdir_modules': 'modules',
                 'subdir_software': 'install',
                 }
+
+    _log.deprecated("get_default_oldstyle_configfile_defaults", "2.0")
+
     return defaults
 
 
@@ -207,6 +210,7 @@ def init(options, config_options_dict):
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
     if SUPPORT_OLDSTYLE:
+        _log.deprecated('olstyle init with modifications to support oldstyle options', '2.0')
         oldstyle_init(options.config)
 
         # all defaults are now set in generaloption
@@ -239,9 +243,9 @@ def init(options, config_options_dict):
 
         try:
             repository = repo(*args)
-        except:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s' %
-                           (options.repository, repo.__name__, args))
+        except Exception, err:
+            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
+                       (options.repository, repo.__name__, args, err))
 
         variables['repository'] = repository
 
@@ -258,20 +262,18 @@ def init(options, config_options_dict):
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
                 value = [value]
-            for d in value:
-                if not os.path.isdir(d):
-                    _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
-                    create_dir(key, d)
-                    # TODO is it really the intention to only create the first directory?
-                    continue
+            for directory in value:
+                if not os.path.isdir(directory):
+                    _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
+                    create_dir(key, directory)
 
     # update MODULEPATH if required
     ebmodpath = os.path.join(install_path(typ='modules'), 'all')
-    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0]
-    # TODO should we force the modules/all eb modulepath in 1st location?
-    if not ebmodpath in modulepath:
-        _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
-        modulepath.insert(0, ebmodpath)
+    # modulepath without ebmodpath
+    # ebmodpath is then always inserted in 1st place
+    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0 and not x == ebmodpath]
+    _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
+    modulepath.insert(0, ebmodpath)
 
     os.environ['MODULEPATH'] = ':'.join(modulepath)
 
@@ -306,8 +308,7 @@ def install_path(typ=None):
         suffix = variables[key]
     else:
         # TODO remove default setting. it should have been set through options
-        # TODO change to _log.legacy
-        _log.debug('%s not set in config, returning default' % key)
+        _log.deprecated('%s not set in config, returning default' % key, "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
         try:
             suffix = defaults[key]
@@ -324,16 +325,15 @@ def get_repository():
     return variables['repository']
 
 
-def logfile_format(directory=False):
-    """Retrun the format for the logfile or the directory"""
-    idx = [1, 0][directory]
+def log_file_format(return_directory=False):
+    """Return the format for the logfile or the directory"""
+    idx = int(not return_directory)
 
     if 'logformat' in variables:
         res = variables['logformat'][idx]
     else:
         # TODO remove default setting. it should have been set through options
-        # TODO change to _log.legacy
-        _log.debug('logformat not set in config, returning default')
+        _log.deprecated('logformat not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
         res = defaults['logformat'][idx]
     return res
@@ -344,14 +344,14 @@ def log_format():
     Return the logfilename format
     """
     # TODO needs renaming, is actually a formatter for the logfilename
-    return logfile_format(directory=False)
+    return log_file_format(return_directory=False)
 
 
 def log_path():
     """
     Return the log path
     """
-    return logfile_format(directory=True)
+    return log_file_format(return_directory=True)
 
 
 def get_build_log_path():
@@ -362,8 +362,7 @@ def get_build_log_path():
         return variables['logdir']
     else:
         # TODO remove default setting. it should have been set through options
-        # TODO change to _log.legacy
-        _log.debug('logdir not set in config, returning default')
+        _log.deprecated('logdir not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
         return defaults['logdir']
 
@@ -376,11 +375,12 @@ def get_log_filename(name, version):
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = os.path.join(get_build_log_path(), logfile_format() % {'name':name,
-                                                                      'version':version,
-                                                                      'date':date,
-                                                                      'time':timeStamp
-                                                                      })
+    filename = os.path.join(get_build_log_path(), log_file_format() % {
+                                                                       'name': name,
+                                                                       'version': version,
+                                                                       'date': date,
+                                                                       'time': timeStamp
+                                                                       })
 
     # Append numbers if the log file already exist
     counter = 1
@@ -409,8 +409,7 @@ def module_classes():
         return variables['moduleclasses']
     else:
         # TODO remove default setting. it should have been set through options
-        # TODO change to _log.legacy
-        _log.debug('moduleclasses not set in config, returning default')
+        _log.depreacted('moduleclasses not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
         return defaults['moduleclasses']
 
@@ -420,7 +419,8 @@ def oldstyle_init(filename, **kwargs):
     Gather all variables and check if they're valid
     Variables are read in this order of preference: CLI option > environment > config file
     """
-    # TODO LEGACY add _log.legacy
+    _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
+
     variables.update(oldstyle_read_configuration(filename))  # config file
     variables.update(oldstyle_read_environment())  # environment
     variables.update(kwargs)  # CLI options
@@ -430,29 +430,37 @@ def oldstyle_read_configuration(filename):
     """
     Read variables from the config file
     """
-    fileVariables = get_repositories(check_usable=False)
+    _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
+
+    file_variables = get_repositories(check_usable=False)
     try:
-        execfile(filename, {}, fileVariables)
+        execfile(filename, {}, file_variables)
     except (IOError, SyntaxError), err:
         _log.exception("Failed to read config file %s %s" % (filename, err))
 
-    return fileVariables
+    return file_variables
 
 
-def oldstyle_read_environment(envVars=None, strict=False):
+def oldstyle_read_environment(env_var=None, strict=False):
     """
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
-    if envVars is None:
-        envVars = oldstyle_environment_variables
+    _log.deprecated("oldstyle_read_environment env_var %s strict %s" % (env_var, strict), "2.0")
+    if env_var is None:
+        env_var = oldstyle_environment_variables
     result = {}
-    for key in envVars.keys():
-        environmentKey = envVars[key]
-        if environmentKey in os.environ:
-            result[key] = os.environ[environmentKey]
+    for key in env_var.keys():
+        environment_key = env_var[key]
+        if environment_key in os.environ:
+            result[key] = os.environ[environment_key]
         elif strict:
-            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environmentKey))
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environment_key))
 
     return result
+
+
+# confug variables constant
+variables = ConfigurationVariables()
+
 

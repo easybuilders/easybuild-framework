@@ -40,11 +40,10 @@ import socket
 import tempfile
 import time
 from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
-from vsc import fancylogger
 from easybuild.framework.easyconfig import EasyConfig, stats_to_str
 from easybuild.tools.filetools import rmtree2
-from easybuild.tools.utilities import get_subclasses
 from easybuild.tools.version import VERBOSE_VERSION
 
 _log = fancylogger.getLogger('repository', fname=False)
@@ -79,7 +78,7 @@ class Repository(object):
 
     DESCRIPTION = None
 
-    USABLE = True  # can this be used?
+    USABLE = True  # can the Repository be used?
 
     def __init__(self, repo_path, subdir=''):
         """
@@ -353,7 +352,7 @@ class SvnRepository(FileRepository):
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
                           "properly. Run 'python -c \"import pysvn\"' to test.")
 
-        # # try to connect to the repository
+        # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
         try:
             self.client = pysvn.Client()
@@ -373,8 +372,8 @@ class SvnRepository(FileRepository):
         """
         self.wc = tempfile.mkdtemp(prefix='svn-wc-')
 
-        # # check if tmppath exists
-        # # this will trigger an error if it does not exist
+        # check if tmppath exists
+        # this will trigger an error if it does not exist
         try:
             self.client.info2(self.repo, recurse=False)
         except ClientError:
@@ -390,8 +389,8 @@ class SvnRepository(FileRepository):
             self.log.error("Update returned empy list (working copy: %s)" % (self.wc))
 
         if res[0].number == -1:
-            # # revision number of update is -1
-            # # means nothing has been checked out
+            # revision number of update is -1
+            # means nothing has been checked out
             try:
                 res = self.client.checkout(self.repo, self.wc)
                 self.log.debug("Checked out revision %s in %s" % (res.number, self.wc))
@@ -408,7 +407,7 @@ class SvnRepository(FileRepository):
             self.log.debug("destination status: %s" % self.client.status(dest))
 
             if self.client and not self.client.status(dest)[0].is_versioned:
-                # # add it to version control
+                # add it to version control
                 self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (dest, self.wc, os.getcwd()))
                 self.client.add(dest)
 

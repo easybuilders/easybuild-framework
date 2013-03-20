@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,19 +21,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+from vsc.utils.missing import any
 
 # FIXME: remove when Python version on which we rely provides any by itself
-# TODO cleanup, now part of vsc-base vsc.utils.missing 1.2
-def any(ls):
-    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
+# TODO not to break some easyblock that uses it? (none found in pre1.3)
+any = any
 
-    return sum([bool(x) for x in ls]) != 0
 
 def flatten(lst):
     """Flatten a list of lists."""
@@ -41,6 +40,7 @@ def flatten(lst):
     for x in lst:
         res.extend(x)
     return res
+
 
 def quote_str(x):
     """
@@ -62,17 +62,4 @@ def quote_str(x):
             return '"%s"' % x
     else:
         return x
-
-
-# TODO this code is also in the easyconfig refactor pullrequest
-# TODO cleanup, now part of vsc-base vsc.utils.missing 1.2
-def get_subclasses(klass):
-    """
-    Get all subclasses recursively
-    """
-    res = []
-    for cl in klass.__subclasses__():
-        res.extend(get_subclasses(cl))
-        res.append(cl)
-    return res
 

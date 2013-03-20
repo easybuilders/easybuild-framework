@@ -44,10 +44,11 @@ from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository import get_repositories
-from easybuild.tools.utilities import any
 from easybuild.tools.version import this_is_easybuild
 from vsc import fancylogger
 from vsc.utils.generaloption import GeneralOption
+from vsc.utils.missing import any
+
 
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
@@ -299,7 +300,7 @@ class EasyBuildOptions(GeneralOption):
         self._postprocess_config()
 
     def _postprocess_config(self):
-        """Postprocess configuration options"""
+        """Postprocessing of configuration options"""
         if self.options.prefix is not None:
             # TODO also for repositorypath? (if so, change the help description too)
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
@@ -331,7 +332,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.list_toolchains:
             msg += self.avail_toolchains()
 
-        # dump known toolchains
+        # dump known repository types
         if self.options.avail_repositories:
             msg += self.avail_repositories()
 
@@ -443,7 +444,7 @@ class EasyBuildOptions(GeneralOption):
         return '\n'.join(txt)
 
     def avail_repositories(self):
-        """Show list of known repositories."""
+        """Show list of known repository types."""
         repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
         all_repos = get_repositories(check_usable=False)
         usable_repos = get_repositories(check_usable=True).keys()
