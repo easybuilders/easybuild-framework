@@ -39,6 +39,7 @@ import os
 import socket
 import tempfile
 import time
+from vsc import fancylogger
 
 from vsc import fancylogger
 from easybuild.framework.easyconfig import EasyConfig, stats_to_str
@@ -246,6 +247,7 @@ class GitRepository(FileRepository):
             git.GitCommandError
         except NameError, err:
             self.log.exception("It seems like GitPython is not available: %s" % err)
+
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
     def create_working_copy(self):
@@ -410,7 +412,6 @@ class SvnRepository(FileRepository):
                 self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (dest, self.wc, os.getcwd()))
                 self.client.add(dest)
 
-
     def commit(self, msg=None):
         """
         Commit working copy to SVN repository
@@ -431,6 +432,7 @@ class SvnRepository(FileRepository):
             rmtree2(self.wc)
         except OSError, err:
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+
 
 def get_repositories(check_usable=True):
     """Return all repositories.

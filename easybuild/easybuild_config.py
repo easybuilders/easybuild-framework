@@ -31,15 +31,13 @@ EasyBuild configuration file.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import os
 import tempfile
 
-from easybuild.tools.build_log import get_log
 import easybuild.tools.config as config
-
-log = get_log('easybuild_config')
 
 # this should result in a MODULEPATH=($HOME/.local/easybuild|$EASYBUILDPREFIX)/<modules install suffix>/all
 if os.getenv('EASYBUILDPREFIX'):
@@ -78,7 +76,8 @@ log_format = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log
 log_dir = tempfile.gettempdir()
 
 # define set of supported module classes
-module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools']
+module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools',
+  'cae', 'data', 'debugger', 'devel', 'ide', 'math', 'mpi', 'numlib', 'perf', 'system', 'vis']
 
 # general cleanliness
-del os, get_log, config, log, prefix
+del os, tempfile, config, prefix

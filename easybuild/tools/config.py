@@ -36,6 +36,7 @@ EasyBuild configuration (paths, preferences, etc.)
 import os
 import tempfile
 import time
+from vsc import fancylogger
 
 from vsc import fancylogger
 from easybuild.tools.repository import Repository, get_repositories

@@ -32,11 +32,12 @@ import os
 from copy import deepcopy
 from unittest import TestCase, TestSuite
 from unittest import main as unittestmain
+from vsc import fancylogger
 
 import easybuild.tools.modules as modules
 import easybuild.main as main
 from easybuild.test.utilities import find_full_path
-from easybuild.tools.build_log import EasyBuildError, get_log
+from easybuild.tools.build_log import EasyBuildError
 
 orig_modules = modules.Modules
 orig_main_modules = main.Modules
@@ -59,8 +60,9 @@ class RobotTest(TestCase):
         modules.Modules = MockModule
         main.Modules = MockModule
 
-        self.log = get_log("RobotTest")
-        main.log = get_log("main")  # redefine the main log when calling the main functions directly
+        self.log = fancylogger.getLogger("RobotTest", fname=False)
+        # redefine the main log when calling the main functions directly
+        main.log = fancylogger.getLogger("main", fname=False)
 
         self.cwd = os.getcwd()
 

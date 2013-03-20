@@ -149,6 +149,7 @@ def main(testing_data=(None, None)):
     easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
 
+    search_path = os.getcwd()
     if easyconfigs_paths:
         easyconfigs_pkg_full_path = easyconfigs_paths[0]
         if not options.robot:
