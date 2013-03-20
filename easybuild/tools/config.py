@@ -61,7 +61,7 @@ DEFAULT_MODULECLASSES = [
 _log = fancylogger.getLogger('config', fname=False)
 
 
-oldstyle_environmentVariables = {
+oldstyle_environment_variables = {
     'build_path': 'EASYBUILDBUILDPATH',
     'install_path': 'EASYBUILDINSTALLPATH',
     'log_dir': 'EASYBUILDLOGDIR',
@@ -90,16 +90,18 @@ class ConfigurationVariables(dict):
                             'test_output_path': 'testoutput',
                             'module_classes': 'moduleclasses',
                             'repository_path': 'repositorypath',
-                            'modules_install_suffix': 'installsuffix_modules',
-                            'software_install_suffix': 'installsuffix_software',
+                            'modules_install_suffix': 'subdir_modules',
+                            'software_install_suffix': 'subdir_software',
                             }
 
-    def get_required(self, nomissing=True):
-        """For all REQUIRED, chekc if exists and return key,value"""
+    def get_items_check_required(self, no_missing=True):
+        """For all REQUIRED, check if exists and return all key,value pairs.
+            no_missing: boolean, when True, will throw error message for missing values
+        """
         missing = [x for x in self.REQUIRED if not x in self]
         if len(missing) > 0:
-            msg = 'Cannot determine value for configuration variables %s. Please specify it.' % (missing)
-            if nomissing:
+            msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
+            if no_missing:
                 _log.error(msg)
             else:
                 _log.debug(msg)
@@ -107,24 +109,27 @@ class ConfigurationVariables(dict):
         return self.items()
 
     def _check_oldstyle(self, key):
-        "check for oldstyle key usage, return newstyle key"
+        """Check for oldstyle key usage, return newstyle key."""
         if key in self.OLDSTYLE_NEWSTYLEMAP:
             newkey = self.OLDSTYLE_NEWSTYLEMAP.get(key)
-            # TODO change to legacy logging
-            _log.debug("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey))
+            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
             key = newkey
         return key
 
     def __getitem__(self, key):
+        """__getitem___ to deal with oldstyle key"""
         return super(ConfigurationVariables, self).__getitem__(self._check_oldstyle(key))
 
     def __setitem__(self, key, value):
+        """__setitem___ to deal with oldstyle key"""
         return super(ConfigurationVariables, self).__setitem__(self._check_oldstyle(key), value)
 
     def __delitem__(self, key):
+        """__delitem___ to deal with oldstyle key"""
         super(ConfigurationVariables, self).__delitem__(self._check_oldstyle(key))
 
     def __contains__(self, key):
+        """__contains___ to deal with oldstyle key"""
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
 
@@ -142,7 +147,7 @@ def get_default_oldstyle_configfile():
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
-    config_env_var = oldstyle_environmentVariables['config_file']
+    config_env_var = oldstyle_environment_variables['config_file']
     home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
     if os.getenv(config_env_var):
         _log.debug("Environment variable %s, so using that as config file." % config_env_var)
@@ -179,8 +184,8 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
                 'logformat': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
                 'logdir': tempfile.gettempdir(),
                 'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
-                'installsuffix_modules': 'modules',
-                'installsuffix_software': 'install',
+                'subdir_modules': 'modules',
+                'subdir_software': 'install',
                 }
     return defaults
 
@@ -247,7 +252,7 @@ def init(options, config_options_dict):
             _log.error("Failed to create directory %s: %s" % (dirname, err))
         _log.debug("%s directory %s created" % (dirtype, dirname))
 
-    for key, value in variables.get_required():
+    for key, value in variables.get_items_check_required():
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
@@ -295,7 +300,7 @@ def install_path(typ=None):
     if typ == 'mod':
         typ = 'modules'
 
-    key = "installsuffix_%s" % typ
+    key = "subdir_%s" % typ
     if key in variables:
         suffix = variables[key]
     else:
@@ -439,7 +444,7 @@ def oldstyle_read_environment(envVars=None, strict=False):
         - strict=True enforces that all possible environment variables are found
     """
     if envVars is None:
-        envVars = oldstyle_environmentVariables
+        envVars = oldstyle_environment_variables
     result = {}
     for key in envVars.keys():
         environmentKey = envVars[key]
