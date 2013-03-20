@@ -39,7 +39,7 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, generate_template_values_doc
 from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
-from easybuild.tools.config import get_default_oldstyle_configfile_defaults
+from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -183,6 +183,8 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store', oldstyle_defaults['sourcepath']),
                 'moduleclasses': ('Extend supported module classes',
                                   None, 'extend', oldstyle_defaults['moduleclasses']),
+                'avail-moduleclasses': ('Show default module classes with description',
+                                        None, 'store_true', False),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
@@ -293,7 +295,7 @@ class EasyBuildOptions(GeneralOption):
 
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains,
-                self.options.avail_repositories,
+                self.options.avail_repositories, self.options.avail_moduleclasses,
                 ]):
             self._postprocess_list_avail()
 
@@ -335,6 +337,10 @@ class EasyBuildOptions(GeneralOption):
         # dump known repository types
         if self.options.avail_repositories:
             msg += self.avail_repositories()
+
+        # dump default moduleclasses with description
+        if self.options.avail_moduleclasses:
+            msg += self.avail_moduleclasses()
 
         if self.options.unittest_file:
             self.log.info(msg)
@@ -465,6 +471,15 @@ class EasyBuildOptions(GeneralOption):
             txt.append("%s%s%s" % (repo, default, missing))
             txt.append("%s%s" % (indent, all_repos[repo].DESCRIPTION))
 
+        return "\n".join(txt)
+
+    def avail_moduleclasses(self):
+        """Show list of default moduleclasses and description."""
+        txt = ["Default available moduleclasses"]
+        indent = " " * 2
+        maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
+        for name, descr in DEFAULT_MODULECLASSES:
+            txt.append("%s%s:%s%s" % (indent, name, (" " * (maxlen - len(name))), descr))
         return "\n".join(txt)
 
 

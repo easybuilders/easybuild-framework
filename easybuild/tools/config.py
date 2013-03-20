@@ -51,15 +51,32 @@ SUPPORT_OLDSTYLE = True
 DEFAULT_LOGFILE_FORMAT = ["easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"]
 
 
+# based on
+# https://wickie.hlrs.de/platforms/index.php/Module_Overview
+# https://wickie.hlrs.de/platforms/index.php/Application_software_packages
 DEFAULT_MODULECLASSES = [
-                         ('base',),
-                         ('bio',),
-                         ('chem',),
-                         ('compiler',),
-                         ('lib',),
-                         ('phys',),
-                         ('tools',),
-                         ]
+    ('base', "Default module class"),
+    ('bio', "Bioinformatics, biology and biomedical"),
+    ('cae', "Computer Aided Engineering (incl. CFD)"),
+    ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
+    ('compiler', "Compilers"),
+    ('data', "Data management & processing tools"),
+    ('debugger', "Debuggers"),
+    ('devel', "Development tools"),
+    ('geo', "Earth Sciences"),
+    ('ide', "Integrated Development Environments (e.g. editors)"),
+    ('lang', "Languages and programming aids"),
+    ('lib', "General purpose libraries"),
+    ('math', "High-level mathematical software"),
+    ('mpi', "MPI stacks"),
+    ('numlib', "Numerical Libraries"),
+    ('perf', "Performance tools"),
+    ('phys', "Physics and physical systems simulations"),
+    ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
+    ('toolchain', "Toolchains"),
+    ('tools', "General purpose tools"),
+    ('vis', "Visualization, plotting, documentation and typesetting"),
+]
 
 
 oldstyle_environment_variables = {

@@ -34,6 +34,7 @@ _log = fancylogger.getLogger('tools.utilities')
 
 
 def any(ls):
+    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
     _log.deprecated("own definition of any", "3.0")
     _any(ls)
 
