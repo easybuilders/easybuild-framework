@@ -74,7 +74,7 @@ DEFAULT_MODULECLASSES = [
     ('perf', "Performance tools"),
     ('phys', "Physics and physical systems simulations"),
     ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
-    ('toolchain', "Toolchains"),
+    ('toolchain', "EasyBuild toolchains"),
     ('tools', "General purpose tools"),
     ('vis', "Visualization, plotting, documentation and typesetting"),
 ]
@@ -232,7 +232,8 @@ def init(options, config_options_dict):
         oldstyle_init(options.config)
 
         # add the DEFAULT_MODULECLASSES as default (behaviour is now that thisextends the defautl list)
-        variables['moduleclasses'] = nub(variables['moduleclasses'], [x[0] for x in DEFAULT_MODULECLASSES])
+        variables['moduleclasses'] = nub(list(variables.get('moduleclasses', [])) +
+                                         [x[0] for x in DEFAULT_MODULECLASSES])
 
         # all defaults are now set in generaloption
         # distinguish from default generaloption values and values actually passed by generaloption

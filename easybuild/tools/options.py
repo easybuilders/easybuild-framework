@@ -355,14 +355,23 @@ class EasyBuildOptions(GeneralOption):
         app = get_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(EasyConfig.default_config + extra)
-
-        txt = []
+        if len(extra) > 0:
+            ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
+            extra_names = [x[0] for x in extra]
+        else:
+            ebb_msg = ''
+            extra_names = []
+        txt = ["Available easyconfig parameters%s" % ebb_msg]
         for key, values in mapping.items():
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
             for name, value in values:
                 tabs = "\t" * (3 - (len(name) + 1) / 8)
-                txt.append("%s:%s%s" % (name, tabs, value))
+                if name in extra_names:
+                    starred = ' *'
+                else:
+                    starred = ''
+                txt.append("%s%s:%s%s" % (name, starred, tabs, value))
             txt.append('')
 
         return "\n".join(txt)
