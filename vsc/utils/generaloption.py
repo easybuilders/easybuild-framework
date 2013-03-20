@@ -29,6 +29,7 @@
 A class that can be used to generated options to python scripts in a general way.
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
 
 import ConfigParser
@@ -40,7 +41,7 @@ import re
 import StringIO
 import sys
 import textwrap
-from optparse import OptionParser, OptionGroup, Option, NO_DEFAULT, Values
+from optparse import OptionParser, OptionGroup, Option, NO_DEFAULT, Values, BadOptionError, SUPPRESS_USAGE
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import _ as _gettext  # this is gettext normally
 from vsc.utils.dateandtime import date_parser, datetime_parser
@@ -76,9 +77,11 @@ class ExtOption(Option):
        Actions:
          - shorthelp : hook for shortend help messages
          - store_debuglog : turns on fancylogger debugloglevel
+            - also: 'store_infolog', 'store_warninglog'
          - extend : extend default list (or create new one if is None)
          - date : convert into datetime.date
          - datetime : convert into datetime.datetime
+         - regex: compile str in regexp
          - store_or_None
            - set default to None if no option passed,
            - set to default if option without value passed,
@@ -89,7 +92,7 @@ class ExtOption(Option):
     ENABLE = 'enable'  # do nothing
     DISABLE = 'disable'  # inverse action
 
-    EXTOPTION_EXTRA_OPTIONS = ('extend', 'date', 'datetime',)
+    EXTOPTION_EXTRA_OPTIONS = ('extend', 'date', 'datetime', 'regex',)
     EXTOPTION_STORE_OR = ('store_or_None',)  # callback type
     EXTOPTION_LOG = ('store_debuglog', 'store_infolog', 'store_warninglog',)
 
@@ -168,6 +171,9 @@ class ExtOption(Option):
             elif action == "datetime":
                 lvalue = datetime_parser(value)
                 setattr(values, dest, lvalue)
+            elif action == "regex":
+                lvalue = re.compile(r'' + value)
+                setattr(values, dest, lvalue)
             else:
                 raise(Exception("Unknown extended option action %s (known: %s)" %
                                 (action, self.EXTOPTION_EXTRA_OPTIONS)))
@@ -178,6 +184,69 @@ class ExtOption(Option):
         # - distinguish from setting default value through option
         if hasattr(values, '_action_taken'):
             values._action_taken[dest] = True
+
+
+class PassThroughOptionParser(OptionParser):
+    """
+    "Pass-through" option parsing -- an OptionParser that ignores
+    unknown options and lets them pile up in the leftover argument
+    list.  Useful for programs that pass unknown options through
+    to a sub-program.
+    from http://www.koders.com/python/fid9DFF5006AF4F52BA6483C4F654E26E6A20DBC73C.aspx?s=add+one#L27
+    """
+    def __init__(self):
+        OptionParser.__init__(self, add_help_option=False, usage=SUPPRESS_USAGE)
+
+    def _process_long_opt(self, rargs, values):
+        """Extend optparse code with catch of unknown long options error"""
+        try:
+            OptionParser._process_long_opt(self, rargs, values)
+        except BadOptionError, err:
+            self.largs.append(err.opt_str)
+
+    def _process_short_opts(self, rargs, values):
+        """Process the short options, pass unknown to largs"""
+        # implementation from recent optparser
+        arg = rargs.pop(0)
+        stop = False
+        i = 1
+        for ch in arg[1:]:
+            opt = "-" + ch
+            option = self._short_opt.get(opt)
+            i += 1  # we have consumed a character
+
+            if not option:
+                # don't fail here, just append to largs
+                # raise BadOptionError(opt)
+                self.largs.append(opt)
+                return
+            if option.takes_value():
+                # Any characters left in arg?  Pretend they're the
+                # next arg, and stop consuming characters of arg.
+                if i < len(arg):
+                    rargs.insert(0, arg[i:])
+                    stop = True
+
+                nargs = option.nargs
+                if len(rargs) < nargs:
+                    if nargs == 1:
+                        self.error(_("%s option requires an argument") % opt)
+                    else:
+                        self.error(_("%s option requires %d arguments")
+                                   % (opt, nargs))
+                elif nargs == 1:
+                    value = rargs.pop(0)
+                else:
+                    value = tuple(rargs[0:nargs])
+                    del rargs[0:nargs]
+
+            else:  # option doesn't take a value
+                value = None
+
+            option.process(opt, value, values, self)
+
+            if stop:
+                break
 
 
 class ExtOptionParser(OptionParser):
@@ -256,6 +325,7 @@ class ExtOptionParser(OptionParser):
             return "\n".join(final_docstr)
 
     def format_description(self, formatter):
+        """Extend to allow docstring as description"""
         description = ''
         if self.description == 'NONE_AND_NOT_NONE':
             if self.DESCRIPTION_DOCSTRING:
@@ -443,6 +513,7 @@ class GeneralOption(object):
     CONFIGFILES_INIT = []  # initial list of defaults, overwritten by go_configfiles options
     CONFIGFILES_IGNORE = []
     CONFIGFILES_MAIN_SECTION = 'MAIN'  # sectionname that contains the non-grouped/non-prefixed options
+    CONFIGFILE_PARSER = ConfigParser.ConfigParser
 
     METAVAR_DEFAULT = True  # generate a default metavar
     METAVAR_MAP = None  # metvar, list of longopts map
@@ -473,6 +544,8 @@ class GeneralOption(object):
                        })
         self.parser = self.PARSER(**kwargs)
         self.parser.allow_interspersed_args = self.INTERSPERSED
+
+        self.configfile_parser = self.CONFIGFILE_PARSER()
 
         loggername = self.__class__.__name__
         if prefixloggername:
@@ -790,25 +863,24 @@ class GeneralOption(object):
         for fn in self.configfiles:
             if not os.path.isfile(fn):
                 if self.CONFIGFILES_RAISE_MISSING:
-                    self.log.raiseException("parseconfigfiles: configfile %s not found.")
+                    self.log.raiseException("parseconfigfiles: configfile %s not found." % fn)
                 else:
-                    self.log.debug("parseconfigfiles: configfile %s not found, will be skipped")
+                    self.log.debug("parseconfigfiles: configfile %s not found, will be skipped" % fn)
 
             if fn in option_ignoreconfigfiles:
                 self.log.debug("parseconfigfiles: configfile %s will be ignored %s" % fn)
             else:
                 configfiles.append(fn)
 
-        cfg_opts = ConfigParser.ConfigParser()
         try:
-            parsed_files = cfg_opts.read(configfiles)
+            parsed_files = self.configfile_parser.read(configfiles)
         except:
             self.log.raiseException("parseconfigfiles: problem during read")
 
         self.log.debug("parseconfigfiles: following files were parsed %s" % parsed_files)
         self.log.debug("parseconfigfiles: following files were NOT parsed %s" %
                        [x for x in configfiles if not x in parsed_files])
-        self.log.debug("parseconfigfiles: sections (w/o DEFAULT) %s" % cfg_opts.sections())
+        self.log.debug("parseconfigfiles: sections (w/o DEFAULT) %s" % self.configfile_parser.sections())
 
         # walk through list of section names
         # - look for options set though config files
@@ -828,11 +900,11 @@ class GeneralOption(object):
         for prefix, section_names in self.config_prefix_sectionnames_map.items():
             for section in section_names:
                 # default section is treated separate in ConfigParser
-                if not (cfg_opts.has_section(section) or section.lower() == 'default'):
+                if not (self.configfile_parser.has_section(section) or section.lower() == 'default'):
                     self.log.debug('parseconfigfiles: no section %s' % section)
                     continue
 
-                for opt, val in cfg_opts.items(section):
+                for opt, val in self.configfile_parser.items(section):
                     self.log.debug('parseconfigfiles: section %s option %s val %s' % (section, opt, val))
 
                     opt_name, opt_dest = self.make_options_option_name_and_destination(prefix, opt)
@@ -845,7 +917,7 @@ class GeneralOption(object):
 
                     if actual_option.action in ('store_true', 'store_false',):
                         try:
-                            newval = cfg_opts.getboolean(section, opt)
+                            newval = self.configfile_parser.getboolean(section, opt)
                             self.log.debug(('parseconfigfiles: getboolean for option %s value %s '
                                             'in section %s returned %s') % (opt, val, section, newval))
                         except:
@@ -923,10 +995,6 @@ class GeneralOption(object):
             new_dest = dest[len(prefix) + len(self.OPTIONNAME_PREFIX_SEPARATOR):]
             prefix_dict[new_dest] = value
         return prefix_dict
-
-    def get_options_by_section(self, section):
-        """Get all options from section. Return a dict."""
-        return self._get_options_by_property('section_name', section)
 
     def postprocess(self):
         """Some additional processing"""
@@ -1083,6 +1151,7 @@ def simple_option(go_dict, descr=None, short_groupdescr=None, long_groupdescr=No
 
     class SimpleOption(GeneralOption):
         PARSER = SimpleOptionParser
+
         def main_options(self):
             prefix = None
             self.add_group_parser(go_dict, descr, prefix=prefix)
