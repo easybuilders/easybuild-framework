@@ -174,7 +174,7 @@ class FileRepository(Repository):
         if not os.path.isdir(full_path):
             os.makedirs(full_path)
 
-        # # destination
+        # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
         try:
@@ -255,7 +255,7 @@ class GitRepository(FileRepository):
         """
 
         reponame = 'UNKNOWN'
-        # # try to get a copy of
+        # try to get a copy of
         try:
             client = git.Git(self.wc)
             out = client.clone(self.repo)
@@ -286,7 +286,7 @@ class GitRepository(FileRepository):
         Add easyconfig to git repository.
         """
         dest = FileRepository.add_easyconfig(self, cfg, name, version, stats, append)
-        # # add it to version control
+        # add it to version control
         if dest:
             try:
                 self.client.add(dest)
