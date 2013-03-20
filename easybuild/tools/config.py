@@ -37,6 +37,7 @@ import os
 import tempfile
 import time
 from vsc import fancylogger
+from vsc.utils.missing import nub
 
 from easybuild.tools.repository import Repository, get_repositories
 
@@ -229,6 +230,9 @@ def init(options, config_options_dict):
     if SUPPORT_OLDSTYLE:
         _log.deprecated('olstyle init with modifications to support oldstyle options', '2.0')
         oldstyle_init(options.config)
+
+        # add the DEFAULT_MODULECLASSES as default (behaviour is now that thisextends the defautl list)
+        variables['moduleclasses'] = nub(variables['moduleclasses'], [x[0] for x in DEFAULT_MODULECLASSES])
 
         # all defaults are now set in generaloption
         # distinguish from default generaloption values and values actually passed by generaloption
