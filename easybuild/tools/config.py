@@ -409,7 +409,7 @@ def module_classes():
         return variables['moduleclasses']
     else:
         # TODO remove default setting. it should have been set through options
-        _log.depreacted('moduleclasses not set in config, returning default', "2.0")
+        _log.deprecated('moduleclasses not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
         return defaults['moduleclasses']
 

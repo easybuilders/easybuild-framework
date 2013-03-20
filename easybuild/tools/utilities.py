@@ -27,11 +27,15 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils.missing import any
+from vsc import fancylogger
+from vsc.utils.missing import any as _any
 
-# FIXME: remove when Python version on which we rely provides any by itself
-# TODO not to break some easyblock that uses it? (none found in pre1.3)
-any = any
+_log = fancylogger.getLogger('tools.utilities')
+
+
+def any(ls):
+    _log.deprecated("own definition of any", "3.0")
+    _any(ls)
 
 
 def flatten(lst):
