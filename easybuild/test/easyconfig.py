@@ -631,6 +631,71 @@ class TestTemplatingDoc(EasyConfigTest):
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
+class TestBuildOptions(EasyConfigTest):
+    """Test configure/build/install options, both strings and lists."""
+
+    orig_contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+"""
+    contents = orig_contents
+
+    def runTest(self):
+        """Test configure/build/install options, both strings and lists."""
+
+        # configopts as string
+        configopts = '--opt1 --opt2=foo'
+        self.contents = self.orig_contents + "\nconfigopts = '%s'" % configopts
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'], configopts)
+
+        # configopts as list
+        configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'][0], configopts[0])
+        self.assertEqual(eb['configopts'][1], configopts[1])
+
+        # also makeopts and installopts as lists
+        makeopts = ['CC=foo' ,'CC=bar']
+        installopts = ['FOO=foo' ,'BAR=bar']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'][0], configopts[0])
+        self.assertEqual(eb['configopts'][1], configopts[1])
+        self.assertEqual(eb['makeopts'][0], makeopts[0])
+        self.assertEqual(eb['makeopts'][1], makeopts[1])
+        self.assertEqual(eb['installopts'][0], installopts[0])
+        self.assertEqual(eb['installopts'][1], installopts[1])
+
+        # error should be thrown if lists are not equal
+        installopts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False)
+        self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
+                              eb.validate)
+
+        # list with a single element is OK, is treated as a string
+        installopts = ['FOO=foo']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
 def suite():
     """ return all the tests in this file """
