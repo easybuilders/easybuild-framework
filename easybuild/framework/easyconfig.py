@@ -280,7 +280,7 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if not type(prev_value) == str:
+        if not isinstance(prev_value, basestring):
             self.log.error("Can't update configuration value for %s, because it's not a string." % key)
 
         self[key] = '%s %s ' % (prev_value, value)
@@ -388,7 +388,7 @@ class EasyConfig(object):
                 self.log.error("%s not available in self.cfg (anymore)?!" % opt)
 
             # keep track of list, supply first element as first option to handle
-            if type(self[opt]) in [list, tuple]:
+            if isinstance(self[opt], (list, tuple)):
                 opt_counts.append((opt, len(self[opt])))
 
         # make sure that options that specify lists have the same length
@@ -470,7 +470,7 @@ class EasyConfig(object):
         eb_file = file(fp, "w")
 
         def to_str(x):
-            if type(x) == str:
+            if isinstance(x, basestring):
                 if '\n' in x or ('"' in x and "'" in x):
                     return '"""%s"""' % x
                 elif "'" in x:
@@ -566,7 +566,7 @@ class EasyConfig(object):
         if isinstance(dep, dict):
             dependency.update(dep)
         # Try and convert to list
-        elif isinstance(dep, list) or isinstance(dep, tuple):
+        elif isinstance(dep, (list, tuple)):
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
@@ -1212,7 +1212,7 @@ def tweak(src_fn, target_fn, tweaks):
     # we need to treat list values seperately, i.e. we prepend to the current value (if any)
     for (key, val) in tweaks.items():
 
-        if type(val) == list:
+        if isinstance(val, list):
 
             regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
 
@@ -1338,7 +1338,7 @@ def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
-    if not (type(stats) == OrderedDict or type(stats) == dict):
+    if not isinstance(stats, (OrderedDict, dict)):
         _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
 
     txt = "{\n"
@@ -1346,7 +1346,7 @@ def stats_to_str(stats):
     pref = "    "
 
     def tostr(x):
-        if type(x) == str:
+        if isinstance(x, basestring):
             return "'%s'" % x
         else:
             return str(x)
