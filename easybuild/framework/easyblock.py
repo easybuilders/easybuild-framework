@@ -932,7 +932,6 @@ class EasyBlock(object):
         # configure/build/install options may be lists, in case of an iterated build
         # if any of these are lists, take first element and keep track of the rest
         for opt in ITERATE_OPTIONS:
-
             # anticipate changes in available easyconfig parameters
             if self.cfg.get(opt, None) is None:
                 self.log.error("%s not available in self.cfg (anymore)?!" % opt)
