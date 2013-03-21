@@ -41,7 +41,7 @@ import re
 import StringIO
 import sys
 import textwrap
-from optparse import OptionParser, OptionGroup, Option, NO_DEFAULT, Values, BadOptionError, SUPPRESS_USAGE
+from optparse import OptionParser, OptionGroup, Option, Values, BadOptionError, SUPPRESS_USAGE, OptionValueError
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import _ as _gettext  # this is gettext normally
 from vsc.utils.dateandtime import date_parser, datetime_parser
@@ -68,6 +68,22 @@ def set_columns(cols=None):
 
     if cols is not None:
         os.environ['COLUMNS'] = "%s" % cols
+
+
+def check_str_list_tuple(option, opt, value):
+    """
+    check function for strlist and strtuple type
+        assumes value is comma-separated list
+        returns list or tuple of strings
+    """
+    split = value.split(',')
+    if option.type == 'strlist':
+        return split
+    elif option.type == 'strtuple':
+        return tuple(split)
+    else:
+        err = _("check_strlist_strtuple: unsupported type %s" % option.type)
+        raise OptionValueError(err)
 
 
 class ExtOption(Option):
@@ -101,6 +117,11 @@ class ExtOption(Option):
     STORE_ACTIONS = Option.STORE_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_LOG + ('store_or_None',)
     TYPED_ACTIONS = Option.TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_STORE_OR
     ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS
+
+    TYPE_CHECKER = dict([('strlist', check_str_list_tuple),
+                         ('strtuple', check_str_list_tuple),
+                         ] + Option.TYPE_CHECKER.items())
+    TYPES = tuple(['strlist', 'strtuple'] + list(Option.TYPES))
 
     def _set_attrs(self, attrs):
         """overwrite _set_attrs to allow store_or callbacks"""
