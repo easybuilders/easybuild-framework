@@ -174,7 +174,7 @@ class EasyBuildOptions(GeneralOption):
                                     'For more info, use --avail-repositories.'),
                                     'strlist', 'store',
                                     oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
-                "avail-repositories":(("Show all repositories"),
+                "avail-repositories":(("Show all repository types (incl. non-usable)"),
                                       None, "store_true", False,),
                 'logfile-format': ('Directory name and format of the log file ',
                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
@@ -471,21 +471,21 @@ class EasyBuildOptions(GeneralOption):
         all_repos = get_repositories(check_usable=False)
         usable_repos = get_repositories(check_usable=True).keys()
 
-        indent = ' ' * 4
-        txt = []
+        indent = ' ' * 2
+        txt = ['All avaialble repository types']
         repos = sorted(all_repos.keys())
         for repo in repos:
             if repo in usable_repos:
                 missing = ''
             else:
-                missing = ' (Not usable, something is missing (eg a specific module))'
+                missing = ' (*Not usable*, something is missing (eg a specific module))'
             if repo in repopath_defaults:
                 default = ' (Default arguments: %s)' % (repopath_defaults[repo])
             else:
                 default = ' (No default arguments)'
 
-            txt.append("%s%s%s" % (repo, default, missing))
-            txt.append("%s%s" % (indent, all_repos[repo].DESCRIPTION))
+            txt.append("%s%s%s%s" % (indent, repo, default, missing))
+            txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
 
