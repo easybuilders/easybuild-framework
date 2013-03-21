@@ -38,14 +38,17 @@ import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, generate_template_values_doc
 from easybuild.framework.extension import Extension
-from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
+from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
+from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools import filetools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.utilities import any
+from easybuild.tools.repository import get_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc import fancylogger
 from vsc.utils.generaloption import GeneralOption
+from vsc.utils.missing import any
+
 
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
@@ -129,11 +132,7 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        default_config = get_default_oldstyle_configfile()
-
         opts = {
-                "config":("path to EasyBuild config file ",
-                          None, 'store', default_config, "C",),
                 "easyblock":("easyblock to use for processing the spec file or dumping the options",
                              None, "store", None, "e", {'metavar':"CLASS"},),
                 "pretend":(("Does the build/installation in "
@@ -144,6 +143,57 @@ class EasyBuildOptions(GeneralOption):
                 }
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
+    def config_options(self):
+        # config options
+        descr = ("Configuration options", "Configure EasyBuild behavior.")
+
+        oldstyle_defaults = get_default_oldstyle_configfile_defaults()
+
+        opts = {
+                "config":("Path to EasyBuild config file",
+                          None, 'store', oldstyle_defaults['config'], "C",),
+                'prefix': (('Change prefix for buildpath, installpath, sourcepath and repositorypath '
+                            '(repositorypath prefix is only relevant in case of FileRepository repository)'
+                            '(used prefix for defaults %s)' % oldstyle_defaults['prefix']),
+                               None, 'store', None),
+                'buildpath': ('Temporary build path',
+                               None, 'store', oldstyle_defaults['buildpath']),
+                'installpath':  ('Final install path',
+                                  None, 'store', oldstyle_defaults['installpath']),
+                'subdir-modules': ('Subdir in installpath for modules',
+                                           None, 'store', oldstyle_defaults['subdir_modules']),
+                'subdir-software': ('Subdir in installpath for software',
+                                            None, 'store', oldstyle_defaults['subdir_software']),
+                'repository': ('Repository type, using repositorypath',
+                                'choice', 'store', oldstyle_defaults['repository'],
+                                sorted(get_repositories().keys())),
+                'repositorypath': (('Repository path, used by repository '
+                                    '(is passed as list of arguments to create the repository instance). '
+                                    'For more info, use --avail-repositories.'),
+                                    'strlist', 'store',
+                                    oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
+                "avail-repositories":(("Show all repository types (incl. non-usable)"),
+                                      None, "store_true", False,),
+                'logfile-format': ('Directory name and format of the log file ',
+                              'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
+                'tmp-logdir': ('Log directory where temporary log files are stored',
+                            None, 'store', oldstyle_defaults['tmp_logdir']),
+                'sourcepath': ('Path to where sources should be downloaded',
+                               None, 'store', oldstyle_defaults['sourcepath']),
+                'moduleclasses': (('Extend supported module classes'
+                                   ' (For more info on the default classes, use --show-default-moduleclasses)'),
+                                  None, 'extend', oldstyle_defaults['moduleclasses']),
+                'show-default-moduleclasses': ('Show default module classes with description',
+                                               None, 'store_true', False),
+                # this one is sort of an exception, it's something jobscripts can set,
+                #  has no real meaning for regular eb usage
+                "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
+                               None, "store", None),
+                }
+
+        self.log.debug("config_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def informative_options(self):
@@ -227,9 +277,11 @@ class EasyBuildOptions(GeneralOption):
         stop_msg = []
 
         if self.options.toolchain and not len(self.options.toolchain) == 2:
-            stop_msg.append('--toolchain requires NAME,VERSION (given %s)' % (','.join(self.options.toolchain)))
+            stop_msg.append('--toolchain requires NAME,VERSION (given %s)' %
+                            (','.join(self.options.toolchain)))
         if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
-            stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' % (','.join(self.options.try_toolchain)))
+            stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' %
+                            (','.join(self.options.try_toolchain)))
 
         if len(stop_msg) > 0:
             indent = " "*2
@@ -244,8 +296,31 @@ class EasyBuildOptions(GeneralOption):
             fancylogger.logToFile(self.options.unittest_file)
 
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
-                self.options.list_easyblocks, self.options.list_toolchains]):
+                self.options.list_easyblocks, self.options.list_toolchains,
+                self.options.avail_repositories, self.options.show_default_moduleclasses,
+                ]):
             self._postprocess_list_avail()
+
+        self._postprocess_config()
+
+    def _postprocess_config(self):
+        """Postprocessing of configuration options"""
+        if self.options.prefix is not None:
+            # TODO also for repositorypath? (if so, change the help description too)
+            changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
+                if not self.options._action_taken[dest]:
+                    new_def = changed_defaults[dest]
+                    if dest == 'repositorypath':
+                        setattr(self.options, dest, new_def[changed_defaults['repository']])
+                    else:
+                        setattr(self.options, dest, new_def)
+                    # LEGACY this line is here for oldstyle reasons
+                    self.log.deprecated('Fake action taken to distinguish from default', '2.0')
+                    self.options._action_taken[dest] = True
+
+        if self.options.pretend:
+            self.options.installpath = get_pretend_installpath()
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
@@ -266,6 +341,14 @@ class EasyBuildOptions(GeneralOption):
         if self.options.list_toolchains:
             msg += self.avail_toolchains()
 
+        # dump known repository types
+        if self.options.avail_repositories:
+            msg += self.avail_repositories()
+
+        # dump default moduleclasses with description
+        if self.options.show_default_moduleclasses:
+            msg += self.show_default_moduleclasses()
+
         if self.options.unittest_file:
             self.log.info(msg)
         else:
@@ -279,14 +362,23 @@ class EasyBuildOptions(GeneralOption):
         app = get_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(EasyConfig.default_config + extra)
-
-        txt = []
+        if len(extra) > 0:
+            ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
+            extra_names = [x[0] for x in extra]
+        else:
+            ebb_msg = ''
+            extra_names = []
+        txt = ["Available easyconfig parameters%s" % ebb_msg]
         for key, values in mapping.items():
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
             for name, value in values:
                 tabs = "\t" * (3 - (len(name) + 1) / 8)
-                txt.append("%s:%s%s" % (name, tabs, value))
+                if name in extra_names:
+                    starred = '(*)'
+                else:
+                    starred = ''
+                txt.append("%s%s:%s%s" % (name, starred, tabs, value))
             txt.append('')
 
         return "\n".join(txt)
@@ -373,6 +465,39 @@ class EasyBuildOptions(GeneralOption):
 
         return '\n'.join(txt)
 
+    def avail_repositories(self):
+        """Show list of known repository types."""
+        repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
+        all_repos = get_repositories(check_usable=False)
+        usable_repos = get_repositories(check_usable=True).keys()
+
+        indent = ' ' * 2
+        txt = ['All avaialble repository types']
+        repos = sorted(all_repos.keys())
+        for repo in repos:
+            if repo in usable_repos:
+                missing = ''
+            else:
+                missing = ' (*Not usable*, something is missing (eg a specific module))'
+            if repo in repopath_defaults:
+                default = ' (Default arguments: %s)' % (repopath_defaults[repo])
+            else:
+                default = ' (No default arguments)'
+
+            txt.append("%s%s%s%s" % (indent, repo, default, missing))
+            txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
+
+        return "\n".join(txt)
+
+    def show_default_moduleclasses(self):
+        """Show list of default moduleclasses and description."""
+        txt = ["Default available moduleclasses"]
+        indent = " " * 2
+        maxlen = max([len(x[0]) for x in DEFAULT_MODULECLASSES]) + 1  # at least 1 space
+        for name, descr in DEFAULT_MODULECLASSES:
+            txt.append("%s%s:%s%s" % (indent, name, (" " * (maxlen - len(name))), descr))
+        return "\n".join(txt)
+
 
 def parse_options(args=None):
     """wrapper function for option parsing"""
@@ -392,6 +517,4 @@ def parse_options(args=None):
                              envvar_prefix='EASYBUILD',
                              go_args=args,
                              )
-    return eb_go.options, eb_go.args, eb_go.parser, eb_go.generate_cmd_line()
-
-
+    return eb_go
