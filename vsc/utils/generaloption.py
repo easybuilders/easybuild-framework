@@ -325,10 +325,11 @@ class ExtOptionParser(OptionParser):
         if docstr is not None:
             indent = " "
             # kwargs and ** magic to deal with width
-            kwargs = {'initial_indent':indent * 2,
-                     'subsequent_indent':indent * 2,
-                     'replace_whitespace':False,
-                     }
+            kwargs = {
+                      'initial_indent': indent * 2,
+                      'subsequent_indent': indent * 2,
+                      'replace_whitespace': False,
+                      }
             width = os.environ.get('COLUMNS', None)
             if width is not None:
                 # default textwrap width
@@ -469,12 +470,14 @@ class ExtOptionParser(OptionParser):
         epilogprefixtxt = "All long option names can be passed as environment variables. "
         epilogprefixtxt += "Variable name is %(prefix)s_<LONGNAME> "
         epilogprefixtxt += "eg. --someopt is same as setting %(prefix)s_SOMEOPT in the environment."
-        self.epilog.append(epilogprefixtxt % {'prefix':self.envvar_prefix})
+        self.epilog.append(epilogprefixtxt % {'prefix': self.envvar_prefix})
 
         for opt in self._get_all_options():
-            if opt._long_opts is None: continue
+            if opt._long_opts is None:
+                continue
             for lo in opt._long_opts:
-                if len(lo) == 0: continue
+                if len(lo) == 0:
+                    continue
                 env_opt_name = "%s_%s" % (self.envvar_prefix, lo.lstrip('-').upper())
                 val = os.environ.get(env_opt_name, None)
                 if not val is None:
@@ -490,14 +493,17 @@ class ExtOptionParser(OptionParser):
     def get_option_by_long_name(self, name):
         """Return the option matching the long option name"""
         for opt in self._get_all_options():
-            if opt._long_opts is None: continue
+            if opt._long_opts is None:
+                continue
             for lo in opt._long_opts:
-                if len(lo) == 0: continue
+                if len(lo) == 0:
+                    continue
                 dest = lo.lstrip('-')
                 if name == dest:
                     return opt
 
         return None
+
 
 class GeneralOption(object):
     """
@@ -559,9 +565,10 @@ class GeneralOption(object):
 
         set_columns(kwargs.pop('go_columns', None))
 
-        kwargs.update({'option_class':ExtOption,
-                       'usage':kwargs.get('usage', self.USAGE),
-                       'version':self.VERSION,
+        kwargs.update({
+                       'option_class': ExtOption,
+                       'usage': kwargs.get('usage', self.USAGE),
+                       'version': self.VERSION,
                        })
         self.parser = self.PARSER(**kwargs)
         self.parser.allow_interspersed_args = self.INTERSPERSED
@@ -622,9 +629,10 @@ class GeneralOption(object):
 
     def _make_debug_options(self):
         """Add debug/logging options: debug and info"""
-        self._logopts = {'debug':("Enable debug log mode", None, "store_debuglog", False, 'd'),
-                         'info':("Enable info log mode", None, "store_infolog", False),
-                         'quiet':("Enable info quiet/warning mode", None, "store_warninglog", False),
+        self._logopts = {
+                         'debug': ("Enable debug log mode", None, "store_debuglog", False, 'd'),
+                         'info': ("Enable info log mode", None, "store_infolog", False),
+                         'quiet': ("Enable info quiet/warning mode", None, "store_warninglog", False),
                          }
 
         descr = ['Debug and logging options', '']
@@ -639,7 +647,8 @@ class GeneralOption(object):
 
     def _make_configfiles_options(self):
         """Add configfiles option"""
-        opts = {'configfiles':("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
+        opts = {
+                'configfiles':("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
                 'ignoreconfigfiles':("Ignore configfiles", None, "extend", self.DEFAULT_IGNORECONFIGFILES),
                 }
         descr = ['Configfile options', '']
@@ -753,15 +762,15 @@ class GeneralOption(object):
                 default = otherdefaults.get(key)
 
             extra_help = []
-            if action in ("extend",):
+            if action in ("extend",) or typ in ('strlist', 'strtuple',):
                 extra_help.append("type comma-separated list")
             elif typ is not None:
                 extra_help.append("type %s" % typ)
 
             if default is not None:
-                if len("%s" % default) == 0:
+                if len(str(default)) == 0:
                     extra_help.append("def ''")  # empty string
-                elif action in ("extend",):
+                elif action in ("extend",) or typ in ('strlist', 'strtuple',):
                     extra_help.append("def %s" % ','.join(default))
                 else:
                     extra_help.append("def %s" % default)
@@ -778,8 +787,9 @@ class GeneralOption(object):
             if not len(self.processed_options[opt_dest]) == len(self.PROCESSED_OPTIONS_PROPERTIES):
                 self.log.raiseException("PROCESSED_OPTIONS_PROPERTIES length mismatch")
 
-            nameds = {'dest':opt_dest,
-                      'action':action,
+            nameds = {
+                      'dest': opt_dest,
+                      'action': action,
                       }
             metavar = self.make_option_metavar(key, details)
             if metavar is not None:
@@ -1064,6 +1074,7 @@ class GeneralOption(object):
             opt_value = self.options.__dict__[opt_dest]
             # this is the action as parsed by the class, not the actual action set in option
             # (eg action store_or_None is shown here as store_or_None, not as callback)
+            typ = self.processed_options[opt_dest][self.PROCESSED_OPTIONS_PROPERTIES.index('type')]
             default = self.processed_options[opt_dest][self.PROCESSED_OPTIONS_PROPERTIES.index('default')]
             action = self.processed_options[opt_dest][self.PROCESSED_OPTIONS_PROPERTIES.index('action')]
             opt_name = self.processed_options[opt_dest][self.PROCESSED_OPTIONS_PROPERTIES.index('opt_name')]
@@ -1138,6 +1149,8 @@ class GeneralOption(object):
                     continue
 
                 args.append("--%s=%s" % (opt_name, shell_quote(",".join(opt_value))))
+            elif typ in ('strlist', 'strtuple',):
+                args.append("--%s=%s" % (opt_name, shell_quote(",".join(opt_value))))
             elif action in ("append",):
                 # add multiple times
                 self.log.debug("generate_cmd_line adding %s value %s. append action, return as multiple args" %
@@ -1169,7 +1182,7 @@ def simple_option(go_dict, descr=None, short_groupdescr=None, long_groupdescr=No
         short_groupdescr = 'Main options'
     if long_groupdescr is None:
         long_groupdescr = ''
-    descr = [short_groupdescr, long_groupdescr ]
+    descr = [short_groupdescr, long_groupdescr]
 
     class SimpleOptionParser(ExtOptionParser):
         DESCRIPTION_DOCSTRING = True
