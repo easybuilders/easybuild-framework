@@ -1173,7 +1173,7 @@ def regtest(options, easyconfig_paths):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.environmentVariables['test_output_path']
+    var = config.oldstyle_environment_variables['test_output_path']
     if options.regtest_output_dir:
         output_dir = options.regtest_output_dir
     elif var in os.environ:
