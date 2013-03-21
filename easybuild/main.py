@@ -1060,9 +1060,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
             os.chdir(base_dir)
             modify_env(os.environ, base_env)
 
-            iter_cnt = max([1] + [len(app.cfg[opt]) for opt in ITERATE_OPTIONS
-                                  if isinstance(app.cfg[opt], (list, tuple))])
-            steps = EasyBlock.get_steps(iteration_count=iter_cnt)
+            steps = EasyBlock.get_steps(iteration_count=app.get_iter_cnt())
 
             for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:

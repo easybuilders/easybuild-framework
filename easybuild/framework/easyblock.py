@@ -956,6 +956,12 @@ class EasyBlock(object):
         # re-enable templating before self.cfg values are used
         self.cfg.enable_templating = True
 
+    def det_iter_cnt(self):
+        """Determine iteration count based on configure/build/install options that may be lists."""
+        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                              if isinstance(self.cfg[opt], (list, tuple))])
+        return iter_cnt
+
     def print_environ(self):
         """
         Prints the environment changes and loaded modules to the debug log
@@ -1695,9 +1701,7 @@ class EasyBlock(object):
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
 
-        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
-                              if isinstance(self.cfg[opt], (list, tuple))])
-        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=iter_cnt)
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         try:
             full_name = "%s-%s" % (self.name, self.get_installversion())
