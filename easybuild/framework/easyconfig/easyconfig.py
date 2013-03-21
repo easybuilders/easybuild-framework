@@ -54,6 +54,9 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, templat
 # TODO add license here to make it really MANDATORY
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
+# set of configure/build/install options that can be provided as lists for an iterated build
+ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'premakeopts', 'makeopts', 'preinstallopts', 'installopts']
+
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
@@ -149,7 +152,7 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if not type(prev_value) == str:
+        if not isinstance(prev_value, basestring):
             self.log.error("Can't update configuration value for %s, because it's not a string." % key)
 
         self[key] = '%s %s ' % (prev_value, value)
@@ -219,6 +222,9 @@ class EasyConfig(object):
             self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
                            (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
 
+        self.log.info("Checking build option lists")
+        self.validate_iterate_opts_lists()
+
         self.log.info("Checking licenses")
         # TODO when mandatory, remove this possibility
         if self._config['license'][0] is None:
@@ -243,6 +249,32 @@ class EasyConfig(object):
             self.log.error("One or more OS dependencies were not found: %s" % not_found)
         else:
             self.log.info("OS dependencies ok: %s" % self['osdependencies'])
+
+        return True
+
+    def validate_iterate_opts_lists(self):
+        """
+        Configure/build/install options specified as lists should have same length.
+        """
+
+        # configure/build/install options may be lists, in case of an iterated build
+        # when lists are used, they should be all of same length
+        # list of length 1 are treated as if it were strings in EasyBlock
+        opt_counts = []
+        for opt in ITERATE_OPTIONS:
+
+            # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
+            if self.get(opt, None) is None:
+                self.log.error("%s not available in self.cfg (anymore)?!" % opt)
+
+            # keep track of list, supply first element as first option to handle
+            if isinstance(self[opt], (list, tuple)):
+                opt_counts.append((opt, len(self[opt])))
+
+        # make sure that options that specify lists have the same length
+        list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
+        if len(nub(list_opt_lengths)) > 1:
+            self.log.error("Build option lists for iterated build should have same length: %s" % opt_counts)
 
         return True
 
@@ -319,7 +351,7 @@ class EasyConfig(object):
 
         def to_str(x):
             """Return quoted version of x"""
-            if type(x) == str:
+            if isinstance(x, basestring):
                 if '\n' in x or ('"' in x and "'" in x):
                     return '"""%s"""' % x
                 elif "'" in x:
@@ -415,7 +447,7 @@ class EasyConfig(object):
         if isinstance(dep, dict):
             dependency.update(dep)
         # Try and convert to list
-        elif isinstance(dep, list) or isinstance(dep, tuple):
+        elif isinstance(dep, (list, tuple)):
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:

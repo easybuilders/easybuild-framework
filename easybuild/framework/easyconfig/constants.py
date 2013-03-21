@@ -28,10 +28,12 @@ Easyconfig constants module that provides all constants that can
 be used within an Easyconfig file.
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import platform
-
 from vsc import fancylogger
+
+from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
@@ -39,6 +41,9 @@ _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 EASYCONFIG_CONSTANTS = [
                         ('SYS_PYTHON_VERSION', platform.python_version(),
                          "System Python version (platform.python_version())"),
+                        ('OS_TYPE', get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
+                        ('OS_NAME', get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
+                        ('OS_VERSION', get_os_version(), "System version"),
                        ]
 
 def constant_documentation():
