@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,9 +21,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 EasyBuild configuration file.
+    This is now frozen.
+    All new configuration should be done through the options parser.
+    This is deprecated and will be removed in 2.0
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Dries Verdegem (Ghent University)
@@ -33,6 +36,11 @@ EasyBuild configuration file.
 @author: Toon Willems (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
+
+#
+# Developers, please do not add any new defaults or variables
+# Use the config options
+#
 
 import os
 import tempfile
@@ -66,7 +74,7 @@ source_path = os.path.join(prefix, 'sources')
 # optionally a subdir argument can be specified:
 # `repository = FileRepository(repositoryPath, subdir)`
 repository_path = os.path.join(prefix, 'ebfiles_repo')
-repository = FileRepository(repository_path)  #@UndefinedVariable (this file gets exec'ed, so ignore this)
+repository = FileRepository(repository_path)  # @UndefinedVariable (this file gets exec'ed, so ignore this)
 
 # log format: (dir, filename template)
 # supported in template: name, version, data, time
@@ -81,3 +89,8 @@ module_classes = ['base', 'bio', 'chem', 'compiler', 'lib', 'phys', 'tools',
 
 # general cleanliness
 del os, tempfile, config, prefix
+
+#
+# Developers, please do not add any new defaults or variables
+# Use the config options
+#
