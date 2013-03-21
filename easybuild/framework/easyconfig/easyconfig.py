@@ -39,6 +39,7 @@ import difflib
 import os
 import re
 from vsc import fancylogger
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
