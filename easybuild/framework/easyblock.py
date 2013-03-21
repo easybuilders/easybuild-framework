@@ -176,10 +176,10 @@ class EasyBlock(object):
         """
 
         for src_entry in list_of_sources:
-            if type(src_entry) in [list, tuple]:
+            if isinstance(src_entry, (list, tuple)):
                 cmd = src_entry[1]
                 source = src_entry[0]
-            elif type(src_entry) == str:
+            elif isinstance(src_entry, basestring):
                 cmd = None
                 source = src_entry
 
@@ -206,14 +206,14 @@ class EasyBlock(object):
             copy_file = False
             suff = None
             level = None
-            if type(patchFile) in [list, tuple]:
+            if isinsance(patchFile, (list, tuple)):
                 if not len(patchFile) == 2:
                     self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
                 pf = patchFile[0]
 
-                if type(patchFile[1]) == int:
+                if isinstance(patchFile[1], int):
                     level = patchFile[1]
-                elif type(patchFile[1]) == str:
+                elif isinstance(patchFile[1], basestring):
                     # non-patch files are assumed to be files to copy
                     if not patchFile[0].endswith('.patch'):
                         copy_file = True
@@ -326,9 +326,9 @@ class EasyBlock(object):
         srcpath = source_path()
 
         # make sure we always deal with a list, to avoid code duplication
-        if type(srcpath) == str:
+        if isinstance(srcpath, basestring):
             srcpaths = [srcpath]
-        elif type(srcpath) == list:
+        elif isinstance(srcpath, list):
             srcpaths = srcpath
         else:
             self.log.error("Source path '%s' has incorrect type: %s" % (srcpath, type(srcpath)))
@@ -446,12 +446,12 @@ class EasyBlock(object):
                     else:
                         targetpath = os.path.join(targetdir, filename)
 
-                    if type(url) == str:
+                    if isinstance(url, basestring):
                         if url[-1] in ['=', '/']:
                             fullurl = "%s%s" % (url, filename)
                         else:
                             fullurl = "%s/%s" % (url, filename)
-                    elif type(url) == tuple:
+                    elif isinstance(url, tuple):
                         # # URLs that require a suffix, e.g., SourceForge download links
                         # # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
                         fullurl = "%s/%s/%s" % (url[0], filename, url[1])
@@ -937,7 +937,7 @@ class EasyBlock(object):
                 self.log.error("%s not available in self.cfg (anymore)?!" % opt)
 
             # keep track of list, supply first element as first option to handle
-            if type(self.cfg[opt]) in [list, tuple]:
+            if isinstance(self.cfg[opt], (list, tuple)):
                 self.iter_opts['%s_list' % opt] = self.cfg[opt][1:]  # copy and drop first
                 if len(self.cfg[opt]) > 0:
                     self.cfg[opt] = self.cfg[opt][0]
@@ -1421,7 +1421,7 @@ class EasyBlock(object):
         # check sanity check paths
         ks = paths.keys()
         ks.sort()
-        valnottypes = [type(x) != list for x in paths.values()]
+        valnottypes = [not isinstance(x, list) for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
         if not ks == ["dirs", "files"] or sum(valnottypes) > 0 or sum(lenvals) == 0:
             self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
