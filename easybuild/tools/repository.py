@@ -300,7 +300,8 @@ class GitRepository(FileRepository):
         self.log.debug("committing in git: %s" % msg)
         completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
                                                                               time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(), msg)
+                                                                              getpass.getuser(),
+                                                                              msg)
         self.log.debug("git status: %s" % self.client.status())
         try:
             self.client.commit('-am "%s"' % completemsg)
@@ -312,7 +313,9 @@ class GitRepository(FileRepository):
             self.log.debug("push info: %s " % info)
         except GitCommandError, err:
             self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc,
-                                                                                              self.repo, msg, err))
+                                                                                              self.repo,
+                                                                                              msg,
+                                                                                              err))
 
     def cleanup(self):
         """
@@ -434,8 +437,9 @@ class SvnRepository(FileRepository):
 
 
 def get_repositories(check_usable=True):
-    """Return all repositories.
-        check_usable: boolean, if True, only return usbale repositories
+    """
+    Return all repositories.
+        check_usable: boolean, if True, only return usable repositories
     """
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_usable])
 

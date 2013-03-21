@@ -154,7 +154,8 @@ class EasyBuildOptions(GeneralOption):
         opts = {
                 "config":("Path to EasyBuild config file",
                           None, 'store', oldstyle_defaults['config'], "C",),
-                'prefix': (('Change prefix for buildpath, installpath and sourcepath '
+                'prefix': (('Change prefix for buildpath, installpath, sourcepath and repositorypath '
+                            '(repositorypath prefix is only relevant in case of FileRepository repository)'
                             '(used prefix for defaults %s)' % oldstyle_defaults['prefix']),
                                None, 'store', None),
                 'buildpath': ('Temporary build path',
@@ -171,20 +172,21 @@ class EasyBuildOptions(GeneralOption):
                 'repositorypath': (('Repository path, used by repository '
                                     '(is passed as list of arguments to create the repository instance). '
                                     'For more info, use --avail-repositories.'),
-                                    None, 'extend', None),
+                                    'strlist', 'store',
+                                    oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
                 "avail-repositories":(("Show all repositories"),
                                       None, "store_true", False,),
-                # TODO possibly very confusing name, it's format the log file filename, not the logging itself
-                'logformat': ('Directory name and format of the log file ',
-                              None, 'extend', oldstyle_defaults['logformat'], {'metavar':'DIR,FORMAT'}),
-                'logdir': ('Log directory where temporary log files are stored',
-                            None, 'store', oldstyle_defaults['logdir']),
+                'logfile-format': ('Directory name and format of the log file ',
+                              'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
+                'tmp-logdir': ('Log directory where temporary log files are stored',
+                            None, 'store', oldstyle_defaults['tmp_logdir']),
                 'sourcepath': ('Path to where sources should be downloaded',
                                None, 'store', oldstyle_defaults['sourcepath']),
-                'moduleclasses': ('Extend supported module classes',
+                'moduleclasses': (('Extend supported module classes'
+                                   ' (For more info on the default classes, use --show-default-moduleclasses)'),
                                   None, 'extend', oldstyle_defaults['moduleclasses']),
-                'avail-moduleclasses': ('Show default module classes with description',
-                                        None, 'store_true', False),
+                'show-default-moduleclasses': ('Show default module classes with description',
+                                               None, 'store_true', False),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
@@ -295,7 +297,7 @@ class EasyBuildOptions(GeneralOption):
 
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains,
-                self.options.avail_repositories, self.options.avail_moduleclasses,
+                self.options.avail_repositories, self.options.show_default_moduleclasses,
                 ]):
             self._postprocess_list_avail()
 
@@ -306,10 +308,15 @@ class EasyBuildOptions(GeneralOption):
         if self.options.prefix is not None:
             # TODO also for repositorypath? (if so, change the help description too)
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
-            for dest in ['installpath', 'buildpath', 'sourcepath']:
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
                 if not self.options._action_taken[dest]:
-                    setattr(self.options, dest, changed_defaults[dest])
-                    # TODO LEGACY this line is here for oldstyle reasons
+                    new_def = changed_defaults[dest]
+                    if dest == 'repositorypath':
+                        setattr(self.options, dest, new_def[changed_defaults['repository']])
+                    else:
+                        setattr(self.options, dest, new_def)
+                    # LEGACY this line is here for oldstyle reasons
+                    self.log.deprecated('Fake action taken to distinguish from default', '2.0')
                     self.options._action_taken[dest] = True
 
         if self.options.pretend:
@@ -339,8 +346,8 @@ class EasyBuildOptions(GeneralOption):
             msg += self.avail_repositories()
 
         # dump default moduleclasses with description
-        if self.options.avail_moduleclasses:
-            msg += self.avail_moduleclasses()
+        if self.options.show_default_moduleclasses:
+            msg += self.show_default_moduleclasses()
 
         if self.options.unittest_file:
             self.log.info(msg)
@@ -368,7 +375,7 @@ class EasyBuildOptions(GeneralOption):
             for name, value in values:
                 tabs = "\t" * (3 - (len(name) + 1) / 8)
                 if name in extra_names:
-                    starred = ' *'
+                    starred = '(*)'
                 else:
                     starred = ''
                 txt.append("%s%s:%s%s" % (name, starred, tabs, value))
@@ -482,7 +489,7 @@ class EasyBuildOptions(GeneralOption):
 
         return "\n".join(txt)
 
-    def avail_moduleclasses(self):
+    def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""
         txt = ["Default available moduleclasses"]
         indent = " " * 2

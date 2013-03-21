@@ -49,7 +49,7 @@ _log = fancylogger.getLogger('config', fname=False)
 SUPPORT_OLDSTYLE = True
 
 
-DEFAULT_LOGFILE_FORMAT = ["easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"]
+DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 
 
 # based on
@@ -92,21 +92,21 @@ oldstyle_environment_variables = {
 
 
 class ConfigurationVariables(dict):
-    """This is a dict that supports legacy config names transparantly."""
+    """This is a dict that supports legacy config names transparently."""
     REQUIRED = [
                 'buildpath',
                 'installpath',
                 'sourcepath',
-                'logformat',
+                'logfile_format',
                 'repository',
                 ]
     OLDSTYLE_NEWSTYLEMAP = {
                             'build_path': 'buildpath',
                             'install_path': 'installpath',
-                            'log_dir': 'logdir',
+                            'log_dir': 'tmp_logdir',
                             'config_file': 'config',
                             'source_path': 'sourcepath',
-                            'log_format': 'logformat',
+                            'log_format': 'logfile_format',
                             'test_output_path': 'testoutput',
                             'module_classes': 'moduleclasses',
                             'repository_path': 'repositorypath',
@@ -115,7 +115,8 @@ class ConfigurationVariables(dict):
                             }
 
     def get_items_check_required(self, no_missing=True):
-        """For all REQUIRED, check if exists and return all key,value pairs.
+        """
+        For all REQUIRED, check if exists and return all key,value pairs.
             no_missing: boolean, when True, will throw error message for missing values
         """
         missing = [x for x in self.REQUIRED if not x in self]
@@ -185,8 +186,9 @@ def get_default_oldstyle_configfile():
 
 
 def get_default_oldstyle_configfile_defaults(prefix=None):
-    """Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environemnt variables
-        when prefix is provided, it use that value as prefix for the other defaults (where applicable)
+    """
+    Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environment variables
+        prefix: string, when provided, it used as prefix for the other defaults (where applicable)
     """
     if prefix is None:
         prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
@@ -198,14 +200,18 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
                 'buildpath': os.path.join(prefix, 'build'),
                 'installpath': prefix,
                 'sourcepath': os.path.join(prefix, 'sources'),
-                'repositorypath': {'FileRepository': [os.path.join(prefix, 'ebfiles_repo')]},
                 'repository': 'FileRepository',
-                'logformat': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
-                'logdir': tempfile.gettempdir(),
+                'repositorypath': {'FileRepository': [os.path.join(prefix, 'ebfiles_repo')]},
+                'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
+                'tmp_logdir': tempfile.gettempdir(),
                 'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
                 'subdir_modules': 'modules',
                 'subdir_software': 'install',
                 }
+
+    # sanity check
+    if not defaults['repository'] in defaults['repositorypath']:
+        _log.error('Failed to get repository path default for default %s' % (defaults['repository']))
 
     _log.deprecated("get_default_oldstyle_configfile_defaults", "2.0")
 
@@ -231,12 +237,12 @@ def init(options, config_options_dict):
         _log.deprecated('olstyle init with modifications to support oldstyle options', '2.0')
         oldstyle_init(options.config)
 
-        # add the DEFAULT_MODULECLASSES as default (behaviour is now that thisextends the defautl list)
+        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
         variables['moduleclasses'] = nub(list(variables.get('moduleclasses', [])) +
                                          [x[0] for x in DEFAULT_MODULECLASSES])
 
         # all defaults are now set in generaloption
-        # distinguish from default generaloption values and values actually passed by generaloption
+        # distinguish between default generaloption values and values actually passed by generaloption
         for dest in config_options_dict.keys():
             if not options._action_taken.get(dest, False):
                 if dest == 'installpath' and options.pretend:
@@ -255,13 +261,6 @@ def init(options, config_options_dict):
     # Create an instance of the repository class
     if 'repository' in variables and not isinstance(variables['repository'], Repository):
         repo = get_repositories().get(options.repository)
-        args = options.repositorypath
-        if args is None:
-            repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
-            try:
-                args = repopath_defaults[repo.__name__]
-            except KeyError:
-                _log.error('Failed to get repository path default for %s' % (repo.__name__))
 
         try:
             repository = repo(*args)
@@ -351,13 +350,13 @@ def log_file_format(return_directory=False):
     """Return the format for the logfile or the directory"""
     idx = int(not return_directory)
 
-    if 'logformat' in variables:
-        res = variables['logformat'][idx]
+    if 'logfile_format' in variables:
+        res = variables['logfile_format'][idx]
     else:
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('logformat not set in config, returning default', "2.0")
+        _log.deprecated('logfile_format not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
-        res = defaults['logformat'][idx]
+        res = defaults['logfile_format'][idx]
     return res
 
 
@@ -380,13 +379,13 @@ def get_build_log_path():
     """
     return temporary log directory
     """
-    if 'logdir' in variables:
-        return variables['logdir']
+    if 'tmp_logdir' in variables:
+        return variables['tmp_logdir']
     else:
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('logdir not set in config, returning default', "2.0")
+        _log.deprecated('tmp_logdir not set in config, returning default', "2.0")
         defaults = get_default_oldstyle_configfile_defaults()
-        return defaults['logdir']
+        return defaults['tmp_logdir']
 
 
 def get_log_filename(name, version):
@@ -482,7 +481,7 @@ def oldstyle_read_environment(env_var=None, strict=False):
     return result
 
 
-# confug variables constant
+# config variables constant
 variables = ConfigurationVariables()
 
 
