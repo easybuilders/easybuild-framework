@@ -941,14 +941,14 @@ class EasyBlock(object):
         for opt in ITERATE_OPTIONS:
             # keep track of list, supply first element as first option to handle
             if isinstance(self.cfg[opt], (list, tuple)):
-                self.iter_opts[opt + suffix] = self.cfg[opt][::-1]  # reversed copy
+                self.iter_opts[opt + suffix] = self.cfg[opt]  # copy
                 self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt + suffix]))
 
         # pop first element from all *_list options as next value to use
         for (lsname, ls) in self.iter_opts.items():
             opt = lsname[:-sufflen]  # drop '_list' part from name to get option name
-            if len(self.cfg[opt]) > 0:
-                self.cfg[opt] = self.iter_opts[lsname].pop()  # first element will be used next
+            if len(self.iter_opts[lsname]) > 0:
+                self.cfg[opt] = self.iter_opts[lsname].pop(0)  # first element will be used next
             else:
                 self.cfg[opt] = ''  # empty list => empty option as next value
             self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
@@ -1674,7 +1674,6 @@ class EasyBlock(object):
             ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
             ('module', 'creating module', [lambda x: x.make_module_step()], False),
         ]
-
 
         # full list of steps, included iterated steps
         steps = steps_part1 + steps_part2 + steps_part3
