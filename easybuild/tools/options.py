@@ -36,7 +36,12 @@ import os
 import re
 import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import get_paths_for, EasyConfig, convert_to_help, generate_template_values_doc
+from easybuild.framework.easyconfig.constants import constant_documentation
+from easybuild.framework.easyconfig.default import convert_to_help
+from easybuild.framework.easyconfig.easyconfig import EasyConfig,build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.licenses import license_documentation
+from easybuild.framework.easyconfig.templates import template_documentation
+from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_oldstyle_configfile, get_default_configfiles
 from easybuild.tools import filetools
@@ -155,8 +160,12 @@ class EasyBuildOptions(GeneralOption):
                 "avail-easyconfig-params":(("Show all easyconfig parameters (include "
                                             "easyblock-specific ones by using -e)"),
                                             None, "store_true", False, "a",),
-                "avail-easyconfig-templates":(("Show all template names, template constants "
-                                               "and constants that can be used in easyconfigs."),
+                "avail-easyconfig-templates":(("Show all template names and template constants "
+                                               "that can be used in easyconfigs."),
+                                              None, "store_true", False),
+                "avail-easyconfig-constants":(("Show all constants that can be used in easyconfigs."),
+                                              None, "store_true", False),
+                "avail-easyconfig-licenses":(("Show all license constants that can be used in easyconfigs."),
                                               None, "store_true", False),
                 "list-easyblocks":("Show list of available easyblocks",
                                    "choice", "store_or_None", "simple", ["simple", "detailed"]),
@@ -244,7 +253,9 @@ class EasyBuildOptions(GeneralOption):
             fancylogger.logToFile(self.options.unittest_file)
 
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
+                self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.list_easyblocks, self.options.list_toolchains]):
+            build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
     def _postprocess_list_avail(self):
@@ -256,7 +267,15 @@ class EasyBuildOptions(GeneralOption):
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
-            msg += generate_template_values_doc()
+            msg += template_documentation()
+
+        # dump easyconfig constant options
+        if self.options.avail_easyconfig_constants:
+            msg += constant_documentation()
+
+        # dump easyconfig license options
+        if self.options.avail_easyconfig_licenses:
+            msg += license_documentation()
 
         # dump available easyblocks
         if self.options.list_easyblocks:

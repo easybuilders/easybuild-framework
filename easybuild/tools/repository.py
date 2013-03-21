@@ -61,7 +61,8 @@ try:
 except ImportError:
     pass
 
-from easybuild.framework.easyconfig import EasyConfig, stats_to_str
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.build_log import get_log
 from easybuild.tools.version import VERBOSE_VERSION
 
