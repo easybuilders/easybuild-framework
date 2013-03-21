@@ -44,9 +44,11 @@ import time
 import urllib
 from distutils.version import LooseVersion
 from vsc import fancylogger
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.easyconfig import ITERATE_OPTIONS
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
@@ -132,6 +134,9 @@ class EasyBlock(object):
 
         # at the end of __init__, initialise the logging
         self._init_log()
+
+        # iterate configure/build/options
+        self.iter_opts = {}
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -922,6 +927,24 @@ class EasyBlock(object):
         except OSError, err:
             self.log.exception("Can't change to real build directory %s: %s" % (self.cfg['start_dir'], err))
 
+    def handle_build_options_as_lists(self):
+
+        # configure/build/install options may be lists, in case of an iterated build
+        # if any of these are lists, take first element and keep track of the rest
+        for opt in ITERATE_OPTIONS:
+
+            # anticipate changes in available easyconfig parameters
+            if self.cfg.get(opt, None) is None:
+                self.log.error("%s not available in self.cfg (anymore)?!" % opt)
+
+            # keep track of list, supply first element as first option to handle
+            if type(self.cfg[opt]) in [list, tuple]:
+                self.iter_opts['%s_list' % opt] = self.cfg[opt][1:]  # copy and drop first
+                if len(self.cfg[opt]) > 0:
+                    self.cfg[opt] = self.cfg[opt][0]
+                else:
+                    self.cfg[opt] = ''
+
     def print_environ(self):
         """
         Prints the environment changes and loaded modules to the debug log
@@ -1151,6 +1174,7 @@ class EasyBlock(object):
         """
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
+        self.handle_build_options_as_lists()
 
     def configure_step(self):
         """Configure build  (abstract method)."""
@@ -1178,6 +1202,35 @@ class EasyBlock(object):
     def install_step(self):
         """Install built software (abstract method)."""
         raise NotImplementedError
+
+    def iterate_step(self):
+        """Iterate over specified configure/build/install options, if required."""
+
+        # determine configure/build/install options specified as lists to iterate over
+        # i.e., the ones available as *_list in the easyconfig
+        opts_to_iterate = [opt for opt in ITERATE_OPTIONS if self.iter_opts.get("%s_list" % opt, None) is not None]
+        self.log.debug('options to iterate over: %s' % opts_to_iterate)
+
+        # iterate over configure/build/install options specified as lists
+        if opts_to_iterate:
+            # lists have been checked to have same lengths, so just use length of first element
+            for i in xrange(0, len(self.iter_opts["%s_list" % opts_to_iterate[0]])):
+
+                # set configure/build/install options to next item in list
+                for opt in opts_to_iterate:
+                    self.cfg[opt] = self.iter_opts["%s_list" % opt][i]
+                    self.log.debug("Using '%s = %s' in iteration %s" % (opt, self.cfg[opt], i))
+
+                # rerun configue/make/make install in freshly unpacked build dir
+                self.make_builddir()
+                self.extract_step()
+                self.patch_step()
+                self.guess_start_dir()
+
+                self.configure_step()
+                self.build_step()
+                self.test_step()
+                self.install_step()
 
     def extensions_step(self):
         """
@@ -1579,8 +1632,8 @@ class EasyBlock(object):
                                              lambda x: x.stage_install_step(),
                                              lambda x: x.make_installdir(),
                                              lambda x: x.install_step(),
-                                             ],
-                   True),
+                                            ], True),
+                  ('iterate', 'iterating over builds options', [lambda x: x.iterate_step()], True),
                   ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
                   ('package', 'packaging', [lambda x: x.package_step()], True),
                   ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
