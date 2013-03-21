@@ -643,7 +643,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
 """
     contents = orig_contents
 
-
     def runTest(self):
         """Test configure/build/install options, both strings and lists."""
 

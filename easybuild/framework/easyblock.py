@@ -927,22 +927,34 @@ class EasyBlock(object):
         except OSError, err:
             self.log.exception("Can't change to real build directory %s: %s" % (self.cfg['start_dir'], err))
 
-    def handle_build_options_as_lists(self):
+    def handle_iterate_opts(self):
+        """Handle options relevant during iterated part of build/install procedure."""
 
-        # configure/build/install options may be lists, in case of an iterated build
-        # if any of these are lists, take first element and keep track of the rest
+        # disable templating in this function, since we're messing about with values in self.cfg
+        self.cfg.enable_templating = False
+
+        # handle configure/build/install options that are specified as lists
+        # set first element to be used, keep track of list in *_list options dictionary
+        # this will only be done during first iteration, since after that the options won't be lists anymore
+        suffix = "_list"
+        sufflen = len(suffix)
         for opt in ITERATE_OPTIONS:
-            # anticipate changes in available easyconfig parameters
-            if self.cfg.get(opt, None) is None:
-                self.log.error("%s not available in self.cfg (anymore)?!" % opt)
-
             # keep track of list, supply first element as first option to handle
             if isinstance(self.cfg[opt], (list, tuple)):
-                self.iter_opts['%s_list' % opt] = self.cfg[opt][1:]  # copy and drop first
-                if len(self.cfg[opt]) > 0:
-                    self.cfg[opt] = self.cfg[opt][0]
-                else:
-                    self.cfg[opt] = ''
+                self.iter_opts[opt + suffix] = self.cfg[opt][::-1]  # reversed copy
+                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt + suffix]))
+
+        # pop first element from all *_list options as next value to use
+        for (lsname, ls) in self.iter_opts.items():
+            opt = lsname[:-sufflen]  # drop '_list' part from name to get option name
+            if len(self.cfg[opt]) > 0:
+                self.cfg[opt] = self.iter_opts[lsname].pop()  # first element will be used next
+            else:
+                self.cfg[opt] = ''  # empty list => empty option as next value
+            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+
+        # re-enable templating before self.cfg values are used
+        self.cfg.enable_templating = True
 
     def print_environ(self):
         """
@@ -1173,7 +1185,6 @@ class EasyBlock(object):
         """
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
-        self.handle_build_options_as_lists()
 
     def configure_step(self):
         """Configure build  (abstract method)."""
@@ -1201,35 +1212,6 @@ class EasyBlock(object):
     def install_step(self):
         """Install built software (abstract method)."""
         raise NotImplementedError
-
-    def iterate_step(self):
-        """Iterate over specified configure/build/install options, if required."""
-
-        # determine configure/build/install options specified as lists to iterate over
-        # i.e., the ones available as *_list in the easyconfig
-        opts_to_iterate = [opt for opt in ITERATE_OPTIONS if self.iter_opts.get("%s_list" % opt, None) is not None]
-        self.log.debug('options to iterate over: %s' % opts_to_iterate)
-
-        # iterate over configure/build/install options specified as lists
-        if opts_to_iterate:
-            # lists have been checked to have same lengths, so just use length of first element
-            for i in xrange(0, len(self.iter_opts["%s_list" % opts_to_iterate[0]])):
-
-                # set configure/build/install options to next item in list
-                for opt in opts_to_iterate:
-                    self.cfg[opt] = self.iter_opts["%s_list" % opt][i]
-                    self.log.debug("Using '%s = %s' in iteration %s" % (opt, self.cfg[opt], i))
-
-                # rerun configue/make/make install in freshly unpacked build dir
-                self.make_builddir()
-                self.extract_step()
-                self.patch_step()
-                self.guess_start_dir()
-
-                self.configure_step()
-                self.build_step()
-                self.test_step()
-                self.install_step()
 
     def extensions_step(self):
         """
@@ -1610,36 +1592,92 @@ class EasyBlock(object):
             raise StopException(step)
 
     @staticmethod
-    def get_steps(run_test_cases=True):
+    def get_steps(run_test_cases=True, iteration_count=1):
         """Return a list of all steps to be performed."""
 
-        steps = [
-                  # stop name: (description, list of functions, skippable)
-                  ('fetch', 'fetching files', [lambda x: x.fetch_step()], False),
-                  ('ready', "getting ready, creating build dir, resetting environment",
-                   [lambda x: x.check_readiness_step(), lambda x: x.gen_installdir(),
-                    lambda x: x.make_builddir(), lambda x: env.reset_changes()],
-                   False),
-                  ('source', 'unpacking', [lambda x: x.checksum_step(),
-                                           lambda x: x.extract_step()], True),
-                  ('patch', 'patching', [lambda x: x.patch_step()], True),
-                  ('prepare', 'preparing', [lambda x: x.prepare_step()], False),
-                  ('configure', 'configuring', [lambda x: x.configure_step()], True),
-                  ('build', 'building', [lambda x: x.build_step()], True),
-                  ('test', 'testing', [lambda x: x.test_step()], True),
-                  ('install', 'installing', [
-                                             lambda x: x.stage_install_step(),
-                                             lambda x: x.make_installdir(),
-                                             lambda x: x.install_step(),
-                                            ], True),
-                  ('iterate', 'iterating over builds options', [lambda x: x.iterate_step()], True),
-                  ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
-                  ('package', 'packaging', [lambda x: x.package_step()], True),
-                  ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
-                  ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
-                  ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
-                  ('module', 'creating module', [lambda x: x.make_module_step()], False),
-                  ]
+        def get_step(tag, descr, substeps, skippable, initial=True):
+            """Determine step definition based on whether it's an initial run or not."""
+            substeps = [substep for (always_include, substep) in substeps if (initial or always_include)]
+            return (tag, descr, substeps, skippable)
+
+        # list of substeps for steps that are slightly different from 2nd iteration onwards
+        ready_substeps = [
+            (False, lambda x: x.check_readiness_step()),
+            (False, lambda x: x.gen_installdir()),
+            (True, lambda x: x.make_builddir()),
+            (True, lambda x: env.reset_changes()),
+            (True, lambda x: x.handle_iterate_opts()),
+        ]
+        ready_step_spec = lambda initial: get_step('ready', "creating build dir, resetting environment",
+                                                   ready_substeps, False, initial=initial)
+
+        source_substeps = [
+                           (False, lambda x: x.checksum_step()),
+                           (True, lambda x: x.extract_step()),
+                          ]
+        source_step_spec = lambda initial: get_step('source', "unpacking", source_substeps, True, initial=initial)
+
+        def prepare_step_spec(initial):
+            """Return prepare step specification."""
+            if initial:
+                substeps = [lambda x: x.prepare_step()]
+            else:
+                substeps = [lambda x: x.guess_start_dir()]
+            return ('prepare', 'preparing', substeps, False)
+
+        install_substeps = [
+            (False, lambda x: x.stage_install_step()),
+            (False, lambda x: x.make_installdir()),
+            (True, lambda x: x.install_step()),
+        ]
+        install_step_spec = lambda initial: get_step('install', "installing", install_substeps, True, initial=initial)
+
+        # format for step specifications: (stop_name: (description, list of functions, skippable))
+
+        # core steps that are part of the iterated loop
+        patch_step_spec = ('patch', 'patching', [lambda x: x.patch_step()], True)
+        configure_step_spec = ('configure', 'configuring', [lambda x: x.configure_step()], True)
+        build_step_spec = ('build', 'building', [lambda x: x.build_step()], True)
+        test_step_spec = ('test', 'testing', [lambda x: x.test_step()], True)
+
+        # part 1: pre-iteration + first iteration
+        steps_part1 = [
+            ('fetch', 'fetching files', [lambda x: x.fetch_step()], False),
+            ready_step_spec(True),
+            source_step_spec(True),
+            patch_step_spec,
+            prepare_step_spec(True),
+            configure_step_spec,
+            build_step_spec,
+            test_step_spec,
+            install_step_spec(True),
+        ]
+        # part 2: iterated part, from 2nd iteration onwards
+        # repeat core procedure again depending on specified iteration count
+        # not all parts of all steps need to be rerun (see e.g., ready, prepare)
+        steps_part2 = [
+            ready_step_spec(False),
+            source_step_spec(False),
+            patch_step_spec,
+            prepare_step_spec(False),
+            configure_step_spec,
+            build_step_spec,
+            test_step_spec,
+            install_step_spec(False),
+        ] * (iteration_count - 1)
+        # part 3: post-iteration part
+        steps_part3 = [
+            ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
+            ('package', 'packaging', [lambda x: x.package_step()], True),
+            ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
+            ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
+            ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
+            ('module', 'creating module', [lambda x: x.make_module_step()], False),
+        ]
+
+
+        # full list of steps, included iterated steps
+        steps = steps_part1 + steps_part2 + steps_part3
 
         if run_test_cases:
             steps.append(('testcases', 'running test cases', [
@@ -1658,7 +1696,9 @@ class EasyBlock(object):
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases)
+        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                              if isinstance(self.cfg[opt], (list, tuple))])
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=iter_cnt)
 
         try:
             full_name = "%s-%s" % (self.name, self.get_installversion())

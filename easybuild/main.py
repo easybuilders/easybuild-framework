@@ -80,7 +80,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for
+from easybuild.framework.easyconfig import EasyConfig, get_paths_for, ITERATE_OPTIONS
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
@@ -1060,7 +1060,9 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
             os.chdir(base_dir)
             modify_env(os.environ, base_env)
 
-            steps = EasyBlock.get_steps()
+            iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                                  if isinstance(self.cfg[opt], (list, tuple))])
+            steps = EasyBlock.get_steps(iteration_count=iter_cnt)
 
             for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:
