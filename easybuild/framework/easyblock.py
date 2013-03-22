@@ -208,7 +208,7 @@ class EasyBlock(object):
             copy_file = False
             suff = None
             level = None
-            if isinsance(patchFile, (list, tuple)):
+            if isinstance(patchFile, (list, tuple)):
                 if not len(patchFile) == 2:
                     self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
                 pf = patchFile[0]
