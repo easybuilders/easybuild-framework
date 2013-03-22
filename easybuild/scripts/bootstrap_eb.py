@@ -230,7 +230,7 @@ def stage1(tmpdir):
     # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("eb --version > %s 2>&1" % version_out_file)
+    os.system("python -Sm easybuild.main --version > %s 2>&1" % version_out_file)
     txt = open(version_out_file, "r").read()
     res = version_re.search(txt)
     if res:
@@ -303,6 +303,11 @@ def stage2(tmpdir, versions, install_path):
 
 def main():
     """Main script: bootstrap EasyBuild in stages."""
+
+    # disallow running as root, since stage 2 will fail
+    if os.getuid() == 0:
+        error("Don't run the EasyBuild bootstrap script as root, "
+              "since stage 2 (installing EasyBuild with EasyBuild) will fail.")
 
     # see if an install dir was specified
     if not len(sys.argv) == 2:
