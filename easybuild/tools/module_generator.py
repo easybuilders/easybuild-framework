@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Generating module files.
 
@@ -33,17 +33,14 @@ Generating module files.
 @author: Fotis Georgatos (Uni.Lu)
 """
 import os
-import shutil
 import tempfile
+from vsc import fancylogger
 
-from easybuild.tools.build_log import get_log
 from easybuild.tools.config import install_path
-from easybuild.tools.filetools import rmtree2
-from easybuild.tools.modules import Modules
 from easybuild.tools.utilities import quote_str
 
 
-log = get_log('moduleGenerator')
+_log = fancylogger.getLogger('moduleGenerator', fname=False)
 
 # general module class
 GENERAL_CLASS = 'all'
@@ -68,7 +65,7 @@ class ModuleGenerator(object):
         # Fake mode: set installpath to temporary dir
         if self.fake:
             self.tmpdir = tempfile.mkdtemp()
-            log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, module_path))
+            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, module_path))
             module_path = self.tmpdir
 
         # Real file goes in 'all' category
@@ -84,7 +81,7 @@ class ModuleGenerator(object):
                 try:
                     os.makedirs(directory)
                 except OSError, err:
-                    log.exception("Couldn't make directory %s: %s" % (directory, err))
+                    _log.exception("Couldn't make directory %s: %s" % (directory, err))
 
         # Make a symlink from classpathFile to self.filename
         try:
@@ -96,7 +93,7 @@ class ModuleGenerator(object):
                 os.remove(self.filename)
             os.symlink(self.filename, classPathFile)
         except OSError, err:
-            log.exception("Failed to create symlink from %s to %s: %s" % (classPathFile, self.filename, err))
+            _log.exception("Failed to create symlink from %s to %s: %s" % (classPathFile, self.filename, err))
 
         return os.path.join(module_path, GENERAL_CLASS)
 
@@ -163,13 +160,13 @@ if { ![is-loaded %(name)s/%(version)s] } {
         template = "prepend-path\t%s\t\t$root/%s\n"  # $root = installdir
 
         if isinstance(paths, basestring):
-            log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            _log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
         # make sure only relative paths are passed
         for path in paths:
             if path.startswith(os.path.sep) and not allow_abs:
-                log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
 
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
