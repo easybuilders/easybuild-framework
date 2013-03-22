@@ -38,7 +38,7 @@ import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
-from easybuild.framework.easyconfig.easyconfig import EasyConfig,build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -380,7 +380,7 @@ class EasyBuildOptions(GeneralOption):
         """
         app = get_class(self.options.easyblock)
         extra = app.extra_options()
-        mapping = convert_to_help(EasyConfig.default_config + extra)
+        mapping = convert_to_help(extra, has_default=False)
         if len(extra) > 0:
             ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
             extra_names = [x[0] for x in extra]

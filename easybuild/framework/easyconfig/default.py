@@ -139,6 +139,7 @@ DEFAULT_CONFIG = {
                   'buildstats': [None, "A list of dicts with build statistics", "OTHER"],
             }
 
+
 def sorted_categories():
     """
     returns the categories in the correct order
@@ -148,11 +149,18 @@ def sorted_categories():
     return categories
 
 
-def convert_to_help(opts):
+def convert_to_help(opts, has_default=False):
     """
     Converts the given list to a mapping of category -> [(name, help)] (OrderedDict)
+        @param: has_default, if False, add the DEFAULT_CONFIG list
     """
     mapping = OrderedDict()
+    if not has_default:
+        defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
+        opts = defs + opts
+
+    # sort opts
+    opts.sort()
 
     for cat in sorted_categories():
         mapping[cat[1]] = [(opt[0], "%s (default: %s)" % (opt[1][1], opt[1][0]))
