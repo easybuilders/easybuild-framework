@@ -767,7 +767,6 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         except OSError, err:
             if ignore_errors:
                 # ignore errors while adjusting permissions (for example caused by bad links)
-                log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
                 _log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
                 fail_cnt += 1
             else:
