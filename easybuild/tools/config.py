@@ -206,7 +206,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
                 'tmp_logdir': tempfile.gettempdir(),
                 'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
                 'subdir_modules': 'modules',
-                'subdir_software': 'install',
+                'subdir_software': 'software',
                 }
 
     # sanity check
