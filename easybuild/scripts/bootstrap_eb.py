@@ -207,6 +207,7 @@ def stage1(tmpdir):
 
     versions = {}
 
+    pkg_egg_dir_framework = None
     for pkg in ['easyconfigs', 'easyblocks', 'framework']:
         pkg_egg_dir = find_egg_dir_for(targetdir_stage1, 'easybuild-%s' % pkg)
 
@@ -226,11 +227,14 @@ def stage1(tmpdir):
         else:
             error("Failed to determine version for easybuild-%s package from %s with %s" % (pkg, pkg_egg_dirname, version_regex.pattern))
 
+        if pkg == 'framework':
+            pkg_egg_dir_framework = pkg_egg_dir
+
     # figure out EasyBuild version via eb command line
     # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("python -Sm easybuild.main --version > %s 2>&1" % version_out_file)
+    os.system("python -S %s/easybuild/main.py --version > %s 2>&1" % (pkg_egg_dir_framework, version_out_file))
     txt = open(version_out_file, "r").read()
     res = version_re.search(txt)
     if res:
