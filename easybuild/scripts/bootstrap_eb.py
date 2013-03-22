@@ -48,8 +48,8 @@ import tempfile
 from distutils.version import LooseVersion
 
 # set print_debug to True for detailed progress info
-#print_debug = True
 print_debug = False
+#print_debug = True
 
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
@@ -180,7 +180,7 @@ def stage0(tmpdir):
         debug("Found setuptools in expected path, good!")
 
 def stage1(tmpdir):
-    """STAGE 1: temporary install EasyBuild."""
+    """STAGE 1: temporary install EasyBuild using distribute's easy_install."""
 
     info("\n\n+++ STAGE 1: installing EasyBuild in temporary dir with easy_install...\n\n")
 
@@ -190,9 +190,9 @@ def stage1(tmpdir):
     targetdir_stage1 = os.path.join(tmpdir, 'eb_stage1')
     prep(targetdir_stage1)  # set PATH, Python search path
 
+
     # install latest EasyBuild with easy_install from PyPi
     cmd = []
-    cmd.append('--always-copy')  # copy eggs if they're found somewhere
     cmd.append('--upgrade')  # make sure the latest version is pulled from PyPi
     cmd.append('--prefix=%s' % targetdir_stage1)
     cmd.append('easybuild')
@@ -280,19 +280,18 @@ def stage2(tmpdir, versions, install_path):
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
 
-    # set build path to tmp dir
-    if LooseVersion(versions['version']) < LooseVersion("1.3"):
+    # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
+    # and set build and install path explicitely
+    if LooseVersion(versions['version']) < LooseVersion("1.3.0"):
+        os.environ['EASYBUILDPREFIX'] = tmpdir
         os.environ['EASYBUILDBUILDPATH'] = tmpdir
+        if install_path is not None:
+            os.environ['EASYBUILDINSTALLPATH'] = install_path
     else:
         # only for v1.3 and up
+        eb_args.append('--prefix=%s' % tmpdir)
         eb_args.append('--buildpath=%s' % tmpdir)
-
-    # set install dir
-    if install_path is not None:
-        if LooseVersion(versions['version']) < LooseVersion("1.3"):
-            os.environ['EASYBUILDINSTALLPATH'] = install_path
-        else:
-            # only for v1.3 and up
+        if install_path is not None:
             eb_args.append('--installpath=%s' % install_path)
 
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
@@ -315,9 +314,6 @@ def main():
     debug("Going to use %s as temporary directory" % tmpdir)
     os.chdir(tmpdir)
 
-    # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
-    os.environ['EASYBUILDPREFIX'] = tmpdir
-
     # check whether 'modulecmd' is available, we need that
     out = os.path.join(tmpdir, 'modulecmd.out')
     cmd = "modulecmd python help"
@@ -327,6 +323,25 @@ def main():
     if not modcmd_re.search(txt):
         error("Could not find 'modulecmd', make sure it's available in your PATH. \
                Output from %s: %s" % (cmd, txt))
+
+    # clean sys.path, remove paths that may contain EasyBuild packages or stuff installed with easy_install
+    orig_sys_path = sys.path[:]
+    sys.path = []
+    for path in orig_sys_path:
+        include_path = True
+        # exclude path if it's potentially an EasyBuild package
+        if 'easybuild' in path:
+            include_path = False
+        # exclude path if it contain an easy-install.pth file
+        if os.path.exists(os.path.join(path, 'easy-install.pth')):
+            include_path = False
+
+        if include_path:
+            sys.path.append(path)
+        else:
+            debug("Excluding %s from sys.path" % path)
+
+    debug("sys.path after cleaning: %s" % sys.path)
 
     # install EasyBuild in stages
 
