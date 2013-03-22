@@ -31,9 +31,9 @@ Interface module to TORQUE (PBS).
 """
 
 import os
-from easybuild.tools.build_log import get_log
+from vsc import fancylogger
 
-_log = get_log('pbs_job')
+_log = fancylogger.getLogger('pbs_job', fname=False)
 
 pbs_import_failed = None
 try:
@@ -67,7 +67,7 @@ def disconnect_from_server(conn):
 def get_ppn():
     """Guess the ppn for full node"""
 
-    log = get_log('pbs_job.get_ppn')
+    log = fancylogger.getLogger('pbs_job.get_ppn')
 
     pq = PBSQuery()
     node_vals = pq.getnodes().values()  # only the values, not the names
@@ -94,7 +94,7 @@ class PbsJob(object):
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
         self.clean_conn = True
-        self.log = get_log(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
