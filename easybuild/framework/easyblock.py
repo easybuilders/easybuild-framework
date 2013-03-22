@@ -1095,6 +1095,12 @@ class EasyBlock(object):
                 self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name,
                     self.get_installversion()))
 
+        # Set group id, if a group was specified
+        if self.cfg['group']:
+            gid = grp.getgrnam(self.cfg['group'])[2]
+            os.setgid(gid)
+            self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
+
     def fetch_step(self):
         """
         prepare for building
