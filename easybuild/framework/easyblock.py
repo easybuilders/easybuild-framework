@@ -56,6 +56,7 @@ from easybuild.tools.config import read_only_installdir, source_path, module_cla
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -643,7 +644,9 @@ class EasyBlock(object):
         # these should be all the dependencies and we should load them
         for key in os.environ:
             # legacy support
-            if key.startswith("EBDEVEL") or key.startswith("SOFTDEVEL"):
+            if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX) or key.startswith("SOFTDEVEL"):
+                if key.startswith("SOFTDEVEL"):
+                    self.log.deprecated("Environment variable SOFTDEVEL* being relied on", "2.0")
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
@@ -710,11 +713,11 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.moduleGenerator.set_environment("EBROOT" + environment_name, "$root")
-        txt += self.moduleGenerator.set_environment("EBVERSION" + environment_name, self.version)
+        txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+        txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
         devel_path = os.path.join("$root", log_path(), "%s-%s-easybuild-devel" % (self.name,
             self.get_installversion()))
-        txt += self.moduleGenerator.set_environment("EBDEVEL" + environment_name, devel_path)
+        txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
         for (key, value) in self.cfg['modextravars'].items():
