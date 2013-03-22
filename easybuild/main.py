@@ -75,6 +75,10 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
+# IMPORTANT this has to be the first easybuild import as it customises the logging
+#  expect missing log output when this not the case!
+from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
+
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
@@ -84,7 +88,6 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
 from easybuild.tools.filetools import modify_env

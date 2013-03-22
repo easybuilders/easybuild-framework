@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 EasyBuild logger and log utilities, including our own EasybuildError class.
 
@@ -50,6 +50,7 @@ class EasyBuildError(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
         self.msg = msg
+
     def __str__(self):
         return repr(self.msg)
 
