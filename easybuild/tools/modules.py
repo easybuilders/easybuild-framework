@@ -64,6 +64,8 @@ outputMatchers = {
     'available': re.compile(r"^\s*(?P<name>\S+?)/(?P<version>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
 }
 
+_log = fancylogger.getLogger('modules', fname=False)
+
 
 class Modules(object):
     """
@@ -413,6 +415,8 @@ def get_software_root(name, with_env_var=False):
         env_var = environment_key
     else:
         env_var = legacy_key
+        if legacy_key in os.environ:
+            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     root = os.getenv(env_var)
 
@@ -439,6 +443,8 @@ def get_software_version(name):
     if environment_key in os.environ:
         return os.getenv(environment_key)
     else:
+        if legacy_key in os.environ:
+            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
         return os.getenv(legacy_key)
 
 

@@ -645,6 +645,8 @@ class EasyBlock(object):
         for key in os.environ:
             # legacy support
             if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX) or key.startswith("SOFTDEVEL"):
+                if key.startswith("SOFTDEVEL"):
+                    self.log.deprecated("Environment variable SOFTDEVEL* being relied on", "2.0")
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
