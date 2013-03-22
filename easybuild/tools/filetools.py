@@ -743,6 +743,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
         allpaths = [name]
 
     failed_paths = []
+    fail_cnt = 0
     for path in allpaths:
 
         try:
@@ -767,11 +768,22 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
             if ignore_errors:
                 # ignore errors while adjusting permissions (for example caused by bad links)
                 _log.info("Failed to chmod/chown %s (but ignoring it): %s" % (path, err))
+                fail_cnt += 1
             else:
                 failed_paths.append(path)
 
     if failed_paths:
-        _log.exception("Failed to chmod/chown several paths: %s (last error: %s)" % (failed_paths, err))
+        _log.error("Failed to chmod/chown several paths: %s (last error: %s)" % (failed_paths, err))
+
+    # we ignore some errors, but if there are to many, something is definitely wrong
+    fail_ratio = fail_cnt / float(len(allpaths))
+    max_fail_ratio = 0.5
+    if fail_ratio > max_fail_ratio:
+        log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
+                  (100*fail_ratio, 100*max_fail_ratio))
+    elif fail_cnt > 0:
+        log.debug("%d%% of permissions/owner operations failed, ignoring that..." % int(100*fail_ratio))
+
 
 def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
