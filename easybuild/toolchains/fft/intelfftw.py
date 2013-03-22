@@ -69,6 +69,6 @@ class IntelFFTW(Fftw):
                 for lib in fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
-            self.log.info("Not all FFTW interface libraries (%s) are found in %s, setting FFT_LIB empty." % \
-                          (fftw_libs, self.FFT_LIB_DIR))
+            self.log.error("Not all FFTW interface libraries (%s) are found in %s, can't set FFT_LIB." % \
+                           (fftw_libs, self.FFT_LIB_DIR))
             self.FFT_LIB = []
