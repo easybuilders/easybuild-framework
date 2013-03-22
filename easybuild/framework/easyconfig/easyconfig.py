@@ -52,14 +52,15 @@ from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
-# TODO add license here to make it really MANDATORY
+_log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
+
+
+# add license here to make it really MANDATORY (remove comment in default)
+_log.deprecated('Mandatory license not enforced', '2.0')
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'premakeopts', 'makeopts', 'preinstallopts', 'installopts']
-
-
-_log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
 
 class EasyConfig(object):
@@ -227,12 +228,20 @@ class EasyConfig(object):
         self.validate_iterate_opts_lists()
 
         self.log.info("Checking licenses")
-        # TODO when mandatory, remove this possibility
+        self.validate_license()
+
+    def validate_license(self):
+        """Validate the license"""
         if self._config['license'][0] is None:
+            self.log.deprecated('Mandatory license not enforced', '2.0')
+            # when mandatory, remove this possibility
             if 'license' in self.mandatory:
                 self.log.error('Invalid license %s. License is mandatory' % (self._config['license'][0]))
         elif not self._config['license'][0] in EASYCONFIG_LICENSES_DICT.values():
             self.log.error('Invalid license %s.' % (self._config['license'][0]))
+
+        # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
+        #  check the owner of source / binary (must match 'group' parameter from easyconfig)
 
         return True
 

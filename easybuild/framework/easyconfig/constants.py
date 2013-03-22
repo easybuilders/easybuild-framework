@@ -46,10 +46,11 @@ EASYCONFIG_CONSTANTS = [
                         ('OS_VERSION', get_os_version(), "System version"),
                        ]
 
+
 def constant_documentation():
     """Generate the easyconfig constant documentation"""
-    indent_l0 = " "*2
-    indent_l1 = indent_l0 + " "*2
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")

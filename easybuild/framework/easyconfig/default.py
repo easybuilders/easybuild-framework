@@ -57,6 +57,7 @@ DEFAULT_CONFIG = {
                   'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
                   'description': [None, 'A short description of the software', "MANDATORY"],
                   'homepage': [None, 'The homepage of the software', "MANDATORY"],
+                  # TODO not yet in MANDATORY_PARAMS, so not enforced
                   'license': [None, 'Software license', "MANDATORY"],
 
                   'toolchainopts': ['', 'Extra options for compilers', "TOOLCHAIN"],

@@ -31,8 +31,10 @@ be used within an Easyconfig file.
 """
 
 from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
+
 
 class License(object):
     """EasyBuild easyconfig license class"""
@@ -61,35 +63,40 @@ class License(object):
         self.group_source = self.GROUP_SOURCE
         self.group_binary = self.GROUP_BINARY
 
+
 class License_Open(License):
+    """
+    Hidden license class to subclass open licenses.
+    'Open' here means, that source can be redistributed, and that both source
+    and binaries do not need special groups (ie anyone can access/use it).
+    """
     HIDDEN = True
     DISTRIBUTE_SOURCE = True
     GROUP_SOURCE = False
     GROUP_BINARY = False
 
+
 class License_GPL(License_Open):
+    """
+    Hidden license class to subclass GPL licenses.
+    """
     DESCRIPTION = ("The GNU General Public License is a free, "
                    "copyleft license for software and other kinds of works.")
 
+
 class License_GPLv2(License_GPL):
+    """GPLv2 license"""
     HIDDEN = False
-    VERSION = (2)
+    VERSION = (2,)
+
 
 class License_GPLv3(License_GPLv2):
-    VERSION = (3)
-
-
-def get_subclasses(klass):
-    """Get all subclasses recursively"""
-    res = []
-    for cl in klass.__subclasses__():
-        res.extend(get_subclasses(cl))
-        res.append(cl)
-    return res
+    """GPLv3 license"""
+    VERSION = (3,)
 
 
 def what_licenses():
-    """Return a dict of EB_License subclasses names and license instances"""
+    """Return a dict of License subclasses names and license instances"""
     res = {}
     for lic in get_subclasses(License):
         if lic.HIDDEN:
@@ -106,8 +113,8 @@ EASYCONFIG_LICENSES = EASYCONFIG_LICENSES_DICT.keys()
 
 def license_documentation():
     """Generate the easyconfig licenses documentation"""
-    indent_l0 = " "*2
-    indent_l1 = indent_l0 + " "*2
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")
