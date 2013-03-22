@@ -47,8 +47,9 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.framework.easyconfig import ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes

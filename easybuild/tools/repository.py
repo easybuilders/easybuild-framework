@@ -42,7 +42,8 @@ import time
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.framework.easyconfig import EasyConfig, stats_to_str
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.version import VERBOSE_VERSION
 
