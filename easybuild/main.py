@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -22,7 +22,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Main entry point for EasyBuild: build software from .eb input file
 
@@ -48,6 +48,7 @@ import traceback
 import xml.dom.minidom as xml
 from datetime import datetime
 from vsc import fancylogger
+from vsc.utils.missing import any
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
@@ -80,7 +81,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
@@ -90,9 +91,10 @@ from easybuild.tools.filetools import modify_env
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.utilities import any
+
 
 log = None
+
 
 def main(testing_data=(None, None)):
     """
@@ -114,7 +116,9 @@ def main(testing_data=(None, None)):
     args, logfile = testing_data
 
     # initialise options
-    (options, orig_paths, opt_parser, cmd_args) = eboptions.parse_options(args=args)
+    eb_go = eboptions.parse_options(args=args)
+    options = eb_go.options
+    orig_paths = eb_go.args
 
     # initialise logging for main
     if options.logtostdout:
@@ -148,6 +152,7 @@ def main(testing_data=(None, None)):
     easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
     easyconfigs_pkg_full_path = None
 
+    search_path = os.getcwd()
     if easyconfigs_paths:
         easyconfigs_pkg_full_path = easyconfigs_paths[0]
         if not options.robot:
@@ -160,12 +165,8 @@ def main(testing_data=(None, None)):
     if options.robot:
         easyconfigs_paths = [options.robot] + easyconfigs_paths
 
-    configOptions = {}
-    if options.pretend:
-        configOptions['install_path'] = os.path.join(os.environ['HOME'], 'easybuildinstall')
-
-    # default location of configfile is set as default in the config option
-    config.init(options.config, **configOptions)
+    # initialise the easybuild configuration
+    config.init(options, eb_go.get_options_by_section('config'))
 
     # search for modules
     if options.search:
@@ -183,7 +184,7 @@ def main(testing_data=(None, None)):
         elif not any([options.aggregate_regtest, options.search, options.regtest]):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                   "options to make EasyBuild search for easyconfigs"),
-                  log=log, opt_parser=opt_parser, exit_on_error=not testing)
+                  log=log, opt_parser=eb_go.parser, exit_on_error=not testing)
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they we found at the given relative paths
@@ -196,12 +197,12 @@ def main(testing_data=(None, None)):
                     easyconfigs_map.update({filename: os.path.join(subpath, filename)})
 
             # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
-            for i in range(len(orig_paths)):
-                if not os.path.isabs(orig_paths[i]) and not os.path.exists(orig_paths[i]):
-                    if orig_paths[i] in easyconfigs_map:
-                        log.info("Found %s in %s: %s" % (orig_paths[i], easyconfigs_pkg_full_path,
-                                                         easyconfigs_map[orig_paths[i]]))
-                        orig_paths[i] = easyconfigs_map[orig_paths[i]]
+            for idx, orig_path in enumerate(orig_paths):
+                if not os.path.isabs(orig_path) and not os.path.exists(orig_path):
+                    if orig_path in easyconfigs_map:
+                        log.info("Found %s in %s: %s" % (orig_path, easyconfigs_pkg_full_path,
+                                                         easyconfigs_map[orig_path]))
+                        orig_paths[idx] = easyconfigs_map[orig_path]
 
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in orig_paths]
@@ -299,8 +300,8 @@ def main(testing_data=(None, None)):
         # the options to ignore (help options can't reach here)
         ignore_opts = ['robot', 'job']
 
-        # cmd_args is in form --longopt=value
-        opts = [x for x in cmd_args if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
+        # generate_cmd_line returns the options in form --longopt=value
+        opts = [x for x in eb_go.generate_cmd_line() if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
 
         quoted_opts = subprocess.list2cmdline(opts)
 
@@ -316,6 +317,8 @@ def main(testing_data=(None, None)):
             msg = "\n".join(txt)
             log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
+
+            cleanup_logfile_and_exit(logfile, testing, True)
 
             sys.exit(0)
 
@@ -1058,7 +1061,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
             os.chdir(base_dir)
             modify_env(os.environ, base_env)
 
-            steps = EasyBlock.get_steps()
+            steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
 
             for (step_name, _, step_methods, _) in steps:
                 for step_method in step_methods:
@@ -1170,7 +1173,7 @@ def regtest(options, easyconfig_paths):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.environmentVariables['test_output_path']
+    var = config.oldstyle_environment_variables['test_output_path']
     if options.regtest_output_dir:
         output_dir = options.regtest_output_dir
     elif var in os.environ:

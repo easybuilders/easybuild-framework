@@ -452,7 +452,7 @@ def tweak(src_fn, target_fn, tweaks):
     # we need to treat list values seperately, i.e. we prepend to the current value (if any)
     for (key, val) in tweaks.items():
 
-        if type(val) == list:
+        if isinstance(val, list):
 
             regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
 
@@ -578,7 +578,7 @@ def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
-    if not (type(stats) == OrderedDict or type(stats) == dict):
+    if not isinstance(stats, (OrderedDict, dict)):
         _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
 
     txt = "{\n"
@@ -586,7 +586,7 @@ def stats_to_str(stats):
     pref = "    "
 
     def tostr(x):
-        if type(x) == str:
+        if isinstance(x, basestring):
             return "'%s'" % x
         else:
             return str(x)
