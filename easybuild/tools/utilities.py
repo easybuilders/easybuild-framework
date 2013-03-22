@@ -29,6 +29,7 @@ Module with various utility functions
 """
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
+from vsc.utils.missing import all as _all
 
 _log = fancylogger.getLogger('tools.utilities')
 
@@ -36,14 +37,14 @@ _log = fancylogger.getLogger('tools.utilities')
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
     _log.deprecated("own definition of any", "2.0")
-    _any(ls)
+    return _any(ls)
 
 
-# FIXME: remove when Python version on which we rely provides any by itself
 def all(ls):
     """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
+    _log.deprecated("own definition of all", "2.0")
+    return _all(ls)
 
-    return sum([bool(x) for x in ls]) == len(ls)
 
 def flatten(lst):
     """Flatten a list of lists."""
