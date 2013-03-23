@@ -779,10 +779,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
-        log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
+        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
                   (100*fail_ratio, 100*max_fail_ratio))
     elif fail_cnt > 0:
-        log.debug("%d%% of permissions/owner operations failed, ignoring that..." % int(100*fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100*fail_ratio))
 
 
 def patch_perl_script_autoflush(path):
