@@ -34,13 +34,15 @@ import os
 import re
 import shutil
 import tempfile
+from vsc import fancylogger
 
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import EasyConfig, tweak, obtain_ec_for
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.test.utilities import find_full_path
-from easybuild.tools.build_log import EasyBuildError, get_log
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 class EasyConfigTest(TestCase):
@@ -49,7 +51,7 @@ class EasyConfigTest(TestCase):
 
     def setUp(self):
         """ create temporary easyconfig file """
-        self.log = get_log("EasyConfigTest")
+        self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
         if self.contents is not None:
             fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
             os.close(fd)
@@ -382,11 +384,11 @@ class TestInstallVersion(EasyConfigTest):
         tcver = "4.6.3"
         dummy = "dummy"
 
-        installver = easyconfig.det_installversion(ver, tcname, tcver, verpref, versuff)
+        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
 
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
 
-        installver = easyconfig.det_installversion(ver, dummy, tcver, verpref, versuff)
+        installver = det_installversion(ver, dummy, tcver, verpref, versuff)
 
         self.assertEqual(installver, "%s%s%s" % (verpref, ver, versuff))
 
@@ -600,10 +602,10 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         """ test easyconfig templating """
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
         eb.validate()
-        eb._generate_template_values()
+        eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
-        const_dict = dict([(x[0], x[1]) for x in easyconfig.TEMPLATE_CONSTANTS])
+        const_dict = dict([(x[0], x[1]) for x in easyconfig.templates.TEMPLATE_CONSTANTS])
         self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
@@ -618,18 +620,93 @@ class TestTemplatingDoc(EasyConfigTest):
     """test templating documentation"""
     def runTest(self):
         """test templating documentation"""
-        doc = easyconfig.generate_template_values_doc()
+        doc = easyconfig.templates.template_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
-                 easyconfig.TEMPLATE_NAMES_EASYCONFIG,
-                 easyconfig.TEMPLATE_NAMES_CONFIG,
-                 easyconfig.TEMPLATE_NAMES_LOWER,
-                 easyconfig.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
-                 easyconfig.TEMPLATE_CONSTANTS,
-                 easyconfig.EASYCONFIG_CONSTANTS,
+                 easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
+                 easyconfig.templates.TEMPLATE_NAMES_CONFIG,
+                 easyconfig.templates.TEMPLATE_NAMES_LOWER,
+                 easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+                 easyconfig.templates.TEMPLATE_CONSTANTS,
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
+class TestConstantDoc(EasyConfigTest):
+    """test constant documentation"""
+    def runTest(self):
+        """test constant documentation"""
+        doc = easyconfig.constants.constant_documentation()
+        # expected length: 1 per constant and 1 extra per constantgroup
+        temps = [
+                 easyconfig.constants.EASYCONFIG_CONSTANTS,
+                ]
+        self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
+
+class TestBuildOptions(EasyConfigTest):
+    """Test configure/build/install options, both strings and lists."""
+
+    orig_contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://google.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+"""
+    contents = orig_contents
+
+    def runTest(self):
+        """Test configure/build/install options, both strings and lists."""
+
+        # configopts as string
+        configopts = '--opt1 --opt2=foo'
+        self.contents = self.orig_contents + "\nconfigopts = '%s'" % configopts
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'], configopts)
+
+        # configopts as list
+        configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'][0], configopts[0])
+        self.assertEqual(eb['configopts'][1], configopts[1])
+
+        # also makeopts and installopts as lists
+        makeopts = ['CC=foo' ,'CC=bar']
+        installopts = ['FOO=foo' ,'BAR=bar']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+        self.assertEqual(eb['configopts'][0], configopts[0])
+        self.assertEqual(eb['configopts'][1], configopts[1])
+        self.assertEqual(eb['makeopts'][0], makeopts[0])
+        self.assertEqual(eb['makeopts'][1], makeopts[1])
+        self.assertEqual(eb['installopts'][0], installopts[0])
+        self.assertEqual(eb['installopts'][1], installopts[1])
+
+        # error should be thrown if lists are not equal
+        installopts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False)
+        self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
+                              eb.validate)
+
+        # list with a single element is OK, is treated as a string
+        installopts = ['FOO=foo']
+        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.contents += "\nmakeopts = %s" % str(makeopts)
+        self.contents += "\ninstallopts = %s" % str(installopts)
+        self.setUp()
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
 def suite():
     """ return all the tests in this file """
@@ -637,7 +714,7 @@ def suite():
                       TestMandatory(), TestSharedLibExt(), TestSuggestions(),
                       TestValidation(), TestTweaking(), TestInstallVersion(),
                       TestObtainEasyconfig(),
-                      TestTemplating(), TestTemplatingDoc(),
+                      TestTemplating(), TestTemplatingDoc(), TestConstantDoc(),
                       ])
 
 
