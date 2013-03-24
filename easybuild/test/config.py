@@ -61,7 +61,9 @@ class EasyBuildConfigTest(TestCase):
     def test_legacy_opts(self):
         """Test the legacyopts."""
         self.cleanup()
+
         def set_leg_env(newname, value):
+            """Set legacy environment variables"""
             try:
                 name = config.oldstyle_environment_variables[newname]
             except KeyError:
@@ -87,14 +89,45 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(evars['build_path'], evars['buildpath'])
         self.assertEqual(evars['install_path'], evars['installpath'])
 
+        # cleanup
         self.cleanup()
         shutil.rmtree(tmpdir)
 
+    def test_generaloption_config(self):
+        self.cleanup()
+
+        tmpdir = tempfile.mkdtemp()
+        PREFIX = os.path.join(tmpdir, 'test1')
+        INSTALL = os.path.join(tmpdir, 'test2', 'install')
+        REPOPATH = os.path.join(tmpdir, 'test2', 'repo')
+        CONFIG_FILE = os.path.join(tmpdir, 'nooldconfig.py')
+
+        open(CONFIG_FILE, 'w').write('')
+
+        args = [
+                '--config', CONFIG_FILE,  # force empty oldstyle config file
+                '--prefix', PREFIX,
+                '--installpath', INSTALL,
+                '--repositorypath', REPOPATH,
+                ]
+
+        opts, evars = self.get_opts_config(args)
+
+        self.assertEqual(evars['buildpath'], os.path.join(PREFIX, 'build'))
+        self.assertEqual(evars['installpath'], INSTALL)
+
+        self.assertEqual(opts.installpath, INSTALL)
+        self.assertEqual(opts.config, CONFIG_FILE)
+
+        # cleanup
+        self.cleanup()
+        shutil.rmtree(tmpdir)
 
 
 def suite():
     """ return all the tests in this file """
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
+
 
 if __name__ == '__main__':
     main()
