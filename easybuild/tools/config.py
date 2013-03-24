@@ -153,6 +153,29 @@ class ConfigurationVariables(dict):
         """__contains___ to deal with oldstyle key"""
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
+    def update(self, *args, **kwargs):
+        """
+        It seems that dict.update doesn't use __setitem__.
+        This function now does what the dict.update doctstring describes i.e.
+
+        D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.
+            If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
+            If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
+            In either case, this is followed by: for k in F: D[k] = F[k]
+        """
+        if args:
+            if len(args) > 1:
+                _log.error('Only one argument supported')
+            arg = args[0]
+            if hasattr(arg, 'keys'):
+                for k in arg.keys():
+                    self[k] = arg[k]
+            else:
+                for (k, v) in arg:
+                    self[k] = v
+        for k in kwargs.keys():
+            self[k] = kwargs[k]
+
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
@@ -442,9 +465,14 @@ def oldstyle_init(filename, **kwargs):
     """
     _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
 
+    _log.debug('variables before oldstyle_init %s' % variables)
     variables.update(oldstyle_read_configuration(filename))  # config file
+    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, variables))
     variables.update(oldstyle_read_environment())  # environment
-    variables.update(kwargs)  # CLI options
+    _log.debug('variables after oldstyle_init read_environment %s' % variables)
+    if kwargs:
+        variables.update(kwargs)  # CLI options
+        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, variables))
 
 
 def oldstyle_read_configuration(filename):
