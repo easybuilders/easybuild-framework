@@ -320,7 +320,7 @@ class EasyBuildOptions(GeneralOption):
             # TODO also for repositorypath? (if so, change the help description too)
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
             for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
-                if not self.options._action_taken[dest]:
+                if not self.options._action_taken.get(dest, False):
                     new_def = changed_defaults[dest]
                     if dest == 'repositorypath':
                         setattr(self.options, dest, new_def[changed_defaults['repository']])
