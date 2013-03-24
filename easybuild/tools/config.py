@@ -52,6 +52,14 @@ SUPPORT_OLDSTYLE = True
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 
 
+DEFAULT_PATH_SUBDIRS = {
+                        'buildpath': 'build',
+                        'installpath': '',
+                        'sourcepath': 'sources',
+                        'repositorypath': 'ebfiles_repo',
+                       }
+
+
 # based on
 # https://wickie.hlrs.de/platforms/index.php/Module_Overview
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
@@ -82,11 +90,12 @@ DEFAULT_MODULECLASSES = [
 
 oldstyle_environment_variables = {
     'build_path': 'EASYBUILDBUILDPATH',
-    'install_path': 'EASYBUILDINSTALLPATH',
-    'log_dir': 'EASYBUILDLOGDIR',
     'config_file': 'EASYBUILDCONFIG',
-    'source_path': 'EASYBUILDSOURCEPATH',
+    'install_path': 'EASYBUILDINSTALLPATH',
     'log_format': 'EASYBUILDLOGFORMAT',
+    'log_dir': 'EASYBUILDLOGDIR',
+    'prefix': 'EASYBUILDPREFIX',
+    'source_path': 'EASYBUILDSOURCEPATH',
     'test_output_path': 'EASYBUILDTESTOUTPUT',
 }
 
@@ -191,17 +200,20 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         prefix: string, when provided, it used as prefix for the other defaults (where applicable)
     """
     if prefix is None:
-        prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+        if 'EASYBUILDPREFIX' in os.environ:
+            prefix = os.environ['EASYBUILDPREFIX']
+        else:
+            prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
     # keys are the options dest
     defaults = {
                 'config': get_default_oldstyle_configfile(),
                 'prefix': prefix,
-                'buildpath': os.path.join(prefix, 'build'),
-                'installpath': prefix,
-                'sourcepath': os.path.join(prefix, 'sources'),
+                'buildpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['buildpath']),
+                'installpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['installpath']),
+                'sourcepath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['sourcepath']),
                 'repository': 'FileRepository',
-                'repositorypath': {'FileRepository': [os.path.join(prefix, 'ebfiles_repo')]},
+                'repositorypath': {'FileRepository': [os.path.join(prefix, DEFAULT_PATH_SUBDIRS['repositorypath'])]},
                 'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
                 'tmp_logdir': tempfile.gettempdir(),
                 'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
@@ -257,6 +269,8 @@ def init(options, config_options_dict):
     # update the variables with the generaloption values
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
     variables.update(config_options_dict)
+
+    _log.debug("Config variables: %s" % variables)
 
     # Create an instance of the repository class
     if 'repository' in variables and not isinstance(variables['repository'], Repository):
@@ -459,24 +473,33 @@ def oldstyle_read_configuration(filename):
     except (IOError, SyntaxError), err:
         _log.exception("Failed to read config file %s %s" % (filename, err))
 
+    for (key, value) in file_variables.items():
+        newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key, key)
+        if newkey != key:
+            file_variables[newkey] = value
+            del file_variables[key]
+
     return file_variables
 
 
-def oldstyle_read_environment(env_var=None, strict=False):
+def oldstyle_read_environment(env_vars=None, strict=False):
     """
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
-    _log.deprecated("oldstyle_read_environment env_var %s strict %s" % (env_var, strict), "2.0")
-    if env_var is None:
-        env_var = oldstyle_environment_variables
+    if env_vars is None:
+        env_vars = oldstyle_environment_variables
     result = {}
-    for key in env_var.keys():
-        environment_key = env_var[key]
-        if environment_key in os.environ:
-            result[key] = os.environ[environment_key]
+    for key in env_vars.keys():
+        env_var = env_vars[key]
+        newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key, key)
+        if env_var in os.environ:
+            result[newkey] = os.environ[env_var]
+            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[newkey]), "2.0")
         elif strict:
-            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environment_key))
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (newkey, env_var))
+        else:
+            _log.debug("Old style env var %s not defined." % env_var)
 
     return result
 
