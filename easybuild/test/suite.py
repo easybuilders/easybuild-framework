@@ -50,6 +50,7 @@ import easybuild.test.github as g
 import easybuild.test.toolchainvariables as tcv
 import easybuild.test.toolchain as tc
 import easybuild.test.options as o
+import easybuild.test.config as c
 
 
 # initialize logger for all the unit tests
