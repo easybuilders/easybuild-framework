@@ -213,8 +213,9 @@ class ToolchainVariables(Variables):
                     lfl.toggle_dynamic()
             return lfl
 
-        lib.BEGIN = make_lfl(True)
-        lib.BEGIN.IS_BEGIN = True
-        lib.END = make_lfl(False)
-        lib.END.IS_END = True
+        if lib is not None:
+            lib.BEGIN = make_lfl(True)
+            lib.BEGIN.IS_BEGIN = True
+            lib.END = make_lfl(False)
+            lib.END.IS_END = True
 
