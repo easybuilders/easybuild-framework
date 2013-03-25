@@ -52,6 +52,16 @@ SUPPORT_OLDSTYLE = True
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 
 
+DEFAULT_PATH_SUBDIRS = {
+    'buildpath': 'build',
+    'installpath': '',
+    'repositorypath': 'ebfiles_repo',
+    'sourcepath': 'sources',
+    'subdir_modules': 'modules',
+    'subdir_software': 'software',
+}
+
+
 # based on
 # https://wickie.hlrs.de/platforms/index.php/Module_Overview
 # https://wickie.hlrs.de/platforms/index.php/Application_software_packages
@@ -82,11 +92,11 @@ DEFAULT_MODULECLASSES = [
 
 oldstyle_environment_variables = {
     'build_path': 'EASYBUILDBUILDPATH',
-    'install_path': 'EASYBUILDINSTALLPATH',
-    'log_dir': 'EASYBUILDLOGDIR',
     'config_file': 'EASYBUILDCONFIG',
-    'source_path': 'EASYBUILDSOURCEPATH',
+    'install_path': 'EASYBUILDINSTALLPATH',
     'log_format': 'EASYBUILDLOGFORMAT',
+    'log_dir': 'EASYBUILDLOGDIR',
+    'source_path': 'EASYBUILDSOURCEPATH',
     'test_output_path': 'EASYBUILDTESTOUTPUT',
 }
 
@@ -94,25 +104,25 @@ oldstyle_environment_variables = {
 class ConfigurationVariables(dict):
     """This is a dict that supports legacy config names transparently."""
     REQUIRED = [
-                'buildpath',
-                'installpath',
-                'sourcepath',
-                'logfile_format',
-                'repository',
-                ]
+        'buildpath',
+        'installpath',
+        'sourcepath',
+        'logfile_format',
+        'repository',
+    ]
     OLDSTYLE_NEWSTYLEMAP = {
-                            'build_path': 'buildpath',
-                            'install_path': 'installpath',
-                            'log_dir': 'tmp_logdir',
-                            'config_file': 'config',
-                            'source_path': 'sourcepath',
-                            'log_format': 'logfile_format',
-                            'test_output_path': 'testoutput',
-                            'module_classes': 'moduleclasses',
-                            'repository_path': 'repositorypath',
-                            'modules_install_suffix': 'subdir_modules',
-                            'software_install_suffix': 'subdir_software',
-                            }
+        'build_path': 'buildpath',
+        'install_path': 'installpath',
+        'log_dir': 'tmp_logdir',
+        'config_file': 'config',
+        'source_path': 'sourcepath',
+        'log_format': 'logfile_format',
+        'test_output_path': 'testoutput',
+        'module_classes': 'moduleclasses',
+        'repository_path': 'repositorypath',
+        'modules_install_suffix': 'subdir_modules',
+        'software_install_suffix': 'subdir_software',
+    }
 
     def get_items_check_required(self, no_missing=True):
         """
@@ -216,21 +226,29 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
     if prefix is None:
         prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
+    def mk_full_path(name):
+        """Create full path, avoid '/' at the end."""
+        args = [prefix]
+        path = DEFAULT_PATH_SUBDIRS[name]
+        if path:
+            args.append(path)
+        return os.path.join(*args)
+
     # keys are the options dest
     defaults = {
-                'config': get_default_oldstyle_configfile(),
-                'prefix': prefix,
-                'buildpath': os.path.join(prefix, 'build'),
-                'installpath': prefix,
-                'sourcepath': os.path.join(prefix, 'sources'),
-                'repository': 'FileRepository',
-                'repositorypath': {'FileRepository': [os.path.join(prefix, 'ebfiles_repo')]},
-                'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
-                'tmp_logdir': tempfile.gettempdir(),
-                'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
-                'subdir_modules': 'modules',
-                'subdir_software': 'software',
-                }
+        'config': get_default_oldstyle_configfile(),
+        'prefix': prefix,
+        'buildpath': mk_full_path('buildpath'),
+        'installpath': mk_full_path('installpath'),
+        'sourcepath': mk_full_path('sourcepath'),
+        'repository': 'FileRepository',
+        'repositorypath': {'FileRepository': [mk_full_path('repositorypath')]},
+        'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
+        'tmp_logdir': tempfile.gettempdir(),
+        'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
+        'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
+        'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+    }
 
     # sanity check
     if not defaults['repository'] in defaults['repositorypath']:
@@ -281,16 +299,18 @@ def init(options, config_options_dict):
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
     variables.update(config_options_dict)
 
+    _log.debug("Config variables: %s" % variables)
+
     # Create an instance of the repository class
     if 'repository' in variables and not isinstance(variables['repository'], Repository):
         repo = get_repositories().get(options.repository)
-        args = options.repositorypath
+        repoargs = options.repositorypath
 
         try:
-            repository = repo(*args)
+            repository = repo(*repoargs)
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (options.repository, repo.__name__, args, err))
+                       (options.repository, repo.__name__, repoargs, err))
 
         variables['repository'] = repository
 
@@ -491,21 +511,23 @@ def oldstyle_read_configuration(filename):
     return file_variables
 
 
-def oldstyle_read_environment(env_var=None, strict=False):
+def oldstyle_read_environment(env_vars=None, strict=False):
     """
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
-    _log.deprecated("oldstyle_read_environment env_var %s strict %s" % (env_var, strict), "2.0")
-    if env_var is None:
-        env_var = oldstyle_environment_variables
+    if env_vars is None:
+        env_vars = oldstyle_environment_variables
     result = {}
-    for key in env_var.keys():
-        environment_key = env_var[key]
-        if environment_key in os.environ:
-            result[key] = os.environ[environment_key]
+    for key in env_vars.keys():
+        env_var = env_vars[key]
+        if env_var in os.environ:
+            result[key] = os.environ[env_var]
+            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
         elif strict:
-            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environment_key))
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, env_var))
+        else:
+            _log.debug("Old style env var %s not defined." % env_var)
 
     return result
 
