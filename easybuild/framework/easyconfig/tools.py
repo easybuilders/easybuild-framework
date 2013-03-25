@@ -67,6 +67,7 @@ def ec_filename_for(path):
 
     return fn
 
+
 def pick_version(req_ver, avail_vers):
     """Pick version based on an optionally desired version and available versions.
 
@@ -104,6 +105,7 @@ def pick_version(req_ver, avail_vers):
 
     return (ver, selected_ver)
 
+
 def create_paths(path, name, version):
     """
     Returns all the paths where easyconfig could be located
@@ -116,6 +118,7 @@ def create_paths(path, name, version):
             os.path.join(path, name.lower()[0], name, "%s-%s.eb" % (name, version)),
             os.path.join(path, "%s-%s.eb" % (name, version)),
            ]
+
 
 def obtain_ec_for(specs, paths, fp):
     """
@@ -162,6 +165,7 @@ def obtain_ec_for(specs, paths, fp):
         return res
     else:
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
+
 
 def select_or_generate_ec(fp, paths, specs):
     """
@@ -399,6 +403,7 @@ def select_or_generate_ec(fp, paths, specs):
 
         return (True, fp)
 
+
 def tweak(src_fn, target_fn, tweaks):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
@@ -443,7 +448,15 @@ def tweak(src_fn, target_fn, tweaks):
                 toolchain.update({key: tweaks[tc_key]})
                 tweaks.pop(tc_key)
 
-        tweaks.update({'toolchain': {'name': toolchain['name'], 'version': toolchain['version']}})
+        class TcDict(dict):
+            """
+            A special dict class that represents trivial toolchains properly.
+                ONLY TO BE USED HERE in this pile of steaming crap that is tweak().
+            """
+            def __repr__(self):
+                return "{'name': '%(name)s', 'version': '%(version)s'}" % self
+
+        tweaks.update({'toolchain': TcDict({'name': toolchain['name'], 'version': toolchain['version']})})
 
         _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
@@ -490,7 +503,6 @@ def tweak(src_fn, target_fn, tweaks):
         else:
             additions.append("%s = %s" % (key, quote_str(val)))
 
-
     if additions:
         _log.info("Adding additional parameters to tweaked easyconfig file: %s")
         ectxt += "\n\n# added by EasyBuild as dictated by command line options\n"
@@ -536,6 +548,7 @@ def tweak(src_fn, target_fn, tweaks):
 
     return target_fn
 
+
 def get_paths_for(subdir="easyconfigs", robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
@@ -573,6 +586,7 @@ def get_paths_for(subdir="easyconfigs", robot_path=None):
             raise EasyBuildError(str(err))
 
     return paths
+
 
 def stats_to_str(stats):
     """
