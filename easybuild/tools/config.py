@@ -94,7 +94,6 @@ oldstyle_environment_variables = {
     'install_path': 'EASYBUILDINSTALLPATH',
     'log_format': 'EASYBUILDLOGFORMAT',
     'log_dir': 'EASYBUILDLOGDIR',
-    'prefix': 'EASYBUILDPREFIX',
     'source_path': 'EASYBUILDSOURCEPATH',
     'test_output_path': 'EASYBUILDTESTOUTPUT',
 }
@@ -223,10 +222,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         prefix: string, when provided, it used as prefix for the other defaults (where applicable)
     """
     if prefix is None:
-        if 'EASYBUILDPREFIX' in os.environ:
-            prefix = os.environ['EASYBUILDPREFIX']
-        else:
-            prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+        prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
     # keys are the options dest
     defaults = {
