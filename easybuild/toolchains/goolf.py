@@ -31,13 +31,12 @@ EasyBuild support for goolf compiler toolchain (includes GCC, OpenMPI, OpenBLAS,
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.lapack import Lapack
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Goolf(Gcc, OpenMPI, OpenBLAS, Lapack, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, OpenMPI, OpenBLAS, Lapack, ScaLAPACK and FFTW."""
+class Goolf(Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
 
     # no BLACS
