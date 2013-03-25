@@ -449,10 +449,7 @@ def tweak(src_fn, target_fn, tweaks):
                 tweaks.pop(tc_key)
 
         class TcDict(dict):
-            """
-            A special dict class that represents trivial toolchains properly.
-                ONLY TO BE USED HERE in this pile of steaming crap that is tweak().
-            """
+            """A special dict class that represents trivial toolchains properly."""
             def __repr__(self):
                 return "{'name': '%(name)s', 'version': '%(version)s'}" % self
 
