@@ -298,13 +298,13 @@ def init(options, config_options_dict):
     # Create an instance of the repository class
     if 'repository' in variables and not isinstance(variables['repository'], Repository):
         repo = get_repositories().get(options.repository)
-        args = options.repositorypath
+        repoargs = options.repositorypath
 
         try:
-            repository = repo(*args)
+            repository = repo(*repoargs)
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (options.repository, repo.__name__, args, err))
+                       (options.repository, repo.__name__, repoargs, err))
 
         variables['repository'] = repository
 
