@@ -126,7 +126,7 @@ class CommandLineOptionsTest(TestCase):
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s" % (log_msg_type, debug_arg))
+                self.assertTrue(res, "%s log messages are included when using %s: %s" % (log_msg_type, debug_arg, outtxt))
 
     def test_info(self):
         """Test enabling info logging."""
