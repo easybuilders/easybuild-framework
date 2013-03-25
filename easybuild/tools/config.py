@@ -55,8 +55,10 @@ DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
-    'sourcepath': 'sources',
     'repositorypath': 'ebfiles_repo',
+    'sourcepath': 'sources',
+    'subdir_modules': 'modules',
+    'subdir_software': 'software',
 }
 
 
@@ -224,20 +226,28 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
     if prefix is None:
         prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 
+    def mk_full_path(name):
+        """Create full path, avoid '/' at the end."""
+        args = [prefix]
+        path = DEFAULT_PATH_SUBDIRS[name]
+        if path:
+            args.append(path)
+        return os.path.join(*args)
+
     # keys are the options dest
     defaults = {
         'config': get_default_oldstyle_configfile(),
         'prefix': prefix,
-        'buildpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['buildpath']),
-        'installpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['installpath']),
-        'sourcepath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['sourcepath']),
+        'buildpath': mk_full_path('buildpath'),
+        'installpath': mk_full_path('installpath'),
+        'sourcepath': mk_full_path('sourcepath'),
         'repository': 'FileRepository',
-        'repositorypath': {'FileRepository': [os.path.join(prefix, DEFAULT_PATH_SUBDIRS['repositorypath'])]},
+        'repositorypath': {'FileRepository': [mk_full_path('repositorypath')]},
         'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
         'tmp_logdir': tempfile.gettempdir(),
         'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
-        'subdir_modules': 'modules',
-        'subdir_software': 'software',
+        'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
+        'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
     }
 
     # sanity check
