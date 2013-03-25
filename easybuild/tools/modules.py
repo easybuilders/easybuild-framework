@@ -38,14 +38,16 @@ import os
 import re
 import subprocess
 import sys
+from vsc import fancylogger
 
-from easybuild.tools.build_log import get_log, EasyBuildError
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
+DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
 # keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
@@ -62,6 +64,8 @@ outputMatchers = {
     'available': re.compile(r"^\s*(?P<name>\S+?)/(?P<version>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
 }
 
+_log = fancylogger.getLogger('modules', fname=False)
+
 
 class Modules(object):
     """
@@ -73,7 +77,7 @@ class Modules(object):
         @param modulePath: A list of paths where the modules can be located
         @type modulePath: list
         """
-        self.log = get_log(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if modulePath:
             self.modulePath = set(modulePath)
@@ -411,6 +415,8 @@ def get_software_root(name, with_env_var=False):
         env_var = environment_key
     else:
         env_var = legacy_key
+        if legacy_key in os.environ:
+            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     root = os.getenv(env_var)
 
@@ -437,6 +443,8 @@ def get_software_version(name):
     if environment_key in os.environ:
         return os.getenv(environment_key)
     else:
+        if legacy_key in os.environ:
+            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
         return os.getenv(legacy_key)
 
 
