@@ -53,11 +53,11 @@ DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.
 
 
 DEFAULT_PATH_SUBDIRS = {
-                        'buildpath': 'build',
-                        'installpath': '',
-                        'sourcepath': 'sources',
-                        'repositorypath': 'ebfiles_repo',
-                       }
+    'buildpath': 'build',
+    'installpath': '',
+    'sourcepath': 'sources',
+    'repositorypath': 'ebfiles_repo',
+}
 
 
 # based on
@@ -103,25 +103,25 @@ oldstyle_environment_variables = {
 class ConfigurationVariables(dict):
     """This is a dict that supports legacy config names transparently."""
     REQUIRED = [
-                'buildpath',
-                'installpath',
-                'sourcepath',
-                'logfile_format',
-                'repository',
-                ]
+        'buildpath',
+        'installpath',
+        'sourcepath',
+        'logfile_format',
+        'repository',
+    ]
     OLDSTYLE_NEWSTYLEMAP = {
-                            'build_path': 'buildpath',
-                            'install_path': 'installpath',
-                            'log_dir': 'tmp_logdir',
-                            'config_file': 'config',
-                            'source_path': 'sourcepath',
-                            'log_format': 'logfile_format',
-                            'test_output_path': 'testoutput',
-                            'module_classes': 'moduleclasses',
-                            'repository_path': 'repositorypath',
-                            'modules_install_suffix': 'subdir_modules',
-                            'software_install_suffix': 'subdir_software',
-                            }
+        'build_path': 'buildpath',
+        'install_path': 'installpath',
+        'log_dir': 'tmp_logdir',
+        'config_file': 'config',
+        'source_path': 'sourcepath',
+        'log_format': 'logfile_format',
+        'test_output_path': 'testoutput',
+        'module_classes': 'moduleclasses',
+        'repository_path': 'repositorypath',
+        'modules_install_suffix': 'subdir_modules',
+        'software_install_suffix': 'subdir_software',
+    }
 
     def get_items_check_required(self, no_missing=True):
         """
@@ -230,19 +230,19 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
 
     # keys are the options dest
     defaults = {
-                'config': get_default_oldstyle_configfile(),
-                'prefix': prefix,
-                'buildpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['buildpath']),
-                'installpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['installpath']),
-                'sourcepath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['sourcepath']),
-                'repository': 'FileRepository',
-                'repositorypath': {'FileRepository': [os.path.join(prefix, DEFAULT_PATH_SUBDIRS['repositorypath'])]},
-                'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
-                'tmp_logdir': tempfile.gettempdir(),
-                'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
-                'subdir_modules': 'modules',
-                'subdir_software': 'software',
-                }
+        'config': get_default_oldstyle_configfile(),
+        'prefix': prefix,
+        'buildpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['buildpath']),
+        'installpath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['installpath']),
+        'sourcepath': os.path.join(prefix, DEFAULT_PATH_SUBDIRS['sourcepath']),
+        'repository': 'FileRepository',
+        'repositorypath': {'FileRepository': [os.path.join(prefix, DEFAULT_PATH_SUBDIRS['repositorypath'])]},
+        'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
+        'tmp_logdir': tempfile.gettempdir(),
+        'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
+        'subdir_modules': 'modules',
+        'subdir_software': 'software',
+    }
 
     # sanity check
     if not defaults['repository'] in defaults['repositorypath']:
