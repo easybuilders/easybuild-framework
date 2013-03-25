@@ -257,7 +257,7 @@ def init(options, config_options_dict):
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
     if SUPPORT_OLDSTYLE:
-        _log.deprecated('olstyle init with modifications to support oldstyle options', '2.0')
+        _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         oldstyle_init(options.config)
 
         # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
@@ -284,6 +284,7 @@ def init(options, config_options_dict):
     # Create an instance of the repository class
     if 'repository' in variables and not isinstance(variables['repository'], Repository):
         repo = get_repositories().get(options.repository)
+        args = options.repositorypath
 
         try:
             repository = repo(*args)
