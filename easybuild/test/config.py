@@ -43,9 +43,9 @@ from easybuild.tools.repository import FileRepository
 
 class ConfigTest(TestCase):
     """Test cases for EasyBuild configuration."""
-    
+
     tmpdir = None
-    
+
     def setUp(self):
         """Prepare for running a config test."""
 
@@ -55,9 +55,8 @@ class ConfigTest(TestCase):
             if envvar.startswith('EASYBUILD'):
                 del os.environ[envvar]
 
-    
     def tearDown(self):
-        """Clean up after a config test."""        
+        """Clean up after a config test."""
         try:
             shutil.rmtree(self.tmpdir)
         except OSError:
@@ -86,7 +85,6 @@ class ConfigTest(TestCase):
         self.assertEqual(log_file_format(), config.DEFAULT_LOGFILE_FORMAT[1])
         self.assertEqual(get_build_log_path(), tempfile.gettempdir())
 
-    
     def test_legacy_env_vars(self):
         """Test legacy environment variables."""
 
@@ -167,7 +165,7 @@ class ConfigTest(TestCase):
         del os.environ['EASYBUILDINSTALLPATH']
 
         del os.environ['EASYBUILDPREFIX']
-    
+
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
 

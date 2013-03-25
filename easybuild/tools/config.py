@@ -501,12 +501,6 @@ def oldstyle_read_configuration(filename):
     except (IOError, SyntaxError), err:
         _log.exception("Failed to read config file %s %s" % (filename, err))
 
-    for (key, value) in file_variables.items():
-        newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key, key)
-        if newkey != key:
-            file_variables[newkey] = value
-            del file_variables[key]
-
     return file_variables
 
 
@@ -520,12 +514,11 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     result = {}
     for key in env_vars.keys():
         env_var = env_vars[key]
-        newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key, key)
         if env_var in os.environ:
-            result[newkey] = os.environ[env_var]
-            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[newkey]), "2.0")
+            result[key] = os.environ[env_var]
+            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
         elif strict:
-            _log.error("Can't determine value for %s. Environment variable %s is missing" % (newkey, env_var))
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, env_var))
         else:
             _log.debug("Old style env var %s not defined." % env_var)
 
