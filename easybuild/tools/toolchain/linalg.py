@@ -46,7 +46,6 @@ class LinAlg(Toolchain):
     BLAS_LIB_DIR = ['lib']
     BLAS_INCLUDE_DIR = ['include']
 
-
     LAPACK_IS_BLAS = False
     LAPACK_REQUIRES = ['LIBBLAS']
     LAPACK_MODULE_NAME = None
@@ -197,13 +196,18 @@ class LinAlg(Toolchain):
 
         ## BLACS
         self.BLACS_LIB = self.variables.nappend('LIBBLACS', [x % lib_map for x in self.BLACS_LIB])
-        self.variables.add_begin_end_linkerflags(self.BLACS_LIB,
-                                                 toggle_startstopgroup=self.BLACS_LIB_GROUP,
-                                                 toggle_staticdynamic=self.BLACS_LIB_STATIC)
+        if self.BLACS_LIB is not None:
+            self.variables.add_begin_end_linkerflags(self.BLACS_LIB,
+                                                     toggle_startstopgroup=self.BLACS_LIB_GROUP,
+                                                     toggle_staticdynamic=self.BLACS_LIB_STATIC)
         if self.BLACS_LIB_MT is None:
             self.variables.join('LIBBLACS_MT', 'LIBBLACS')
         else:
-            self.log.raiseException("_set_blacs_variables: setting LIBBLACS_MT from self.BLACS_LIB_MT not implemented")
+            self.BLACS_LIB_MT = self.variables.nappend('LIBBLACS_MT', [x % self.BLACS_LIB_MAP for x in self.BLACS_LIB_MT])
+            if self.BLACS_LIB_MT is not None:
+                self.variables.add_begin_end_linkerflags(self.BLACS_LIB_MT,
+                                                         toggle_startstopgroup=self.BLACS_LIB_GROUP,
+                                                         toggle_staticdynamic=self.BLACS_LIB_STATIC)
 
         self.variables.join('BLACS_STATIC_LIBS', 'LIBBLACS')
         self.variables.join('BLACS_MT_STATIC_LIBS', 'LIBBLACS_MT')
