@@ -62,6 +62,7 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 ]
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
+    # sources constants
     ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
     ('SOURCE_TAR_XZ', '%(name)s-%(version)s.tar.xz', "Source .tar.xz tarball"),
     ('SOURCE_TAR_BZ2', '%(name)s-%(version)s.tar.bz2', "Source .tar.bz2 tarball"),
@@ -72,8 +73,7 @@ TEMPLATE_CONSTANTS = [
     ('SOURCELOWER_TAR_BZ2', '%(namelower)s-%(version)s.tar.bz2',
      "Source .tar.bz2 tarball with lowercase name"),
 
-
-
+    # source url constants
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
     ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
