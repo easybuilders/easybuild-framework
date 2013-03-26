@@ -37,49 +37,49 @@ _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
 TEMPLATE_NAMES_EASYCONFIG = [
-                             ('toolchain_name', "Toolchain name"),
-                             ('toolchain_version', "Toolchain version"),
-                             ('version_major_minor', "Major.Minor version"),
-                             ('version_major', "Major version"),
-                             ('version_minor', "Minor version"),
-                            ]
+    ('toolchain_name', "Toolchain name"),
+    ('toolchain_version', "Toolchain version"),
+    ('version_major_minor', "Major.Minor version"),
+    ('version_major', "Major version"),
+    ('version_minor', "Minor version"),
+]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
-                         'name',
-                         'version',
-                         'versionsuffix',
-                         'versionprefix',
-                         ]
+    'name',
+    'version',
+    'versionsuffix',
+    'versionprefix',
+]
 # lowercase versions of ._config
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
 TEMPLATE_NAMES_LOWER = [
-                        'name',
-                        ]
+    'name',
+]
 # values taken from the EasyBlock before each step
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
-                                     ('installdir', "Installation directory"),
-                                     ('builddir', "Build directory"),
-                                     ]
+    ('installdir', "Installation directory"),
+    ('builddir', "Build directory"),
+]
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
-                      ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
-                      ('SOURCE_TAR_XZ', '%(name)s-%(version)s.tar.xz', "Source .tar.xz tarball"),
-                      ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
-                       "Source .tar.gz tarball with lowercase name"),
-                      ('SOURCELOWER_TAR_XZ', '%(namelower)s-%(version)s.tar.xz',
-                       "Source .tar.xz tarball with lowercase name"),
+    ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
+    ('SOURCE_TAR_XZ', '%(name)s-%(version)s.tar.xz', "Source .tar.xz tarball"),
+    ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
+     "Source .tar.gz tarball with lowercase name"),
+    ('SOURCELOWER_TAR_XZ', '%(namelower)s-%(version)s.tar.xz',
+     "Source .tar.xz tarball with lowercase name"),
 
-                      ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
-                       'googlecode.com source url'),
-                      ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
-                       'sourceforge.net source url'),
-                       ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
-                       'http download for gnome ftp server'),
-
-                      ]
+    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
+     'googlecode.com source url'),
+    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
+     'sourceforge.net source url'),
+    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
+     'http download for gnome ftp server'),
+]
 
 # TODO derived config templates
 # versionmajor, verisonminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
+
 
 def template_constant_dict(config, ignore=None, skip_lower=True):
     """Create a dict for templating the values in the easyconfigs.
@@ -108,7 +108,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             # parse major and minor version numbers
             version = LooseVersion(config.get('version')).version
             try:
-                major = verson[0]
+                major = version[0]
                 template_values['version_major'] = str(major)
                 minor = version[1]
                 template_values['version_minor'] = str(minor)
@@ -145,11 +145,12 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
     return template_values
 
+
 def template_documentation():
     """Generate the templating documentation"""
     # This has to reflect the methods/steps used in easyconfig _generate_template_values
-    indent_l0 = " "*2
-    indent_l1 = indent_l0 + " "*2
+    indent_l0 = " " * 2
+    indent_l1 = indent_l0 + " " * 2
     doc = []
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
@@ -165,7 +166,7 @@ def template_documentation():
     # step 3. make lower variants
     doc.append('Lowercase values of template values')
     for name in TEMPLATE_NAMES_LOWER:
-        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name':name}, name))
+        doc.append("%s%s: lower case of value of %s" % (indent_l1, TEMPLATE_NAMES_LOWER_TEMPLATE % {'name': name}, name))
 
     # step 4. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
@@ -178,4 +179,3 @@ def template_documentation():
         doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
 
     return "\n".join(doc)
-
