@@ -32,7 +32,7 @@ import os
 
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.tools.modules import get_software_root
-from easybuild.tools.utilities import all
+from easybuild.tools.utilities import all, any
 
 class IntelFFTW(Fftw):
     """FFTW wrapper functionality of Intel MKL"""
