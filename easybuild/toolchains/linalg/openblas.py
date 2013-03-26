@@ -39,4 +39,4 @@ class OpenBLAS(LinAlg):
     BLAS_LIB = ['openblas']
 
     LAPACK_MODULE_NAME = ['OpenBLAS']
-    LAPACK_LIB = ['openblas']
+    LAPACK_IS_BLAS = True
