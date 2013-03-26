@@ -50,6 +50,7 @@ import easybuild.test.github as g
 import easybuild.test.toolchainvariables as tcv
 import easybuild.test.toolchain as tc
 import easybuild.test.options as o
+import easybuild.test.config as c
 
 
 # initialize logger for all the unit tests
@@ -60,7 +61,7 @@ log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o]])
+SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o, c]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""
