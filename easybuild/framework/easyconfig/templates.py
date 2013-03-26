@@ -64,10 +64,15 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 TEMPLATE_CONSTANTS = [
     ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
     ('SOURCE_TAR_XZ', '%(name)s-%(version)s.tar.xz', "Source .tar.xz tarball"),
+    ('SOURCE_TAR_BZ2', '%(name)s-%(version)s.tar.bz2', "Source .tar.bz2 tarball"),
     ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
      "Source .tar.gz tarball with lowercase name"),
     ('SOURCELOWER_TAR_XZ', '%(namelower)s-%(version)s.tar.xz',
      "Source .tar.xz tarball with lowercase name"),
+    ('SOURCELOWER_TAR_BZ2', '%(namelower)s-%(version)s.tar.bz2',
+     "Source .tar.bz2 tarball with lowercase name"),
+
+
 
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
@@ -93,6 +98,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
     # make dict
     template_values = {}
 
+    _log.debug("config: %s", config)
+
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
@@ -106,19 +113,22 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
-            version = LooseVersion(config.get('version')).version
-            try:
-                major = version[0]
-                template_values['version_major'] = str(major)
-                minor = version[1]
-                template_values['version_minor'] = str(minor)
-                template_values['version_major_minor'] = ".".join([major, minor])
-            except IndexError:
-                # if there is no minor version, skip it
-                pass
-            # only go trought this once
-            ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+            version = config['version'][0]
+            if version is not None:
 
+                _log.debug("version found in easyconfig is %s", version)
+                version = LooseVersion(version).version
+                try:
+                    major = str(version[0])
+                    template_values['version_major'] = major
+                    minor = str(version[1])
+                    template_values['version_minor'] = minor
+                    template_values['version_major_minor'] = ".".join([major, minor])
+                except IndexError:
+                    # if there is no minor version, skip it
+                    pass
+                # only go trought this once
+                ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
         else:
             _log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
 
@@ -128,6 +138,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             continue
         if name in config:
             template_values[name] = config[name][0]
+            _log.debug('name: %s, config: %s', name, config[name][0])
 
     # step 3. make lower variants if not skip_lower
     if not skip_lower:
