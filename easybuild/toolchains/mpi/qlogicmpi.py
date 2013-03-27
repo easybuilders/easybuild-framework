@@ -43,7 +43,7 @@ class QLogicMPI(Mpich2):
 
     MPI_LIBRARY_NAME = 'mpich'
 
-    # # qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
+    # qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
 
     def _set_mpi_compiler_variables(self):
         """Add MPICH_CCC variable to set."""
