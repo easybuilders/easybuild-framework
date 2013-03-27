@@ -35,7 +35,7 @@ from vsc import fancylogger
 from easybuild.tools.environment import setvar
 from easybuild.tools.modules import Modules, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
-from easybuild.tools.toolchain.variables import ToolchainVariables
+from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 
 class Toolchain(object):
@@ -53,7 +53,7 @@ class Toolchain(object):
     # class method
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
-        # # TODO report later in the initialization the found version
+        # TODO report later in the initialization the found version
         if name:
             if hasattr(cls, 'NAME') and name == cls.NAME:
                 return True
@@ -116,7 +116,7 @@ class Toolchain(object):
         """
         if self.options.option('packed-linker-options'):
             self.log.debug("set_variables: toolchain variables. packed-linker-options.")
-            self.variables.try_function_el('set_packed_linker_options')
+            self.variables.try_function_on_element('set_packed_linker_options')
         self.log.debug("set_variables: toolchain variables. Do nothing.")
 
     def generate_vars(self):
@@ -198,7 +198,7 @@ class Toolchain(object):
                            self.DUMMY_NAME)
             return True
 
-        # # TODO: what about dummy versions ?
+        # TODO: what about dummy versions ?
 
         self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
         return Modules().exists(name, version)
@@ -206,11 +206,11 @@ class Toolchain(object):
     def set_options(self, options):
         """ Process toolchain options """
         for opt in options.keys():
-            # # Only process supported opts
+            # Only process supported opts
             if opt in self.options:
                 self.options[opt] = options[opt]
             else:
-                # # used to be warning, but this is a severe error imho
+                # used to be warning, but this is a severe error imho
                 self.log.raiseException("set_options: undefined toolchain option %s specified (possible names %s)" %
                                         (opt, ",".join(self.options.keys())))
 
@@ -224,7 +224,7 @@ class Toolchain(object):
             toolchain = '%s' % (self.version)
 
         # Check if dependency is independent of toolchain
-        # # TODO: assuming DUMMY_NAME here, what about version?
+        # TODO: assuming DUMMY_NAME here, what about version?
         if self.DUMMY_NAME in dependency and dependency[self.DUMMY_NAME]:
             toolchain = ''
 
@@ -252,7 +252,7 @@ class Toolchain(object):
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
             if 'tk' in dep:
-                # # TODO LEGACY to be cleaned up
+                # TODO LEGACY to be cleaned up
                 self.log.raiseException('add_dependencies: legacy tk found in dep %s' % dep)
 
             if not 'tc' in dep:
@@ -288,7 +288,7 @@ class Toolchain(object):
                 modules.load()
             return
 
-        # # Load the toolchain and dependencies modules
+        # Load the toolchain and dependencies modules
         modules = Modules()
         modules.add_module([(self.name, self.version)])
         modules.add_module(self.dependencies)
@@ -313,18 +313,18 @@ class Toolchain(object):
             self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
                            "(%s vs %s)" % (toolchain_module_deps, toolchain_elements_mod_names))
 
-        # # Generate the variables to be set
+        # Generate the variables to be set
         self.set_variables()
 
-        # # set the variables
-        # # onlymod can be comma-separated string of variables not to be set
+        # set the variables
+        # onlymod can be comma-separated string of variables not to be set
         if onlymod == True:
             self.log.debug("prepare: do not set additional variables onlymod=%s" % onlymod)
             self.generate_vars()
         else:
             self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
 
-            # # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+            # add LDFLAGS and CPPFLAGS from dependencies to self.vars
             self._add_dependency_variables()
             self.generate_vars()
             self._setenv_variables(onlymod)
@@ -362,7 +362,7 @@ class Toolchain(object):
 
         donotsetlist = []
         if isinstance(donotset, str):
-            # # TODO : more legacy code that should be using proper type
+            # TODO : more legacy code that should be using proper type
             self.log.raiseException("_setenv_variables: using commas-separated list. should be deprecated.")
             donotsetlist = donotset.split(',')
         elif isinstance(donotset, list):
@@ -394,8 +394,8 @@ class Toolchain(object):
         """ Return type of MPI library used in this toolchain (abstract method)."""
         raise NotImplementedError
 
-    # # legacy functions TODO remove AFTER migration
-    # # should search'n'replaced
+    # legacy functions TODO remove AFTER migration
+    # should search'n'replaced
     def get_type(self, name, type_map):
         """Determine type of toolchain based on toolchain dependencies."""
         self.log.raiseException("get_type: legacy code. should not be needed anymore.")

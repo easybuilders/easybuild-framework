@@ -32,8 +32,8 @@ Unit tests for tools/toolchain/variables.py.
 import re
 
 from unittest import TestCase, TestSuite, main
-from easybuild.tools.toolchain.variables import ToolchainVariables
-from easybuild.tools.variables import CommandFlagList
+from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
+from easybuild.tools.toolchain.variables import CommandFlagList
 
 
 class ToolchainVariablesTest(TestCase):
@@ -49,10 +49,14 @@ class ToolchainVariablesTest(TestCase):
     def runTest(self):
         # DEFAULTCLASS is FlagList
         class TCV(ToolchainVariables):
-            LINKER_TOGGLE_START_STOP_GROUP = {'start': '-Xstart',
-                                              'stop':'-Xstop', }
-            LINKER_TOGGLE_STATIC_DYNAMIC = {'static': '-Bstatic',
-                                            'dynamic':'-Bdynamic', }
+            LINKER_TOGGLE_START_STOP_GROUP = {
+                'start': '-Xstart',
+                'stop': '-Xstop',
+            }
+            LINKER_TOGGLE_STATIC_DYNAMIC = {
+                'static': '-Bstatic',
+                'dynamic': '-Bdynamic',
+            }
 
         tcv = TCV()
         self.assertEqual(str(tcv), "{}")
@@ -95,32 +99,32 @@ class ToolchainVariablesTest(TestCase):
         self.assertEqual(str(tcv['LIBBLAS']), str(copy_blas))
 
         # packed_linker
-        tcv.try_function_el('set_packed_linker_options')  # don't use it like this (this is internal)
+        tcv.try_function_on_element('set_packed_linker_options')  # don't use it like this (this is internal)
         new_res = "-Wl,-Bstatic,-Xstart,-la,-lb,-lc,-Xstop,-Bdynamic -ld -le -lf"
         self.assertEqual(str(tcv['LIBBLAS']), new_res)
 
         # run it directly on copy of LIBBLAS, not through the tcv instance
-        copy_blas.try_function_el('set_packed_linker_options')
+        copy_blas.try_function_on_element('set_packed_linker_options')
         self.assertEqual(str(copy_blas), new_res)
 
         # arbitrary example
         kwargs = {
-                  'prefix':'_P_',
-                  'prefix_begin_end':'_p_',
-                  'separator':':',
-                  'separator_begin_end':';',
-                  }
-        copy_blas.try_function_el('set_packed_linker_options', kwargs=kwargs)
+            'prefix': '_P_',
+            'prefix_begin_end': '_p_',
+            'separator': ':',
+            'separator_begin_end': ';',
+        }
+        copy_blas.try_function_on_element('set_packed_linker_options', kwargs=kwargs)
         self.assertEqual(str(copy_blas),
                          '_p_;-Bstatic;-Xstart:_P_a:_P_b:_P_c:-Xstop;-Bdynamic -ld -le -lf')
 
         kwargs = {
-                  'prefix':'_P_',
-                  'prefix_begin_end':'_p_',
-                  'separator':':',
-                  'separator_begin_end':';',
-                  }
-        copy_blas.try_function_el('change', kwargs=kwargs)
+            'prefix': '_P_',
+            'prefix_begin_end': '_p_',
+            'separator': ':',
+            'separator_begin_end': ';',
+        }
+        copy_blas.try_function_on_element('change', kwargs=kwargs)
         self.assertEqual(str(copy_blas),
                          '_p_;_p_-Bstatic;_p_-Xstart:_P_a:_P_b:_P_c:_p_-Xstop;_p_-Bdynamic _P_d:_P_e:_P_f')
 
@@ -132,7 +136,7 @@ class ToolchainVariablesTest(TestCase):
                   'separator':',',
                   'separator_begin_end':',',
                   }
-        copy_blas_2.try_function_el('change', kwargs=kwargs)
+        copy_blas_2.try_function_on_element('change', kwargs=kwargs)
         copy_blas_2.SEPARATOR = ','
 
         self.assertEqual(str(copy_blas_2),

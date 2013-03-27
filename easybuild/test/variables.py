@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Unit tests for tools/variables.py.
 
@@ -32,7 +32,8 @@ Unit tests for tools/variables.py.
 import re
 
 from unittest import TestCase, TestSuite, main
-from easybuild.tools.variables import CommaList, CommandFlagList, StrList, Variables
+from easybuild.tools.variables import CommaList, StrList, Variables
+from easybuild.tools.toolchain.variables import CommandFlagList
 
 
 class VariablesTest(TestCase):
