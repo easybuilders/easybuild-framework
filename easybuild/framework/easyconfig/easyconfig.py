@@ -161,7 +161,6 @@ class EasyConfig(object):
                 lic = LicenseLegacy(lic)
                 EASYCONFIG_LICENSES_DICT[lic.name] = lic
                 extra_options['license'] = lic
-        return extra_options
 
     def copy(self):
         """
