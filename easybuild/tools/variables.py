@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Module that contains a set of classes and function to generate variables to be used
 e.g., in compiling or linking
@@ -65,11 +65,11 @@ def join_map_class(map_classes):
             if isinstance(k, (str,)):
                 var_name = k
                 if isinstance(v, (tuple, list)):
-                    ## second element is documentation
+                    # # second element is documentation
                     klass = v[0]
                 res[var_name] = klass
             elif type(k) in (type,):
-                ## k is the class, v a list of tuples (name,doc)
+                # # k is the class, v a list of tuples (name,doc)
                 klass = k
                 default = res.setdefault(klass, [])
                 default.extend([tpl[0] for tpl in v])
@@ -88,8 +88,8 @@ class StrList(list):
     BEGIN = None
     END = None
 
-    POSITION = 0 # when sorting in list of list: < 0 -> left; > 0 : right
-    SANITIZE_REMOVE_DUPLICATE_KEEP = None  ## used with ListOfList
+    POSITION = 0  # when sorting in list of list: < 0 -> left; > 0 : right
+    SANITIZE_REMOVE_DUPLICATE_KEEP = None  # # used with ListOfList
 
     JOIN_BEGIN_END = False
 
@@ -171,8 +171,8 @@ class CommaList(StrList):
     SEPARATOR = ','
 
 
-## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
-## FlagList, CommandFlagList, LibraryList, LinkerFlagList
+# # TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+# # FlagList, CommandFlagList, LibraryList, LinkerFlagList
 class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
@@ -194,13 +194,13 @@ class LibraryList(StrList):
     """Link library list"""
     PREFIX = "-l"
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  ##  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # #  sanitize from end
 
     JOIN_BEGIN_END = True
 
     def set_packed_linker_options(self):
         """Use packed linker options format"""
-        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.BEGIN, LinkerFlagList):
+        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.END, LinkerFlagList):
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
             self.BEGIN.PACKED_LINKER_OPTIONS = True
             self.END.PACKED_LINKER_OPTIONS = True
@@ -257,9 +257,9 @@ class LinkerFlagList(StrList):
         self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
 
     def sanitize(self):
-        ## TODO: rewrite to avoid changing constants
+        # # TODO: rewrite to avoid changing constants
         if self.PACKED_LINKER_OPTIONS:
-            ## somehow this should only be run once.
+            # # somehow this should only be run once.
             self.PACKED_LINKER_OPTIONS = None
 
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
@@ -276,7 +276,7 @@ class LinkerFlagList(StrList):
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  ##  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # #  sanitize from end
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
         """
@@ -321,8 +321,8 @@ class AbsPathList(StrList):
             else:
                 self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
 
-## TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
-## IncludePaths, LinkLibraryPaths, get_linker*
+# # TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+# # IncludePaths, LinkLibraryPaths, get_linker*
 class IncludePaths(AbsPathList):
     """Absolute path to directory containing include files"""
     PREFIX = '-I'
@@ -335,10 +335,10 @@ class ListOfLists(list):
     """List of lists"""
     DEFAULT_CLASS = StrList
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
-    #PROTECTED_INSTANCES = [AbsPathList, LibraryList]
+    # PROTECTED_INSTANCES = [AbsPathList, LibraryList]
     PROTECTED_INSTANCES = []
-    PROTECT_CLASS_SELF = True ## don't convert values that are same class as DEFAULT_CLASS
-    PROTECT_INSTANCE_SELF = True ## don't convert values that are instance of DEFAULT_CLASS
+    PROTECT_CLASS_SELF = True  # # don't convert values that are same class as DEFAULT_CLASS
+    PROTECT_INSTANCE_SELF = True  # # don't convert values that are instance of DEFAULT_CLASS
 
     SEPARATOR = None
 
@@ -346,7 +346,7 @@ class ListOfLists(list):
     SANITIZE_REMOVE_DUPLICATE = False
     SANITIZE_REMOVE_DUPLICATE_KEEP = None
 
-    JOIN_BEGIN_END = False #
+    JOIN_BEGIN_END = False  #
 
     def __init__(self, *args , **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
@@ -411,12 +411,12 @@ class ListOfLists(list):
             newvalue = value.copy()
         else:
             if isinstance(value, (str, int,)):
-                ## convert to list. although the try/except will work
-                ##  list('XYZ') creates ['X','Y','Z']
+                # # convert to list. although the try/except will work
+                # #  list('XYZ') creates ['X','Y','Z']
                 value = [value]
 
             try:
-                ## this might work, but probably not
+                # # this might work, but probably not
                 newvalue = klass(value, **kwargs)
             except:
                 newvalue = klass(**kwargs)
@@ -438,7 +438,7 @@ class ListOfLists(list):
         klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
         res = []
         if value is None:
-            ## TODO ? append_empty ?
+            # # TODO ? append_empty ?
             self.log.raiseException("extend_el with None value unimplemented")
         else:
             for el in value:
@@ -450,12 +450,12 @@ class ListOfLists(list):
                     newvalue = el
                 else:
                     if isinstance(el, (str, int,)):
-                        ## convert to list. although the try/except will work
-                        ##  list('XYZ') creates ['X','Y','Z']
+                        # # convert to list. although the try/except will work
+                        # #  list('XYZ') creates ['X','Y','Z']
                         el = [el]
 
                     try:
-                        ## this might work, but probably not
+                        # # this might work, but probably not
                         newvalue = klass(el)
                     except:
                         newvalue = klass()
@@ -485,16 +485,16 @@ class ListOfLists(list):
             self.sort(key=lambda x: getattr(x, 'POSITION'))
 
         if self.SANITIZE_REMOVE_DUPLICATE:
-            ## get all occurences with their index
+            # # get all occurences with their index
             to_remove = []
             for el in self:
                 all_idx = [idx for idx, x in enumerate(self) if x == el]
                 if len(all_idx) > 1:
                     if self.SANITIZE_REMOVE_DUPLICATE_KEEP == 0:
-                        ## keep first
+                        # # keep first
                         to_remove.extend(all_idx[1:])
                     elif self.SANITIZE_REMOVE_DUPLICATE_KEEP == -1:
-                        ## keep last
+                        # # keep last
                         to_remove.extend(all_idx[:-1])
 
             to_remove = sorted(list(set(to_remove)), reverse=True)
@@ -503,15 +503,15 @@ class ListOfLists(list):
                 del self[idx]
 
         if self.JOIN_BEGIN_END:
-            ## group elements with same begin/end into one element
+            # # group elements with same begin/end into one element
             to_remove = []
-            for idx in range(1, len(self))[::-1]: # work in reversed order;don't check last one (ie real el 0), it has no next element
+            for idx in range(1, len(self))[::-1]:  # work in reversed order;don't check last one (ie real el 0), it has no next element
                 if self[idx].BEGIN is None or self[idx].END is None: continue
                 self.log.debug("idx %s len %s" % (idx, len(self)))
                 if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:  # do check POSITION, sorting already done
                     self.log.debug("sanitize: JOIN_BEGIN_END idx %s joining %s and %s" % (idx, self[idx], self[idx - 1]))
                     self[idx - 1].extend(self[idx])
-                    to_remove.append(idx) ## remove current el
+                    to_remove.append(idx)  # # remove current el
             to_remove = sorted(list(set(to_remove)), reverse=True)
             for idx in to_remove:
                 del self[idx]
@@ -527,10 +527,10 @@ class ListOfLists(list):
     def __str__(self):
         self._first = self.get_first()
         self.sanitize()
-        sep = ''  ## default no separator
+        sep = ''  # # default no separator
 
         if self._first is None:
-            ## return empty string
+            # # return empty string
             self.log.debug("__str__: first is None (self %s)" % self.__repr__())
             return ''
         else:
@@ -613,7 +613,7 @@ class Variables(dict):
         self.nappend(name, value)
 
     def setdefault(self, name, default=None, append_empty=False):
-        #"""append_empty to non-existing element"""
+        # """append_empty to non-existing element"""
         if name in self:
             default = self[name]
         else:
@@ -656,7 +656,7 @@ class Variables(dict):
                 idx = kwargs.pop('idx', -1)
                 if attr_name in ['append_exists', 'append_subdirs']:
                     current = self.setdefault(name)
-                    current.append_empty()  ## always add empty
+                    current.append_empty()  # # always add empty
                 else:
                     current = self.setdefault(name, append_empty=True)
                 actual_function = getattr(current[idx], attr_name)
