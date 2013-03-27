@@ -91,7 +91,7 @@ class ToolchainOptions(dict):
             res = self.options_map[name]
 
             if isinstance(res, str):
-                # # allow for template
+                # allow for template
                 if templatedict is None:
                     templatedict = {}
                 templatedict.update({
@@ -100,7 +100,7 @@ class ToolchainOptions(dict):
                                     })
                 res = self.options_map[name] % templatedict
             else:
-                # # check if True?
+                # check if True?
                 res = self.options_map[name]
         else:
             res = value

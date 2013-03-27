@@ -53,7 +53,7 @@ class VariablesTest(TestCase):
         v = TestVariables()
         self.assertEqual(str(v), "{}")
 
-        # # DEFAULTCLASS is StrList
+        # DEFAULTCLASS is StrList
         v['BAR'] = range(3)
         self.assertEqual(str(v), "{'BAR': [[0, 1, 2]]}")
         self.assertEqual(str(v['BAR']), "0 1 2")

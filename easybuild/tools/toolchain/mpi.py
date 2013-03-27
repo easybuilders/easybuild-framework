@@ -50,7 +50,7 @@ class Mpi(Toolchain):
 
     MPI_UNIQUE_OPTS = None
     MPI_SHARED_OPTS = {
-                       'usempi': (False, "Use MPI compiler as default compiler"),  # # also FFTW
+                       'usempi': (False, "Use MPI compiler as default compiler"),  # also FFTW
                        }
 
     MPI_UNIQUE_OPTION_MAP = None
@@ -132,7 +132,7 @@ class Mpi(Toolchain):
                            (self.variables['MPICXX'], self.variables['MPICC']))
             self.variables['MPICXX'] = self.variables['MPICC']
             if self.options.get('usempi', None):
-                # # possibly/likely changed
+                # possibly/likely changed
                 self.variables['CXX'] = self.variables['CC']
 
     def _set_mpi_variables(self):
