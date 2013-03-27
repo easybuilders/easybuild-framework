@@ -27,6 +27,7 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+import os
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
@@ -44,6 +45,25 @@ def all(ls):
     """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
     _log.deprecated("own definition of all", "2.0")
     return _all(ls)
+
+
+def read_environment(env_vars, strict=False):
+    """
+    Read variables from the environment
+        @param: env_vars: a dict with key a name, value a environment variable name
+        @param: strict, boolean, if True enforces that all specified environment variables are found
+    """
+    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
+
+    if not len(env_vars) == len(result):
+        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
+        msg = 'Following name/variable not found in environment: %s' % missing
+        if strict:
+            _log.error(msg)
+        else:
+            _log.debug(msg)
+
+    return result
 
 
 def flatten(lst):

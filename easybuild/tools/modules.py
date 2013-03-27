@@ -111,10 +111,10 @@ class Modules(object):
             self.log.error(errormsg)
 
         if self.modulePath:
-            # # set the module path environment accordingly
+            # set the module path environment accordingly
             os.environ['MODULEPATH'] = ":".join(self.modulePath)
         else:
-            # # take module path from environment
+            # take module path from environment
             self.modulePath = os.environ['MODULEPATH'].split(':')
 
         if not 'LOADEDMODULES' in os.environ:
@@ -135,8 +135,8 @@ class Modules(object):
 
         modules = self.run_module('available', txt, modulePath=modulePath)
 
-        # # sort the answers in [name, version] pairs
-        # # alphabetical order, default last
+        # sort the answers in [name, version] pairs
+        # alphabetical order, default last
         modules.sort(key=lambda m: (m['name'] + (m['default'] or ''), m['version']))
         ans = [(mod['name'], mod['version']) for mod in modules]
 
@@ -161,7 +161,7 @@ class Modules(object):
                 (name, version) = mod.split('/')
             elif type(mod) == dict:
                 name = mod['name']
-                # # deal with toolchain dependency calls
+                # deal with toolchain dependency calls
                 if 'tc' in mod:
                     version = mod['tc']
                 else:
@@ -171,7 +171,7 @@ class Modules(object):
 
             mods = self.available(name, version)
             if (name, version) in mods:
-                # # ok
+                # ok
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:

@@ -204,7 +204,7 @@ class EasyBlock(object):
         patches = []
         for patchFile in list_of_patches:
 
-            # # check if the patches can be located
+            # check if the patches can be located
             copy_file = False
             suff = None
             level = None
@@ -454,8 +454,8 @@ class EasyBlock(object):
                         else:
                             fullurl = "%s/%s" % (url, filename)
                     elif isinstance(url, tuple):
-                        # # URLs that require a suffix, e.g., SourceForge download links
-                        # # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
+                        # URLs that require a suffix, e.g., SourceForge download links
+                        # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
                         fullurl = "%s/%s/%s" % (url[0], filename, url[1])
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
@@ -517,7 +517,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             # make a unique build dir
-            # # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
+            # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
             tcversion = self.toolchain.version
             if tcversion.startswith('-'):
                 tcversion = tcversion[1:]
@@ -604,7 +604,7 @@ class EasyBlock(object):
             self.log.info("Cleaning only, no actual creation of %s, only verification/creation of dirname %s" % (olddir, dirName))
             if os.path.exists(dirName):
                 return
-            # # if not, create dir as usual
+            # if not, create dir as usual
 
         try:
             os.makedirs(dirName)
@@ -1010,13 +1010,13 @@ class EasyBlock(object):
                 self.log.error("Parallelism %s not integer: %s" % (nr, err))
         else:
             nr = get_core_count()
-            # # check ulimit -u
+            # check ulimit -u
             out, ec = run_cmd('ulimit -u')
             try:
                 if out.startswith("unlimited"):
                     out = 2 ** 32 - 1
                 maxuserproc = int(out)
-                # # assume 6 processes per build thread + 15 overhead
+                # assume 6 processes per build thread + 15 overhead
                 maxnr = int((maxuserproc - 15) / 6)
                 if maxnr < nr:
                     nr = maxnr
@@ -1106,7 +1106,7 @@ class EasyBlock(object):
         prepare for building
         """
 
-        # # check EasyBuild version
+        # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! Assuming the latest version")
@@ -1172,7 +1172,7 @@ class EasyBlock(object):
             self.log.info("Applying patch %s" % tmp['name'])
 
             copy = False
-            # # default: patch first source
+            # default: patch first source
             srcind = 0
             if 'source' in tmp:
                 srcind = tmp['source']

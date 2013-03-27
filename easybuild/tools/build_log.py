@@ -89,7 +89,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
-        # # don't raise the exception from within error
+        # don't raise the exception from within error
         newMsg = "EasyBuild encountered an exception %s: %s" % (self.caller_info(), msg)
 
         self.raiseError = False

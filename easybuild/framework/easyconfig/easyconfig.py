@@ -48,7 +48,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
-from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
+from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
 
 
@@ -99,6 +99,8 @@ class EasyConfig(object):
             # TODO legacy behaviour. should be more strictly enforced. do we log here?
             extra_options = dict(extra_options)
 
+        self._legacy_license(extra_options)
+
         self._config.update(extra_options)
 
         self.path = path
@@ -136,6 +138,29 @@ class EasyConfig(object):
         self.validation = validate
         if self.validation:
             self.validate()
+
+    def _legacy_license(self, extra_options):
+        """Function to help migrate away from old custom license parameter to new mandatory one"""
+        self.log.deprecated('_legacy_license does not have to be checked', '2.0')
+        if 'license' in extra_options:
+            lic = extra_options['license']
+            if not isinstance(lic, License):
+                self.log.deprecated('license type has to be License subclass', '2.0')
+                typ_lic = type(lic)
+
+                class LicenseLegacy(License, typ_lic):
+                    """A special License class to deal with legacy license paramters"""
+                    DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
+                                    " (DO NOT USE).")
+                    HIDDEN = False
+
+                    def __init__(self, *args):
+                        if len(args) > 0:
+                            typ_lic.__init__(self, args[0])
+                        License.__init__(self)
+                lic = LicenseLegacy(lic)
+                EASYCONFIG_LICENSES_DICT[lic.name] = lic
+                extra_options['license'] = lic
 
     def copy(self):
         """
@@ -190,6 +215,8 @@ class EasyConfig(object):
             self.log.error("You may have some typos in your easyconfig file: %s" %
                             ', '.join(["%s -> %s" % typo for typo in typos]))
 
+        self._legacy_license(local_vars)
+
         for key in local_vars:
             # validations are skipped, just set in the config
             # do not store variables we don't need
@@ -232,13 +259,17 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        if self._config['license'][0] is None:
+        lic = self._config['license'][0]
+        if lic is None:
             self.log.deprecated('Mandatory license not enforced', '2.0')
             # when mandatory, remove this possibility
             if 'license' in self.mandatory:
-                self.log.error('Invalid license %s. License is mandatory' % (self._config['license'][0]))
-        elif not self._config['license'][0] in EASYCONFIG_LICENSES_DICT.values():
-            self.log.error('Invalid license %s.' % (self._config['license'][0]))
+                self.log.error('License is mandatory')
+        elif not isinstance(lic, License):
+            self.log.error('License %s has to be a License subclass instance, found classname %s.' %
+                           (lic, lic.__class__.__name__))
+        elif not lic.name in EASYCONFIG_LICENSES_DICT:
+            self.log.error('Invalid license %s (classname: %s).' % (lic.name, lic.__class__.__name__))
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
