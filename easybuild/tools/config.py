@@ -40,6 +40,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.tools.repository import Repository, get_repositories
+from easybuild.tools.utilities import read_environment as _read_environment
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -479,6 +480,12 @@ def module_classes():
         return defaults['moduleclasses']
 
 
+def read_environment(env_vars, strict=False):
+    """Depreacted location for read_environment, use easybuild.tools.utilities"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    return _read_environment(env_vars, strict)
+
+
 def oldstyle_init(filename, **kwargs):
     """
     Gather all variables and check if they're valid
@@ -516,6 +523,8 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
+    _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
+                     'and do not use oldstyle environment varaibles'), '2.0')
     if env_vars is None:
         env_vars = oldstyle_environment_variables
     result = {}
