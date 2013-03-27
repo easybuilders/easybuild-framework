@@ -29,12 +29,12 @@ e.g., in compiling or linking
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
 from vsc import fancylogger
 import copy
 import os
 
 _log = fancylogger.getLogger('variables', fname=False)
+
 
 def get_class(name, default_class, map_class=None):
     """Return class based on default
@@ -57,6 +57,7 @@ def get_class(name, default_class, map_class=None):
 
     return klass
 
+
 def join_map_class(map_classes):
     """Join all class_maps into single class_map"""
     res = {}
@@ -65,11 +66,11 @@ def join_map_class(map_classes):
             if isinstance(k, (str,)):
                 var_name = k
                 if isinstance(v, (tuple, list)):
-                    # # second element is documentation
+                    # second element is documentation
                     klass = v[0]
                 res[var_name] = klass
             elif type(k) in (type,):
-                # # k is the class, v a list of tuples (name,doc)
+                # k is the class, v a list of tuples (name,doc)
                 klass = k
                 default = res.setdefault(klass, [])
                 default.extend([tpl[0] for tpl in v])
@@ -77,6 +78,7 @@ def join_map_class(map_classes):
                 _log.raiseException("join_map_class: impossible to join key %s value %s" % (k, v))
 
     return res
+
 
 class StrList(list):
     """List of strings"""
@@ -89,11 +91,11 @@ class StrList(list):
     END = None
 
     POSITION = 0  # when sorting in list of list: < 0 -> left; > 0 : right
-    SANITIZE_REMOVE_DUPLICATE_KEEP = None  # # used with ListOfList
+    SANITIZE_REMOVE_DUPLICATE_KEEP = None  # used with ListOfList
 
     JOIN_BEGIN_END = False
 
-    def __init__(self, *args , **kwargs):
+    def __init__(self, *args, **kwargs):
         super(StrList, self).__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -130,52 +132,20 @@ class StrList(list):
 
     def copy(self):
         """Return copy of self"""
+        return copy.deepcopy(self)
 
-        # keep track of originals
-        log = self.log
-        begin = self.BEGIN
-        end = self.END
-
-        # clear stuff that will/may cause problems whe deepcopying
-        # e.g. loggers can't be deepcopied (and begin/end are again (derived) instances of StrList)
-        self.log = None
-        self.BEGIN = None
-        self.END = None
-
-        # perform the actual copy
-        res = copy.deepcopy(self)
-
-        # reinstate a (new) logger
-        res.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-
-        # also copy begin/end
-        try:
-            res.BEGIN = begin.copy()
-        except:
-            res.BEGIN = copy.deepcopy(begin)
-        try:
-            res.END = end.copy()
-        except:
-            res.END = copy.deepcopy(end)
-
-        # restore originals
-        self.log = log
-        self.BEGIN = begin
-        self.END = end
-
-        # return copy result
-        return res
 
 class CommaList(StrList):
     """Comma-separated list"""
     SEPARATOR = ','
 
 
-# # TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
-# # FlagList, CommandFlagList, LibraryList, LinkerFlagList
+# TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+# FlagList, CommandFlagList, LibraryList, LinkerFlagList
 class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
+
 
 class CommandFlagList(FlagList):
     """
@@ -190,22 +160,57 @@ class CommandFlagList(FlagList):
             tmp_str[0] = self[0]
         return tmp_str
 
+
 class LibraryList(StrList):
     """Link library list"""
     PREFIX = "-l"
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # #  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
 
     JOIN_BEGIN_END = True
 
-    def set_packed_linker_options(self):
+    def set_packed_linker_options(self, separator=',', separator_begin_end=',', prefix=None, prefix_begin_end=None):
         """Use packed linker options format"""
         if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.END, LinkerFlagList):
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
-            self.BEGIN.PACKED_LINKER_OPTIONS = True
-            self.END.PACKED_LINKER_OPTIONS = True
 
-            self.SEPARATOR = ','
+            self.BEGIN.PACKED_LINKER_OPTIONS = True
+            if separator_begin_end is not None:
+                self.BEGIN.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.BEGIN.PREFIX = prefix_begin_end
+
+            self.END.PACKED_LINKER_OPTIONS = True
+            if separator_begin_end is not None:
+                self.END.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.END.PREFIX = prefix_begin_end
+
+            # this is intentional only on the elements that have BEGIN/END
+            if separator is not None:
+                self.SEPARATOR = separator
+            if prefix is not None:
+                self.PREFIX = prefix
+
+    def change(self, separator=None, separator_begin_end=None, prefix=None, prefix_begin_end=None):
+        """Change prefix and/or separator of base and/or BEGIN/END"""
+        if separator is not None:
+            self.SEPARATOR = separator
+        if prefix is not None:
+            self.PREFIX = prefix
+
+        if isinstance(self.BEGIN, LinkerFlagList):
+            if separator_begin_end is not None:
+                self.BEGIN.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.BEGIN.PREFIX = prefix_begin_end
+
+        if isinstance(self.END, LinkerFlagList):
+            if separator_begin_end is not None:
+                self.END.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.END.PREFIX = prefix_begin_end
+
 
 class CommaStaticLibs(LibraryList):
     """Comma-separated list"""
@@ -213,6 +218,7 @@ class CommaStaticLibs(LibraryList):
 
     PREFIX = 'lib'
     SUFFIX = '.a'
+
 
 class LinkerFlagList(StrList):
     """Linker flags"""
@@ -257,18 +263,16 @@ class LinkerFlagList(StrList):
         self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
 
     def sanitize(self):
-        # # TODO: rewrite to avoid changing constants
+        # TODO: rewrite to avoid changing constants
         if self.PACKED_LINKER_OPTIONS:
-            # # somehow this should only be run once.
+            # somehow this should only be run once.
             self.PACKED_LINKER_OPTIONS = None
 
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
-            self.SEPARATOR = ','
-            if self.IS_BEGIN:
+            if self.IS_BEGIN and self.SEPARATOR:
                 self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
             self.PREFIX = None
             self.log.debug("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s" % (self.IS_BEGIN, self.PREFIX, self.BEGIN))
-
 
         super(LinkerFlagList, self).sanitize()
 
@@ -276,7 +280,7 @@ class LinkerFlagList(StrList):
 class AbsPathList(StrList):
     """Absolute paths (eg -L or -I)"""
 
-    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  # #  sanitize from end
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
 
     def append_exists(self, prefix, paths, suffix=None, filename=None, append_all=False):
         """
@@ -321,15 +325,18 @@ class AbsPathList(StrList):
             else:
                 self.log.warning("flags_for_subdirs: directory %s was not found" % directory)
 
-# # TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
-# # IncludePaths, LinkLibraryPaths, get_linker*
+
+# TODO (KH) These are toolchain specific classes/functions already, so move to toolchain.variables?
+# IncludePaths, LinkLibraryPaths, get_linker*
 class IncludePaths(AbsPathList):
     """Absolute path to directory containing include files"""
     PREFIX = '-I'
 
+
 class LinkLibraryPaths(AbsPathList):
     """Absolute path to directory containing libraries"""
     PREFIX = '-L'
+
 
 class ListOfLists(list):
     """List of lists"""
@@ -337,8 +344,8 @@ class ListOfLists(list):
     PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
     # PROTECTED_INSTANCES = [AbsPathList, LibraryList]
     PROTECTED_INSTANCES = []
-    PROTECT_CLASS_SELF = True  # # don't convert values that are same class as DEFAULT_CLASS
-    PROTECT_INSTANCE_SELF = True  # # don't convert values that are instance of DEFAULT_CLASS
+    PROTECT_CLASS_SELF = True  # don't convert values that are same class as DEFAULT_CLASS
+    PROTECT_INSTANCE_SELF = True  # don't convert values that are instance of DEFAULT_CLASS
 
     SEPARATOR = None
 
@@ -346,13 +353,12 @@ class ListOfLists(list):
     SANITIZE_REMOVE_DUPLICATE = False
     SANITIZE_REMOVE_DUPLICATE_KEEP = None
 
-    JOIN_BEGIN_END = False  #
+    JOIN_BEGIN_END = False
 
-    def __init__(self, *args , **kwargs):
+    def __init__(self, *args, **kwargs):
         super(ListOfLists, self).__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self._first = None
-
 
         self.protected_classes = self.PROTECTED_CLASSES[:]
         if self.PROTECT_CLASS_SELF:
@@ -411,12 +417,12 @@ class ListOfLists(list):
             newvalue = value.copy()
         else:
             if isinstance(value, (str, int,)):
-                # # convert to list. although the try/except will work
-                # #  list('XYZ') creates ['X','Y','Z']
+                # convert to list. although the try/except will work
+                #  list('XYZ') creates ['X','Y','Z']
                 value = [value]
 
             try:
-                # # this might work, but probably not
+                # this might work, but probably not
                 newvalue = klass(value, **kwargs)
             except:
                 newvalue = klass(**kwargs)
@@ -438,7 +444,7 @@ class ListOfLists(list):
         klass = kwargs.pop('var_class', self.DEFAULT_CLASS)
         res = []
         if value is None:
-            # # TODO ? append_empty ?
+            # TODO ? append_empty ?
             self.log.raiseException("extend_el with None value unimplemented")
         else:
             for el in value:
@@ -450,12 +456,12 @@ class ListOfLists(list):
                     newvalue = el
                 else:
                     if isinstance(el, (str, int,)):
-                        # # convert to list. although the try/except will work
-                        # #  list('XYZ') creates ['X','Y','Z']
+                        # convert to list. although the try/except will work
+                        #  list('XYZ') creates ['X','Y','Z']
                         el = [el]
 
                     try:
-                        # # this might work, but probably not
+                        # this might work, but probably not
                         newvalue = klass(el)
                     except:
                         newvalue = klass()
@@ -485,16 +491,16 @@ class ListOfLists(list):
             self.sort(key=lambda x: getattr(x, 'POSITION'))
 
         if self.SANITIZE_REMOVE_DUPLICATE:
-            # # get all occurences with their index
+            # get all occurences with their index
             to_remove = []
             for el in self:
                 all_idx = [idx for idx, x in enumerate(self) if x == el]
                 if len(all_idx) > 1:
                     if self.SANITIZE_REMOVE_DUPLICATE_KEEP == 0:
-                        # # keep first
+                        # keep first
                         to_remove.extend(all_idx[1:])
                     elif self.SANITIZE_REMOVE_DUPLICATE_KEEP == -1:
-                        # # keep last
+                        # keep last
                         to_remove.extend(all_idx[:-1])
 
             to_remove = sorted(list(set(to_remove)), reverse=True)
@@ -503,7 +509,7 @@ class ListOfLists(list):
                 del self[idx]
 
         if self.JOIN_BEGIN_END:
-            # # group elements with same begin/end into one element
+            # group elements with same begin/end into one element
             to_remove = []
             for idx in range(1, len(self))[::-1]:  # work in reversed order;don't check last one (ie real el 0), it has no next element
                 if self[idx].BEGIN is None or self[idx].END is None: continue
@@ -511,11 +517,10 @@ class ListOfLists(list):
                 if self[idx].BEGIN == self[idx - 1].BEGIN and self[idx].END == self[idx - 1].END:  # do check POSITION, sorting already done
                     self.log.debug("sanitize: JOIN_BEGIN_END idx %s joining %s and %s" % (idx, self[idx], self[idx - 1]))
                     self[idx - 1].extend(self[idx])
-                    to_remove.append(idx)  # # remove current el
+                    to_remove.append(idx)  # remove current el
             to_remove = sorted(list(set(to_remove)), reverse=True)
             for idx in to_remove:
                 del self[idx]
-
 
     def flatten(self):
         res = []
@@ -527,10 +532,10 @@ class ListOfLists(list):
     def __str__(self):
         self._first = self.get_first()
         self.sanitize()
-        sep = ''  # # default no separator
+        sep = ''  # default no separator
 
         if self._first is None:
-            # # return empty string
+            # return empty string
             self.log.debug("__str__: first is None (self %s)" % self.__repr__())
             return ''
         else:
@@ -539,6 +544,22 @@ class ListOfLists(list):
             txt = str(sep).join([self.str_convert(x) for x in self if self._str_ok(x)])
             self.log.debug("__str__: return %s (self: %s)" % (txt, self.__repr__()))
             return txt
+
+    def try_function_el(self, function_name, names=None, args=None, kwargs=None):
+        """Try to run function function_name on each element"""
+        if args is None:
+            args = []
+        if kwargs is None:
+            kwargs = {}
+        for el in self:
+            if hasattr(el, function_name):
+                function = getattr(el, function_name)
+                function(*args, **kwargs)
+
+    def copy(self):
+        """Return copy of self"""
+        return copy.deepcopy(self)
+
 
 class Variables(dict):
     """
@@ -627,21 +648,19 @@ class Variables(dict):
                 default.append_empty()
         return default
 
-    def try_function_el(self, function_name, names=None):
+    def try_function_el(self, function_name, names=None, args=None, kwargs=None):
         """Try to run function function_name on each element of names"""
         if names is None:
             names = self.keys()
         for name in names:
             self.log.debug("try_function_el: name %s function_name %s" % (name, function_name))
-            for el in self[name]:
-                if hasattr(el, function_name):
-                    function = getattr(el, function_name)
-                    function()
+            self[name].try_function_el(function_name, args=args, kwargs=kwargs)
 
     def __getattribute__(self, attr_name):
         # allow for pass-through
         if attr_name in ['nappend', 'nextend', 'append_empty', 'first', 'get_class']:
             self.log.debug("Passthrough to LISTCLASS function %s" % attr_name)
+
             def _passthrough(name, *args, **kwargs):
                 """functions that pass through to LISTCLASS instances"""
                 current = self.setdefault(name)
@@ -651,12 +670,13 @@ class Variables(dict):
             return _passthrough
         elif attr_name in ['nappend_el', 'nextend_el', 'append_exists', 'append_subdirs']:
             self.log.debug("Passthrough to LISTCLASS element function %s" % attr_name)
+
             def _passthrough(name, *args, **kwargs):
                 """"Functions that pass through to elements of LISTCLASS (accept idx as index)"""
                 idx = kwargs.pop('idx', -1)
                 if attr_name in ['append_exists', 'append_subdirs']:
                     current = self.setdefault(name)
-                    current.append_empty()  # # always add empty
+                    current.append_empty()  # always add empty
                 else:
                     current = self.setdefault(name, append_empty=True)
                 actual_function = getattr(current[idx], attr_name)
