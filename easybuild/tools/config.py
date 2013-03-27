@@ -524,7 +524,7 @@ def oldstyle_read_environment(env_vars=None, strict=False):
         - strict=True enforces that all possible environment variables are found
     """
     _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
-                     'and do not use oldstyle environment varaibles'), '2.0')
+                     'and do not use oldstyle environment variables'), '2.0')
     if env_vars is None:
         env_vars = oldstyle_environment_variables
     result = {}
