@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Toolchain mpi module. Contains all MPI related classes
 
@@ -33,7 +33,7 @@ import os
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
-from easybuild.tools.toolchain.variables import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -50,7 +50,7 @@ class Mpi(Toolchain):
 
     MPI_UNIQUE_OPTS = None
     MPI_SHARED_OPTS = {
-                       'usempi': (False, "Use MPI compiler as default compiler"), ## also FFTW
+                       'usempi': (False, "Use MPI compiler as default compiler"),  # also FFTW
                        }
 
     MPI_UNIQUE_OPTION_MAP = None
@@ -132,7 +132,7 @@ class Mpi(Toolchain):
                            (self.variables['MPICXX'], self.variables['MPICC']))
             self.variables['MPICXX'] = self.variables['MPICC']
             if self.options.get('usempi', None):
-                ## possibly/likely changed
+                # possibly/likely changed
                 self.variables['CXX'] = self.variables['CC']
 
     def _set_mpi_variables(self):
@@ -169,16 +169,16 @@ class Mpi(Toolchain):
 
         # different known mpirun commands
         mpi_cmds = {
-                    toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
-                    toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  #@UndefinedVariable
+                    toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                    toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                    toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+                    toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
                    }
 
         mpi_family = self.mpi_family()
 
         # Intel MPI mpirun needs more work
-        if mpi_family == toolchain.INTELMPI:  #@UndefinedVariable
+        if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
             # set temporary dir for mdp
             env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
@@ -201,7 +201,7 @@ class Mpi(Toolchain):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'mpdbf':"--file=%s"%fn})
+            params.update({'mpdbf':"--file=%s" % fn})
 
             # create nodes file
             fn = "/tmp/nodes"
@@ -214,7 +214,7 @@ class Mpi(Toolchain):
             except (OSError, IOError), err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'nodesfile':"-machinefile %s"%fn})
+            params.update({'nodesfile':"-machinefile %s" % fn})
 
         if mpi_family in mpi_cmds.keys():
             return mpi_cmds[mpi_family] % params
