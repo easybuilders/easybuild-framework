@@ -116,6 +116,7 @@ DEFAULT_CONFIG = {
                   'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))",
                                          "DEPENDENCIES"],
 
+                  'license_file': [None, 'License file for software', "LICENSE"],
                   'license_server': [None, 'License server for software', "LICENSE"],
                   'license_server_port': [None, 'Port for license server', "LICENSE"],
                   'key': [None, 'Key for installing software', "LICENSE"],
