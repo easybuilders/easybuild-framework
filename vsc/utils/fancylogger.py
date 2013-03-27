@@ -296,6 +296,14 @@ class FancyLogger(logging.getLoggerClass()):
         rev_parent_info = self._get_parent_info(verbose=verbose)
         return ["%s %s%s" % (prefix, " " * 4 * idx, info) for idx, info in enumerate(rev_parent_info)]
 
+    def __copy__(self):
+        """Return shallow copy, in this case reference to current logger"""
+        return getLogger(self.name, fname=False)
+
+    def __deepcopy__(self, memo):
+        """This behaviour is undefined, fancylogger will return shallow copy, instead just crashing."""
+        return self.__copy__()
+
 
 def thread_name():
     """
