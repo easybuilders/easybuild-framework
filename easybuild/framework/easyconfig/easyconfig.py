@@ -145,7 +145,7 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, extra_options={}, validate=self.validation, valid_stops=self.valid_stops,
                         valid_module_classes=copy.deepcopy(self.valid_module_classes))
         # take a copy of the actual config dictionary (which already contains the extra options)
-        ec._config = self._config.copy()
+        ec._config = copy.deepcopy(self._config)
 
         return ec
 
