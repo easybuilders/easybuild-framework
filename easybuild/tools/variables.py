@@ -134,6 +134,14 @@ class StrList(list):
         """Return copy of self"""
         return copy.deepcopy(self)
 
+    def try_remove(self, values):
+        """Remove without ValueError in case of missing element"""
+        for value in values:
+            try:
+                self.remove(value)
+            except ValueError:
+                pass
+
 
 class CommaList(StrList):
     """Comma-separated list"""
@@ -406,6 +414,10 @@ class ListOfLists(list):
             if hasattr(el, function_name):
                 function = getattr(el, function_name)
                 function(*args, **kwargs)
+
+    def try_remove(self, values):
+        """Try to remove one or more values from the elements"""
+        self.try_function_on_element('try_remove', args=[values])
 
     def copy(self):
         """Return copy of self"""
