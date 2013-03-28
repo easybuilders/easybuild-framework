@@ -142,6 +142,10 @@ class ToolchainVariablesTest(TestCase):
         self.assertEqual(str(copy_blas_2),
                          '-Wl:-Bstatic,-Wl:-Xstart,a,b,c,-Wl:-Xstop,-Wl:-Bdynamic,d,e,f')
 
+        # test try remove
+        copy_blas.try_remove(['a', 'f'])
+        self.assertEqual(copy_blas.__repr__(), "[['b', 'c'], ['d', 'e']]")
+
         # test join
         tcv.join('LIBLAPACK', 'LIBBLAS')
         self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
