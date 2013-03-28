@@ -241,7 +241,7 @@ class Modules(object):
         # change our LD_LIBRARY_PATH here
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
@@ -402,6 +402,7 @@ def get_software_root_env_var_name(name):
     newname = convert_name(name, upper=True)
     return ''.join([ROOT_ENV_VAR_NAME_PREFIX, newname])
 
+
 def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
@@ -416,7 +417,7 @@ def get_software_root(name, with_env_var=False):
     else:
         env_var = legacy_key
         if legacy_key in os.environ:
-            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
+            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     root = os.getenv(env_var)
 
@@ -431,6 +432,7 @@ def get_software_version_env_var_name(name):
     newname = convert_name(name, upper=True)
     return ''.join([VERSION_ENV_VAR_NAME_PREFIX, newname])
 
+
 def get_software_version(name):
     """
     Return the software version set for a particular software name.
@@ -444,7 +446,7 @@ def get_software_version(name):
         return os.getenv(environment_key)
     else:
         if legacy_key in os.environ:
-            self.log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
+            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
         return os.getenv(legacy_key)
 
 
