@@ -90,7 +90,7 @@ class EasyConfig(object):
 
         # replace the category name with the category
         self._config = {}
-        for k, [def_val, descr, cat] in DEFAULT_CONFIG.items():
+        for k, [def_val, descr, cat] in copy.deepcopy(DEFAULT_CONFIG).items():
             self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
 
         if extra_options is None:
