@@ -262,19 +262,7 @@ def main(testing_data=(None, None)):
 
     # skip modules that are already installed unless forced
     if not options.force:
-        m = Modules()
-        easyconfigs, check_easyconfigs = [], easyconfigs
-        for ec in check_easyconfigs:
-            module = ec['module']
-            mod = "%s (version %s)" % (module[0], module[1])
-            modspath = mk_module_path(curr_module_paths() + [os.path.join(config.install_path("mod"), 'all')])
-            if m.exists(module[0], module[1], modspath):
-                msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
-                print_msg(msg, log, silent=testing)
-                log.info(msg)
-            else:
-                log.debug("%s is not installed yet, so retaining it" % mod)
-                easyconfigs.append(ec)
+        easyconfigs = skip_available(easyconfigs, testing=testing)
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
@@ -431,6 +419,23 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
         easyconfigs.append(easyconfig)
 
+    return easyconfigs
+
+def skip_available(easyconfigs, testing=False):
+    """Skip building easyconfigs for which a module is already available."""
+    m = Modules()
+    easyconfigs, check_easyconfigs = [], easyconfigs
+    for ec in check_easyconfigs:
+        module = ec['module']
+        mod = "%s (version %s)" % (module[0], module[1])
+        modspath = mk_module_path(curr_module_paths() + [os.path.join(config.install_path("mod"), 'all')])
+        if m.exists(module[0], module[1], modspath):
+            msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
+            print_msg(msg, log, silent=testing)
+            log.info(msg)
+        else:
+            log.debug("%s is not installed yet, so retaining it" % mod)
+            easyconfigs.append(ec)
     return easyconfigs
 
 def resolve_dependencies(unprocessed, robot, force=False):
@@ -1205,6 +1210,10 @@ def regtest(options, easyconfig_paths):
             easyconfigs.extend(process_easyconfig(ecfile, None))
         except EasyBuildError, err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, log))
+
+    # skip easyconfigs for which a module is already available, unless forced
+    if not options.force:
+        easyconfigs = skip_available(easyconfigs)
 
     if options.sequential:
         return build_easyconfigs(easyconfigs, output_dir, test_results, options)
