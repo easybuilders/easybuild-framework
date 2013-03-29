@@ -262,7 +262,7 @@ def main(testing_data=(None, None)):
 
     # skip modules that are already installed unless forced
     if not options.force:
-        easyconfigs = skip_available(easyconfigs)
+        easyconfigs = skip_available(easyconfigs, testing=testing)
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
@@ -421,7 +421,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
     return easyconfigs
 
-def skip_available(easyconfigs):
+def skip_available(easyconfigs, testing=False):
     """Skip building easyconfigs for which a module is already available."""
     m = Modules()
     easyconfigs, check_easyconfigs = [], easyconfigs
