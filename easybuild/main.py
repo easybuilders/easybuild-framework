@@ -1071,8 +1071,8 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
 
             steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
 
-            for (step_name, _, step_methods, skippeable) in steps:
-                if skippeable and step_name in app.cfg['skipsteps']:
+            for (step_name, _, step_methods, skippable) in steps:
+                if skippable and step_name in app.cfg['skipsteps']:
                     log.info("Skipping step %s" % step_name)
                 else:
                     for step_method in step_methods:
