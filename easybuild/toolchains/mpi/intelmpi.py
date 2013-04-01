@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Support for Intel MPI as toolchain MPI library.
 
@@ -30,7 +30,7 @@ Support for Intel MPI as toolchain MPI library.
 """
 
 from easybuild.toolchains.mpi.mpich2 import Mpich2
-from easybuild.tools.variables import CommandFlagList
+from easybuild.tools.toolchain.variables import CommandFlagList
 
 
 TC_CONSTANT_INTELMPI = "IntelMPI"
@@ -43,11 +43,11 @@ class IntelMPI(Mpich2):
 
     MPI_LIBRARY_NAME = 'mpi'
 
-    ## echo "   1. Command line option:  -cc=<compiler_name>"
-    ## echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
-    ## echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
-    ## cxx -> cxx only
-    ## intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
+    # echo "   1. Command line option:  -cc=<compiler_name>"
+    # echo "   2. Environment variable: I_MPI_CC (current value '$I_MPI_CC')"
+    # echo "   3. Environment variable: MPICH_CC (current value '$MPICH_CC')"
+    # cxx -> cxx only
+    # intel mpicc only support few compiler names (and eg -cc='icc -m32' won't work.)
 
     def _set_mpi_compiler_variables(self):
         """Add I_MPI_XXX variables to set."""

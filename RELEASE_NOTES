@@ -1,6 +1,31 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.3.0 (April 1st 2013)
+-----------------------
+
+feature + bugfix release
+- added script to bootstrap EasyBuild with EasyBuild, see https://github.com/hpcugent/easybuild/wiki/Bootstrapping-EasyBuild (#531)
+- reorganize framework/easyconfig.py module into framework/easyconfig package with modules (#574, #580)
+- support EasyBuild configuration via command line, environment variables and configuration files (#529, #552, #556, #558, #559)
+- various other enhancements, including:
+    - extended set of unit tests for eb command line options and EasyBuild configuration (#517, #556, #559, #571)
+    - made --search also useful when easybuild-easyconfigs package is not installed (#524)
+    - extended set of default module classes (#525)
+    - add support for license easyconfig parameter (which will be mandatory in v2.x) (#526, #569)
+    - added setup.cfg for setup.py to allow creating RPMs (#528)
+    - added support for obtaining system information, see get_os_* functions in easybuild/tools/systemtools.py (#543, #546, #547)
+    - added support for iterated builds that require cycling over multiple sets of configure/build/install options, e.g. FFTW (#549)
+    - added support for OpenBLAS as toolchain lib for linear algebra (#537, #565)
+    - added support for tweaking prefix and separator for library toolchain variables (LIB*) (#572, #576)
+    - skip already built modules in regression testing mode, to ease regression testing (#582)
+- various bug fixes, including:
+    - added zip_safe flag to setup.py, to silence multitude of warnings (#521)
+    - only define LIBFFT for Intel MKL if FFTW interface libraries are available (#518, #567, #579)
+    - set POSIX group early in build process, make EasyBuild aware of consistent chmod/chown failures (#527)
+    - properly order the name/version keys for the toolchain easyconfig parameter when using --try-toolchain (#563)
+    - take the 'skipsteps' easyconfig parameter into account in regression testing mode as well (#583)
+
 v1.2.0 (February 28th 2013)
 ---------------------------
 

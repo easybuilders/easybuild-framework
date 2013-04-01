@@ -33,7 +33,7 @@ correctly by easybuild.
 from datetime import date
 from optparse import OptionParser
 
-from easybuild.framework.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework import easyblock
 from easybuild.tools.github import Githubfs
 from vsc import fancylogger

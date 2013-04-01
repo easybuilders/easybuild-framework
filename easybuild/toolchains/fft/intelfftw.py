@@ -28,9 +28,12 @@ Support for Intel FFTW as toolchain FFT library.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import os
+from distutils.version import LooseVersion
 
 from easybuild.toolchains.fft.fftw import Fftw
-
+from easybuild.tools.modules import get_software_root, get_software_version
+from easybuild.tools.utilities import all, any
 
 class IntelFFTW(Fftw):
     """FFTW wrapper functionality of Intel MKL"""
@@ -44,12 +47,18 @@ class IntelFFTW(Fftw):
         if not hasattr(self, 'BLAS_LIB_DIR'):
             self.log.raiseException("_set_fftw_variables: IntelFFT based on IntelMKL (no BLAS_LIB_DIR found)")
 
+        imklver = get_software_version(self.FFT_MODULE_NAME[0])
+
         fftwsuff = ""
         if self.options.get('pic', None):
             fftwsuff = "_pic"
         fftw_libs = ["fftw3xc_intel%s" % fftwsuff]
         if self.options['usempi']:
-            fftw_libs.append("fftw3x_cdft%s" % fftwsuff) ## add cluster interface
+            # add cluster interface
+            if LooseVersion(imklver) >= LooseVersion("11.0"):
+                fftw_libs.append("fftw3x_cdft_lp64%s" % fftwsuff)
+            elif LooseVersion(imklver) >= LooseVersion("10.3"):
+                fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
             fftw_libs.append("mkl_cdft_core") ## add cluster dft
             fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
 
@@ -57,8 +66,16 @@ class IntelFFTW(Fftw):
         fftw_libs.extend(self.variables['LIBBLAS'].flatten()) ## add core (contains dft) ; use flatten because ListOfList
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
 
-
-        self.FFT_LIB = fftw_libs
-
         self.FFT_LIB_DIR = self.BLAS_LIB_DIR
         self.FFT_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
+
+        # building the FFTW interfaces is optional,
+        # so make sure libraries are there before FFT_LIB is set
+        imklroot = get_software_root(self.FFT_MODULE_NAME[0])
+        if all([any([os.path.exists(os.path.join(imklroot, libdir, "lib%s.a" % lib)) for libdir in self.FFT_LIB_DIR])
+                for lib in fftw_libs]):
+            self.FFT_LIB = fftw_libs
+        else:
+            self.log.error("Not all FFTW interface libraries (%s) are found in %s, can't set FFT_LIB." % \
+                           (fftw_libs, self.FFT_LIB_DIR))
+            self.FFT_LIB = []

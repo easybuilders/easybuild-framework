@@ -37,7 +37,7 @@ from socket import gethostname
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
 # 1.1-rc1 would indicate a post-release, i.e., and update of 1.1, so beware!
-VERSION = LooseVersion("1.2.0")
+VERSION = LooseVersion("1.3.0")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():
@@ -76,6 +76,7 @@ except:
 def this_is_easybuild():
     """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+    # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
          % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 

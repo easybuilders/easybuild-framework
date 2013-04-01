@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 EasyBuild configuration (paths, preferences, etc.)
 
@@ -36,35 +36,170 @@ EasyBuild configuration (paths, preferences, etc.)
 import os
 import tempfile
 import time
+from vsc import fancylogger
+from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import get_log
-import easybuild.tools.repository as repo
+from easybuild.tools.repository import Repository, get_repositories
+from easybuild.tools.utilities import read_environment as _read_environment
 
-_log = get_log('config')
 
-variables = {}
-requiredVariables = ['build_path', 'install_path', 'source_path', 'log_format', 'repository']
-environmentVariables = {
-    'build_path': 'EASYBUILDBUILDPATH',  # temporary build path
-    'install_path': 'EASYBUILDINSTALLPATH',  # final install path
-    'log_dir': 'EASYBUILDLOGDIR',  # log directory where temporary log files are stored
-    'config_file': 'EASYBUILDCONFIG',  # path to the config file
-    'test_output_path': 'EASYBUILDTESTOUTPUT',  # path to where jobs should place test output
-    'source_path': 'EASYBUILDSOURCEPATH',  # path to where sources should be downloaded
-    'log_format': 'EASYBUILDLOGFORMAT',  # format of the log file
+_log = fancylogger.getLogger('config', fname=False)
+
+
+# class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
+SUPPORT_OLDSTYLE = True
+
+
+DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+
+
+DEFAULT_PATH_SUBDIRS = {
+    'buildpath': 'build',
+    'installpath': '',
+    'repositorypath': 'ebfiles_repo',
+    'sourcepath': 'sources',
+    'subdir_modules': 'modules',
+    'subdir_software': 'software',
 }
+
+
+# based on
+# https://wickie.hlrs.de/platforms/index.php/Module_Overview
+# https://wickie.hlrs.de/platforms/index.php/Application_software_packages
+DEFAULT_MODULECLASSES = [
+    ('base', "Default module class"),
+    ('bio', "Bioinformatics, biology and biomedical"),
+    ('cae', "Computer Aided Engineering (incl. CFD)"),
+    ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
+    ('compiler', "Compilers"),
+    ('data', "Data management & processing tools"),
+    ('debugger', "Debuggers"),
+    ('devel', "Development tools"),
+    ('geo', "Earth Sciences"),
+    ('ide', "Integrated Development Environments (e.g. editors)"),
+    ('lang', "Languages and programming aids"),
+    ('lib', "General purpose libraries"),
+    ('math', "High-level mathematical software"),
+    ('mpi', "MPI stacks"),
+    ('numlib', "Numerical Libraries"),
+    ('perf', "Performance tools"),
+    ('phys', "Physics and physical systems simulations"),
+    ('system', "System utilities (e.g. highly depending on system OS and hardware)"),
+    ('toolchain', "EasyBuild toolchains"),
+    ('tools', "General purpose tools"),
+    ('vis', "Visualization, plotting, documentation and typesetting"),
+]
+
+
+oldstyle_environment_variables = {
+    'build_path': 'EASYBUILDBUILDPATH',
+    'config_file': 'EASYBUILDCONFIG',
+    'install_path': 'EASYBUILDINSTALLPATH',
+    'log_format': 'EASYBUILDLOGFORMAT',
+    'log_dir': 'EASYBUILDLOGDIR',
+    'source_path': 'EASYBUILDSOURCEPATH',
+    'test_output_path': 'EASYBUILDTESTOUTPUT',
+}
+
+
+class ConfigurationVariables(dict):
+    """This is a dict that supports legacy config names transparently."""
+    REQUIRED = [
+        'buildpath',
+        'installpath',
+        'sourcepath',
+        'logfile_format',
+        'repository',
+    ]
+    OLDSTYLE_NEWSTYLEMAP = {
+        'build_path': 'buildpath',
+        'install_path': 'installpath',
+        'log_dir': 'tmp_logdir',
+        'config_file': 'config',
+        'source_path': 'sourcepath',
+        'log_format': 'logfile_format',
+        'test_output_path': 'testoutput',
+        'module_classes': 'moduleclasses',
+        'repository_path': 'repositorypath',
+        'modules_install_suffix': 'subdir_modules',
+        'software_install_suffix': 'subdir_software',
+    }
+
+    def get_items_check_required(self, no_missing=True):
+        """
+        For all REQUIRED, check if exists and return all key,value pairs.
+            no_missing: boolean, when True, will throw error message for missing values
+        """
+        missing = [x for x in self.REQUIRED if not x in self]
+        if len(missing) > 0:
+            msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
+            if no_missing:
+                _log.error(msg)
+            else:
+                _log.debug(msg)
+
+        return self.items()
+
+    def _check_oldstyle(self, key):
+        """Check for oldstyle key usage, return newstyle key."""
+        if key in self.OLDSTYLE_NEWSTYLEMAP:
+            newkey = self.OLDSTYLE_NEWSTYLEMAP.get(key)
+            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
+            key = newkey
+        return key
+
+    def __getitem__(self, key):
+        """__getitem___ to deal with oldstyle key"""
+        return super(ConfigurationVariables, self).__getitem__(self._check_oldstyle(key))
+
+    def __setitem__(self, key, value):
+        """__setitem___ to deal with oldstyle key"""
+        return super(ConfigurationVariables, self).__setitem__(self._check_oldstyle(key), value)
+
+    def __delitem__(self, key):
+        """__delitem___ to deal with oldstyle key"""
+        super(ConfigurationVariables, self).__delitem__(self._check_oldstyle(key))
+
+    def __contains__(self, key):
+        """__contains___ to deal with oldstyle key"""
+        return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
+
+    def update(self, *args, **kwargs):
+        """
+        It seems that dict.update doesn't use __setitem__.
+        This function now does what the dict.update doctstring describes i.e.
+
+        D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.
+            If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
+            If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
+            In either case, this is followed by: for k in F: D[k] = F[k]
+        """
+        if args:
+            if len(args) > 1:
+                _log.error('Only one argument supported')
+            arg = args[0]
+            if hasattr(arg, 'keys'):
+                for k in arg.keys():
+                    self[k] = arg[k]
+            else:
+                for (k, v) in arg:
+                    self[k] = v
+        for k in kwargs.keys():
+            self[k] = kwargs[k]
+
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
     return os.path.join(os.path.expanduser('~'), ".easybuild")
 
+
 def get_default_oldstyle_configfile():
     """Get the default location of the oldstyle config file to be set as default in the options"""
-    # TODO these _log here can't be controlled/shown with the generaloption
+    # TODO these _log.debug here can't be controlled/set with the generaloption
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
-    config_env_var = environmentVariables['config_file']
+    config_env_var = oldstyle_environment_variables['config_file']
     home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
     if os.getenv(config_env_var):
         _log.debug("Environment variable %s, so using that as config file." % config_env_var)
@@ -78,101 +213,150 @@ def get_default_oldstyle_configfile():
         appPath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         config_file = os.path.join(appPath, "easybuild_config.py")
         _log.debug("Falling back to default config: %s" % config_file)
+
+    _log.deprecated("get_default_oldstyle_configfile oldstyle configfile %s used" % config_file, "2.0")
+
     return config_file
+
+
+def get_default_oldstyle_configfile_defaults(prefix=None):
+    """
+    Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environment variables
+        prefix: string, when provided, it used as prefix for the other defaults (where applicable)
+    """
+    if prefix is None:
+        prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+
+    def mk_full_path(name):
+        """Create full path, avoid '/' at the end."""
+        args = [prefix]
+        path = DEFAULT_PATH_SUBDIRS[name]
+        if path:
+            args.append(path)
+        return os.path.join(*args)
+
+    # keys are the options dest
+    defaults = {
+        'config': get_default_oldstyle_configfile(),
+        'prefix': prefix,
+        'buildpath': mk_full_path('buildpath'),
+        'installpath': mk_full_path('installpath'),
+        'sourcepath': mk_full_path('sourcepath'),
+        'repository': 'FileRepository',
+        'repositorypath': {'FileRepository': [mk_full_path('repositorypath')]},
+        'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
+        'tmp_logdir': tempfile.gettempdir(),
+        'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
+        'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
+        'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+    }
+
+    # sanity check
+    if not defaults['repository'] in defaults['repositorypath']:
+        _log.error('Failed to get repository path default for default %s' % (defaults['repository']))
+
+    _log.deprecated("get_default_oldstyle_configfile_defaults", "2.0")
+
+    return defaults
+
 
 def get_default_configfiles():
     """Return a list of default configfiles for tools.options/generaloption"""
     return [os.path.join(get_user_easybuild_dir(), "config.cfg")]
 
-def init(filename, **kwargs):
+
+def get_pretend_installpath():
+    """Get the installpath when --pretend option is used"""
+    return os.path.join(os.path.expanduser('~'), 'easybuildinstall')
+
+
+def init(options, config_options_dict):
     """
     Gather all variables and check if they're valid
-    Variables are read in this order of preference: CLI option > environment > config file
+    Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
+    if SUPPORT_OLDSTYLE:
+        _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
+        oldstyle_init(options.config)
 
-    variables.update(read_configuration(filename))  # config file
-    variables.update(read_environment(environmentVariables))  # environment
-    variables.update(kwargs)  # CLI options
+        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
+        variables['moduleclasses'] = nub(list(variables.get('moduleclasses', [])) +
+                                         [x[0] for x in DEFAULT_MODULECLASSES])
+
+        # all defaults are now set in generaloption
+        # distinguish between default generaloption values and values actually passed by generaloption
+        for dest in config_options_dict.keys():
+            if not options._action_taken.get(dest, False):
+                if dest == 'installpath' and options.pretend:
+                    # the installpath has been set by pretend option in postprocess
+                    continue
+                # remove the default options if they are set in variables
+                # this way, all defaults are set
+                if dest in variables:
+                    _log.debug("Oldstyle support: no action for dest %s." % dest)
+                    del config_options_dict[dest]
+
+    # update the variables with the generaloption values
+    _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
+    variables.update(config_options_dict)
+
+    _log.debug("Config variables: %s" % variables)
+
+    # Create an instance of the repository class
+    if 'repository' in variables and not isinstance(variables['repository'], Repository):
+        repo = get_repositories().get(options.repository)
+        repoargs = options.repositorypath
+
+        try:
+            repository = repo(*repoargs)
+        except Exception, err:
+            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
+                       (options.repository, repo.__name__, repoargs, err))
+
+        variables['repository'] = repository
 
     def create_dir(dirtype, dirname):
-        _log.warn('Will try to create the %s directory %s.' % (dirtype, dirname))
+        _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
         try:
             os.makedirs(dirname)
         except OSError, err:
             _log.error("Failed to create directory %s: %s" % (dirname, err))
-        _log.warn("%s directory %s created" % (dirtype, dirname))
+        _log.debug("%s directory %s created" % (dirtype, dirname))
 
-    for key in requiredVariables:
-        if not key in variables:
-            _log.error('Cannot determine value for configuration variable %s. ' \
-                      'Please specify it in your config file %s.' % (key, filename))
-            continue
-
+    for key, value in variables.get_items_check_required():
         # verify directories, try and create them if they don't exist
-        value = variables[key]
-        dirNotFound = key in ['build_path', 'install_path'] and not os.path.isdir(value)
-        srcDirNotFound = key in ['source_path'] and type(value) == str and not os.path.isdir(value)
-        if dirNotFound or srcDirNotFound:
-            _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, value))
-            create_dir(key, value)
-            continue
-        if key in ['source_path'] and type(value) == list:
-            for d in value:
-                if not os.path.isdir(d):
-                    create_dir(key, d)
-                    continue
+        if key in ['buildpath', 'installpath', 'sourcepath']:
+            if not isinstance(value, (list, tuple,)):
+                value = [value]
+            for directory in value:
+                if not os.path.isdir(directory):
+                    _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
+                    create_dir(key, directory)
 
     # update MODULEPATH if required
-    ebmodpath = os.path.join(install_path(typ='mod'), 'all')
-    modulepath = os.getenv('MODULEPATH')
-    if not modulepath or not ebmodpath in modulepath:
-        if modulepath:
-            os.environ['MODULEPATH'] = "%s:%s" % (ebmodpath, modulepath)
-        else:
-            os.environ['MODULEPATH'] = ebmodpath
-        _log.info("Extended MODULEPATH with module install path used by EasyBuild: %s" % os.getenv('MODULEPATH'))
+    ebmodpath = os.path.join(install_path(typ='modules'), 'all')
+    # modulepath without ebmodpath
+    # ebmodpath is then always inserted in 1st place
+    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0 and not x == ebmodpath]
+    _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
+    modulepath.insert(0, ebmodpath)
 
-def read_configuration(filename):
-    """
-    Read variables from the config file
-    """
-    fileVariables = {'FileRepository': repo.FileRepository,
-                     'GitRepository': repo.GitRepository,
-                     'SvnRepository': repo.SvnRepository
-                    }
-    try:
-        execfile(filename, {}, fileVariables)
-    except (IOError, SyntaxError), err:
-        _log.exception("Failed to read config file %s %s" % (filename, err))
+    os.environ['MODULEPATH'] = ':'.join(modulepath)
 
-    return fileVariables
-
-def read_environment(envVars, strict=False):
-    """
-    Read variables from the environment
-        - strict=True enforces that all possible environment variables are found
-    """
-    result = {}
-    for key in envVars.keys():
-        environmentKey = envVars[key]
-        if environmentKey in os.environ:
-            result[key] = os.environ[environmentKey]
-        elif strict:
-            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, environmentKey))
-
-    return result
 
 def build_path():
     """
     Return the build path
     """
-    return variables['build_path']
+    return variables['buildpath']
+
 
 def source_path():
     """
     Return the source path
     """
-    return variables['source_path']
+    return variables['sourcepath']
+
 
 def install_path(typ=None):
     """
@@ -180,16 +364,25 @@ def install_path(typ=None):
     - subdir 'software' for actual installation (default)
     - subdir 'modules' for environment modules (typ='mod')
     """
-    if typ and typ == 'mod':
-        suffix = variables.get('modules_install_suffix', None)
-        if not suffix:
-            suffix = 'modules'
-    else:
-        suffix = variables.get('software_install_suffix', None)
-        if not suffix:
-            suffix = 'software'
+    if typ is None:
+        typ = 'software'
+    if typ == 'mod':
+        typ = 'modules'
 
-    return os.path.join(variables['install_path'], suffix)
+    key = "subdir_%s" % typ
+    if key in variables:
+        suffix = variables[key]
+    else:
+        # TODO remove default setting. it should have been set through options
+        _log.deprecated('%s not set in config, returning default' % key, "2.0")
+        defaults = get_default_oldstyle_configfile_defaults()
+        try:
+            suffix = defaults[key]
+        except:
+            _log.error('install_path trying to get unknown suffix %s' % key)
+
+    return os.path.join(variables['installpath'], suffix)
+
 
 def get_repository():
     """
@@ -197,27 +390,48 @@ def get_repository():
     """
     return variables['repository']
 
+
+def log_file_format(return_directory=False):
+    """Return the format for the logfile or the directory"""
+    idx = int(not return_directory)
+
+    if 'logfile_format' in variables:
+        res = variables['logfile_format'][idx]
+    else:
+        # TODO remove default setting. it should have been set through options
+        _log.deprecated('logfile_format not set in config, returning default', "2.0")
+        defaults = get_default_oldstyle_configfile_defaults()
+        res = defaults['logfile_format'][idx]
+    return res
+
+
 def log_format():
     """
     Return the logfilename format
     """
     # TODO needs renaming, is actually a formatter for the logfilename
-    if 'log_format' in variables:
-        return variables['log_format'][1]
-    else:
-        return "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log"
+    return log_file_format(return_directory=False)
+
 
 def log_path():
     """
     Return the log path
     """
-    return variables['log_format'][0]
+    return log_file_format(return_directory=True)
+
 
 def get_build_log_path():
     """
     return temporary log directory
     """
-    return variables.get('log_dir', tempfile.gettempdir())
+    if 'tmp_logdir' in variables:
+        return variables['tmp_logdir']
+    else:
+        # TODO remove default setting. it should have been set through options
+        _log.deprecated('tmp_logdir not set in config, returning default', "2.0")
+        defaults = get_default_oldstyle_configfile_defaults()
+        return defaults['tmp_logdir']
+
 
 def get_log_filename(name, version):
     """
@@ -227,11 +441,12 @@ def get_log_filename(name, version):
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = os.path.join(get_build_log_path(), log_format() % {'name':name,
-                                                                  'version':version,
-                                                                  'date':date,
-                                                                  'time':timeStamp
-                                                                  })
+    filename = os.path.join(get_build_log_path(), log_file_format() % {
+                                                                       'name': name,
+                                                                       'version': version,
+                                                                       'date': date,
+                                                                       'time': timeStamp
+                                                                       })
 
     # Append numbers if the log file already exist
     counter = 1
@@ -240,6 +455,7 @@ def get_log_filename(name, version):
         filename = "%s.%d" % (filename, counter)
 
     return filename
+
 
 def read_only_installdir():
     """
@@ -250,13 +466,82 @@ def read_only_installdir():
     # install dir will have to (temporarily) be made writeable again for owner in that case
     return False
 
+
 def module_classes():
     """
     Return list of module classes specified in config file.
     """
-    if 'module_classes' in variables:
-        return variables['module_classes']
+    if 'moduleclasses' in variables:
+        return variables['moduleclasses']
     else:
-        legacy_module_classes = ['base', 'compiler', 'lib']
-        _log.debug('module_classes not set in config, so returning legacy list (%s)' % legacy_module_classes)
-        return legacy_module_classes
+        # TODO remove default setting. it should have been set through options
+        _log.deprecated('moduleclasses not set in config, returning default', "2.0")
+        defaults = get_default_oldstyle_configfile_defaults()
+        return defaults['moduleclasses']
+
+
+def read_environment(env_vars, strict=False):
+    """Depreacted location for read_environment, use easybuild.tools.utilities"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    return _read_environment(env_vars, strict)
+
+
+def oldstyle_init(filename, **kwargs):
+    """
+    Gather all variables and check if they're valid
+    Variables are read in this order of preference: CLI option > environment > config file
+    """
+    _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
+
+    _log.debug('variables before oldstyle_init %s' % variables)
+    variables.update(oldstyle_read_configuration(filename))  # config file
+    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, variables))
+    variables.update(oldstyle_read_environment())  # environment
+    _log.debug('variables after oldstyle_init read_environment %s' % variables)
+    if kwargs:
+        variables.update(kwargs)  # CLI options
+        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, variables))
+
+
+def oldstyle_read_configuration(filename):
+    """
+    Read variables from the config file
+    """
+    _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
+
+    file_variables = get_repositories(check_usable=False)
+    try:
+        execfile(filename, {}, file_variables)
+    except (IOError, SyntaxError), err:
+        _log.exception("Failed to read config file %s %s" % (filename, err))
+
+    return file_variables
+
+
+def oldstyle_read_environment(env_vars=None, strict=False):
+    """
+    Read variables from the environment
+        - strict=True enforces that all possible environment variables are found
+    """
+    _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
+                     'and do not use oldstyle environment variables'), '2.0')
+    if env_vars is None:
+        env_vars = oldstyle_environment_variables
+    result = {}
+    for key in env_vars.keys():
+        env_var = env_vars[key]
+        if env_var in os.environ:
+            result[key] = os.environ[env_var]
+            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
+        elif strict:
+            _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, env_var))
+        else:
+            _log.debug("Old style env var %s not defined." % env_var)
+
+    return result
+
+
+# config variables constant
+variables = ConfigurationVariables()
+
+
