@@ -35,6 +35,9 @@ It adds:
  - logging to an UDP server (vsc.logging.logdaemon.py f.ex.)
  - easily setting loglevel
  - easily add extra specifiers in the log record
+ - internal debugging through environment variables
+    FANCYLOGGER_GETLOGGER_DEBUG for getLogger
+    FANCYLOGGER_LOGLEVEL_DEBUG for setLogLevel
 
 usage:
 
@@ -288,6 +291,20 @@ class FancyLogger(logging.getLoggerClass()):
             parentinfo.append(info(logger))
         return parentinfo
 
+    def get_parent_info(self, prefix, verbose=True):
+        """Return pretty text version"""
+        rev_parent_info = self._get_parent_info(verbose=verbose)
+        return ["%s %s%s" % (prefix, " " * 4 * idx, info) for idx, info in enumerate(rev_parent_info)]
+
+    def __copy__(self):
+        """Return shallow copy, in this case reference to current logger"""
+        return getLogger(self.name, fname=False)
+
+    def __deepcopy__(self, memo):
+        """This behaviour is undefined, fancylogger will return shallow copy, instead just crashing."""
+        return self.__copy__()
+
+
 def thread_name():
     """
     returns the current threads name
@@ -312,8 +329,11 @@ def getLogger(name=None, fname=True):
     if os.environ.get('FANCYLOGGER_GETLOGGER_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
         print 'FANCYLOGGER_GETLOGGER_DEBUG',
         print 'name', name, 'fname', fname, 'fullname', fullname,
-        print 'parent_info verbose', l._get_parent_info(verbose=True)
+        print 'parent_info verbose'
+        print "\n".join(l.get_parent_info("FANCYLOGGER_GETLOGGER_DEBUG"))
+        sys.stdout.flush()
     return l
+
 
 def _getCallingFunctionName():
     """
@@ -400,7 +420,7 @@ def logToUDP(hostname, port=5005, enable=True, datagramhandler=None, name=None):
     handleropts = {'hostname': hostname, 'port': port}
     return _logToSomething(logging.handlers.DatagramHandler,
                            handleropts,
-                           loggeroption='logtoudp_%s:%s' %( hostname,str(port)),
+                           loggeroption='logtoudp_%s:%s' % (hostname, str(port)),
                            name=name,
                            enable=enable,
                            handler=datagramhandler,
@@ -492,7 +512,12 @@ def setLogLevel(level):
     """
     if isinstance(level, basestring):
         level = getLevelInt(level)
-    getLogger(fname=False).setLevel(level)
+    logger = getLogger(fname=False)
+    logger.setLevel(level)
+    if os.environ.get('FANCYLOGGER_LOGLEVEL_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
+        print "FANCYLOGGER_LOGLEVEL_DEBUG", level, logging.getLevelName(level)
+        print "\n".join(logger.get_parent_info("FANCYLOGGER_LOGLEVEL_DEBUG"))
+        sys.stdout.flush()
 
 
 def setLogLevelDebug():

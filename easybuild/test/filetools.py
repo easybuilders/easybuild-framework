@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Unit tests for filetools.py
 
@@ -31,6 +31,7 @@ Unit tests for filetools.py
 """
 import os
 from unittest import TestCase, TestSuite, main
+from vsc import fancylogger
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
@@ -41,11 +42,16 @@ class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
     def setUp(self):
+        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.legacySetUp()
+
+    def legacySetUp(self):
+        self.log.deprecated("legacySetUp", "2.0")
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
 
-        config.init(cfg_full_path)
+        config.oldstyle_init(cfg_full_path)
         self.cwd = os.getcwd()
 
     def tearDown(self):
@@ -77,7 +83,6 @@ class FileToolsTest(TestCase):
 
         cmd = ft.extract_cmd("test.tar.bz2")
         self.assertEqual("tar xjf test.tar.bz2", cmd)
-
 
         (out, ec) = ft.run_cmd("echo hello")
         self.assertEqual(out, "hello\n")

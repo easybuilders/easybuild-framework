@@ -38,14 +38,16 @@ import os
 import re
 import subprocess
 import sys
+from vsc import fancylogger
 
-from easybuild.tools.build_log import get_log, EasyBuildError
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
+DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
 # keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
@@ -62,6 +64,8 @@ outputMatchers = {
     'available': re.compile(r"^\s*(?P<name>\S+?)/(?P<version>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
 }
 
+_log = fancylogger.getLogger('modules', fname=False)
+
 
 class Modules(object):
     """
@@ -73,7 +77,7 @@ class Modules(object):
         @param modulePath: A list of paths where the modules can be located
         @type modulePath: list
         """
-        self.log = get_log(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if modulePath:
             self.modulePath = set(modulePath)
@@ -107,10 +111,10 @@ class Modules(object):
             self.log.error(errormsg)
 
         if self.modulePath:
-            # # set the module path environment accordingly
+            # set the module path environment accordingly
             os.environ['MODULEPATH'] = ":".join(self.modulePath)
         else:
-            # # take module path from environment
+            # take module path from environment
             self.modulePath = os.environ['MODULEPATH'].split(':')
 
         if not 'LOADEDMODULES' in os.environ:
@@ -131,8 +135,8 @@ class Modules(object):
 
         modules = self.run_module('available', txt, modulePath=modulePath)
 
-        # # sort the answers in [name, version] pairs
-        # # alphabetical order, default last
+        # sort the answers in [name, version] pairs
+        # alphabetical order, default last
         modules.sort(key=lambda m: (m['name'] + (m['default'] or ''), m['version']))
         ans = [(mod['name'], mod['version']) for mod in modules]
 
@@ -157,7 +161,7 @@ class Modules(object):
                 (name, version) = mod.split('/')
             elif type(mod) == dict:
                 name = mod['name']
-                # # deal with toolchain dependency calls
+                # deal with toolchain dependency calls
                 if 'tc' in mod:
                     version = mod['tc']
                 else:
@@ -167,7 +171,7 @@ class Modules(object):
 
             mods = self.available(name, version)
             if (name, version) in mods:
-                # # ok
+                # ok
                 self.modules.append((name, version))
             else:
                 if len(mods) == 0:
@@ -237,7 +241,7 @@ class Modules(object):
         # change our LD_LIBRARY_PATH here
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % \
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
@@ -398,6 +402,7 @@ def get_software_root_env_var_name(name):
     newname = convert_name(name, upper=True)
     return ''.join([ROOT_ENV_VAR_NAME_PREFIX, newname])
 
+
 def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
@@ -411,6 +416,8 @@ def get_software_root(name, with_env_var=False):
         env_var = environment_key
     else:
         env_var = legacy_key
+        if legacy_key in os.environ:
+            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     root = os.getenv(env_var)
 
@@ -425,6 +432,7 @@ def get_software_version_env_var_name(name):
     newname = convert_name(name, upper=True)
     return ''.join([VERSION_ENV_VAR_NAME_PREFIX, newname])
 
+
 def get_software_version(name):
     """
     Return the software version set for a particular software name.
@@ -437,6 +445,8 @@ def get_software_version(name):
     if environment_key in os.environ:
         return os.getenv(environment_key)
     else:
+        if legacy_key in os.environ:
+            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
         return os.getenv(legacy_key)
 
 

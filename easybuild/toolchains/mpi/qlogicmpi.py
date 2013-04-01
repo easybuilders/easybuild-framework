@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Support for QLogicMPI as toolchain MPI library.
 
@@ -30,7 +30,7 @@ Support for QLogicMPI as toolchain MPI library.
 """
 
 from easybuild.toolchains.mpi.mpich2 import Mpich2
-from easybuild.tools.variables import CommandFlagList
+from easybuild.tools.toolchain.variables import CommandFlagList
 
 
 TC_CONSTANT_QLOGICMPI = "QLogicMPI"
@@ -43,7 +43,7 @@ class QLogicMPI(Mpich2):
 
     MPI_LIBRARY_NAME = 'mpich'
 
-    ## qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
+    # qlogic has separate -m32 / -m64 option to mpicc/.. --> only one
 
     def _set_mpi_compiler_variables(self):
         """Add MPICH_CCC variable to set."""

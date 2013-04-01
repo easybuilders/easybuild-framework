@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 The toolchain options module contains the ToolchainOptions class
     These are the options that can be passed to the toolchain through the easyconfig files
@@ -36,6 +36,7 @@ Map values can be string with named templates
 """
 
 from vsc import fancylogger
+
 
 class ToolchainOptions(dict):
     def __init__(self):
@@ -90,7 +91,7 @@ class ToolchainOptions(dict):
             res = self.options_map[name]
 
             if isinstance(res, str):
-                ## allow for template
+                # allow for template
                 if templatedict is None:
                     templatedict = {}
                 templatedict.update({
@@ -99,7 +100,7 @@ class ToolchainOptions(dict):
                                     })
                 res = self.options_map[name] % templatedict
             else:
-                ## check if True?
+                # check if True?
                 res = self.options_map[name]
         else:
             res = value
