@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Toolchain specific variables
 
@@ -29,192 +29,148 @@ Toolchain specific variables
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.variables import Variables, CommaStaticLibs, AbsPathList, LinkerFlagList, FlagList, LibraryList
-from easybuild.tools.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, join_map_class
+from easybuild.tools.variables import StrList, AbsPathList
 
 
-COMPILER_VARIABLES = [
-                      ('CC', 'C compiler'),
-                      ('CXX', 'C++ compiler'),
-                      ('F77', 'Fortran 77 compiler'),
-                      ('F90', 'Fortran 90 compiler'),
-                      ]
-
-COMPILER_MAP_CLASS = {
-                      FlagList: [
-                                 ('OPTFLAGS', 'Optimization flags'),
-                                 ('PRECFLAGS', 'FP precision flags'),
-                                 ('CFLAGS', 'C compiler flags'),
-                                 ('CXXFLAGS', 'C++ compiler flags'),
-                                 ('FFLAGS', 'Fortran compiler flags'),
-                                 ('F90FLAGS', 'Fortran 90 compiler flags'),
-                                ],
-                      LibraryList: [
-                                    ('LIBS', 'Libraries'), ## TODO: where are these used? ld?
-                                    ('FLIBS', 'Fortran libraries'), ## TODO: where are these used? gfortran only?
-                                   ],
-                      LinkLibraryPaths: [
-                                         ('LDFLAGS', 'Flags passed to linker'), ## TODO: overridden by command line?
-                                        ],
-                      IncludePaths: [
-                                     ('CPPFLAGS', 'Precompiler flags'),
-                                    ],
-                      CommandFlagList: COMPILER_VARIABLES,
-                      }
-
-MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
-MPI_COMPILER_VARIABLES = [(MPI_COMPILER_TEMPLATE % {'c_var': v}, "MPI %s wrapper" % d)
-                          for (v, d) in COMPILER_VARIABLES]
-
-SEQ_COMPILER_TEMPLATE = "%(c_var)s_SEQ"
-SEQ_COMPILER_VARIABLES = [(SEQ_COMPILER_TEMPLATE % {'c_var': v}, "sequential %s" % d)
-                          for (v, d) in COMPILER_VARIABLES]
-
-MPI_MAP_CLASS = {
-                 AbsPathList: [
-                               ('MPI_LIB_STATIC', 'MPI libraries (static)'), ## TODO: useful at all? shouldn't these be obtained from mpiXX --show
-                               ('MPI_LIB_SHARED', 'MPI libraries (shared)'),
-                               ('MPI_LIB_DIR', 'MPI library directory'),
-                               ('MPI_INC_DIR', 'MPI include directory'),
-                               ],
-                 CommandFlagList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
-                 }
-
-BLAS_MAP_CLASS = {
-                  AbsPathList:[
-                               ('BLAS_LIB_DIR', 'BLAS library directory'),
-                               ('BLAS_INC_DIR', 'BLAS include directory'),
-
-                               ],
-                  LibraryList:[
-                               ('LIBBLAS', 'BLAS libraries'),
-                               ('LIBBLAS_MT', 'multithreaded BLAS libraries'),
-                               ],
-                  CommaStaticLibs:[
-                                   ('BLAS_STATIC_LIBS', 'Comma-separated list of static BLAS libraries'),
-                                   ('BLAS_MT_STATIC_LIBS', 'Comma-separated list of static multithreaded BLAS libraries'),
-                                   ],
-                  }
-LAPACK_MAP_CLASS = {
-                    AbsPathList:[
-                                 ('LAPACK_LIB_DIR', 'LAPACK library directory'),
-                                 ('LAPACK_INC_DIR', 'LAPACK include directory'),
-                                 ('BLAS_LAPACK_LIB_DIR', 'BLAS and LAPACK library directory'),
-                                 ('BLAS_LAPACK_INC_DIR', 'BLAS and LAPACK include directory'),
-                                 ],
-                    LibraryList:[
-                                 ('LIBLAPACK_ONLY', 'LAPACK libraries (LAPACK only)'),
-                                 ('LIBLAPACK_MT_ONLY', 'multithreaded LAPACK libraries (LAPACK only)'),
-                                 ('LIBLAPACK', 'LAPACK libraries'),
-                                 ('LIBLAPACK_MT', 'multithreaded LAPACK libraries'),
-                                 ],
-                    CommaStaticLibs:[
-                                     ('LAPACK_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
-                                     ('LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static LAPACK libraries'),
-                                     ('BLAS_LAPACK_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
-                                     ('BLAS_LAPACK_MT_STATIC_LIBS', 'Comma-separated list of static BLAS and LAPACK libraries'),
-                                     ],
-                    }
-BLACS_MAP_CLASS = {
-                  AbsPathList:[
-                               ('BLACS_LIB_DIR', 'BLACS library directory'),
-                               ('BLACS_INC_DIR', 'BLACS include directory'),
-
-                               ],
-                  LibraryList:[
-                               ('LIBBLACS', 'BLACS libraries'),
-                               ('LIBBLACS_MT', 'multithreaded BLACS libraries'),
-                               ],
-                  CommaStaticLibs:[
-                                   ('BLACS_STATIC_LIBS', 'Comma-separated list of static BLACS libraries'),
-                                   ('BLACS_MT_STATIC_LIBS', 'Comma-separated list of static multithreaded BLACS libraries'),
-                                   ],
-                  }
-
-SCALAPACK_MAP_CLASS = {
-                    AbsPathList:[
-                                 ('SCALAPACK_LIB_DIR', 'SCALAPACK library directory'),
-                                 ('SCALAPACK_INC_DIR', 'SCALAPACK include directory'),
-                                 ],
-                    LibraryList:[
-                                 ('LIBSCALAPACK_ONLY', 'SCALAPACK libraries (SCALAPACK only)'),
-                                 ('LIBSCALAPACK_MT_ONLY', 'multithreaded SCALAPACK libraries (SCALAPACK only)'),
-                                 ('LIBSCALAPACK', 'SCALAPACK libraries'),
-                                 ('LIBSCALAPACK_MT', 'multithreaded SCALAPACK libraries'),
-                                 ],
-                       CommaStaticLibs:[
-                                        ('SCALAPACK_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
-                                        ('SCALAPACK_MT_STATIC_LIBS', 'Comma-separated list of static SCALAPACK libraries'),
-                                        ],
-                       }
-
-FFT_MAP_CLASS = {
-                  AbsPathList:[
-                               ('FFT_LIB_DIR', 'FFT library directory'),
-                               ('FFT_INC_DIR', 'FFT include directory'),
-                               ],
-                  LibraryList:[
-                               ('LIBFFT', 'FFT libraries'),
-                               ],
-                  CommaStaticLibs:[
-                                   ('FFT_STATIC_LIBS', 'Comma-separated list of static FFT libraries'),
-                                   ],
-                 }
-
-FFTW_MAP_CLASS = {
-                  AbsPathList:[
-                               ('FFTW_LIB_DIR', 'FFTW library directory'),
-                               ('FFTW_INC_DIR', 'FFTW include directory'),
-                               ],
-                  CommaStaticLibs:[
-                                   ('FFTW_STATIC_LIBS', 'Comma-separated list of static FFTW libraries'),
-                                   ],
-                  }
-
-ALL_MAP_CLASSES = [
-                   COMPILER_MAP_CLASS, MPI_MAP_CLASS,
-                   BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
-                   FFT_MAP_CLASS, FFTW_MAP_CLASS,
-                   ]
+class IncludePaths(AbsPathList):
+    """Absolute path to directory containing include files"""
+    PREFIX = '-I'
 
 
-class ToolchainVariables(Variables):
+class LinkLibraryPaths(AbsPathList):
+    """Absolute path to directory containing libraries"""
+    PREFIX = '-L'
+
+
+class FlagList(StrList):
+    """Flag list"""
+    PREFIX = "-"
+
+
+class CommandFlagList(FlagList):
     """
-    Class to hold variable-like key/value pairs
-    in context of compilers (i.e. the generated string are e.g. compiler options or link flags)
+    Command and flags list
+        First of the list has no prefix (i.e. the executable)
+        The remainder of the options are considered flags
     """
-    MAP_CLASS = join_map_class(ALL_MAP_CLASSES) ## join_map_class strips explanation
-    DEFAULT_CLASS = FlagList
+    def _str_self(self):
+        """Like a regular flag list, but set first element to original value"""
+        tmp_str = [self.str_convert(x) for x in self if self._str_ok(x)]
+        if len(tmp_str) > 0:
+            tmp_str[0] = self[0]
+        return tmp_str
+
+
+class LibraryList(StrList):
+    """Link library list"""
+    PREFIX = "-l"
+
+    SANITIZE_REMOVE_DUPLICATE_KEEP = -1  #  sanitize from end
+
+    JOIN_BEGIN_END = True
+
+    def set_packed_linker_options(self, separator=',', separator_begin_end=',', prefix=None, prefix_begin_end=None):
+        """Use packed linker options format"""
+        if isinstance(self.BEGIN, LinkerFlagList) and isinstance(self.END, LinkerFlagList):
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+
+            self.BEGIN.PACKED_LINKER_OPTIONS = True
+            self.END.PACKED_LINKER_OPTIONS = True
+            if separator_begin_end is not None:
+                self.BEGIN.SEPARATOR = separator_begin_end
+                self.END.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.BEGIN.PREFIX = prefix_begin_end
+                self.END.PREFIX = prefix_begin_end
+
+            # this is intentional only on the elements that have BEGIN/END
+            if separator is not None:
+                self.SEPARATOR = separator
+            if prefix is not None:
+                self.PREFIX = prefix
+
+    def change(self, separator=None, separator_begin_end=None, prefix=None, prefix_begin_end=None):
+        """Change prefix and/or separator of base and/or BEGIN/END"""
+        if separator is not None:
+            self.SEPARATOR = separator
+        if prefix is not None:
+            self.PREFIX = prefix
+
+        if isinstance(self.BEGIN, LinkerFlagList):
+            if separator_begin_end is not None:
+                self.BEGIN.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.BEGIN.PREFIX = prefix_begin_end
+
+        if isinstance(self.END, LinkerFlagList):
+            if separator_begin_end is not None:
+                self.END.SEPARATOR = separator_begin_end
+            if prefix_begin_end is not None:
+                self.END.PREFIX = prefix_begin_end
+
+
+class CommaStaticLibs(LibraryList):
+    """Comma-separated list"""
+    SEPARATOR = ','
+
+    PREFIX = 'lib'
+    SUFFIX = '.a'
+
+
+class LinkerFlagList(StrList):
+    """Linker flags"""
+
+    PREFIX = '-Wl,'
+
     LINKER_TOGGLE_START_STOP_GROUP = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
 
-    def add_begin_end_linkerflags(self, lib, toggle_startstopgroup=False, toggle_staticdynamic=False):
-        """
-        For given lib
-            if toggle_startstopgroup: toggle begin/end group
-            if toggle_staticdynamic: toggle static/dynamic
-        """
-        class LFL(LinkerFlagList):
-            LINKER_TOGGLE_START_STOP_GROUP = self.LINKER_TOGGLE_START_STOP_GROUP
-            LINKER_TOGGLE_STATIC_DYNAMIC = self.LINKER_TOGGLE_STATIC_DYNAMIC
+    PACKED_LINKER_OPTIONS = None
 
-        def make_lfl(begin=True):
-            """make linkerflaglist for begin/end of library"""
-            lfl = LFL()
-            if toggle_startstopgroup:
-                if begin:
-                    lfl.toggle_startgroup()
-                else:
-                    lfl.toggle_stopgroup()
-            if toggle_staticdynamic:
-                if begin:
-                    lfl.toggle_static()
-                else:
-                    lfl.toggle_dynamic()
-            return lfl
+    IS_BEGIN = None
+    IS_END = None
 
-        lib.BEGIN = make_lfl(True)
-        lib.BEGIN.IS_BEGIN = True
-        lib.END = make_lfl(False)
-        lib.END.IS_END = True
+    def _toggle_map(self, toggle_map, name, descr, idx=None):
+        """Append value from toggle_map. Raise if not None and name not found
+            descr string to add to raise
+        """
+        if toggle_map is not None:
+            if name in toggle_map:
+                if idx is None:
+                    self.append(toggle_map[name])
+                else:
+                    self.insert(idx, toggle_map[name])
+            else:
+                self.log.raiseException("%s name %s not found in map %s" % (descr, name, toggle_map))
+
+    def toggle_startgroup(self):
+        """Append start group"""
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'start', 'toggle_startgroup', idx=None)
+
+    def toggle_stopgroup(self):
+        """Append stop group"""
+        self._toggle_map(self.LINKER_TOGGLE_START_STOP_GROUP, 'stop', 'toggle_stopgroup', idx=0)
+
+    def toggle_static(self):
+        """Append static linking flags"""
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'static', 'toggle_static', idx=0)
+
+    def toggle_dynamic(self):
+        """Append dynamic linking flags"""
+        self._toggle_map(self.LINKER_TOGGLE_STATIC_DYNAMIC, 'dynamic', 'toggle_dynamic', idx=None)
+
+    def sanitize(self):
+        # TODO: rewrite to avoid changing constants
+        if self.PACKED_LINKER_OPTIONS:
+            # somehow this should only be run once.
+            self.PACKED_LINKER_OPTIONS = None
+
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS")
+            if self.IS_BEGIN and self.SEPARATOR:
+                self.BEGIN = str(self.PREFIX).rstrip(self.SEPARATOR)
+            self.PREFIX = None
+            self.log.debug("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s" % (self.IS_BEGIN, self.PREFIX, self.BEGIN))
+
+        super(LinkerFlagList, self).sanitize()
+
 

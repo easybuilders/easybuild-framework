@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Support for MPICH2 as toolchain MPI library.
 
@@ -31,7 +31,7 @@ Support for MPICH2 as toolchain MPI library.
 """
 
 from easybuild.tools.toolchain.mpi import Mpi
-from easybuild.tools.variables import CommandFlagList
+from easybuild.tools.toolchain.variables import CommandFlagList
 
 TC_CONSTANT_MPICH2 = "MPICH2"
 TC_CONSTANT_MPI_TYPE_MPICH = "MPI_TYPE_MPICH"
