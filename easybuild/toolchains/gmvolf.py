@@ -38,7 +38,7 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Goolf(Gcc, Mvapich2, OpenBLAS, ScaLAPACK, Fftw):
+class Gmvolf(Gcc, Mvapich2, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmvolf'
 
