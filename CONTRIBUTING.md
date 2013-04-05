@@ -4,7 +4,7 @@ We'd love you to contribute back to EasyBuild, and here's how you can do it: the
 Contributions can be made under the MIT or 
 BSD licenses (in the three-clause and two-clause forms, though not the original four-clause form)
 
-Or alteratively the contributer must agree with following contributer agreement:
+Or alteratively the contributer must agree with following contributor agreement:
 
 ## Contributor Agreement.
 In this case the contributor must agree that Ghent University shall have the irrevocable and perpetual right to make and 
