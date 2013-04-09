@@ -37,7 +37,7 @@ from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Cgompi(ClangGcc, Mpich):
+class Cgmpich(ClangGcc, Mpich):
     """Compiler toolchain with Clang, GFortran and MPICH."""
     NAME = 'cgmpich'
     COMPILER_MODULE_NAME = ['ClangGCC']
