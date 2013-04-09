@@ -75,10 +75,6 @@ class Clang(Compiler):
     COMPILER_CXX = 'clang++'
     COMPILER_C_UNIQUE_FLAGS = []
 
-    COMPILER_F77 = 'gfortran'
-    COMPILER_F90 = 'gfortran'
-    COMPILER_F_UNIQUE_FLAGS = ['f2c']
-
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
 
