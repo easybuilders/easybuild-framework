@@ -92,7 +92,7 @@ class Gcc(Compiler):
         ## also used in eg LIBBLAS variable
         self.variables.nappend('FLIBS', "gfortran", position=5)
 
-	# Hardcode 'GCC' here.  We can not reuse COMPILER_MODULE_NAME because
-	# it can include other compilers, for example, Clang.
+        # Hardcode 'GCC' here.  We can not reuse COMPILER_MODULE_NAME because
+        # it can include other compilers, for example, Clang.
         gcc_root = self.get_software_root('GCC')[0]
         self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64"])
