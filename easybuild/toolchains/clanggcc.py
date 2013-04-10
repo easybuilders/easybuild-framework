@@ -31,6 +31,7 @@ EasyBuild support for Clang + GCC compiler toolchain.  Clang uses libstdc++.  GF
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
+import os
 from easybuild.toolchains.compiler.clang import Clang
 from easybuild.toolchains.compiler.gcc import Gcc
 
@@ -43,3 +44,12 @@ class ClangGcc(Clang, Gcc):
     NAME = 'ClangGCC'
     COMPILER_MODULE_NAME = ['Clang', 'GCC']
     COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
+
+    def _setenv_variables(self, donotset=None):
+        super(Clang, self)._setenv_variables(donotset=donotset)
+
+        if os.environ['CC'] != 'clang':
+            self.log.error("CC is set to '%s', should be 'clang'", os.environ['CC'])
+        
+        if os.environ['CXX'] != 'clang++':
+            self.log.error("CXX is set to '%s', should be 'clang++'", os.environ['CXX'])
