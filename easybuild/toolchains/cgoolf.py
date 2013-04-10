@@ -31,15 +31,14 @@ EasyBuild support for cgoolf compiler toolchain (includes Clang, GFortran, OpenM
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
-from easybuild.toolchains.compiler.clang import Clang
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.clanggcc import ClangGcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Cgoolf(Clang, Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+class Cgoolf(ClangGcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgoolf'
     COMPILER_MODULE_NAME = ['ClangGCC']
