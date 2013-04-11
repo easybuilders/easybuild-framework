@@ -32,8 +32,6 @@ EasyBuild support for cgompi compiler toolchain (includes Clang, GFortran and MP
 """
 
 from easybuild.toolchains.clanggcc import ClangGcc
-from easybuild.toolchains.compiler.clang import Clang
-from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.mpi.mpich import Mpich
 
 
