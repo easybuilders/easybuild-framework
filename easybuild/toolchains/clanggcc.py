@@ -46,7 +46,7 @@ class ClangGcc(Clang, Gcc):
     COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
 
     def _setenv_variables(self, donotset=None):
-        super(Clang, self)._setenv_variables(donotset=donotset)
+        super(ClangGcc, self)._setenv_variables(donotset=donotset)
 
         if os.environ['CC'] != 'clang':
             self.log.error("CC is set to '%s', should be 'clang'", os.environ['CC'])
