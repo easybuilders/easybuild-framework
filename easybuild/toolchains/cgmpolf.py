@@ -31,17 +31,16 @@ EasyBuild support for cgmpolf compiler toolchain (includes Clang, GFortran, Open
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
-from easybuild.toolchains.clanggcc import ClangGcc
+from easybuild.toolchains.cgmpich import Cgmpich
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Cgmpolf(ClangGcc, Mpich, OpenBLAS, ScaLAPACK, Fftw):
+class Cgmpolf(Cgmpich, Mpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmpolf'
-    COMPILER_MODULE_NAME = ['ClangGCC']
 
     # no BLACS
     BLACS_MODULE_NAME = []
