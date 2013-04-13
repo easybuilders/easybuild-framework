@@ -35,10 +35,9 @@ from easybuild.toolchains.cgompi import Cgompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Cgoolf(Cgompi, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
+class Cgoolf(Cgompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgoolf'
 
