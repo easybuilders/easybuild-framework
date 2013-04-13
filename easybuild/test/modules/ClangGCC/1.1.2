@@ -1,0 +1,30 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Clang and GCC based compiler toolchain.  Clang will use libstdc++.
+GFortran will be used to compile Fortran code. - Homepage: (none)
+}
+}
+
+module-whatis {Clang and GCC based compiler toolchain.  Clang will use libstdc++.
+GFortran will be used to compile Fortran code. - Homepage: (none)}
+
+set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/ClangGCC/1.1.2
+
+conflict    ClangGCC
+
+if { ![is-loaded Clang/3.2-GCC-4.7.2] } {
+    module load Clang/3.2-GCC-4.7.2
+}
+
+if { ![is-loaded GCC/4.7.2] } {
+    module load GCC/4.7.2
+}
+
+
+setenv	EBROOTCLANGGCC		"$root"
+setenv	EBVERSIONCLANGGCC		"1.1.2"
+setenv	EBDEVELCLANGGCC		"$root/easybuild/ClangGCC-1.1.2-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev
