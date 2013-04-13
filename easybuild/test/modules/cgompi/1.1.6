@@ -1,0 +1,30 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Clang and GFortran based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)
+}
+}
+
+module-whatis {Clang and GFortran based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)}
+
+set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/cgompi/1.1.6
+
+conflict    cgompi
+
+if { ![is-loaded ClangGCC/1.1.2] } {
+    module load ClangGCC/1.1.2
+}
+
+if { ![is-loaded OpenMPI/1.6.4-ClangGCC-1.1.2] } {
+    module load OpenMPI/1.6.4-ClangGCC-1.1.2
+}
+
+
+setenv	EBROOTCGOMPI		"$root"
+setenv	EBVERSIONCGOMPI		"1.1.6"
+setenv	EBDEVELCGOMPI		"$root/easybuild/cgompi-1.1.6-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

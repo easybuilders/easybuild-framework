@@ -943,7 +943,7 @@ def dep_graph(fn, specs):
         gv.layout(gvv, 'dot')
         gv.render(gvv, fn.split('.')[-1], fn)
 
-    print "Wrote dependency graph to %s" % fn
+    print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 def write_to_xml(succes, failed, filename):
     """

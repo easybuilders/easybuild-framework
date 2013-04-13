@@ -49,12 +49,15 @@ class ModulesTest(TestCase):
         testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available('', None)
         for m in ms:
-            testmods.purge()
             testmods.add_module([m])
             testmods.load()
 
             tmp = {"name": m[0], "version": m[1]}
             assert(tmp in testmods.loaded_modules())
+
+            # remove module again and purge to avoid conflicts when loading modules
+            testmods.remove_module([m])
+            testmods.purge()
 
     def test_LD_LIBRARY_PATH(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
