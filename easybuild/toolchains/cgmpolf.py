@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for cgmpolf compiler toolchain (includes Clang, GFortran, OpenMPI, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for cgmpolf compiler toolchain (includes Clang, GFortran, MPICH, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
@@ -35,10 +35,9 @@ from easybuild.toolchains.cgmpich import Cgmpich
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Cgmpolf(Cgmpich, Mpich, OpenBLAS, ScaLAPACK, Fftw):
+class Cgmpolf(Cgmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmpolf'
 
