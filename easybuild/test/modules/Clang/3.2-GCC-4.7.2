@@ -1,0 +1,29 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   C, C++, Objective-C compiler, based on LLVM.  Does not
+include C++ standard library -- use libstdc++ from GCC. - Homepage: http://clang.llvm.org/
+}
+}
+
+module-whatis {C, C++, Objective-C compiler, based on LLVM.  Does not
+include C++ standard library -- use libstdc++ from GCC. - Homepage: http://clang.llvm.org/}
+
+set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/Clang/3.2-GCC-4.7.2
+
+conflict    Clang
+
+if { ![is-loaded GCC/4.7.2] } {
+    module load GCC/4.7.2
+}
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	PATH		$root/bin
+
+setenv	EBROOTCLANG		"$root"
+setenv	EBVERSIONCLANG		"3.2"
+setenv	EBDEVELCLANG		"$root/easybuild/Clang-3.2-GCC-4.7.2-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev
