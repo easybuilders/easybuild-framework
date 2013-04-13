@@ -180,6 +180,13 @@ class Modules(object):
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
 
+    def remove_module(self, modules):
+        """
+        Remove modules from list.
+        """
+        for mod in modules:
+            self.modules = [m for m in self.modules if not m == mod]
+
     def load(self):
         """
         Load all requested modules.
