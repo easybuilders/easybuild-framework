@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Toolchain compiler module, provides abstract class for compilers.
 
@@ -30,7 +30,7 @@ Toolchain compiler module, provides abstract class for compilers.
 """
 
 from easybuild.tools import systemtools
-from easybuild.tools.toolchain.variables import COMPILER_VARIABLES
+from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -44,29 +44,29 @@ class Compiler(Toolchain):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"), ## also MPI
-                            'pic': (False, "Use PIC"), ## also FFTW
+    COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"),  # also MPI
+                            'pic': (False, "Use PIC"),  # also FFTW
                             'noopt': (False, "Disable compiler optimizations"),
                             'lowopt': (False, "Low compiler optimizations"),
-                            'defaultopt':(False, "Default compiler optimizations"), ## not set, but default
+                            'defaultopt':(False, "Default compiler optimizations"),  # not set, but default
                             'opt': (False, "High compiler optimizations"),
                             'optarch':(True, "Enable architecture optimizations"),
                             'strict': (False, "Strict (highest) precision"),
                             'precise':(False, "High precision"),
-                            'defaultprec':(False, "Default precision"), ## not set, but default
+                            'defaultprec':(False, "Default precision"),  # not set, but default
                             'loose': (False, "Loose precision"),
                             'veryloose': (False, "Very loose precision"),
                             'verbose': (False, "Verbose output"),
                             'debug': (False, "Enable debug"),
-                            'i8': (False, "Integers are 8 byte integers"), ## fortran only -> no: MKL and icc give -DMKL_ILP64
-                            'r8' : (False, "Real is 8 byte real"), ## fortran only
+                            'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
+                            'r8' : (False, "Real is 8 byte real"),  # fortran only
                             'unroll': (False, "Unroll loops"),
                             'cstd': (None, "Specify C standard"),
                             'shared': (False, "Build shared library"),
                             'static': (False, "Build static library"),
-                            '32bit':(False, "Compile 32bit target"), ## LA, FFTW
+                            '32bit':(False, "Compile 32bit target"),  # LA, FFTW
                             'openmp':(False, "Enable OpenMP"),
-                            'packed-linker-options':(False, "Pack the linker options as comma separated list"), ## ScaLAPACK mainly
+                            'packed-linker-options':(False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
                             }
 
     COMPILER_UNIQUE_OPTION_MAP = None
@@ -86,9 +86,9 @@ class Compiler(Toolchain):
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
 
-    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  ## any compiler
-    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt'] ## optimisation args, ordered !
-    COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose'] ## precision flags, ordered !
+    COMPILER_FLAGS = ['debug', 'verbose', 'static', 'shared', 'openmp', 'pic', 'unroll']  # any compiler
+    COMPILER_OPT_FLAGS = ['noopt', 'lowopt', 'defaultopt', 'opt']  # optimisation args, ordered !
+    COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
     COMPILER_CC = None
     COMPILER_CXX = None
@@ -132,10 +132,10 @@ class Compiler(Toolchain):
         """Set the compiler related toolchain options"""
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
-        ## overwrite/add unique compiler specific toolchainoptions
+        # overwrite/add unique compiler specific toolchainoptions
         self.options.add_options(self.COMPILER_UNIQUE_OPTS, self.COMPILER_UNIQUE_OPTION_MAP)
 
-        ## redefine optarch
+        # redefine optarch
         self._get_optimal_architecture()
 
     def _set_compiler_vars(self):
@@ -174,7 +174,7 @@ class Compiler(Toolchain):
         fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
 
-        ## 1st one is the one to use. add default at the end so len is at least 1
+        # 1st one is the one to use. add default at the end so len is at least 1
         optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
                    [self.options.option('defaultopt')]
 
@@ -186,7 +186,7 @@ class Compiler(Toolchain):
         self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
         self.variables.nextend('PRECFLAGS', precflags[:1])
 
-        ## precflags last
+        # precflags last
         self.variables.nappend('CFLAGS', flags)
         self.variables.nappend('CFLAGS', cflags)
         self.variables.join('CFLAGS', 'OPTFLAGS', 'PRECFLAGS')

@@ -34,6 +34,7 @@ from unittest import TestCase, TestLoader, main
 
 from easybuild.test.utilities import find_full_path
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.modules import Modules
 
 class ToolchainTest(TestCase):
     """ Baseclass for toolchain testcases """
@@ -309,8 +310,22 @@ class ToolchainTest(TestCase):
                     else:
                         self.assertTrue(val not in flags)
 
+    def test_cgoolf_toolchain(self):
+        """Test for cgoolf toolchain."""
+        name = "cgoolf"
+        tc_class, _ = search_toolchain(name)
+        self.assertEqual(tc_class.NAME, name)
+        tc = tc_class(version="1.1.6")
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('CC'), 'clang')
+        self.assertEqual(tc.get_variable('CXX'), 'clang++')
+        self.assertEqual(tc.get_variable('F77'), 'gfortran')
+        self.assertEqual(tc.get_variable('F90'), 'gfortran')
+
     def tearDown(self):
         """Cleanup."""
+        Modules().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():

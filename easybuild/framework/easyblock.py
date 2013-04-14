@@ -44,15 +44,19 @@ import time
 import urllib
 from distutils.version import LooseVersion
 from vsc import fancylogger
+from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig import EasyConfig, get_paths_for, TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
+from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -133,6 +137,9 @@ class EasyBlock(object):
         # at the end of __init__, initialise the logging
         self._init_log()
 
+        # iterate configure/build/options
+        self.iter_opts = {}
+
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
 
@@ -171,10 +178,10 @@ class EasyBlock(object):
         """
 
         for src_entry in list_of_sources:
-            if type(src_entry) in [list, tuple]:
+            if isinstance(src_entry, (list, tuple)):
                 cmd = src_entry[1]
                 source = src_entry[0]
-            elif type(src_entry) == str:
+            elif isinstance(src_entry, basestring):
                 cmd = None
                 source = src_entry
 
@@ -197,18 +204,18 @@ class EasyBlock(object):
         patches = []
         for patchFile in list_of_patches:
 
-            # # check if the patches can be located
+            # check if the patches can be located
             copy_file = False
             suff = None
             level = None
-            if type(patchFile) in [list, tuple]:
+            if isinstance(patchFile, (list, tuple)):
                 if not len(patchFile) == 2:
                     self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
                 pf = patchFile[0]
 
-                if type(patchFile[1]) == int:
+                if isinstance(patchFile[1], int):
                     level = patchFile[1]
-                elif type(patchFile[1]) == str:
+                elif isinstance(patchFile[1], basestring):
                     # non-patch files are assumed to be files to copy
                     if not patchFile[0].endswith('.patch'):
                         copy_file = True
@@ -321,9 +328,9 @@ class EasyBlock(object):
         srcpath = source_path()
 
         # make sure we always deal with a list, to avoid code duplication
-        if type(srcpath) == str:
+        if isinstance(srcpath, basestring):
             srcpaths = [srcpath]
-        elif type(srcpath) == list:
+        elif isinstance(srcpath, list):
             srcpaths = srcpath
         else:
             self.log.error("Source path '%s' has incorrect type: %s" % (srcpath, type(srcpath)))
@@ -441,14 +448,14 @@ class EasyBlock(object):
                     else:
                         targetpath = os.path.join(targetdir, filename)
 
-                    if type(url) == str:
+                    if isinstance(url, basestring):
                         if url[-1] in ['=', '/']:
                             fullurl = "%s%s" % (url, filename)
                         else:
                             fullurl = "%s/%s" % (url, filename)
-                    elif type(url) == tuple:
-                        # # URLs that require a suffix, e.g., SourceForge download links
-                        # # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
+                    elif isinstance(url, tuple):
+                        # URLs that require a suffix, e.g., SourceForge download links
+                        # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
                         fullurl = "%s/%s/%s" % (url[0], filename, url[1])
                     else:
                         self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
@@ -510,7 +517,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             # make a unique build dir
-            # # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
+            # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
             tcversion = self.toolchain.version
             if tcversion.startswith('-'):
                 tcversion = tcversion[1:]
@@ -597,7 +604,7 @@ class EasyBlock(object):
             self.log.info("Cleaning only, no actual creation of %s, only verification/creation of dirname %s" % (olddir, dirName))
             if os.path.exists(dirName):
                 return
-            # # if not, create dir as usual
+            # if not, create dir as usual
 
         try:
             os.makedirs(dirName)
@@ -637,7 +644,9 @@ class EasyBlock(object):
         # these should be all the dependencies and we should load them
         for key in os.environ:
             # legacy support
-            if key.startswith("EBDEVEL") or key.startswith("SOFTDEVEL"):
+            if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX) or key.startswith("SOFTDEVEL"):
+                if key.startswith("SOFTDEVEL"):
+                    self.log.deprecated("Environment variable SOFTDEVEL* being relied on", "2.0")
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
@@ -704,11 +713,11 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.moduleGenerator.set_environment("EBROOT" + environment_name, "$root")
-        txt += self.moduleGenerator.set_environment("EBVERSION" + environment_name, self.version)
+        txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+        txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
         devel_path = os.path.join("$root", log_path(), "%s-%s-easybuild-devel" % (self.name,
             self.get_installversion()))
-        txt += self.moduleGenerator.set_environment("EBDEVEL" + environment_name, devel_path)
+        txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
         for (key, value) in self.cfg['modextravars'].items():
@@ -922,6 +931,41 @@ class EasyBlock(object):
         except OSError, err:
             self.log.exception("Can't change to real build directory %s: %s" % (self.cfg['start_dir'], err))
 
+    def handle_iterate_opts(self):
+        """Handle options relevant during iterated part of build/install procedure."""
+
+        # disable templating in this function, since we're messing about with values in self.cfg
+        self.cfg.enable_templating = False
+
+        # handle configure/build/install options that are specified as lists
+        # set first element to be used, keep track of list in *_list options dictionary
+        # this will only be done during first iteration, since after that the options won't be lists anymore
+        suffix = "_list"
+        sufflen = len(suffix)
+        for opt in ITERATE_OPTIONS:
+            # keep track of list, supply first element as first option to handle
+            if isinstance(self.cfg[opt], (list, tuple)):
+                self.iter_opts[opt + suffix] = self.cfg[opt]  # copy
+                self.log.debug("Found list for %s: %s" % (opt, self.iter_opts[opt + suffix]))
+
+        # pop first element from all *_list options as next value to use
+        for (lsname, ls) in self.iter_opts.items():
+            opt = lsname[:-sufflen]  # drop '_list' part from name to get option name
+            if len(self.iter_opts[lsname]) > 0:
+                self.cfg[opt] = self.iter_opts[lsname].pop(0)  # first element will be used next
+            else:
+                self.cfg[opt] = ''  # empty list => empty option as next value
+            self.log.debug("Next value for %s: %s" % (opt, str(self.cfg[opt])))
+
+        # re-enable templating before self.cfg values are used
+        self.cfg.enable_templating = True
+
+    def det_iter_cnt(self):
+        """Determine iteration count based on configure/build/install options that may be lists."""
+        iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
+                              if isinstance(self.cfg[opt], (list, tuple))])
+        return iter_cnt
+
     def print_environ(self):
         """
         Prints the environment changes and loaded modules to the debug log
@@ -966,13 +1010,13 @@ class EasyBlock(object):
                 self.log.error("Parallelism %s not integer: %s" % (nr, err))
         else:
             nr = get_core_count()
-            # # check ulimit -u
+            # check ulimit -u
             out, ec = run_cmd('ulimit -u')
             try:
                 if out.startswith("unlimited"):
                     out = 2 ** 32 - 1
                 maxuserproc = int(out)
-                # # assume 6 processes per build thread + 15 overhead
+                # assume 6 processes per build thread + 15 overhead
                 maxnr = int((maxuserproc - 15) / 6)
                 if maxnr < nr:
                     nr = maxnr
@@ -1051,12 +1095,18 @@ class EasyBlock(object):
                 self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name,
                     self.get_installversion()))
 
+        # Set group id, if a group was specified
+        if self.cfg['group']:
+            gid = grp.getgrnam(self.cfg['group'])[2]
+            os.setgid(gid)
+            self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
+
     def fetch_step(self):
         """
         prepare for building
         """
 
-        # # check EasyBuild version
+        # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
             self.log.warn("Easyconfig does not specify an EasyBuild-version (key 'easybuild_version')! Assuming the latest version")
@@ -1122,7 +1172,7 @@ class EasyBlock(object):
             self.log.info("Applying patch %s" % tmp['name'])
 
             copy = False
-            # # default: patch first source
+            # default: patch first source
             srcind = 0
             if 'source' in tmp:
                 srcind = tmp['source']
@@ -1369,7 +1419,7 @@ class EasyBlock(object):
         # check sanity check paths
         ks = paths.keys()
         ks.sort()
-        valnottypes = [type(x) != list for x in paths.values()]
+        valnottypes = [not isinstance(x, list) for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
         if not ks == ["dirs", "files"] or sum(valnottypes) > 0 or sum(lenvals) == 0:
             self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
@@ -1558,36 +1608,91 @@ class EasyBlock(object):
             raise StopException(step)
 
     @staticmethod
-    def get_steps(run_test_cases=True):
+    def get_steps(run_test_cases=True, iteration_count=1):
         """Return a list of all steps to be performed."""
 
-        steps = [
-                  # stop name: (description, list of functions, skippable)
-                  ('fetch', 'fetching files', [lambda x: x.fetch_step()], False),
-                  ('ready', "getting ready, creating build dir, resetting environment",
-                   [lambda x: x.check_readiness_step(), lambda x: x.gen_installdir(),
-                    lambda x: x.make_builddir(), lambda x: env.reset_changes()],
-                   False),
-                  ('source', 'unpacking', [lambda x: x.checksum_step(),
-                                           lambda x: x.extract_step()], True),
-                  ('patch', 'patching', [lambda x: x.patch_step()], True),
-                  ('prepare', 'preparing', [lambda x: x.prepare_step()], False),
-                  ('configure', 'configuring', [lambda x: x.configure_step()], True),
-                  ('build', 'building', [lambda x: x.build_step()], True),
-                  ('test', 'testing', [lambda x: x.test_step()], True),
-                  ('install', 'installing', [
-                                             lambda x: x.stage_install_step(),
-                                             lambda x: x.make_installdir(),
-                                             lambda x: x.install_step(),
-                                             ],
-                   True),
-                  ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
-                  ('package', 'packaging', [lambda x: x.package_step()], True),
-                  ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
-                  ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
-                  ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
-                  ('module', 'creating module', [lambda x: x.make_module_step()], False),
-                  ]
+        def get_step(tag, descr, substeps, skippable, initial=True):
+            """Determine step definition based on whether it's an initial run or not."""
+            substeps = [substep for (always_include, substep) in substeps if (initial or always_include)]
+            return (tag, descr, substeps, skippable)
+
+        # list of substeps for steps that are slightly different from 2nd iteration onwards
+        ready_substeps = [
+            (False, lambda x: x.check_readiness_step()),
+            (False, lambda x: x.gen_installdir()),
+            (True, lambda x: x.make_builddir()),
+            (True, lambda x: env.reset_changes()),
+            (True, lambda x: x.handle_iterate_opts()),
+        ]
+        ready_step_spec = lambda initial: get_step('ready', "creating build dir, resetting environment",
+                                                   ready_substeps, False, initial=initial)
+
+        source_substeps = [
+                           (False, lambda x: x.checksum_step()),
+                           (True, lambda x: x.extract_step()),
+                          ]
+        source_step_spec = lambda initial: get_step('source', "unpacking", source_substeps, True, initial=initial)
+
+        def prepare_step_spec(initial):
+            """Return prepare step specification."""
+            if initial:
+                substeps = [lambda x: x.prepare_step()]
+            else:
+                substeps = [lambda x: x.guess_start_dir()]
+            return ('prepare', 'preparing', substeps, False)
+
+        install_substeps = [
+            (False, lambda x: x.stage_install_step()),
+            (False, lambda x: x.make_installdir()),
+            (True, lambda x: x.install_step()),
+        ]
+        install_step_spec = lambda initial: get_step('install', "installing", install_substeps, True, initial=initial)
+
+        # format for step specifications: (stop_name: (description, list of functions, skippable))
+
+        # core steps that are part of the iterated loop
+        patch_step_spec = ('patch', 'patching', [lambda x: x.patch_step()], True)
+        configure_step_spec = ('configure', 'configuring', [lambda x: x.configure_step()], True)
+        build_step_spec = ('build', 'building', [lambda x: x.build_step()], True)
+        test_step_spec = ('test', 'testing', [lambda x: x.test_step()], True)
+
+        # part 1: pre-iteration + first iteration
+        steps_part1 = [
+            ('fetch', 'fetching files', [lambda x: x.fetch_step()], False),
+            ready_step_spec(True),
+            source_step_spec(True),
+            patch_step_spec,
+            prepare_step_spec(True),
+            configure_step_spec,
+            build_step_spec,
+            test_step_spec,
+            install_step_spec(True),
+        ]
+        # part 2: iterated part, from 2nd iteration onwards
+        # repeat core procedure again depending on specified iteration count
+        # not all parts of all steps need to be rerun (see e.g., ready, prepare)
+        steps_part2 = [
+            ready_step_spec(False),
+            source_step_spec(False),
+            patch_step_spec,
+            prepare_step_spec(False),
+            configure_step_spec,
+            build_step_spec,
+            test_step_spec,
+            install_step_spec(False),
+        ] * (iteration_count - 1)
+        # part 3: post-iteration part
+        steps_part3 = [
+            ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
+            ('package', 'packaging', [lambda x: x.package_step()], True),
+            ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
+            ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
+            ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
+            ('module', 'creating module', [lambda x: x.make_module_step()], False),
+        ]
+
+        # full list of steps, included iterated steps
+        steps = steps_part1 + steps_part2 + steps_part3
 
         if run_test_cases:
             steps.append(('testcases', 'running test cases', [
@@ -1606,7 +1711,7 @@ class EasyBlock(object):
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases)
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         try:
             full_name = "%s-%s" % (self.name, self.get_installversion())
