@@ -323,6 +323,57 @@ class ToolchainTest(TestCase):
         self.assertEqual(tc.get_variable('F77'), 'gfortran')
         self.assertEqual(tc.get_variable('F90'), 'gfortran')
 
+    def test_comp_family(self):
+        """Test determining compiler family."""
+
+        tc_class, _ = search_toolchain("goalf")
+        tc = tc_class(version="1.1.0-no-OFED")
+        tc.prepare()
+
+        self.assertEqual(tc.comp_family(), "GCC")
+
+    def test_goolfc(self):
+        """Test whether goolfc is handled properly."""
+
+        tc_class, _ = search_toolchain("goolfc")
+        tc = tc_class(version="1.4.10")
+        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
+        tc.set_options(opts)
+        tc.prepare()
+
+        nvcc_cmd_pattern = r' '.join([
+            r'nvcc',
+            r'-ccbin=g\+\+',
+            r'-Xcompiler="-O2 -march=native"',
+            r'-Xlinker=".* -lm -lcudart -lpthread"',
+            r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
+        ])
+
+        # check compiler variables (for both 'regular' and CUDA compilers)
+        comp_vars = [
+            # -L/path flags will not be there if the software installations are not available
+            # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
+            ('CC', r'gcc', nvcc_cmd_pattern),
+            ('CXX', r'g\+\+', nvcc_cmd_pattern),
+            ('F77', r'gfortran', ''),
+            ('F90', r'gfortran', ''),
+        ]
+        for (var, comp, cuda_comp) in comp_vars:
+            val  = tc.get_variable(var)
+            self.assertTrue(re.compile(comp).match(val), "'%s' matches '%s'" % (val, comp))
+            cuda_var = 'CUDA_%s' % var
+            if cuda_var in tc.variables:
+                val = tc.get_variable(cuda_var)
+                self.assertTrue(re.compile(cuda_comp).match(val), "'%s' matches '%s'" % (val, cuda_comp))
+            elif cuda_comp:
+                self.assertTrue(False, "Variable %s is defined as '%s'" % (cuda_var, cuda_comp))
+
+        # check compiler prefixes
+        self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
+
+        # check CUDA runtime lib
+        self.assertTrue("-lcudart" in tc.get_variable('LIBS'))
+
     def tearDown(self):
         """Cleanup."""
         Modules().purge()
