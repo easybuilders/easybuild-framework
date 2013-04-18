@@ -29,6 +29,8 @@ Toolchain compiler module, provides abstract class for compilers.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import os
+
 from easybuild.tools import systemtools
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -108,6 +110,7 @@ class Compiler(Toolchain):
 
     LIB_MULTITHREAD = None
     LIB_MATH = None
+    LIB_RUNTIME = None
 
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
@@ -115,60 +118,106 @@ class Compiler(Toolchain):
         self.arch = None
 
         self._set_compiler_toolchainoptions()
-
         self.log.debug('_compiler_init: compiler toolchainoptions %s' % self.options)
 
         super(Compiler, self).__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
+
         self._set_compiler_vars()
         self._set_compiler_flags()
 
         self.log.debug('set_variables: compiler variables %s' % self.variables)
         super(Compiler, self).set_variables()
 
-    def _set_compiler_toolchainoptions(self):
+    def _set_compiler_toolchainoptions(self, prefix=None):
         """Set the compiler related toolchain options"""
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # overwrite/add unique compiler specific toolchainoptions
-        self.options.add_options(self.COMPILER_UNIQUE_OPTS, self.COMPILER_UNIQUE_OPTION_MAP)
+        infix = ''
+        if prefix is not None:
+            infix = '%s_' % prefix
+        self.options.add_options(
+            getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
+            getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
+        )
 
         # redefine optarch
         self._get_optimal_architecture()
 
-    def _set_compiler_vars(self):
+    def _set_compiler_vars(self, prefix=None):
         """Set the compiler variables"""
         is32bit = self.options.get('32bit', None)
         if is32bit:
             self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
 
+        comp_var_tmpl_dict = {}
+
         for var_tuple in COMPILER_VARIABLES:
             var = var_tuple[0]  # [1] is the description
 
-            value = getattr(self, 'COMPILER_%s' % var.upper(), None)
-            if value is None:
-                self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+            # determine actual value for compiler variable
+            compvar = 'COMPILER_%s' % var.upper()
+            pref_var = var
+            if prefix is not None:
+                compvar = 'COMPILER_%s_%s' % (prefix, var.upper())
+                pref_var = '_'.join([prefix, var])
+            value = getattr(self, compvar, None)
 
-            self.variables[var] = value
+            if value is None:
+                if prefix is not None:
+                    # only warn if prefix is set, since not all languages may be supported (e.g., no Fortran for CUDA)
+                    self.log.warn("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
+                else:
+                    self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+
+            self.variables[pref_var] = value
             if is32bit:
-                self.variables.nappend_el(var, self.options.option('32bit'))
+                self.variables.nappend_el(pref_var, self.options.option('32bit'))
+
+            # update dictionary to complete compiler variable template
+            # to produce e.g. 'nvcc -ccbin=icpc' from 'nvcc -ccbin=%(CXX_base)'
+            comp_var_tmpl_dict.update({
+                var: str(self.variables[var]),
+                '%s_base' % var: str(self.variables[var].get_first()),
+            })
+
+        # complete compiler templates for (prefixed) compiler, e.g. CUDA_CC="nvcc -ccbin=%(CXX_base)s"
+        for var_tuple in COMPILER_VARIABLES:
+            var = var_tuple[0]  # [1] is the description
+
+            # determine actual value for compiler variable
+            pref_var = var
+            if prefix is not None:
+                pref_var = '_'.join([prefix, var])
+
+            self.variables.nappend_el(pref_var, self.options.option('_opt_%s' % pref_var, templatedict=comp_var_tmpl_dict))
 
         if self.options.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
+            # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
 
-        if self.LIB_MULTITHREAD is not None:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
-        if self.LIB_MATH is not None:
-            self.variables.nappend('LIBS', self.LIB_MATH)
+        infix = ''
+        if prefix is not None:
+            infix = '%s_' % prefix
+
+        for (lib_var, pos) in [
+            ('LIB_%sMULTITHREAD' % infix, 10),
+            ('LIB_%sMATH' % infix, None),
+            ('LIB_%sRUNTIME' % infix, None),
+        ]:
+            lib = getattr(self, lib_var, None)
+            if lib is not None:
+                self.variables.nappend('LIBS', lib, position=pos)
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
-        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
 
+        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
         cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
         fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
@@ -203,6 +252,35 @@ class Compiler(Toolchain):
         self.variables.nappend('F90FLAGS', fflags)
         self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
 
+    def update_variables(self):
+        """Update the compiler variables."""
+        self._update_variables()
+        self.log.debug('update_variables: updated compiler variables %s' % self.variables)
+
+    def _update_variables(self, prefix=None):
+        """Update the compiler variables for the given compiler prefix."""
+
+        # construct dict with sanitized variables
+        sanitized_vars = {}
+        for (key, value) in self.variables.items():
+            sanitized_vars.update({str(key): str(value)})
+
+        # complete compiler commands with compiler/linker/extra flags
+        # e.g., CUDA_CC='nvcc -ccbin=g++ -Xcompiler="$CXXFLAGS" -Xlinker="$LDFLAGS $LIBS" -gencode ... '
+        for var_tuple in COMPILER_VARIABLES:
+            var = var_tuple[0]  # [1] is the description
+
+            # determine actual value for compiler variable
+            pref_var = var
+            if prefix is not None:
+                pref_var = '_'.join([prefix, var])
+
+            flags = self.options.option('_opt_flags_%s' % pref_var, templatedict=sanitized_vars)
+            if hasattr(flags, '__iter__'):
+                self.variables.nextend_el(pref_var, flags)
+            else:
+                self.variables.nappend_el(pref_var, flags)
+
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
@@ -217,9 +295,17 @@ class Compiler(Toolchain):
         if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
-    def comp_family(self):
-        """ Return compiler family used in this toolchain. """
-        if self.COMPILER_FAMILY:
-            return self.COMPILER_FAMILY
+    def comp_family(self, prefix=None):
+        """
+        Return compiler family used in this toolchain.
+        @prefix: Prefix for compiler (e.g. 'CUDA_').
+        """
+        infix = ''
+        if prefix is not None:
+            infix = '%s_' % prefix
+
+        comp_family = getattr(self, 'COMPILER_%sFAMILY' % infix, None)
+        if comp_family:
+            return comp_family
         else:
-            self.log.raiseException('comp_family: COMPILER_FAMILY is undefined.')
+            self.log.raiseException('comp_family: COMPILER_%sFAMILY is undefined.' % infix)
