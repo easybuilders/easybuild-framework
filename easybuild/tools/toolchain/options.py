@@ -90,15 +90,21 @@ class ToolchainOptions(dict):
         elif name in self.options_map:
             res = self.options_map[name]
 
-            if isinstance(res, str):
+            if templatedict is None:
+                templatedict = {}
+            templatedict.update({
+                                 'opt':name,
+                                 'value':value,
+                                })
+
+            if isinstance(res, basestring):
                 # allow for template
-                if templatedict is None:
-                    templatedict = {}
-                templatedict.update({
-                                     'opt':name,
-                                     'value':value,
-                                    })
                 res = self.options_map[name] % templatedict
+            elif hasattr(res, '__iter__'):
+                # allow for template per element
+                res = self.options_map[name]
+                for i in xrange(0, len(res)):
+                    res[i] = res[i] % templatedict
             else:
                 # check if True?
                 res = self.options_map[name]
