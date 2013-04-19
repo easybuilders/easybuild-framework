@@ -26,21 +26,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for Clang + GCC compiler toolchain.  Clang uses libstdc++.  GFortran is used for Fortran code.
+EasyBuild support for cgmvolf compiler toolchain (includes Clang, GFortran, MVAPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
 @author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
 """
 
-import os
-from easybuild.toolchains.compiler.clang import Clang
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.cgmvapich2 import Cgmvapich2
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.openblas import OpenBLAS
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-TC_CONSTANT_CLANGGCC = "ClangGCC"
+class Cgmvolf(Cgmvapich2, OpenBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with Clang, GFortran, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
+    NAME = 'cgmvolf'
 
-
-class ClangGcc(Clang, Gcc):
-    """Compiler toolchain with Clang and GFortran compilers."""
-    NAME = 'ClangGCC'
-    COMPILER_MODULE_NAME = ['Clang', 'GCC']
-    COMPILER_FAMILY = TC_CONSTANT_CLANGGCC
+    # no BLACS
+    BLACS_MODULE_NAME = []
+    BLACS_LIB = []
+    BLACS_LIB_MT = []
