@@ -46,45 +46,47 @@ class Compiler(Toolchain):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"),  # also MPI
-                            'pic': (False, "Use PIC"),  # also FFTW
-                            'noopt': (False, "Disable compiler optimizations"),
-                            'lowopt': (False, "Low compiler optimizations"),
-                            'defaultopt':(False, "Default compiler optimizations"),  # not set, but default
-                            'opt': (False, "High compiler optimizations"),
-                            'optarch':(True, "Enable architecture optimizations"),
-                            'strict': (False, "Strict (highest) precision"),
-                            'precise':(False, "High precision"),
-                            'defaultprec':(False, "Default precision"),  # not set, but default
-                            'loose': (False, "Loose precision"),
-                            'veryloose': (False, "Very loose precision"),
-                            'verbose': (False, "Verbose output"),
-                            'debug': (False, "Enable debug"),
-                            'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
-                            'r8' : (False, "Real is 8 byte real"),  # fortran only
-                            'unroll': (False, "Unroll loops"),
-                            'cstd': (None, "Specify C standard"),
-                            'shared': (False, "Build shared library"),
-                            'static': (False, "Build static library"),
-                            '32bit':(False, "Compile 32bit target"),  # LA, FFTW
-                            'openmp':(False, "Enable OpenMP"),
-                            'packed-linker-options':(False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
-                            }
+    COMPILER_SHARED_OPTS = {
+        'cciscxx': (False, "Use CC as CXX"),  # also MPI
+        'pic': (False, "Use PIC"),  # also FFTW
+        'noopt': (False, "Disable compiler optimizations"),
+        'lowopt': (False, "Low compiler optimizations"),
+        'defaultopt': (False, "Default compiler optimizations"),  # not set, but default
+        'opt': (False, "High compiler optimizations"),
+        'optarch': (True, "Enable architecture optimizations"),
+        'strict': (False, "Strict (highest) precision"),
+        'precise': (False, "High precision"),
+        'defaultprec': (False, "Default precision"),  # not set, but default
+        'loose': (False, "Loose precision"),
+        'veryloose': (False, "Very loose precision"),
+        'verbose': (False, "Verbose output"),
+        'debug': (False, "Enable debug"),
+        'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
+        'r8' : (False, "Real is 8 byte real"),  # fortran only
+        'unroll': (False, "Unroll loops"),
+        'cstd': (None, "Specify C standard"),
+        'shared': (False, "Build shared library"),
+        'static': (False, "Build static library"),
+        '32bit': (False, "Compile 32bit target"),  # LA, FFTW
+        'openmp': (False, "Enable OpenMP"),
+        'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
+    }
 
     COMPILER_UNIQUE_OPTION_MAP = None
-    COMPILER_SHARED_OPTION_MAP = {'pic': 'fPIC',
-                                  'verbose': 'v',
-                                  'debug': 'g',
-                                  'unroll': 'unroll',
-                                  'static': 'static',
-                                  'shared': 'shared',
-                                  'noopt': 'O0',
-                                  'lowopt': 'O1',
-                                  'defaultopt':'O2',
-                                  'opt': 'O3',
-                                  '32bit' : 'm32',
-                                  'cstd':'std=%(value)s',
-                                  }
+    COMPILER_SHARED_OPTION_MAP = {
+        'pic': 'fPIC',
+        'verbose': 'v',
+        'debug': 'g',
+        'unroll': 'unroll',
+        'static': 'static',
+        'shared': 'shared',
+        'noopt': 'O0',
+        'lowopt': 'O1',
+        'defaultopt':'O2',
+        'opt': 'O3',
+        '32bit' : 'm32',
+        'cstd': 'std=%(value)s',
+    }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
 
@@ -104,9 +106,9 @@ class Compiler(Toolchain):
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
-                                      'start':'--start-group',
-                                      'stop':'--end-group',
-                                      }
+        'start': '--start-group',
+        'stop': '--end-group',
+    }
 
     LIB_MULTITHREAD = None
     LIB_MATH = None
