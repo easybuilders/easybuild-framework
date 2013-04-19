@@ -381,8 +381,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p.stdin.write(inp)
     p.stdin.close()
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdouterr = ''
     while ec < 0:
@@ -392,7 +390,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if runLog:
             runLog.write(output)
         stdouterr += output
-        time.sleep(1)
         ec = p.poll()
 
     # read remaining data (all of it)
@@ -498,8 +495,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     except OSError, err:
         _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdoutErr = ''
     oldLenOut = -1
@@ -565,6 +560,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                                                                     stdoutErr[-500:]
                                                                                     ))
 
+        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
         ec = p.poll()
 
