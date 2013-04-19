@@ -341,32 +341,20 @@ class ToolchainTest(TestCase):
         tc.set_options(opts)
         tc.prepare()
 
-        nvcc_cmd_pattern = r' '.join([
-            r'nvcc',
-            r'-ccbin=g\+\+',
+        nvcc_flags = r' '.join([
             r'-Xcompiler="-O2 -march=native"',
+            # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
         ])
 
-        # check compiler variables (for both 'regular' and CUDA compilers)
-        comp_vars = [
-            # -L/path flags will not be there if the software installations are not available
-            # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
-            ('CC', r'gcc', nvcc_cmd_pattern),
-            ('CXX', r'g\+\+', nvcc_cmd_pattern),
-            ('F77', r'gfortran', ''),
-            ('F90', r'gfortran', ''),
-        ]
-        for (var, comp, cuda_comp) in comp_vars:
-            val  = tc.get_variable(var)
-            self.assertTrue(re.compile(comp).match(val), "'%s' matches '%s'" % (val, comp))
-            cuda_var = 'CUDA_%s' % var
-            if cuda_var in tc.variables:
-                val = tc.get_variable(cuda_var)
-                self.assertTrue(re.compile(cuda_comp).match(val), "'%s' matches '%s'" % (val, cuda_comp))
-            elif cuda_comp:
-                self.assertTrue(False, "Variable %s is defined as '%s'" % (cuda_var, cuda_comp))
+        self.assertEqual(tc.get_variable('CUDA_CC'), 'nvcc -ccbin="g++"')
+        self.assertEqual(tc.get_variable('CUDA_CXX'), 'nvcc -ccbin="g++"')
+        # -L/path flags will not be there if the software installations are not available
+        val = tc.get_variable('CUDA_CFLAGS')
+        self.assertTrue(re.compile(nvcc_flags).match(val), "'%s' matches '%s'" % (val, nvcc_flags))
+        val = tc.get_variable('CUDA_CXXFLAGS')
+        self.assertTrue(re.compile(nvcc_flags).match(val), "'%s' matches '%s'" % (val, nvcc_flags))
 
         # check compiler prefixes
         self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
