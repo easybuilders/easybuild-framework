@@ -73,6 +73,12 @@ CO_COMPILER_MAP_CLASS = {
         ('CUDA_F77', 'CUDA Fortran77 compiler command'),
         ('CUDA_F90', 'CUDA Fortran90 compiler command'),
     ],
+    FlagList: [
+        ('CUDA_CFLAGS', 'CUDA C compiler flags'),
+        ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
+        ('CUDA_FFLAGS', 'CUDA Fortran compiler flags'),
+        ('CUDA_F90FLAGS', 'CUDA Fortran 90 compiler flags'),
+    ],
 }
 
 MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
