@@ -57,13 +57,10 @@ class Cuda(Compiler):
                               "['arch=compute_20,code=sm_20', 'arch=compute_35,code=compute_35']")),
     }
 
-    # always C++ compiler command/flags, even for C!
+    # always C++ compiler command, even for C!
     COMPILER_CUDA_UNIQUE_OPTION_MAP = {
-        '_opt_CUDA_CC': 'ccbin=%(CXX_base)s',
-        '_opt_CUDA_CXX': 'ccbin=%(CXX_base)s',
-        # using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
-        '_opt_flags_CUDA_CC': FlagList(['Xcompiler="%(CXXFLAGS)s"', 'Xlinker="%(LDFLAGS)s %(LIBS)s"']),
-        '_opt_flags_CUDA_CXX': FlagList(['Xcompiler="%(CXXFLAGS)s"', 'Xlinker="%(LDFLAGS)s %(LIBS)s"']),
+        '_opt_CUDA_CC': 'ccbin="%(CXX_base)s"',
+        '_opt_CUDA_CXX': 'ccbin="%(CXX_base)s"',
     }
 
     COMPILER_CUDA_CC = 'nvcc'
@@ -88,16 +85,24 @@ class Cuda(Compiler):
         # set compiler variables for CUDA compilers
         super(Cuda, self)._set_compiler_vars(prefix=TC_CONSTANT_CUDA)
 
-    def _update_variables(self):
-        """Update the CUDA compiler variables."""
+    def _set_compiler_flags(self):
+        """Collect flags to set, and add them as variables."""
+
+        # set compiler flags for non-CUDA compilers
+        super(Cuda, self)._set_compiler_flags()
+
+        # always C++ compiler flags, even for C!
+        # note: using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
         
-        # update compiler variables for non-CUDA compilers
-        super(Cuda, self)._update_variables()
+        cuda_flags = [
+            'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
+            'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
+        ]
+        self.variables.nappend('CUDA_CFLAGS', cuda_flags)
+        self.variables.nappend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
-        for gencode_option in self.options['cuda_gencode']:
-            self.options.options_map['_opt_flags_CUDA_CC'].append('gencode %s' % gencode_option)
-            self.options.options_map['_opt_flags_CUDA_CXX'].append('gencode %s' % gencode_option)
-
-        # update compiler variables for CUDA compilers
-        super(Cuda, self)._update_variables(prefix=TC_CONSTANT_CUDA)
+        for gencode_val in self.options['cuda_gencode']:
+            gencode_option = 'gencode %s' % gencode_val
+            self.variables.nappend('CUDA_CFLAGS', gencode_option)
+            self.variables.nappend('CUDA_CXXFLAGS', gencode_option)

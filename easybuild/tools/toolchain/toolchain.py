@@ -119,13 +119,6 @@ class Toolchain(object):
             self.variables.try_function_on_element('set_packed_linker_options')
         self.log.debug("set_variables: toolchain variables. Do nothing.")
 
-    def update_variables(self):
-        """
-        Do nothing, everything should have been set by others.
-        Needs to be defined for super() relations.
-        """
-        self.log.debug("update_variables: toolchain variables. Do nothing.")
-
     def generate_vars(self):
         """Convert the variables in simple vars"""
         self.vars = {}
@@ -323,14 +316,6 @@ class Toolchain(object):
         # Generate the variables to be set
         self.set_variables()
 
-        if not (onlymod == True):
-            # add LDFLAGS and CPPFLAGS from dependencies to self.vars
-            self._add_dependency_variables()
-
-        # update variables before actually setting them
-        # this allows that variables touched by libraries are available to use in compiler variables, e.g. $LDFLAGS
-        self.update_variables()
-
         # set the variables
         # onlymod can be comma-separated string of variables not to be set
         if onlymod == True:
@@ -339,6 +324,8 @@ class Toolchain(object):
         else:
             self.log.debug("prepare: set additional variables onlymod=%s" % onlymod)
 
+            # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+            self._add_dependency_variables()
             self.generate_vars()
             self._setenv_variables(onlymod)
 

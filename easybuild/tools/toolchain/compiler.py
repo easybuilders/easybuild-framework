@@ -157,15 +157,16 @@ class Compiler(Toolchain):
 
         comp_var_tmpl_dict = {}
 
+        infix = ''
+        if prefix is not None:
+            infix = '%s_' % prefix
+
         for var_tuple in COMPILER_VARIABLES:
             var = var_tuple[0]  # [1] is the description
 
             # determine actual value for compiler variable
-            compvar = 'COMPILER_%s' % var.upper()
-            pref_var = var
-            if prefix is not None:
-                compvar = 'COMPILER_%s_%s' % (prefix, var.upper())
-                pref_var = '_'.join([prefix, var])
+            compvar = 'COMPILER_%s%s' % (infix, var.upper())
+            pref_var = infix + var
             value = getattr(self, compvar, None)
 
             if value is None:
@@ -202,10 +203,6 @@ class Compiler(Toolchain):
                            (self.variables['CXX'], self.variables['CC']))
             # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
-
-        infix = ''
-        if prefix is not None:
-            infix = '%s_' % prefix
 
         for (lib_var, pos) in [
             ('LIB_%sMULTITHREAD' % infix, 10),
@@ -253,35 +250,6 @@ class Compiler(Toolchain):
         self.variables.nappend('F90FLAGS', flags)
         self.variables.nappend('F90FLAGS', fflags)
         self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
-
-    def update_variables(self):
-        """Update the compiler variables."""
-        self._update_variables()
-        self.log.debug('update_variables: updated compiler variables %s' % self.variables)
-
-    def _update_variables(self, prefix=None):
-        """Update the compiler variables for the given compiler prefix."""
-
-        # construct dict with sanitized variables
-        sanitized_vars = {}
-        for (key, value) in self.variables.items():
-            sanitized_vars.update({str(key): str(value)})
-
-        # complete compiler commands with compiler/linker/extra flags
-        # e.g., CUDA_CC='nvcc -ccbin=g++ -Xcompiler="$CXXFLAGS" -Xlinker="$LDFLAGS $LIBS" -gencode ... '
-        for var_tuple in COMPILER_VARIABLES:
-            var = var_tuple[0]  # [1] is the description
-
-            # determine actual value for compiler variable
-            pref_var = var
-            if prefix is not None:
-                pref_var = '_'.join([prefix, var])
-
-            flags = self.options.option('_opt_flags_%s' % pref_var, templatedict=sanitized_vars)
-            if hasattr(flags, '__iter__'):
-                self.variables.nextend_el(pref_var, flags)
-            else:
-                self.variables.nappend_el(pref_var, flags)
 
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
