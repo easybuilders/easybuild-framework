@@ -89,8 +89,8 @@ class FileToolsTest(TestCase):
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
-        (out, ec) = ft.run_cmd_qa("echo question", {"question":"answer"})
-        self.assertEqual(out, "question\n")
+        (out, ec) = ft.run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
+        self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
