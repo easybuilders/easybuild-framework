@@ -89,6 +89,12 @@ class FileToolsTest(TestCase):
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
+        # a more 'complex' command to run, make sure all required output is there
+        (out, ec) = ft.run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
+        self.assertTrue(out.startswith('hello\nhello\n'))
+        self.assertEqual(len(out), len("hello\n"*300))
+        self.assertEqual(ec, 0)
+
         (out, ec) = ft.run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
