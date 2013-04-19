@@ -560,7 +560,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                                                                     stdoutErr[-500:]
                                                                                     ))
 
-        # This sleep should not be needed.
+        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
         ec = p.poll()
 
