@@ -60,8 +60,41 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
+# constants related to unpacking archives
+GZ = 'gz'  # gzip archive
+BZ2 = 'bz2'
+ZIP = 'zip'
+TAR = 'tar'
+XZ = 'xz'
+LZW = 'LZW'  # Lempel-Ziv-Welch
+LZH = 'LZH'  # Lempel-Ziv-Huffman
+UNKNOWN = "UNKNOWN"
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
+# map of archive types to (offset, magic number)
+# from http://www.garykessler.net/library/file_sigs.html
+MAGIC_MAP = {
+    GZ: (0, "\x1f\x8b\x08"),
+    BZ2: (0, "\x42\x5A\x68"),
+    ZIP: (0, "\x50\x4B\x03\x04"),
+    LZW: (0, "\x1F\x9D"),
+    LZH: (0, "\x1F\xA0"),
+    TAR: (257, "ustar"),
+    XZ: (0, "\xFD7zXZ"),
+}
+MAX_MAGIC_LEN = max(len(y) + x for x, y in MAGIC_MAP.values())
+
+UNPACK_COMMANDS = {
+    GZ: 'gunzip -c %(filename)s > %(filename_no_ext)s',
+    BZ2: 'bunzip2 %(filename)s',
+    XZ: 'unxz %(filename)s',
+    ZIP: 'unzip -qq %(filename)s',
+    # LZW: , ??
+    # LZH: , ??
+    TAR: 'tar xf %(filename)s',
+}
+
+
+def extract_file(fn, dest, cmd=None, extra_options=None):
     """
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
@@ -87,17 +120,19 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
         _log.error("Can't change to directory %s: %s" % (absDest, err))
 
     if not cmd:
-        cmd = extract_cmd(fn, overwrite=overwrite)
+        while not os.path.isdir(fn):
+            # recursively extract archives
+            cmd = extract_cmd(fn, return_dict=True)
+            run_cmd(cmd['cmd'] % cmd, simple=True)
+            fn = cmd['filename_no_ext']
     else:
         # complete command template with filename
         cmd = cmd % fn
-    if not cmd:
-        _log.error("Can't extract file %s with unknown filetype" % fn)
 
-    if extra_options:
-        cmd = "%s %s" % (cmd, extra_options)
+        if extra_options:
+            cmd = "%s %s" % (cmd, extra_options)
+        run_cmd(cmd, simple=True)
 
-    run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
@@ -171,54 +206,41 @@ def find_base_dir():
     return newDir
 
 
-def extract_cmd(fn, overwrite=False):
+def get_archive_type(filename):
+    """
+    Uses magic numbers to find the type of archive we're dealing with
+    Raises a BadArchiveException if no known archive types could be detected
+    """
+    f = open(filename)
+    file_start = f.read(MAX_MAGIC_LEN)
+    f.close()
+    for filetype, (offset, magic) in MAGIC_MAP.items():
+        #if file_start.startswith(magic):
+        if file_start[offset:].startswith(magic):
+            return filetype
+        _log.debug("filetype %s (with offset %d and magic nr %s) did not match %s" %(filetype, offset, magic, file_start))
+    raise BadArchiveException("Unable to locate magic number for this file, or do not know archive type (%s)" % filename)
+
+
+def extract_cmd(fn, archive_type=None, return_dict=False):
     """
     Determines the file type of file fn, returns extract cmd
-    - based on file suffix
-    - better to use Python magic?
+    - uses the get_archive_type to find the archive type if none is supplied
+    You might need to run this recursively untill the files are completely unpacked for
+    nested archives like .tar.gz
     """
-    ff = [x.lower() for x in fn.split('.')]
-    ftype = None
+    archive_type = get_archive_type(fn)
 
-    # gzipped or gzipped tarball
-    if ff[-1] == 'gz':
-        ftype = 'gunzip %s'
-        if ff[-2] == 'tar':
-            ftype = 'tar xzf %s'
-    if ff[-1] == 'tgz' or ff[-1] == 'gtgz':
-        ftype = 'tar xzf %s'
-
-    # bzipped or bzipped tarball
-    if ff[-1] == 'bz2':
-        ftype = 'bunzip2 %s'
-        if ff[-2] == 'tar':
-            ftype = 'tar xjf %s'
-    if ff[-1] == 'tbz':
-        ftype = 'tar xjf %s'
-
-    # xzipped or xzipped tarball
-    if ff[-1] == 'xz':
-        ftype = 'unxz %s'
-        if ff[-2] == 'tar':
-            ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] == 'txz':
-        ftype = 'unxz %s --stdout | tar x'
-
-    # tarball
-    if ff[-1] == 'tar':
-        ftype = 'tar xf %s'
-
-    # zip file
-    if ff[-1] == 'zip':
-        if overwrite:
-            ftype = 'unzip -qq -o %s'
-        else:
-            ftype = 'unzip -qq %s'
-
-    if not ftype:
+    if not archive_type in UNPACK_COMMANDS:
         _log.error('Unknown file type from file %s (%s)' % (fn, ff))
+        raise BadArchiveException("Unable to find extract cmd for this archive type (%s)"% archive_type)
 
-    return ftype % fn
+    filename_no_ext = os.path.splitext(os.path.split(fn)[1])[0]
+    cmd = UNPACK_COMMANDS[archive_type]
+    fn_dict = {"filename": fn, 'filename_no_ext': filename_no_ext, 'cmd': cmd}
+    if return_dict:
+        return fn_dict
+    return cmd % fn_dict
 
 
 def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
@@ -238,6 +260,15 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     if not os.path.isdir(dest):
         _log.error("Can't patch directory %s: no such directory" % dest)
         return
+
+    # we might need to extract the patch first, let's try this
+    try:
+        cmd_dict = extract_cmd(patchFile, return_dict=True)
+        run_cmd(cmd_dict['cmd'] % cmd_dict)
+        patchFile = cmd_dict['filename_no_ext']
+    except BadArchiveException:
+        pass
+
 
     ## copy missing files
     if copy:
@@ -811,7 +842,7 @@ def mkdir(directory, parents=False):
     """
     Create a directory
     Directory is the path to create
-    
+
     When parents is True then no error if directory already exists
     and make parent directories as needed (cfr. mkdir -p)
     """
@@ -855,7 +886,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     """
     Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
     and this code can be improved...
-    
+
     Recursively copy a directory tree using copy2().
 
     The destination directory must not already exist.
@@ -939,7 +970,7 @@ def encode_string(name):
     * http://celldesigner.org/help/CDH_Species_01.html
     * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
-    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
@@ -990,3 +1021,6 @@ def encode_class_name(name):
     """return encoded version of class name"""
     return "EB_" + encode_string(name)
 
+
+class BadArchiveException(Exception):
+    """Thrown when an unsupported archive file was detected when trying to extract it"""
