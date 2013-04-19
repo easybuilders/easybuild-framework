@@ -89,7 +89,7 @@ class EasyBuildOptions(GeneralOption):
                             "robot":("Path to search for easyconfigs for missing dependencies." ,
                                      None, "store_or_None", default_robot_path, "r", {'metavar':"PATH"}),
                             "stop":("Stop the installation after certain step",
-                                    "choice", "store_or_None", "unpack", "s", all_stops),
+                                    "choice", "store_or_None", "source", "s", all_stops),
                             "strict":("Set strictness level",
                                       "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
