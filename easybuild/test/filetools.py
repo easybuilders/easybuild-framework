@@ -45,6 +45,11 @@ class FileToolsTest(TestCase):
         self.log = fancylogger.getLogger(self.__class__.__name__)
         self.legacySetUp()
 
+        abspath = os.path.abspath(__file__)
+        dname = os.path.dirname(abspath)
+        dname = os.path.join(dname, 'data')
+        os.chdir(dname)
+
     def legacySetUp(self):
         self.log.deprecated("legacySetUp", "2.0")
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
@@ -66,23 +71,23 @@ class FileToolsTest(TestCase):
         cmd = ft.extract_cmd("test.zip")
         self.assertEqual("unzip -qq test.zip", cmd)
 
-        cmd = ft.extract_cmd("/some/path/test.tar")
-        self.assertEqual("tar xf /some/path/test.tar", cmd)
+        cmd = ft.extract_cmd("../data/test.tar")
+        self.assertEqual("tar xf ../data/test.tar", cmd)
 
         cmd = ft.extract_cmd("test.tar.gz")
-        self.assertEqual("tar xzf test.tar.gz", cmd)
+        self.assertEqual("gunzip -c test.tar.gz > test.tar", cmd)
 
         cmd = ft.extract_cmd("test.tgz")
-        self.assertEqual("tar xzf test.tgz", cmd)
+        self.assertEqual("gunzip -c test.tgz > test", cmd)
 
-        cmd = ft.extract_cmd("test.bz2")
-        self.assertEqual("bunzip2 test.bz2", cmd)
+        cmd = ft.extract_cmd("test.txt.bz2")
+        self.assertEqual("bunzip2 -c test.txt.bz2 > test.txt", cmd)
 
         cmd = ft.extract_cmd("test.tbz")
-        self.assertEqual("tar xjf test.tbz", cmd)
+        self.assertEqual("bunzip2 -c test.tbz > test", cmd)
 
         cmd = ft.extract_cmd("test.tar.bz2")
-        self.assertEqual("tar xjf test.tar.bz2", cmd)
+        self.assertEqual("bunzip2 -c test.tar.bz2 > test.tar", cmd)
 
         (out, ec) = ft.run_cmd("echo hello")
         self.assertEqual(out, "hello\n")
