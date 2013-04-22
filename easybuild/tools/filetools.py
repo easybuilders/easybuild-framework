@@ -71,6 +71,7 @@ LZH = 'LZH'  # Lempel-Ziv-Huffman
 UNKNOWN = "UNKNOWN"
 
 # map of archive types to (offset, magic number)
+# (don't try negative offsets stijn)
 # from http://www.garykessler.net/library/file_sigs.html
 MAGIC_MAP = {
     GZ: (0, "\x1f\x8b\x08"),
@@ -85,7 +86,7 @@ MAX_MAGIC_LEN = max(len(y) + x for x, y in MAGIC_MAP.values())
 
 UNPACK_COMMANDS = {
     GZ: 'gunzip -c %(filename)s > %(filename_no_ext)s',
-    BZ2: 'bunzip2 %(filename)s',
+    BZ2: 'bunzip2 -c %(filename)s > %(filename_no_ext)s',
     XZ: 'unxz %(filename)s',
     ZIP: 'unzip -qq %(filename)s',
     # LZW: , ??
@@ -120,7 +121,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None):
         _log.error("Can't change to directory %s: %s" % (absDest, err))
 
     if not cmd:
-        while not os.path.isdir(fn):
+        while not os.path.isdir(fn) and os.path.exists(fn):
             # recursively extract archives
             cmd = extract_cmd(fn, return_dict=True)
             run_cmd(cmd['cmd'] % cmd, simple=True)
