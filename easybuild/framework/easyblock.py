@@ -1294,7 +1294,11 @@ class EasyBlock(object):
 
             # try instantiating extension-specific class
             class_name = encode_class_name(ext['name'])  # use the same encoding as get_class
-            mod_path = get_module_path(ext['name'])
+            mod_path = get_module_path(class_name)
+            if not os.path.exists("%s.py" % mod_path):
+                self.log.deprecated("Determine module path based on software name", "2.0")
+                mod_path = get_module_path(ext['name'])
+
             try:
                 cls = get_class_for(mod_path, class_name)
                 inst = cls(self, ext)
@@ -1785,10 +1789,13 @@ def get_class(easyblock, name=None):
         if not easyblock:
             if not name:
                 name = "UNKNOWN"
-            # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(name)
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
+            # modulepath will be the namespace + encoded modulename (from the classname)
+            modulepath = get_module_path(class_name)
+            if not os.path.exists("%s.py" % mod_path):
+                self.log.deprecated("Determine module path based on software name", "2.0")
+                mod_path = get_module_path(name)
 
             # try and find easyblock
             try:
