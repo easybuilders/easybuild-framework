@@ -27,10 +27,11 @@ implemented as an easyblock
 import copy
 import os
 
-from easybuild.framework.easyblock import EasyBlock, CHARMAP
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import apply_patch, extract_file
+from easybuild.tools.utilities import remove_unwanted_chars
 
 
 class ExtensionEasyBlock(EasyBlock, Extension):
@@ -84,7 +85,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # unpack file if desired
         if unpack_src:
-            targetdir = os.path.join(self.master.builddir, self.name.translate(CHARMAP))
+            targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
 
         # patch if needed
@@ -130,6 +131,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        if extra:
+        if not extra is None:
             txt += extra
         return txt
