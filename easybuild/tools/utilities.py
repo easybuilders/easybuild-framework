@@ -38,8 +38,8 @@ _log = fancylogger.getLogger('tools.utilities')
 
 # a list of all ascii characters
 ASCII_CHARS = string.maketrans('', '')
-# a list of all unwanted ascii characters
-UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits).translate(ASCII_CHARS, string.ascii_letters)
+# a list of all unwanted ascii characters (we only want to keep digits, letters and _)
+UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
 
 def any(ls):
