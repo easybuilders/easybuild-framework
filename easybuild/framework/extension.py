@@ -124,8 +124,10 @@ class Extension(object):
 
         if 'modulename' in self.options:
             modname = self.options['modulename']
+            self.log.debug("modulename found in self.options, using it: %s", modname)
         else:
             modname = self.name
+            self.log.debug("self.name: %s", modname)
 
         if modname == False:
             # allow skipping of sanity check by setting module name to False
