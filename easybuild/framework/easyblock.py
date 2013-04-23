@@ -85,7 +85,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True):
         """
         Initialize the EasyBlock instance.
         """
@@ -108,6 +108,7 @@ class EasyBlock(object):
         all_stops = [x[0] for x in self.get_steps()]
         self.cfg = EasyConfig(path,
                               extra_options=self.extra_options(),
+                              validate=validate_ec,
                               valid_module_classes=module_classes(),
                               valid_stops=all_stops
                               )
@@ -1789,9 +1790,9 @@ def get_class(easyblock, name=None):
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)
             modulepath = get_module_path(class_name)
-            if not os.path.exists("%s.py" % mod_path):
-                self.log.deprecated("Determine module path based on software name", "2.0")
-                mod_path = get_module_path(name)
+            if not os.path.exists("%s.py" % modulepath):
+                _log.deprecated("Determine module path based on software name", "2.0")
+                modulepath = get_module_path(name)
 
             # try and find easyblock
             try:
