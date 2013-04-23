@@ -57,7 +57,7 @@ log.info("Installing version %s (API version %s)" % (VERSION, API_VERSION))
 
 def find_rel_test():
     """Return list of files recursively from basedir (aka find -type f)"""
-    basedir = os.path.join(os.path.dirname(__file__), "easybuild", "test")
+    basedir = os.path.join(os.path.dirname(__file__), "test", "framework")
     current = os.getcwd()
     os.chdir(basedir)
     res = []
@@ -84,11 +84,11 @@ implement support for installing particular (groups of) software packages.""",
     packages = ["easybuild", "easybuild.framework", "easybuild.framework.easyconfig",
                 "easybuild.toolchains", "easybuild.toolchains.compiler",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
-                "easybuild.tools.toolchain", "easybuild.test",
+                "easybuild.tools.toolchain", "test.framework",
                 "vsc", "vsc.utils",
                ],
-    package_dir = {'easybuild.test': "easybuild/test"},
-    package_data = {"easybuild.test": find_rel_test()},
+    package_dir = {'test.framework': "test/framework"},
+    package_data = {"test.framework": find_rel_test()},
     scripts = ["eb"],
     data_files = [
                   ('easybuild', ["easybuild/easybuild_config.py"]),
