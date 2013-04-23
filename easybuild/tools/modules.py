@@ -87,13 +87,20 @@ class Modules(object):
 
         self.check_module_path()
 
+	# make sure lmod is available somewhere
+	eclm = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
         # make sure environment-modules is installed
-        ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if ec:
+        ecem = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if ecem and eclm:
             msg = "Could not find the modulecmd command, environment-modules is not installed?\n"
-            msg += "Exit code of 'which modulecmd': %d" % ec
+            msg += "Exit code of 'which modulecmd': %d" % ecem
             self.log.error(msg)
             raise EasyBuildError(msg)
+        elif ecem:
+            self.modulecmd = "lmod"
+        elif eclm:
+            self.modulecmd = "modulecmd"
 
     def check_module_path(self):
         """
@@ -133,7 +140,7 @@ class Modules(object):
         if version:
             txt = "%s/%s" % (name, version)
 
-        modules = self.run_module('available', txt, modulePath=modulePath)
+        modules = self.run_module('avail', txt, modulePath=modulePath)
 
         # sort the answers in [name, version] pairs
         # alphabetical order, default last
@@ -230,7 +237,7 @@ class Modules(object):
         else:
             args = list(args)
 
-        if args[0] in ('available', 'list',):
+        if args[0] in ('available', 'avail', 'list',):
             args.insert(0, '--terse')  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
@@ -245,7 +252,7 @@ class Modules(object):
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
-        proc = subprocess.Popen(['modulecmd', 'python'] + args,
+        proc = subprocess.Popen([self.modulecmd, 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -299,6 +306,9 @@ class Modules(object):
 
         elif os.getenv('_LMFILES_'):
             mods = ['/'.join(modfile.split('/')[-2:]) for modfile in os.getenv('_LMFILES_').split(':')]
+
+        elif self.modulecmd == 'lmod':
+            mods = ['/'.join([mod['name'], mod['version']]) for mod in self.run_module('list')]
 
         else:
             self.log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
