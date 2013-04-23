@@ -226,7 +226,10 @@ class Modules(object):
             self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
 
             # second line of module show output contains full path of module file
-            return modinfo.split('\n')[1].replace(':', '')
+            if self.modulecmd == 'lmod':
+                return modinfo.split('\n')[6].strip().replace(':', '')
+            else:
+                return modinfo.split('\n')[1].replace(':', '')
 
     def run_module(self, *args, **kwargs):
         """
@@ -250,6 +253,10 @@ class Modules(object):
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
+        if self.modulecmd == 'lmod':
+            proc = subprocess.Popen([self.modulecmd, 'update'],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
+            (stdout, stderr) = proc.communicate()
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
         proc = subprocess.Popen([self.modulecmd, 'python'] + args,
@@ -269,7 +276,7 @@ class Modules(object):
             try:
                 exec stdout
             except Exception, err:
-                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, stdout))
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s, %s)" % (err,stderr, stdout))
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
