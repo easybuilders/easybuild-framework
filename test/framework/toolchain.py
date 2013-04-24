@@ -336,7 +336,7 @@ class ToolchainTest(TestCase):
         """Test whether goolfc is handled properly."""
 
         tc_class, _ = search_toolchain("goolfc")
-        tc = tc_class(version="1.4.10")
+        tc = tc_class(version="1.3.12")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()

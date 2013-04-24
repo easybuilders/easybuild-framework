@@ -7,16 +7,16 @@ proc ModulesHelp { } {
 
 module-whatis {The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/}
 
-set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/software/OpenMPI/1.6.4-GCC-4.7.2
+set root    /home-2/khoste/.local/easybuild/software/OpenMPI/1.6.4-GCC-4.6.4
 
 conflict    OpenMPI
 
-if { ![is-loaded GCC/4.7.2] } {
-    module load GCC/4.7.2
+if { ![is-loaded GCC/4.6.4] } {
+    module load GCC/4.6.4
 }
 
-if { ![is-loaded hwloc/1.6.2-GCC-4.7.2] } {
-    module load hwloc/1.6.2-GCC-4.7.2
+if { ![is-loaded hwloc/1.6.2-GCC-4.6.4] } {
+    module load hwloc/1.6.2-GCC-4.6.4
 }
 
 prepend-path	CPATH		$root/include
@@ -27,7 +27,7 @@ prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
 
 setenv	EBROOTOPENMPI		"$root"
 setenv	EBVERSIONOPENMPI		"1.6.4"
-setenv	EBDEVELOPENMPI		"$root/easybuild/OpenMPI-1.6.4-GCC-4.7.2-easybuild-devel"
+setenv	EBDEVELOPENMPI		"$root/easybuild/OpenMPI-1.6.4-GCC-4.6.4-easybuild-devel"
 
 
-# built with EasyBuild version 1.3.0dev
+# built with EasyBuild version 1.4.0dev
