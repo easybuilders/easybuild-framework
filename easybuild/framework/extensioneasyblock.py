@@ -31,6 +31,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import apply_patch, extract_file
+from easybuild.tools.utilities import remove_unwanted_chars
 
 
 class ExtensionEasyBlock(EasyBlock, Extension):
@@ -72,6 +73,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.is_extension = True
+            self.unpack_options = None
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
@@ -83,7 +85,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # unpack file if desired
         if unpack_src:
-            targetdir = os.path.join(self.master.builddir, self.name)
+            targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file("%s" % self.src, targetdir, extra_options=self.unpack_options)
 
         # patch if needed
@@ -92,12 +94,13 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 if not apply_patch(patchfile, self.ext_dir):
                     self.log.error("Applying patch %s failed" % patchfile)
 
-    def sanity_check_step(self, exts_filter, custom_paths=None, custom_commands=None):
+    def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
         """
         Custom sanity check for extensions, whether installed as stand-alone module or not
         """
         if not self.cfg['exts_filter']:
             self.cfg['exts_filter'] = exts_filter
+        self.log.debug("starting sanity check for extension with filter %s", self.cfg['exts_filter'])
 
         if not self.is_extension:
             # load fake module
@@ -124,9 +127,10 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.info("Sanity check for %s successful!" % self.name)
             return True
 
-    def make_module_extra(self, extra):
+    def make_module_extra(self, extra=None):
         """Add custom entries to module."""
 
         txt = EasyBlock.make_module_extra(self)
-        txt += extra
+        if not extra is None:
+            txt += extra
         return txt

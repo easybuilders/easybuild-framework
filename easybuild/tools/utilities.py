@@ -28,11 +28,18 @@ Module with various utility functions
 @author: Kenneth Hoste (Ghent University)
 """
 import os
+import string
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
 
 _log = fancylogger.getLogger('tools.utilities')
+
+
+# a list of all ascii characters
+ASCII_CHARS = string.maketrans('', '')
+# a list of all unwanted ascii characters (we only want to keep digits, letters and _)
+UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
 
 def any(ls):
@@ -95,3 +102,10 @@ def quote_str(x):
     else:
         return x
 
+
+def remove_unwanted_chars(inputstring):
+    """Remove unwanted characters from the given string and return a copy
+
+    All non letter and numeral characters are considered unwanted. (see UNWANTED_CHARS)
+    """
+    return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)

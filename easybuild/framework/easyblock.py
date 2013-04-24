@@ -59,9 +59,11 @@ from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Modules, get_software_root
 from easybuild.tools.systemtools import get_core_count
+from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
 _log = fancylogger.getLogger('easyblock')
+
 
 class EasyBlock(object):
     """Generic support for building and installing software, base class for actual easyblocks."""
@@ -83,7 +85,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True):
         """
         Initialize the EasyBlock instance.
         """
@@ -106,6 +108,7 @@ class EasyBlock(object):
         all_stops = [x[0] for x in self.get_steps()]
         self.cfg = EasyConfig(path,
                               extra_options=self.extra_options(),
+                              validate=validate_ec,
                               valid_module_classes=module_classes(),
                               valid_stops=all_stops
                               )
@@ -523,7 +526,7 @@ class EasyBlock(object):
                 tcversion = tcversion[1:]
 
             extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
-            localdir = os.path.join(build_path(), self.name, self.version, extra)
+            localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
 
             ald = os.path.abspath(localdir)
             tmpald = ald
@@ -1294,7 +1297,11 @@ class EasyBlock(object):
 
             # try instantiating extension-specific class
             class_name = encode_class_name(ext['name'])  # use the same encoding as get_class
-            mod_path = get_module_path(ext['name'])
+            mod_path = get_module_path(class_name)
+            if not os.path.exists("%s.py" % mod_path):
+                self.log.deprecated("Determine module path based on software name", "2.0")
+                mod_path = get_module_path(ext['name'])
+
             try:
                 cls = get_class_for(mod_path, class_name)
                 inst = cls(self, ext)
@@ -1758,13 +1765,7 @@ def get_module_path(easyblock, generic=False):
     if easyblock.startswith(class_prefix):
         easyblock = easyblock[len(class_prefix):]
 
-    # construct character translation table for module name
-    # only 0-9, a-z, A-Z are retained, everything else is mapped to _
-    charmap = 48 * '_' + ''.join([chr(x) for x in range(48, 58)])  # 0-9
-    charmap += 7 * '_' + ''.join([chr(x) for x in range(65, 91)])  # A-Z
-    charmap += 6 * '_' + ''.join([chr(x) for x in range(97, 123)]) + 133 * '_'  # a-z
-
-    module_name = easyblock.translate(charmap)
+    module_name = remove_unwanted_chars(easyblock)
 
     if generic:
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
@@ -1785,10 +1786,13 @@ def get_class(easyblock, name=None):
         if not easyblock:
             if not name:
                 name = "UNKNOWN"
-            # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(name)
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
+            # modulepath will be the namespace + encoded modulename (from the classname)
+            modulepath = get_module_path(class_name)
+            if not os.path.exists("%s.py" % modulepath):
+                _log.deprecated("Determine module path based on software name", "2.0")
+                modulepath = get_module_path(name)
 
             # try and find easyblock
             try:
