@@ -254,7 +254,7 @@ class Modules(object):
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         if self.modulecmd == 'lmod':
-            proc = subprocess.Popen([self.modulecmd, 'update'],
+            proc = subprocess.Popen([self.modulecmd, 'python', 'update'],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
             (stdout, stderr) = proc.communicate()
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
