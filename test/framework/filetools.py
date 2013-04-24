@@ -35,7 +35,7 @@ from vsc import fancylogger
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
-from easybuild.test.utilities import find_full_path
+from test.framework.utilities import find_full_path
 
 
 class FileToolsTest(TestCase):
