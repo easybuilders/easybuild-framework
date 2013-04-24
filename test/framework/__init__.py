@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares the easybuild.test namespace.
+Declares the test.framework namespace.
 
 @author: Toon Willems (Ghent University)
 """
