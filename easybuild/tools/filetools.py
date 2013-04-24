@@ -333,7 +333,7 @@ def adjust_cmd(func):
                 if os.path.exists(fp):
                     extra = ". %s &&%s" % (fp, extra)
                 else:
-                    _log.warning("Can't find file %s" % fil)
+                    _log.warning("Can't find file %s" % fp)
 
             cmd = "%s %s" % (extra, cmd)
 
