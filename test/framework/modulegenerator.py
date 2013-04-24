@@ -36,8 +36,8 @@ from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError
+from test.framework.utilities import find_full_path
 
 
 class ModuleGeneratorTest(TestCase):
@@ -54,7 +54,7 @@ class ModuleGeneratorTest(TestCase):
         """ initialize ModuleGenerator with test Application """
 
         # find .eb file
-        eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
+        eb_path = os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
