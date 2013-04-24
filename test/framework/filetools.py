@@ -125,6 +125,10 @@ class FileToolsTest(TestCase):
 
     def test_run_cmd_suse(self):
         """Test run_cmd on SuSE systems, which have $PROFILEREAD set."""
+        # avoid warning messages
+        ft_log_level = ft._log.getEffectiveLevel()
+        ft._log.setLevel('ERROR')
+
         # run_cmd should also work if $PROFILEREAD is set (very relevant for SuSE systems)
         profileread = os.environ.get('PROFILEREAD', None)
         os.environ['PROFILEREAD'] = 'profilereadxxx'
@@ -141,6 +145,7 @@ class FileToolsTest(TestCase):
 
         self.assertEqual(out, "hello\n")
         self.assertEqual(ec, 0)
+        ft._log.setLevel(ft_log_level)
 
 def suite():
     """ returns all the testcases in this module """
