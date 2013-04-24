@@ -257,6 +257,10 @@ class Modules(object):
             proc = subprocess.Popen([self.modulecmd, 'python', 'update'],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
             (stdout, stderr) = proc.communicate()
+            try:
+                exec stdout
+            except Exception, err:
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s, %s)" % (err,stderr, stdout))
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
         proc = subprocess.Popen([self.modulecmd, 'python'] + args,
