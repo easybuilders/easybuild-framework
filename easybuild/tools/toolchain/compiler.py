@@ -36,6 +36,14 @@ from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
+def mk_infix(prefix):
+    """Create an infix based on the given prefix."""
+    infix = ''
+    if prefix is not None:
+        infix = '%s_' % prefix
+    return infix
+
+
 class Compiler(Toolchain):
     """General compiler-like class
         can't be used without creating new class C(Compiler,Toolchain)
@@ -138,9 +146,7 @@ class Compiler(Toolchain):
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
         # overwrite/add unique compiler specific toolchainoptions
-        infix = ''
-        if prefix is not None:
-            infix = '%s_' % prefix
+        infix = mk_infix(prefix)
         self.options.add_options(
             getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
             getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
@@ -157,9 +163,7 @@ class Compiler(Toolchain):
 
         comp_var_tmpl_dict = {}
 
-        infix = ''
-        if prefix is not None:
-            infix = '%s_' % prefix
+        infix = mk_infix(prefix)
 
         for var_tuple in COMPILER_VARIABLES:
             var = var_tuple[0]  # [1] is the description
@@ -204,12 +208,8 @@ class Compiler(Toolchain):
             # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
 
-        for (lib_var, pos) in [
-            ('LIB_%sMULTITHREAD' % infix, 10),
-            ('LIB_%sMATH' % infix, None),
-            ('LIB_%sRUNTIME' % infix, None),
-        ]:
-            lib = getattr(self, lib_var, None)
+        for (var, pos) in [('MULTITHREAD', 10), ('MATH', None), ('RUNTIME', None)]:
+            lib = getattr(self, 'LIB_%s%s' % (infix, var), None)
             if lib is not None:
                 self.variables.nappend('LIBS', lib, position=pos)
 
@@ -270,9 +270,7 @@ class Compiler(Toolchain):
         Return compiler family used in this toolchain.
         @prefix: Prefix for compiler (e.g. 'CUDA_').
         """
-        infix = ''
-        if prefix is not None:
-            infix = '%s_' % prefix
+        infix = mk_infix(prefix)
 
         comp_family = getattr(self, 'COMPILER_%sFAMILY' % infix, None)
         if comp_family:

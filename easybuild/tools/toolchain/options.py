@@ -100,7 +100,7 @@ class ToolchainOptions(dict):
             if isinstance(res, basestring):
                 # allow for template
                 res = self.options_map[name] % templatedict
-            elif hasattr(res, '__iter__'):
+            elif isinstance(res, (list, tuple,)):
                 # allow for template per element
                 res = self.options_map[name]
                 for i in xrange(0, len(res)):
