@@ -1,6 +1,7 @@
 include eb
-recursive-include easybuild *py *eb
-recursive-include easybuild/test/modules *
+recursive-include easybuild *py
+recursive-include test *py *eb
+recursive-include test/framework/modules *
 include CONTRIBUTING.md
 include LICENSE
 include README.rst
