@@ -32,7 +32,9 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
+import bz2
 import errno
+import gzip
 import os
 import operator
 import re
@@ -77,11 +79,8 @@ UNKNOWN = "UNKNOWN"
 # (don't try negative offsets stijn)
 # from http://www.garykessler.net/library/file_sigs.html
 MAGIC_MAP = {
-    GZ: (0, "\x1f\x8b\x08"),
-    BZ2: (0, "\x42\x5A\x68"),
     LZW: (0, "\x1F\x9D"),
     LZH: (0, "\x1F\xA0"),
-    TAR: (257, "ustar"),
     XZ: (0, "\xFD7zXZ"),
 }
 MAX_MAGIC_LEN = max(len(y) + x for x, y in MAGIC_MAP.values())
@@ -192,9 +191,33 @@ class UnTAR(Extractor):
             tar_file.chown(tarinfo, dirpath)
             tar_file.utime(tarinfo, dirpath)
             tar_file.chmod(tarinfo, dirpath)
-        #return parent directory
         return destination
 
+class UnBZIP2(Extractor):
+    """Implementation of the Extractor class for extracting BZIP2 compressed files"""
+    magic = "\x42\x5A\x68"
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actuall extracting using bzip2 library"""
+        outfile = os.path.join(destination, filename)
+        if filename.endswith('.bz2'):
+            outfile = outfile[:-4]
+        open(outfile,'w').write(bz2.decompress(open(filename).read()))
+        return destination
+
+class UnGZIP(Extractor):
+    """Implementation of the Extractor class for extracting GZIP compressed files"""
+    magic = "\x1f\x8b\x08"
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actuall extracting using bzip2 library"""
+        outfile = os.path.join(destination, filename)
+        if filename.endswith('.gz'):
+            outfile = outfile[:-3]
+        open(outfile,'w').write(gzip.open(filename).read())
+        return destination
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None):

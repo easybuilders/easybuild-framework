@@ -101,7 +101,7 @@ class FileToolsTest(TestCase):
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
 
-    def test_extrat_gziped_tar(self):
+    def test_extract_gziped_tar(self):
         """Test the extraction of a gzipped tar file"""
         out = ft.extract_archive('test.tar.gz', '.')
         out_file = os.path.join(out, 'test.txt')
@@ -112,6 +112,18 @@ class FileToolsTest(TestCase):
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
 
+    def test_extracted_bzipped_tar(self):
+        """Test the extraction of a bzipped tar file"""
+        out = ft.extract_archive('test.tar.bz2', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+        out = ft.extract_archive('test.tbz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+
     def test_extract_zip(self):
         """Test the extraction of a zip file"""
         out = ft.extract_archive('test.zip', '.')
@@ -119,8 +131,21 @@ class FileToolsTest(TestCase):
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
 
-# todo test.tar.bz2  test.tbz   test.txt.bz2  test.txt.gz
-#TODO TODO: xz
+    def test_extract_bzip2(self):
+        """Test the extraction of a bzip2 file"""
+        out = ft.extract_archive('test.txt.bz2', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_gzip(self):
+        """Test the extraction of a gzip file"""
+        out = ft.extract_archive('test.txt.gz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+#TODO: xz
 
 
 def suite():
