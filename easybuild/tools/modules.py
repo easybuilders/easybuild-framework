@@ -99,6 +99,7 @@ class Modules(object):
             raise EasyBuildError(msg)
         elif ecem:
             self.modulecmd = "lmod"
+            os.environ['LMOD_EXPERT'] = '1'
         elif eclm:
             self.modulecmd = "modulecmd"
 
@@ -254,6 +255,7 @@ class Modules(object):
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
         if self.modulecmd == 'lmod':
+            self.log.debug("Running Lmod Update (MODULEPATH=\"%s\")" % (environ['MODULEPATH']))
             proc = subprocess.Popen([self.modulecmd, 'python', 'update'],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
             (stdout, stderr) = proc.communicate()
@@ -263,6 +265,7 @@ class Modules(object):
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s, %s)" % (err,stderr, stdout))
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
+        self.log.debug("Running ModuleCMD %s (MODULEPATH=\"%s\")" % (args[0], environ['MODULEPATH']))
         proc = subprocess.Popen([self.modulecmd, 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
