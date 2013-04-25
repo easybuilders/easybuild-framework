@@ -41,6 +41,14 @@ from test.framework.utilities import find_full_path
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
+    class_names = [
+        ('GCC', 'EB_GCC'),
+        ('7zip', 'EB_7zip'),
+        ('Charm++', 'EB_Charm_plus__plus_'),
+        ('DL_POLY_Classic', 'EB_DL_underscore_POLY_underscore_Classic'),
+        ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
+    ]
+
     def setUp(self):
         self.log = fancylogger.getLogger(self.__class__.__name__)
         self.legacySetUp()
@@ -146,6 +154,18 @@ class FileToolsTest(TestCase):
         self.assertEqual(out, "hello\n")
         self.assertEqual(ec, 0)
         ft._log.setLevel(ft_log_level)
+
+    def test_encode_class_name(self):
+        """Test encoding of class names."""
+        for (class_name, encoded_class_name) in self.class_names:
+            self.assertEqual(ft.encode_class_name(class_name), encoded_class_name)
+            self.assertEqual(ft.encode_class_name(ft.decode_class_name(encoded_class_name)), encoded_class_name)
+
+    def test_encode_class_name(self):
+        """Test decoding of class names."""
+        for (class_name, encoded_class_name) in self.class_names:
+            self.assertEqual(ft.decode_class_name(encoded_class_name), class_name)
+            self.assertEqual(ft.decode_class_name(ft.encode_class_name(class_name)), class_name)
 
 def suite():
     """ returns all the testcases in this module """
