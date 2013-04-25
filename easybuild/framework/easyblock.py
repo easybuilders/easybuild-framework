@@ -1760,9 +1760,10 @@ def get_module_path(name, generic=False, decode=True):
     if not name:
         return None
 
+    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:
         name = decode_class_name(name)
-    module_name = remove_unwanted_chars(name).lower()
+    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
 
     if generic:
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
