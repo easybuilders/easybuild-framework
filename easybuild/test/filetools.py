@@ -30,7 +30,7 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 from vsc import fancylogger
 
 import easybuild.tools.config as config
@@ -45,6 +45,7 @@ class FileToolsTest(TestCase):
         self.log = fancylogger.getLogger(self.__class__.__name__)
         self.legacySetUp()
 
+        # go to the data subdir to find all archives
         abspath = os.path.abspath(__file__)
         dname = os.path.dirname(abspath)
         dname = os.path.join(dname, 'data')
@@ -68,33 +69,13 @@ class FileToolsTest(TestCase):
         verify all the possible extract commands
         also run_cmd should work with some basic echo/exit combos
         """
-        cmd = ft.extract_cmd("test.zip")
-        self.assertEqual("unzip -qq test.zip", cmd)
-
-        cmd = ft.extract_cmd("../data/test.tar")
-        self.assertEqual("tar xf ../data/test.tar", cmd)
-
-        cmd = ft.extract_cmd("test.tar.gz")
-        self.assertEqual("gunzip -c test.tar.gz > test.tar", cmd)
-
-        cmd = ft.extract_cmd("test.tgz")
-        self.assertEqual("gunzip -c test.tgz > test", cmd)
-
-        cmd = ft.extract_cmd("test.txt.bz2")
-        self.assertEqual("bunzip2 -c test.txt.bz2 > test.txt", cmd)
-
-        cmd = ft.extract_cmd("test.tbz")
-        self.assertEqual("bunzip2 -c test.tbz > test", cmd)
-
-        cmd = ft.extract_cmd("test.tar.bz2")
-        self.assertEqual("bunzip2 -c test.tar.bz2 > test.tar", cmd)
 
         (out, ec) = ft.run_cmd("echo hello")
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
-        (out, ec) = ft.run_cmd_qa("echo question", {"question":"answer"})
+        (out, ec) = ft.run_cmd_qa("echo question", {"question": "answer"})
         self.assertEqual(out, "question\n")
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
@@ -107,16 +88,44 @@ class FileToolsTest(TestCase):
         name = ft.convert_name("test+test-test", True)
         self.assertEqual(name, "TESTPLUSTESTMINTEST")
 
-
         errors = ft.parse_log_for_error("error failed", True)
         self.assertEqual(len(errors), 1)
 
         # I expect tests to be run from the base easybuild directory
         self.assertEqual(os.getcwd(), ft.find_base_dir())
 
+    def test_extract_tar(self):
+        """Test the extraction of a tar file"""
+        out = ft.extract_archive('test.tar', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extrat_gziped_tar(self):
+        """Test the extraction of a gzipped tar file"""
+        out = ft.extract_archive('test.tar.gz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+        out = ft.extract_archive('test.tgz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_zip(self):
+        """Test the extraction of a zip file"""
+        out = ft.extract_archive('test.zip', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+# todo test.tar.bz2  test.tbz   test.txt.bz2  test.txt.gz
+#TODO TODO: xz
+
+
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([FileToolsTest()])
+    return TestLoader().loadTestsFromTestCase(FileToolsTest)
 
 if __name__ == '__main__':
     main()

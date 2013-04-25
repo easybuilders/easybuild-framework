@@ -34,14 +34,17 @@ Set of file tools.
 """
 import errno
 import os
+import operator
 import re
 import shutil
 import signal
 import stat
 import subprocess
+import tarfile
 import tempfile
 import time
 import urllib
+import zipfile
 from vsc import fancylogger
 
 import easybuild.tools.environment as env
@@ -76,7 +79,6 @@ UNKNOWN = "UNKNOWN"
 MAGIC_MAP = {
     GZ: (0, "\x1f\x8b\x08"),
     BZ2: (0, "\x42\x5A\x68"),
-    ZIP: (0, "\x50\x4B\x03\x04"),
     LZW: (0, "\x1F\x9D"),
     LZH: (0, "\x1F\xA0"),
     TAR: (257, "ustar"),
@@ -95,11 +97,112 @@ UNPACK_COMMANDS = {
 }
 
 
+def extract_archive(filename, destination_dir):
+    """Extracts a given archive to the destination directory"""
+    if not os.path.isfile(filename):
+        _log.error("Can't extract file %s: no such file" % fn)
+
+    if not os.path.isdir(destination_dir):
+        try:
+            os.makedirs(destination_dir)
+        except OSError, err:
+            _log.exception("Can't extract file %s: directory %s can't be created: %err ",filename, destination_dir, err)
+
+    destination_dir = os.path.abspath(destination_dir)
+    # output_file = os.path.splitext(os.path.split(fn)[1])[0]
+    for cls in Extractor.__subclasses__():
+        if cls.can_handle(filename):
+            return cls.extract(filename, destination_dir)
+    raise BadArchiveException
+
+class Extractor(object):
+    """"This is an abstract implementation for an extractor class
+    it's purpose is to extract compressed archives
+    """
+    # magic number identifying files this class can handle
+    magic = None
+    # magic starts at offset
+    offset = 0
+
+    @classmethod
+    def can_handle(cls, filename):
+        """Returns True if this class can handle the given file
+        This uses magic numbers"""
+        f = open(filename)
+        f.seek(cls.offset)
+        can_handle = f.read(len(cls.magic)) == cls.magic
+        f.close()
+        return can_handle
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actual extraction"""
+        pass
+
+
+class UnZIP(Extractor):
+    """Implementation of the Extractor class for unzipping files
+    uses zipfile"""
+    magic =  "\x50\x4B\x03\x04"
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actual extraction uzing zipfile"""
+        zfile = zipfile.ZipFile(filename)
+        for name in zfile.namelist():
+            dirname, filename = os.path.split(name)
+            dirname = os.path.join(destination, dirname)
+            dest_name = os.path.join(dirname, filename)
+            _log.debug("Decompressing %s on %s", filename, dest_name)
+            if not os.path.exists(dirname):
+                os.mkdir(dirname)
+            fd = open(dest_name, "w")
+            fd.write(zfile.read(name))
+            fd.close()
+        return destination
+
+
+class UnTAR(Extractor):
+    """Implementation of the Extractor class for extracting (possibly compressed) tarballs"""
+    magic = None
+
+    @classmethod
+    def can_handle(cls, filename):
+        """Returns True if this class can handle the given file
+        This uses the built in tarfile.is_tarfile method"""
+        return tarfile.is_tarfile(filename)
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actual extraction using TarFile.extractAll
+        (copied from the python 2.5 implementation, since this is not available in python 2.4"""
+        tar_file = tarfile.open(filename, mode='r:*')
+        directories = []
+        for tarinfo in tar_file:
+            if tarinfo.isdir():
+                directories.append(tarinfo)
+                tarinfo = copy.copy(tarinfo)
+                tarinfo.mode = 0o700
+            tar_file.extract(tarinfo, destination)
+        directories.sort(key=operator.attrgetter('name'))
+        directories.reverse()
+
+        for tarinfo in directories:
+            dirpath = os.path.join(destination, tarinfo.name)
+            tar_file.chown(tarinfo, dirpath)
+            tar_file.utime(tarinfo, dirpath)
+            tar_file.chmod(tarinfo, dirpath)
+        #return parent directory
+        return destination
+
+
+
 def extract_file(fn, dest, cmd=None, extra_options=None):
     """
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
+    _log.deprecated("extract_file is deprecated, use extract_archive instead please", "2.0")
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
@@ -236,7 +339,6 @@ def extract_cmd(fn, archive_type=None, return_dict=False):
         _log.error('Unknown file type from file %s (%s)' % (fn, ff))
         raise BadArchiveException("Unable to find extract cmd for this archive type (%s)"% archive_type)
 
-    filename_no_ext = os.path.splitext(os.path.split(fn)[1])[0]
     cmd = UNPACK_COMMANDS[archive_type]
     fn_dict = {"filename": fn, 'filename_no_ext': filename_no_ext, 'cmd': cmd}
     if return_dict:
