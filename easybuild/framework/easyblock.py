@@ -1761,16 +1761,15 @@ def get_module_path(name, generic=False, decode=True):
         return None
 
     if decode:
-        module_name = decode_class_name(name)
-    else:
-        module_name = name
+        name = decode_class_name(name)
+    module_name = remove_unwanted_chars(name).lower()
 
     if generic:
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
     else:
         modpath = '.'.join(["easybuild", "easyblocks"])
 
-    return '.'.join([modpath, module_name.lower()])
+    return '.'.join([modpath, module_name])
 
 def get_class(easyblock, name=None):
     """
