@@ -106,6 +106,6 @@ def quote_str(x):
 def remove_unwanted_chars(inputstring):
     """Remove unwanted characters from the given string and return a copy
 
-    All non letter and numeral characters are considered unwanted. (see UNWANTED_CHARS)
+    All non-letter and non-numeral characters are considered unwanted except for underscore ('_'), see UNWANTED_CHARS.
     """
     return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
