@@ -67,28 +67,22 @@ class Cuda(Compiler):
     COMPILER_CUDA_CXX = 'nvcc'
     LIB_CUDA_RUNTIME = 'cudart'
 
-    def _set_compiler_toolchainoptions(self):
-        """Set the CUDA compiler related toolchain options"""
-        super(Cuda, self)._set_compiler_toolchainoptions()
-        super(Cuda, self)._set_compiler_toolchainoptions(prefix=TC_CONSTANT_CUDA)
+    def __init__(self, *args, **kwargs):
+        """Constructor, with settings custom to CUDA."""
+        super(Cuda, self).__init__(*args, **kwargs)
+        # append CUDA prefix to list of compiler prefixes
+        self.prefixes.append(TC_CONSTANT_CUDA)
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-
-        # set compiler variables for non-CUDA compilers
-        super(Cuda, self)._set_compiler_vars()
-
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
         root = self.get_software_root('CUDA')[0]
         self.variables.append_subdirs("LDFLAGS", root, subdirs=["lib64", "lib"])
-
-        # set compiler variables for CUDA compilers
-        super(Cuda, self)._set_compiler_vars(prefix=TC_CONSTANT_CUDA)
+        super(Cuda, self)._set_compiler_vars()
 
     def _set_compiler_flags(self):
         """Collect flags to set, and add them as variables."""
 
-        # set compiler flags for non-CUDA compilers
         super(Cuda, self)._set_compiler_flags()
 
         # always C++ compiler flags, even for C!

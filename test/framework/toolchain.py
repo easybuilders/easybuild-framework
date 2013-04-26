@@ -171,6 +171,7 @@ class ToolchainTest(TestCase):
 
         # check default optimization flag (e.g. -O2)
         tc = tc_class(version="1.1.0-no-OFED")
+        tc.set_options({})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
