@@ -32,9 +32,9 @@ import os
 import re
 from unittest import TestCase, TestLoader, main
 
-from easybuild.test.utilities import find_full_path
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.modules import Modules
+from test.framework.utilities import find_full_path
 
 class ToolchainTest(TestCase):
     """ Baseclass for toolchain testcases """
@@ -50,7 +50,7 @@ class ToolchainTest(TestCase):
         """Setup for tests."""
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
-        os.environ['MODULEPATH'] = find_full_path(os.path.join('easybuild', 'test', 'modules'))
+        os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
 
     def test_unknown_toolchain(self):
         """Test search_toolchain function for not available toolchains."""

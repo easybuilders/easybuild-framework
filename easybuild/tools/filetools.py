@@ -60,6 +60,46 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
+# easyblock class prefix
+EASYBLOCK_CLASS_PREFIX = 'EB_'
+
+# character map for encoding strings
+STRING_ENCODING_CHARMAP = {
+    r' ': "_space_",
+    r'!': "_exclamation_",
+    r'"': "_quotation_",
+    r'#': "_hash_",
+    r'$': "_dollar_",
+    r'%': "_percent_",
+    r'&': "_ampersand_",
+    r'(': "_leftparen_",
+    r')': "_rightparen_",
+    r'*': "_asterisk_",
+    r'+': "_plus_",
+    r',': "_comma_",
+    r'-': "_minus_",
+    r'.': "_period_",
+    r'/': "_slash_",
+    r':': "_colon_",
+    r';': "_semicolon_",
+    r'<': "_lessthan_",
+    r'=': "_equals_",
+    r'>': "_greaterthan_",
+    r'?': "_question_",
+    r'@': "_atsign_",
+    r'[': "_leftbracket_",
+    r'\'': "_apostrophe_",
+    r'\\': "_backslash_",
+    r']': "_rightbracket_",
+    r'^': "_circumflex_",
+    r'_': "_underscore_",
+    r'`': "_backquote_",
+    r'{': "_leftcurly_",
+    r'|': "_verticalbar_",
+    r'}': "_rightcurly_",
+    r'~': "_tilde_"
+}
+
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
@@ -333,7 +373,7 @@ def adjust_cmd(func):
                 if os.path.exists(fp):
                     extra = ". %s &&%s" % (fp, extra)
                 else:
-                    _log.warning("Can't find file %s" % fil)
+                    _log.warning("Can't find file %s" % fp)
 
             cmd = "%s %s" % (extra, cmd)
 
@@ -381,8 +421,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p.stdin.write(inp)
     p.stdin.close()
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdouterr = ''
     while ec < 0:
@@ -392,7 +430,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if runLog:
             runLog.write(output)
         stdouterr += output
-        time.sleep(1)
         ec = p.poll()
 
     # read remaining data (all of it)
@@ -498,8 +535,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     except OSError, err:
         _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdoutErr = ''
     oldLenOut = -1
@@ -565,6 +600,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                                                                     stdoutErr[-500:]
                                                                                     ))
 
+        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
         ec = p.poll()
 
@@ -946,47 +982,26 @@ def encode_string(name):
 
     """
 
-    charmap = {
-               ' ': "_space_",
-               '!': "_exclamation_",
-               '"': "_quotation_",
-               '#': "_hash_",
-               '$': "_dollar_",
-               '%': "_percent_",
-               '&': "_ampersand_",
-               '(': "_leftparen_",
-               ')': "_rightparen_",
-               '*': "_asterisk_",
-               '+': "_plus_",
-               ',': "_comma_",
-               '-': "_minus_",
-               '.': "_period_",
-               '/': "_slash_",
-               ':': "_colon_",
-               ';': "_semicolon_",
-               '<': "_lessthan_",
-               '=': "_equals_",
-               '>': "_greaterthan_",
-               '?': "_question_",
-               '@': "_atsign_",
-               '[': "_leftbracket_",
-               '\'': "_apostrophe_",
-               '\\': "_backslash_",
-               ']': "_rightbracket_",
-               '^': "_circumflex_",
-               '_': "_underscore_",
-               '`': "_backquote_",
-               '{': "_leftcurly_",
-               '|': "_verticalbar_",
-               '}': "_rightcurly_",
-               '~': "_tilde_"
-              }
-
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: charmap.get(x, x), name))
+    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    return result
+
+def decode_string(name):
+    """Decoding function to revert result of encode_string."""
+    result = name
+    for (char, escaped_char) in STRING_ENCODING_CHARMAP.items():
+        result = re.sub(escaped_char, char, result)
     return result
 
 def encode_class_name(name):
     """return encoded version of class name"""
-    return "EB_" + encode_string(name)
+    return EASYBLOCK_CLASS_PREFIX + encode_string(name)
 
+def decode_class_name(name):
+    """Return decoded version of class name."""
+    if not name.startswith(EASYBLOCK_CLASS_PREFIX):
+        # name is not encoded, apparently
+        return name
+    else:
+        name = name[len(EASYBLOCK_CLASS_PREFIX):]
+        return decode_string(name)
