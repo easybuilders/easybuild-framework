@@ -32,12 +32,8 @@ from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.cuda import Cuda
 
 
-TC_CONSTANT_GCCCUDA = "GCCCUDA"
-
-
 class GccCUDA(Gcc, Cuda):
     """Compiler toolchain with GCC and CUDA."""
     NAME = 'gcccuda'
 
     COMPILER_MODULE_NAME = ['GCC', 'CUDA']
-    COMPILER_FAMILY = TC_CONSTANT_GCCCUDA
