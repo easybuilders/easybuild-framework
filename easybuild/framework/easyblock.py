@@ -55,6 +55,7 @@ from easybuild.tools.config import build_path, install_path, log_path, get_log_f
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
+from easybuild.tools.filetools import decode_class_name
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Modules, get_software_root
@@ -1300,7 +1301,7 @@ class EasyBlock(object):
             mod_path = get_module_path(class_name)
             if not os.path.exists("%s.py" % mod_path):
                 self.log.deprecated("Determine module path based on software name", "2.0")
-                mod_path = get_module_path(ext['name'])
+                mod_path = get_module_path(ext['name'], decode=False)
 
             try:
                 cls = get_class_for(mod_path, class_name)
@@ -1332,7 +1333,7 @@ class EasyBlock(object):
                 class_name = exts_classmap[ext['name']]
                 mod_path = get_module_path(class_name)
                 try:
-                    cls = get_class_for(mod_path, class_name)
+                    cls = get_class_for(mod_path, class_name, decode=False)
                     inst = cls(self, ext)
                 except (ImportError, NameError), err:
                     self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name,
@@ -1751,28 +1752,25 @@ def get_class_for(modulepath, class_name):
         raise ImportError
     return c
 
-def get_module_path(easyblock, generic=False):
+def get_module_path(name, generic=False, decode=True):
     """
-    Determine the module path for a given easyblock name,
+    Determine the module path for a given easyblock or software name,
     based on the encoded class name.
     """
-    if not easyblock:
+    if not name:
         return None
 
-    # FIXME: we actually need a decoding function here,
-    # i.e. from encoded class name to module name
-    class_prefix = encode_class_name("")
-    if easyblock.startswith(class_prefix):
-        easyblock = easyblock[len(class_prefix):]
-
-    module_name = remove_unwanted_chars(easyblock)
+    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
+    if decode:
+        name = decode_class_name(name)
+    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
 
     if generic:
         modpath = '.'.join(["easybuild", "easyblocks", "generic"])
     else:
         modpath = '.'.join(["easybuild", "easyblocks"])
 
-    return '.'.join([modpath, module_name.lower()])
+    return '.'.join([modpath, module_name])
 
 def get_class(easyblock, name=None):
     """
@@ -1792,7 +1790,7 @@ def get_class(easyblock, name=None):
             modulepath = get_module_path(class_name)
             if not os.path.exists("%s.py" % modulepath):
                 _log.deprecated("Determine module path based on software name", "2.0")
-                modulepath = get_module_path(name)
+                modulepath = get_module_path(name, decode=False)
 
             # try and find easyblock
             try:
