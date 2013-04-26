@@ -1,7 +1,5 @@
-##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# #
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Toolchain utility module
 
@@ -31,27 +29,20 @@ Easy access to actual Toolchain classes
     search_toolchain
 
 Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import glob
 import os
 import re
 import sys
+from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.toolchain
-from easybuild.tools.build_log import get_log
 from easybuild.tools.toolchain.toolchain import Toolchain
 
-
-def get_subclasses(cls):
-    """
-    Get all subclasses recursively
-    """
-    res = []
-    for cl in cls.__subclasses__():
-        for subcl in get_subclasses(cl)+[cl]:
-            if not subcl in res:
-                res.append(subcl)
-    return res
 
 def search_toolchain(name):
     """
@@ -59,7 +50,7 @@ def search_toolchain(name):
     returns toolchain (or None), found_toolchains
     """
 
-    log = get_log("search_toolchain")
+    log = fancylogger.getLogger("search_toolchain")
 
     # import all available toolchains, so we know about them
     tc_modules = []

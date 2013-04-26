@@ -1,6 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Jens Timmerman 
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,7 +23,9 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-utility module for working with github
+Utility module for working with github
+
+@author: Jens Timmerman (Ghent University)
 """
 import base64
 import tempfile
@@ -38,7 +39,7 @@ GITHUB_FILE_TYPE = u'file'
 
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
-    
+
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
         @param githubuser: the github user's repo we want to use.
@@ -48,13 +49,13 @@ class Githubfs(object):
         @param password: (optional) your github password.
         @param token:    (optional) a github api token.
         """
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.gh = Github(username, password, token)
         self.githubuser = githubuser
         self.reponame = reponame
         self.branchname = branchname
 
-    @staticmethod 
+    @staticmethod
     def join(*args):
         """This method joins 'paths' inside a github repository"""
         args = [x for x in args if x]
@@ -63,7 +64,7 @@ class Githubfs(object):
     def get_repo(self):
         """Returns the repo as a Github object (from agithub)"""
         return self.gh.repos[self.githubuser][self.reponame]
-    
+
     def get_path(self, path):
         """returns the path as a Github object (from agithub)"""
         endpoint = self.get_repo()['contents']
@@ -72,25 +73,25 @@ class Githubfs(object):
                 endpoint = endpoint[subpath]
         return endpoint
 
-    @staticmethod 
+    @staticmethod
     def isdir(githubobj):
         """Check if this path points to a directory"""
         if isinstance(githubobj,(list, tuple)):
-            return True 
-        else:   
+            return True
+        else:
             try:
                 return githubobj['type'] == GITHUB_DIR_TYPE
             except:
                 return False
 
-    @staticmethod 
+    @staticmethod
     def isfile(githubobj):
         """Check if this path points to a file"""
         try:
             return githubobj['type'] == GITHUB_FILE_TYPE
         except:
             return False
-        
+
     def listdir(self, path):
         """List the contents of a directory"""
         path = self.get_path(path)
@@ -101,7 +102,7 @@ class Githubfs(object):
         else:
             self.log.warning("error: %s" % str(listing))
             self.log.exception("Invalid response from github (I/O error)")
-    
+
     def walk(self, top=None, topdown=True):
         """
         Walk the github repo in an os.walk like fashion.
@@ -117,7 +118,7 @@ class Githubfs(object):
                 dirs.append(str(githubobj['name']))
             else:
                 nondirs.append(str(githubobj['name']))
-        
+
         if topdown:
             yield top, dirs, nondirs
 
@@ -127,21 +128,21 @@ class Githubfs(object):
                 yield x
         if not topdown:
             yield top, dirs, nondirs
-            
+
     def read(self, path, api=True):
         """Read the contents of a file and return it
         Or, if api=False it will download the file and return the location of the downloaded file"""
         # we don't need use the api for this, but can also use raw.github.com
         # https://raw.github.com/hpcugent/easybuild/master/README.rst
-        if not api: 
+        if not api:
             outfile = tempfile.mkstemp()[1]
             url = ("http://raw.github.com/%s/%s/%s/%s" % (self.githubuser, self.reponame, self.branchname, path))
             urllib.urlretrieve(url, outfile)
             return outfile
-        else: 
+        else:
             obj = self.get_path(path).get(ref=self.branchname)[1]
             if not self.isfile(obj):
-                raise GithubError("Error: not a valid file: %s" % str(obj)) 
+                raise GithubError("Error: not a valid file: %s" % str(obj))
             return  base64.b64decode(obj['content'])
 
 

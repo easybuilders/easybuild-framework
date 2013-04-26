@@ -2,20 +2,20 @@
 # This file is part of agithub
 # Originally created by Jonathan Paugh
 #
-# https://github.com/jpaugh64/agithub
+# https://github.com/jpaugh/agithub
 #
 # Copyright 2012 Jonathan Paugh
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,12 +24,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 ##
-import base64
-import httplib, urllib
-import json
-import re
+"""
+Interface to GitHub.
 
-from functools import partial, update_wrapper
+@author: Jonathan Paugh
+"""
+
+import base64
+import re
+import httplib, urllib
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from vsc import fancylogger
 class Client(object):
@@ -71,7 +78,9 @@ class Client(object):
 
   def request(self, method, url, body, headers):
     if self.username:
-      headers['Authorization'] = self.auth_header
+        headers['Authorization'] = self.auth_header
+    else:
+        headers['User-Agent'] = 'agithub'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()
@@ -144,12 +153,22 @@ class RequestBuilder(object):
     self.url = ''
 
   def __getattr__(self, key):
-    if key in self.client.http_methods:
-      mfun = getattr(self.client, key)
-      fun = partial(mfun, url=self.url)
-      return update_wrapper(fun, mfun)
-    self.url += '/' + str(key)
-    return self
+      def partial(func, *args, **keywords):
+          def newfunc(*fargs, **fkeywords):
+              newkeywords = keywords.copy()
+              newkeywords.update(fkeywords)
+              return func(*(args + fargs), **newkeywords)
+          newfunc.func = func
+          newfunc.args = args
+          newfunc.keywords = keywords
+          return newfunc
+
+      if key in self.client.http_methods:
+          mfun = getattr(self.client, key)
+          fun = partial(mfun, url=self.url)
+          return fun
+      self.url += '/' + str(key)
+      return self
 
   __getitem__ = __getattr__
 

@@ -1,10 +1,5 @@
 ##
-# Copyright 2009-2012 Ghent University
-# Copyright 2009-2012 Stijn De Weirdt
-# Copyright 2010 Dries Verdegem
-# Copyright 2010-2012 Kenneth Hoste
-# Copyright 2011 Pieter De Baets
-# Copyright 2011-2012 Jens Timmerman
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,13 +24,20 @@
 ##
 """
 Module that takes control of versioning.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
+@author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
-from distutils.version import LooseVersion
 import os
+from distutils.version import LooseVersion
+from socket import gethostname
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
 # 1.1-rc1 would indicate a post-release, i.e., and update of 1.1, so beware!
-VERSION = LooseVersion("1.2.0dev")
+VERSION = LooseVersion("1.4.0dev")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():
@@ -61,3 +63,21 @@ if git_rev == UNKNOWN:
     VERBOSE_VERSION = VERSION
 else:
     VERBOSE_VERSION = LooseVersion("%s-r%s" % (VERSION, get_git_revision()))
+
+# alias
+FRAMEWORK_VERSION = VERBOSE_VERSION
+
+# EasyBlock version
+try:
+    from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
+except:
+    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+
+def this_is_easybuild():
+    """Standard starting message"""
+    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
+    # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
+    msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s." \
+         % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
+
+    return msg

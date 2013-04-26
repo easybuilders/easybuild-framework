@@ -1,6 +1,5 @@
-##
-# Copyright 2012 Ghent University
-# Copyright 2012 Kenneth Hoste
+# #
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -22,13 +21,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 
 """
 This script can be used to install easybuild-framework, e.g. using:
   easy_install --user .
 or
   python setup.py --prefix=$HOME/easybuild
+
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
@@ -54,6 +55,20 @@ except ImportError, err:
 
 log.info("Installing version %s (API version %s)" % (VERSION, API_VERSION))
 
+def find_rel_test():
+    """Return list of files recursively from basedir (aka find -type f)"""
+    basedir = os.path.join(os.path.dirname(__file__), "test", "framework")
+    current = os.getcwd()
+    os.chdir(basedir)
+    res = []
+    for subdir in ["easyblocks_sandbox", "easyconfigs", "modules"]:
+        res.extend([os.path.join(root, filename)
+                    for root, dirnames, filenames in os.walk(subdir)
+                    for filename in filenames if os.path.isfile(os.path.join(root, filename))])
+    os.chdir(current)
+    return res
+
+
 setup(
     name = "easybuild-framework",
     version = str(VERSION),
@@ -66,17 +81,25 @@ implement support for installing particular (groups of) software packages.""",
     license = "GPLv2",
     keywords = "software build building installation installing compilation HPC scientific",
     url = "http://hpcugent.github.com/easybuild",
-    packages = ["easybuild", "easybuild.framework", "easybuild.toolchains", "easybuild.toolchains.compiler",
+    packages = ["easybuild", "easybuild.framework", "easybuild.framework.easyconfig",
+                "easybuild.toolchains", "easybuild.toolchains.compiler",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
-                "easybuild.tools.toolchain", "easybuild.test", "vsc"],
-    package_dir = {'easybuild.test': "easybuild/test"},
-    package_data = {"easybuild.test": ["easyconfigs/*eb", "modules/*/*"]},
+                "easybuild.tools.toolchain", "test.framework",
+                "vsc", "vsc.utils",
+               ],
+    package_dir = {'test.framework': "test/framework"},
+    package_data = {"test.framework": find_rel_test()},
     scripts = ["eb"],
     data_files = [
                   ('easybuild', ["easybuild/easybuild_config.py"]),
     ],
-    long_description = read("README.rst"),
-    classifiers = [
+    long_description="""This package contains the EasyBuild
+framework, which supports the creation of custom easyblocks that
+implement support for installing particular (groups of) software
+packages.
+
+""" + read("README.rst"),
+    classifiers=[
                    "Development Status :: 5 - Production/Stable",
                    "Environment :: Console",
                    "Intended Audience :: System Administrators",
@@ -85,9 +108,10 @@ implement support for installing particular (groups of) software packages.""",
                    "Programming Language :: Python :: 2.4",
                    "Topic :: Software Development :: Build Tools",
                   ],
-    platforms = "Linux",
-    provides = ["eb", "easybuild.framework", "easybuild.toolchains", "easybuild.toolchains.compiler",
+    platforms="Linux",
+    provides=["eb", "easybuild.framework", "easybuild.toolchains", "easybuild.toolchains.compiler",
                 "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg",
                 "easybuild.tools", "easybuild.tools.toolchain", "easybuild.test", "vsc"],
-    test_suite = "easybuild.test.suite",
+    test_suite="easybuild.test.suite",
+    zip_safe=False,
 )

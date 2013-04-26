@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Support for FFTW (Fastest Fourier Transform in the West) as toolchain FFT library.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from distutils.version import LooseVersion
@@ -62,4 +63,5 @@ class Fftw(Fft):
         ## TODO can these be replaced with the FFT ones?
         self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')
         self.variables.join('FFTW_LIB_DIR', 'FFT_LIB_DIR')
-        self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')
+        if 'FFT_STATIC_LIBS' in self.variables:
+            self.variables.join('FFTW_STATIC_LIBS', 'FFT_STATIC_LIBS')

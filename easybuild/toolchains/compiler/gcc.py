@@ -1,7 +1,5 @@
 ##
-# Copyright 2012 Ghent University
-# Copyright 2012 Stijn De Weirdt
-# Copyright 2012 Kenneth Hoste
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,6 +24,9 @@
 ##
 """
 Support for GCC (GNU Compiler Collection) as toolchain compiler.
+
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import easybuild.tools.systemtools as systemtools
@@ -91,5 +92,8 @@ class Gcc(Compiler):
         ## also used in eg LIBBLAS variable
         self.variables.nappend('FLIBS', "gfortran", position=5)
 
-        gcc_root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
+        # Hardcode 'GCC' here.  We can not reuse COMPILER_MODULE_NAME because
+        # it can be redefined by combining GCC with other compilers (for
+        # example, Clang).
+        gcc_root = self.get_software_root('GCC')[0]
         self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64"])

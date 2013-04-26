@@ -1,5 +1,5 @@
 ##
-# Copyright 2012 Ghent University
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,7 +25,7 @@
 """
 EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogicMPI, ACML, BLACS, ScaLAPACK and FFTW).
 
-@authors: Kenneth Hoste (UGent)
+@author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
