@@ -126,8 +126,8 @@ class Compiler(Toolchain):
         """Compiler constructor."""
         Toolchain.base_init(self)
         self.arch = None
-        # list of compiler prefixes, always includes None for non-prefixed compilers (e.g., GCC, Intel, ...)
-        self.prefixes = [None]
+        # list of compiler prefixes
+        self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
 
     def set_options(self, options):
@@ -149,9 +149,9 @@ class Compiler(Toolchain):
         """Set the compiler related toolchain options"""
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
-        for prefix in self.prefixes:
+        # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
+        for infix in [''] + [mk_infix(prefix) for prefix in self.prefixes]:
             # overwrite/add unique compiler specific toolchainoptions
-            infix = mk_infix(prefix)
             self.options.add_options(
                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
@@ -169,8 +169,8 @@ class Compiler(Toolchain):
 
         comp_var_tmpl_dict = {}
 
-        for prefix in self.prefixes:
-            infix = mk_infix(prefix)
+        # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
+        for infix in [''] + [mk_infix(prefix) for prefix in self.prefixes]:
 
             for var_tuple in COMPILER_VARIABLES:
                 var = var_tuple[0]  # [1] is the description
