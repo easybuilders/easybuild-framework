@@ -68,7 +68,9 @@ def get_core_count():
 
     # Linux
     try:
-        res = open('/proc/cpuinfo').read().count('processor\t:')
+        f = open('/proc/cpuinfo')
+        res = f.read().count('processor\t:')
+        f.close()
         if res > 0:
             return res
     except IOError:
@@ -100,7 +102,9 @@ def get_cpu_vendor():
 
     # Linux
     try:
-        arch = regexp.search(open("/proc/cpuinfo").read()).groupdict()['vendorid']
+        f = open("/proc/cpuinfo")
+        arch = regexp.search(f.read()).groupdict()['vendorid']
+        f.close()
         if arch in VENDORS:
             return VENDORS[arch]
     except IOError:
@@ -128,7 +132,10 @@ def get_cpu_model():
     #linux
     regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
     try:
-        return regexp.search(open("/proc/cpuinfo").read()).groupdict()['modelname'].strip()
+        f = open("/proc/cpuinfo")
+        txt = f.read()
+        f.close()
+        return regexp.search(txt).groupdict()['modelname'].strip()
     except IOError:
         pass
     #osX

@@ -469,6 +469,8 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
             else:  # remove the handler set with this loggeroption
                 handler = getattr(logger, loggeroption)
                 logger.removeHandler(handler)
+                if hasattr(handler, 'close'):
+                    handler.close()
         else:
             logger.removeHandler(handler)
         setattr(logger, loggeroption, False)
