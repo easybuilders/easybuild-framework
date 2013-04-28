@@ -157,7 +157,7 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         Generate prepend-path statements for the given list of paths.
         """
-        template = "prepend-path\t%s\t\t$root/%s\n"  # $root = installdir
+        template = "prepend-path\t%s\t\t%s\n"
 
         if isinstance(paths, basestring):
             _log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
@@ -165,8 +165,11 @@ if { ![is-loaded %(name)s/%(version)s] } {
 
         # make sure only relative paths are passed
         for path in paths:
-            if path.startswith(os.path.sep) and not allow_abs:
+            if os.path.isabs(path) and not allow_abs:
                 _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+            elif not os.path.isabs(path):
+                # prepend $root (= installdir) for relative paths
+                path = "$root/%s" % path
 
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
