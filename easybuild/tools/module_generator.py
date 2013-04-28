@@ -164,12 +164,12 @@ if { ![is-loaded %(name)s/%(version)s] } {
             paths = [paths]
 
         # make sure only relative paths are passed
-        for path in paths:
-            if os.path.isabs(path) and not allow_abs:
-                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
-            elif not os.path.isabs(path):
+        for i in xrange(len(paths)):
+            if os.path.isabs(paths[i]) and not allow_abs:
+                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
+            elif not os.path.isabs(paths[i]):
                 # prepend $root (= installdir) for relative paths
-                path = "$root/%s" % path
+                paths[i] = "$root/%s" % paths[i]
 
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
