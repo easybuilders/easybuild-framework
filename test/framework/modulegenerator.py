@@ -101,14 +101,16 @@ if { ![is-loaded name/version] } {
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
         # test prepend_paths
-        expected = """prepend-path	key		$root/path1
-prepend-path	key		$root/path2
-"""
+        expected = ''.join([
+            "prepend-path\tkey\t\t$root/path1\n",
+            "prepend-path\tkey\t\t$root/path2\n",
+        ])
         self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-        expected = """prepend-path	bar		$root/foo
-"""
+        expected = "prepend-path\tbar\t\t$root/foo\n"
         self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
+
+        self.assertEqual("prepend-path\tkey\t\t/abs/path\n", self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,
