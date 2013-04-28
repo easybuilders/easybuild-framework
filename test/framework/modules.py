@@ -53,7 +53,7 @@ class ModulesTest(TestCase):
             testmods.load()
 
             tmp = {"name": m[0], "version": m[1]}
-            assert(tmp in testmods.loaded_modules())
+            self.assertTrue(tmp in testmods.loaded_modules())
 
             # remove module again and purge to avoid conflicts when loading modules
             testmods.remove_module([m])
