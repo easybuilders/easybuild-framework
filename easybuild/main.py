@@ -972,9 +972,12 @@ def search_file(path, query, silent=False):
             if filename.lower().find(query) != -1:
                 print_msg("- %s" % filename, log=_log, silent=silent)
 
+        # do not consider (certain) hidden directories
+        # note: we still need to consider e.g., .local !
         # replace list elements using [:], so os.walk doesn't process deleted directories
         # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-        dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+        # TODO (see #623): add a configuration option with subdirs to ignore (also taken into account for --robot)
+        dirnames[:] = [d for d in dirnames if not d in ['.git', '.svn']]
 
 
 def write_to_xml(succes, failed, filename):
