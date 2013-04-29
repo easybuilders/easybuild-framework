@@ -41,7 +41,7 @@ import sys
 from vsc import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import convert_name, run_cmd
+from easybuild.tools.filetools import convert_name, run_cmd, read_file
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -352,12 +352,7 @@ class Modules(object):
         modfilepath = self.modulefile_path(name, version)
         self.log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
 
-        try:
-            f = open(modfilepath, "r")
-            modtxt = f.read()
-            f.close()
-        except IOError, err:
-            self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
+        modtxt = read_file(modfilepath)
 
         loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
