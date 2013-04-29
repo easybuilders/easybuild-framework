@@ -1,0 +1,30 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)
+}
+}
+
+module-whatis {GNU Compiler Collection (GCC) based compiler toolchain,
+ including OpenMPI for MPI support. - Homepage: (none)}
+
+set root    /home-2/khoste/.local/easybuild/software/gompi/1.3.12
+
+conflict    gompi
+
+if { ![is-loaded GCC/4.6.4] } {
+    module load GCC/4.6.4
+}
+
+if { ![is-loaded OpenMPI/1.6.4-GCC-4.6.4] } {
+    module load OpenMPI/1.6.4-GCC-4.6.4
+}
+
+
+setenv	EBROOTGOMPI		"$root"
+setenv	EBVERSIONGOMPI		"1.3.12"
+setenv	EBDEVELGOMPI		"$root/easybuild/gompi-1.3.12-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

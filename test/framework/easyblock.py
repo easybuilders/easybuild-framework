@@ -41,15 +41,14 @@ from easybuild.framework.extension import Extension
 from easybuild.tools import config
 from unittest import TestCase, TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
 
     def writeEC(self):
         """ create temporary easyconfig file """
-        f = open(self.eb_file, "w")
-        f.write(self.contents)
-        f.close()
+        write_file(self.eb_file, self.contents)
 
     def setUp(self):
         """ setup """

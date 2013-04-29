@@ -41,15 +41,18 @@ COMPILER_VARIABLES = [
     ('F90', 'Fortran 90 compiler'),
 ]
 
+COMPILER_FLAGS = [
+    ('CFLAGS', 'C compiler flags'),
+    ('CXXFLAGS', 'C++ compiler flags'),
+    ('FFLAGS', 'Fortran compiler flags'),
+    ('F90FLAGS', 'Fortran 90 compiler flags'),
+]
+
 COMPILER_MAP_CLASS = {
     FlagList: [
         ('OPTFLAGS', 'Optimization flags'),
         ('PRECFLAGS', 'FP precision flags'),
-        ('CFLAGS', 'C compiler flags'),
-        ('CXXFLAGS', 'C++ compiler flags'),
-        ('FFLAGS', 'Fortran compiler flags'),
-        ('F90FLAGS', 'Fortran 90 compiler flags'),
-    ],
+    ] + COMPILER_FLAGS,
     LibraryList: [
         ('LIBS', 'Libraries'),  # TODO: where are these used? ld?
         ('FLIBS', 'Fortran libraries'),  # TODO: where are these used? gfortran only?
@@ -61,6 +64,21 @@ COMPILER_MAP_CLASS = {
         ('CPPFLAGS', 'Precompiler flags'),
     ],
     CommandFlagList: COMPILER_VARIABLES,
+}
+
+CO_COMPILER_MAP_CLASS = {
+    CommandFlagList: [
+        ('CUDA_CC', 'CUDA C compiler command'),
+        ('CUDA_CXX', 'CUDA C++ compiler command'),
+        ('CUDA_F77', 'CUDA Fortran77 compiler command'),
+        ('CUDA_F90', 'CUDA Fortran90 compiler command'),
+    ],
+    FlagList: [
+        ('CUDA_CFLAGS', 'CUDA C compiler flags'),
+        ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
+        ('CUDA_FFLAGS', 'CUDA Fortran compiler flags'),
+        ('CUDA_F90FLAGS', 'CUDA Fortran 90 compiler flags'),
+    ],
 }
 
 MPI_COMPILER_TEMPLATE = "MPI%(c_var)s"
@@ -176,7 +194,7 @@ FFTW_MAP_CLASS = {
 ALL_MAP_CLASSES = [
     COMPILER_MAP_CLASS, MPI_MAP_CLASS,
     BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
-    FFT_MAP_CLASS, FFTW_MAP_CLASS,
+    FFT_MAP_CLASS, FFTW_MAP_CLASS, CO_COMPILER_MAP_CLASS,
 ]
 
 
