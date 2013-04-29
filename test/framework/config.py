@@ -39,6 +39,7 @@ import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.tools.config import build_path, source_path, install_path, get_repository, log_file_format
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository
 
 
@@ -242,9 +243,7 @@ modules_install_suffix = '%(modsuffix)s'
         myconfigfile = os.path.join(self.tmpdir, '.easybuild', 'config.py')
         if not os.path.exists(os.path.dirname(myconfigfile)):
             os.makedirs(os.path.dirname(myconfigfile))
-        f = open(myconfigfile, 'w')
-        f.write(configtxt % configdict)
-        f.close()
+        write_file(myconfigfile, configtxt % configdict)
 
         # redefine home so we can test user config file on default location
         home = os.environ.get('HOME', None)
@@ -293,9 +292,7 @@ modules_install_suffix = '%(modsuffix)s'
         mycustomconfigfile = os.path.join(self.tmpdir, 'mycustomconfig.py')
         if not os.path.exists(os.path.dirname(mycustomconfigfile)):
             os.makedirs(os.path.dirname(mycustomconfigfile))
-        f = open(mycustomconfigfile, 'w')
-        f.write(configtxt % configdict)
-        f.close()
+        write_file(mycustomconfigfile, configtxt % configdict)
         os.environ['EASYBUILDCONFIG'] = mycustomconfigfile
 
         # reconfigure
@@ -324,7 +321,7 @@ modules_install_suffix = '%(modsuffix)s'
         repopath = os.path.join(self.tmpdir, 'test2', 'repo')
         config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
 
-        open(config_file, 'w').write('')
+        write_file(config_file, '')
 
         args = [
             '--config', config_file,  # force empty oldstyle config file

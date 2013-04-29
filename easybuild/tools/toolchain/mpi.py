@@ -33,6 +33,7 @@ import os
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
+from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -195,10 +196,8 @@ class Mpi(Toolchain):
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
-                f = open(fn, "w")
-                f.write("localhost ifhn=localhost")
-                f.close()
-            except (OSError, IOError), err:
+                write_file(fn, "localhost ifhn=localhost")
+            except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
             params.update({'mpdbf':"--file=%s" % fn})
@@ -208,10 +207,8 @@ class Mpi(Toolchain):
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
-                f = open(fn, "w")
-                f.write("localhost\n" * nr_ranks)
-                f.close()
-            except (OSError, IOError), err:
+                write_file(fn, "localhost\n" * nr_ranks)
+            except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
             params.update({'nodesfile':"-machinefile %s" % fn})
