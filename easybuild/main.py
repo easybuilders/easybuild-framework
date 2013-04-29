@@ -966,24 +966,15 @@ def search_file(path, query, silent=False):
     print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
 
     query = query.lower()
-    for (dirpath, dirnames, filenames) in os.walk(path):
+    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
         for filename in filenames:
             filename = os.path.join(dirpath, filename)
             if filename.lower().find(query) != -1:
                 print_msg("- %s" % filename, log=_log, silent=silent)
 
-        # TODO: get directories to ignore from  easybuild.tools.repository ?
-        # remove all hidden directories?:
-        # dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-        try:
-            dirnames.remove('.svn')
-        except ValueError:
-            pass
-
-        try:
-            dirnames.remove('.git')
-        except ValueError:
-            pass
+        # replace list elements using [:], so os.walk doesn't process deleted directories
+        # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+        dirnames[:] = [d for d in dirnames if not d.startswith('.')]
 
 
 def write_to_xml(succes, failed, filename):
