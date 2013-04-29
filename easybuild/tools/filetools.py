@@ -210,6 +210,7 @@ def download_file(filename, url, path):
     # failed to download after multiple attempts
     return None
 
+
 def find_base_dir():
     """
     Try to locate a possible new base directory

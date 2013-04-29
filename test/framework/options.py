@@ -443,6 +443,24 @@ class CommandLineOptionsTest(TestCase):
         # restore original Python search path
         sys.path = orig_sys_path
 
+    def test_search(self):
+        """Test searching for easyconfigs."""
+        args = [
+                '--search=gzip',
+                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '--unittest-file=%s' % self.logfile,
+               ]
+        try:
+            main((args, None))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        info_msg = r"Searching for gzip in"
+        self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
+        for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
+            self.assertTrue(re.search("%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
     def test_no_such_software(self):
         """Test using no arguments."""
 

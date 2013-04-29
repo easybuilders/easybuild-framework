@@ -62,7 +62,7 @@ class RobotTest(TestCase):
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
         # redefine the main log when calling the main functions directly
-        main.log = fancylogger.getLogger("main", fname=False)
+        main._log = fancylogger.getLogger("main", fname=False)
 
         self.cwd = os.getcwd()
 
