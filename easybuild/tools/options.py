@@ -221,7 +221,7 @@ class EasyBuildOptions(GeneralOption):
                                    "choice", "store_or_None", "simple", ["simple", "detailed"]),
                 "list-toolchains":("Show list of known toolchains",
                                    None, "store_true", False),
-                "search":("Search for module-files in the robot-directory",
+                "search":("Search for easyconfig files in the robot directory",
                           None, "store", None, {'metavar':"STR"}),
                 "dep-graph":("Create dependency graph",
                              None, "store", None, {'metavar':"depgraph.<ext>"},),

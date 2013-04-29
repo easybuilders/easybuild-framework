@@ -380,33 +380,6 @@ class Modules(object):
         return deps
 
 
-def search_module(path, query):
-    """
-    Search for a particular module (only prints)
-    """
-    print "Searching for %s in %s " % (query.lower(), path)
-
-    query = query.lower()
-    for (dirpath, dirnames, filenames) in os.walk(path):
-        for filename in filenames:
-            filename = os.path.join(dirpath, filename)
-            if filename.lower().find(query) != -1:
-                print "- %s" % filename
-
-        # TODO: get directories to ignore from  easybuild.tools.repository ?
-        # remove all hidden directories?:
-        # dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-        try:
-            dirnames.remove('.svn')
-        except ValueError:
-            pass
-
-        try:
-            dirnames.remove('.git')
-        except ValueError:
-            pass
-
-
 def get_software_root_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
