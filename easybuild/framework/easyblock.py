@@ -55,7 +55,7 @@ from easybuild.tools.config import build_path, install_path, log_path, get_log_f
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
-from easybuild.tools.filetools import decode_class_name
+from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import Modules, get_software_root
@@ -667,11 +667,7 @@ class EasyBlock(object):
         filename = os.path.join(output_dir, "%s-%s-easybuild-devel" % (self.name, self.get_installversion()))
         self.log.debug("Writing devel module to %s" % filename)
 
-        devel_module = open(filename, "w")
-        devel_module.write(header)
-        devel_module.write(load_txt)
-        devel_module.write(env_txt)
-        devel_module.close()
+        write_file(filename, header+load_txt+env_txt)
 
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
@@ -1557,12 +1553,7 @@ class EasyBlock(object):
             txt += self.make_module_extra_extensions()
         txt += '\n# built with EasyBuild version %s\n' % VERBOSE_VERSION
 
-        try:
-            f = open(self.moduleGenerator.filename, 'w')
-            f.write(txt)
-            f.close()
-        except IOError, err:
-            self.log.error("Writing to the file %s failed: %s" % (self.moduleGenerator.filename, err))
+        write_file(self.moduleGenerator.filename, txt)
 
         self.log.info("Added modulefile: %s" % (self.moduleGenerator.filename))
 

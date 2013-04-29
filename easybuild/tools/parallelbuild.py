@@ -40,6 +40,7 @@ import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository
+from easybuild.tools.filetools import read_file
 from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
@@ -150,7 +151,8 @@ def get_easyblock_instance(easyconfig, robot_path=None):
     # handle easyconfigs with custom easyblocks
     easyblock = None
     reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-    for line in open(spec).readlines():
+    txt = read_file(spec)
+    for line in txt.split('\n'):
         match = reg.search(line)
         if match:
             easyblock = eval(match.group(1))

@@ -97,8 +97,40 @@ STRING_ENCODING_CHARMAP = {
     r'{': "_leftcurly_",
     r'|': "_verticalbar_",
     r'}': "_rightcurly_",
-    r'~': "_tilde_"
+    r'~': "_tilde_",
 }
+
+
+def read_file(path, log_error=True):
+    """Read contents of file at given path, in a robust way."""
+    f = None
+    try:
+        f = open(path, 'r')
+        txt = f.read()
+        f.close()
+        return txt
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        if log_error:
+            _log.error("Failed to read %s: %s" % (path, err))
+        else:
+            return None
+
+
+def write_file(path, txt):
+    """Write given contents to file at given path (overwrites current file contents!)."""
+    f = None
+    try:
+        f = open(path, 'w')
+        f.write(txt)
+        f.close()
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        _log.error("Failed to write to %s: %s" % (path, err))
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -825,23 +857,16 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    try:
-        f = open(path, "r")
-        txt = f.readlines()
-        f.close()
+    txt = read_file(path).split('\n')
 
-        # force autoflush for Perl print buffer
-        extra=["\nuse IO::Handle qw();\n",
-               "STDOUT->autoflush(1);\n\n"]
+    # force autoflush for Perl print buffer
+    extra=["\nuse IO::Handle qw();\n",
+           "STDOUT->autoflush(1);\n\n"]
 
-        newtxt = ''.join([txt[0]] + extra + txt[1:])
+    newtxt = ''.join([txt[0]] + extra + txt[1:])
 
-        f = open(path, "w")
-        f.write(newtxt)
-        f.close()
+    write_file(path, newtxt)
 
-    except IOError, err:
-        _log.error("Failed to patch Perl configure script: %s" % err)
 
 def mkdir(directory, parents=False):
     """

@@ -38,12 +38,18 @@ def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
     """
-    script = open(filename, 'w')
+    script = None
+    try:
+        script = open(filename, 'w')
 
-    for key in changes:
-        script.write('export %s="%s"\n' % (key, changes[key]))
+        for key in changes:
+            script.write('export %s="%s"\n' % (key, changes[key]))
 
-    script.close()
+        script.close()
+    except IOError, err:
+        if script is not None:
+            script.close()
+        _log.error("Failed to write to %s: %s" % (filename, err))
     reset_changes()
 
 

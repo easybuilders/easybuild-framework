@@ -38,6 +38,7 @@ from unittest import main as unittestmain
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -51,7 +52,6 @@ class CommandLineOptionsTest(TestCase):
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
-        # open(self.logfile, 'w').write('')  # clear logfile
 
     def tearDown(self):
         """Post-test cleanup."""
@@ -104,7 +104,7 @@ class CommandLineOptionsTest(TestCase):
             main(([], self.logfile))
         except (SystemExit, Exception), err:
             pass
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         error_msg = "ERROR .* Please provide one or multiple easyconfig files,"
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
@@ -122,7 +122,7 @@ class CommandLineOptionsTest(TestCase):
                 main((args, self.logfile))
             except (SystemExit, Exception), err:
                 myerr = err
-            outtxt = open(self.logfile, 'r').read()
+            outtxt = read_file(self.logfile)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -141,7 +141,7 @@ class CommandLineOptionsTest(TestCase):
                 main((args, self.logfile))
             except (SystemExit, Exception), err:
                 myerr = err
-            outtxt = open(self.logfile, 'r').read()
+            outtxt = read_file(self.logfile)
 
             for log_msg_type in ['INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -163,7 +163,7 @@ class CommandLineOptionsTest(TestCase):
                 main((args, self.logfile))
             except (SystemExit, Exception), err:
                 pass
-            outtxt = open(self.logfile, 'r').read()
+            outtxt = read_file(self.logfile)
 
             for log_msg_type in ['ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -194,7 +194,7 @@ class CommandLineOptionsTest(TestCase):
         except (SystemExit, Exception), err:
             error_thrown = err
 
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         self.assertTrue(not error_thrown, "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown)
 
@@ -202,7 +202,7 @@ class CommandLineOptionsTest(TestCase):
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
         # clear log file
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # check that --force works
         args = [
@@ -213,7 +213,7 @@ class CommandLineOptionsTest(TestCase):
             main((args, self.logfile))
         except (SystemExit, Exception), err:
             pass
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
 
@@ -240,7 +240,7 @@ class CommandLineOptionsTest(TestCase):
                         ]:
 
             # clear log file
-            outtxt = open(self.logfile, 'w').write('')
+            outtxt = write_file(self.logfile, '')
 
             args = [
                     eb_file,
@@ -250,8 +250,7 @@ class CommandLineOptionsTest(TestCase):
                 main((args, self.logfile))
             except (SystemExit, Exception), err:
                 pass
-            outtxt = open(self.logfile, 'r').read()
-            # print '\n\n\n\n%s\n\n\n\n\n' % outtxt
+            outtxt = read_file(self.logfile)
 
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join(job_args)
             self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
@@ -292,7 +291,7 @@ class CommandLineOptionsTest(TestCase):
             sys.stdout = _stdout
             fancylogger.logToScreen(enable=False, stdout=True)
 
-            outtxt = open(fn, 'r').read()
+            outtxt = read_file(fn)
 
             self.assertTrue(len(outtxt) > 100, "Log messages are printed to stdout when %s is used (outtxt: %s)" % (stdout_arg, outtxt))
 
@@ -312,7 +311,7 @@ class CommandLineOptionsTest(TestCase):
                              ]:
 
                 # clear log
-                open(self.logfile, 'w').write('')
+                write_file(self.logfile, '')
 
                 args = [
                         avail_arg,
@@ -325,7 +324,7 @@ class CommandLineOptionsTest(TestCase):
                     main((args, None))
                 except (SystemExit, Exception), err:
                     pass
-                outtxt = open(self.logfile, 'r').read()
+                outtxt = read_file(self.logfile)
 
                 # check whether all parameter types are listed
                 par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT,
@@ -375,7 +374,7 @@ class CommandLineOptionsTest(TestCase):
             main((args, None))
         except (SystemExit, Exception), err:
             pass
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
@@ -398,7 +397,7 @@ class CommandLineOptionsTest(TestCase):
         for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:
 
             # clear log
-            open(self.logfile, 'w').write('')
+            write_file(self.logfile, '')
 
             args = [
                     list_arg,
@@ -408,7 +407,7 @@ class CommandLineOptionsTest(TestCase):
                 main((args, None))
             except (SystemExit, Exception), err:
                 pass
-            outtxt = open(self.logfile, 'r').read()
+            outtxt = read_file(self.logfile)
 
             for pat in [
                         r"EasyBlock\n",
@@ -419,7 +418,7 @@ class CommandLineOptionsTest(TestCase):
                 self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
         # clear log
-        open(self.logfile, 'w').write('')
+        write_file(self.logfile, '')
 
         # detailed view
         args = [
@@ -430,7 +429,7 @@ class CommandLineOptionsTest(TestCase):
             main((args, None))
         except (SystemExit, Exception), err:
             pass
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         for pat in [
                     r"EasyBlock\s+\(easybuild.framework.easyblock\)\n",
@@ -457,7 +456,7 @@ class CommandLineOptionsTest(TestCase):
             main((args, self.logfile))
         except (SystemExit, Exception), err:
             myerr = err
-        outtxt = open(self.logfile, 'r').read()
+        outtxt = read_file(self.logfile)
 
         # error message when template is not found
         error_msg1 = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."

@@ -32,7 +32,7 @@ import platform
 import re
 from vsc import fancylogger
 
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.filetools import read_file, run_cmd
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -67,14 +67,11 @@ def get_core_count():
         pass
 
     # Linux
-    try:
-        f = open('/proc/cpuinfo')
-        res = f.read().count('processor\t:')
-        f.close()
+    txt = read_file('/proc/cpuinfo', log_error=False)
+    if txt is not None:
+        res = txt.count('processor\t:')
         if res > 0:
             return res
-    except IOError:
-        pass
 
     # BSD
     try:
@@ -101,14 +98,11 @@ def get_cpu_vendor():
     }
 
     # Linux
-    try:
-        f = open("/proc/cpuinfo")
-        arch = regexp.search(f.read()).groupdict()['vendorid']
-        f.close()
+    txt = read_file("/proc/cpuinfo", log_error=False)
+    if txt is not None:
+        arch = regexp.search(txt).groupdict()['vendorid']
         if arch in VENDORS:
             return VENDORS[arch]
-    except IOError:
-        pass
 
     # Darwin (OS X)
     out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
@@ -129,16 +123,13 @@ def get_cpu_model():
     returns cpu model
     f.ex Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
-    #linux
+    # Linux
     regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
-    try:
-        f = open("/proc/cpuinfo")
-        txt = f.read()
-        f.close()
+    txt = read_file("/proc/cpuinfo", log_error=False)
+    if txt is not None:
         return regexp.search(txt).groupdict()['modelname'].strip()
-    except IOError:
-        pass
-    #osX
+
+    # OS X
     out, exitcode = run_cmd("sysctl -n machdep.cpu.brand_string")
     out = out.strip()
     if not exitcode:
