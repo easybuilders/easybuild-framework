@@ -90,7 +90,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 from easybuild.tools.config import get_repository, module_classes
-from easybuild.tools.filetools import modify_env
+from easybuild.tools.filetools import modify_env, read_file, write_file
 from easybuild.tools.modules import Modules, search_module
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
@@ -704,27 +704,22 @@ def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
 
             (fd, blockPath) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (cfgName, name))
             os.close(fd)
-            try:
-                f = open(blockPath, 'w')
-                f.write(common)
 
-                if 'dependencies' in block:
-                    for dep in block['dependencies']:
-                        if not dep in [b['name'] for b in blocks]:
-                            msg = "Block %s depends on %s, but block was not found." % (name, dep)
-                            log.error(msg)
+            txt = common
 
-                        dep = [b for b in blocks if b['name'] == dep][0]
-                        f.write("\n# Dependency block %s" % (dep['name']))
-                        f.write(dep['contents'])
+            if 'dependencies' in block:
+                for dep in block['dependencies']:
+                    if not dep in [b['name'] for b in blocks]:
+                        log.error("Block %s depends on %s, but block was not found." % (name, dep))
 
-                f.write("\n# Main block %s" % name)
-                f.write(block['contents'])
-                f.close()
+                    dep = [b for b in blocks if b['name'] == dep][0]
+                    txt += "\n# Dependency block %s" % (dep['name'])
+                    txt += dep['contents']
 
-            except Exception:
-                msg = "Failed to write block %s to easyconfig %s" % (name, spec)
-                log.exception(msg)
+            txt += "\n# Main block %s" % name
+            txt += block['contents']
+
+            write_file(blockPath, txt)
 
             specs.append(blockPath)
 
@@ -774,7 +769,8 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
     if not easyblock:
         # try to look in .eb file
         reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-        for line in open(spec).readlines():
+        txt = read_file(spec)
+        for line in txt.split('\n'):
             match = reg.search(line)
             if match:
                 easyblock = eval(match.group(1))
@@ -931,12 +927,7 @@ def dep_graph(fn, specs, silent=False):
     dottxt = dot.write(dgr)
     if fn.endswith(".dot"):
         # create .dot file
-        try:
-            f = open(fn, "w")
-            f.write(dottxt)
-            f.close()
-        except IOError, err:
-            log.error("Failed to create file %s: %s" % (fn, err))
+        write_file(fn, dottxt)
     else:
         # try and render graph in specified file format
         gvv = gv.readstring(dottxt)
