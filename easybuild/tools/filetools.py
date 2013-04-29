@@ -104,6 +104,7 @@ STRING_ENCODING_CHARMAP = {
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         f = open(path, 'r')
         txt = f.read()
@@ -122,6 +123,7 @@ def read_file(path, log_error=True):
 def write_file(path, txt):
     """Write given contents to file at given path (overwrites current file contents!)."""
     f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         f = open(path, 'w')
         f.write(txt)
