@@ -6,15 +6,15 @@ v1.4.0 (May 2nd 2013)
 
 feature + bugfix release
 - the unit tests for easybuild-framework were moved to test/framework,
-  to make things consistent with easybuild-easyblocks an easybuild-easyconfigs (#611, #613, #624)
+  to make things consistent with easybuild-easyblocks and easybuild-easyconfigs (#611, #613, #624)
     - running the framework unit tests should now be using 'python -n test.framework.suite'
 - various other enhancements, including:
     - extend unit test suite (#593, #599, #603, #618, #620, #622, #624, ...)
     - extended list of constants and templates that can be used in easyconfig files (#566)
     - add support for additional compiler toolchains
-        - gmvolf (GCC+MVAPICH2+...) (#585)
-        - GCC+Clang-based toolchains: cgoolf, cgmpolf, cgmvolf (#593, #598, #600)
         - CUDA-enabled toolchain: goolfc (#603, #624)
+        - Clang(+GCC)-based toolchains: cgoolf, cgmpolf, cgmvolf (#593, #598, #600)
+        - gmvolf (GCC+MVAPICH2+...) (#585)
     - properly decode easyblock to module name using decode_* functions (#618)
 - various bug fixes, including:
     - fixed default value for --stop (#601)
