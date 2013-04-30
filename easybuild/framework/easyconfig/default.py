@@ -60,7 +60,7 @@ DEFAULT_CONFIG = {
                   # TODO not yet in MANDATORY_PARAMS, so not enforced
                   'license': [None, 'Software license', "MANDATORY"],
 
-                  'toolchainopts': ['', 'Extra options for compilers', "TOOLCHAIN"],
+                  'toolchainopts': [None, 'Extra options for compilers', "TOOLCHAIN"],
                   'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
                                          'the environment with module (True) or also set all other '
                                          'variables (False) like compiler CC etc (if string: comma '
