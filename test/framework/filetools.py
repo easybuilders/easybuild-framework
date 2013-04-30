@@ -30,6 +30,7 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import tempfile
 from unittest import TestCase, TestLoader, main
 from vsc import fancylogger
 
@@ -166,6 +167,27 @@ class FileToolsTest(TestCase):
         for (class_name, encoded_class_name) in self.class_names:
             self.assertEqual(ft.decode_class_name(encoded_class_name), class_name)
             self.assertEqual(ft.decode_class_name(ft.encode_class_name(class_name)), class_name)
+
+    def test_patch_perl_script_autoflush(self):
+        """Test patching Perl script for autoflush."""
+
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        perl_lines = [
+            "$!/usr/bin/perl",
+            "use strict;",
+            "print hello",
+            "",
+            "print hello again",
+        ]
+        perltxt = '\n'.join(perl_lines)
+        ft.write_file(fp, perltxt)
+        ft.patch_perl_script_autoflush(fp)
+        txt = ft.read_file(fp)
+        self.assertTrue(len(txt.split('\n')) == len(perl_lines)+4)
+        self.assertTrue(txt.startswith(perl_lines[0]+"\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
+        for line in perl_lines[1:]:
+            self.assertTrue(line in txt)
 
 def suite():
     """ returns all the testcases in this module """
