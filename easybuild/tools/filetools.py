@@ -860,13 +860,18 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    txt = read_file(path).split('\n')
+    txt = read_file(path)
+    origpath = "%s.eb.orig" % path
+    write_file(origpath, txt)
+    _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
 
     # force autoflush for Perl print buffer
-    extra=["\nuse IO::Handle qw();\n",
-           "STDOUT->autoflush(1);\n\n"]
-
-    newtxt = ''.join([txt[0]] + extra + txt[1:])
+    lines = txt.split('\n')
+    newtxt = '\n'.join([
+        lines[0],  # shebang line
+        "\nuse IO::Handle qw();",
+        "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+    ] + lines[1:])
 
     write_file(path, newtxt)
 

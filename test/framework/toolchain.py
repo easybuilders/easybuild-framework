@@ -32,6 +32,7 @@ import os
 import re
 from unittest import TestCase, TestLoader, main
 
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.modules import Modules
 from test.framework.utilities import find_full_path
@@ -51,6 +52,13 @@ class ToolchainTest(TestCase):
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
+
+    def test_toolchain(self):
+        """Test whether toolchain is initialized correctly."""
+        ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
+        ec = EasyConfig(ec_file, validate=False)
+        tc = ec.toolchain
+        self.assertTrue('debug' in tc.options)
 
     def test_unknown_toolchain(self):
         """Test search_toolchain function for not available toolchains."""
