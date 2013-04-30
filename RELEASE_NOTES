@@ -1,6 +1,33 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.4.0 (May 2nd 2013)
+---------------------
+
+feature + bugfix release
+- the unit tests for easybuild-framework were moved to test/framework,
+  to make things consistent with easybuild-easyblocks and easybuild-easyconfigs (#611, #613, #624)
+    - running the framework unit tests should now be using 'python -n test.framework.suite'
+- various other enhancements, including:
+    - extend unit test suite (#593, #599, #603, #618, #620, #622, #624, ...)
+    - extended list of constants and templates that can be used in easyconfig files (#566)
+    - add support for additional compiler toolchains
+        - CUDA-enabled toolchain: goolfc (#603, #624)
+        - Clang(+GCC)-based toolchains: cgoolf, cgmpolf, cgmvolf (#593, #598, #600)
+        - gmvolf (GCC+MVAPICH2+...) (#585)
+    - properly decode easyblock to module name using decode_* functions (#618)
+- various bug fixes, including:
+    - fixed default value for --stop (#601)
+    - remove useless sleep() calls in run_cmd, run_cmd_qa (#599)
+    - determine module path based on class name, not software name (#606)
+    - remove unwanted characters in build dirs (#591, #607)
+    - ignore some error codes spit out by modulecmd that are actually warnings (#609)
+    - fix agithub.py w.r.t. changes in GitHub API (user-agent string is now obligatory for non-authenticated connections) (#617)
+    - fix typo breaking the adjust_cmd decorator on SuSE (#615)
+    - fix prepending paths with absolute paths in module file (#621)
+    - clean up open file handles properly (#620, #624)
+    - fix --search help and implementation (#622)
+
 v1.3.0 (April 1st 2013)
 -----------------------
 
