@@ -1329,7 +1329,7 @@ class EasyBlock(object):
                 class_name = exts_classmap[ext['name']]
                 mod_path = get_module_path(class_name)
                 try:
-                    cls = get_class_for(mod_path, class_name, decode=False)
+                    cls = get_class_for(mod_path, class_name)
                     inst = cls(self, ext)
                 except (ImportError, NameError), err:
                     self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name,
