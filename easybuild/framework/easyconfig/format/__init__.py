@@ -22,20 +22,5 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
-"""
-This describes the easyconfig format version 1.X
+"""The easyconfig.format package provides the EasyConfig format classes"""
 
-This is the original pure python code, to be exec'ed rather then parsed
-
-@author: Stijn De Weirdt (Ghent University)
-"""
-from distutils.version import LooseVersion
-
-from easybuild.framework.easyconfig.format.format import EasyConfigFormatConfigObj
-
-
-class FormatOneZero(EasyConfigFormatConfigObj):
-    """Simple extension of FormatOne with configparser blocks
-        Deprecates setting version and toolchain/toolchain version in FormatOne
-    """
-    VERSION = LooseVersion('1.0')

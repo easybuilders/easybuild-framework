@@ -22,20 +22,24 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
-"""
-This describes the easyconfig format version 1.X
 
-This is the original pure python code, to be exec'ed rather then parsed
+"""
+Simple module to help locate supported formats
+This could been done in __init__ as well, but it's apparently bad style.
 
 @author: Stijn De Weirdt (Ghent University)
 """
-from distutils.version import LooseVersion
 
-from easybuild.framework.easyconfig.format.format import EasyConfigFormatConfigObj
+from vsc.utils.missing import get_subclasses
+from easybuild.framework.easyconfig.format.format import EasyConfigFormat
+from easybuild.framework.easyconfig.format.one import FormatOneZero
+from easybuild.framework.easyconfig.format.two import FormatTwoZero
 
 
-class FormatOneZero(EasyConfigFormatConfigObj):
-    """Simple extension of FormatOne with configparser blocks
-        Deprecates setting version and toolchain/toolchain version in FormatOne
-    """
-    VERSION = LooseVersion('1.0')
+def get_format_version_classes(version=None):
+    """Return the (1st) subclass from EasyConfigFormat that has matching version"""
+    all_classes = get_subclasses(EasyConfigFormat)
+    if version is None:
+        return all_classes
+    else:
+        return [x for x in all_classes if x.VERSION == version ]

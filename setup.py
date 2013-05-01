@@ -70,29 +70,31 @@ def find_rel_test():
 
 
 setup(
-    name = "easybuild-framework",
-    version = str(VERSION),
-    author = "EasyBuild community",
-    author_email = "easybuild@lists.ugent.be",
-    description = """EasyBuild is a software installation framework in Python that allows you to \
+    name="easybuild-framework",
+    version=str(VERSION),
+    author="EasyBuild community",
+    author_email="easybuild@lists.ugent.be",
+    description="""EasyBuild is a software installation framework in Python that allows you to \
 install software in a structured and robust way.
 This package contains the EasyBuild framework, which supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",
-    license = "GPLv2",
-    keywords = "software build building installation installing compilation HPC scientific",
-    url = "http://hpcugent.github.com/easybuild",
-    packages = ["easybuild", "easybuild.framework", "easybuild.framework.easyconfig",
-                "easybuild.toolchains", "easybuild.toolchains.compiler",
-                "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
-                "easybuild.tools.toolchain", "test.framework",
-                "vsc", "vsc.utils", "test",
-               ],
-    package_dir = {'test.framework': "test/framework"},
-    package_data = {"test.framework": find_rel_test()},
-    scripts = ["eb"],
-    data_files = [
-                  ('easybuild', ["easybuild/easybuild_config.py"]),
-    ],
+    license="GPLv2",
+    keywords="software build building installation installing compilation HPC scientific",
+    url="http://hpcugent.github.com/easybuild",
+    packages=[
+        "easybuild", "easybuild.framework",
+        "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
+        "easybuild.toolchains", "easybuild.toolchains.compiler",
+        "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg",
+        "easybuild.tools", "easybuild.tools.toolchain", "test.framework",
+        "vsc", "vsc.utils", "test",
+        ],
+    package_dir={'test.framework': "test/framework"},
+    package_data={"test.framework": find_rel_test()},
+    scripts=["eb"],
+    data_files=[
+        ('easybuild', ["easybuild/easybuild_config.py"]),
+        ],
     long_description="""This package contains the EasyBuild
 framework, which supports the creation of custom easyblocks that
 implement support for installing particular (groups of) software
