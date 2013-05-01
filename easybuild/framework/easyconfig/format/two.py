@@ -33,7 +33,7 @@ This is a mix between version 1 and configparser-style configuration
 
 from distutils.version import LooseVersion
 
-from easybuild.framework.easyconfig.format.format import EasyConfigFormatConfigObj
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -49,20 +49,14 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         - commandline generation
     """
     VERSION = LooseVersion('2.0')
+    USABLE = True
+    PYHEADER_ALLOWED_BUILTINS = ['len']
 
     def check_docstring(self):
         """Verify docstring"""
         # TODO check for @author and/or @maintainer
 
-    def pyheader_env(self):
-        # TODO further restrict env
-        """
-        Restrict environment with modified builtin / builtins
+    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+        """Return the best matching easyconfig dict"""
+        # Do not allow toolchain name and / or version, do allow other toolchain options in pyheader
 
-        As a side effect, an implementation may insert additional keys into the dictionaries given besides
-        those corresponding to variable names set by the executed code. For example,
-        the current implementation may add a reference to the dictionary of
-        the built-in module __builtin__ under the key __builtins__ (!).
-        """
-        global_vars, local_vars = super(FormatTwoZero, self).pyheader_env()
-        return global_vars, local_vars

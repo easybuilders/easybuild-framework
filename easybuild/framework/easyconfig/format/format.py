@@ -33,10 +33,6 @@ import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
 
-from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.systemtools import get_shared_lib_ext
-# TODO move this code here, make no sense to have it in easyconfig module
-from easybuild.framework.easyconfig.easyconfig import build_easyconfig_constants_dict
 
 # format is mandatory major.minor
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"
@@ -64,6 +60,7 @@ def get_format_version(txt):
 class EasyConfigFormat(object):
     """EasyConfigFormat class"""
     VERSION = LooseVersion('0.0')
+    USABLE = False  # Disable this class as usable format
 
     def __init__(self):
         """Initialise the EasyConfigFormat class"""
@@ -76,15 +73,16 @@ class EasyConfigFormat(object):
 
         self.header = None  # the header
         self.docstring = None  # the docstring
-        self.cfg = None  # configuration data
-        self.versions = None  # supported versions
-        self.toolchains = None  # supported toolchains/toolchain versions
+
+    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+        """Returns a single easyconfig dictionary."""
+        self.log.error('get_config_dict needs implementation')
 
     def validate(self):
         """Verify the format"""
         self._check_docstring()
 
-    def check_docstring(self):
+    def _check_docstring(self):
         """Verify docstring placeholder. Do nothing by default."""
         pass
 
@@ -97,102 +95,3 @@ class EasyConfigFormat(object):
         self.log.error('text needs implementation')
 
 
-class EasyConfigFormatConfigObj(EasyConfigFormat):
-    """
-    Base class to reuse parts of the ConfigObj
-
-    It's very very limited, but is already huge improvement.
-
-    4 parts in text file
-
-    - header (^# style)
-    - pyheader
-     - exec txt, extrac doctstring and remainder
-    - begin of regular section until EOF
-     - fed to ConfigObj
-    """
-
-    def parse(self, txt):
-        """
-        Pre-process txt to extract header, docstring and pyheader
-        """
-        # where is the first section?
-        regex = re.compile(ConfigObj._sectionmarker.pattern, re.VERBOSE | re.M)
-        reg = regex.search(txt)
-        if reg is None:
-            # no section
-            self.log.debug("No section found.")
-            start_section = -1
-        else:
-            start_section = reg.start()
-            self.log.debug('Section starts at idx %s' % start_section)
-
-        self.parse_pre_section(txt[:start_section])
-        self.parse_section(txt[start_section:])
-
-    def parse_pre_section(self, txt):
-        """Parse the text block before the section start"""
-        header_reg = re.compile(r'^\s*(#.*)?$')
-
-        txt_list = txt.split('\n')
-
-        header_text = []
-
-        while len(txt_list) > 0:
-            line = txt_list.pop(0)
-
-            format_version = get_format_version(line)
-            if format_version is not None:
-                if not format_version == self.VERSION:
-                    self.log.error('Invalid version %s for current format class' % (format_version))
-                # version is not part of header
-                continue
-
-            r = header_reg.search(line)
-            if not r:
-                # put the line back
-                txt_list.insert(0, line)
-                break
-            header_text.append(line)
-
-        self.parse_header("\n".join(header_text))
-        self.parse_pyheader("\n".join(txt_list))
-
-    def parse_header(self, txt):
-        """Parse the header, assign to self.header"""
-        # do something with the header
-        self.log.debug("Found header %s" % txt)
-        self.header = txt
-
-    def parse_pyheader(self, txt):
-        """Parse the python header, assign to docstring and cfg"""
-        global_vars, local_vars = self.pyheader_env()
-        self.log.debug("pyheader initial global_vars %s" % global_vars)
-        self.log.debug("pyheader initial local_vars %s" % local_vars)
-
-        try:
-            exec(txt, global_vars, local_vars)
-        except SyntaxError, err:
-            self.log.raiseException("SyntaxError in easyconfig pyheader %s: %s" % (txt, err))
-
-        self.log.debug("pyheader final global_vars %s" % global_vars)
-        self.log.debug("pyheader final local_vars %s" % local_vars)
-
-    def pyheader_env(self):
-        """Create the global/local environment to use with eval/execfile"""
-        # TODO this is 1.0 code. move it there.
-        global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        const_dict = build_easyconfig_constants_dict()
-        global_vars.update(const_dict)
-        local_vars = {}
-
-        return global_vars, local_vars
-
-    def parse_section(self, txt):
-        """Parse the section block"""
-        try:
-            cfgobj = ConfigObj(txt.split('\n'))
-        except:
-            self.log.raiseException('Failed to convert section text %s' % txt)
-
-        self.log.debug("Found ConfigObj instance %s" % cfgobj)

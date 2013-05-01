@@ -89,6 +89,11 @@ class EasyConfigParser(object):
             self.log.raiseException('Failed to process content with method %s and args %s' %
                                     (self.get[0], self.get[1]))
 
+        if not isinstance(self.rawcontent, basestring):
+            txt = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
+            # TODO replace with proper error, also fix unittest
+            self.log.error("Unexpected IOError: %s" % txt)
+
     def get_format_version(self):
         """Extract the format version from the raw content"""
         self.formatversion = get_format_version(self.rawcontent)
@@ -119,7 +124,7 @@ class EasyConfigParser(object):
         # TODO create the data in self.rawcontent
 
     def write(self, filename=None):
-        """Write the easyconfig format instance, using content in self.rawcontent"""
+        """Write the easyconfig format instance, using content in self.rawcontent."""
         if filename is not None:
             self._check_filename(filename)
 
