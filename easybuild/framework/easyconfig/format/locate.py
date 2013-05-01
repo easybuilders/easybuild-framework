@@ -42,4 +42,4 @@ def get_format_version_classes(version=None):
     if version is None:
         return all_classes
     else:
-        return [x for x in all_classes if x.VERSION == version ]
+        return [x for x in all_classes if x.VERSION == version and x.USABLE]
