@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Unit tests for easyconfig.py
 
@@ -100,7 +100,7 @@ version = "3.14"
 
     def runTest(self):
         """ make sure all checking of mandatory variables works """
-        self.assertErrorRegex(EasyBuildError, "mandatory variables .* not provided", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "mandatory variables? .* not provided", EasyConfig, self.eb_file)
 
         self.contents += "\n".join(['homepage = "http://google.com"', 'description = "test easyconfig"',
                                     'toolchain = {"name": "dummy", "version": "dummy"}'])
@@ -672,8 +672,8 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.assertEqual(eb['configopts'][1], configopts[1])
 
         # also makeopts and installopts as lists
-        makeopts = ['CC=foo' ,'CC=bar']
-        installopts = ['FOO=foo' ,'BAR=bar']
+        makeopts = ['CC=foo' , 'CC=bar']
+        installopts = ['FOO=foo' , 'BAR=bar']
         self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
         self.contents += "\nmakeopts = %s" % str(makeopts)
         self.contents += "\ninstallopts = %s" % str(installopts)
@@ -704,6 +704,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.contents += "\ninstallopts = %s" % str(installopts)
         self.setUp()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
 
 def suite():
     """ return all the tests in this file """
