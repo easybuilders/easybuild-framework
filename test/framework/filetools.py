@@ -162,7 +162,7 @@ class FileToolsTest(TestCase):
             self.assertEqual(ft.encode_class_name(class_name), encoded_class_name)
             self.assertEqual(ft.encode_class_name(ft.decode_class_name(encoded_class_name)), encoded_class_name)
 
-    def test_encode_class_name(self):
+    def test_decode_class_name(self):
         """Test decoding of class names."""
         for (class_name, encoded_class_name) in self.class_names:
             self.assertEqual(ft.decode_class_name(encoded_class_name), class_name)
