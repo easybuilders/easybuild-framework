@@ -379,7 +379,11 @@ class CommandLineOptionsTest(TestCase):
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
         for tc in ["dummy", "goalf", "ictce"]:
-            self.assertTrue(re.search("%s: " % tc, outtxt), "Toolchain %s is included in list of known compiler toolchains")
+            res = re.findall("^\s*%s: " % tc, outtxt, re.M)
+            self.assertTrue(res, "Toolchain %s is included in list of known compiler toolchains" % tc)
+            # every toolchain should only be mentioned once
+            n = len(res)
+            self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
 
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
