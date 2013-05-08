@@ -407,16 +407,16 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
             easyconfig['originalSpec'] = path
 
         # add build dependencies
-        for d in ec.builddependencies():
-            dep = (d['name'], d['tc'])
-            _log.debug("Adding build dependency %s for app %s." % (dep, name))
-            easyconfig['builddependencies'].append(dep)
+        for dep in ec.builddependencies():
+            deptup = (dep['name'], dep['tc'])
+            _log.debug("Adding build dependency %s for app %s." % (deptup, name))
+            easyconfig['builddependencies'].append(deptup)
 
         # add dependencies (including build dependencies)
-        for d in ec.dependencies():
-            dep = (d['name'], d['tc'])
-            _log.debug("Adding dependency %s for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
+        for dep in ec.dependencies():
+            deptup = (dep['name'], dep['tc'])
+            _log.debug("Adding dependency %s for app %s." % (deptup, name))
+            easyconfig['dependencies'].append(deptup)
 
         # add toolchain as dependency too
         if ec.toolchain.name != 'dummy':
