@@ -190,6 +190,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
+        _log.deprecated("shared_lib_ext global variable when parsing easyconfigs (use SHLIB_EXT constant)", "2.0")
         const_dict = build_easyconfig_constants_dict()
         global_vars.update(const_dict)
         local_vars = {}
