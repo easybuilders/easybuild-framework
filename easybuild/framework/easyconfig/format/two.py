@@ -76,13 +76,6 @@ class ConfigObjVersion(object):
         if configobj is not None:
             self.set_configobj(configobj)
 
-    def set_configobj(self, configobj):
-        """
-        Set the configobj
-            @param configobj: ConfigObj instance
-        """
-
-
     def _version_operator_regexp(self, begin_end=True):
         """
         Create the version regular expression with operator support. Support for version indications like
@@ -92,7 +85,11 @@ class ConfigObjVersion(object):
         ops = []
         for op in self.VERSION_OPERATOR.keys():
             ops.append(re.sub(r'(.)', r'\\\1', op))
-        reg_text = r"(?P<version>\S+)(?:%s(?P<oper>%s))?" % (self.VERSION_SEPARATOR, '|'.join(ops))
+
+        reg_text = r"(?P<version>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<oper>%(ops)s))?" % {
+                        'sep': self.VERSION_SEPARATOR,
+                        'ops': '|'.join(ops),
+                        }
         if begin_end:
             reg_text = r"^%s$" % reg_text
         version_reg = re.compile(reg_text)
@@ -158,7 +155,13 @@ class ConfigObjVersion(object):
     def toolchain_match(self, txt):
         """
         See if txt matches a toolchain_operator
-        If so, return dict with tcname and optional version and operator lamdba
+        If so, return dict with tcname and optional version and operator
+        """
+
+    def set_configobj(self, configobj):
+        """
+        Set the configobj
+            @param configobj: ConfigObj instance
         """
 
 
