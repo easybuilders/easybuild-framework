@@ -593,6 +593,7 @@ description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
+sanity_check_paths = {'files': [], 'dirs': ['libfoo.%%s' %% SHLIB_EXT]}
 """ % inp
 
     def runTest(self):
@@ -607,6 +608,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+        self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
