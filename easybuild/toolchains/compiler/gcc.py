@@ -87,10 +87,13 @@ class Gcc(Compiler):
             self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
                                     "32bit GCC in EasyBuild")
 
-        ## to get rid of lots of problems with libgfortranbegin
-        ## or remove the system gcc-gfortran
-        ## also used in eg LIBBLAS variable
+        # to get rid of lots of problems with libgfortranbegin
+        # or remove the system gcc-gfortran
+        # also used in eg LIBBLAS variable
         self.variables.nappend('FLIBS', "gfortran", position=5)
 
-        gcc_root = self.get_software_root(self.COMPILER_MODULE_NAME)[0]
-        self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64"])
+        # append lib dir paths to LDFLAGS (only if the paths are actually there)
+        # Note: hardcode 'GCC' here; we can not reuse COMPILER_MODULE_NAME because
+        # it can be redefined by combining GCC with other compilers (e.g., Clang).
+        gcc_root = self.get_software_root('GCC')[0]
+        self.variables.append_subdirs("LDFLAGS", gcc_root, subdirs=["lib64", "lib"])

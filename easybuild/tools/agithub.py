@@ -2,7 +2,7 @@
 # This file is part of agithub
 # Originally created by Jonathan Paugh
 #
-# https://github.com/jpaugh64/agithub
+# https://github.com/jpaugh/agithub
 #
 # Copyright 2012 Jonathan Paugh
 #
@@ -78,7 +78,9 @@ class Client(object):
 
   def request(self, method, url, body, headers):
     if self.username:
-      headers['Authorization'] = self.auth_header
+        headers['Authorization'] = self.auth_header
+    else:
+        headers['User-Agent'] = 'agithub'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()

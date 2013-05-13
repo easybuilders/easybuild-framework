@@ -1,0 +1,33 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/
+}
+}
+
+module-whatis {The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/}
+
+set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/OpenMPI/1.6.4-ClangGCC-1.1.2
+
+conflict    OpenMPI
+
+if { ![is-loaded ClangGCC/1.1.2] } {
+    module load ClangGCC/1.1.2
+}
+
+if { ![is-loaded hwloc/1.6.2-ClangGCC-1.1.2] } {
+    module load hwloc/1.6.2-ClangGCC-1.1.2
+}
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+
+setenv	EBROOTOPENMPI		"$root"
+setenv	EBVERSIONOPENMPI		"1.6.4"
+setenv	EBDEVELOPENMPI		"$root/easybuild/OpenMPI-1.6.4-ClangGCC-1.1.2-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

@@ -1,0 +1,42 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Clang and GFortran based compiler toolchain,
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)
+}
+}
+
+module-whatis {Clang and GFortran based compiler toolchain,
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK. - Homepage: (none)}
+
+set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge/software/cgoolf/1.1.6
+
+conflict    cgoolf
+
+if { ![is-loaded ClangGCC/1.1.2] } {
+    module load ClangGCC/1.1.2
+}
+
+if { ![is-loaded OpenMPI/1.6.4-ClangGCC-1.1.2] } {
+    module load OpenMPI/1.6.4-ClangGCC-1.1.2
+}
+
+if { ![is-loaded OpenBLAS/0.2.6-cgompi-1.1.6-LAPACK-3.4.2] } {
+    module load OpenBLAS/0.2.6-cgompi-1.1.6-LAPACK-3.4.2
+}
+
+if { ![is-loaded FFTW/3.3.3-cgompi-1.1.6] } {
+    module load FFTW/3.3.3-cgompi-1.1.6
+}
+
+if { ![is-loaded ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.6-LAPACK-3.4.2] } {
+    module load ScaLAPACK/2.0.2-cgompi-1.1.6-OpenBLAS-0.2.6-LAPACK-3.4.2
+}
+
+
+setenv	EBROOTCGOOLF		"$root"
+setenv	EBVERSIONCGOOLF		"1.1.6"
+setenv	EBDEVELCGOOLF		"$root/easybuild/cgoolf-1.1.6-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev

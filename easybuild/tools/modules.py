@@ -41,7 +41,7 @@ import sys
 from vsc import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import convert_name, run_cmd
+from easybuild.tools.filetools import convert_name, run_cmd, read_file
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -57,7 +57,10 @@ outputMatchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
-    'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>\d+):\s+(?P<msg>.*)$"),
+    ## following errors should not be matches, they are considered warnings
+    # ModuleCmd_Avail.c(529):ERROR:57: Error while reading directory '/usr/local/modulefiles/SCIENTIFIC'
+    # ModuleCmd_Avail.c(804):ERROR:64: Directory '/usr/local/modulefiles/SCIENTIFIC/tremolo' not found
+    'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
     # available with --terse has one module per line
     # matches modules such as "ictce/3.2.1.015.u4(default)"
     # line ending with : is ignored (the modulepath in --terse)
@@ -187,6 +190,13 @@ class Modules(object):
                 else:
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
+
+    def remove_module(self, modules):
+        """
+        Remove modules from list.
+        """
+        for mod in modules:
+            self.modules = [m for m in self.modules if not m == mod]
 
     def load(self):
         """
@@ -366,12 +376,7 @@ class Modules(object):
         modfilepath = self.modulefile_path(name, version)
         self.log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
 
-        try:
-            f = open(modfilepath, "r")
-            modtxt = f.read()
-            f.close()
-        except IOError, err:
-            self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
+        modtxt = read_file(modfilepath)
 
         loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
@@ -392,33 +397,6 @@ class Modules(object):
                     deps.append(dep)
 
         return deps
-
-
-def search_module(path, query):
-    """
-    Search for a particular module (only prints)
-    """
-    print "Searching for %s in %s " % (query.lower(), path)
-
-    query = query.lower()
-    for (dirpath, dirnames, filenames) in os.walk(path):
-        for filename in filenames:
-            filename = os.path.join(dirpath, filename)
-            if filename.lower().find(query) != -1:
-                print "- %s" % filename
-
-        # TODO: get directories to ignore from  easybuild.tools.repository ?
-        # remove all hidden directories?:
-        # dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-        try:
-            dirnames.remove('.svn')
-        except ValueError:
-            pass
-
-        try:
-            dirnames.remove('.git')
-        except ValueError:
-            pass
 
 
 def get_software_root_env_var_name(name):

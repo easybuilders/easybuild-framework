@@ -60,6 +60,80 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
+# easyblock class prefix
+EASYBLOCK_CLASS_PREFIX = 'EB_'
+
+# character map for encoding strings
+STRING_ENCODING_CHARMAP = {
+    r' ': "_space_",
+    r'!': "_exclamation_",
+    r'"': "_quotation_",
+    r'#': "_hash_",
+    r'$': "_dollar_",
+    r'%': "_percent_",
+    r'&': "_ampersand_",
+    r'(': "_leftparen_",
+    r')': "_rightparen_",
+    r'*': "_asterisk_",
+    r'+': "_plus_",
+    r',': "_comma_",
+    r'-': "_minus_",
+    r'.': "_period_",
+    r'/': "_slash_",
+    r':': "_colon_",
+    r';': "_semicolon_",
+    r'<': "_lessthan_",
+    r'=': "_equals_",
+    r'>': "_greaterthan_",
+    r'?': "_question_",
+    r'@': "_atsign_",
+    r'[': "_leftbracket_",
+    r'\'': "_apostrophe_",
+    r'\\': "_backslash_",
+    r']': "_rightbracket_",
+    r'^': "_circumflex_",
+    r'_': "_underscore_",
+    r'`': "_backquote_",
+    r'{': "_leftcurly_",
+    r'|': "_verticalbar_",
+    r'}': "_rightcurly_",
+    r'~': "_tilde_",
+}
+
+
+def read_file(path, log_error=True):
+    """Read contents of file at given path, in a robust way."""
+    f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    try:
+        f = open(path, 'r')
+        txt = f.read()
+        f.close()
+        return txt
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        if log_error:
+            _log.error("Failed to read %s: %s" % (path, err))
+        else:
+            return None
+
+
+def write_file(path, txt):
+    """Write given contents to file at given path (overwrites current file contents!)."""
+    f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    try:
+        f = open(path, 'w')
+        f.write(txt)
+        f.close()
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        _log.error("Failed to write to %s: %s" % (path, err))
+
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
@@ -135,6 +209,7 @@ def download_file(filename, url, path):
 
     # failed to download after multiple attempts
     return None
+
 
 def find_base_dir():
     """
@@ -333,7 +408,7 @@ def adjust_cmd(func):
                 if os.path.exists(fp):
                     extra = ". %s &&%s" % (fp, extra)
                 else:
-                    _log.warning("Can't find file %s" % fil)
+                    _log.warning("Can't find file %s" % fp)
 
             cmd = "%s %s" % (extra, cmd)
 
@@ -381,8 +456,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p.stdin.write(inp)
     p.stdin.close()
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdouterr = ''
     while ec < 0:
@@ -392,7 +465,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if runLog:
             runLog.write(output)
         stdouterr += output
-        time.sleep(1)
         ec = p.poll()
 
     # read remaining data (all of it)
@@ -498,8 +570,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     except OSError, err:
         _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdoutErr = ''
     oldLenOut = -1
@@ -565,6 +635,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                                                                     stdoutErr[-500:]
                                                                                     ))
 
+        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
         ec = p.poll()
 
@@ -789,23 +860,21 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    try:
-        f = open(path, "r")
-        txt = f.readlines()
-        f.close()
+    txt = read_file(path)
+    origpath = "%s.eb.orig" % path
+    write_file(origpath, txt)
+    _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
 
-        # force autoflush for Perl print buffer
-        extra=["\nuse IO::Handle qw();\n",
-               "STDOUT->autoflush(1);\n\n"]
+    # force autoflush for Perl print buffer
+    lines = txt.split('\n')
+    newtxt = '\n'.join([
+        lines[0],  # shebang line
+        "\nuse IO::Handle qw();",
+        "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+    ] + lines[1:])
 
-        newtxt = ''.join([txt[0]] + extra + txt[1:])
+    write_file(path, newtxt)
 
-        f = open(path, "w")
-        f.write(newtxt)
-        f.close()
-
-    except IOError, err:
-        _log.error("Failed to patch Perl configure script: %s" % err)
 
 def mkdir(directory, parents=False):
     """
@@ -946,47 +1015,26 @@ def encode_string(name):
 
     """
 
-    charmap = {
-               ' ': "_space_",
-               '!': "_exclamation_",
-               '"': "_quotation_",
-               '#': "_hash_",
-               '$': "_dollar_",
-               '%': "_percent_",
-               '&': "_ampersand_",
-               '(': "_leftparen_",
-               ')': "_rightparen_",
-               '*': "_asterisk_",
-               '+': "_plus_",
-               ',': "_comma_",
-               '-': "_minus_",
-               '.': "_period_",
-               '/': "_slash_",
-               ':': "_colon_",
-               ';': "_semicolon_",
-               '<': "_lessthan_",
-               '=': "_equals_",
-               '>': "_greaterthan_",
-               '?': "_question_",
-               '@': "_atsign_",
-               '[': "_leftbracket_",
-               '\'': "_apostrophe_",
-               '\\': "_backslash_",
-               ']': "_rightbracket_",
-               '^': "_circumflex_",
-               '_': "_underscore_",
-               '`': "_backquote_",
-               '{': "_leftcurly_",
-               '|': "_verticalbar_",
-               '}': "_rightcurly_",
-               '~': "_tilde_"
-              }
-
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: charmap.get(x, x), name))
+    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    return result
+
+def decode_string(name):
+    """Decoding function to revert result of encode_string."""
+    result = name
+    for (char, escaped_char) in STRING_ENCODING_CHARMAP.items():
+        result = re.sub(escaped_char, char, result)
     return result
 
 def encode_class_name(name):
     """return encoded version of class name"""
-    return "EB_" + encode_string(name)
+    return EASYBLOCK_CLASS_PREFIX + encode_string(name)
 
+def decode_class_name(name):
+    """Return decoded version of class name."""
+    if not name.startswith(EASYBLOCK_CLASS_PREFIX):
+        # name is not encoded, apparently
+        return name
+    else:
+        name = name[len(EASYBLOCK_CLASS_PREFIX):]
+        return decode_string(name)
