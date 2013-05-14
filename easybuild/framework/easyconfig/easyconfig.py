@@ -228,6 +228,9 @@ class EasyConfig(object):
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
 
+        # update templating dictionary
+        self.generate_template_values()
+
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
@@ -527,7 +530,7 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(self._config.copy(),
+        template_values = template_constant_dict(copy.deepcopy(self._config),
                                                  ignore=ignore, skip_lower=skip_lower)
 
         # update the template_values dict
