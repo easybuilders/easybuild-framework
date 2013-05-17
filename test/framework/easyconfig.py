@@ -42,6 +42,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
@@ -55,9 +56,7 @@ class EasyConfigTest(TestCase):
         if self.contents is not None:
             fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
             os.close(fd)
-            f = open(self.eb_file, "w")
-            f.write(self.contents)
-            f.close()
+            write_file(self.eb_file, self.contents)
         self.cwd = os.getcwd()
 
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -449,9 +448,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.ec_dir = tempfile.mkdtemp()
 
         for (fn, txt) in eb_files:
-            f = open(os.path.join(self.ec_dir, fn), "w")
-            f.write(txt)
-            f.close()
+            write_file(os.path.join(self.ec_dir, fn), txt)
 
         # should crash when no suited easyconfig file (or template) is available
         specs = {'name': 'nosuchsoftware'}
@@ -494,7 +491,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
         self.assertEqual(ec['toolchain'], {'name': tcname, 'version': tcver})
         # can't check for key 'foo', because EasyConfig ignores parameter names it doesn't know about
-        txt = open(res[1], "r").read()
+        txt = read_file(res[1])
         self.assertTrue(re.search('foo = "%s"' % specs['foo'], txt))
         os.remove(res[1])
 
@@ -505,7 +502,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
-        txt = open(res[1], "r").read()
+        txt = read_file(res[1])
         self.assertTrue(re.search("version = [\"']%s[\"'] .*was: [\"']3.13[\"']" % ver, txt))
         os.remove(res[1])
 
@@ -519,7 +516,7 @@ class TestObtainEasyconfig(EasyConfigTest):
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['toolchain']['version'], specs['toolchain_version'])
-        txt = open(res[1], "r").read()
+        txt = read_file(res[1])
         pattern = "toolchain = .*version.*[\"']%s[\"'].*was: .*version.*[\"']%s[\"']" % (specs['toolchain_version'], tcver)
         self.assertTrue(re.search(pattern, txt))
         os.remove(res[1])
@@ -596,6 +593,7 @@ description = "test easyconfig %%(name)s"
 toolchain = {"name":"dummy", "version": "dummy2"}
 source_urls = [(GOOGLECODE_SOURCE)]
 sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
+sanity_check_paths = {'files': [], 'dirs': ['libfoo.%%s' %% SHLIB_EXT]}
 """ % inp
 
     def runTest(self):
@@ -610,6 +608,7 @@ sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
         self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+        self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"

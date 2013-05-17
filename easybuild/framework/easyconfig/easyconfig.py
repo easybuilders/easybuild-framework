@@ -190,6 +190,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         global_vars = {"shared_lib_ext": get_shared_lib_ext()}
+        _log.deprecated("shared_lib_ext global variable when parsing easyconfigs (use SHLIB_EXT constant)", "2.0")
         const_dict = build_easyconfig_constants_dict()
         global_vars.update(const_dict)
         local_vars = {}
@@ -226,6 +227,9 @@ class EasyConfig(object):
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
+
+        # update templating dictionary
+        self.generate_template_values()
 
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
@@ -371,7 +375,11 @@ class EasyConfig(object):
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
-        if self['toolchainopts']:
+        if self['toolchainopts'] is None:
+            # set_options should always be called, even if no toolchain options are specified
+            # this is required to set the default options
+            tc.set_options({})
+        else:
             tc.set_options(self['toolchainopts'])
 
         self._toolchain = tc
@@ -522,7 +530,7 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(self._config.copy(),
+        template_values = template_constant_dict(copy.deepcopy(self._config),
                                                  ignore=ignore, skip_lower=skip_lower)
 
         # update the template_values dict

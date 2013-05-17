@@ -41,7 +41,7 @@ import sys
 from vsc import fancylogger
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import convert_name, run_cmd
+from easybuild.tools.filetools import convert_name, run_cmd, read_file
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -352,12 +352,7 @@ class Modules(object):
         modfilepath = self.modulefile_path(name, version)
         self.log.debug("modulefile path %s/%s: %s" % (name, version, modfilepath))
 
-        try:
-            f = open(modfilepath, "r")
-            modtxt = f.read()
-            f.close()
-        except IOError, err:
-            self.log.error("Failed to read module file %s to determine toolchain dependencies: %s" % (modfilepath, err))
+        modtxt = read_file(modfilepath)
 
         loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
         mods = [mod.split('/') for mod in loadregex.findall(modtxt)]
@@ -378,33 +373,6 @@ class Modules(object):
                     deps.append(dep)
 
         return deps
-
-
-def search_module(path, query):
-    """
-    Search for a particular module (only prints)
-    """
-    print "Searching for %s in %s " % (query.lower(), path)
-
-    query = query.lower()
-    for (dirpath, dirnames, filenames) in os.walk(path):
-        for filename in filenames:
-            filename = os.path.join(dirpath, filename)
-            if filename.lower().find(query) != -1:
-                print "- %s" % filename
-
-        # TODO: get directories to ignore from  easybuild.tools.repository ?
-        # remove all hidden directories?:
-        # dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-        try:
-            dirnames.remove('.svn')
-        except ValueError:
-            pass
-
-        try:
-            dirnames.remove('.git')
-        except ValueError:
-            pass
 
 
 def get_software_root_env_var_name(name):

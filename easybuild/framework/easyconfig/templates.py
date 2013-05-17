@@ -33,6 +33,9 @@ be used within an Easyconfig file.
 from vsc import fancylogger
 from distutils.version import LooseVersion
 
+from easybuild.tools.systemtools import get_shared_lib_ext
+
+
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
@@ -80,6 +83,9 @@ TEMPLATE_CONSTANTS = [
      'sourceforge.net source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
+
+    # other constants
+    ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
 # TODO derived config templates

@@ -46,23 +46,30 @@ class Acml(LinAlg):
     BLAS_LIB = ['acml']
     BLAS_LIB_MT = ['acml_mp']
 
+    # is completed in _set_blas_variables, depends on compiler used
+    BLAS_LIB_DIR = []
+
     LAPACK_MODULE_NAME = ['ACML']
     LAPACK_IS_BLAS = True
+
+    ACML_SUBDIRS_MAP = {
+        TC_CONSTANT_INTELCOMP: ['ifort64', 'ifort64_mp'],
+        TC_CONSTANT_GCC: ['gfortran64', 'gfortran64_mp'],
+    }
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
         if self.options.get('32bit', None):
             self.log.raiseException("_set_blas_variables: 32bit ACML not (yet) supported")
-
-        interfacemap = {
-                        TC_CONSTANT_INTELCOMP: 'ifort',
-                        TC_CONSTANT_GCC: 'gfortran',
-                       }
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
-                self.variables.append_exists('LDFLAGS', root, [os.path.join(interfacemap[self.COMPILER_FAMILY], 'lib')])
+                subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
+                self.BLAS_LIB_DIR = [os.path.join(x, 'lib') for x in subdirs]
+                self.variables.append_exists('LDFLAGS', root, self.BLAS_LIB_DIR, append_all=True)
+                incdirs = [os.path.join(x, 'include') for x in subdirs]
+                self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
         except:
-            self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS interfacemap unsupported combination"
+            self.log.raiseException(("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP"
                                      " with compiler family %s") % self.COMPILER_FAMILY)
 
         # version before 5.x still featured the acml_mv library
