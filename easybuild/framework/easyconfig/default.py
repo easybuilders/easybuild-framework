@@ -131,6 +131,7 @@ DEFAULT_CONFIG = {
                                           "(templates for name, version and src)."), "EXTENSIONS"],
 
                   'modextravars': [{}, "Extra environment variables to be added to module file", "MODULES"],
+                  'modextrapaths': [{}, "Extra paths to be prepended in module file", "MODULES"],
                   'moduleclass': ['base', 'Module class to be used for this software', "MODULES"],
                   'moduleforceunload': [False, 'Force unload of all modules when loading the extension',
                                          "MODULES"],
