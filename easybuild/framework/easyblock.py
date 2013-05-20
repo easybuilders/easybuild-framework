@@ -726,7 +726,7 @@ class EasyBlock(object):
             if isinstance(value, basestring):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
-                self.log.error("modextrapaths dict value %s of unexpected type (not string, list or tuple)" % value)
+                self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value))
             txt = self.moduleGenerator.prepend_paths(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
