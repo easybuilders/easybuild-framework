@@ -41,6 +41,7 @@ import test.framework.asyncprocess as a
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
+import test.framework.easyconfigversion as ev
 import test.framework.modulegenerator as mg
 import test.framework.modules as m
 import test.framework.filetools as f
@@ -63,7 +64,7 @@ log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, ef, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, o, c]])
+SUITE = unittest.TestSuite([x.suite() for x in [r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, o, c]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""

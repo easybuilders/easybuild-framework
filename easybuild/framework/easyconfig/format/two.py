@@ -31,139 +31,8 @@ This is a mix between version 1 and configparser-style configuration
 @author: Stijn De Weirdt (Ghent University)
 """
 
-import operator
-import re
-
-from distutils.version import LooseVersion
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.tools.toolchain.utilities import search_toolchain
-from vsc import fancylogger
-
-
-class ConfigObjVersion(object):
-    """
-    ConfigObj version checker
-    - first level sections except default
-      - check toolchain
-      - check version
-    - second level
-      - version : dependencies
-
-    Given ConfigObj instance, make instance that can check if toolchain/version is allowed,
-        return version / toolchain / toolchainversion and dependency
-    """
-    VERSION_SEPARATOR = '_'
-    VERSION_OPERATOR = {
-        '==': operator.eq,
-        '>': operator.gt,
-        '>=': operator.ge,
-        '<': operator.lt,
-        '<=': operator.le,
-        '!=': operator.ne,
-    }
-
-    def __init__(self, configobj=None):
-        """
-        Initialise.
-            @param configobj: ConfigObj instance
-        """
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-
-        self.configobj = None
-        self.version_regexp = self._version_operator_regexp()
-        self.toolchain_regexp = self._toolchain_operator_regexp()
-
-        if configobj is not None:
-            self.set_configobj(configobj)
-
-    def _version_operator_regexp(self, begin_end=True):
-        """
-        Create the version regular expression with operator support. Support for version indications like
-            5_> (anything strict larger then 5)
-            @param begin_end: boolean, create a regexp with begin/end match
-        """
-        ops = []
-        for op in self.VERSION_OPERATOR.keys():
-            ops.append(re.sub(r'(.)', r'\\\1', op))
-
-        reg_text = r"(?P<version>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<oper>%(ops)s))?" % {
-                        'sep': self.VERSION_SEPARATOR,
-                        'ops': '|'.join(ops),
-                        }
-        if begin_end:
-            reg_text = r"^%s$" % reg_text
-        version_reg = re.compile(reg_text)
-        self.log.debug("version_operator pattern %s (begin_end %s)" % (version_reg, begin_end))
-        return version_reg
-
-    def _toolchain_operator_regexp(self):
-        """
-        Create the regular expression for toolchain support of format
-            ^toolchain_version$
-        with toolchain one of the supported toolchains and version in version_operator syntax
-        """
-        _, all_tcs = search_toolchain('')
-        tc_names = [x.NAME for x in all_tcs]
-        self.log.debug("found toolchain names %s " % (tc_names))
-
-        version_operator = self._version_operator_regexp(begin_end=False).pattern
-        toolchains = r'(%s)' % '|'.join(tc_names)
-        toolchain_reg = re.compile(r'^(?P<toolchainname>%s)(?:%s(?P<toolchainversion>%s))?$' %
-                                   (toolchains, self.VERSION_SEPARATOR, version_operator))
-
-        self.log.debug("toolchain_operator pattern %s " % (toolchain_reg))
-        return toolchain_reg
-
-    def _convert_version(self, txt):
-        """Convert string to version-like instance that can be compared"""
-        try:
-            vers = LooseVersion(txt)
-        except:
-            self.log.raiseException('Failed to convert txt %s to version' % txt)
-        self.log.debug('converted txt %s to version %s' % (txt, vers))
-        return vers
-
-    def _version_operator_check(self, version=None, oper=None):
-        """
-        Return function that functions as a check against version and operator
-            @param version: string, sortof mandatory
-            @param oper: string, default to ==
-        No positional args to allow **reg.search(txt).groupdict()
-        """
-        if version is None:
-            version = '0.0.0'
-            self.log.debug('_version_operator_check: no version passed, set it to %s' % version)
-        if oper is None:
-            oper = '=='
-            self.log.debug('_version_operator_check: no operator passed, set it to %s' % oper)
-
-        vers = self._convert_version(version)
-        if oper in self.VERSION_OPERATOR:
-            op = self.VERSION_OPERATOR[oper]
-        else:
-            self.log.raiseException('Failed to match operator %s to operator function' % oper)
-
-        def check(txt):
-            """The check function. txt-version is always the second arg in comparison"""
-            testvers = self._convert_version(txt)
-            res = op(vers, testvers)
-            self.log.debug('Check %s vs %s using operator %s: %s' % (vers, testvers, op, res))
-            return res
-
-        return check
-
-    def toolchain_match(self, txt):
-        """
-        See if txt matches a toolchain_operator
-        If so, return dict with tcname and optional version and operator
-        """
-
-    def set_configobj(self, configobj):
-        """
-        Set the configobj
-            @param configobj: ConfigObj instance
-        """
-
+from easybuild.framework.easyconfig.format.version import EasyVersion
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
     """Simple extension of FormatOne with configparser blocks
@@ -177,7 +46,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         - type validation
         - commandline generation
     """
-    VERSION = LooseVersion('2.0')
+    VERSION = EasyVersion('2.0')
     USABLE = True
     PYHEADER_ALLOWED_BUILTINS = ['len']
 

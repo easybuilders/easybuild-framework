@@ -30,7 +30,7 @@ The main easyconfig format class
 """
 import re
 
-from distutils.version import LooseVersion
+from easybuild.framework.easyconfig.format.version import EasyVersion
 from vsc import fancylogger
 
 
@@ -39,19 +39,19 @@ FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"
 FORMAT_VERSION_HEADER_TEMPLATE = "# EASYCONFIGFORMAT %s\n" % FORMAT_VERSION_TEMPLATE  # should end in newline
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+EASYCONFIGFORMAT\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$', re.M)
 FORMAT_DEFAULT_VERSION_STRING = '1.0'
-FORMAT_DEFAULT_VERSION = LooseVersion(FORMAT_DEFAULT_VERSION_STRING)
+FORMAT_DEFAULT_VERSION = EasyVersion(FORMAT_DEFAULT_VERSION_STRING)
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
 
 def get_format_version(txt):
-    """Get the format version as LooseVersion instance."""
+    """Get the format version as EasyVersion instance."""
     r = FORMAT_VERSION_REGEXP.search(txt)
     format_version = None
     if r is not None:
         try:
             maj_min = r.groupdict()
-            format_version = LooseVersion(FORMAT_VERSION_TEMPLATE % maj_min)
+            format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
         except:
             _log.raiseException('Failed to get version from match %s' % (r.groups(),))
     return format_version
@@ -59,7 +59,7 @@ def get_format_version(txt):
 
 class EasyConfigFormat(object):
     """EasyConfigFormat class"""
-    VERSION = LooseVersion('0.0')
+    VERSION = EasyVersion('0.0')
     USABLE = False  # Disable this class as usable format
 
     def __init__(self):

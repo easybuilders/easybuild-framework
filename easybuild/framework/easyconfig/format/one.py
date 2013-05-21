@@ -29,16 +29,16 @@ This is the original pure python code, to be exec'ed rather then parsed
 
 @author: Stijn De Weirdt (Ghent University)
 """
-from distutils.version import LooseVersion
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
+from easybuild.framework.easyconfig.format.version import EasyVersion
 
 
 class FormatOneZero(EasyConfigFormatConfigObj):
     """Simple extension of FormatOne with configparser blocks
         Deprecates setting version and toolchain/toolchain version in FormatOne
     """
-    VERSION = LooseVersion('1.0')
+    VERSION = EasyVersion('1.0')
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
 
     USABLE = True  # TODO: disable it, too insecure
