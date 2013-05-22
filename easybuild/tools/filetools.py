@@ -66,80 +66,6 @@ ERROR = 'error'
 # default strictness level
 strictness = WARN
 
-# constants related to unpacking archives
-GZ = 'gz'  # gzip archive
-BZ2 = 'bz2'
-ZIP = 'zip'
-TAR = 'tar'
-XZ = 'xz'
-LZW = 'LZW'  # Lempel-Ziv-Welch
-LZH = 'LZH'  # Lempel-Ziv-Huffman
-UNKNOWN = "UNKNOWN"
-
-# map of archive types to (offset, magic number)
-# (don't try negative offsets stijn)
-# from http://www.garykessler.net/library/file_sigs.html
-MAGIC_MAP = {
-    LZW: (0, "\x1F\x9D"),
-    LZH: (0, "\x1F\xA0"),
-    XZ: (0, "\xFD7zXZ"),
-}
-MAX_MAGIC_LEN = max(len(y) + x for x, y in MAGIC_MAP.values())
-
-UNPACK_COMMANDS = {
-    GZ: 'gunzip -c %(filename)s > %(filename_no_ext)s',
-    BZ2: 'bunzip2 -c %(filename)s > %(filename_no_ext)s',
-    XZ: 'unxz %(filename)s',
-    ZIP: 'unzip -qq %(filename)s',
-    # LZW: , ??
-    # LZH: , ??
-    TAR: 'tar xf %(filename)s',
-}
-
-
-def extract_archive(filename, destination_dir):
-    """Extracts a given archive to the destination directory"""
-    if not os.path.isfile(filename):
-        _log.error("Can't extract file %s: no such file" % filename)
-
-    if not os.path.isdir(destination_dir):
-        try:
-            os.makedirs(destination_dir)
-        except OSError, err:
-            _log.exception("Can't extract file %s: directory %s can't be created: %err ",
-                           filename, destination_dir, err)
-
-    destination_dir = os.path.abspath(destination_dir)
-    # output_file = os.path.splitext(os.path.split(fn)[1])[0]
-    for cls in Extractor.__subclasses__():
-        if cls.can_handle(filename):
-            return cls.extract(filename, destination_dir)
-    raise BadArchiveException
-
-
-class Extractor(object):
-    """"This is an abstract implementation for an extractor class
-    it's purpose is to extract compressed archives
-    """
-    # magic number identifying files this class can handle
-    magic = None
-    # magic starts at offset
-    offset = 0
-
-    @classmethod
-    def can_handle(cls, filename):
-        """Returns True if this class can handle the given file
-        This uses magic numbers"""
-        f = open(filename)
-        f.seek(cls.offset)
-        can_handle = f.read(len(cls.magic)) == cls.magic
-        f.close()
-        return can_handle
-
-    @staticmethod
-    def extract(filename, destination):
-        """Do the actual extraction"""
-        pass
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
 
@@ -179,6 +105,55 @@ STRING_ENCODING_CHARMAP = {
     r'}': "_rightcurly_",
     r'~': "_tilde_",
 }
+
+
+def extract_archive(filename, destination_dir):
+    """Extracts a given archive to the destination directory"""
+    if not os.path.isfile(filename):
+        _log.error("Can't extract file %s: no such file" % filename)
+
+    if not os.path.isdir(destination_dir):
+        try:
+            os.makedirs(destination_dir)
+        except OSError, err:
+            _log.exception("Can't extract file %s: directory %s can't be created: %err ",
+                           filename, destination_dir, err)
+
+    destination_dir = os.path.abspath(destination_dir)
+    # output_file = os.path.splitext(os.path.split(fn)[1])[0]
+    for cls in Extractor.__subclasses__():
+        if cls.can_handle(filename):
+            return cls.extract(filename, destination_dir)
+    raise BadArchiveException
+
+
+class Extractor(object):
+    """"This is an abstract implementation for an extractor class
+    it's purpose is to extract compressed archives
+    """
+    # magic number identifying files this class can handle
+    # you can find magic numbers in from http://www.garykessler.net/library/file_sigs.html
+    # e.g.,
+    # LZW: "\x1F\x9D",
+    # LZH: "\x1F\xA0",
+    magic = None
+    # magic starts at offset
+    offset = 0
+
+    @classmethod
+    def can_handle(cls, filename):
+        """Returns True if this class can handle the given file
+        This uses magic numbers"""
+        f = open(filename)
+        f.seek(cls.offset)
+        can_handle = f.read(len(cls.magic)) == cls.magic
+        f.close()
+        return can_handle
+
+    @staticmethod
+    def extract(filename, destination):
+        """Do the actual extraction"""
+        pass
 
 
 def read_file(path, log_error=True):
@@ -294,9 +269,24 @@ class UnGZIP(Extractor):
         outfile = os.path.join(destination, filename)
         if filename.endswith('.gz'):
             outfile = outfile[:-3]
+        #TODO: do a buffered read, so we don't try to read 4G into memory ?
         open(outfile, 'w').write(gzip.open(filename).read())
         return destination
 
+class SystemExtractor(Extractor):
+    """Abstract Extractor implementation,
+    this uses a subprocess to run the extraction command,
+    this is usefull for extracting files that have no simple python extraction libraries yet
+    """
+    extract_command = None
+
+
+class UnXZ(SystemExtractor):
+    """Use system tools to extract XZ files, since this is not easily done in python yet"""
+    magic = "\xFD7zXZ"
+    extract_command = "unxz %(filename)s"
+
+#TODO: extract .iso, .deb and .rpm
 
 def extract_file(fn, dest, cmd=None, extra_options=None):
     """
@@ -412,23 +402,6 @@ def find_base_dir():
     return newDir
 
 
-def get_archive_type(filename):
-    """
-    Uses magic numbers to find the type of archive we're dealing with
-    Raises a BadArchiveException if no known archive types could be detected
-    """
-    f = open(filename)
-    file_start = f.read(MAX_MAGIC_LEN)
-    f.close()
-    for filetype, (offset, magic) in MAGIC_MAP.items():
-        #if file_start.startswith(magic):
-        if file_start[offset:].startswith(magic):
-            return filetype
-        _log.debug("filetype %s (with offset %d and magic nr %s) did not match %s" % (filetype,
-                   offset, magic, file_start))
-    raise BadArchiveException("Unable to locate magic number for this file, or do not know archive type (%s)" % filename)
-
-
 def extract_cmd(fn, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
@@ -497,13 +470,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.error("Can't patch directory %s: no such directory" % dest)
         return
 
-    # we might need to extract the patch first, let's try this
-    try:
-        cmd_dict = extract_cmd(patchFile, return_dict=True)
-        run_cmd(cmd_dict['cmd'] % cmd_dict)
-        patchFile = cmd_dict['filename_no_ext']
-    except BadArchiveException:
-        pass
+    # TODO: we might need to extract the patch first
 
     ## copy missing files
     if copy:
@@ -1146,7 +1113,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError #@UndefinedVariable
+        WindowsError  # @UndefinedVariable
     except NameError:
         WindowsError = None
 
