@@ -46,7 +46,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.filetools import run_cmd, read_file, write_file
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
@@ -421,13 +421,7 @@ def tweak(src_fn, target_fn, tweaks):
     """
 
     # read easyconfig file
-    ectxt = None
-    try:
-        f = open(src_fn, "r")
-        ectxt = f.read()
-        f.close()
-    except IOError, err:
-        _log.error("Failed to read easyconfig file %s: %s" % (src_fn, err))
+    ectxt = read_file(src_fn)
 
     _log.debug("Contents of original easyconfig file, prior to tweaking:\n%s" % ectxt)
     # determine new toolchain if it's being changed
@@ -518,9 +512,7 @@ def tweak(src_fn, target_fn, tweaks):
             os.close(fd)
 
             # write easyconfig to temporary file
-            f = open(tmpfn, "w")
-            f.write(ectxt)
-            f.close()
+            write_file(tmpfn, ectxt)
 
             # determine suiting filename
             fn = ec_filename_for(tmpfn)
@@ -528,20 +520,15 @@ def tweak(src_fn, target_fn, tweaks):
             # get rid of temporary file
             os.remove(tmpfn)
 
-        except (IOError, OSError), err:
+        except OSError, err:
             _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
 
         target_fn = os.path.join(tempfile.gettempdir(), fn)
         _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
 
     # write out tweaked easyconfig file
-    try:
-        f = open(target_fn, "w")
-        f.write(ectxt)
-        f.close()
-        _log.info("Tweaked easyconfig file written to %s" % target_fn)
-    except IOError, err:
-        _log.error("Failed to write tweaked easyconfig file to %s: %s" % (target_fn, err))
+    write_file(target_fn, ectxt)
+    _log.info("Tweaked easyconfig file written to %s" % target_fn)
 
     return target_fn
 

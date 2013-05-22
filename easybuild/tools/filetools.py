@@ -116,6 +116,7 @@ def extract_archive(filename, destination_dir):
 
 class Extractor(object):
     """"This is an abstract implementation for an extractor class
+    """"This is an abstract implementation for an extractor class
     it's purpose is to extract compressed archives
     """
     # magic number identifying files this class can handle
@@ -137,6 +138,79 @@ class Extractor(object):
     def extract(filename, destination):
         """Do the actual extraction"""
         pass
+# easyblock class prefix
+EASYBLOCK_CLASS_PREFIX = 'EB_'
+
+# character map for encoding strings
+STRING_ENCODING_CHARMAP = {
+    r' ': "_space_",
+    r'!': "_exclamation_",
+    r'"': "_quotation_",
+    r'#': "_hash_",
+    r'$': "_dollar_",
+    r'%': "_percent_",
+    r'&': "_ampersand_",
+    r'(': "_leftparen_",
+    r')': "_rightparen_",
+    r'*': "_asterisk_",
+    r'+': "_plus_",
+    r',': "_comma_",
+    r'-': "_minus_",
+    r'.': "_period_",
+    r'/': "_slash_",
+    r':': "_colon_",
+    r';': "_semicolon_",
+    r'<': "_lessthan_",
+    r'=': "_equals_",
+    r'>': "_greaterthan_",
+    r'?': "_question_",
+    r'@': "_atsign_",
+    r'[': "_leftbracket_",
+    r'\'': "_apostrophe_",
+    r'\\': "_backslash_",
+    r']': "_rightbracket_",
+    r'^': "_circumflex_",
+    r'_': "_underscore_",
+    r'`': "_backquote_",
+    r'{': "_leftcurly_",
+    r'|': "_verticalbar_",
+    r'}': "_rightcurly_",
+    r'~': "_tilde_",
+}
+
+
+def read_file(path, log_error=True):
+    """Read contents of file at given path, in a robust way."""
+    f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    try:
+        f = open(path, 'r')
+        txt = f.read()
+        f.close()
+        return txt
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        if log_error:
+            _log.error("Failed to read %s: %s" % (path, err))
+        else:
+            return None
+
+
+def write_file(path, txt):
+    """Write given contents to file at given path (overwrites current file contents!)."""
+    f = None
+    # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
+    try:
+        f = open(path, 'w')
+        f.write(txt)
+        f.close()
+    except IOError, err:
+        # make sure file handle is always closed
+        if f is not None:
+            f.close()
+        _log.error("Failed to write to %s: %s" % (path, err))
 
 
 class UnZIP(Extractor):
@@ -297,6 +371,7 @@ def download_file(filename, url, path):
 
     # failed to download after multiple attempts
     return None
+
 
 def find_base_dir():
     """
@@ -490,7 +565,7 @@ def adjust_cmd(func):
                 if os.path.exists(fp):
                     extra = ". %s &&%s" % (fp, extra)
                 else:
-                    _log.warning("Can't find file %s" % fil)
+                    _log.warning("Can't find file %s" % fp)
 
             cmd = "%s %s" % (extra, cmd)
 
@@ -538,8 +613,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         p.stdin.write(inp)
     p.stdin.close()
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdouterr = ''
     while ec < 0:
@@ -549,7 +622,6 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
         if runLog:
             runLog.write(output)
         stdouterr += output
-        time.sleep(1)
         ec = p.poll()
 
     # read remaining data (all of it)
@@ -655,8 +727,6 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     except OSError, err:
         _log.error("run_cmd_qa init cmd %s failed:%s" % (cmd, err))
 
-    # initial short sleep
-    time.sleep(0.1)
     ec = p.poll()
     stdoutErr = ''
     oldLenOut = -1
@@ -722,6 +792,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                                                                                     stdoutErr[-500:]
                                                                                     ))
 
+        # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
         ec = p.poll()
 
@@ -946,23 +1017,21 @@ def patch_perl_script_autoflush(path):
     # patch Perl script to enable autoflush,
     # so that e.g. run_cmd_qa receives all output to answer questions
 
-    try:
-        f = open(path, "r")
-        txt = f.readlines()
-        f.close()
+    txt = read_file(path)
+    origpath = "%s.eb.orig" % path
+    write_file(origpath, txt)
+    _log.debug("Patching Perl script %s for autoflush, original script copied to %s" % (path, origpath))
 
-        # force autoflush for Perl print buffer
-        extra=["\nuse IO::Handle qw();\n",
-               "STDOUT->autoflush(1);\n\n"]
+    # force autoflush for Perl print buffer
+    lines = txt.split('\n')
+    newtxt = '\n'.join([
+        lines[0],  # shebang line
+        "\nuse IO::Handle qw();",
+        "STDOUT->autoflush(1);\n",  # extra newline to separate from actual script
+    ] + lines[1:])
 
-        newtxt = ''.join([txt[0]] + extra + txt[1:])
+    write_file(path, newtxt)
 
-        f = open(path, "w")
-        f.write(newtxt)
-        f.close()
-
-    except IOError, err:
-        _log.error("Failed to patch Perl configure script: %s" % err)
 
 def mkdir(directory, parents=False):
     """
@@ -991,78 +1060,6 @@ def mkdir(directory, parents=False):
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
-def rmtree2(path, n=3):
-    """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
-
-    ok = False
-    for i in range(0,n):
-        try:
-            shutil.rmtree(path)
-            ok = True
-            break
-        except OSError, err:
-            _log.debug("Failed to remove path %s with shutil.rmtree at attempt %d: %s" % (path, n, err))
-            time.sleep(2)
-    if not ok:
-        _log.error("Failed to remove path %s with shutil.rmtree, even after %d attempts." % (path, n))
-    else:
-        _log.info("Path %s successfully removed." % path)
-
-def copytree(src, dst, symlinks=False, ignore=None):
-    """
-    Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
-    and this code can be improved...
-
-    Recursively copy a directory tree using copy2().
-
-    The destination directory must not already exist.
-    If exception(s) occur, an Error is raised with a list of reasons.
-
-    If the optional symlinks flag is true, symbolic links in the
-    source tree result in symbolic links in the destination tree; if
-    it is false, the contents of the files pointed to by symbolic
-    links are copied.
-
-    The optional ignore argument is a callable. If given, it
-    is called with the `src` parameter, which is the directory
-    being visited by copytree(), and `names` which is the list of
-    `src` contents, as returned by os.listdir():
-
-        callable(src, names) -> ignored_names
-
-    Since copytree() is called recursively, the callable will be
-    called once for each directory that is copied. It returns a
-    list of names relative to the `src` directory that should
-    not be copied.
-
-    XXX Consider this example code rather than the ultimate tool.
-
-    """
-    class Error(EnvironmentError):
-        pass
-    try:
-        WindowsError #@UndefinedVariable
-    except NameError:
-        WindowsError = None
-
-    names = os.listdir(src)
-    if ignore is not None:
-        ignored_names = ignore(src, names)
-    else:
-        ignored_names = set()
-    _log.debug("copytree: skipping copy of %s" % ignored_names)
-    os.makedirs(dst)
-    errors = []
-    for name in names:
-        if name in ignored_names:
-            continue
-        srcname = os.path.join(src, name)
-        dstname = os.path.join(dst, name)
-        try:
-            if symlinks and os.path.islink(srcname):
-                linkto = os.readlink(srcname)
-                os.symlink(linkto, dstname)
-            elif os.path.isdir(srcname):
                 copytree(srcname, dstname, symlinks, ignore)
             else:
                 # Will raise a SpecialFileError for unsupported file types

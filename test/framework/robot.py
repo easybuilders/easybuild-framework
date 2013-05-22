@@ -36,8 +36,8 @@ from vsc import fancylogger
 
 import easybuild.tools.modules as modules
 import easybuild.main as main
-from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError
+from test.framework.utilities import find_full_path
 
 orig_modules = modules.Modules
 orig_main_modules = main.Modules
@@ -62,11 +62,11 @@ class RobotTest(TestCase):
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
         # redefine the main log when calling the main functions directly
-        main.log = fancylogger.getLogger("main", fname=False)
+        main._log = fancylogger.getLogger("main", fname=False)
 
         self.cwd = os.getcwd()
 
-        self.base_easyconfig_dir = find_full_path(os.path.join("easybuild", "test", "easyconfigs"))
+        self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(self.base_easyconfig_dir)
 
     def runTest(self):

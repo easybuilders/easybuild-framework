@@ -36,8 +36,8 @@ from unittest import TestCase, TestSuite, main
 
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.test.utilities import find_full_path
 from easybuild.tools.build_log import EasyBuildError
+from test.framework.utilities import find_full_path
 
 
 class ModuleGeneratorTest(TestCase):
@@ -54,7 +54,7 @@ class ModuleGeneratorTest(TestCase):
         """ initialize ModuleGenerator with test Application """
 
         # find .eb file
-        eb_path = os.path.join('easybuild', 'test', 'easyconfigs', 'gzip-1.4.eb')
+        eb_path = os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
@@ -101,14 +101,16 @@ if { ![is-loaded name/version] } {
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
         # test prepend_paths
-        expected = """prepend-path	key		$root/path1
-prepend-path	key		$root/path2
-"""
+        expected = ''.join([
+            "prepend-path\tkey\t\t$root/path1\n",
+            "prepend-path\tkey\t\t$root/path2\n",
+        ])
         self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-        expected = """prepend-path	bar		$root/foo
-"""
+        expected = "prepend-path\tbar\t\t$root/foo\n"
         self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
+
+        self.assertEqual("prepend-path\tkey\t\t/abs/path\n", self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
 
         self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
                                               "which only expects relative paths." % self.modgen.app.installdir,

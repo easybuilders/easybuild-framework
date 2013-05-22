@@ -29,9 +29,19 @@ Toolchain compiler module, provides abstract class for compilers.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import os
+
 from easybuild.tools import systemtools
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
+
+
+def mk_infix(prefix):
+    """Create an infix based on the given prefix."""
+    infix = ''
+    if prefix is not None:
+        infix = '%s_' % prefix
+    return infix
 
 
 class Compiler(Toolchain):
@@ -44,45 +54,47 @@ class Compiler(Toolchain):
     COMPILER_FAMILY = None
 
     COMPILER_UNIQUE_OPTS = None
-    COMPILER_SHARED_OPTS = {'cciscxx': (False, "Use CC as CXX"),  # also MPI
-                            'pic': (False, "Use PIC"),  # also FFTW
-                            'noopt': (False, "Disable compiler optimizations"),
-                            'lowopt': (False, "Low compiler optimizations"),
-                            'defaultopt':(False, "Default compiler optimizations"),  # not set, but default
-                            'opt': (False, "High compiler optimizations"),
-                            'optarch':(True, "Enable architecture optimizations"),
-                            'strict': (False, "Strict (highest) precision"),
-                            'precise':(False, "High precision"),
-                            'defaultprec':(False, "Default precision"),  # not set, but default
-                            'loose': (False, "Loose precision"),
-                            'veryloose': (False, "Very loose precision"),
-                            'verbose': (False, "Verbose output"),
-                            'debug': (False, "Enable debug"),
-                            'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
-                            'r8' : (False, "Real is 8 byte real"),  # fortran only
-                            'unroll': (False, "Unroll loops"),
-                            'cstd': (None, "Specify C standard"),
-                            'shared': (False, "Build shared library"),
-                            'static': (False, "Build static library"),
-                            '32bit':(False, "Compile 32bit target"),  # LA, FFTW
-                            'openmp':(False, "Enable OpenMP"),
-                            'packed-linker-options':(False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
-                            }
+    COMPILER_SHARED_OPTS = {
+        'cciscxx': (False, "Use CC as CXX"),  # also MPI
+        'pic': (False, "Use PIC"),  # also FFTW
+        'noopt': (False, "Disable compiler optimizations"),
+        'lowopt': (False, "Low compiler optimizations"),
+        'defaultopt': (False, "Default compiler optimizations"),  # not set, but default
+        'opt': (False, "High compiler optimizations"),
+        'optarch': (True, "Enable architecture optimizations"),
+        'strict': (False, "Strict (highest) precision"),
+        'precise': (False, "High precision"),
+        'defaultprec': (False, "Default precision"),  # not set, but default
+        'loose': (False, "Loose precision"),
+        'veryloose': (False, "Very loose precision"),
+        'verbose': (False, "Verbose output"),
+        'debug': (False, "Enable debug"),
+        'i8': (False, "Integers are 8 byte integers"),  # fortran only -> no: MKL and icc give -DMKL_ILP64
+        'r8' : (False, "Real is 8 byte real"),  # fortran only
+        'unroll': (False, "Unroll loops"),
+        'cstd': (None, "Specify C standard"),
+        'shared': (False, "Build shared library"),
+        'static': (False, "Build static library"),
+        '32bit': (False, "Compile 32bit target"),  # LA, FFTW
+        'openmp': (False, "Enable OpenMP"),
+        'packed-linker-options': (False, "Pack the linker options as comma separated list"),  # ScaLAPACK mainly
+    }
 
     COMPILER_UNIQUE_OPTION_MAP = None
-    COMPILER_SHARED_OPTION_MAP = {'pic': 'fPIC',
-                                  'verbose': 'v',
-                                  'debug': 'g',
-                                  'unroll': 'unroll',
-                                  'static': 'static',
-                                  'shared': 'shared',
-                                  'noopt': 'O0',
-                                  'lowopt': 'O1',
-                                  'defaultopt':'O2',
-                                  'opt': 'O3',
-                                  '32bit' : 'm32',
-                                  'cstd':'std=%(value)s',
-                                  }
+    COMPILER_SHARED_OPTION_MAP = {
+        'pic': 'fPIC',
+        'verbose': 'v',
+        'debug': 'g',
+        'unroll': 'unroll',
+        'static': 'static',
+        'shared': 'shared',
+        'noopt': 'O0',
+        'lowopt': 'O1',
+        'defaultopt': 'O2',
+        'opt': 'O3',
+        '32bit' : 'm32',
+        'cstd': 'std=%(value)s',
+    }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
 
@@ -102,26 +114,31 @@ class Compiler(Toolchain):
 
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
-                                      'start':'--start-group',
-                                      'stop':'--end-group',
-                                      }
+        'start': '--start-group',
+        'stop': '--end-group',
+    }
 
     LIB_MULTITHREAD = None
     LIB_MATH = None
+    LIB_RUNTIME = None
 
     def __init__(self, *args, **kwargs):
+        """Compiler constructor."""
         Toolchain.base_init(self)
-
         self.arch = None
-
-        self._set_compiler_toolchainoptions()
-
-        self.log.debug('_compiler_init: compiler toolchainoptions %s' % self.options)
-
+        # list of compiler prefixes
+        self.prefixes = []
         super(Compiler, self).__init__(*args, **kwargs)
+
+    def set_options(self, options):
+        """Process compiler toolchain options."""
+        self._set_compiler_toolchainoptions()
+        self.log.debug('_compiler_set_options: compiler toolchain options %s' % self.options)
+        super(Compiler, self).set_options(options)
 
     def set_variables(self):
         """Set the variables"""
+
         self._set_compiler_vars()
         self._set_compiler_flags()
 
@@ -132,8 +149,14 @@ class Compiler(Toolchain):
         """Set the compiler related toolchain options"""
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)
 
-        # overwrite/add unique compiler specific toolchainoptions
-        self.options.add_options(self.COMPILER_UNIQUE_OPTS, self.COMPILER_UNIQUE_OPTION_MAP)
+        # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
+        for infix in [''] + [mk_infix(prefix) for prefix in self.prefixes]:
+            # overwrite/add unique compiler specific toolchainoptions
+            self.options.add_options(
+                getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
+                getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
+            )
+            #print "added options for prefix %s" % prefix
 
         # redefine optarch
         self._get_optimal_architecture()
@@ -144,31 +167,61 @@ class Compiler(Toolchain):
         if is32bit:
             self.log.debug("_set_compiler_vars: 32bit set: changing compiler definitions")
 
-        for var_tuple in COMPILER_VARIABLES:
-            var = var_tuple[0]  # [1] is the description
+        comp_var_tmpl_dict = {}
 
-            value = getattr(self, 'COMPILER_%s' % var.upper(), None)
-            if value is None:
-                self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+        # always include empty infix first for non-prefixed compilers (e.g., GCC, Intel, ...)
+        for infix in [''] + [mk_infix(prefix) for prefix in self.prefixes]:
 
-            self.variables[var] = value
-            if is32bit:
-                self.variables.nappend_el(var, self.options.option('32bit'))
+            for var_tuple in COMPILER_VARIABLES:
+                var = var_tuple[0]  # [1] is the description
+
+                # determine actual value for compiler variable
+                compvar = 'COMPILER_%s%s' % (infix, var.upper())
+                pref_var = infix + var
+                value = getattr(self, compvar, None)
+
+                if value is None:
+                    if prefix is not None:
+                        # only warn if prefix is set, not all languages may be supported (e.g., no Fortran for CUDA)
+                        self.log.warn("_set_compiler_vars: %s compiler variable %s undefined" % (prefix, var))
+                    else:
+                        self.log.raiseException("_set_compiler_vars: compiler variable %s undefined" % var)
+
+                self.variables[pref_var] = value
+                if is32bit:
+                    self.variables.nappend_el(pref_var, self.options.option('32bit'))
+
+                # update dictionary to complete compiler variable template
+                # to produce e.g. 'nvcc -ccbin=icpc' from 'nvcc -ccbin=%(CXX_base)'
+                comp_var_tmpl_dict.update({
+                    pref_var: str(self.variables[pref_var]),
+                    '%s_base' % pref_var: str(self.variables[pref_var].get_first()),
+                })
+
+            # complete compiler templates for (prefixed) compiler, e.g. CUDA_CC="nvcc -ccbin=%(CXX_base)s"
+            for var_tuple in COMPILER_VARIABLES:
+                var = var_tuple[0]  # [1] is the description
+
+                # determine actual value for compiler variable
+                pref_var = infix + var
+                val = self.options.option('_opt_%s' % pref_var, templatedict=comp_var_tmpl_dict)
+                self.variables.nappend_el(pref_var, val)
+
+            for (var, pos) in [('MULTITHREAD', 10), ('MATH', None), ('RUNTIME', None)]:
+                lib = getattr(self, 'LIB_%s%s' % (infix, var), None)
+                if lib is not None:
+                    self.variables.nappend('LIBS', lib, position=pos)
 
         if self.options.get('cciscxx', None):
             self.log.debug("_set_compiler_vars: cciscxx set: switching CXX %s for CC value %s" %
                            (self.variables['CXX'], self.variables['CC']))
+            # FIXME (stdweird): shouldn't this be the other way around??
             self.variables['CXX'] = self.variables['CC']
-
-        if self.LIB_MULTITHREAD is not None:
-            self.variables.nappend('LIBS', self.LIB_MULTITHREAD, position=10)
-        if self.LIB_MATH is not None:
-            self.variables.nappend('LIBS', self.LIB_MATH)
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
-        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
 
+        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
         cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
         fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
@@ -217,9 +270,15 @@ class Compiler(Toolchain):
         if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
-    def comp_family(self):
-        """ Return compiler family used in this toolchain. """
-        if self.COMPILER_FAMILY:
-            return self.COMPILER_FAMILY
+    def comp_family(self, prefix=None):
+        """
+        Return compiler family used in this toolchain.
+        @prefix: Prefix for compiler (e.g. 'CUDA_').
+        """
+        infix = mk_infix(prefix)
+
+        comp_family = getattr(self, 'COMPILER_%sFAMILY' % infix, None)
+        if comp_family:
+            return comp_family
         else:
-            self.log.raiseException('comp_family: COMPILER_FAMILY is undefined.')
+            self.log.raiseException('comp_family: COMPILER_%sFAMILY is undefined.' % infix)

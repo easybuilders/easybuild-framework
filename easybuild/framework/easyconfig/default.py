@@ -60,7 +60,7 @@ DEFAULT_CONFIG = {
                   # TODO not yet in MANDATORY_PARAMS, so not enforced
                   'license': [None, 'Software license', "MANDATORY"],
 
-                  'toolchainopts': ['', 'Extra options for compilers', "TOOLCHAIN"],
+                  'toolchainopts': [None, 'Extra options for compilers', "TOOLCHAIN"],
                   'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
                                          'the environment with module (True) or also set all other '
                                          'variables (False) like compiler CC etc (if string: comma '
@@ -131,6 +131,7 @@ DEFAULT_CONFIG = {
                                           "(templates for name, version and src)."), "EXTENSIONS"],
 
                   'modextravars': [{}, "Extra environment variables to be added to module file", "MODULES"],
+                  'modextrapaths': [{}, "Extra paths to be prepended in module file", "MODULES"],
                   'moduleclass': ['base', 'Module class to be used for this software', "MODULES"],
                   'moduleforceunload': [False, 'Force unload of all modules when loading the extension',
                                          "MODULES"],

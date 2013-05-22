@@ -37,20 +37,20 @@ import unittest
 from vsc import fancylogger
 
 # toolkit should be first to allow hacks to work
-import easybuild.test.asyncprocess as a
-import easybuild.test.easyconfig as e
-import easybuild.test.modulegenerator as mg
-import easybuild.test.modules as m
-import easybuild.test.filetools as f
-import easybuild.test.repository as r
-import easybuild.test.robot as robot
-import easybuild.test.easyblock as b
-import easybuild.test.variables as v
-import easybuild.test.github as g
-import easybuild.test.toolchainvariables as tcv
-import easybuild.test.toolchain as tc
-import easybuild.test.options as o
-import easybuild.test.config as c
+import test.framework.asyncprocess as a
+import test.framework.easyconfig as e
+import test.framework.modulegenerator as mg
+import test.framework.modules as m
+import test.framework.filetools as f
+import test.framework.repository as r
+import test.framework.robot as robot
+import test.framework.easyblock as b
+import test.framework.variables as v
+import test.framework.github as g
+import test.framework.toolchainvariables as tcv
+import test.framework.toolchain as tc
+import test.framework.options as o
+import test.framework.config as c
 
 
 # initialize logger for all the unit tests

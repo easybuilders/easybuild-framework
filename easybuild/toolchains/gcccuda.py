@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +23,17 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares the easybuild.test namespace.
+EasyBuild support for a GCC+CUDA compiler toolchain.
 
-@author: Toon Willems (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.compiler.cuda import Cuda
+
+
+class GccCUDA(Gcc, Cuda):
+    """Compiler toolchain with GCC and CUDA."""
+    NAME = 'gcccuda'
+
+    COMPILER_MODULE_NAME = ['GCC', 'CUDA']

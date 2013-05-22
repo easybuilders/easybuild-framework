@@ -44,7 +44,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import stats_to_str
-from easybuild.tools.filetools import rmtree2
+from easybuild.tools.filetools import rmtree2, read_file, write_file
 from easybuild.tools.version import VERBOSE_VERSION
 
 _log = fancylogger.getLogger('repository', fname=False)
@@ -178,28 +178,22 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
-        try:
-            dest_file = open(dest, 'w')
-            dest_file.write("# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S")))
+        txt = "# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
-            # copy file
-            for line in open(cfg):
-                dest_file.write(line)
+        # copy file
+        txt += read_file(cfg)
 
-            # append a line to the eb file so we don't have git merge conflicts
-            if not previous:
-                statsprefix = "\n# Build statistics\nbuildstats = ["
-                statssuffix = "]\n"
-            else:
-                # statstemplate = "\nbuildstats.append(%s)\n"
-                statsprefix = "\nbuildstats.append("
-                statssuffix = ")\n"
+        # append a line to the eb file so we don't have git merge conflicts
+        if not previous:
+            statsprefix = "\n# Build statistics\nbuildstats = ["
+            statssuffix = "]\n"
+        else:
+            # statstemplate = "\nbuildstats.append(%s)\n"
+            statsprefix = "\nbuildstats.append("
+            statssuffix = ")\n"
 
-            dest_file.write(statsprefix + stats_to_str(stats) + statssuffix)
-            dest_file.close()
-
-        except IOError, err:
-            self.log.exception("Copying file %s to %s (wc: %s) failed (%s)" % (cfg, dest, self.wc, err))
+        txt += statsprefix + stats_to_str(stats) + statssuffix
+        write_file(dest, txt)
 
         return dest
 
