@@ -32,12 +32,11 @@ Unit tests for filetools.py
 import os
 import tempfile
 from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
 
+from easybuild.tools import build_log
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
-
 
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
@@ -51,7 +50,7 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.log = build_log.get_log()
         self.legacySetUp()
 
         # go to the data subdir to find all archives
@@ -245,7 +244,21 @@ class FileToolsTest(TestCase):
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
 
-#TODO: xz
+    def test_extract_xzed_tar(self):
+        """Test the extraction of a xz'ed tarfile"""
+        out = ft.extract_archive('test.tar.xz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_xz(self):
+        """Test the extraction of a xz'ed file"""
+        out = ft.extract_archive('test.txt.xz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+#TODO: deb, rpm, iso
 
 
 def suite():

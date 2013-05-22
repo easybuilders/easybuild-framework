@@ -53,6 +53,7 @@ from vsc import fancylogger
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
 from easybuild.tools.asyncprocess import send_all, recv_some
+from easybuild.tools.utilities import get_subsubclasses_for
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
@@ -121,7 +122,7 @@ def extract_archive(filename, destination_dir):
 
     destination_dir = os.path.abspath(destination_dir)
     # output_file = os.path.splitext(os.path.split(fn)[1])[0]
-    for cls in Extractor.__subclasses__():
+    for cls in get_subsubclasses_for(Extractor):
         if cls.can_handle(filename):
             return cls.extract(filename, destination_dir)
     raise BadArchiveException
@@ -136,7 +137,7 @@ class Extractor(object):
     # e.g.,
     # LZW: "\x1F\x9D",
     # LZH: "\x1F\xA0",
-    magic = None
+    magic = "This is not a magic numbers string"
     # magic starts at offset
     offset = 0
 
@@ -150,11 +151,10 @@ class Extractor(object):
         f.close()
         return can_handle
 
-    @staticmethod
-    def extract(filename, destination):
+    @classmethod
+    def extract(cls, filename, destination):
         """Do the actual extraction"""
         pass
-
 
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
@@ -195,8 +195,8 @@ class UnZIP(Extractor):
     uses zipfile"""
     magic = "\x50\x4B\x03\x04"
 
-    @staticmethod
-    def extract(filename, destination):
+    @classmethod
+    def extract(cls, filename, destination):
         """Do the actual extraction uzing zipfile"""
         zfile = zipfile.ZipFile(filename)
         for name in zfile.namelist():
@@ -222,8 +222,8 @@ class UnTAR(Extractor):
         This uses the built in tarfile.is_tarfile method"""
         return tarfile.is_tarfile(filename)
 
-    @staticmethod
-    def extract(filename, destination):
+    @classmethod
+    def extract(cls, filename, destination):
         """Do the actual extraction using TarFile.extractAll
         (copied from the python 2.5 implementation, since this is not available in python 2.4"""
         tar_file = tarfile.open(filename, mode='r:*')
@@ -249,8 +249,8 @@ class UnBZIP2(Extractor):
     """Implementation of the Extractor class for extracting BZIP2 compressed files"""
     magic = "\x42\x5A\x68"
 
-    @staticmethod
-    def extract(filename, destination):
+    @classmethod
+    def extract(cls, filename, destination):
         """Do the actuall extracting using bzip2 library"""
         outfile = os.path.join(destination, filename)
         if filename.endswith('.bz2'):
@@ -263,8 +263,8 @@ class UnGZIP(Extractor):
     """Implementation of the Extractor class for extracting GZIP compressed files"""
     magic = "\x1f\x8b\x08"
 
-    @staticmethod
-    def extract(filename, destination):
+    @classmethod
+    def extract(cls, filename, destination):
         """Do the actuall extracting using bzip2 library"""
         outfile = os.path.join(destination, filename)
         if filename.endswith('.gz'):
@@ -273,6 +273,7 @@ class UnGZIP(Extractor):
         open(outfile, 'w').write(gzip.open(filename).read())
         return destination
 
+
 class SystemExtractor(Extractor):
     """Abstract Extractor implementation,
     this uses a subprocess to run the extraction command,
@@ -280,13 +281,26 @@ class SystemExtractor(Extractor):
     """
     extract_command = None
 
+    @classmethod
+    def extract(cls, filename, destination):
+        """Extract the given file to destination using a shell command"""
+        #TODO: move all these lines to Extractor, and have _extract function
+        outfile = os.path.join(destination, filename)
+        if filename.endswith(cls.extention):
+            outfile = outfile[:(0 - len(cls.extention))]
+        #TODO: error checking
+        return run_cmd(cls.extract_command % {'filename': filename, 'destination': outfile})[0]
+
+
 
 class UnXZ(SystemExtractor):
     """Use system tools to extract XZ files, since this is not easily done in python yet"""
     magic = "\xFD7zXZ"
-    extract_command = "unxz %(filename)s"
+    extract_command = "unxz %(filename)s > %(destination)s"
+    extention = ".xz"
 
 #TODO: extract .iso, .deb and .rpm
+
 
 def extract_file(fn, dest, cmd=None, extra_options=None):
     """
@@ -332,7 +346,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None):
 
 
 def download_file(filename, url, path):
-
+    """Download given filename from url to path"""
     _log.debug("Downloading %s from %s to %s" % (filename, url, path))
 
     # make sure directory exists
@@ -408,6 +422,7 @@ def extract_cmd(fn, overwrite=False):
     - based on file suffix
     - better to use Python magic?
     """
+    _log.deprecated("extract_cmd is deprecated, use extract_archive instead please", "2.0")
     ff = [x.lower() for x in fn.split('.')]
     ftype = None
 
