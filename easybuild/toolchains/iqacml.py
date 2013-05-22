@@ -31,11 +31,10 @@ EasyBuild support for iqacml compiler toolchain (includes Intel compilers, QLogi
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
-from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Iqacml(IntelIccIfort, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with Intel compilers, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
+class Iqacml(IntelIccIfort, QLogicMPI, Acml, ScaLAPACK, Fftw):
+    """Compiler toolchain with Intel compilers, QLogic MPI, ACML, ScaLAPACK and FFTW."""
     NAME = 'iqacml'
