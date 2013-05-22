@@ -35,7 +35,7 @@ from vsc import fancylogger
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
-from easybuild.test.utilities import find_full_path
+from test.framework.utilities import find_full_path
 
 
 class FileToolsTest(TestCase):
@@ -64,7 +64,7 @@ class FileToolsTest(TestCase):
         """cleanup"""
         os.chdir(self.cwd)
 
-    def runTest(self):
+    def test_runcmd(self):
         """
         verify all the possible extract commands
         also run_cmd should work with some basic echo/exit combos
@@ -122,7 +122,6 @@ class FileToolsTest(TestCase):
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
-
 
     def test_extract_zip(self):
         """Test the extraction of a zip file"""
