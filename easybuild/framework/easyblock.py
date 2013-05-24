@@ -298,7 +298,8 @@ class EasyBlock(object):
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        src_fn = self.obtain_file(fn, extension=True, urls=ext_options.get('source_urls', None))
+                        source_urls = [url % ext_src for url in ext_options.get('source_urls', [])]
+                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
@@ -722,6 +723,12 @@ class EasyBlock(object):
         txt += "\n"
         for (key, value) in self.cfg['modextravars'].items():
             txt += self.moduleGenerator.set_environment(key, value)
+        for (key, value) in self.cfg['modextrapaths'].items():
+            if isinstance(value, basestring):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
+            txt = self.moduleGenerator.prepend_paths(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
@@ -1329,7 +1336,7 @@ class EasyBlock(object):
                 class_name = exts_classmap[ext['name']]
                 mod_path = get_module_path(class_name)
                 try:
-                    cls = get_class_for(mod_path, class_name, decode=False)
+                    cls = get_class_for(mod_path, class_name)
                     inst = cls(self, ext)
                 except (ImportError, NameError), err:
                     self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name,
@@ -1399,7 +1406,7 @@ class EasyBlock(object):
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
 
-    def sanity_check_step(self, custom_paths=None, custom_commands=None):
+    def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """
         Do a sanity check on the installation
         - if *any* of the files/subdirectories in the installation directory listed
@@ -1450,13 +1457,14 @@ class EasyBlock(object):
                 self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
         fake_mod_data = None
-        try:
-            # unload all loaded modules before loading fake module
-            # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            fake_mod_data = self.load_fake_module(purge=True)
-        except EasyBuildError, err:
-            self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
-            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+        if not extension:
+            try:
+                # unload all loaded modules before loading fake module
+                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                fake_mod_data = self.load_fake_module(purge=True)
+            except EasyBuildError, err:
+                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # chdir to installdir (better environment for running tests)
         os.chdir(self.installdir)
@@ -1496,11 +1504,12 @@ class EasyBlock(object):
             else:
                 self.log.debug("sanity check command %s ran successfully! (output: %s)" % (cmd, out))
 
-        failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
+        if not extension:
+            failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
 
-        if failed_exts:
-            self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
-            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+            if failed_exts:
+                self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # cleanup
         if fake_mod_data:

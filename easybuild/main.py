@@ -398,18 +398,27 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
         # this app will appear as following module in the list
         easyconfig = {
-                      'spec': spec,
-                      'module': (ec.name, ec.get_installversion()),
-                      'dependencies': []
-                     }
+            'spec': spec,
+            'module': (ec.name, ec.get_installversion()),
+            'dependencies': [],
+            'builddependencies': [],
+        }
         if len(blocks) > 1:
             easyconfig['originalSpec'] = path
 
-        for d in ec.dependencies():
-            dep = (d['name'], d['tc'])
-            _log.debug("Adding dependency %s for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
+        # add build dependencies
+        for dep in ec.builddependencies():
+            deptup = (dep['name'], dep['tc'])
+            _log.debug("Adding build dependency %s for app %s." % (deptup, name))
+            easyconfig['builddependencies'].append(deptup)
 
+        # add dependencies (including build dependencies)
+        for dep in ec.dependencies():
+            deptup = (dep['name'], dep['tc'])
+            _log.debug("Adding dependency %s for app %s." % (deptup, name))
+            easyconfig['dependencies'].append(deptup)
+
+        # add toolchain as dependency too
         if ec.toolchain.name != 'dummy':
             dep = (ec.toolchain.name, ec.toolchain.version)
             _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
