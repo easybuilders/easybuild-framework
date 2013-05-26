@@ -265,6 +265,11 @@ class Toolchain(object):
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
 
+    def is_required(self, name):
+        """Determine whether this is a required toolchain element."""
+        # default: assume every element is required
+        return True
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -303,6 +308,13 @@ class Toolchain(object):
         toolchain_elements_mod_names = set([y for x in dir(self) if x.endswith('_MODULE_NAME') for y in eval("self.%s" % x)])
         # filter out toolchain name (e.g. 'GCC') from list of toolchain elements
         toolchain_elements_mod_names = set([x for x in toolchain_elements_mod_names if not x == self.name])
+
+        # filter out optional toolchain elements if they're not used in the module
+        for mod_name in toolchain_elements_mod_names.copy():
+            if not self.is_required(mod_name):
+                if not mod_name in toolchain_module_deps:
+                    self.log.debug("Removing optional module %s from list of toolchain elements." % mod_name)
+                    toolchain_elements_mod_names.remove(mod_name)
 
         self.log.debug("List of toolchain dependency modules from loaded toolchain module: %s" % toolchain_module_deps)
         self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_elements_mod_names)

@@ -38,8 +38,3 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 class Goolf(Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []

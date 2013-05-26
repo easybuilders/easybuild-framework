@@ -32,11 +32,10 @@ EasyBuild support for goalf compiler toolchain (includes GCC, OpenMPI, ATLAS, BL
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.atlas import Atlas
-from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Goalf(Gcc, OpenMPI, Atlas, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, OpenMPI, ATLAS, BLACS, ScaLAPACK and FFTW."""
+class Goalf(Gcc, OpenMPI, Atlas, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, ATLAS, ScaLAPACK and FFTW."""
     NAME = 'goalf'
