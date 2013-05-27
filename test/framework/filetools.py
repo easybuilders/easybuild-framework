@@ -188,6 +188,7 @@ class FileToolsTest(TestCase):
         self.assertTrue(txt.startswith(perl_lines[0]+"\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
             self.assertTrue(line in txt)
+        os.remove(fp)
 
 def suite():
     """ returns all the testcases in this module """
