@@ -49,10 +49,13 @@ from test.framework.utilities import find_full_path
 class EasyConfigTest(TestCase):
     """ Baseclass for easyblock testcases """
     contents = None
+    eb_file = ''
 
     def setUp(self):
         """ create temporary easyconfig file """
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
+        if os.path.exists(self.eb_file):
+            os.remove(self.eb_file)
         if self.contents is not None:
             fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
             os.close(fd)
@@ -63,7 +66,7 @@ class EasyConfigTest(TestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
-        if self.contents is not None:
+        if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
         os.chdir(self.cwd)
 
@@ -251,7 +254,6 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 
         self.contents += "\ncustom_key = 'test'"
 
-        os.remove(self.eb_file)
         self.setUp()
 
         eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
@@ -269,7 +271,6 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         self.assertErrorRegex(EasyBuildError, r"mandatory variables \S* not provided",
                               EasyConfig, self.eb_file, extra_vars)
 
-        os.remove(self.eb_file)
         self.contents += '\nmandatory_key = "value"'
         self.setUp()
 
@@ -669,7 +670,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         # configopts as list
         configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
         self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
-        os.remove(self.eb_file)
         self.setUp()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
@@ -682,7 +682,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
         self.contents += "\nmakeopts = %s" % str(makeopts)
         self.contents += "\ninstallopts = %s" % str(installopts)
-        os.remove(self.eb_file)
         self.setUp()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
@@ -698,7 +697,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
         self.contents += "\nmakeopts = %s" % str(makeopts)
         self.contents += "\ninstallopts = %s" % str(installopts)
-        os.remove(self.eb_file)
         self.setUp()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False)
         self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
@@ -709,7 +707,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
         self.contents += "\nmakeopts = %s" % str(makeopts)
         self.contents += "\ninstallopts = %s" % str(installopts)
-        os.remove(self.eb_file)
         self.setUp()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
