@@ -189,6 +189,7 @@ class FileToolsTest(TestCase):
         for line in perl_lines[1:]:
             self.assertTrue(line in txt)
         os.remove(fp)
+        os.remove("%s.eb.orig" % fp)
 
 def suite():
     """ returns all the testcases in this module """
