@@ -266,7 +266,9 @@ class CommandLineOptionsTest(TestCase):
     def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
-        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
         for stdout_arg in ['--logtostdout', '-l']:
 
             _stdout = sys.stdout
@@ -309,7 +311,8 @@ class CommandLineOptionsTest(TestCase):
         def run_test(custom=None, extra_params=[]):
             """Inner function to run actual test in current setting."""
 
-            dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+            fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+            os.close(fd)
 
             for avail_arg in [
                               '-a',
@@ -375,7 +378,8 @@ class CommandLineOptionsTest(TestCase):
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
 
-        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
 
         args = [
                 '--list-toolchains',
@@ -402,7 +406,8 @@ class CommandLineOptionsTest(TestCase):
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
 
-        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
 
         # adjust PYTHONPATH such that test easyblocks are found
         orig_sys_path = sys.path
@@ -467,7 +472,10 @@ class CommandLineOptionsTest(TestCase):
 
     def test_search(self):
         """Test searching for easyconfigs."""
-        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
         args = [
                 '--search=gzip',
                 '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
