@@ -266,6 +266,7 @@ class CommandLineOptionsTest(TestCase):
     def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
 
+        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         for stdout_arg in ['--logtostdout', '-l']:
 
             _stdout = sys.stdout
@@ -282,7 +283,7 @@ class CommandLineOptionsTest(TestCase):
                     stdout_arg,
                    ]
             try:
-                main((args, None))
+                main((args, dummylogfn))
             except (SystemExit, Exception), err:
                 myerr = err
 
@@ -298,6 +299,8 @@ class CommandLineOptionsTest(TestCase):
             # cleanup
             os.remove(fn)
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
         fancylogger.logToFile(self.logfile)
 
     def test_avail_easyconfig_params(self):
@@ -305,6 +308,9 @@ class CommandLineOptionsTest(TestCase):
 
         def run_test(custom=None, extra_params=[]):
             """Inner function to run actual test in current setting."""
+
+            dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+
             for avail_arg in [
                               '-a',
                               '--avail-easyconfig-params',
@@ -321,7 +327,7 @@ class CommandLineOptionsTest(TestCase):
                     args.extend(['-e', custom])
 
                 try:
-                    main((args, None))
+                    main((args, dummylogfn))
                 except (SystemExit, Exception), err:
                     pass
                 outtxt = read_file(self.logfile)
@@ -345,6 +351,9 @@ class CommandLineOptionsTest(TestCase):
                                     (param, avail_arg, args, outtxt)
                                     )
 
+            if os.path.exists(dummylogfn):
+                os.remove(dummylogfn)
+
         # also check whether available custom easyconfig parameters are listed
         orig_sys_path = sys.path
 
@@ -366,12 +375,14 @@ class CommandLineOptionsTest(TestCase):
     def test_list_toolchains(self):
         """Test listing known compiler toolchains."""
 
+        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+
         args = [
                 '--list-toolchains',
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -385,8 +396,13 @@ class CommandLineOptionsTest(TestCase):
             n = len(res)
             self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
+
+        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
 
         # adjust PYTHONPATH such that test easyblocks are found
         orig_sys_path = sys.path
@@ -408,7 +424,7 @@ class CommandLineOptionsTest(TestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             try:
-                main((args, None))
+                main((args, dummylogfn))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -430,7 +446,7 @@ class CommandLineOptionsTest(TestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -443,19 +459,22 @@ class CommandLineOptionsTest(TestCase):
 
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
 
         # restore original Python search path
         sys.path = orig_sys_path
 
     def test_search(self):
         """Test searching for easyconfigs."""
+        dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         args = [
                 '--search=gzip',
                 '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn))
         except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -464,6 +483,9 @@ class CommandLineOptionsTest(TestCase):
         self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
             self.assertTrue(re.search("%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
 
     def test_no_such_software(self):
         """Test using no arguments."""
