@@ -437,7 +437,6 @@ def get_log_filename(name, version):
     """
     Generate a filename to be used for logging
     """
-    # this can't be imported at the top, otherwise we'd have a cyclic dependency
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 

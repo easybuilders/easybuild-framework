@@ -30,6 +30,7 @@ Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import sys
 import tempfile
@@ -56,6 +57,7 @@ import test.framework.config as c
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
+os.remove(log_fn)
 fancylogger.logToFile(log_fn)
 log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
@@ -81,4 +83,5 @@ if not res.wasSuccessful():
     print "Log available at %s" % log_fn, xml_msg
     sys.exit(2)
 else:
-    os.remove(log_fn)
+    for f in glob.glob('%s*' % log_fn):
+        os.remove(f)

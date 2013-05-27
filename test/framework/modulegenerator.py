@@ -31,6 +31,7 @@ Unit tests for module_generator.py.
 
 import os
 import re
+import shutil
 import tempfile
 from unittest import TestCase, TestSuite, main
 
@@ -127,6 +128,7 @@ if { ![is-loaded name/version] } {
         """cleanup"""
         os.remove(self.eb.logfile)
         os.chdir(self.cwd)
+        shutil.rmtree(self.modgen.app.installdir)
 
 def suite():
     """ returns all the testcases in this module """

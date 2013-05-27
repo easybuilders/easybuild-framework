@@ -41,8 +41,3 @@ from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 class Gmvolf(Gcc, Mvapich2, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, MVAPICH2, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gmvolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []
