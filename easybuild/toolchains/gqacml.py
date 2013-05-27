@@ -31,11 +31,10 @@ EasyBuild support for gqacml compiler toolchain (includes GCC, QLogicMPI, ACML, 
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
-from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.qlogicmpi import QLogicMPI
 
 
-class Gqacml(Gcc, QLogicMPI, Acml, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, QLogic MPI, ACML, BLACS, ScaLAPACK and FFTW."""
+class Gqacml(Gcc, QLogicMPI, Acml, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, QLogic MPI, ACML, ScaLAPACK and FFTW."""
     NAME = 'gqacml'

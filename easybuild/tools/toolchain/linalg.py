@@ -257,8 +257,13 @@ class LinAlg(Toolchain):
                 self.variables.nappend('LIBSCALAPACK_MT_ONLY', self.LIB_MULTITHREAD)
 
         if self.SCALAPACK_REQUIRES is not None:
-            self.variables.join('LIBSCALAPACK', 'LIBSCALAPACK_ONLY', *self.SCALAPACK_REQUIRES)
-            scalapack_mt = ["%s_MT" % x for x in self.SCALAPACK_REQUIRES]
+            # remove variables that were not set, e.g. LIBBLACS (which is optional)
+            scalapack_requires = self.SCALAPACK_REQUIRES[:]
+            for req in scalapack_requires[:]:
+                if self.variables.get(req, None) is None:
+                    scalapack_requires.remove(req)
+            self.variables.join('LIBSCALAPACK', 'LIBSCALAPACK_ONLY', *scalapack_requires)
+            scalapack_mt = ["%s_MT" % x for x in scalapack_requires]
             self.variables.join('LIBSCALAPACK_MT', 'LIBSCALAPACK_MT_ONLY', *scalapack_mt)
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBSCALAPACK_MT', self.LIB_MULTITHREAD)
