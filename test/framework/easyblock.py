@@ -101,7 +101,8 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
-        eb.load_fake_module()
+        fake_mod_data = eb.load_fake_module()
+        eb.clean_up_fake_module(fake_mod_data)
 
         # cleanup
         eb.close_log()
