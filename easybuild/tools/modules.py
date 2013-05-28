@@ -33,6 +33,7 @@ This python module implements the environment modules functionality:
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
+@author: David Brown (Pacific Northwest National Laboratory)
 """
 import os
 import re
@@ -69,6 +70,9 @@ outputMatchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
+# check (once) whether environment modules and/or lmod are available somewhere
+ecem = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+eclm = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
 class Modules(object):
     """
@@ -90,21 +94,19 @@ class Modules(object):
 
         self.check_module_path()
 
-	# make sure lmod is available somewhere
-	eclm = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-        # make sure environment-modules is installed
-        ecem = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if ecem and eclm:
-            msg = "Could not find the modulecmd command, environment-modules is not installed?\n"
-            msg += "Exit code of 'which modulecmd': %d" % ecem
-            self.log.error(msg)
-            raise EasyBuildError(msg)
+        # make sure environment-modules or lmod is available
+        # environment modules is preferred over lmod (for now) if both are available
+        if eclm:
+            self.modulecmd = "modulecmd"
         elif ecem:
             self.modulecmd = "lmod"
             os.environ['LMOD_EXPERT'] = '1'
-        elif eclm:
-            self.modulecmd = "modulecmd"
+        else:
+            msg = "Could not find the modulecmd command, environment-modules or lmod not available?\n"
+            msg += "Exit code of 'which modulecmd': %d\n" % ecem
+            msg += "Exit code of 'which lmod': %d\n" % eclm
+            self.log.error(msg)
+            raise EasyBuildError(msg)
 
     def check_module_path(self):
         """
@@ -236,11 +238,15 @@ class Modules(object):
 
             self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
 
-            # second line of module show output contains full path of module file
+            # get full path of module file
             if self.modulecmd == 'lmod':
-                return modinfo.split('\n')[6].strip().replace(':', '')
+                # 7th line for lmod show output
+                mod_full_path = modinfo.split('\n')[6].strip().replace(':', '')
             else:
-                return modinfo.split('\n')[1].replace(':', '')
+                # 2nd line for environment modules show output
+                mod_full_path = modinfo.split('\n')[1].replace(':', '')
+
+            return mod_full_path
 
     def run_module(self, *args, **kwargs):
         """
@@ -264,18 +270,22 @@ class Modules(object):
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
                        (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
+
+        # we need to run 'lmod update' before every lmod command (?!?)
         if self.modulecmd == 'lmod':
-            self.log.debug("Running Lmod Update (MODULEPATH=\"%s\")" % (environ['MODULEPATH']))
+            self.log.debug("Running 'lmod update' (MODULEPATH=\"%s\")" % (environ['MODULEPATH']))
             proc = subprocess.Popen([self.modulecmd, 'python', 'update'],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
             (stdout, stderr) = proc.communicate()
             try:
                 exec stdout
             except Exception, err:
-                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s, %s)" % (err,stderr, stdout))
+                out = "stdout: %s, stderr: %s" % (stdout, stderr)
+                raise EasyBuildError("Changing environment as dictated by 'lmod update' failed: %s (%s)" % (err, out))
+
         # modulecmd is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
-        self.log.debug("Running ModuleCMD %s (MODULEPATH=\"%s\")" % (args[0], environ['MODULEPATH']))
+        self.log.debug("Running module cmd '%s' (MODULEPATH=\"%s\")" % (args[0], environ['MODULEPATH']))
         proc = subprocess.Popen([self.modulecmd, 'python'] + args,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
@@ -293,7 +303,8 @@ class Modules(object):
             try:
                 exec stdout
             except Exception, err:
-                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s, %s)" % (err,stderr, stdout))
+                out = "stdout: %s, stderr: %s" % (stdout, stderr)
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
@@ -335,7 +346,7 @@ class Modules(object):
             mods = ['/'.join([mod['name'], mod['version']]) for mod in self.run_module('list')]
 
         else:
-            self.log.debug("No environment variable found to determine loaded modules, assuming no modules are loaded.")
+            self.log.debug("No way found to determine loaded modules, assuming no modules are loaded.")
 
         # filter devel modules, since they cannot be split like this
         mods = [mod for mod in mods if not mod.endswith("easybuild-devel")]
