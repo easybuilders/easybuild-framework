@@ -37,7 +37,7 @@ import tempfile
 from vsc import fancylogger
 
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
