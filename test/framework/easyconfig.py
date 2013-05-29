@@ -41,6 +41,7 @@ from unittest import TestCase, TestSuite, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -58,6 +59,7 @@ class EasyConfigTest(TestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
+        config.variables['source_path'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
     def prep(self):
         """Prepare for test."""
@@ -261,6 +263,29 @@ class EasyConfigTest(TestCase):
         eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
 
         self.assertEqual(eb['mandatory_key'], 'value')
+
+    def test_exts_list(self):
+        """Test handling of list of extensions."""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = [',
+            '   ("ext1", "ext_ver1", {',
+            '       "source_tmpl": ["gzip-1.4.eb"],',  # dummy source template to avoid downloading fail
+            '       "source_urls": ["http://example.com/"]',
+            '   }),',
+            '   ("ext2", "ext_ver2", {',
+            '       "source_tmpl": ["gzip-1.4.eb"],',  # dummy source template to avoid downloading fail
+            '       "source_urls": [("http://example.com", "suffix")],'
+            '   }),',
+            ']',
+        ])
+        self.prep()
+        eb = EasyBlock(self.eb_file)
+        exts_sources = eb.fetch_extension_sources()
 
     def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
