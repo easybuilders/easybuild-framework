@@ -47,7 +47,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -291,14 +291,14 @@ class EasyBlock(object):
                               }
 
                     if ext_options.get('source_tmpl', None):
-                        fn = ext_options['source_tmpl'] % ext_src
+                        fn = resolve_template(ext_options['source_tmpl'], ext_src)
                     else:
-                        fn = def_src_tmpl % ext_src
+                        fn = resolve_template(def_src_tmpl, ext_src)
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = [url % ext_src for url in ext_options.get('source_urls', [])]
+                        source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
                         src_fn = self.obtain_file(fn, extension=True, urls=source_urls)
 
                         if src_fn:
