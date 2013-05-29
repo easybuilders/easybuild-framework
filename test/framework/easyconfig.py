@@ -274,11 +274,11 @@ class EasyConfigTest(TestCase):
             'toolchain = {"name": "dummy", "version": "dummy"}',
             'exts_list = [',
             '   ("ext1", "ext_ver1", {',
-            '       "source_tmpl": ["gzip-1.4.eb"],',  # dummy source template to avoid downloading fail
+            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '       "source_urls": ["http://example.com/"]',
             '   }),',
             '   ("ext2", "ext_ver2", {',
-            '       "source_tmpl": ["gzip-1.4.eb"],',  # dummy source template to avoid downloading fail
+            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '       "source_urls": [("http://example.com", "suffix")],'
             '   }),',
             ']',
