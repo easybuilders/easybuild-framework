@@ -541,72 +541,15 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
-    def _resolve_template(self, value):
-        """Given a value, try to susbstitute the templated strings with actual values.
-            - value: some python object (supported are string, tuple/list, dict or some mix thereof)
-        """
-        if self.template_values is None or len(self.template_values) == 0:
-            self.generate_template_values()
-
-        if isinstance(value, basestring):
-            # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
-            #         but ignore a string like '%(name)s'
-            # behaviour of strings like '%(name)s',
-            #   make sure that constructs like %%(name)s are preserved
-            #   higher order escaping in the original text is considered advanced users only,
-            #   and a big no-no otherwise. It indicates that want some new functionality
-            #   in easyconfigs, so just open an issue for it.
-            #   detailed behaviour:
-            #     if a an odd number of % prefixes the (name)s,
-            #     we assume that templating is assumed and the behaviour is as follows
-            #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
-            #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
-            #     if a an even number of % prefixes the (name)s,
-            #     we assume that no templating is desired and the behaviour is as follows
-            #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
-            #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
-            # examples:
-            # '10%' -> '10%%'
-            # '%s' -> '%%s'
-            # '%%' -> '%%%%'
-            # '%(name)s' -> '%(name)s'
-            # '%%(name)s' -> '%%(name)s'
-            value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
-
-            try:
-                value = value % self.template_values
-            except KeyError:
-                self.log.warning("Unable to resolve template value %s with dict %s" %
-                                 (value, self.template_values))
-        else:
-            # this block deals with references to objects and returns other references
-            # for reading this is ok, but for self['x'] = {}
-            # self['x']['y'] = z does not work
-            # self['x'] is a get, will return a reference to a templated version of self._config['x']
-            # and the ['y] = z part will be against this new reference
-            # you will need to do
-            # self.enable_templating = False
-            # self['x']['y'] = z
-            # self.enable_templating = True
-            # or (direct but evil)
-            # self._config['x']['y'] = z
-            # it can not be intercepted with __setitem__ because the set is done at a deeper level
-            if isinstance(value, list):
-                value = [self._resolve_template(val) for val in value]
-            elif isinstance(value, tuple):
-                value = tuple(self._resolve_template(list(value)))
-            elif isinstance(value, dict):
-                value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
-
-        return value
-
     def __getitem__(self, key):
         """
         will return the value without the help text
         """
         value = self._config[key][0]
         if self.enable_templating:
-            return self._resolve_template(value)
+            if self.template_values is None or len(self.template_values) == 0:
+                self.generate_template_values()
+            return resolve_template(value, self.template_values)
         else:
             return value
 
@@ -675,4 +618,61 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
 
     return installversion
 
+
+def resolve_template(value, tmpl_dict):
+    """Given a value, try to susbstitute the templated strings with actual values.
+        - value: some python object (supported are string, tuple/list, dict or some mix thereof)
+        - tmpl_dict: template dictionary
+    """
+    if isinstance(value, basestring):
+        # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+        #         but ignore a string like '%(name)s'
+        # behaviour of strings like '%(name)s',
+        #   make sure that constructs like %%(name)s are preserved
+        #   higher order escaping in the original text is considered advanced users only,
+        #   and a big no-no otherwise. It indicates that want some new functionality
+        #   in easyconfigs, so just open an issue for it.
+        #   detailed behaviour:
+        #     if a an odd number of % prefixes the (name)s,
+        #     we assume that templating is assumed and the behaviour is as follows
+        #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
+        #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
+        #     if a an even number of % prefixes the (name)s,
+        #     we assume that no templating is desired and the behaviour is as follows
+        #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
+        #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+        # examples:
+        # '10%' -> '10%%'
+        # '%s' -> '%%s'
+        # '%%' -> '%%%%'
+        # '%(name)s' -> '%(name)s'
+        # '%%(name)s' -> '%%(name)s'
+        value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+
+        try:
+            value = value % tmpl_dict
+        except KeyError:
+            _log.warning("Unable to resolve template value %s with dict %s" %
+                             (value, tmpl_dict))
+    else:
+        # this block deals with references to objects and returns other references
+        # for reading this is ok, but for self['x'] = {}
+        # self['x']['y'] = z does not work
+        # self['x'] is a get, will return a reference to a templated version of self._config['x']
+        # and the ['y] = z part will be against this new reference
+        # you will need to do
+        # self.enable_templating = False
+        # self['x']['y'] = z
+        # self.enable_templating = True
+        # or (direct but evil)
+        # self._config['x']['y'] = z
+        # it can not be intercepted with __setitem__ because the set is done at a deeper level
+        if isinstance(value, list):
+            value = [resolve_template(val, tmpl_dict) for val in value]
+        elif isinstance(value, tuple):
+            value = tuple(resolve_template(list(value), tmpl_dict))
+        elif isinstance(value, dict):
+            value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
+
+    return value
 
