@@ -33,7 +33,7 @@ Creating a new toolchain should be as simple as possible.
 
 from vsc import fancylogger
 from easybuild.tools.environment import setvar
-from easybuild.tools.modules import Modules, get_software_root, get_software_version
+from easybuild.tools.modules import modules_tool, get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -84,6 +84,8 @@ class Toolchain(object):
         self.version = version
 
         self.vars = None
+
+        self.modules = modules_tool()
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -201,7 +203,7 @@ class Toolchain(object):
         # TODO: what about dummy versions ?
 
         self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
-        return Modules().exists(name, version)
+        return self.modules.exists(name, version)
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -236,7 +238,7 @@ class Toolchain(object):
             return version
         else:
             toolchain_suffix = "".join([toolchain, suffix])
-            matches = Modules().available(dependency['name'], toolchain_suffix)
+            matches = self.modules.available(dependency['name'], toolchain_suffix)
             # Find the most recent (or default) one
             if len(matches) > 0:
                 version = matches[-1][-1]
@@ -248,7 +250,6 @@ class Toolchain(object):
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
-        mod = Modules()
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
             if 'tk' in dep:
@@ -258,7 +259,7 @@ class Toolchain(object):
             if not 'tc' in dep:
                 dep['tc'] = self.get_dependency_version(dep)
 
-            if not mod.exists(dep['name'], dep['tc']):
+            if not self.modules.exists(dep['name'], dep['tc']):
                 self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
                                         (dep['name'], dep['tc']))
             else:
@@ -288,19 +289,17 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                modules = Modules()
-                modules.add_module(self.dependencies)
-                modules.load()
+                self.modules.add_module(self.dependencies)
+                self.modules.load()
             return
 
         # Load the toolchain and dependencies modules
-        modules = Modules()
-        modules.add_module([(self.name, self.version)])
-        modules.add_module(self.dependencies)
-        modules.load()
+        self.modules.add_module([(self.name, self.version)])
+        self.modules.add_module(self.dependencies)
+        self.modules.load()
 
         # determine direct toolchain dependencies (legacy, not really used anymore)
-        self.toolchain_dependencies = modules.dependencies_for(self.name, self.version, depth=0)
+        self.toolchain_dependencies = self.modules.dependencies_for(self.name, self.version, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module

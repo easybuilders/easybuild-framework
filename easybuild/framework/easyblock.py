@@ -58,7 +58,7 @@ from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, 
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Modules, get_software_root
+from easybuild.tools.modules import modules_tool, get_software_root
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -114,6 +114,8 @@ class EasyBlock(object):
                               valid_stops=all_stops
                               )
 
+        # modules interface with default MODULEPATH
+        self.modules = modules_tool()
         # module generator
         self.moduleGenerator = None
 
@@ -776,7 +778,7 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        m = Modules(mod_paths)
+        m = modules_tool(mod_paths)
         # purge all loaded modules if desired
         if purge:
             m.purge()
@@ -792,10 +794,10 @@ class EasyBlock(object):
         # take a copy of the environment before loading the fake module, so we can restore it
         orig_env = copy.deepcopy(os.environ)
 
-        # make fake module
+        # create fake module
         fake_mod_path = self.make_module_step(True)
 
-        # create Modules instance
+        # load fake module
         mod_paths = [fake_mod_path]
         mod_paths.extend(self.orig_modulepath.split(':'))
         self.log.debug("mod_paths: %s" % mod_paths)
@@ -815,8 +817,8 @@ class EasyBlock(object):
         if fake_mod_path:
             try:
                 mod_paths = [fake_mod_path]
-                mod_paths.extend(Modules().modulePath)
-                m = Modules(mod_paths)
+                mod_paths.extend(self.modules.modulePath)
+                m = modules_tool(mod_paths)
                 m.add_module([[self.name, self.get_installversion()]])
                 m.unload()
                 rmtree2(os.path.dirname(fake_mod_path))
@@ -978,7 +980,7 @@ class EasyBlock(object):
         Prints the environment changes and loaded modules to the debug log
         - pretty prints the environment for easy copy-pasting
         """
-        mods = [(mod['name'], mod['version']) for mod in Modules().loaded_modules()]
+        mods = [(mod['name'], mod['version']) for mod in self.modules.loaded_modules()]
         mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
         self.loaded_modules = mods
 
@@ -1074,7 +1076,7 @@ class EasyBlock(object):
         Verify if all is ok to start build.
         """
         # Check whether modules are loaded
-        loadedmods = Modules().loaded_modules()
+        loadedmods = self.modules.loaded_modules()
         if len(loadedmods) > 0:
             self.log.warning("Loaded modules detected: %s" % loadedmods)
 
@@ -1094,7 +1096,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if Modules().exists(self.name, self.get_installversion()):
+            if self.modules.exists(self.name, self.get_installversion()):
                 self.skip = True
                 self.log.info("Current version (name: %s, version: %s) found." % (self.name, self.get_installversion))
                 self.log.info("Going to skip actually main build and potential existing extensions. Expert only.")
