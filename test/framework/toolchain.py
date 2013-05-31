@@ -34,7 +34,7 @@ from unittest import TestCase, TestLoader, main
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.modules import Modules
+from easybuild.tools.modules import modules_tool
 from test.framework.utilities import find_full_path
 
 class ToolchainTest(TestCase):
@@ -392,7 +392,7 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
-        Modules().purge()
+        modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():

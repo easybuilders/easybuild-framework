@@ -46,7 +46,7 @@ class ModulesTest(TestCase):
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
-        testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
+        testmods = modules.modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available('', None)
         for m in ms:
             testmods.add_module([m])
@@ -66,7 +66,7 @@ class ModulesTest(TestCase):
 
         os.environ['LD_LIBRARY_PATH'] = testpath
 
-        testmods = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
+        testmods = modules.modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
         testmods.add_module([('GCC', '4.6.3')])
         testmods.load()
 
@@ -75,7 +75,7 @@ class ModulesTest(TestCase):
 
     def test_purge(self):
         """Test if purging of modules works."""
-        m = modules.Modules([os.path.join(os.path.dirname(__file__), 'modules')])
+        m = modules.modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
 
         ms = m.available('', None)
         m.add_module([ms[0]])

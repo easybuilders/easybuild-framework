@@ -39,12 +39,12 @@ import easybuild.main as main
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules = modules.Modules
-orig_main_modules = main.Modules
+orig_modules_tool = modules.modules_tool
+orig_main_modules_tool = main.modules_tool
 
 
-class MockModule(modules.Modules):
-    """ MockModule class, allows for controlling what Modules() will return """
+class MockModule(modules.modules_tool):
+    """ MockModule class, allows for controlling what modules_tool() will return """
 
     def available(self, *args):
         """ no module should be available """
@@ -57,8 +57,8 @@ class RobotTest(TestCase):
     def setUp(self):
         """ dynamically replace Modules class with MockModule """
         # replace Modules class with something we have control over
-        modules.Modules = MockModule
-        main.Modules = MockModule
+        modules.modules_tool = MockModule
+        main.modules_tool = MockModule
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
         # redefine the main log when calling the main functions directly
@@ -109,8 +109,8 @@ class RobotTest(TestCase):
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        modules.Modules = orig_modules
-        main.Modules = orig_main_modules
+        modules.modules_tool = orig_modules_tool
+        main.modules_tool = orig_main_modules_tool
         os.chdir(self.cwd)
 
 
