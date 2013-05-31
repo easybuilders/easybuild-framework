@@ -30,6 +30,8 @@ Support for OpenMPI as toolchain MPI library.
 """
 
 from easybuild.tools.toolchain.mpi import Mpi
+from easybuild.tools.toolchain.variables import CommandFlagList
+
 
 TC_CONSTANT_OPENMPI = "OpenMPI"
 TC_CONSTANT_MPI_TYPE_OPENMPI = "MPI_TYPE_OPENMPI"
@@ -52,3 +54,18 @@ class OpenMPI(Mpi):
                              }
 
     MPI_LINK_INFO_OPTION = '-showme:link'
+
+    def _set_mpi_compiler_variables(self):
+        """Add OMPI_XXX variables to set."""
+
+        # this needs to be done first, otherwise e.g., CC is set to MPICC if the usempi toolchain option is enabled
+        for var in ["CC", "CXX", "F77", ("F90", "FC")]:
+            if isinstance(var, basestring):
+                source_var = var
+                target_var = var
+            else:
+                source_var = var[0]
+                target_var = var[1]
+            self.variables.nappend("OMPI_%s" % target_var, str(self.variables[source_var].get_first()), var_class=CommandFlagList)
+
+        super(OpenMPI, self)._set_mpi_compiler_variables()
