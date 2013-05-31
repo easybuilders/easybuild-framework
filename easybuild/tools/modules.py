@@ -74,12 +74,12 @@ _log = fancylogger.getLogger('modules', fname=False)
 # modules tool
 modules_tool = None
 
-class Modules(object):
+class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
 
     def __init__(self, modulePath=None):
         """
-        Create a Modules object
+        Create a ModulesTool object
         @param modulePath: A list of paths where the modules can be located
         @type modulePath: list
         """
@@ -324,7 +324,7 @@ class Modules(object):
         return deps
 
 
-class EnvironmentModulesC(Modules):
+class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
 
     def __init__(self, *args, **kwargs):
@@ -392,7 +392,7 @@ class EnvironmentModulesC(Modules):
         return loaded_modules
 
 
-class Lmod(Modules):
+class Lmod(ModulesTool):
     """Interface to Lmod."""
 
     def __init__(self, *args, **kwargs):
@@ -519,3 +519,11 @@ else:
     msg += "Exit code of 'which lmod': %d\n" % eclm
     _log.error(msg)
     raise EasyBuildError(msg)
+
+# provide Modules class for backward compatibility (e.g., in easyblocks)
+class Modules(modules_tool):
+    """Deprecated interface to modules tool."""
+
+    def __init__(self, *args, **kwargs):
+        _log.deprecated("modules.Modules class is now an abstract interface, use modules.modules_tool instead", "2.0")
+        super(Modules, self).__init__(*args, **kwargs)
