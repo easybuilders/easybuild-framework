@@ -1,6 +1,23 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.5.0 (May 31st 2013)
+---------------------
+
+feature + bugfix release
+- various other enhancements, including:
+    - define SHLIB_EXT constant for shared library extension (.so, .dylib), deprecate shared_lib_ext global var (#630)
+    - enhance support for sanity checking extensions (#632, #649)
+    - add support for modextrapaths easyconfig parameter (#634, #637)
+    - allow source_urls to be templated for extensions (#639, #646, #647)
+    - set OMPI_* environment variables for OpenMPI (#640)
+    - make BLACS optional as toolchain element, depending on ScaLAPACK version (#638)
+- various bug fixes, including:
+    - fixed --list-toolchains, avoid listing toolchains mulitple times (#628)
+    - fix templating dictionary after parsing easyconfig file (#633)
+    - fix support for ACML as compiler toolchain element (#632)
+    - make unit tests clean up after themselves more thoroughly (#641, #642, #643)
+
 v1.4.0 (May 2nd 2013)
 ---------------------
 
