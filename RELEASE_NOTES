@@ -13,7 +13,7 @@ feature + bugfix release
     - set OMPI_* environment variables for OpenMPI (#640)
     - make BLACS optional as toolchain element, depending on ScaLAPACK version (#638)
 - various bug fixes, including:
-    - fixed --list-toolchains, avoid listing toolchains mulitple times (#628)
+    - fixed --list-toolchains, avoid listing toolchains multiple times (#628)
     - fix templating dictionary after parsing easyconfig file (#633)
     - fix support for ACML as compiler toolchain element (#632)
     - make unit tests clean up after themselves more thoroughly (#641, #642, #643)
