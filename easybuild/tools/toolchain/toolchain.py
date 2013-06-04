@@ -33,7 +33,7 @@ Creating a new toolchain should be as simple as possible.
 
 from vsc import fancylogger
 from easybuild.tools.environment import setvar
-from easybuild.tools.modules import modules_tool, get_software_root, get_software_version
+from easybuild.tools.modules import get_software_root, get_software_version
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -65,7 +65,8 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None):
+    # modules_tool can't be obtained via config.get_modules_tool because it would introduce a circular dependency
+    def __init__(self, name=None, version=None, modules_tool=None):
         self.base_init()
 
         self.dependencies = []
@@ -85,7 +86,7 @@ class Toolchain(object):
 
         self.vars = None
 
-        self.modules = modules_tool()
+        self.modules_tool = modules_tool
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -203,7 +204,7 @@ class Toolchain(object):
         # TODO: what about dummy versions ?
 
         self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
-        return self.modules.exists(name, version)
+        return self.modules_tool.exists(name, version)
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -238,7 +239,7 @@ class Toolchain(object):
             return version
         else:
             toolchain_suffix = "".join([toolchain, suffix])
-            matches = self.modules.available(dependency['name'], toolchain_suffix)
+            matches = self.modules_tool.available(dependency['name'], toolchain_suffix)
             # Find the most recent (or default) one
             if len(matches) > 0:
                 version = matches[-1][-1]
@@ -259,7 +260,7 @@ class Toolchain(object):
             if not 'tc' in dep:
                 dep['tc'] = self.get_dependency_version(dep)
 
-            if not self.modules.exists(dep['name'], dep['tc']):
+            if not self.modules_tool.exists(dep['name'], dep['tc']):
                 self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
                                         (dep['name'], dep['tc']))
             else:
@@ -281,6 +282,9 @@ class Toolchain(object):
         with module (True) or also set all other variables (False) like compiler CC etc
         (If string: comma separated list of variables that will be ignored).
         """
+        if self.modules_tool is None:
+            self.log.raiseException("No modules tool defined.")
+
         if not self._toolchain_exists():
             self.log.raiseException("No module found for toolchain name '%s' (%s)" % (self.name, self.version))
 
@@ -289,17 +293,17 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules.add_module(self.dependencies)
-                self.modules.load()
+                self.modules_tool.add_module(self.dependencies)
+                self.modules_tool.load()
             return
 
         # Load the toolchain and dependencies modules
-        self.modules.add_module([(self.name, self.version)])
-        self.modules.add_module(self.dependencies)
-        self.modules.load()
+        self.modules_tool.add_module([(self.name, self.version)])
+        self.modules_tool.add_module(self.dependencies)
+        self.modules_tool.load()
 
         # determine direct toolchain dependencies (legacy, not really used anymore)
-        self.toolchain_dependencies = self.modules.dependencies_for(self.name, self.version, depth=0)
+        self.toolchain_dependencies = self.modules_tool.dependencies_for(self.name, self.version, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
