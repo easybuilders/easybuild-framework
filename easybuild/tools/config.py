@@ -249,6 +249,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+        'modules_tool': 'EnvironmentModulesC',
     }
 
     # sanity check
@@ -389,6 +390,13 @@ def get_repository():
     Return the repository (git, svn or file)
     """
     return variables['repository']
+
+
+def get_modules_tool(mod_paths=None):
+    """
+    Return interface to modules tool (environment modules, lmod)
+    """
+    return variables['modules_tool'](mod_paths=mod_paths)
 
 
 def log_file_format(return_directory=False):

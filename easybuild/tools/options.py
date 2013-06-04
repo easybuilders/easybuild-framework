@@ -46,6 +46,7 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools import filetools
+from easybuild.tools.modules import get_modules_tools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository import get_repositories
@@ -192,6 +193,9 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'extend', oldstyle_defaults['moduleclasses']),
                 'show-default-moduleclasses': ('Show default module classes with description',
                                                None, 'store_true', False),
+                'modules-tool': ('Modules tool to use',
+                                 'choice', 'store', oldstyle_defaults['modules_tool'],
+                                 sorted(get_modules_tools().keys())),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",

@@ -41,6 +41,7 @@ import subprocess
 import sys
 from subprocess import PIPE
 from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
@@ -71,24 +72,25 @@ outputMatchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
-# modules tool
-modules_tool = None
+modules_tool = None  #FIXME: get rid of this!
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
 
-    def __init__(self, modulePath=None):
+    USEABLE = False  # can the modules tool be used?
+
+    def __init__(self, mod_paths=None):
         """
         Create a ModulesTool object
-        @param modulePath: A list of paths where the modules can be located
-        @type modulePath: list
+        @param mod_paths: A list of paths where the modules can be located
+        @type mod_paths: list
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
-        if modulePath:
-            self.modulePath = set(modulePath)
+        if mod_paths:
+            self.mod_paths = set(mod_paths)
         else:
-            self.modulePath = None
+            self.mod_paths = None
         self.modules = []
 
         self.check_module_path()
@@ -111,17 +113,17 @@ class ModulesTool(object):
                 errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
             self.log.error(errormsg)
 
-        if self.modulePath:
+        if self.mod_paths:
             # set the module path environment accordingly
-            os.environ['MODULEPATH'] = ":".join(self.modulePath)
+            os.environ['MODULEPATH'] = ":".join(self.mod_paths)
         else:
             # take module path from environment
-            self.modulePath = os.environ['MODULEPATH'].split(':')
+            self.mod_paths = os.environ['MODULEPATH'].split(':')
 
         if not 'LOADEDMODULES' in os.environ:
             os.environ['LOADEDMODULES'] = ''
 
-    def available(self, name=None, version=None, modulePath=None):
+    def available(self, name=None, version=None, modulePath=None, mod_paths=None):
         """
         Return list of available modules.
         """
@@ -134,7 +136,10 @@ class ModulesTool(object):
         if version:
             txt = "%s/%s" % (name, version)
 
-        modules = self.run_module('avail', txt, modulePath=modulePath)
+        if mod_paths is None and modulePath:
+            mod_paths = modulePath
+            self.log.deprecated("Use of 'modulePath' named argument in 'available', should use 'mod_paths'.", "2.0")
+        modules = self.run_module('avail', txt, mod_paths=mod_paths)
 
         # sort the answers in [name, version] pairs
         # alphabetical order, default last
@@ -142,14 +147,17 @@ class ModulesTool(object):
         ans = [(mod['name'], mod['version']) for mod in modules]
 
         self.log.debug("module available name '%s' version '%s' in %s gave %d answers: %s" %
-                       (name, version, modulePath, len(ans), ans))
+                       (name, version, mod_paths, len(ans), ans))
         return ans
 
-    def exists(self, name, version, modulePath=None):
+    def exists(self, name, version, modulePath=None, mod_paths=None):
         """
         Check if module is available.
         """
-        return (name, version) in self.available(name, version, modulePath)
+        if mod_paths is None and modulePath:
+            mod_paths = modulePath
+            self.log.deprecated("Use of 'modulePath' named argument in 'exists', should use 'mod_paths'.", "2.0")
+        return (name, version) in self.available(name, version, mod_paths=mod_paths)
 
     def add_module(self, modules):
         """
@@ -232,8 +240,11 @@ class ModulesTool(object):
             args.insert(0, '--terse')  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
-        if kwargs.get('modulePath', None):
+        if kwargs.get('mod_paths', None):
+            os.environ['MODULEPATH'] = kwargs.get('mod_paths')
+        elif kwargs.get('modulePath', None):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
+            self.log.deprecated("Use of 'modulePath' named argument in 'run_module', should use 'mod_paths'.", "2.0")
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
         self.log.debug("Running '%s python %s' from %s..." % (self.cmd, ' '.join(args), os.getcwd()))
         # change our LD_LIBRARY_PATH here
@@ -328,6 +339,15 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
 
+    which_ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if which_ec == 0:
+        USEABLE = True
+    else:
+        USEABLE = False
+        print("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+        self.log.warning("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+    del which_ec
+
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd-specific class variable values."""
         super(EnvironmentModulesC, self).__init__(*args, **kwargs)
@@ -393,6 +413,15 @@ class EnvironmentModulesC(ModulesTool):
 class Lmod(ModulesTool):
     """Interface to Lmod."""
 
+    which_ec = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if which_ec == 0:
+        USEABLE = True
+    else:
+        USEABLE = False
+        print("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+        self.log.warning("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+    del which_ec
+
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         super(Lmod, self).__init__(*args, **kwargs)
@@ -402,7 +431,7 @@ class Lmod(ModulesTool):
         os.environ['LMOD_EXPERT'] = '1'
 
         # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
-        for modpath in self.modulePath:
+        for modpath in self.mod_paths:
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
             proc = subprocess.Popen([self.cmd, 'python', 'use', modpath], stdout=PIPE, stderr=PIPE, env=os.environ)
@@ -511,25 +540,18 @@ def mk_module_path(paths):
     return ':'.join(paths)
 
 
-# check (once) whether environment modules and/or lmod are available somewhere
-ecem = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-eclm = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+def get_modules_tools(check_usable=True):
+    """
+    Return all known modules tools.
+        check_usable: boolean, if True, only return usable tools
+    """
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool) if x.USEABLE or not check_usable])
+    class_dict = dict((k, v) for (k, v) in class_dict.items() if k != 'Modules')  # filter out legacy Modules class
+    return class_dict
 
-# make sure environment-modules or lmod is available
-# environment modules is preferred over lmod (for now) if both are available
-if eclm:
-    modules_tool = EnvironmentModulesC
-elif ecem:
-    modules_tool = Lmod
-else:
-    msg = "Could not find any module command, environment-modules and lmod not available?\n"
-    msg += "Exit code of 'which modulecmd': %d\n" % ecem
-    msg += "Exit code of 'which lmod': %d\n" % eclm
-    _log.error(msg)
-    raise EasyBuildError(msg)
 
 # provide Modules class for backward compatibility (e.g., in easyblocks)
-class Modules(modules_tool):
+class Modules(EnvironmentModulesC):
     """Deprecated interface to modules tool."""
 
     def __init__(self, *args, **kwargs):
