@@ -89,9 +89,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTION
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
-from easybuild.tools.config import get_repository, module_classes
+from easybuild.tools.config import get_repository, module_classes, get_modules_tool
 from easybuild.tools.filetools import modify_env, read_file, write_file
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.modules import curr_module_paths, mk_module_path
 from easybuild.tools.ordereddict import OrderedDict
 
@@ -389,7 +388,8 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         # create easyconfig
         try:
             all_stops = [x[0] for x in EasyBlock.get_steps()]
-            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops)
+            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops,
+                            modules_tool=get_modules_tool())
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -436,7 +436,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
 def skip_available(easyconfigs, testing=False):
     """Skip building easyconfigs for which a module is already available."""
-    m = modules_tool()
+    m = get_modules_tool()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
         module = ec['module']
@@ -464,7 +464,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        availableModules = modules_tool().available()
+        availableModules = get_modules_tool().available()
 
         if len(availableModules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
