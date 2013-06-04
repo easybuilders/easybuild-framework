@@ -36,12 +36,13 @@ import shutil
 import tempfile
 from vsc import fancylogger
 
+import easybuild.tools.config as config
+import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
-from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -51,6 +52,11 @@ class EasyConfigTest(TestCase):
     """ easyconfig tests """
     contents = None
     eb_file = ''
+
+    # initialize configuration so get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
 
     def setUp(self):
         """ create temporary easyconfig file """
@@ -77,10 +83,10 @@ class EasyConfigTest(TestCase):
             os.remove(self.eb_file)
         os.chdir(self.cwd)
 
-    def assertErrorRegex(self, error, regex, call, *args):
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
         """ convenience method to match regex with the error message """
         try:
-            call(*args)
+            call(*args, **kwargs)
             self.assertTrue(False)  # this will fail when no exception is thrown at all
         except error, err:
             res = re.search(regex, err.msg)
@@ -92,8 +98,8 @@ class EasyConfigTest(TestCase):
         """ empty files should not parse! """
         self.contents = "# empty string"
         self.prep()
-        self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
+        self.assertRaises(EasyBuildError, EasyConfig, self.eb_file, modules_tool=config.get_modules_tool())
+        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "", modules_tool=config.get_modules_tool())
 
     def test_mandatory(self):
         """ make sure all checking of mandatory variables works """
@@ -102,7 +108,7 @@ class EasyConfigTest(TestCase):
             'version = "3.14"',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "mandatory variables .* not provided", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "mandatory variables .* not provided", EasyConfig, self.eb_file, modules_tool=config.get_modules_tool())
 
         self.contents += '\n' + '\n'.join([
             'homepage = "http://google.com"',
@@ -111,7 +117,7 @@ class EasyConfigTest(TestCase):
         ])
         self.prep()
 
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
         self.assertEqual(eb['name'], "pi")
         self.assertEqual(eb['version'], "3.14")
@@ -130,7 +136,7 @@ class EasyConfigTest(TestCase):
             'stop = "notvalid"',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
 
         eb['stop'] = 'patch'
@@ -144,12 +150,12 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb.get_installversion(), "3.14")
 
         os.chmod(self.eb_file, 0000)
-        self.assertErrorRegex(EasyBuildError, "Unexpected IOError", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "Unexpected IOError", EasyConfig, self.eb_file, modules_tool=config.get_modules_tool())
         os.chmod(self.eb_file, 0755)
 
         self.contents += "\nsyntax_error'"
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file, modules_tool=config.get_modules_tool())
 
     def test_shared_lib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
@@ -162,7 +168,7 @@ class EasyConfigTest(TestCase):
             'sanity_check_paths = { "files": ["lib/lib.%s" % shared_lib_ext] }',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
     def test_dependency(self):
@@ -177,7 +183,7 @@ class EasyConfigTest(TestCase):
             'builddependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         # should include builddependencies
         self.assertEqual(len(eb.dependencies()), 4)
         self.assertEqual(len(eb.builddependencies()), 2)
@@ -227,12 +233,12 @@ class EasyConfigTest(TestCase):
             'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertRaises(KeyError, lambda: eb['custom_key'])
 
         extra_vars = [('custom_key', ['default', "This is a default key", easyconfig.CUSTOM])]
 
-        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(eb['custom_key'], 'default')
 
         eb['custom_key'] = "not so default"
@@ -242,7 +248,7 @@ class EasyConfigTest(TestCase):
 
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(eb['custom_key'], 'test')
 
         eb['custom_key'] = "not so default"
@@ -255,12 +261,12 @@ class EasyConfigTest(TestCase):
 
         # test extra mandatory vars
         self.assertErrorRegex(EasyBuildError, r"mandatory variables \S* not provided",
-                              EasyConfig, self.eb_file, extra_vars)
+                              EasyConfig, self.eb_file, extra_vars, modules_tool=config.get_modules_tool())
 
         self.contents += '\nmandatory_key = "value"'
         self.prep()
 
-        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
         self.assertEqual(eb['mandatory_key'], 'value')
 
@@ -339,14 +345,14 @@ class EasyConfigTest(TestCase):
                  }
         tweak(self.eb_file, tweaked_fn, tweaks)
 
-        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
+        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['versionprefix'], verpref)
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], extra_patches + patches)
 
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
         eb.enable_templating = False
         eb['version'] = ver
@@ -363,7 +369,7 @@ class EasyConfigTest(TestCase):
 
         tweak(self.eb_file, tweaked_fn, tweaks)
 
-        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
+        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(eb['toolchain']['name'], tcname)
         self.assertEqual(eb['toolchain']['version'], tcver)
         self.assertEqual(eb['patches'], extra_patches[0:1] + patches)
@@ -479,7 +485,7 @@ class EasyConfigTest(TestCase):
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(ec['name'], specs['name'])
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['versionsuffix'], specs['versionsuffix'])
@@ -494,7 +500,7 @@ class EasyConfigTest(TestCase):
         specs.update({'version': ver})
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(ec['version'], specs['version'])
         txt = read_file(res[1])
         self.assertTrue(re.search("version = [\"']%s[\"'] .*was: [\"']3.13[\"']" % ver, txt))
@@ -507,7 +513,7 @@ class EasyConfigTest(TestCase):
                      })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['toolchain']['version'], specs['toolchain_version'])
         txt = read_file(res[1])
@@ -525,7 +531,7 @@ class EasyConfigTest(TestCase):
                      })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
-        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         self.assertEqual(ec['patches'], specs['patches'] + patches)
         self.assertEqual(ec['dependencies'], specs['dependencies'])
         os.remove(res[1])
@@ -559,7 +565,7 @@ class EasyConfigTest(TestCase):
             specs.update({'name': 'nosuchsoftware'})
             res = obtain_ec_for(specs, [self.ec_dir], None)
             self.assertEqual(res[0], True)
-            ec = EasyConfig(res[1], valid_stops=self.all_stops)
+            ec = EasyConfig(res[1], valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 
@@ -586,7 +592,7 @@ class EasyConfigTest(TestCase):
             'sanity_check_paths = {"files": [], "dirs": ["libfoo.%%s" %% SHLIB_EXT]}',
         ]) % inp
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
         eb.validate()
         eb.generate_template_values()
 
@@ -640,7 +646,7 @@ class EasyConfigTest(TestCase):
         configopts = '--opt1 --opt2=foo'
         self.contents = orig_contents + "\nconfigopts = '%s'" % configopts
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
         self.assertEqual(eb['configopts'], configopts)
 
@@ -648,7 +654,7 @@ class EasyConfigTest(TestCase):
         configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
         self.contents = orig_contents + "\nconfigopts = %s" % str(configopts)
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
         self.assertEqual(eb['configopts'][0], configopts[0])
         self.assertEqual(eb['configopts'][1], configopts[1])
@@ -662,7 +668,7 @@ class EasyConfigTest(TestCase):
             "installopts = %s" % str(installopts),
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
         self.assertEqual(eb['configopts'][0], configopts[0])
         self.assertEqual(eb['configopts'][1], configopts[1])
@@ -679,7 +685,7 @@ class EasyConfigTest(TestCase):
             "installopts = %s" % str(installopts),
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False, modules_tool=config.get_modules_tool())
         self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
                               eb.validate)
 
@@ -691,7 +697,7 @@ class EasyConfigTest(TestCase):
             "installopts = %s" % str(installopts),
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+        eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, modules_tool=config.get_modules_tool())
 
 def suite():
     """ returns all the testcases in this module """

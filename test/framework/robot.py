@@ -34,16 +34,18 @@ from unittest import TestCase, TestSuite
 from unittest import main as unittestmain
 from vsc import fancylogger
 
+import easybuild.tools.config as config
 import easybuild.tools.modules as modules
+import easybuild.tools.options as eboptions
 import easybuild.main as main
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules_tool = modules.modules_tool
-orig_main_modules_tool = main.modules_tool
+orig_get_modules_tool = config.get_modules_tool
+orig_main_get_modules_tool = main.get_modules_tool
 
 
-class MockModule(modules.modules_tool):
+class MockModule(modules.ModulesTool):
     """ MockModule class, allows for controlling what modules_tool() will return """
 
     def available(self, *args):
@@ -51,14 +53,24 @@ class MockModule(modules.modules_tool):
         return []
 
 
+def get_mock_module(mod_paths=None):
+    """Get mock module instance."""
+    return MockModule(mod_paths=mod_paths)
+
+
 class RobotTest(TestCase):
     """ Testcase for the robot dependency resolution """
+
+    # initialize configuration so get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
 
     def setUp(self):
         """ dynamically replace Modules class with MockModule """
         # replace Modules class with something we have control over
-        modules.modules_tool = MockModule
-        main.modules_tool = MockModule
+        config.get_modules_tool = get_mock_module
+        main.get_modules_tool = get_mock_module
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
         # redefine the main log when calling the main functions directly
@@ -109,8 +121,8 @@ class RobotTest(TestCase):
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        modules.modules_tool = orig_modules_tool
-        main.modules_tool = orig_main_modules_tool
+        config.get_modules_tool = orig_get_modules_tool
+        main.get_modules_tool = orig_main_get_modules_tool
         os.chdir(self.cwd)
 
 
