@@ -343,8 +343,7 @@ class EnvironmentModulesC(ModulesTool):
         USEABLE = True
     else:
         USEABLE = False
-        print("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
-        self.log.warning("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+        _log.warning("EnvironmentModulesC modules tool can not be used, 'modulecmd' is not available.")
     del which_ec
 
     def __init__(self, *args, **kwargs):
@@ -417,8 +416,7 @@ class Lmod(ModulesTool):
         USEABLE = True
     else:
         USEABLE = False
-        print("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
-        self.log.warning("%s can not be used, '%s' is not available." % (self.__name__, self.cmd))
+        _log.warning("Lmod modules tool can not be used, 'lmod' is not available.")
     del which_ec
 
     def __init__(self, *args, **kwargs):
