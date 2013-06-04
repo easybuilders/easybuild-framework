@@ -72,7 +72,6 @@ outputMatchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
-modules_tool = None  #FIXME: get rid of this!
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
