@@ -39,6 +39,7 @@ import time
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
+from easybuild.tools.modules import ModulesTool, get_modules_tools
 from easybuild.tools.repository import Repository, get_repositories
 from easybuild.tools.utilities import read_environment as _read_environment
 
@@ -396,7 +397,8 @@ def get_modules_tool(mod_paths=None):
     """
     Return interface to modules tool (environment modules, lmod)
     """
-    return variables['modules_tool'](mod_paths=mod_paths)
+    modules_tool_class = get_modules_tools().get(variables['modules_tool'])
+    return modules_tool_class(mod_paths=mod_paths)
 
 
 def log_file_format(return_directory=False):
@@ -516,7 +518,7 @@ def oldstyle_read_configuration(filename):
     """
     _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
 
-    file_variables = get_repositories(check_usable=False)
+    file_variables = get_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)
     except (IOError, SyntaxError), err:

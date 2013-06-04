@@ -540,13 +540,15 @@ def mk_module_path(paths):
     return ':'.join(paths)
 
 
-def get_modules_tools(check_usable=True):
+def get_modules_tools(check_useable=True):
     """
     Return all known modules tools.
-        check_usable: boolean, if True, only return usable tools
+        check_useable: boolean, if True, only return usable tools
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool) if x.USEABLE or not check_usable])
-    class_dict = dict((k, v) for (k, v) in class_dict.items() if k != 'Modules')  # filter out legacy Modules class
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool) if x.USEABLE or not check_useable])
+    # filter out legacy Modules class
+    if 'Modules' in class_dict:
+        del class_dict['Modules']
     return class_dict
 
 

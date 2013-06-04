@@ -431,12 +431,12 @@ class SvnRepository(FileRepository):
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
 
-def get_repositories(check_usable=True):
+def get_repositories(check_useable=True):
     """
     Return all repositories.
-        check_usable: boolean, if True, only return usable repositories
+        check_useable: boolean, if True, only return usable repositories
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_usable])
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
     if not 'FileRepository' in class_dict:
         _log.error('get_repositories: FileRepository missing from list of repositories')

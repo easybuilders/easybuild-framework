@@ -490,8 +490,8 @@ class EasyBuildOptions(GeneralOption):
     def avail_repositories(self):
         """Show list of known repository types."""
         repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
-        all_repos = get_repositories(check_usable=False)
-        usable_repos = get_repositories(check_usable=True).keys()
+        all_repos = get_repositories(check_useable=False)
+        usable_repos = get_repositories(check_useable=True).keys()
 
         indent = ' ' * 2
         txt = ['All avaialble repository types']

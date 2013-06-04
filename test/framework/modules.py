@@ -33,12 +33,19 @@ Unit tests for modules.py.
 import os
 import re
 
+import easybuild.tools.config as config
+import easybuild.tools.options as eboptions
 from easybuild.tools.config import get_modules_tool
 from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
     """ small test for Modules """
+
+    # initialize configuration so get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
 
     def setUp(self):
         """setup"""
