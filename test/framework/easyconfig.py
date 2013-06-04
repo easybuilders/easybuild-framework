@@ -37,32 +37,39 @@ import tempfile
 from vsc import fancylogger
 
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
 class EasyConfigTest(TestCase):
-    """ Baseclass for easyblock testcases """
+    """ easyconfig tests """
     contents = None
     eb_file = ''
 
     def setUp(self):
         """ create temporary easyconfig file """
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
+        self.cwd = os.getcwd()
+        self.all_stops = [x[0] for x in EasyBlock.get_steps()]
+        if os.path.exists(self.eb_file):
+            os.remove(self.eb_file)
+        config.variables['source_path'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+
+    def prep(self):
+        """Prepare for test."""
+        # (re)cleanup last test file
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
         if self.contents is not None:
             fd, self.eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
             os.close(fd)
             write_file(self.eb_file, self.contents)
-        self.cwd = os.getcwd()
-
-        self.all_stops = [x[0] for x in EasyBlock.get_steps()]
 
     def tearDown(self):
         """ make sure to remove the temporary file """
@@ -81,33 +88,28 @@ class EasyConfigTest(TestCase):
                 print "err: %s" % err
             self.assertTrue(res)
 
-
-class TestEmpty(EasyConfigTest):
-    """ Test empty easyblocks """
-
-    contents = "# empty string"
-
-    def runTest(self):
+    def test_empty(self):
         """ empty files should not parse! """
+        self.contents = "# empty string"
+        self.prep()
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
 
-
-class TestMandatory(EasyConfigTest):
-    """ Test mandatory variable validation """
-
-    contents = """
-name = "pi"
-version = "3.14"
-"""
-
-    def runTest(self):
+    def test_mandatory(self):
         """ make sure all checking of mandatory variables works """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+        ])
+        self.prep()
         self.assertErrorRegex(EasyBuildError, "mandatory variables .* not provided", EasyConfig, self.eb_file)
 
-        self.contents += "\n".join(['homepage = "http://google.com"', 'description = "test easyconfig"',
-                                    'toolchain = {"name": "dummy", "version": "dummy"}'])
-        self.setUp()
+        self.contents += '\n' + '\n'.join([
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
+        self.prep()
 
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
@@ -117,21 +119,17 @@ version = "3.14"
         self.assertEqual(eb['toolchain'], {"name":"dummy", "version": "dummy"})
         self.assertEqual(eb['description'], "test easyconfig")
 
-
-class TestValidation(EasyConfigTest):
-    """ test other validations """
-
-    contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-stop = 'notvalid'
-"""
-
-    def runTest(self):
+    def test_validation(self):
         """ test other validations beside mandatory variables """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'stop = "notvalid"',
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
         self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
 
@@ -150,43 +148,35 @@ stop = 'notvalid'
         os.chmod(self.eb_file, 0755)
 
         self.contents += "\nsyntax_error'"
-        self.setUp()
+        self.prep()
         self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
 
-
-class TestSharedLibExt(EasyConfigTest):
-    """ test availability of shared_lib_ext in easyblock context """
-
-    contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-sanity_check_paths = { 'files': ["lib/lib.%s" % shared_lib_ext] }
-"""
-
-    def runTest(self):
+    def test_shared_lib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'sanity_check_paths = { "files": ["lib/lib.%s" % shared_lib_ext] }',
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
-
-class TestDependency(EasyConfigTest):
-    """ Test parsing of dependencies """
-
-    contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"GCC", "version": "4.6.3"}
-dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
-builddependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
-"""
-
-    def runTest(self):
+    def test_dependency(self):
         """ test all possible ways of specifying dependencies """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+            'builddependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         # should include builddependencies
         self.assertEqual(len(eb.dependencies()), 4)
@@ -225,22 +215,18 @@ builddependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
         eb['dependencies'] = [{'name': "test"}]
         self.assertErrorRegex(EasyBuildError, "without version", eb.dependencies)
 
-
-class TestExtraOptions(EasyConfigTest):
-    """ test extra options constructor """
-
-    contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"GCC", "version": "4.6.3"}
-toolchainopts = { "static": True}
-dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
-"""
-
-    def runTest(self):
+    def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'toolchainopts = { "static": True}',
+            'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         self.assertRaises(KeyError, lambda: eb['custom_key'])
 
@@ -254,7 +240,7 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
 
         self.contents += "\ncustom_key = 'test'"
 
-        self.setUp()
+        self.prep()
 
         eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
         self.assertEqual(eb['custom_key'], 'test')
@@ -272,53 +258,69 @@ dependencies = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
                               EasyConfig, self.eb_file, extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
-        self.setUp()
+        self.prep()
 
         eb = EasyConfig(self.eb_file, extra_vars, valid_stops=self.all_stops)
 
         self.assertEqual(eb['mandatory_key'], 'value')
 
+    def test_exts_list(self):
+        """Test handling of list of extensions."""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = [',
+            '   ("ext1", "ext_ver1", {',
+            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '       "source_urls": ["http://example.com/"]',
+            '   }),',
+            '   ("ext2", "ext_ver2", {',
+            '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
+            '       "source_urls": [("http://example.com", "suffix")],'
+            '   }),',
+            ']',
+        ])
+        self.prep()
+        eb = EasyBlock(self.eb_file)
+        exts_sources = eb.fetch_extension_sources()
 
-class TestSuggestions(EasyConfigTest):
-    """ test suggestions on typos """
-
-    contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"GCC", "version": "4.6.3"}
-dependencis = [('first', '1.1'), {'name': 'second', 'version': '2.2'}]
-source_uls = ['http://google.com']
-source_URLs = ['http://google.com']
-sourceURLs = ['http://google.com']
-"""
-
-    def runTest(self):
-        """ If a typo is present, suggestion should be provided (if possible) """
+    def test_suggestions(self):
+        """ If a typo is present, suggestions should be provided (if possible) """
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'dependencis = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
+            'source_uls = ["http://google.com"]',
+            'source_URLs = ["http://google.com"]',
+            'sourceURLs = ["http://google.com"]',
+        ])
+        self.prep()
         self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
 
-
-class TestTweaking(EasyConfigTest):
-    """test tweaking ability of easyconfigs"""
-
-    fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
-    os.close(fd)
-
-    patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
-    contents = """
-name = "pi"
-homepage = "http://www.google.com"
-description = "dummy description"
-version = "3.14"
-toolchain = {"name":"GCC", "version": "4.6.3"}
-patches = %s
-""" % str(patches)
-
-    def runTest(self):
+    def test_tweaking(self):
+        """test tweaking ability of easyconfigs"""
+    
+        fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
+        os.close(fd)
+        patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'homepage = "http://www.google.com"',
+            'description = "dummy description"',
+            'version = "3.14"',
+            'toolchain = {"name":"GCC", "version": "4.6.3"}',
+            'patches = %s',
+        ]) % str(patches)
+        self.prep()
 
         ver = "1.2.3"
         verpref = "myprefix"
@@ -335,14 +337,14 @@ patches = %s
                   'toolchain_version': tcver,
                   'patches': extra_patches
                  }
-        tweak(self.eb_file, self.tweaked_fn, tweaks)
+        tweak(self.eb_file, tweaked_fn, tweaks)
 
-        eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
+        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['versionprefix'], verpref)
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
-        self.assertEqual(eb['patches'], extra_patches + self.patches)
+        self.assertEqual(eb['patches'], extra_patches + patches)
 
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
@@ -359,25 +361,20 @@ patches = %s
                   'foo': "bar"
                  }
 
-        tweak(self.eb_file, self.tweaked_fn, tweaks)
+        tweak(self.eb_file, tweaked_fn, tweaks)
 
-        eb = EasyConfig(self.tweaked_fn, valid_stops=self.all_stops)
+        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['toolchain']['name'], tcname)
         self.assertEqual(eb['toolchain']['version'], tcver)
-        self.assertEqual(eb['patches'], extra_patches[0:1] + self.patches)
+        self.assertEqual(eb['patches'], extra_patches[0:1] + patches)
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['homepage'], homepage)
 
-    def tearDown(self):
-        EasyConfigTest.tearDown(self)
-        os.remove(self.tweaked_fn)
+        # cleanup
+        os.remove(tweaked_fn)
 
-class TestInstallVersion(EasyConfigTest):
-    """test generation of install version"""
-
-    contents = ""
-
-    def runTest(self):
+    def test_installversion(self):
+        """test generation of install version"""
 
         ver = "3.14"
         verpref = "myprefix|"
@@ -387,19 +384,13 @@ class TestInstallVersion(EasyConfigTest):
         dummy = "dummy"
 
         installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
 
         installver = det_installversion(ver, dummy, tcver, verpref, versuff)
-
         self.assertEqual(installver, "%s%s%s" % (verpref, ver, versuff))
 
-class TestObtainEasyconfig(EasyConfigTest):
-    """test obtain an easyconfig file given certain specifications"""
-
-    contents = ""
-
-    def runTest(self):
+    def test_obtain_easyconfig(self):
+        """test obtaining an easyconfig file given certain specifications"""
 
         tcname = 'GCC'
         tcver = '4.3.2'
@@ -572,55 +563,46 @@ class TestObtainEasyconfig(EasyConfigTest):
             self.assertEqual(ec['name'], specs['name'])
             os.remove(res[1])
 
-    def tearDown(self):
-        """Cleanup: remove temp dir with test easyconfig files."""
-        EasyConfigTest.tearDown(self)
+        # cleanup
         shutil.rmtree(self.ec_dir)
 
-
-class TestTemplating(EasyConfigTest):
-    """test templating validations """
-
-    inp = {
+    def test_templating(self):
+        """ test easyconfig templating """
+        inp = {
            'name':'PI',
            'version':'3.14',
            'namelower':'pi',
            'cmd': 'tar xfvz %s',
-          }
-    # don't use any escaping insanity here, since it is templated itself
-    contents = """
-name = "%(name)s"
-version = "%(version)s"
-homepage = "http://google.com"
-description = "test easyconfig %%(name)s"
-toolchain = {"name":"dummy", "version": "dummy2"}
-source_urls = [(GOOGLECODE_SOURCE)]
-sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, '%(cmd)s')]
-sanity_check_paths = {'files': [], 'dirs': ['libfoo.%%s' %% SHLIB_EXT]}
-""" % inp
-
-    def runTest(self):
-        """ test easyconfig templating """
+        }
+        # don't use any escaping insanity here, since it is templated itself
+        self.contents = '\n'.join([
+            'name = "%(name)s"',
+            'version = "%(version)s"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig %%(name)s"',
+            'toolchain = {"name":"dummy", "version": "dummy2"}',
+            'source_urls = [(GOOGLECODE_SOURCE)]',
+            'sources = [SOURCE_TAR_GZ, (SOURCELOWER_TAR_GZ, "%(cmd)s")]',
+            'sanity_check_paths = {"files": [], "dirs": ["libfoo.%%s" %% SHLIB_EXT]}',
+        ]) % inp
+        self.prep()
         eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
         eb.validate()
         eb.generate_template_values()
 
         self.assertEqual(eb['description'], "test easyconfig PI")
         const_dict = dict([(x[0], x[1]) for x in easyconfig.templates.TEMPLATE_CONSTANTS])
-        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % self.inp)
-        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % self.inp)
+        self.assertEqual(eb['sources'][0], const_dict['SOURCE_TAR_GZ'] % inp)
+        self.assertEqual(eb['sources'][1][0], const_dict['SOURCELOWER_TAR_GZ'] % inp)
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
-        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % self.inp)
+        self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
         self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
-
-class TestTemplatingDoc(EasyConfigTest):
-    """test templating documentation"""
-    def runTest(self):
+    def test_templating_doc(self):
         """test templating documentation"""
         doc = easyconfig.templates.template_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
@@ -632,10 +614,8 @@ class TestTemplatingDoc(EasyConfigTest):
                  easyconfig.templates.TEMPLATE_CONSTANTS,
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
-
-class TestConstantDoc(EasyConfigTest):
-    """test constant documentation"""
-    def runTest(self):
+    
+    def test_constant_doc(self):
         """test constant documentation"""
         doc = easyconfig.constants.constant_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
@@ -644,33 +624,30 @@ class TestConstantDoc(EasyConfigTest):
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
-class TestBuildOptions(EasyConfigTest):
-    """Test configure/build/install options, both strings and lists."""
-
-    orig_contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://google.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-"""
-    contents = orig_contents
-
-    def runTest(self):
+    def test_build_options(self):
         """Test configure/build/install options, both strings and lists."""
+        orig_contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
+        self.contents = orig_contents
+        self.prep()
 
         # configopts as string
         configopts = '--opt1 --opt2=foo'
-        self.contents = self.orig_contents + "\nconfigopts = '%s'" % configopts
-        self.setUp()
+        self.contents = orig_contents + "\nconfigopts = '%s'" % configopts
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
         self.assertEqual(eb['configopts'], configopts)
 
         # configopts as list
         configopts = ['--opt1 --opt2=foo', '--opt1 --opt2=bar']
-        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
-        self.setUp()
+        self.contents = orig_contents + "\nconfigopts = %s" % str(configopts)
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
         self.assertEqual(eb['configopts'][0], configopts[0])
@@ -679,10 +656,12 @@ toolchain = {"name":"dummy", "version": "dummy"}
         # also makeopts and installopts as lists
         makeopts = ['CC=foo' ,'CC=bar']
         installopts = ['FOO=foo' ,'BAR=bar']
-        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
-        self.contents += "\nmakeopts = %s" % str(makeopts)
-        self.contents += "\ninstallopts = %s" % str(installopts)
-        self.setUp()
+        self.contents = orig_contents + '\n' + '\n'.join([
+            "configopts = %s" % str(configopts),
+            "makeopts = %s" % str(makeopts),
+            "installopts = %s" % str(installopts),
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
         self.assertEqual(eb['configopts'][0], configopts[0])
@@ -694,30 +673,29 @@ toolchain = {"name":"dummy", "version": "dummy"}
 
         # error should be thrown if lists are not equal
         installopts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
-        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
-        self.contents += "\nmakeopts = %s" % str(makeopts)
-        self.contents += "\ninstallopts = %s" % str(installopts)
-        self.setUp()
+        self.contents = orig_contents + '\n' + '\n'.join([
+            "configopts = %s" % str(configopts),
+            "makeopts = %s" % str(makeopts),
+            "installopts = %s" % str(installopts),
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops, validate=False)
         self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
                               eb.validate)
 
         # list with a single element is OK, is treated as a string
         installopts = ['FOO=foo']
-        self.contents = self.orig_contents + "\nconfigopts = %s" % str(configopts)
-        self.contents += "\nmakeopts = %s" % str(makeopts)
-        self.contents += "\ninstallopts = %s" % str(installopts)
-        self.setUp()
+        self.contents = orig_contents + '\n' + '\n'.join([
+            "configopts = %s" % str(configopts),
+            "makeopts = %s" % str(makeopts),
+            "installopts = %s" % str(installopts),
+        ])
+        self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
 
 def suite():
-    """ return all the tests in this file """
-    return TestSuite([TestDependency(), TestEmpty(), TestExtraOptions(),
-                      TestMandatory(), TestSharedLibExt(), TestSuggestions(),
-                      TestValidation(), TestTweaking(), TestInstallVersion(),
-                      TestObtainEasyconfig(),
-                      TestTemplating(), TestTemplatingDoc(), TestConstantDoc(),
-                      ])
+    """ returns all the testcases in this module """
+    return TestLoader().loadTestsFromTestCase(EasyConfigTest)
 
 
 if __name__ == '__main__':
