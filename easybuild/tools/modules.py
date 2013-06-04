@@ -259,7 +259,8 @@ class ModulesTool(object):
 
             # Change the environment
             try:
-                exec stdout
+                clean_stdout = '\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
+                exec clean_stdout
             except Exception, err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
@@ -403,6 +404,14 @@ class Lmod(ModulesTool):
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
 
+        # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
+        for modpath in self.modulePath:
+            if not os.path.isabs(modpath):
+                modpath = os.path.join(os.getcwd(), modpath)
+            proc = subprocess.Popen([self.cmd, 'python', 'use', modpath], stdout=PIPE, stderr=PIPE, env=os.environ)
+            (stdout, stderr) = proc.communicate()
+            exec stdout
+
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
         if not self.exists(name, version):
@@ -418,22 +427,24 @@ class Lmod(ModulesTool):
         """
         Run module command.
         """
-        # we need to run 'lmod update' before every lmod command (?!?)
-        self.log.debug("Running 'lmod update' (MODULEPATH=\"%s\")" % (environ['MODULEPATH']))
-        proc = subprocess.Popen([self.cmd, 'python', 'update'], stdout=PIPE, stderr=PIPE, env=environ)
+        # we need to run 'lmod python update' before every lmod command (?!?)
+        self.log.debug("Running 'lmod python update' (MODULEPATH=\"%s\")" % (os.environ['MODULEPATH']))
+        proc = subprocess.Popen([self.cmd, 'python', 'update'], stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
         try:
-            exec stdout
+            clean_stdout = '\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
+            exec clean_stdout
         except Exception, err:
-            out = "stdout: %s, stderr: %s" % (stdout, stderr)
-            raise EasyBuildError("Changing environment as dictated by 'lmod update' failed: %s (%s)" % (err, out))
+            out = "stdout: %s (clean_stdout: %s), stderr: %s" % (stdout, clean_stdout, stderr)
+            raise EasyBuildError("Changing environment as dictated by 'lmod python update' failed: %s (%s)" % (err, out))
 
-        super(Lmod, self).run_module(*args, **kwargs)
+        return super(Lmod, self).run_module(*args, **kwargs)
 
     def loaded_modules(self):
         """Return a list of loaded modules ([{'name': <module name>, 'version': <module version>}]."""
-        # 'lmod python list' already returns a list of Python dictionaries with name/version in them
-        return self.run_module('list')
+        # 'lmod python list' already returns a list of Python dictionaries for loaded modules
+        # only retain 'name'/'version' keys, get rid of any others (e.g. 'default')
+        return [{'name': mod['name'], 'version': mod['version']} for mod in self.run_module('list')]
 
 
 def get_software_root_env_var_name(name):
