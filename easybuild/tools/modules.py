@@ -335,14 +335,14 @@ class EnvironmentModulesC(ModulesTool):
 
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
-        if not self.exists(name, version):
-            return None
-        else:
+        if self.exists(name, version):
             modinfo = self.show(name, version)
             self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
             # 2nd line for environment modules show output
             mod_full_path = modinfo.split('\n')[1].replace(':', '')
             return mod_full_path
+        else:
+            raise EasyBuildError("Can't get module file path for non-existing module %s/%s" % (name, version))
 
     def loaded_modules(self):
         """Return a list of loaded modules ([{'name': <module name>, 'version': <module version>}]."""
@@ -372,18 +372,15 @@ class EnvironmentModulesC(ModulesTool):
                 # this is what we expect, e.g. GCC/4.7.2
                 mod_name = mod[0]
                 mod_version = mod[1]
-
             elif len(mod) > 2:
                 # different module naming scheme
                 # let's assume first part is name, rest is version
                 mod_name = mod[0]
                 mod_version = '/'.join(mod[1:])
-
             elif len(mod) == 1:
                 # only name, no version
                 mod_name = mod[0]
                 mod_version = ''
-
             else:
                 # length after splitting is 0, so empty module name?
                 self.log.error("Module with empty name loaded? ('%s')" % mod)
@@ -414,14 +411,14 @@ class Lmod(ModulesTool):
 
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
-        if not self.exists(name, version):
-            return None
-        else:
+        if self.exists(name, version):
             modinfo = self.show(name, version)
             self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
             # 7th line for lmod show output
             mod_full_path = modinfo.split('\n')[6].strip().replace(':', '')
             return mod_full_path
+        else:
+            raise EasyBuildError("Can't get module file path for non-existing module %s/%s" % (name, version))
 
     def run_module(self, *args, **kwargs):
         """
