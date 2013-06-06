@@ -1,3 +1,3 @@
 Code from https://github.com/hpcugent/vsc-base
 
-based on 7d58d1b0de394a006c25b1ee8c827c9d4ec736ae
+based on 6e7146b0d9d4cc6b7441459b4d39192930b5ef46

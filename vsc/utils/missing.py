@@ -34,6 +34,7 @@ Various functions that are missing from the default Python library.
   - Monoid: implementation of the monoid concept
   - MonoidDict: dictionary that combines values upon insertiong
     according to the given monoid
+  - RUDict: dictionary that allows recursively updating its values (if they are dicts too) with a new RUDict
   - shell_quote / shell_unquote : convenience functions to quote / unquote strings in shell context
 
 @author: Andy Georges (Ghent University)
@@ -107,23 +108,21 @@ def find_sublist_index(ls, sub_ls):
     return None
 
 
-class Monoid (object):
+class Monoid(object):
     """A monoid is a mathematical object with a default element (mempty or null) and a default operation to combine
     two elements of a given data type.
 
     Taken from http://fmota.eu/2011/10/09/monoids-in-python.html under the do whatever you want license.
     """
 
-    def __init__(self, null, lift, op):
+    def __init__(self, null, mappend):
         """Initialise.
 
         @type null: default element of some data type, e.g., [] for list or 0 for int (identity element in an Abelian group)
-        @type lift: operation that injects an element into the target datatype (for duck typing)
         @type op: mappend operation to combine two elements of the target datatype
         """
         self.null = null
-        self.lift = lift
-        self.op = op
+        self.mappend = mappend
 
     def fold(self, xs):
         """fold over the elements of the list, combining them into a single element of the target datatype."""
@@ -131,8 +130,8 @@ class Monoid (object):
             return xs.__fold__(self)
         else:
             return reduce(
-                self.op,
-                map(self.lift, xs),
+                self.mappend,
+                xs,
                 self.null
             )
 
@@ -142,7 +141,7 @@ class Monoid (object):
 
     def star(self):
         """Return a new similar monoid."""
-        return Monoid(self.null, self.fold, self.op)
+        return Monoid(self.null, self.mappend)
 
 
 class MonoidDict(dict):
@@ -174,6 +173,47 @@ class MonoidDict(dict):
             return self.monoid.null
         else:
             return super(MonoidDict, self).__getitem__(key)
+
+
+class RUDict(dict):
+    """Recursively updatable dictionary.
+
+    When merging with another dictionary (of the same structure), it will keep
+    updating the values as well if they are dicts or lists.
+
+    Code taken from http://stackoverflow.com/questions/6256183/combine-two-dictionaries-of-dictionaries-python.
+    """
+
+    def update(self, E=None, **F):
+        if E is not None:
+            if 'keys' in dir(E) and callable(getattr(E, 'keys')):
+                for k in E:
+                    if k in self:  # existing ...must recurse into both sides
+                        self.r_update(k, E)
+                    else:  # doesn't currently exist, just update
+                        self[k] = E[k]
+            else:
+                for (k, v) in E:
+                    self.r_update(k, {k: v})
+
+        for k in F:
+            logger.debug("Hmmz")
+            self.r_update(k, {k: F[k]})
+
+    def r_update(self, key, other_dict):
+        """Recursive update."""
+        if isinstance(self[key], dict) and isinstance(other_dict[key], dict):
+            od = RUDict(self[key])
+            nd = other_dict[key]
+            od.update(nd)
+            self[key] = od
+        elif isinstance(self[key], list):
+            if isinstance(other_dict[key], list):
+                self[key].extend(other_dict[key])
+            else:
+                self[key] = self[key].append(other_dict[key])
+        else:
+            self[key] = other_dict[key]
 
 
 def shell_quote(x):
