@@ -76,8 +76,6 @@ _log = fancylogger.getLogger('modules', fname=False)
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
 
-    USEABLE = False  # can the modules tool be used?
-
     def __init__(self, mod_paths=None):
         """
         Create a ModulesTool object
@@ -90,6 +88,7 @@ class ModulesTool(object):
             self.mod_paths = set(mod_paths)
         else:
             self.mod_paths = None
+        # FIXME: deprecate this?
         self.modules = []
 
         self.check_module_path()
@@ -122,13 +121,14 @@ class ModulesTool(object):
         if not 'LOADEDMODULES' in os.environ:
             os.environ['LOADEDMODULES'] = ''
 
+    # FIXME: mod_paths is never used directly?
     def available(self, name=None, version=None, modulePath=None, mod_paths=None):
         """
         Return list of available modules.
         """
-        if not name:
+        if name is None:
             name = ''
-        if not version:
+        if version is None:
             version = ''
 
         txt = name
@@ -149,6 +149,7 @@ class ModulesTool(object):
                        (name, version, mod_paths, len(ans), ans))
         return ans
 
+    # FIXME: mod_paths is never used directly
     def exists(self, name, version, modulePath=None, mod_paths=None):
         """
         Check if module is available.
@@ -158,6 +159,7 @@ class ModulesTool(object):
             self.log.deprecated("Use of 'modulePath' named argument in 'exists', should use 'mod_paths'.", "2.0")
         return (name, version) in self.available(name, version, mod_paths=mod_paths)
 
+    # FIXME: deprecate this?
     def add_module(self, modules):
         """
         Check if module exist, if so add to list.
@@ -188,6 +190,7 @@ class ModulesTool(object):
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
 
+    # FIXME: deprecate this along with add_module?
     def remove_module(self, modules):
         """
         Remove modules from list.
@@ -195,7 +198,10 @@ class ModulesTool(object):
         for mod in modules:
             self.modules = [m for m in self.modules if not m == mod]
 
-    def load(self):
+    # 'lmod python load' takes about 10 seconds!?
+    # => should look into caching mechanism for lmod
+    # change this, pass (list of) module(s) to load as argument?
+    def load(self, modules=[]):
         """
         Load all requested modules.
         """
@@ -254,7 +260,7 @@ class ModulesTool(object):
 
         # module command is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
-        self.log.debug("Running module cmd '%s' (MODULEPATH=\"%s\")" % (args[0], environ['MODULEPATH']))
+        self.log.debug("Running module cmd '%s' (MODULEPATH=\"%s\")" % (args, environ['MODULEPATH']))
         proc = subprocess.Popen([self.cmd, 'python'] + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -338,18 +344,14 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
 
-    which_ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if which_ec == 0:
-        USEABLE = True
-    else:
-        USEABLE = False
-        _log.warning("EnvironmentModulesC modules tool can not be used, 'modulecmd' is not available.")
-    del which_ec
-
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd-specific class variable values."""
         super(EnvironmentModulesC, self).__init__(*args, **kwargs)
         self.cmd = "modulecmd"
+
+        which_ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if which_ec != 0:
+            self.log.error("EnvironmentModulesC modules tool can not be used, 'modulecmd' is not available.")
 
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
@@ -411,14 +413,6 @@ class EnvironmentModulesC(ModulesTool):
 class Lmod(ModulesTool):
     """Interface to Lmod."""
 
-    which_ec = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if which_ec == 0:
-        USEABLE = True
-    else:
-        USEABLE = False
-        _log.warning("Lmod modules tool can not be used, 'lmod' is not available.")
-    del which_ec
-
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         super(Lmod, self).__init__(*args, **kwargs)
@@ -427,13 +421,18 @@ class Lmod(ModulesTool):
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
 
+        which_ec = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if which_ec != 0:
+            self.log.error("Lmod modules tool can not be used, 'lmod' is not available.")
+
         # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
         for modpath in self.mod_paths:
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
-            proc = subprocess.Popen([self.cmd, 'python', 'use', modpath], stdout=PIPE, stderr=PIPE, env=os.environ)
-            (stdout, stderr) = proc.communicate()
-            exec stdout
+            if modpath not in os.environ['MODULEPATH']:
+                proc = subprocess.Popen([self.cmd, 'python', 'use', modpath], stdout=PIPE, stderr=PIPE, env=os.environ)
+                (stdout, stderr) = proc.communicate()
+                exec stdout
 
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
@@ -467,7 +466,8 @@ class Lmod(ModulesTool):
         """Return a list of loaded modules ([{'name': <module name>, 'version': <module version>}]."""
         # 'lmod python list' already returns a list of Python dictionaries for loaded modules
         # only retain 'name'/'version' keys, get rid of any others (e.g. 'default')
-        return [{'name': mod['name'], 'version': mod['version']} for mod in self.run_module('list')]
+        mods = self.run_module('list')
+        return [{'name': mod['name'], 'version': mod['version']} for mod in mods]
 
 
 def get_software_root_env_var_name(name):
@@ -537,12 +537,11 @@ def mk_module_path(paths):
     return ':'.join(paths)
 
 
-def get_modules_tools(check_useable=True):
+def get_modules_tools():
     """
     Return all known modules tools.
-        check_useable: boolean, if True, only return usable tools
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool) if x.USEABLE or not check_useable])
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(ModulesTool)])
     # filter out legacy Modules class
     if 'Modules' in class_dict:
         del class_dict['Modules']
