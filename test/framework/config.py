@@ -316,6 +316,21 @@ modules_install_suffix = '%(modsuffix)s'
     def test_generaloption_config(self):
         """Test new-style configuration (based on generaloption)."""
 
+        # check whether configuration via environment variables works as expected
+        prefix = os.path.join(self.tmpdir, 'testprefix')
+        buildpath_env_var = os.path.join(self.tmpdir, 'envvar', 'build', 'path')
+        subdir_software = 'eb-soft'
+        os.environ['EASYBUILD_PREFIX'] = prefix
+        os.environ['EASYBUILD_BUILDPATH'] = buildpath_env_var
+        os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = subdir_software
+        options = self.configure_options(args=[])
+        self.assertEqual(build_path(), buildpath_env_var)
+        self.assertEqual(install_path(), os.path.join(prefix, subdir_software))
+        del os.environ['EASYBUILD_PREFIX']
+        del os.environ['EASYBUILD_BUILDPATH']
+        del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
+
+        # check whether configuration via command line arguments works
         prefix = os.path.join(self.tmpdir, 'test1')
         install = os.path.join(self.tmpdir, 'test2', 'install')
         repopath = os.path.join(self.tmpdir, 'test2', 'repo')
@@ -339,6 +354,20 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(options.installpath, install)
         self.assertEqual(options.config, config_file)
 
+        # check mixed command line/env var configuration
+        prefix = os.path.join(self.tmpdir, 'test3')
+        install = os.path.join(self.tmpdir, 'test4', 'install')
+        args = [
+            '--config', config_file,  # force empty oldstyle config file
+            '--installpath', install,
+        ]
+
+        os.environ['EASYBUILD_PREFIX'] = prefix
+
+        options = self.configure_options(args=args)
+
+        self.assertEqual(build_path(), os.path.join(prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(install, 'software'))
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
