@@ -106,11 +106,11 @@ def get_cpu_vendor():
             return VENDORS[arch]
 
         regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*$", re.M)
-        # some embeded linux (arm)
+        # some embeded linux on arm behaves differently (e.g. raspbian)
         result = regexp.search(txt).groupdict()
         arch = result.get('vendorid', UNKNOWN)
-        if arch in VENDORS:
-            return VENDORS[arch]
+        if ARM in arch:
+            return ARM
 
     # Darwin (OS X)
     out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
