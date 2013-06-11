@@ -438,9 +438,13 @@ class Lmod(ModulesTool):
         """Get the path of the module file for the specified module."""
         if self.exists(name, version):
             modinfo = self.show(name, version)
-            self.log.debug("modinfo (split): %s" % modinfo.split('\n'))
-            # 7th line for lmod show output
-            mod_full_path = modinfo.split('\n')[6].strip().replace(':', '')
+            self.log.debug("modinfo: %s" % modinfo)
+            modpath_re = re.compile('^\s*(?P<modpath>/[^ ]*):$', re.M)
+            res = modpath_re.search(modinfo)
+            if res:
+                mod_full_path = res.group('modpath')
+            else:
+                self.log.error("Failed to determine modfile path from 'show' (pattern: '%s')" % modpath_re.pattern)
             return mod_full_path
         else:
             raise EasyBuildError("Can't get module file path for non-existing module %s/%s" % (name, version))
