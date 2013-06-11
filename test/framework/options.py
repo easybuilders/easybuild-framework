@@ -252,8 +252,9 @@ class CommandLineOptionsTest(TestCase):
                 pass
             outtxt = read_file(self.logfile)
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join(job_args)
-            self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
+            assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
+            self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
