@@ -445,23 +445,6 @@ class Lmod(ModulesTool):
         else:
             raise EasyBuildError("Can't get module file path for non-existing module %s/%s" % (name, version))
 
-    def run_module(self, *args, **kwargs):
-        """
-        Run module command.
-        """
-        # we need to run 'lmod python update' before every lmod command (?!?)
-        self.log.debug("Running 'lmod python update' (MODULEPATH=\"%s\")" % (os.environ['MODULEPATH']))
-        proc = subprocess.Popen([self.cmd, 'python', 'update'], stdout=PIPE, stderr=PIPE, env=os.environ)
-        (stdout, stderr) = proc.communicate()
-        try:
-            clean_stdout = '\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
-            exec clean_stdout
-        except Exception, err:
-            out = "stdout: %s (clean_stdout: %s), stderr: %s" % (stdout, clean_stdout, stderr)
-            raise EasyBuildError("Changing environment as dictated by 'lmod python update' failed: %s (%s)" % (err, out))
-
-        return super(Lmod, self).run_module(*args, **kwargs)
-
     def loaded_modules(self):
         """Return a list of loaded modules ([{'name': <module name>, 'version': <module version>}]."""
         # 'lmod python list' already returns a list of Python dictionaries for loaded modules
