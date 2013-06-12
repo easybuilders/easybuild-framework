@@ -433,19 +433,23 @@ def get_build_log_path():
         return defaults['tmp_logdir']
 
 
-def get_log_filename(name, version):
+def get_log_filename(name, version, add_salt=False):
     """
     Generate a filename to be used for logging
     """
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
+    salt = ''.join(random.choice(string.letters) for i in range(5))
     filename = os.path.join(get_build_log_path(), log_file_format() % {
                                                                        'name': name,
                                                                        'version': version,
                                                                        'date': date,
                                                                        'time': timeStamp
                                                                        })
+    if add_salt:
+        filename_parts = filename.split('.')
+        filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 
     # Append numbers if the log file already exist
     counter = 1
