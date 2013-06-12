@@ -260,7 +260,7 @@ class ModulesTool(object):
 
         # module command is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
         # this needs to be taken into account when updating the environment via produced output, see below
-        self.log.debug("Running module cmd '%s' (MODULEPATH=\"%s\")" % (args, environ['MODULEPATH']))
+        self.log.debug("Running module cmd '%s python %s'" % (self.cmd, ' '.join(args)))
         proc = subprocess.Popen([self.cmd, 'python'] + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
