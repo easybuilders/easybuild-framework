@@ -474,7 +474,7 @@ class Lmod(ModulesTool):
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
         cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-        self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_file, ' '.join(cmd)))
+        self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
         cache_file = open(cache_filefn, 'w')
         cache_file.write(stdout)
         cache_file.close()
