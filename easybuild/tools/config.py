@@ -34,6 +34,8 @@ EasyBuild configuration (paths, preferences, etc.)
 """
 
 import os
+import random
+import string
 import tempfile
 import time
 from vsc import fancylogger
@@ -440,24 +442,27 @@ def get_log_filename(name, version, add_salt=False):
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    salt = ''.join(random.choice(string.letters) for i in range(5))
-    filename = os.path.join(get_build_log_path(), log_file_format() % {
-                                                                       'name': name,
-                                                                       'version': version,
-                                                                       'date': date,
-                                                                       'time': timeStamp
-                                                                       })
+    filename = log_file_format() % {
+        'name': name,
+        'version': version,
+        'date': date,
+        'time': timeStamp,
+    }
+
     if add_salt:
+        salt = ''.join(random.choice(string.letters) for i in range(5))
         filename_parts = filename.split('.')
         filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
 
+    filepath = os.path.join(get_build_log_path(), filename)
+
     # Append numbers if the log file already exist
     counter = 1
-    while os.path.isfile(filename):
+    while os.path.isfile(filepath):
         counter += 1
-        filename = "%s.%d" % (filename, counter)
+        filepath = "%s.%d" % (filepath, counter)
 
-    return filename
+    return filepath
 
 
 def read_only_installdir():
