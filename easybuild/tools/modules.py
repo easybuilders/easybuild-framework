@@ -466,7 +466,7 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        cmd = ['spider', '-o moduleT', os.environ['MODULEPATH']]
+        cmd = ['spider', '-o', 'moduleT', os.environ['MODULEPATH']]
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
 
@@ -474,6 +474,7 @@ class Lmod(ModulesTool):
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
         cache_file = open(os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua'), 'w')
+        self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_file, ' '.join(cmd)))
         cache_file.write(stdout)
         cache_file.close()
 
