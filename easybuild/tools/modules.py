@@ -340,6 +340,10 @@ class ModulesTool(object):
 
         return deps
 
+    def update(self):
+        """Update after new modules were added."""
+        raise NotImplementedError
+
 
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
@@ -409,6 +413,10 @@ class EnvironmentModulesC(ModulesTool):
 
         return loaded_modules
 
+    def update(self):
+        """Update after new modules were added."""
+        pass
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
@@ -455,6 +463,19 @@ class Lmod(ModulesTool):
         # only retain 'name'/'version' keys, get rid of any others (e.g. 'default')
         mods = self.run_module('list')
         return [{'name': mod['name'], 'version': mod['version']} for mod in mods]
+
+    def update(self):
+        """Update after new modules were added."""
+        cmd = ['spider', '-o moduleT', os.environ['MODULEPATH']]
+        proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+        (stdout, stderr) = proc.communicate()
+
+        if stderr:
+            self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+
+        cache_file = open(os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua'), 'w')
+        cache_file.write(stdout)
+        cache_file.close()
 
 
 def get_software_root_env_var_name(name):
