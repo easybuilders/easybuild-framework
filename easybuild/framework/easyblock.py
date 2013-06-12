@@ -1572,6 +1572,8 @@ class EasyBlock(object):
         if not fake:
             self.make_devel_module()
 
+        self.modules_tool.update()
+
         return modpath
 
     def test_cases_step(self):
