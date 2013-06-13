@@ -36,13 +36,13 @@ import shutil
 import tempfile
 from vsc import fancylogger
 
-import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.systemtools import get_shared_lib_ext

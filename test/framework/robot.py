@@ -34,10 +34,9 @@ from unittest import TestCase, TestSuite
 from unittest import main as unittestmain
 from vsc import fancylogger
 
-import easybuild.tools.config as config
-import easybuild.tools.modules as modules
 import easybuild.tools.options as eboptions
-import easybuild.main as main
+from easybuild import main
+from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 

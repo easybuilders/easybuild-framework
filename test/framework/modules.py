@@ -33,8 +33,8 @@ Unit tests for modules.py.
 import os
 import re
 
-import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
+from easybuild.tools import config
 from easybuild.tools.modules import modules_tool
 from unittest import TestCase, TestLoader, main
 
