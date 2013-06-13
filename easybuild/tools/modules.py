@@ -443,6 +443,9 @@ class Lmod(ModulesTool):
                 (stdout, stderr) = proc.communicate()
                 exec stdout
 
+        # make sure lmod spider cache is up to date
+        self.update()
+
     def modulefile_path(self, name, version):
         """Get the path of the module file for the specified module."""
         if self.exists(name, version):
