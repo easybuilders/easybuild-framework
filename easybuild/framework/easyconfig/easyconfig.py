@@ -68,9 +68,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    # modules_tool can't be obtained via config.get_modules_tool because it would introduce a circular dependency
-    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None,
-                 modules_tool=None):
+    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
@@ -118,8 +116,6 @@ class EasyConfig(object):
         if valid_stops:
             self.valid_stops = valid_stops
             self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
-
-        self.modules_tool = modules_tool
 
         # store toolchain
         self._toolchain = None
@@ -378,7 +374,7 @@ class EasyConfig(object):
         if not tc:
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
-        tc = tc(version=self['toolchain']['version'], modules_tool=self.modules_tool)
+        tc = tc(version=self['toolchain']['version'])
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options

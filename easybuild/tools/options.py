@@ -46,10 +46,10 @@ from easybuild.framework.extension import Extension
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools import filetools
-from easybuild.tools.modules import get_modules_tools
+from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.repository import get_repositories
+from easybuild.tools.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc import fancylogger
 from vsc.utils.generaloption import GeneralOption
@@ -174,7 +174,7 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store', oldstyle_defaults['subdir_software']),
                 'repository': ('Repository type, using repositorypath',
                                 'choice', 'store', oldstyle_defaults['repository'],
-                                sorted(get_repositories().keys())),
+                                sorted(avail_repositories().keys())),
                 'repositorypath': (('Repository path, used by repository '
                                     '(is passed as list of arguments to create the repository instance). '
                                     'For more info, use --avail-repositories.'),
@@ -195,7 +195,7 @@ class EasyBuildOptions(GeneralOption):
                                                None, 'store_true', False),
                 'modules-tool': ('Modules tool to use',
                                  'choice', 'store', oldstyle_defaults['modules_tool'],
-                                 sorted(get_modules_tools().keys())),
+                                 sorted(avail_modules_tools().keys())),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
@@ -490,8 +490,8 @@ class EasyBuildOptions(GeneralOption):
     def avail_repositories(self):
         """Show list of known repository types."""
         repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
-        all_repos = get_repositories(check_useable=False)
-        usable_repos = get_repositories(check_useable=True).keys()
+        all_repos = avail_repositories(check_useable=False)
+        usable_repos = avail_repositories(check_useable=True).keys()
 
         indent = ' ' * 2
         txt = ['All avaialble repository types']

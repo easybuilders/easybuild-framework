@@ -37,10 +37,11 @@ from unittest import main as unittestmain
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.main import main
-from easybuild.tools.config import build_path, source_path, install_path, get_repository, log_file_format
+from easybuild.tools.config import build_path, source_path, install_path, get_repository, get_repositorypath
+from easybuild.tools.config import log_file_format
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.filetools import write_file
-from easybuild.tools.repository import FileRepository
+from easybuild.tools.repository import FileRepository, init_repository
 
 
 class EasyBuildConfigTest(TestCase):
@@ -150,7 +151,7 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
 
@@ -163,7 +164,7 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         # also check old style vs new style
@@ -179,7 +180,7 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         del os.environ['EASYBUILDSOURCEPATH']
@@ -192,7 +193,7 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(install_path(), os.path.join(test_installpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_installpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         del os.environ['EASYBUILDINSTALLPATH']
@@ -259,7 +260,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(source_path(), sourcepath)
         self.assertEqual(install_path(), os.path.join(installpath, softsuffix))
         self.assertEqual(install_path(typ='mod'), os.path.join(installpath, modsuffix))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, repopath)
         self.assertEqual(log_file_format(return_directory=True), logdir)
@@ -305,7 +306,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(source_path(), sourcepath)
         self.assertEqual(install_path(), os.path.join(installpath, softsuffix))
         self.assertEqual(install_path(typ='mod'), os.path.join(installpath, modsuffix))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, repopath)
         self.assertEqual(log_file_format(return_directory=True), logdir)

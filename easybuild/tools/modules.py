@@ -44,6 +44,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import get_modules_tool
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
 from vsc.utils.missing import nub
 
@@ -547,7 +548,7 @@ def mk_module_path(paths):
     return ':'.join(paths)
 
 
-def get_modules_tools():
+def avail_modules_tools():
     """
     Return all known modules tools.
     """
@@ -556,6 +557,13 @@ def get_modules_tools():
     if 'Modules' in class_dict:
         del class_dict['Modules']
     return class_dict
+
+def modules_tool(mod_paths=None):
+    """
+    Return interface to modules tool (environment modules, lmod)
+    """
+    modules_tool_class = avail_modules_tools().get(get_modules_tool())
+    return modules_tool_class(mod_paths=mod_paths)
 
 
 # provide Modules class for backward compatibility (e.g., in easyblocks)

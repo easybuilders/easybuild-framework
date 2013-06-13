@@ -39,8 +39,9 @@ import re
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
-from easybuild.tools.config import get_repository
+from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import read_file
+from easybuild.tools.repository import init_repository
 from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
@@ -125,7 +126,8 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
-    buildstats = get_repository().get_buildstats(*easyconfig['module'])
+    repo = init_repository(get_repository(), get_repositorypath())
+    buildstats = repo.get_buildstats(*easyconfig['module'])
     resources = {}
     if buildstats:
         previous_time = buildstats[-1]['build_time']

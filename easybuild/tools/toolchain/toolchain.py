@@ -33,7 +33,7 @@ Creating a new toolchain should be as simple as possible.
 
 from vsc import fancylogger
 from easybuild.tools.environment import setvar
-from easybuild.tools.modules import get_software_root, get_software_version
+from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -65,8 +65,7 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    # modules_tool can't be obtained via config.get_modules_tool because it would introduce a circular dependency
-    def __init__(self, name=None, version=None, modules_tool=None):
+    def __init__(self, name=None, version=None):
         self.base_init()
 
         self.dependencies = []
@@ -86,7 +85,7 @@ class Toolchain(object):
 
         self.vars = None
 
-        self.modules_tool = modules_tool
+        self.modules_tool = modules_tool()
 
     def base_init(self):
         if not hasattr(self, 'log'):

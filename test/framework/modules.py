@@ -35,14 +35,14 @@ import re
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
-from easybuild.tools.config import get_modules_tool
+from easybuild.tools.modules import modules_tool
 from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
     """ small test for Modules """
 
-    # initialize configuration so get_modules_tool function works
+    # initialize configuration so modules_tool function works
     eb_go = eboptions.parse_options()
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
     del eb_go
@@ -53,7 +53,7 @@ class ModulesTest(TestCase):
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
-        testmods = get_modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
+        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available('', None)
         for m in ms:
             testmods.add_module([m])
@@ -73,7 +73,7 @@ class ModulesTest(TestCase):
 
         os.environ['LD_LIBRARY_PATH'] = testpath
 
-        testmods = get_modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
+        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
         testmods.add_module([('GCC', '4.6.3')])
         testmods.load()
 
@@ -82,7 +82,7 @@ class ModulesTest(TestCase):
 
     def test_purge(self):
         """Test if purging of modules works."""
-        m = get_modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
+        m = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
 
         ms = m.available('', None)
         m.add_module([ms[0]])

@@ -52,13 +52,13 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
-from easybuild.tools.config import read_only_installdir, source_path, module_classes, get_modules_tool
+from easybuild.tools.config import read_only_installdir, source_path, module_classes
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import get_software_root
+from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -106,19 +106,19 @@ class EasyBlock(object):
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
         # modules interface with default MODULEPATH
-        self.modules_tool = get_modules_tool()
+        self.modules_tool = modules_tool()
         # module generator
         self.moduleGenerator = None
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
-        self.cfg = EasyConfig(path,
-                              extra_options=self.extra_options(),
-                              validate=validate_ec,
-                              valid_module_classes=module_classes(),
-                              valid_stops=all_stops,
-                              modules_tool=self.modules_tool,
-                              )
+        self.cfg = EasyConfig(
+            path,
+            extra_options=self.extra_options(),
+            validate=validate_ec,
+            valid_module_classes=module_classes(),
+            valid_stops=all_stops,
+        )
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = False
@@ -779,7 +779,7 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        m = get_modules_tool(mod_paths)
+        m = modules_tool(mod_paths)
         # purge all loaded modules if desired
         if purge:
             m.purge()
@@ -819,7 +819,7 @@ class EasyBlock(object):
             try:
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
-                m = get_modules_tool(mod_paths)
+                m = modules_tool(mod_paths)
                 m.add_module([[self.name, self.get_installversion()]])
                 m.unload()
                 rmtree2(os.path.dirname(fake_mod_path))

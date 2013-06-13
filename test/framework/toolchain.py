@@ -33,6 +33,7 @@ import re
 from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.config as config
+import easybuild.tools.modules as modules
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -82,7 +83,7 @@ class ToolchainTest(TestCase):
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.prepare()
 
         cc = tc.get_variable('CC')
@@ -114,7 +115,7 @@ class ToolchainTest(TestCase):
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -148,7 +149,7 @@ class ToolchainTest(TestCase):
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -164,7 +165,7 @@ class ToolchainTest(TestCase):
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
@@ -178,7 +179,7 @@ class ToolchainTest(TestCase):
         which is required to ensure correctness.
         """
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.prepare()
 
         pass_by_value = True
@@ -203,7 +204,7 @@ class ToolchainTest(TestCase):
         tc_class, _ = search_toolchain("goalf")
 
         # check default optimization flag (e.g. -O2)
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -212,7 +213,7 @@ class ToolchainTest(TestCase):
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
-            tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+            tc = tc_class(version="1.1.0-no-OFED")
             for enable in [True, False]:
                 tc.set_options({opt: enable})
                 tc.prepare()
@@ -231,7 +232,7 @@ class ToolchainTest(TestCase):
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
@@ -239,7 +240,7 @@ class ToolchainTest(TestCase):
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertTrue(flag in flags)
 
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
         tc.prepare()
         for var in flag_vars:
@@ -247,7 +248,7 @@ class ToolchainTest(TestCase):
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertTrue(flag in flags)
 
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
@@ -264,7 +265,7 @@ class ToolchainTest(TestCase):
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+                tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
@@ -285,7 +286,7 @@ class ToolchainTest(TestCase):
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+                tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -305,7 +306,7 @@ class ToolchainTest(TestCase):
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+                tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -323,7 +324,7 @@ class ToolchainTest(TestCase):
         tc_class, _ = search_toolchain("goalf")
 
         # check default precision flag
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -333,7 +334,7 @@ class ToolchainTest(TestCase):
         # check other precision flags
         for opt in ['strict', 'precise', 'loose', 'veryloose']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+                tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
@@ -349,7 +350,7 @@ class ToolchainTest(TestCase):
         name = "cgoolf"
         tc_class, _ = search_toolchain(name)
         self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version="1.1.6", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.6")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'clang')
@@ -361,7 +362,7 @@ class ToolchainTest(TestCase):
         """Test determining compiler family."""
 
         tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.1.0-no-OFED")
         tc.prepare()
 
         self.assertEqual(tc.comp_family(), "GCC")
@@ -370,7 +371,7 @@ class ToolchainTest(TestCase):
         """Test whether goolfc is handled properly."""
 
         tc_class, _ = search_toolchain("goolfc")
-        tc = tc_class(version="1.3.12", modules_tool=config.get_modules_tool())
+        tc = tc_class(version="1.3.12")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
@@ -398,7 +399,7 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
-        config.get_modules_tool().purge()
+        modules.modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():
