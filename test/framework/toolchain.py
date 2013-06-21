@@ -96,6 +96,15 @@ class ToolchainTest(TestCase):
         mpif90 = tc.get_variable('MPIF90')
         self.assertEqual(mpif90, "mpif90")
 
+        ompi_cc = tc.get_variable('OMPI_CC')
+        self.assertEqual(ompi_cc, "gcc")
+        ompi_cxx = tc.get_variable('OMPI_CXX')
+        self.assertEqual(ompi_cxx, "g++")
+        ompi_f77 = tc.get_variable('OMPI_F77')
+        self.assertEqual(ompi_f77, "gfortran")
+        ompi_fc = tc.get_variable('OMPI_FC')
+        self.assertEqual(ompi_fc, "gfortran")
+
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc_class, _ = search_toolchain("goalf")
@@ -111,6 +120,7 @@ class ToolchainTest(TestCase):
         self.assertEqual(f77, "mpif77")
         f90 = tc.get_variable('F90')
         self.assertEqual(f90, "mpif90")
+
         mpicc = tc.get_variable('MPICC')
         self.assertEqual(mpicc, "mpicc")
         mpicxx = tc.get_variable('MPICXX')
@@ -119,6 +129,15 @@ class ToolchainTest(TestCase):
         self.assertEqual(mpif77, "mpif77")
         mpif90 = tc.get_variable('MPIF90')
         self.assertEqual(mpif90, "mpif90")
+
+        ompi_cc = tc.get_variable('OMPI_CC')
+        self.assertEqual(ompi_cc, "gcc")
+        ompi_cxx = tc.get_variable('OMPI_CXX')
+        self.assertEqual(ompi_cxx, "g++")
+        ompi_f77 = tc.get_variable('OMPI_F77')
+        self.assertEqual(ompi_f77, "gfortran")
+        ompi_fc = tc.get_variable('OMPI_FC')
+        self.assertEqual(ompi_fc, "gfortran")
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""

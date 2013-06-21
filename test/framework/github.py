@@ -78,9 +78,10 @@ class GithubTest(TestCase):
     def test_read(self):
         """Test the githubfs read function without using the api"""
         try:
-            self.assertEquals(open(self.ghfs.read("a_directory/a_file.txt", api=False), 'r').read(),
-                 "this is a line of text\n")
-        except IOError:
+            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            self.assertEquals(open(fp, 'r').read(), "this is a line of text\n")
+            os.remove(fp)
+        except (IOError, OSError):
             pass
 
     def tearDown(self):

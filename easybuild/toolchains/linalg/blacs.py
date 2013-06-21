@@ -39,3 +39,9 @@ class Blacs(LinAlg):
     BLACS_MODULE_NAME = ['BLACS']
     BLACS_LIB = ["blacsCinit", "blacsF77init", "blacs"]
     BLACS_LIB_GROUP = True
+
+    def _set_blacs_variables(self):
+        """Skip setting BLACS variables if it is not required (e.g., with recent ScaLAPACK versions)."""
+        if self.is_required(self.BLACS_MODULE_NAME[0]):
+            super(Blacs, self)._set_blacs_variables()
+
