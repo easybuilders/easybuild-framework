@@ -462,7 +462,11 @@ def tweak(src_fn, target_fn, tweaks):
 
             res = regexp.search(ectxt)
             if res:
-                newval = "%s + %s" % (val, res.group(1))
+                fval = [x for x in val if x != '']
+                if val != fval:
+                    newval = "%s" % fval
+                else:
+                    newval = "%s + %s" % (val, res.group(1))
                 ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
