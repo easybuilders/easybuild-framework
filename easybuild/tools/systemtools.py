@@ -39,17 +39,19 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 
 INTEL = 'Intel'
 AMD = 'AMD'
+ARM = 'ARM'
+UNKNOWN = 'UNKNOWN'
 
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
+
 
 def get_core_count():
     """Try to detect the number of virtual or physical CPUs on this system.
 
     inspired by http://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-in-python/1006301#1006301
     """
-
     # Python 2.6+
     try:
         from multiprocessing import cpu_count
@@ -60,7 +62,6 @@ def get_core_count():
     # POSIX
     try:
         cores = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-
         if cores > 0:
             return cores
     except (AttributeError, ValueError):
@@ -69,27 +70,26 @@ def get_core_count():
     # Linux
     txt = read_file('/proc/cpuinfo', log_error=False)
     if txt is not None:
-        res = txt.count('processor\t:')
+        # sometimes this is uppercase
+        res = txt.lower().count('processor\t:')
         if res > 0:
             return res
-
     # BSD
     try:
         out, _ = run_cmd('sysctl -n hw.ncpu')
         cores = int(out)
-
         if cores > 0:
             return cores
-    except (ValueError):
+    except ValueError:
         pass
 
-
     raise SystemToolsException('Can not determine number of cores on this system')
+
 
 def get_cpu_vendor():
     """Try to detect the cpu identifier
 
-    will return INTEL or AMD constant
+    will return INTEL, ARM or AMD constant
     """
     regexp = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
     VENDORS = {
@@ -100,9 +100,17 @@ def get_cpu_vendor():
     # Linux
     txt = read_file("/proc/cpuinfo", log_error=False)
     if txt is not None:
-        arch = regexp.search(txt).groupdict()['vendorid']
+        result = regexp.search(txt).groupdict()
+        arch = result.get('vendorid', UNKNOWN)
         if arch in VENDORS:
             return VENDORS[arch]
+
+        # some embeded linux on arm behaves differently (e.g. raspbian)
+        regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*$", re.M)
+        result = regexp.search(txt).groupdict()
+        arch = result.get('vendorid', UNKNOWN)
+        if ARM in arch:
+            return ARM
 
     # Darwin (OS X)
     out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
@@ -116,7 +124,8 @@ def get_cpu_vendor():
     if not exitcode and out:
         return out.split(' ')[0]
 
-    raise SystemToolsException("Could not detect cpu vendor")
+    return UNKNOWN
+
 
 def get_cpu_model():
     """
@@ -137,6 +146,7 @@ def get_cpu_model():
 
     return 'UNKNOWN'
 
+
 def get_kernel_name():
     """Try to determine kernel name
 
@@ -149,6 +159,7 @@ def get_kernel_name():
     except OSError, err:
         raise SystemToolsException("Failed to determine kernel name: %s" % err)
 
+
 def get_os_type():
     """Determine system type, e.g., 'Linux', 'Darwin', 'Java'."""
     os_type = platform.system()
@@ -156,6 +167,7 @@ def get_os_type():
         return os_type
     else:
         raise SystemToolsException("Failed to determine system name using platform.system().")
+
 
 def get_shared_lib_ext():
     """Determine extention for shared libraries
@@ -174,6 +186,7 @@ def get_shared_lib_ext():
     else:
         raise SystemToolsException("Unable to determine extention for shared libraries,"
                                    "unknown system name: %s" % os_type)
+
 
 def get_platform_name(withversion=False):
     """Try and determine platform name
@@ -198,6 +211,7 @@ def get_platform_name(withversion=False):
 
     return platform_name
 
+
 def get_os_name():
     """
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
@@ -207,7 +221,7 @@ def get_os_name():
         # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         os_name = platform.linux_distribution()[0].strip().lower()
-    except AttributeError, err:
+    except AttributeError:
         # platform.dist can be used as a fallback
         # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
         os_name = platform.dist()[0].strip().lower()
@@ -225,6 +239,7 @@ def get_os_name():
     else:
         return "UNKNOWN_SYSTEM_NAME"
 
+
 def get_os_version():
     """Determine system version."""
     os_version = platform.dist()[1]
@@ -234,12 +249,12 @@ def get_os_version():
             # SLES subversions can only be told apart based on kernel version,
             # see http://wiki.novell.com/index.php/Kernel_versions
             version_suffixes = {
-                                "11": [
-                                       ('2.6.27', ''),
-                                       ('2.6.32', '_SP1'),
-                                       ('3.0', '_SP2'),
-                                      ],
-                               }
+                "11": [
+                    ('2.6.27', ''),
+                    ('2.6.32', '_SP1'),
+                    ('3.0', '_SP2'),
+                ],
+            }
 
             # append suitable suffix to system version
             if os_version in version_suffixes.keys():
@@ -258,4 +273,3 @@ def get_os_version():
         return os_version
     else:
         return "UNKNOWN_SYSTEM_VERSION"
-
