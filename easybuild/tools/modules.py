@@ -39,6 +39,8 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
+from distutils.version import LooseVersion
 from subprocess import PIPE
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
@@ -199,9 +201,7 @@ class ModulesTool(object):
         for mod in modules:
             self.modules = [m for m in self.modules if not m == mod]
 
-    # 'lmod python load' takes about 10 seconds!?
-    # => should look into caching mechanism for lmod
-    # change this, pass (list of) module(s) to load as argument?
+    # FIXME: change this, pass (list of) module(s) to load as argument?
     def load(self, modules=[]):
         """
         Load all requested modules.
@@ -430,9 +430,47 @@ class Lmod(ModulesTool):
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
 
+        # ensure Lmod is available
         which_ec = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         if which_ec != 0:
             self.log.error("Lmod modules tool can not be used, 'lmod' is not available.")
+
+        # check Lmod version
+        try:
+            # 'lmod python update' needs to be run after changing $MODULEPATH
+            self.run_module('update')
+
+            fd, fn = tempfile.mkstemp(prefix='lmod_')
+            os.close(fd)
+            stdout_fn = '%s_stdout.txt' % fn
+            stderr_fn = '%s_stderr.txt' % fn
+            stdout = open(stdout_fn, 'w')
+            stderr = open(stdout_fn, 'w')
+            # version is printed in 'lmod help' output
+            subprocess.call(["lmod", "help"], stdout=stdout, stderr=stderr)
+            stdout.close()
+            stderr.close()
+
+            stderr = open(stdout_fn, 'r')
+            txt = stderr.read()
+            ver_re = re.compile("^Modules based on Lua: Version (?P<version>[0-9.]+) \(.*", re.M)
+            res = ver_re.search(txt)
+            if res:
+                lmod_ver = res.group('version')
+            else:
+                self.log.error("Failed to determine Lmod version from 'lmod help' output: %s" % txt)
+            stderr.close()
+        except (IOError, OSError), err:
+            self.log.error("Failed to check Lmod version: %s" % err)
+
+        # we need at least Lmod v5.0
+        if LooseVersion(lmod_ver) >= LooseVersion('5.0'):
+            # Lmod v5.0.1 is highly recommended
+            recommended_version = '5.0.1'
+            if LooseVersion(lmod_ver) < LooseVersion(recommended_version):
+                self.log.warning("Lmod v%s is highly recommended." % recommended_version)
+        else:
+            self.log.error("EasyBuild requires Lmod v5.0 or more recent")
 
         # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
         for modpath in self.mod_paths:
