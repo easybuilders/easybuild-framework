@@ -463,6 +463,7 @@ def tweak(src_fn, target_fn, tweaks):
 
             res = regexp.search(ectxt)
             if res:
+	        # get rid of empty strings that result from using e.g. '--amend-source=name.tar.gz,' 
                 fval = [x for x in val if x != '']
                 if val != fval:
                     newval = "%s" % fval
