@@ -105,8 +105,8 @@ def get_cpu_vendor():
         if arch in VENDORS:
             return VENDORS[arch]
 
-        regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*$", re.M)
         # some embeded linux on arm behaves differently (e.g. raspbian)
+        regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*$", re.M)
         result = regexp.search(txt).groupdict()
         arch = result.get('vendorid', UNKNOWN)
         if ARM in arch:
