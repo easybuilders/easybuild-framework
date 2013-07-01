@@ -463,8 +463,11 @@ def tweak(src_fn, target_fn, tweaks):
 
             res = regexp.search(ectxt)
             if res:
-	        # filter val of empty strings that result from using e.g. '--amend=source=name.tar.gz,' & do prepend/append
-                fval = [x for x in val if x]
+		# determine to prepend/append or overwrite by checking first/last list item
+		# - input ending with comma (empty tail list element) => prepend
+		# - input starting with comma (empty head list element) => append
+		# - no empty head/tail list element => overwrite
+                fval = [x for x in val if x != '']
                 if val[0] == '':
                     newval = "%s + %s" % (res.group(1), fval)
                 if val[-1] == '':
