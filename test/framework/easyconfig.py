@@ -36,6 +36,7 @@ import shutil
 import tempfile
 from vsc import fancylogger
 
+import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
@@ -77,10 +78,10 @@ class EasyConfigTest(TestCase):
             os.remove(self.eb_file)
         os.chdir(self.cwd)
 
-    def assertErrorRegex(self, error, regex, call, *args):
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
         """ convenience method to match regex with the error message """
         try:
-            call(*args)
+            call(*args, **kwargs)
             self.assertTrue(False)  # this will fail when no exception is thrown at all
         except error, err:
             res = re.search(regex, err.msg)

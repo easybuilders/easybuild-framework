@@ -431,14 +431,29 @@ class SvnRepository(FileRepository):
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
 
-def get_repositories(check_usable=True):
+def avail_repositories(check_useable=True):
     """
-    Return all repositories.
-        check_usable: boolean, if True, only return usable repositories
+    Return all available repositories.
+        check_useable: boolean, if True, only return usable repositories
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_usable])
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
     if not 'FileRepository' in class_dict:
-        _log.error('get_repositories: FileRepository missing from list of repositories')
+        _log.error('avail_repositories: FileRepository missing from list of repositories')
 
     return class_dict
+
+
+def init_repository(repository, repository_path):
+    """Return an instance of the selected repository class."""
+    if isinstance(repository, Repository):
+        return repository
+    elif isinstance(repository, basestring):
+        repo = avail_repositories().get(repository)
+        try:
+            return repo(*repository_path)
+        except Exception, err:
+            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
+                       (repository, repo.__name__, repository_path, err))
+    else:
+        _log.error('Unknown typo of repository spec: %s (type %s)' % (repo, type(repo)))

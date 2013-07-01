@@ -88,12 +88,12 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
-from easybuild.tools.config import get_repository, module_classes
+from easybuild.tools.config import get_repository, get_repositorypath, module_classes
 from easybuild.tools.filetools import modify_env, read_file, write_file
-from easybuild.tools.modules import Modules
-from easybuild.tools.modules import curr_module_paths, mk_module_path
+from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.repository import init_repository
+from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 
 
 _log = None
@@ -325,7 +325,8 @@ def main(testing_data=(None, None)):
 
     print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log=_log, silent=testing)
 
-    get_repository().cleanup()
+    repo = init_repository(get_repository(), get_repositorypath())
+    repo.cleanup()
 
     # cleanup and spec files
     for ec in easyconfigs:
@@ -436,7 +437,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
 def skip_available(easyconfigs, testing=False):
     """Skip building easyconfigs for which a module is already available."""
-    m = Modules()
+    m = modules_tool()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
         module = ec['module']
@@ -464,7 +465,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        availableModules = Modules().available()
+        availableModules = modules_tool().available()
 
         if len(availableModules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -846,14 +847,14 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
 
             try:
                 # upload spec to central repository
-                repo = get_repository()
+                repo = init_repository(get_repository(), get_repositorypath())
                 if 'originalSpec' in module:
                     repo.add_easyconfig(module['originalSpec'], app.name, app.get_installversion() + ".block", buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, app.get_installversion(), buildstats, currentbuildstats)
                 repo.commit("Built %s/%s" % (app.name, app.get_installversion()))
                 del repo
             except EasyBuildError, err:
-                _log.warn("Unable to commit easyconfig to repository (%s)", err)
+                _log.warn("Unable to commit easyconfig to repository: %s", err)
 
         exitCode = 0
         succ = "successfully"
