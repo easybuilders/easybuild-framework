@@ -463,12 +463,14 @@ def tweak(src_fn, target_fn, tweaks):
 
             res = regexp.search(ectxt)
             if res:
-	        # get rid of empty strings that result from using e.g. '--amend-source=name.tar.gz,' 
-                fval = [x for x in val if x != '']
-                if val != fval:
-                    newval = "%s" % fval
+	        # filter val of empty strings that result from using e.g. '--amend=source=name.tar.gz,' 
+                fval = [x for x in val if x]
+                if val[0] == '':
+                    newval = "%s + %s" % (res.group(1), fval)
+                if val[-1] == '':
+                    newval = "%s + %s" % (fval, res.group(1))
                 else:
-                    newval = "%s + %s" % (val, res.group(1))
+                    newval = "%s" % fval
                 ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
