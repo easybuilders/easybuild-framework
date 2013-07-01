@@ -39,7 +39,7 @@ import time
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.repository import Repository, get_repositories
+import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 from easybuild.tools.utilities import read_environment as _read_environment
 
 
@@ -249,6 +249,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+        'modules_tool': 'EnvironmentModulesC',
     }
 
     # sanity check
@@ -301,19 +302,6 @@ def init(options, config_options_dict):
     variables.update(config_options_dict)
 
     _log.debug("Config variables: %s" % variables)
-
-    # Create an instance of the repository class
-    if 'repository' in variables and not isinstance(variables['repository'], Repository):
-        repo = get_repositories().get(options.repository)
-        repoargs = options.repositorypath
-
-        try:
-            repository = repo(*repoargs)
-        except Exception, err:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (options.repository, repo.__name__, repoargs, err))
-
-        variables['repository'] = repository
 
     def create_dir(dirtype, dirname):
         _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
@@ -389,6 +377,20 @@ def get_repository():
     Return the repository (git, svn or file)
     """
     return variables['repository']
+
+
+def get_repositorypath():
+    """
+    Return the repository path
+    """
+    return variables['repositorypath']
+
+
+def get_modules_tool():
+    """
+    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    """
+    return variables['modules_tool']
 
 
 def log_file_format(return_directory=False):
@@ -508,7 +510,10 @@ def oldstyle_read_configuration(filename):
     """
     _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
 
-    file_variables = get_repositories(check_usable=False)
+    # import avail_repositories here to avoid cyclic dependencies
+    # this block of code is going to be removed in EB v2.0
+    from easybuild.tools.repository import avail_repositories
+    file_variables = avail_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)
     except (IOError, SyntaxError), err:

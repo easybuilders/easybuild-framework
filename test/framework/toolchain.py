@@ -32,13 +32,20 @@ import os
 import re
 from unittest import TestCase, TestLoader, main
 
+import easybuild.tools.config as config
+import easybuild.tools.modules as modules
+import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.modules import Modules
 from test.framework.utilities import find_full_path
 
 class ToolchainTest(TestCase):
     """ Baseclass for toolchain testcases """
+
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
 
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """
@@ -392,7 +399,7 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
-        Modules().purge()
+        modules.modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():
