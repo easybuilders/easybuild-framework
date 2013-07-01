@@ -463,17 +463,20 @@ def tweak(src_fn, target_fn, tweaks):
 
             res = regexp.search(ectxt)
             if res:
-		# determine to prepend/append or overwrite by checking first/last list item
-		# - input ending with comma (empty tail list element) => prepend
-		# - input starting with comma (empty head list element) => append
-		# - no empty head/tail list element => overwrite
-                fval = [x for x in val if x != '']
+                fval = [x for x in val if x != '']  # filter out empty strings
+                # determine to prepend/append or overwrite by checking first/last list item
+                # - input ending with comma (empty tail list element) => prepend
+                # - input starting with comma (empty head list element) => append
+                # - no empty head/tail list element => overwrite
                 if val[0] == '':
                     newval = "%s + %s" % (res.group(1), fval)
-                if val[-1] == '':
+                    _log.debug("Appending %s to %s" % (fval, key))
+                elif val[-1] == '':
                     newval = "%s + %s" % (fval, res.group(1))
+                    _log.debug("Prepending %s to %s" % (fval, key))
                 else:
                     newval = "%s" % fval
+                    _log.debug("Overwriting %s with %s" % (key, fval))
                 ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
