@@ -327,7 +327,7 @@ class EasyConfigTest(TestCase):
         versuff = "mysuffix"
         tcname = "mytc"
         tcver = "4.1.2"
-        extra_patches = ['t5.patch', 't6.patch']
+        new_patches = ['t5.patch', 't6.patch']
         homepage = "http://www.justatest.com"
 
         tweaks = {
@@ -335,7 +335,7 @@ class EasyConfigTest(TestCase):
                   'versionprefix': verpref,
                   'versionsuffix': versuff,
                   'toolchain_version': tcver,
-                  'patches': extra_patches
+                  'patches': new_patches
                  }
         tweak(self.eb_file, tweaked_fn, tweaks)
 
@@ -344,7 +344,7 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb['versionprefix'], verpref)
         self.assertEqual(eb['versionsuffix'], versuff)
         self.assertEqual(eb['toolchain']['version'], tcver)
-        self.assertEqual(eb['patches'], extra_patches + patches)
+        self.assertEqual(eb['patches'], new_patches)
 
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
         # eb['toolchain']['version'] = tcver does not work as expected with templating enabled
@@ -356,7 +356,7 @@ class EasyConfigTest(TestCase):
 
         tweaks = {
                   'toolchain_name': tcname,
-                  'patches': extra_patches[0:1],
+                  'patches': new_patches[0:1],
                   'homepage': homepage,
                   'foo': "bar"
                  }
@@ -366,7 +366,7 @@ class EasyConfigTest(TestCase):
         eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
         self.assertEqual(eb['toolchain']['name'], tcname)
         self.assertEqual(eb['toolchain']['version'], tcver)
-        self.assertEqual(eb['patches'], extra_patches[0:1] + patches)
+        self.assertEqual(eb['patches'], new_patches[:1])
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['homepage'], homepage)
 
@@ -517,17 +517,34 @@ class EasyConfigTest(TestCase):
 
 
         # should be able to prepend to list of patches and handle list of dependencies
-        extra_patches = ['two.patch', 'three.patch']
+        new_patches = ['two.patch', 'three.patch']
         deps = [('foo', '1.2.3'), ('bar', '666')]
         specs.update({
-                      'patches': extra_patches,
+                      'patches': new_patches[:],
                       'dependencies': deps
                      })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], valid_stops=self.all_stops)
-        self.assertEqual(ec['patches'], specs['patches'] + patches)
+        self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec['dependencies'], specs['dependencies'])
+        os.remove(res[1])
+
+        # verify append functionality for lists
+        specs['patches'].insert(0, '')
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        self.assertEqual(res[0], True)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        self.assertEqual(ec['patches'], patches + new_patches)
+        specs['patches'].remove('')
+        os.remove(res[1])
+
+        # verify prepend functionality for lists
+        specs['patches'].append('')
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        self.assertEqual(res[0], True)
+        ec = EasyConfig(res[1], valid_stops=self.all_stops)
+        self.assertEqual(ec['patches'], new_patches + patches)
         os.remove(res[1])
 
         # should use supplied filename
