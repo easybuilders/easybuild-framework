@@ -229,21 +229,25 @@ def find_base_dir():
         return lst
 
     lst = get_local_dirs_purged()
-    newDir = os.getcwd()
+    new_dir = os.getcwd()
     while len(lst) == 1:
-        newDir = os.path.join(os.getcwd(), lst[0])
-        if not os.path.isdir(newDir):
+        new_dir = os.path.join(os.getcwd(), lst[0])
+        if not os.path.isdir(new_dir):
             break
 
         try:
-            os.chdir(newDir)
+            os.chdir(new_dir)
         except OSError, err:
-            _log.exception("Changing to dir %s from current dir %s failed: %s" % (newDir, os.getcwd(), err))
+            _log.exception("Changing to dir %s from current dir %s failed: %s" % (new_dir, os.getcwd(), err))
         lst = get_local_dirs_purged()
 
+    # make sure it's a directory, and not a (single) file that was in a tarball for example
+    while not os.path.isdir(new_dir):
+        new_dir = os.path.dirname(new_dir)
+
     _log.debug("Last dir list %s" % lst)
-    _log.debug("Possible new dir %s found" % newDir)
-    return newDir
+    _log.debug("Possible new dir %s found" % new_dir)
+    return new_dir
 
 
 def extract_cmd(fn, overwrite=False):
