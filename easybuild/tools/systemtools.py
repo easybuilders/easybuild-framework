@@ -100,19 +100,19 @@ def get_cpu_vendor():
     # Linux
     txt = read_file("/proc/cpuinfo", log_error=False)
     if txt is not None:
-        # vendor_id might not be in the /proc/cpuinfo, so this might fail 
-        try:
-            result = regexp.search(txt).groupdict()
-            arch = result.get('vendorid', UNKNOWN)
-        except AttributeError:
-            arch=UNKNOWN	
+        arch = UNKNOWN
+        # vendor_id might not be in the /proc/cpuinfo, so this might fail
+        res = regexp.search(txt)
+        if res:
+            arch = res.groupdict().get('vendorid', UNKNOWN)
         if arch in VENDORS:
             return VENDORS[arch]
 
         # some embeded linux on arm behaves differently (e.g. raspbian)
         regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*", re.M)
-        result = regexp.search(txt).groupdict()
-        arch = result.get('vendorid', UNKNOWN)
+        res = regexp.search(txt)
+        if res:
+            arch = res.groupdict().get('vendorid', UNKNOWN)
         if ARM in arch:
             return ARM
 
