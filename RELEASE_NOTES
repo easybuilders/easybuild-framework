@@ -1,11 +1,23 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
-v1.5.0 (June 1st 2013)
----------------------
+v1.6.0 (July 11th 2013)
+-----------------------
 
 feature + bugfix release
+- added support for using Lmod as module tool (refs #645)
 - various other enhancements, including:
+    - allow prepending to/appending to/overwriting list easyconfig parameters using --try-amend-X (refs #658, #664)
+- various bug fixes, including:
+    - add salt to temporary log file name (refs #656, #665)
+    - fix determining CPU architecture on Rasberry Pi (ARM) systems (refs #655, #662)
+    - fix support for determining base path of tarballs containing a single file (refs #660)
+
+v1.5.0 (June 1st 2013)
+----------------------
+
+feature + bugfix release
+- various enhancements, including:
     - define SHLIB_EXT constant for shared library extension (.so, .dylib), deprecate shared_lib_ext global var (#630)
     - enhance support for sanity checking extensions (#632, #649)
     - add support for modextrapaths easyconfig parameter (#634, #637)
