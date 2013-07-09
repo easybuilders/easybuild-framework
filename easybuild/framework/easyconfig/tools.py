@@ -344,6 +344,10 @@ def select_or_generate_ec(fp, paths, specs):
         elif val:
             # if a value is specified, use that, even if it's not available yet
             selected_val = val
+            # promote value to list if deemed appropriate
+            if vals and type(vals[0]) == list and not type(val) == list:
+                _log.debug("Promoting type of %s value to list, since original value was." % param)
+                specs[param] = [val]
             _log.debug("%s is specified, so using it (even though it's not available yet): %s" % (param, selected_val))
         elif len(vals) == 1:
             # if only one value is available, use that
