@@ -53,6 +53,11 @@ class EasyConfigTest(TestCase):
     contents = None
     eb_file = ''
 
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
+
     def setUp(self):
         """ create temporary easyconfig file """
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
@@ -356,11 +361,11 @@ class EasyConfigTest(TestCase):
         eb.dump(self.eb_file)
 
         tweaks = {
-                  'toolchain_name': tcname,
-                  'patches': new_patches[0:1],
-                  'homepage': homepage,
-                  'foo': "bar"
-                 }
+            'toolchain_name': tcname,
+            'patches': new_patches[:1],
+            'homepage': homepage,
+            'foo': "bar"
+        }
 
         tweak(self.eb_file, tweaked_fn, tweaks)
 
@@ -370,6 +375,11 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb['patches'], new_patches[:1])
         self.assertEqual(eb['version'], ver)
         self.assertEqual(eb['homepage'], homepage)
+
+        # specify patches as string, eb should promote it to a list because original value was a list
+        tweaks['patches'] = new_patches[0]
+        eb = EasyConfig(tweaked_fn, valid_stops=self.all_stops)
+        self.assertEqual(eb['patches'], [new_patches[0]])
 
         # cleanup
         os.remove(tweaked_fn)
