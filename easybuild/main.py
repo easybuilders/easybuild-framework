@@ -88,7 +88,7 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.config import get_repository, get_repositorypath, module_classes
+from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.filetools import modify_env, read_file, write_file
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
@@ -865,7 +865,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
         try:
             if not os.path.isdir(newLogDir):
                 os.makedirs(newLogDir)
-            applicationLog = os.path.join(newLogDir, os.path.basename(app.logfile))
+            applicationLog = os.path.join(newLogDir, get_log_filename(app.name, app.version))
             shutil.move(app.logfile, applicationLog)
         except IOError, err:
             print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))

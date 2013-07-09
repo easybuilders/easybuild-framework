@@ -158,7 +158,7 @@ class EasyBlock(object):
         if not self.log is None:
             return
 
-        self.logfile = get_log_filename(self.name, self.version)
+        self.logfile = get_log_filename(self.name, self.version, add_salt=True)
         fancylogger.logToFile(self.logfile)
 
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
