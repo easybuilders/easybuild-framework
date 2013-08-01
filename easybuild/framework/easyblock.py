@@ -773,6 +773,7 @@ class EasyBlock(object):
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
+            'ACLOCAL_PATH' : ['share/aclocal'],
         }
 
     def load_module(self, mod_paths=None, purge=True):
