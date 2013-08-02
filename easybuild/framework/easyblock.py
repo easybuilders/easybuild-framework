@@ -101,6 +101,7 @@ class EasyBlock(object):
 
         # extensions
         self.exts = None
+        self.exts_all = None
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
@@ -744,8 +745,8 @@ class EasyBlock(object):
         txt = self.module_extra_extensions
 
         # set environment variable that specifies list of extensions
-        if self.exts:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts])
+        if self.exts_all:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
 
         return txt
@@ -1257,6 +1258,7 @@ class EasyBlock(object):
         self.prepare_for_extensions()
 
         self.exts = self.fetch_extension_sources()
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
             self.skip_extensions()
