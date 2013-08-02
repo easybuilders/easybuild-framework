@@ -147,6 +147,9 @@ class EasyBlock(object):
         # iterate configure/build/options
         self.iter_opts = {}
 
+        # sanity check fail error messages to report (if any)
+        self.sanity_check_fail_msgs = []
+
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
 
@@ -1436,8 +1439,6 @@ class EasyBlock(object):
         if not ks == ["dirs", "files"] or sum(valnottypes) > 0 or sum(lenvals) == 0:
             self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
                            "values should be lists (at least one non-empty)).")
-
-        self.sanity_check_fail_msgs = []
 
         # check if files exist
         for f in paths['files']:
