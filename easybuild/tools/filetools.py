@@ -765,7 +765,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     global errorsFoundInLog
 
     if regExp and type(regExp) == bool:
-        regExp = r"(?<![(,]|\w)(?:error|segmentation fault|failed)(?![(,]|\.?\w)"
+        regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
         _log.debug('Using default regular expression: %s' % regExp)
     elif type(regExp) == str:
         pass
