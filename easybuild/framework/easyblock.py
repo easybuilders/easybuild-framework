@@ -389,13 +389,16 @@ class EasyBlock(object):
             foundfile = None
             failedpaths = []
 
+            # always look first in the dir of the current eb file
+            ebpath = [os.path.dirname(self.cfg.path)]
+
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
-            for path in common_filepaths + srcpaths:
+            for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
                 letterpath = os.path.join(path, self.name.lower()[0], self.name)
