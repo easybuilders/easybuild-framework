@@ -317,6 +317,7 @@ class GitRepository(FileRepository):
         Clean up git working copy.
         """
         try:
+            self.wc = os.path.dirname(self.wc)
             rmtree2(self.wc)
         except IOError, err:
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
