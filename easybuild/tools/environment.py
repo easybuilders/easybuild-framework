@@ -99,3 +99,22 @@ def restore_env_vars(env_keys):
             _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
             os.environ[key] = env_keys[key]
 
+
+def read_environment(env_vars, strict=False):
+    """
+    Read variables from the environment
+        @param: env_vars: a dict with key a name, value a environment variable name
+        @param: strict, boolean, if True enforces that all specified environment variables are found
+    """
+    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
+
+    if not len(env_vars) == len(result):
+        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
+        msg = 'Following name/variable not found in environment: %s' % missing
+        if strict:
+            _log.error(msg)
+        else:
+            _log.debug(msg)
+
+    return result
+
