@@ -491,8 +491,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.utilities"""
-    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    """Depreacted location for read_environment, use easybuild.tools.environment"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
     return _read_environment(env_vars, strict)
 
 
