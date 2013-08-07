@@ -118,3 +118,27 @@ def read_environment(env_vars, strict=False):
 
     return result
 
+
+def modify_env(old, new):
+    """
+    Compares 2 os.environ dumps. Adapts final environment.
+    """
+    oldKeys = old.keys()
+    newKeys = new.keys()
+    for key in newKeys:
+        ## set them all. no smart checking for changed/identical values
+        if key in oldKeys:
+            ## hmm, smart checking with debug logging
+            if not new[key] == old[key]:
+                _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
+                setvar(key, new[key])
+        else:
+            _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
+            setvar(key, new[key])
+
+    for key in oldKeys:
+        if not key in newKeys:
+            _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
+            os.unsetenv(key)
+            del os.environ[key]
+
