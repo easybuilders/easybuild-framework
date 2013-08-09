@@ -42,7 +42,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
-from easybuild.tools.utilities import read_environment as _read_environment
+from easybuild.tools.environment import read_environment as _read_environment
 
 
 _log = fancylogger.getLogger('config', fname=False)
