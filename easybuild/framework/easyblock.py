@@ -153,9 +153,6 @@ class EasyBlock(object):
         # sanity check fail error messages to report (if any)
         self.sanity_check_fail_msgs = []
 
-        # list of env vars to unset while building and restore afterwards
-        self.unwanted_env_vars = []
-
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
 
@@ -1222,7 +1219,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
-        self.unwanted_env_vars = env.unset_env_vars(self.unwanted_env_vars)
+        self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
@@ -1560,7 +1557,7 @@ class EasyBlock(object):
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
 
-        env.restore_env_vars(self.unwanted_env_vars)
+        env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
     def make_module_step(self, fake=False):
         """
