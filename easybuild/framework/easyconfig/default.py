@@ -95,6 +95,7 @@ DEFAULT_CONFIG = {
                                                "(format: {'files':<list>, 'dirs':<list>})"), "BUILD"],
                   'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                                   "Using a non-tuple is equivalent to (name, '-h')"), "BUILD"],
+                  'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", "BUILD"],
 
                   'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                                         'If not, this is added to the guessed path.'), "FILEMANAGEMENT"],
