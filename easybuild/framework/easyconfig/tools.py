@@ -48,9 +48,10 @@ from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd, read_file, write_file
+from easybuild.tools.module_naming_scheme import det_installversion
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -62,9 +63,7 @@ def ec_filename_for(path):
     """
     ec = EasyConfig(path, validate=False)
 
-    fn = "%s-%s.eb" % (ec['name'], det_installversion(ec['version'], ec['toolchain']['name'],
-                                                      ec['toolchain']['version'], ec['versionprefix'],
-                                                      ec['versionsuffix']))
+    fn = "%s-%s.eb" % (ec['name'], det_installversion(ec))
 
     return fn
 
@@ -144,9 +143,16 @@ def obtain_ec_for(specs, paths, fp):
     # create glob patterns based on supplied info
 
     # figure out the install version
-    installver = det_installversion(specs.get('version', '*'), specs.get('toolchain_name', '*'),
-                                    specs.get('toolchain_version', '*'), specs.get('versionprefix', '*'),
-                                    specs.get('versionsuffix', '*'))
+    cfg = {
+        'version': specs.get('version', '*'),
+        'toolchain': {
+            'name': specs.get('toolchain_name', '*'),
+            'version': specs.get('toolchain_version', '*'),
+        },
+        'versionprefix': specs.get('versionprefix', '*'),
+        'versionsuffix': specs.get('versionsuffix', '*'),
+    }
+    installver = det_installversion(cfg)
 
     # find easyconfigs that match a pattern
     easyconfig_files = []
@@ -198,7 +204,13 @@ def select_or_generate_ec(fp, paths, specs):
 
     # find ALL available easyconfig files for specified software
     ec_files = []
-    installver = det_installversion('*', 'dummy', '*', '*', '*')
+    cfg = {
+        'version': '*',
+        'toolchain': {'name': 'dummy', 'version': '*'},
+        'versionprefix': '*',
+        'versionsuffix': '*',
+    }
+    installver = det_installversion(cfg)
     for path in paths:
         patterns = create_paths(path, name, installver)
         for pattern in patterns:
@@ -398,7 +410,13 @@ def select_or_generate_ec(fp, paths, specs):
 
         # if no file path was specified, generate a file name
         if not fp:
-            installver = det_installversion(ver, tcname, tcver, verpref, versuff)
+            cfg = {
+                'version': ver,
+                'toolchain': {'name': tcname, 'version': tcver},
+                'versionprefix': verpref,
+                'versionsuffix': versuff,
+            }
+            installver = det_installversion(cfg)
             fp = "%s-%s.eb" % (name, installver)
 
         # generate tweaked easyconfig file
