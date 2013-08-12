@@ -43,6 +43,7 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.module_naming_scheme import det_installversion as _det_installversion
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -600,24 +601,16 @@ def build_easyconfig_constants_dict():
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
-    """
-    Determine exact install version, based on supplied parameters.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
-    """
-
-    installversion = None
-
-    # determine main install version based on toolchain
-    if toolchain_name == 'dummy':
-        installversion = version
-    else:
-        installversion = "%s-%s-%s" % (version, toolchain_name, toolchain_version)
-
-    # prepend/append prefix/suffix
-    installversion = ''.join([x for x in [prefix, installversion, suffix] if x])
-
-    return installversion
-
+    """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
+    old_fn = 'framework.easyconfig.easyconfig.det_installversion'
+    _log.deprecated('Use module_naming_scheme.det_installversion instead of %s' % old_fn, '2.0')
+    cfg = {
+        'version': version,
+        'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+        'versionprefix': prefix,
+        'versionsuffix': suffix,
+    }
+    return _det_installversion(cfg)
 
 def resolve_template(value, tmpl_dict):
     """Given a value, try to susbstitute the templated strings with actual values.
