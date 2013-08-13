@@ -386,12 +386,6 @@ class EasyConfig(object):
         self._toolchain = tc
         return self._toolchain
 
-    def get_installversion(self):
-        """
-        return the installation version
-        """
-        return det_full_ec_version(self)
-
     def dump(self, fp):
         """
         Dump this easyconfig to file, with the given filename.

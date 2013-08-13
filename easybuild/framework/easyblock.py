@@ -59,6 +59,7 @@ from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_n
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
+from easybuild.tools.module_naming_scheme import det_full_module_name
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.systemtools import get_core_count
@@ -575,7 +576,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.name, self.get_installversion())
+            installdir = os.path.join(basepath, *det_full_module_name(self.cfg))
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -677,7 +678,7 @@ class EasyBlock(object):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-        filename = os.path.join(output_dir, "%s-%s-easybuild-devel" % (self.name, self.get_installversion()))
+        filename = os.path.join(output_dir, "%s-easybuild-devel" % '-'.join(det_full_module_name(self.cfg)))
         self.log.debug("Writing devel module to %s" % filename)
 
         write_file(filename, header+load_txt+env_txt)
@@ -728,8 +729,7 @@ class EasyBlock(object):
         environment_name = convert_name(self.name, upper=True)
         txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
         txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), "%s-%s-easybuild-devel" % (self.name,
-            self.get_installversion()))
+        devel_path = os.path.join("$root", log_path(), "%s-easybuild-devel" % '-'.join(det_full_module_name(self.cfg)))
         txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
@@ -794,7 +794,7 @@ class EasyBlock(object):
         if purge:
             m.purge()
         m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-        m.add_module([[self.name, self.get_installversion()]])
+        m.add_module([det_full_module_name(self.cfg)])
         m.load()
 
     def load_fake_module(self, purge=False):
@@ -830,7 +830,7 @@ class EasyBlock(object):
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
                 m = modules_tool(mod_paths)
-                m.add_module([[self.name, self.get_installversion()]])
+                m.add_module([det_full_module_name(self.cfg)])
                 m.unload()
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
@@ -922,10 +922,6 @@ class EasyBlock(object):
             self.log.warn("Could not determine install size: %s" % err)
 
         return installsize
-
-    def get_installversion(self):
-        """Get full install version (including toolchain and version suffix)."""
-        return self.cfg.get_installversion()
 
     def guess_start_dir(self):
         """
@@ -1107,13 +1103,13 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exists(self.name, self.get_installversion()):
+            mod_name = det_full_module_name(self.cfg)
+            if self.modules_tool.exists(mod_name):
                 self.skip = True
-                self.log.info("Current version (name: %s, version: %s) found." % (self.name, self.get_installversion))
+                self.log.info("Current version (name: %s, version: %s) found." % mod_name)
                 self.log.info("Going to skip actually main build and potential existing extensions. Expert only.")
             else:
-                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name,
-                    self.get_installversion()))
+                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % mod_name)
 
         # Set group id, if a group was specified
         if self.cfg['group']:
@@ -1737,7 +1733,7 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         try:
-            full_name = "%s-%s" % (self.name, self.get_installversion())
+            full_name = '-'.join(det_full_module_name(self.cfg))
             print_msg("building and installing %s..." % full_name, self.log)
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log)

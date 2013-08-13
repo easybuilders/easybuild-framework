@@ -138,18 +138,18 @@ class EasyConfigTest(TestCase):
             'stop = "notvalid"',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
-        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
+        ec = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", ec.validate)
 
-        eb['stop'] = 'patch'
+        ec['stop'] = 'patch'
         # this should now not crash
-        eb.validate()
+        ec.validate()
 
-        eb['osdependencies'] = ['non-existent-dep']
-        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", eb.validate)
+        ec['osdependencies'] = ['non-existent-dep']
+        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
 
         # dummy toolchain, installversion == version
-        self.assertEqual(eb.get_installversion(), "3.14")
+        self.assertEqual(det_full_ec_version(ec), "3.14")
 
         os.chmod(self.eb_file, 0000)
         self.assertErrorRegex(EasyBuildError, "Unexpected IOError", EasyConfig, self.eb_file)

@@ -37,6 +37,7 @@ import tempfile
 from vsc import fancylogger
 
 from easybuild.tools.config import install_path
+from easybuild.tools.module_naming_scheme import det_full_module_name
 from easybuild.tools.utilities import quote_str
 
 
@@ -69,11 +70,10 @@ class ModuleGenerator(object):
             module_path = self.tmpdir
 
         # Real file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, self.app.name, self.app.get_installversion())
+        self.filename = os.path.join(module_path, GENERAL_CLASS, *det_full_module_name(self.app.cfg))
 
         # Make symlink in moduleclass category
-        classPath = os.path.join(module_path, self.app.cfg['moduleclass'], self.app.name)
-        classPathFile = os.path.join(classPath, self.app.get_installversion())
+        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], *det_full_module_name(self.app.cfg))
 
         # Create directories and links
         for directory in [os.path.dirname(x) for x in [self.filename, classPathFile]]:

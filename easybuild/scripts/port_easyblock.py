@@ -184,6 +184,7 @@ def refactor(txt):
                     ('toolkit_name', "toolkit['name']"),
                     ('toolkit_version', "toolkit['version']"),
                     ('installversion', 'get_installversion'),
+                    ('get_installversion', 'det_full_ec_version'),
                     ('installsize', 'det_installsize'),
                     ('packages', 'extensions_step'),
                     ('find_package_patches', 'fetch_extension_patches'),

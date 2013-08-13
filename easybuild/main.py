@@ -91,6 +91,7 @@ from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.module_naming_scheme import det_full_ec_version, det_full_module_name
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.repository import init_repository
@@ -401,7 +402,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         # this app will appear as following module in the list
         easyconfig = {
             'spec': spec,
-            'module': (ec.name, ec.get_installversion()),
+            'module': det_full_module_name(ec),
             'dependencies': [],
             'builddependencies': [],
         }
@@ -850,9 +851,9 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
                 # upload spec to central repository
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'originalSpec' in module:
-                    repo.add_easyconfig(module['originalSpec'], app.name, app.get_installversion() + ".block", buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, app.get_installversion(), buildstats, currentbuildstats)
-                repo.commit("Built %s/%s" % (app.name, app.get_installversion()))
+                    repo.add_easyconfig(module['originalSpec'], app.name, det_full_ec_version(app.cfg) + ".block", buildstats, currentbuildstats)
+                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
+                repo.commit("Built %s" % os.path.join(det_full_module_name(app.cfg)))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -872,7 +873,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
             print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
 
         try:
-            shutil.copy(spec, os.path.join(newLogDir, "%s-%s.eb" % (app.name, app.get_installversion())))
+            shutil.copy(spec, os.path.join(newLogDir, "%s.eb" % '-'.join(det_full_module_name(app.cfg))))
         except IOError, err:
             print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
 
@@ -1035,14 +1036,14 @@ def write_to_xml(succes, failed, filename):
     for (obj, fase, error, _) in failed:
         # try to pretty print
         try:
-            el = create_failure("%s/%s" % (obj.name, obj.get_installversion()), fase, error)
+            el = create_failure(os.path.join(det_full_module_name(obj.cfg)), fase, error)
         except AttributeError:
             el = create_failure(obj, fase, error)
 
         root.firstChild.appendChild(el)
 
     for (obj, stats) in succes:
-        el = create_success("%s/%s" % (obj.name, obj.get_installversion()), stats)
+        el = create_success(os.path.join(det_full_module_name(obj.cfg)), stats)
         root.firstChild.appendChild(el)
 
     output_file = open(filename, "w")
@@ -1099,7 +1100,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
         # if initialisation step failed, app will be None
         if app:
 
-            applog = os.path.join(output_dir, "%s-%s.log" % (app.name, app.get_installversion()))
+            applog = os.path.join(output_dir, "%s-%s.log" % (app.name, det_full_ec_version(app.cfg)))
 
             start_time = time.time()
 
