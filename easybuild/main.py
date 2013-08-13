@@ -853,7 +853,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
                 if 'originalSpec' in module:
                     repo.add_easyconfig(module['originalSpec'], app.name, det_full_ec_version(app.cfg) + ".block", buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % os.path.join(det_full_module_name(app.cfg)))
+                repo.commit("Built %s" % os.path.join(*det_full_module_name(app.cfg)))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -1036,14 +1036,14 @@ def write_to_xml(succes, failed, filename):
     for (obj, fase, error, _) in failed:
         # try to pretty print
         try:
-            el = create_failure(os.path.join(det_full_module_name(obj.cfg)), fase, error)
+            el = create_failure(os.path.join(*det_full_module_name(obj.cfg)), fase, error)
         except AttributeError:
             el = create_failure(obj, fase, error)
 
         root.firstChild.appendChild(el)
 
     for (obj, stats) in succes:
-        el = create_success(os.path.join(det_full_module_name(obj.cfg)), stats)
+        el = create_success(os.path.join(*det_full_module_name(obj.cfg)), stats)
         root.firstChild.appendChild(el)
 
     output_file = open(filename, "w")
