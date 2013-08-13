@@ -180,10 +180,12 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if not isinstance(prev_value, basestring):
-            self.log.error("Can't update configuration value for %s, because it's not a string." % key)
-
-        self[key] = '%s %s ' % (prev_value, value)
+        if isinstance(prev_value, basestring):
+            self[key] = '%s %s ' % (prev_value, value)
+        elif isinstance(prev_value, list):
+            self[key] = prev_value + value
+        else:
+            self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
     def parse(self, path):
         """
