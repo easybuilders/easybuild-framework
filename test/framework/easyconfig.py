@@ -41,12 +41,12 @@ import easybuild.framework.easyconfig as easyconfig
 from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.easyconfig import det_installversion as _det_installversion
+from easybuild.framework.easyconfig.easyconfig import det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_naming_scheme import det_installversion
+from easybuild.tools.module_naming_scheme import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
@@ -403,10 +403,10 @@ class EasyConfigTest(TestCase):
             'versionprefix': verpref,
             'versionsuffix': versuff,
         }
-        installver = det_installversion(cfg)
+        installver = det_full_ec_version(cfg)
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
         # legacy version
-        installver = _det_installversion(ver, tcname, tcver, verpref, versuff)
+        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
         correct_installver =  "%s%s%s" % (verpref, ver, versuff)
@@ -416,10 +416,10 @@ class EasyConfigTest(TestCase):
             'versionprefix': verpref,
             'versionsuffix': versuff,
         }
-        installver = det_installversion(cfg)
+        installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
         # legacy version
-        installver = _det_installversion(ver, dummy, tcver, verpref, versuff)
+        installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
     def test_obtain_easyconfig(self):

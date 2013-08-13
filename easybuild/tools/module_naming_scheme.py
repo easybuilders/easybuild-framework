@@ -28,7 +28,7 @@ Tools for supporting the desired module naming scheme.
 @author: Kenneth Hoste (Ghent University)
 """
 
-def det_installversion(ec):
+def det_full_ec_version(ec):
     """
     Determine exact install version, based on supplied easyconfig.
     e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
@@ -46,3 +46,11 @@ def det_installversion(ec):
     installversion = ''.join([x for x in [ec['versionprefix'], installversion, ec['versionsuffix']] if x])
 
     return installversion
+
+
+def det_full_module_name(ec):
+    """
+    Determine full module name, based on supplied easyconfig.
+    Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
+    """
+    return (ec['name'], det_full_ec_version(ec))
