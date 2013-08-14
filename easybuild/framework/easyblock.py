@@ -58,8 +58,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file
-from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
-from easybuild.tools.module_naming_scheme import det_full_module_name
+from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator, det_full_module_name
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.systemtools import get_core_count

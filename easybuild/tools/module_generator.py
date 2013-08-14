@@ -37,11 +37,10 @@ import tempfile
 from vsc import fancylogger
 
 from easybuild.tools.config import install_path
-from easybuild.tools.module_naming_scheme import det_full_module_name
 from easybuild.tools.utilities import quote_str
 
 
-_log = fancylogger.getLogger('moduleGenerator', fname=False)
+_log = fancylogger.getLogger('module_generator', fname=False)
 
 # general module class
 GENERAL_CLASS = 'all'
@@ -103,31 +102,32 @@ class ModuleGenerator(object):
         """
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
-        txt = "#%Module\n"
-        txt += """
-proc ModulesHelp { } {
-    puts stderr {   %(description)s
-}
-}
-
-module-whatis {%(description)s}
-
-set root    %(installdir)s
-
-""" % {'description': description, 'installdir': self.app.installdir}
+        txt = '\n'.join([
+            "#%%Module",  # double % to escape!
+            "",
+            "proc ModulesHelp { } {",
+            "    puts stderr {   %(description)s",
+            "    }",
+            "}",
+            "",
+            "module-whatis {%(description)s}",
+            "",
+            "set root    %(installdir)s",
+            "",
+        ]) % {'description': description, 'installdir': self.app.installdir}
 
         if self.app.cfg['moduleloadnoconflict']:
-            txt += """
-if { ![is-loaded %(name)s/%(version)s] } {
-    if { [is-loaded %(name)s] } {
-        module unload %(name)s
-    }
-}
-
-""" % {'name': self.app.name, 'version': self.app.version}
+            txt += '\n'.join([
+                "if { ![is-loaded %(name)s/%(version)s] } {",
+                "    if { [is-loaded %(name)s] } {",
+                "        module unload %(name)s",
+                "    }",
+                "}",
+                "",
+        ]) % {'name': self.app.name, 'version': self.app.version}
 
         elif conflict:
-            txt += "conflict    %s\n" % self.app.name
+            txt += "\nconflict    %s\n" % self.app.name
 
         return txt
 
@@ -135,23 +135,27 @@ if { ![is-loaded %(name)s/%(version)s] } {
         """
         Generate load statements for module with name and version.
         """
-        return """
-if { ![is-loaded %(name)s/%(version)s] } {
-    module load %(name)s/%(version)s
-}
-""" % {'name': name, 'version': version}
+        return '\n'.join([
+            "",
+            "if { ![is-loaded %(name)s/%(version)s] } {",
+            "    module load %(name)s/%(version)s",
+            "}",
+            "",
+        ]) % {'name': name, 'version': version}
 
     def unload_module(self, name, version):
         """
         Generate unload statements for module with name and version.
         """
-        return """
-if { ![is-loaded %(name)s/%(version)s] } {
-    if { [is-loaded %(name)s] } {
-        module unload %(name)s
-    }
-}
-""" % {'name': name, 'version': version}
+        return '\n'.join([
+            "",
+            "if { ![is-loaded %(name)s/%(version)s] } {",
+            "    if { [is-loaded %(name)s] } {",
+            "        module unload %(name)s",
+            "    }",
+            "}",
+            "",
+        ]) % {'name': name, 'version': version}
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
@@ -181,3 +185,30 @@ if { ![is-loaded %(name)s/%(version)s] } {
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
+
+def det_full_ec_version(ec):
+    """
+    Determine exact install version, based on supplied easyconfig.
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    """
+
+    installversion = None
+
+    # determine main install version based on toolchain
+    if ec['toolchain']['name'] == 'dummy':
+        installversion = ec['version']
+    else:
+        installversion = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+
+    # prepend/append version prefix/suffix
+    installversion = ''.join([x for x in [ec['versionprefix'], installversion, ec['versionsuffix']] if x])
+
+    return installversion
+
+
+def det_full_module_name(ec):
+    """
+    Determine full module name, based on supplied easyconfig.
+    Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
+    """
+    return (ec['name'], det_full_ec_version(ec))

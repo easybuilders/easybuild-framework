@@ -43,7 +43,7 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
-from easybuild.tools.module_naming_scheme import det_full_ec_version
+from easybuild.tools.module_generator import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -598,7 +598,7 @@ def build_easyconfig_constants_dict():
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
     old_fn = 'framework.easyconfig.easyconfig.det_installversion'
-    _log.deprecated('Use module_naming_scheme.det_full_ec_version instead of %s' % old_fn, '2.0')
+    _log.deprecated('Use module_generator.det_full_ec_version instead of %s' % old_fn, '2.0')
     cfg = {
         'version': version,
         'toolchain': {'name': toolchain_name, 'version': toolchain_version},

@@ -35,6 +35,8 @@ import shutil
 import tempfile
 from unittest import TestCase, TestSuite, main
 
+import easybuild.tools.options as eboptions
+from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
@@ -43,6 +45,11 @@ from test.framework.utilities import find_full_path
 
 class ModuleGeneratorTest(TestCase):
     """ testcase for ModuleGenerator """
+
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+    del eb_go
 
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """
@@ -66,19 +73,23 @@ class ModuleGeneratorTest(TestCase):
 
     def runTest(self):
         """ since we set the installdir above, we can predict the output """
-        expected = """#%%Module
-
-proc ModulesHelp { } {
-    puts stderr {   gzip (GNU zip) is a popular data compression program as a replacement for compress - Homepage: http://www.gzip.org/
-}
-}
-
-module-whatis {gzip (GNU zip) is a popular data compression program as a replacement for compress - Homepage: http://www.gzip.org/}
-
-set root    %s
-
-conflict    gzip
-""" % self.modgen.app.installdir
+        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
+        gzip_txt += "- Homepage: http://www.gzip.org/"
+        expected = '\n'.join([
+            "#%Module",
+            "",
+            "proc ModulesHelp { } {",
+            "    puts stderr {   %s" % gzip_txt,
+            "    }",
+            "}",
+            "",
+            "module-whatis {%s}" % gzip_txt,
+            "",
+            "set root    %s" % self.modgen.app.installdir,
+            "",
+            "conflict    gzip",
+            "",
+        ]) 
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
