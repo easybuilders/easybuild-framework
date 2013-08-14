@@ -34,11 +34,11 @@ import os
 import re
 import shutil
 import tempfile
+from unittest import TestCase, TestLoader, main
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import det_installversion

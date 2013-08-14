@@ -362,7 +362,7 @@ class CommandLineOptionsTest(TestCase):
         orig_sys_path = sys.path
 
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         easybuild = reload(easybuild)
         import easybuild.easyblocks
         easybuild.easyblocks = reload(easybuild.easyblocks)
@@ -414,7 +414,7 @@ class CommandLineOptionsTest(TestCase):
         orig_sys_path = sys.path
 
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         easybuild = reload(easybuild)
         import easybuild.easyblocks
         easybuild.easyblocks = reload(easybuild.easyblocks)

@@ -40,7 +40,7 @@ from vsc import fancylogger
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
 import test.framework.easyconfig as e
-import test.framework.modulegenerator as mg
+import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.filetools as f
 import test.framework.repository as r

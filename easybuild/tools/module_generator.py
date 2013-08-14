@@ -42,6 +42,13 @@ from easybuild.tools.utilities import quote_str
 
 _log = fancylogger.getLogger('module_generator', fname=False)
 
+try:
+    from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
+    CUSTOM_MODULE_NAMING_SCHEME = True
+except ImportError, err:
+    _log.debug("Failed to import custom module naming scheme: %s" % err)
+    CUSTOM_MODULE_NAMING_SCHEME = False
+
 # general module class
 GENERAL_CLASS = 'all'
 
@@ -192,18 +199,18 @@ def det_full_ec_version(ec):
     e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
     """
 
-    installversion = None
+    ecver = None
 
     # determine main install version based on toolchain
     if ec['toolchain']['name'] == 'dummy':
-        installversion = ec['version']
+        ecver = ec['version']
     else:
-        installversion = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
 
     # prepend/append version prefix/suffix
-    installversion = ''.join([x for x in [ec['versionprefix'], installversion, ec['versionsuffix']] if x])
+    ecver = ''.join([x for x in [ec['versionprefix'], ecver, ec['versionsuffix']] if x])
 
-    return installversion
+    return ecver
 
 
 def det_full_module_name(ec):
@@ -211,4 +218,8 @@ def det_full_module_name(ec):
     Determine full module name, based on supplied easyconfig.
     Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
     """
-    return (ec['name'], det_full_ec_version(ec))
+    if CUSTOM_MODULE_NAMING_SCHEME:
+        return det_custom_full_module_name(ec)
+    else:
+        # default module naming scheme: <name>/<installversion> (see det_full_ec_version function)
+        return (ec['name'], det_full_ec_version(ec))

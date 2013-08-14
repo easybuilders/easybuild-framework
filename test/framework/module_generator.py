@@ -32,12 +32,15 @@ Unit tests for module_generator.py.
 import os
 import re
 import shutil
+import sys
 import tempfile
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.options as eboptions
+import easybuild.tools.module_generator
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
@@ -62,7 +65,7 @@ class ModuleGeneratorTest(TestCase):
         """ initialize ModuleGenerator with test Application """
 
         # find .eb file
-        eb_path = os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb')
+        eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
@@ -71,8 +74,14 @@ class ModuleGeneratorTest(TestCase):
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
         self.cwd = os.getcwd()
 
-    def runTest(self):
-        """ since we set the installdir above, we can predict the output """
+    def tearDown(self):
+        """cleanup"""
+        os.remove(self.eb.logfile)
+        os.chdir(self.cwd)
+        shutil.rmtree(self.modgen.app.installdir)
+
+    def test_descr(self):
+        """Test generation of module description (which includes '#%Module' header)."""
         gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
         gzip_txt += "- Homepage: http://www.gzip.org/"
         expected = '\n'.join([
@@ -94,7 +103,8 @@ class ModuleGeneratorTest(TestCase):
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
 
-        # test load_module
+    def test_load(self):
+        """Test load part in generated module file."""
         expected = """
 if { ![is-loaded name/version] } {
     module load name/version
@@ -102,7 +112,8 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.load_module("name", "version"))
 
-        # test unload_module
+    def test_unload(self):
+        """Test unload part in generated module file."""
         expected = """
 if { ![is-loaded name/version] } {
     if { [is-loaded name] } {
@@ -112,6 +123,8 @@ if { ![is-loaded name/version] } {
 """
         self.assertEqual(expected, self.modgen.unload_module("name", "version"))
 
+    def test_prepend_paths(self):
+        """Test generating prepend-paths statements."""
         # test prepend_paths
         expected = ''.join([
             "prepend-path\tkey\t\t$root/path1\n",
@@ -129,21 +142,59 @@ if { ![is-loaded name/version] } {
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
 
+    def test_env(self):
+        """Test setting of environment variables."""
         # test set_environment
         self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
         self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
         self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
         self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
 
-    def tearDown(self):
-        """cleanup"""
-        os.remove(self.eb.logfile)
-        os.chdir(self.cwd)
-        shutil.rmtree(self.modgen.app.installdir)
+    def test_module_naming_scheme(self):
+        """Test using default module naming scheme."""
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+
+        # test default naming scheme
+        for ec_file in os.listdir(ecs_dir):
+            ec_path = os.path.join(ecs_dir, ec_file)
+            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+            # derive module name directly from easyconfig file name
+            ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+            mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
+            mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
+            self.assertEqual(os.path.join(mod_name, mod_version), os.path.join(*det_full_module_name(ec)))
+
+        # install custom module naming scheme dynamically
+        sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox'))
+        reload(easybuild)
+        reload(easybuild.tools)
+        from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
+        easybuild.tools.module_generator.det_custom_full_module_name = det_custom_full_module_name
+        easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = True
+
+        ec2mod_map = {
+            'GCC-4.6.3': 'GCC/4.6.3',
+            'gzip-1.4': 'gzip/1.4',
+            'gzip-1.4-GCC-4.6.3': 'gnu/gzip/1.4',
+            'gzip-1.5-goolf-1.4.10': 'gnu/openmpi/gzip/1.5',
+            'gzip-1.5-ictce-4.1.13': 'intel/intelmpi/gzip/1.5',
+        }
+
+        # test custom naming scheme
+        for ec_file in os.listdir(ecs_dir):
+            ec_path = os.path.join(ecs_dir, ec_file)
+            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+            # derive module name directly from easyconfig file name
+            ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+            self.assertEqual(ec2mod_map[ec_name], os.path.join(*det_full_module_name(ec)))
+        
+        easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = False
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([ModuleGeneratorTest()])
+    return TestLoader().loadTestsFromTestCase(ModuleGeneratorTest)
+
 
 if __name__ == '__main__':
     main()
