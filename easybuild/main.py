@@ -260,6 +260,25 @@ def main(testing_data=(None, None)):
     origEnviron = copy.deepcopy(os.environ)
     os.chdir(os.environ['PWD'])
 
+    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    if options.dry_run:
+        if options.robot is None:
+            print_msg("Dry run: printing build status of easyconfigs")
+            allSpecs = easyconfigs
+        else: 
+            print_msg("Dry run: printing build status of easyconfigs and dependencies")
+            allSpecs = resolve_dependencies(easyconfigs, options.robot, True)
+        unbuiltSpecs = skip_available(allSpecs, True)
+        dry_run_fmt = "%6s    %s"
+        print dry_run_fmt % ("Exists","EasyConfig")
+        print dry_run_fmt % ("------","----------")
+        for spec in allSpecs:
+            if spec in unbuiltSpecs:
+                print dry_run_fmt % ("No", spec['spec'])
+            else:
+                print dry_run_fmt % ("Yes", spec['spec'])
+        sys.exit(0)
+
     # skip modules that are already installed unless forced
     if not options.force:
         easyconfigs = skip_available(easyconfigs, testing=testing)
