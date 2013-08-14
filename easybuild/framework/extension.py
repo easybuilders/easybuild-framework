@@ -62,6 +62,8 @@ class Extension(object):
 
         self.toolchain.prepare(self.cfg['onlytcmod'])
 
+        self.sanity_check_fail_msgs = []
+
     @property
     def name(self):
         """
