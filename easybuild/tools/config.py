@@ -252,6 +252,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
         'modules_tool': 'EnvironmentModulesC',
+        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
     }
 
     # sanity check
@@ -393,6 +394,13 @@ def get_modules_tool():
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
     return variables['modules_tool']
+
+
+def get_module_naming_scheme():
+    """
+    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    """
+    return variables['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):

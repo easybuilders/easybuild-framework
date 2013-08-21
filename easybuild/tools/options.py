@@ -196,6 +196,9 @@ class EasyBuildOptions(GeneralOption):
                 'modules-tool': ('Modules tool to use',
                                  'choice', 'store', oldstyle_defaults['modules_tool'],
                                  sorted(avail_modules_tools().keys())),
+                'module-naming-scheme': ('Module naming scheme', 'choice', 'store',
+                                         oldstyle_defaults['module_naming_scheme'],
+                                         [oldstyle_defaults['module_naming_scheme']]),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",

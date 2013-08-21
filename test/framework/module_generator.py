@@ -155,23 +155,30 @@ if { ![is-loaded name/version] } {
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
-        # test default naming scheme
-        for ec_file in os.listdir(ecs_dir):
-            ec_path = os.path.join(ecs_dir, ec_file)
-            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
-            # derive module name directly from easyconfig file name
-            ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
-            mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
-            mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
-            self.assertEqual(os.path.join(mod_name, mod_version), os.path.join(*det_full_module_name(ec)))
+        def test_default():
+            """Test default module naming scheme."""
+            # test default naming scheme
+            for ec_file in os.listdir(ecs_dir):
+                ec_path = os.path.join(ecs_dir, ec_file)
+                ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+                # derive module name directly from easyconfig file name
+                ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+                mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
+                mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
+                self.assertEqual(os.path.join(mod_name, mod_version), os.path.join(*det_full_module_name(ec)))
+
+        test_default()
 
         # install custom module naming scheme dynamically
         sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox'))
         reload(easybuild)
         reload(easybuild.tools)
-        from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
-        easybuild.tools.module_generator.det_custom_full_module_name = det_custom_full_module_name
-        easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = True
+        reload(easybuild.tools.module_naming_scheme)
+        #from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
+        #easybuild.tools.module_generator.det_custom_full_module_name = det_custom_full_module_name
+        #easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = True
+        orig_module_naming_scheme = config.get_module_naming_scheme()
+        config.variables['module_naming_scheme'] = 'TestModuleNamingScheme'
 
         ec2mod_map = {
             'GCC-4.6.3': 'GCC/4.6.3',
@@ -188,8 +195,10 @@ if { ![is-loaded name/version] } {
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
             self.assertEqual(ec2mod_map[ec_name], os.path.join(*det_full_module_name(ec)))
-        
-        easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = False
+
+        # restore default module naming scheme, and retest
+        config.variables['module_naming_scheme'] = orig_module_naming_scheme
+        test_default()
 
 def suite():
     """ returns all the testcases in this module """

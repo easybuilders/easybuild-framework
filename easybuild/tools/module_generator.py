@@ -32,22 +32,17 @@ Generating module files.
 @author: Jens Timmerman (Ghent University)
 @author: Fotis Georgatos (Uni.Lu)
 """
+import glob
 import os
+import sys
 import tempfile
 from vsc import fancylogger
 
-from easybuild.tools.config import install_path
+from easybuild.tools import config
 from easybuild.tools.utilities import quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
-
-try:
-    from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
-    CUSTOM_MODULE_NAMING_SCHEME = True
-except ImportError, err:
-    _log.debug("Failed to import custom module naming scheme: %s" % err)
-    CUSTOM_MODULE_NAMING_SCHEME = False
 
 # general module class
 GENERAL_CLASS = 'all'
@@ -67,7 +62,7 @@ class ModuleGenerator(object):
         """
         Creates the absolute filename for the module.
         """
-        module_path = install_path('mod')
+        module_path = config.install_path('mod')
 
         # Fake mode: set installpath to temporary dir
         if self.fake:
@@ -213,13 +208,27 @@ def det_full_ec_version(ec):
     return ecver
 
 
+def get_custom_module_naming_scheme():
+    """
+    Get custom module naming scheme as specified in configuration.
+    """
+    module_naming_scheme = config.get_module_naming_scheme()
+    # try and find specified module naming scheme in easybuild.tools.module_naming_scheme namespace
+    for path in sys.path:
+        for mod in glob.glob(os.path.join(path, 'easybuild', 'tools', 'module_naming_scheme', '*.py')):
+            if not mod.endswith('__init__.py'):
+                mns_name = mod.split(os.path.sep)[-1].split('.')[0]
+                mns_path = "easybuild.tools.module_naming_scheme.%s" % mns_name
+                _log.debug("checking for %s class in module %s..." % (module_naming_scheme, mns_path))
+                mns_mod = __import__(mns_path, globals(), locals(), [''])
+                if hasattr(mns_mod, module_naming_scheme):
+                    return getattr(mns_mod, module_naming_scheme)()
+    _log.error("Custom module naming scheme %s could not be found!" % module_naming_scheme)
+
+
 def det_full_module_name(ec):
     """
-    Determine full module name, based on supplied easyconfig.
+    Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
     """
-    if CUSTOM_MODULE_NAMING_SCHEME:
-        return det_custom_full_module_name(ec)
-    else:
-        # default module naming scheme: <name>/<installversion> (see det_full_ec_version function)
-        return (ec['name'], det_full_ec_version(ec))
+    return get_custom_module_naming_scheme().det_full_module_name(ec)
