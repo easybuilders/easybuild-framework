@@ -34,7 +34,7 @@ from pkgutil import extend_path
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
 
 
-class ModuleNamingScheme():
+class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
 
     def det_full_module_name(self, ec):
