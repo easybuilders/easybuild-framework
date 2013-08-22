@@ -174,9 +174,6 @@ if { ![is-loaded name/version] } {
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
-        #from easybuild.tools.module_naming_scheme import det_full_module_name as det_custom_full_module_name
-        #easybuild.tools.module_generator.det_custom_full_module_name = det_custom_full_module_name
-        #easybuild.tools.module_generator.CUSTOM_MODULE_NAMING_SCHEME = True
         orig_module_naming_scheme = config.get_module_naming_scheme()
         config.variables['module_naming_scheme'] = 'TestModuleNamingScheme'
 

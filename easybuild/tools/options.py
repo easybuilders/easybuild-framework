@@ -47,6 +47,7 @@ from easybuild.tools.config import get_default_configfiles, get_pretend_installp
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools import filetools
 from easybuild.tools.modules import avail_modules_tools
+from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository import avail_repositories
@@ -198,7 +199,7 @@ class EasyBuildOptions(GeneralOption):
                                  sorted(avail_modules_tools().keys())),
                 'module-naming-scheme': ('Module naming scheme', 'choice', 'store',
                                          oldstyle_defaults['module_naming_scheme'],
-                                         [oldstyle_defaults['module_naming_scheme']]),
+                                         sorted(avail_module_naming_schemes().keys())),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",

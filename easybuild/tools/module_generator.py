@@ -37,8 +37,10 @@ import os
 import sys
 import tempfile
 from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config
+from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.utilities import quote_str
 
 
@@ -208,22 +210,36 @@ def det_full_ec_version(ec):
     return ecver
 
 
-def get_custom_module_naming_scheme():
+def avail_module_naming_schemes():
     """
-    Get custom module naming scheme as specified in configuration.
+    Returns a list of available module naming schemes.
     """
-    module_naming_scheme = config.get_module_naming_scheme()
-    # try and find specified module naming scheme in easybuild.tools.module_naming_scheme namespace
+    # all subclasses of ModuleNamingScheme available in the easybuild.tools.module_naming_scheme namespace are eligible
+    avail_mnss = {}
     for path in sys.path:
         for mod in glob.glob(os.path.join(path, 'easybuild', 'tools', 'module_naming_scheme', '*.py')):
             if not mod.endswith('__init__.py'):
                 mns_name = mod.split(os.path.sep)[-1].split('.')[0]
                 mns_path = "easybuild.tools.module_naming_scheme.%s" % mns_name
-                _log.debug("checking for %s class in module %s..." % (module_naming_scheme, mns_path))
+                _log.debug("importing module %s..." % mns_path)
                 mns_mod = __import__(mns_path, globals(), locals(), [''])
-                if hasattr(mns_mod, module_naming_scheme):
-                    return getattr(mns_mod, module_naming_scheme)()
-    _log.error("Custom module naming scheme %s could not be found!" % module_naming_scheme)
+                # add subclasses by imported module to also include classes in modules that were added dynamically
+                # e.g. during unit testing
+                avail_mnss.update(dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)]))
+    return avail_mnss
+
+
+def get_custom_module_naming_scheme():
+    """
+    Get custom module naming scheme as specified in configuration.
+    """
+    avail_mnss = avail_module_naming_schemes()
+    _log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
+    module_naming_scheme = config.get_module_naming_scheme()
+    if module_naming_scheme in avail_mnss:
+        return avail_mnss[module_naming_scheme]()
+    else:
+        _log.error("Custom module naming scheme %s could not be found!" % module_naming_scheme)
 
 
 def det_full_module_name(ec):
