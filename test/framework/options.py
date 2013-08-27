@@ -198,7 +198,7 @@ class CommandLineOptionsTest(TestCase):
 
         self.assertTrue(not error_thrown, "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown)
 
-        already_msg = "GCC \(version 4.6.3\) is already installed"
+        already_msg = "GCC/4.6.3 is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
         # clear log file
@@ -359,15 +359,14 @@ class CommandLineOptionsTest(TestCase):
                 os.remove(dummylogfn)
 
         # also check whether available custom easyconfig parameters are listed
-        orig_sys_path = sys.path
+        orig_sys_path = sys.path[:]
 
-        import easybuild
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        easybuild = reload(easybuild)
         import easybuild.easyblocks
-        easybuild.easyblocks = reload(easybuild.easyblocks)
+        reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
-        easybuild.easyblocks.generic = reload(easybuild.easyblocks.generic)
+        reload(easybuild.easyblocks.generic)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
@@ -411,13 +410,12 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
 
         # adjust PYTHONPATH such that test easyblocks are found
-        orig_sys_path = sys.path
+        orig_sys_path = sys.path[:]
 
-        import easybuild
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        easybuild = reload(easybuild)
         import easybuild.easyblocks
-        easybuild.easyblocks = reload(easybuild.easyblocks)
+        reload(easybuild.easyblocks)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         # simple view
         for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:

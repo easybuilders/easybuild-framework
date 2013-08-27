@@ -442,15 +442,13 @@ def skip_available(easyconfigs, testing=False):
     m = modules_tool()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = ec['module']
-        mod = "%s (version %s)" % (module[0], module[1])
-        modspath = mk_module_path(curr_module_paths() + [os.path.join(config.install_path("mod"), 'all')])
-        if m.exists(module[0], module[1], modspath):
-            msg = "%s is already installed (module found in %s), skipping " % (mod, modspath)
+        module = '/'.join(ec['module'])  # FIXME
+        if m.exists(module):
+            msg = "%s is already installed (module found), skipping " % module
             print_msg(msg, log=_log, silent=testing)
             _log.info(msg)
         else:
-            _log.debug("%s is not installed yet, so retaining it" % mod)
+            _log.debug("%s is not installed yet, so retaining it" % module)
             easyconfigs.append(ec)
     return easyconfigs
 
@@ -475,7 +473,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
     orderedSpecs = []
     # All available modules can be used for resolving dependencies except
     # those that will be installed
-    beingInstalled = [p['module'] for p in unprocessed]
+    beingInstalled = [p['module'] for p in unprocessed]  # FIXME: map dep spec to module name
     processed = [m for m in availableModules if not m in beingInstalled]
 
     # as long as there is progress in processing the modules, keep on trying

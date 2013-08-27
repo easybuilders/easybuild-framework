@@ -203,7 +203,8 @@ class Toolchain(object):
         # TODO: what about dummy versions ?
 
         self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
-        return self.modules_tool.exists(name, version)
+        mod_name = '/'.join([name, version])  # FIXME
+        return self.modules_tool.exists(mod_name)
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -259,7 +260,8 @@ class Toolchain(object):
             if not 'tc' in dep:
                 dep['tc'] = self.get_dependency_version(dep)
 
-            if not self.modules_tool.exists(dep['name'], dep['tc']):
+            mod_name = "%s/%s" % (dep['name'], dep['tc'])  # FIXME
+            if not self.modules_tool.exists(mod_name):
                 self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
                                         (dep['name'], dep['tc']))
             else:
@@ -302,11 +304,12 @@ class Toolchain(object):
         self.modules_tool.load()
 
         # determine direct toolchain dependencies (legacy, not really used anymore)
-        self.toolchain_dependencies = self.modules_tool.dependencies_for(self.name, self.version, depth=0)
+        mod_name = '/'.join([self.name, self.version])  # FIXME
+        self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
-        toolchain_module_deps = set([mod['name'] for mod in self.toolchain_dependencies])
+        toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
         toolchain_elements_mod_names = set([y for x in dir(self) if x.endswith('_MODULE_NAME') for y in eval("self.%s" % x)])
         # filter out toolchain name (e.g. 'GCC') from list of toolchain elements
         toolchain_elements_mod_names = set([x for x in toolchain_elements_mod_names if not x == self.name])
