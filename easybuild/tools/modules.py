@@ -509,11 +509,17 @@ class Lmod(ModulesTool):
         if stderr:
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-        self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-        cache_file = open(cache_filefn, 'w')
-        cache_file.write(stdout)
-        cache_file.close()
+        try:
+            cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
+            self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
+            cache_dir = os.path.dirname(cache_filefn)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            cache_file = open(cache_filefn, 'w')
+            cache_file.write(stdout)
+            cache_file.close()
+        except (IOError, OSError), err:
+            self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
