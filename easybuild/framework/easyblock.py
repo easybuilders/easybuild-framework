@@ -667,8 +667,8 @@ class EasyBlock(object):
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
-                        name, version = path.rsplit('/', 1)
-                        load_txt += mod_gen.load_module(name, version)
+                        mod_name = path.rsplit('/', 1)[-1]
+                        load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -693,18 +693,19 @@ class EasyBlock(object):
 
         # Load toolchain
         if self.toolchain.name != 'dummy':
-            load += self.moduleGenerator.load_module(self.toolchain.name, self.toolchain.version)
-            unload += self.moduleGenerator.unload_module(self.toolchain.name, self.toolchain.version)
+            load += self.moduleGenerator.load_module(self.toolchain.det_module_name())
+            unload += self.moduleGenerator.unload_module(self.toolchain.det_module_name())
 
         # Load dependencies
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                self.log.debug("Adding %s/%s as a module dependency" % (dep['name'], dep['tc']))
-                load += self.moduleGenerator.load_module(dep['name'], dep['tc'])
-                unload += self.moduleGenerator.unload_module(dep['name'], dep['tc'])
+                dep_mod_name = os.path.sep.join(det_dependency_module_name(dep))
+                self.log.debug("Adding %s as a module dependency" % dep_mod_name)
+                load += self.moduleGenerator.load_module(dep_mod_name)
+                unload += self.moduleGenerator.unload_module(dep_mod_name)
             else:
-                self.log.debug("Skipping builddependency %s/%s" % (dep['name'], dep['tc']))
+                self.log.debug("Skipping builddependency %s" % dep_mod_name)
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:

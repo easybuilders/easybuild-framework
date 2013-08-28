@@ -135,31 +135,29 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, name, version):
+    def load_module(self, mod_name):
         """
-        Generate load statements for module with name and version.
+        Generate load statements for module.
         """
         return '\n'.join([
             "",
-            "if { ![is-loaded %(name)s/%(version)s] } {",
-            "    module load %(name)s/%(version)s",
+            "if { ![is-loaded %(mod_name)s] } {",
+            "    module load %(mod_name)s",
             "}",
             "",
-        ]) % {'name': name, 'version': version}
+        ]) % {'mod_name': mod_name}
 
-    def unload_module(self, name, version):
+    def unload_module(self, mod_name):
         """
-        Generate unload statements for module with name and version.
+        Generate unload statements for module.
         """
         return '\n'.join([
             "",
-            "if { ![is-loaded %(name)s/%(version)s] } {",
-            "    if { [is-loaded %(name)s] } {",
-            "        module unload %(name)s",
-            "    }",
+            "if { [is-loaded %(mod_name)s] } {",
+            "    module unload %(mod_name)s",
             "}",
             "",
-        ]) % {'name': name, 'version': version}
+        ]) % {'mod_name': mod_name}
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
@@ -258,6 +256,6 @@ def det_dependency_module_name(dep):
     an easyconfig file that matches the dependency specification is required and used
     to determine the module name.
     """
-    mod_name = (dep['name'], dep['tc'])
+    mod_name = (dep['name'], det_full_ec_version(dep))
     _log.debug("Module name for dependency %s: %s" % (str(dep), mod_name))
     return mod_name

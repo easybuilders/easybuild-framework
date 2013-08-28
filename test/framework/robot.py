@@ -99,7 +99,6 @@ class RobotTest(TestCase):
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
-                'tc': '1.4',
             }]
         }
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
@@ -123,7 +122,6 @@ class RobotTest(TestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
             'dummy': True,
-            'tc': '1.4-GCC-4.6.3',
         }]
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
 

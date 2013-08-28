@@ -401,6 +401,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
 
         # this app will appear as following module in the list
         easyconfig = {
+            'ec': ec,
             'spec': spec,
             'module': det_full_module_name(ec),
             'dependencies': [],
@@ -798,7 +799,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
                 easyblock = eval(match.group(1))
                 break
 
-    name = module['module'][0]
+    name = module['ec']['name']
     try:
         app_class = get_class(easyblock, name=name)
         app = app_class(spec, debug=options.debug, robot_path=options.robot)
@@ -925,18 +926,18 @@ def dep_graph(fn, specs, silent=False):
     # if so, we can omit versions in the graph
     names = set()
     for spec in specs:
-        names.add(spec['module'][0])
+        names.add(spec['ec']['name'])
     omit_versions = len(names) == len(specs)
 
-    def mk_node_name(mod):
+    def mk_node_name(spec):
         if omit_versions:
-            return mod[0]
+            return spec['name']
         else:
-            return '-'.join(mod)
+            return '%s-%s' % (spec['name'], det_full_ec_version(spec))
 
     # enhance list of specs
     for spec in specs:
-        spec['module'] = mk_node_name(spec['module'])
+        spec['module'] = mk_node_name(os.path.sep.join(spec['module']))
         spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']]  # [s[0] for s in spec['unresolvedDependencies']]
 
     # build directed graph
@@ -944,7 +945,7 @@ def dep_graph(fn, specs, silent=False):
     dgr.add_nodes([spec['module'] for spec in specs])
     for spec in specs:
         for dep in spec['unresolvedDependencies']:
-            dgr.add_edge((spec['module'], dep))
+            dgr.add_edge((spec['module'], os.path.sep.join(det_dependency_module_name(dep))))
 
     # write to file
     dottxt = dot.write(dgr)

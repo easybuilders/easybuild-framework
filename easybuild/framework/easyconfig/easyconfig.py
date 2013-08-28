@@ -511,10 +511,6 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error('Dependency without version.')
 
-        if not 'tc' in dependency:
-            self.log.deprecated("Key/value pair 'tc' for dependency, should use det_full_ec_version instead.", "2.0")
-            dependency['tc'] = self.toolchain.get_dependency_version(dependency)
-
         return dependency
 
     def generate_template_values(self):

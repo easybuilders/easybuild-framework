@@ -199,8 +199,8 @@ class EasyConfigTest(TestCase):
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
-        self.assertEqual(first['tc'], '1.1-GCC-4.6.3')
-        self.assertEqual(second['tc'], '2.2-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
         # same tests for builddependencies
         first = eb.builddependencies()[0]
@@ -212,8 +212,8 @@ class EasyConfigTest(TestCase):
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
-        self.assertEqual(first['tc'], '1.1-GCC-4.6.3')
-        self.assertEqual(second['tc'], '2.2-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
         eb['dependencies'] = ["wrong type"]
         self.assertErrorRegex(EasyBuildError, "wrong type from unsupported type", eb.dependencies)

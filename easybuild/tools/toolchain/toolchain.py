@@ -200,7 +200,6 @@ class Toolchain(object):
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'versionsuffix': '',
             'dummy': True,
-            'tc': version,
         }
 
     def det_module_name(self, name=None, version=None):
@@ -278,10 +277,7 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            if not 'tc' in dep:
-                dep['tc'] = self.get_dependency_version(dep)
-
-            mod_name = det_dependency_module_name(dep)
+            mod_name = os.path.sep.join(det_dependency_module_name(dep))
             if not self.modules_tool.exists(mod_name):
                 self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
             else:

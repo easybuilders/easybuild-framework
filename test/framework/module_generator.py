@@ -106,22 +106,20 @@ class ModuleGeneratorTest(TestCase):
     def test_load(self):
         """Test load part in generated module file."""
         expected = """
-if { ![is-loaded name/version] } {
-    module load name/version
+if { ![is-loaded mod_name] } {
+    module load mod_name
 }
 """
-        self.assertEqual(expected, self.modgen.load_module("name", "version"))
+        self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
     def test_unload(self):
         """Test unload part in generated module file."""
         expected = """
-if { ![is-loaded name/version] } {
-    if { [is-loaded name] } {
-        module unload name
-    }
+if { [is-loaded mod_name] } {
+    module unload mod_name
 }
 """
-        self.assertEqual(expected, self.modgen.unload_module("name", "version"))
+        self.assertEqual(expected, self.modgen.unload_module("mod_name"))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""

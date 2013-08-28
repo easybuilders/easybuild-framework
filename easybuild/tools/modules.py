@@ -48,6 +48,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
+from easybuild.tools.module_generator import det_full_ec_version
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -162,10 +163,7 @@ class ModulesTool(object):
             elif type(mod) == dict:
                 name = mod['name']
                 # deal with toolchain dependency calls
-                if 'tc' in mod:
-                    version = mod['tc']
-                else:
-                    version = mod['version']
+                version = det_full_ec_version(mod)
                 mod_name = '%s/%s' % (name, version)  # FIXME
             else:
                 self.log.error("Can't add module %s: unknown type" % str(mod))
