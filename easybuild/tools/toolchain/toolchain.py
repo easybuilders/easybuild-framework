@@ -35,7 +35,7 @@ import os
 from vsc import fancylogger
 
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import det_dependency_module_name
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -208,7 +208,7 @@ class Toolchain(object):
             name = self.name
         if version is None:
             version = self.version
-        return os.path.sep.join(det_dependency_module_name(self.as_dict(name, version)))
+        return os.path.sep.join(det_full_module_name(self.as_dict(name, version)))
 
     def _toolchain_exists(self, name=None, version=None):
         """
@@ -277,7 +277,7 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            mod_name = os.path.sep.join(det_dependency_module_name(dep))
+            mod_name = os.path.sep.join(det_full_module_name(dep))
             if not self.modules_tool.exists(mod_name):
                 self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
             else:

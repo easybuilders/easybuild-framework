@@ -700,7 +700,7 @@ class EasyBlock(object):
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                dep_mod_name = os.path.sep.join(det_dependency_module_name(dep))
+                dep_mod_name = os.path.sep.join(det_full_module_name(dep))
                 self.log.debug("Adding %s as a module dependency" % dep_mod_name)
                 load += self.moduleGenerator.load_module(dep_mod_name)
                 unload += self.moduleGenerator.unload_module(dep_mod_name)

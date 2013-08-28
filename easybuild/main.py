@@ -91,7 +91,7 @@ from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_ec_version, det_full_module_name, det_dependency_module_name
+from easybuild.tools.module_generator import det_full_ec_version, det_full_module_name
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.repository import init_repository
@@ -503,7 +503,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
             for module in unprocessed:
                 # do not choose a module that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
-                candidates = [d for d in module['dependencies'] if not det_dependency_module_name(d) in beingInstalled]
+                candidates = [d for d in module['dependencies'] if not det_full_module_name(d) in beingInstalled]
                 if len(candidates) > 0:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -522,7 +522,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
                     # ensure the pathname is equal to the module
                     mods = [spec['module'] for spec in processedSpecs]
-                    dep_mod_name = det_dependency_module_name(cand_dep)
+                    dep_mod_name = det_full_module_name(cand_dep)
                     if not dep_mod_name in mods:
                         _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
 
@@ -536,7 +536,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
         missingDependencies = []
         for module in unprocessed:
             for dep in module['dependencies']:
-                missingDependencies.append(det_dependency_module_name(dep))
+                missingDependencies.append(det_full_module_name(dep))
 
         msg = "Dependencies not met. Cannot resolve %s" % missingDependencies
         _log.error(msg)
@@ -552,7 +552,7 @@ def find_resolved_modules(unprocessed, processed):
     orderedSpecs = []
 
     for module in unprocessed:
-        module['dependencies'] = [d for d in module['dependencies'] if not det_dependency_module_name(d) in processed]
+        module['dependencies'] = [d for d in module['dependencies'] if not det_full_module_name(d) in processed]
 
         if len(module['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % module['spec'])
@@ -945,7 +945,7 @@ def dep_graph(fn, specs, silent=False):
     dgr.add_nodes([spec['module'] for spec in specs])
     for spec in specs:
         for dep in spec['unresolvedDependencies']:
-            dgr.add_edge((spec['module'], os.path.sep.join(det_dependency_module_name(dep))))
+            dgr.add_edge((spec['module'], os.path.sep.join(det_full_module_name(dep))))
 
     # write to file
     dottxt = dot.write(dgr)

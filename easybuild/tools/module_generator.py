@@ -244,18 +244,12 @@ def det_full_module_name(ec):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
-    """
-    return get_custom_module_naming_scheme().det_full_module_name(ec)
 
-
-def det_dependency_module_name(dep):
+    If a KeyError occurs when determining the module name, e.g. because the information supplied for dependencies
+    is insufficient, an attempt is made to locate and parse an easyconfig file, and do another attempt.
     """
-    Determine module name for given dependency.
-
-    If the information provided by the dependency specification does not suffice,
-    an easyconfig file that matches the dependency specification is required and used
-    to determine the module name.
-    """
-    mod_name = (dep['name'], det_full_ec_version(dep))
-    _log.debug("Module name for dependency %s: %s" % (str(dep), mod_name))
-    return mod_name
+    try:
+        return get_custom_module_naming_scheme().det_full_module_name(ec)
+    except KeyError, err:
+        self.log.debug("KeyError occured (%s), will attempt to find a matching easyconfig file and retry." % err)
+        self.log.error("BOOM! Not implemented yet.")
