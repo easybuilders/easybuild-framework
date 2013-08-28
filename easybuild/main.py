@@ -282,8 +282,9 @@ def main(testing_data=(None, None)):
         try:
             dep_graph(options.dep_graph, orderedSpecs)
         except NameError, err:
-            _log.error("An optional Python packages required to " \
-                      "generate dependency graphs is missing: %s" % "\n".join(graph_errors))
+            errors = "\n".join(graph_errors)
+            msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
+            _log.error("%s\nerr: %s" % (msg, err))
         sys.exit(0)
 
     # submit build as job(s) and exit
@@ -933,11 +934,11 @@ def dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return '%s-%s' % (spec['name'], det_full_ec_version(spec))
+            return os.path.sep.join(det_full_module_name(spec))
 
     # enhance list of specs
     for spec in specs:
-        spec['module'] = mk_node_name(os.path.sep.join(spec['module']))
+        spec['module'] = mk_node_name(spec['ec'])
         spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']]  # [s[0] for s in spec['unresolvedDependencies']]
 
     # build directed graph

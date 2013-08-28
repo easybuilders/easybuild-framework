@@ -251,5 +251,5 @@ def det_full_module_name(ec):
     try:
         return get_custom_module_naming_scheme().det_full_module_name(ec)
     except KeyError, err:
-        self.log.debug("KeyError occured (%s), will attempt to find a matching easyconfig file and retry." % err)
-        self.log.error("BOOM! Not implemented yet.")
+        _log.debug("KeyError occured (%s), will attempt to find a matching easyconfig file and retry." % err)
+        _log.error("BOOM! Not implemented yet.")

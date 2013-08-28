@@ -499,10 +499,11 @@ class EasyConfig(object):
             self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
 
         # dependency inherits toolchain, unless it's specified to be a dummy-toolchain dependency
-        if not dependency['dummy']:
-            dependency['toolchain'] = self['toolchain']
-        else:
-            dependency['toolchain'] = None
+        dependency['toolchain'] = copy.deepcopy(self['toolchain'])
+        if dependency['dummy']:
+            dependency['toolchain'] = {'name': 'dummy', 'version': 'dummy'}
+        elif dependency['toolchain']['name'] == 'dummy':
+            dependency['dummy'] = True
 
         # Validations
         if not dependency['name']:
