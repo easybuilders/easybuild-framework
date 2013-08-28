@@ -329,7 +329,7 @@ class EasyConfig(object):
     def dependencies(self):
         """
         returns an array of parsed dependencies
-        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'suffix': ''}
+        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
 
         deps = []
@@ -478,17 +478,17 @@ class EasyConfig(object):
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
         if it is a tuple or a list the attributes are expected to be in the following order:
-        ['name', 'version', 'suffix', 'dummy']
+        ['name', 'version', 'versionsuffix', 'dummy']
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'suffix', 'dummy', 'tc']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        attr = ['name', 'version', 'suffix', 'dummy']
-        dependency = {'name': '', 'version': '', 'suffix': '', 'dummy': False}
+        attr = ['name', 'version', 'versionsuffix', 'dummy']
+        dependency = {'name': '', 'version': '', 'versionsuffix': '', 'dummy': False}
         if isinstance(dep, dict):
             dependency.update(dep)
         # Try and convert to list
@@ -498,6 +498,12 @@ class EasyConfig(object):
         else:
             self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
 
+        # dependency inherits toolchain, unless it's specified to be a dummy-toolchain dependency
+        if not dependency['dummy']:
+            dependency['toolchain'] = self['toolchain']
+        else:
+            dependency['toolchain'] = None
+
         # Validations
         if not dependency['name']:
             self.log.error("Dependency without name given")
@@ -506,6 +512,7 @@ class EasyConfig(object):
             self.log.error('Dependency without version.')
 
         if not 'tc' in dependency:
+            self.log.deprecated("Key/value pair 'tc' for dependency, should use det_full_ec_version instead.", "2.0")
             dependency['tc'] = self.toolchain.get_dependency_version(dependency)
 
         return dependency
@@ -606,6 +613,7 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
         'versionsuffix': suffix,
     }
     return det_full_ec_version(cfg)
+
 
 def resolve_template(value, tmpl_dict):
     """Given a value, try to susbstitute the templated strings with actual values.

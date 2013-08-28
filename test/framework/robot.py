@@ -93,7 +93,14 @@ class RobotTest(TestCase):
         easyconfig_dep = {
             'spec': '_',
             'module': ("name", "version"),
-            'dependencies': [('gzip', '1.4')]
+            'dependencies': [{
+                'name': 'gzip',
+                'version': '1.4',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'dummy': True,
+                'tc': '1.4',
+            }]
         }
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
         # Dependency should be found
@@ -110,7 +117,14 @@ class RobotTest(TestCase):
         self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None)
 
         # test if dependencies of an automatically found file are also loaded
-        easyconfig_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
+        easyconfig_dep['dependencies'] = [{
+            'name': 'gzip',
+            'version': '1.4',
+            'versionsuffix': '',
+            'toolchain': {'name': 'GCC', 'version': '4.6.3'},
+            'dummy': True,
+            'tc': '1.4-GCC-4.6.3',
+        }]
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
 
         # GCC should be first (required by gzip dependency)

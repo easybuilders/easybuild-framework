@@ -205,7 +205,7 @@ def det_full_ec_version(ec):
         ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
 
     # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec['versionprefix'], ecver, ec['versionsuffix']] if x])
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
 
     return ecver
 
@@ -248,3 +248,16 @@ def det_full_module_name(ec):
     Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
     """
     return get_custom_module_naming_scheme().det_full_module_name(ec)
+
+
+def det_dependency_module_name(dep):
+    """
+    Determine module name for given dependency.
+
+    If the information provided by the dependency specification does not suffice,
+    an easyconfig file that matches the dependency specification is required and used
+    to determine the module name.
+    """
+    mod_name = (dep['name'], dep['tc'])
+    _log.debug("Module name for dependency %s: %s" % (str(dep), mod_name))
+    return mod_name

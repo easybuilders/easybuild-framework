@@ -31,8 +31,11 @@ Creating a new toolchain should be as simple as possible.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import os
 from vsc import fancylogger
+
 from easybuild.tools.environment import setvar
+from easybuild.tools.module_generator import det_dependency_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
@@ -186,6 +189,28 @@ class Toolchain(object):
 
         return version
 
+    def as_dict(self, name=None, version=None):
+        if name is None:
+            name = self.name
+        if version is None:
+            version = self.version
+        return {
+            'name': name,
+            'version': version,
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'versionsuffix': '',
+            'dummy': True,
+            'tc': version,
+        }
+
+    def det_module_name(self, name=None, version=None):
+        """Determine module name for this toolchain."""
+        if name is None:
+            name = self.name
+        if version is None:
+            version = self.version
+        return os.path.sep.join(det_dependency_module_name(self.as_dict(name, version)))
+
     def _toolchain_exists(self, name=None, version=None):
         """
         Verify if there exists a toolchain by this name and version
@@ -195,15 +220,15 @@ class Toolchain(object):
         if not version:
             version = self.version
 
-        if self.name == self.DUMMY_NAME:
-            self.log.debug("_toolchian_exists: checking for %s toolchain. Always exists, returning True" %
+        if name == self.DUMMY_NAME:
+            self.log.debug("_toolchain_exists: checking for %s toolchain. Always exists, returning True" %
                            self.DUMMY_NAME)
             return True
 
         # TODO: what about dummy versions ?
 
-        self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
-        mod_name = '/'.join([name, version])  # FIXME
+        mod_name = self.det_module_name(name, version)
+        self.log.debug("_toolchain_exists: checking for name %s version %s (module name: %s)" % (name, version, mod_name))
         return self.modules_tool.exists(mod_name)
 
     def set_options(self, options):
@@ -231,7 +256,7 @@ class Toolchain(object):
         if self.DUMMY_NAME in dependency and dependency[self.DUMMY_NAME]:
             toolchain = ''
 
-        suffix = dependency.get('suffix', '')
+        suffix = dependency.get('versionsuffix', '')
 
         if 'version' in dependency:
             version = "".join([dependency['version'], toolchain, suffix])
@@ -253,17 +278,12 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            if 'tk' in dep:
-                # TODO LEGACY to be cleaned up
-                self.log.raiseException('add_dependencies: legacy tk found in dep %s' % dep)
-
             if not 'tc' in dep:
                 dep['tc'] = self.get_dependency_version(dep)
 
-            mod_name = "%s/%s" % (dep['name'], dep['tc'])  # FIXME
+            mod_name = det_dependency_module_name(dep)
             if not self.modules_tool.exists(mod_name):
-                self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
-                                        (dep['name'], dep['tc']))
+                self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
             else:
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
@@ -303,8 +323,8 @@ class Toolchain(object):
         self.modules_tool.add_module(self.dependencies)
         self.modules_tool.load()
 
-        # determine direct toolchain dependencies (legacy, not really used anymore)
-        mod_name = '/'.join([self.name, self.version])  # FIXME
+        # determine direct toolchain dependencies
+        mod_name = self.det_module_name()
         self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
