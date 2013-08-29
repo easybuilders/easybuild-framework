@@ -44,6 +44,7 @@ import time
 import urllib
 from vsc import fancylogger
 
+import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
 from easybuild.tools.asyncprocess import send_all, recv_some
@@ -717,24 +718,8 @@ def modify_env(old, new):
     """
     Compares 2 os.environ dumps. Adapts final environment.
     """
-    oldKeys = old.keys()
-    newKeys = new.keys()
-    for key in newKeys:
-        ## set them all. no smart checking for changed/identical values
-        if key in oldKeys:
-            ## hmm, smart checking with debug logging
-            if not new[key] == old[key]:
-                _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
-                env.setvar(key, new[key])
-        else:
-            _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
-            env.setvar(key, new[key])
-
-    for key in oldKeys:
-        if not key in newKeys:
-            _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
-            os.unsetenv(key)
-            del os.environ[key]
+    _log.deprecated("moved modify_env to tools.environment", "2.0")
+    return env.modify_env(old, new)
 
 
 def convert_name(name, upper=False):

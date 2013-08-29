@@ -32,6 +32,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -53,8 +54,9 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
+from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
@@ -1217,6 +1219,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
+        self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
@@ -1553,6 +1556,8 @@ class EasyBlock(object):
 
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
+
+        env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
     def make_module_step(self, fake=False):
         """

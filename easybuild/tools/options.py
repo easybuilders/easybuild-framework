@@ -94,6 +94,8 @@ class EasyBuildOptions(GeneralOption):
                             "strict":("Set strictness level",
                                       "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
+                            "dry-run":("Resolve dependencies and print build list, then stop", 
+                                      None, "store_true", False),
                             })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
