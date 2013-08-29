@@ -40,15 +40,14 @@ from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
-    """ small test for Modules """
-
-    # initialize configuration so modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
+    """Test cases for modules."""
 
     def setUp(self):
-        """setup"""
+        """set up everything for a unit test."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         self.cwd = os.getcwd()
 
     def test_load(self):
