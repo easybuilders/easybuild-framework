@@ -262,21 +262,7 @@ def main(testing_data=(None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run:
-        if options.robot is None:
-            print_msg("Dry run: printing build status of easyconfigs")
-            allSpecs = easyconfigs
-        else: 
-            print_msg("Dry run: printing build status of easyconfigs and dependencies")
-            allSpecs = resolve_dependencies(easyconfigs, options.robot, True)
-        unbuiltSpecs = skip_available(allSpecs, True)
-        dry_run_fmt = "%6s    %s"
-        print dry_run_fmt % ("Exists","EasyConfig")
-        print dry_run_fmt % ("------","----------")
-        for spec in allSpecs:
-            if spec in unbuiltSpecs:
-                print dry_run_fmt % ("No", spec['spec'])
-            else:
-                print dry_run_fmt % ("Yes", spec['spec'])
+        print_dry_run(easyconfigs, options.robot)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
@@ -1306,6 +1292,23 @@ def regtest(options, easyconfig_paths):
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
+
+def print_dry_run(easyconfigs, robot=None):
+    if robot is None:
+        print_msg("Dry run: printing build status of easyconfigs")
+        all_specs = easyconfigs
+    else: 
+        print_msg("Dry run: printing build status of easyconfigs and dependencies")
+        all_specs = resolve_dependencies(easyconfigs, robot, True)
+    unbuilt_specs = skip_available(all_specs, True)
+    dry_run_fmt = "%3s %s"
+    for spec in all_specs:
+        if spec in unbuilt_specs:
+            ans = '[ ]'
+        else:
+            ans = '[x]'
+        print dry_run_fmt % (ans, spec['spec'])
+    
 
 
 if __name__ == "__main__":
