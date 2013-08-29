@@ -40,7 +40,7 @@ from unittest import TestCase, TestLoader, main
 
 
 class ModulesTest(TestCase):
-    """Test cases for for modules."""
+    """Test cases for modules."""
 
     def setUp(self):
         """set up everything for a unit test."""
