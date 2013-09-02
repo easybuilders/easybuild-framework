@@ -1,6 +1,22 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.7.0 (September 2nd 2013)
+-----------------------
+
+feature + bugfix release
+- various enhancements, including:
+    - also search for patch files in directory where easyconfig file is located (#667)
+    - reduce false positives in reporting of possible errors messages (#669)
+    - make module update $ACLOCAL if a share/aclocal subdir is found (#670)
+    - add 'unwanted_env_vars' easyconfig parameter to list environment variables to unset during install procedure (#673)
+    - add support for updating list easyconfig values (next to string values) (#676)
+    - add --dry-run command line option which prints installation overview for specified easyconfig files (#677)
+- various bug fixes, including:
+    - ensure that all extensions are listed in $EBEXTSLISTX set by module, also when using --skip (#671)
+    - report reason for failed sanity check for extensions (#672, #678)
+    - fix --list-toolchains command line option (#675)
+
 v1.6.0 (July 11th 2013)
 -----------------------
 
