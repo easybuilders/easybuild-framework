@@ -375,7 +375,9 @@ class CommandLineOptionsTest(TestCase):
         # restore original Python search path
         sys.path = orig_sys_path
 
-    def test_list_toolchains(self):
+    # double underscore to make sure it runs first, which is required to detect certain types of bugs,
+    # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
+    def test__list_toolchains(self):
         """Test listing known compiler toolchains."""
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')

@@ -60,13 +60,12 @@ def mock_module(mod_paths=None):
 class RobotTest(TestCase):
     """ Testcase for the robot dependency resolution """
 
-    # initialize configuration so get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
     def setUp(self):
-        """ dynamically replace Modules class with MockModule """
+        """Set up everything for a unit test."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         main.modules_tool = mock_module

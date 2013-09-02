@@ -25,7 +25,7 @@
 # #
 """
 This script is a collection of all the testcases.
-Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
+Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -39,19 +39,19 @@ from vsc import fancylogger
 
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
+import test.framework.config as c
+import test.framework.easyblock as b
 import test.framework.easyconfig as e
-import test.framework.module_generator as mg
-import test.framework.modules as m
 import test.framework.filetools as f
+import test.framework.github as g
+import test.framework.modulegenerator as mg
+import test.framework.modules as m
+import test.framework.options as o
 import test.framework.repository as r
 import test.framework.robot as robot
-import test.framework.easyblock as b
-import test.framework.variables as v
-import test.framework.github as g
-import test.framework.toolchainvariables as tcv
 import test.framework.toolchain as tc
-import test.framework.options as o
-import test.framework.config as c
+import test.framework.toolchainvariables as tcv
+import test.framework.variables as v
 
 
 # initialize logger for all the unit tests
@@ -63,7 +63,8 @@ log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, e, mg, m, f, a, robot, b, v, g, tcv, tc, o, c]])
+# note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
+SUITE = unittest.TestSuite([x.suite() for x in [o, r, e, mg, m, f, a, robot, b, v, g, tcv, tc, c]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""

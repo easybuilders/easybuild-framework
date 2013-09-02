@@ -393,7 +393,8 @@ def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
-    return variables['modules_tool']
+    # 'modules_tool' key will only be present if EasyBuild config is initialized
+    return variables.get('modules_tool', None)
 
 
 def get_module_naming_scheme():

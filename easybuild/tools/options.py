@@ -43,9 +43,9 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
+from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
-from easybuild.tools import filetools
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
@@ -95,6 +95,8 @@ class EasyBuildOptions(GeneralOption):
                             "strict":("Set strictness level",
                                       "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
+                            "dry-run":("Resolve dependencies and print build list, then stop", 
+                                      None, "store_true", False),
                             })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))

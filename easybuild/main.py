@@ -262,6 +262,11 @@ def main(testing_data=(None, None)):
     origEnviron = copy.deepcopy(os.environ)
     os.chdir(os.environ['PWD'])
 
+    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    if options.dry_run:
+        print_dry_run(easyconfigs, options.robot)
+        sys.exit(0)
+
     # skip modules that are already installed unless forced
     if not options.force:
         easyconfigs = skip_available(easyconfigs, testing=testing)
@@ -1291,6 +1296,23 @@ def regtest(options, easyconfig_paths):
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
+
+def print_dry_run(easyconfigs, robot=None):
+    if robot is None:
+        print_msg("Dry run: printing build status of easyconfigs")
+        all_specs = easyconfigs
+    else: 
+        print_msg("Dry run: printing build status of easyconfigs and dependencies")
+        all_specs = resolve_dependencies(easyconfigs, robot, True)
+    unbuilt_specs = skip_available(all_specs, True)
+    dry_run_fmt = "%3s %s"
+    for spec in all_specs:
+        if spec in unbuilt_specs:
+            ans = '[ ]'
+        else:
+            ans = '[x]'
+        print dry_run_fmt % (ans, spec['spec'])
+    
 
 
 if __name__ == "__main__":
