@@ -42,11 +42,6 @@ from test.framework.utilities import find_full_path
 class ToolchainTest(TestCase):
     """ Baseclass for toolchain testcases """
 
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
     def assertErrorRegex(self, error, regex, call, *args):
         """ convenience method to match regex with the error message """
         try:
@@ -55,7 +50,11 @@ class ToolchainTest(TestCase):
             self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
-        """Setup for tests."""
+        """Set up everything for a unit test."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))

@@ -32,6 +32,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -53,8 +54,9 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
 from easybuild.tools.config import read_only_installdir, source_path, module_classes
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
+from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
@@ -101,6 +103,7 @@ class EasyBlock(object):
 
         # extensions
         self.exts = None
+        self.exts_all = None
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
@@ -146,6 +149,9 @@ class EasyBlock(object):
 
         # iterate configure/build/options
         self.iter_opts = {}
+
+        # sanity check fail error messages to report (if any)
+        self.sanity_check_fail_msgs = []
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -388,13 +394,16 @@ class EasyBlock(object):
             foundfile = None
             failedpaths = []
 
+            # always look first in the dir of the current eb file
+            ebpath = [os.path.dirname(self.cfg.path)]
+
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
-            for path in common_filepaths + srcpaths:
+            for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
                 letterpath = os.path.join(path, self.name.lower()[0], self.name)
@@ -744,8 +753,8 @@ class EasyBlock(object):
         txt = self.module_extra_extensions
 
         # set environment variable that specifies list of extensions
-        if self.exts:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts])
+        if self.exts_all:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
 
         return txt
@@ -773,6 +782,7 @@ class EasyBlock(object):
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
+            'ACLOCAL_PATH' : ['share/aclocal'],
         }
 
     def load_module(self, mod_paths=None, purge=True):
@@ -1209,6 +1219,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
+        self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
@@ -1257,6 +1268,7 @@ class EasyBlock(object):
         self.prepare_for_extensions()
 
         self.exts = self.fetch_extension_sources()
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
             self.skip_extensions()
@@ -1437,8 +1449,6 @@ class EasyBlock(object):
             self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
                            "values should be lists (at least one non-empty)).")
 
-        self.sanity_check_fail_msgs = []
-
         # check if files exist
         for f in paths['files']:
             p = os.path.join(self.installdir, f)
@@ -1546,6 +1556,8 @@ class EasyBlock(object):
 
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
+
+        env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
     def make_module_step(self, fake=False):
         """
