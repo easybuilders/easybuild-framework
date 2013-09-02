@@ -2,7 +2,7 @@ This file contains a description of the major changes to the easybuild-framework
 For more detailed information, please see the git log.
 
 v1.7.0 (September 2nd 2013)
------------------------
+---------------------------
 
 feature + bugfix release
 - various enhancements, including:
