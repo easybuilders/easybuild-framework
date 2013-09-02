@@ -42,7 +42,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
-from easybuild.tools.utilities import read_environment as _read_environment
+from easybuild.tools.environment import read_environment as _read_environment
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -392,7 +392,8 @@ def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
-    return variables['modules_tool']
+    # 'modules_tool' key will only be present if EasyBuild config is initialized
+    return variables.get('modules_tool', None)
 
 
 def log_file_format(return_directory=False):
@@ -491,8 +492,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.utilities"""
-    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    """Depreacted location for read_environment, use easybuild.tools.environment"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
     return _read_environment(env_vars, strict)
 
 

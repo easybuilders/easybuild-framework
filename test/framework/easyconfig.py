@@ -53,13 +53,13 @@ class EasyConfigTest(TestCase):
     contents = None
     eb_file = ''
 
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
     def setUp(self):
-        """ create temporary easyconfig file """
+        """Set up everything for running a unit test."""
+
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
         self.cwd = os.getcwd()
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]

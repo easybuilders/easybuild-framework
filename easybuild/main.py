@@ -89,7 +89,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTION
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
-from easybuild.tools.filetools import modify_env, read_file, write_file
+from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.repository import init_repository
@@ -259,6 +260,11 @@ def main(testing_data=(None, None)):
     # before building starts, take snapshot of environment (watch out -t option!)
     origEnviron = copy.deepcopy(os.environ)
     os.chdir(os.environ['PWD'])
+
+    # dry_run: print all easyconfigs and dependencies, and whether they are already built
+    if options.dry_run:
+        print_dry_run(easyconfigs, options.robot)
+        sys.exit(0)
 
     # skip modules that are already installed unless forced
     if not options.force:
@@ -1288,6 +1294,23 @@ def regtest(options, easyconfig_paths):
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
+
+def print_dry_run(easyconfigs, robot=None):
+    if robot is None:
+        print_msg("Dry run: printing build status of easyconfigs")
+        all_specs = easyconfigs
+    else: 
+        print_msg("Dry run: printing build status of easyconfigs and dependencies")
+        all_specs = resolve_dependencies(easyconfigs, robot, True)
+    unbuilt_specs = skip_available(all_specs, True)
+    dry_run_fmt = "%3s %s"
+    for spec in all_specs:
+        if spec in unbuilt_specs:
+            ans = '[ ]'
+        else:
+            ans = '[x]'
+        print dry_run_fmt % (ans, spec['spec'])
+    
 
 
 if __name__ == "__main__":
