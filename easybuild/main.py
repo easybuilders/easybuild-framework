@@ -527,6 +527,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
                     processedSpecs = process_easyconfig(path, validate=(not force))
 
                     # ensure the pathname is equal to the module
+                    # FIXME: verify that file delivers right module in EasyBuild naming scheme (?)
                     mods = [spec['module'] for spec in processedSpecs]
                     dep_mod_name = det_full_module_name(cand_dep)
                     if not dep_mod_name in mods:

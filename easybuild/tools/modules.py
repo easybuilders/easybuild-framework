@@ -48,7 +48,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
-from easybuild.tools.module_generator import det_full_ec_version
+from easybuild.tools.module_generator import det_full_module_name
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -156,15 +156,18 @@ class ModulesTool(object):
         Check if module exist, if so add to list.
         """
         for mod in modules:
-            if type(mod) == list or type(mod) == tuple:
-                mod_name = '/'.join([mod[0], mod[1]])  # FIXME
-            elif type(mod) == str:
+            if isinstance(mod, (list, tuple)):
+                mod_dict = {
+                    'name': mod[0],
+                    'version': mod[1],
+                    'versionsuffix': '',
+                    'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                }
+                mod_name = os.path.sep.join(det_full_module_name(mod_dict))
+            elif isinstance(mod, basestring):
                 mod_name = mod
-            elif type(mod) == dict:
-                name = mod['name']
-                # deal with toolchain dependency calls
-                version = det_full_ec_version(mod)
-                mod_name = '%s/%s' % (name, version)  # FIXME
+            elif isinstance(mod, dict):
+                mod_name = det_full_module_name(mod)
             else:
                 self.log.error("Can't add module %s: unknown type" % str(mod))
 
