@@ -794,8 +794,7 @@ class EasyBlock(object):
         if purge:
             m.purge()
         m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-        m.add_module([det_full_module_name(self.cfg)])
-        m.load()
+        m.load([os.path.sep.join(det_full_module_name(self.cfg))])
 
     def load_fake_module(self, purge=False):
         """
@@ -830,8 +829,7 @@ class EasyBlock(object):
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
                 m = modules_tool(mod_paths)
-                m.add_module([det_full_module_name(self.cfg)])
-                m.unload()
+                m.unload([os.path.sep.join(det_full_module_name(self.cfg))])
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)

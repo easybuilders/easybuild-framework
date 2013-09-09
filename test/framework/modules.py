@@ -78,6 +78,13 @@ class ModulesTest(TestCase):
         """ test if we load one module it is in the loaded_modules """
         testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
         ms = testmods.available()
+
+        for m in ms:
+            testmods.load([m])
+            self.assertTrue(m in testmods.loaded_modules())
+            testmods.purge()
+
+        # deprecated version
         for m in ms:
             testmods.add_module([m])
             testmods.load()
@@ -96,17 +103,32 @@ class ModulesTest(TestCase):
         os.environ['LD_LIBRARY_PATH'] = testpath
 
         testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
+
+        # load module and check that previous LD_LIBRARY_PATH is still there, at the end
+        testmods.load(['GCC/4.6.3'])
+        self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
+        testmods.purge()
+
+        # deprecated version
         testmods.add_module([('GCC', '4.6.3')])
         testmods.load()
 
         # check that previous LD_LIBRARY_PATH is still there, at the end
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
+        testmods.purge()
 
     def test_purge(self):
         """Test if purging of modules works."""
         m = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-
         ms = m.available()
+
+        m.load([ms[0]])
+        self.assertTrue(len(m.loaded_modules()) > 0)
+
+        m.purge()
+        self.assertTrue(len(m.loaded_modules()) == 0)
+
+        # deprecated version
         m.add_module([ms[0]])
         m.load()
         self.assertTrue(len(m.loaded_modules()) > 0)

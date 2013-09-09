@@ -93,13 +93,20 @@ class ModulesTool(object):
             self.mod_paths = set(mod_paths)
         else:
             self.mod_paths = None
-        # FIXME: deprecate this?
-        self.modules = []
+
+        # DEPRECATED!
+        self._modules = []
 
         self.check_module_path()
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = None
+
+    @property
+    def modules(self):
+        """Property providing access to deprecated 'modules' class variable."""
+        self.log.deprecated("'modules' class variable is deprecated, just use load([<list of modules>])", '2.0')
+        return self._modules
 
     def check_module_path(self):
         """
@@ -150,11 +157,11 @@ class ModulesTool(object):
         """
         return mod_name in self.available(mod_name)
 
-    # FIXME: deprecate this?
     def add_module(self, modules):
         """
         Check if module exist, if so add to list.
         """
+        self.log.deprecated("Use of add_module function should be replaced by load([<list of modules>])", '2.0')
         for mod in modules:
             if isinstance(mod, (list, tuple)):
                 mod_dict = {
@@ -174,7 +181,7 @@ class ModulesTool(object):
             mods = self.available(mod_name)
             if mod_name in mods:
                 # ok
-                self.modules.append(mod_name)
+                self._modules.append(mod_name)
             else:
                 if len(mods) == 0:
                     self.log.warning('No module %s available' % str(mod))
@@ -182,28 +189,38 @@ class ModulesTool(object):
                     self.log.warning('More then one module found for %s: %s' % (mod, mods))
                 continue
 
-    # FIXME: deprecate this along with add_module?
     def remove_module(self, modules):
         """
         Remove modules from list.
         """
+        self.log.deprecated("remove_module should no longer be used (add_module is deprecated too).", '2.0')
         for mod in modules:
-            self.modules = [m for m in self.modules if not m == mod]
+            self._modules = [m for m in self._modules if not m == mod]
 
-    # FIXME: change this, pass (list of) module(s) to load as argument?
-    def load(self, modules=[]):
+    def load(self, modules=None):
         """
         Load all requested modules.
         """
-        for mod in self.modules:
-            self.run_module('load', mod)
+        if modules is not None:
+            for mod in modules:
+                self.run_module('load', mod)
+        else:
+            # deprecated behavior if no modules were passed by argument
+            self.log.deprecated("Loading modules listed in _modules class variable", '2.0')
+            for mod in self._modules:
+                self.run_module('load', mod)
 
-    def unload(self):
+    def unload(self, modules=None):
         """
         Unload all requested modules.
         """
-        for mod in self.modules:
-            self.run_module('unload', mod)
+        if modules is not None:
+            for mod in modules:
+                self.run_module('unload', mod)
+        else:
+            self.log.deprecated("Unloading modules listed in _modules class variable", '2.0')
+            for mod in self._modules:
+                self.run_module('unload', mod)
 
     def purge(self):
         """
