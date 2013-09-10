@@ -90,6 +90,12 @@ class RobotTest(TestCase):
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
+            'ec': {
+                'name': 'foo',
+                'version': '1.2.3',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            },
             'spec': '_',
             'module': ("name", "version"),
             'dependencies': [{

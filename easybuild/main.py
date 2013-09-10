@@ -481,9 +481,11 @@ def resolve_dependencies(unprocessed, robot, force=False):
     beingInstalled = [p['module'] for p in unprocessed]
     processed = [m for m in availableModules if not m in beingInstalled]
 
+    _log.debug('unprocessed before resolving deps: %s' % unprocessed)
+
     # as long as there is progress in processing the modules, keep on trying
     loopcnt = 0
-    maxloopcnt = 10000
+    maxloopcnt = 100
     robotAddedDependency = True
     while robotAddedDependency:
 
@@ -504,12 +506,12 @@ def resolve_dependencies(unprocessed, robot, force=False):
         # robot: look for an existing dependency, add one
         if robot and len(unprocessed) > 0:
 
-            beingInstalled = [p['module'] for p in unprocessed]
+            beingInstalled = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
 
-            for module in unprocessed:
-                # do not choose a module that is being installed in the current run
+            for entry in unprocessed:
+                # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
-                candidates = [d for d in module['dependencies'] if not det_full_module_name(d) in beingInstalled]
+                candidates = [d for d in entry['dependencies'] if not det_full_module_name(d, eb_ns=True) in beingInstalled]
                 if len(candidates) > 0:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -518,7 +520,8 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
                 else:
                     path = None
-                    _log.debug("No more candidate dependencies to resolve for module %s" % str(module['module']))
+                    mod_name = os.path.sep.join(det_full_module_name(entry['ec'], eb_ns=True))
+                    _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
                 if path is not None:
                     cand_dep = candidates[0]
@@ -526,10 +529,9 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
                     processedSpecs = process_easyconfig(path, validate=(not force))
 
-                    # ensure the pathname is equal to the module
-                    # FIXME: verify that file delivers right module in EasyBuild naming scheme (?)
-                    mods = [spec['module'] for spec in processedSpecs]
-                    dep_mod_name = det_full_module_name(cand_dep)
+                    # ensure that selected easyconfig provides required dependency
+                    mods = [det_full_module_name(spec['ec'], eb_ns=True) for spec in processedSpecs]
+                    dep_mod_name = det_full_module_name(cand_dep, eb_ns=True)
                     if not dep_mod_name in mods:
                         _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
 
@@ -537,13 +539,15 @@ def resolve_dependencies(unprocessed, robot, force=False):
                     robotAddedDependency = True
                     break
 
+    _log.debug('unprocessed after resolving deps: %s' % unprocessed)
+
     # there are dependencies that cannot be resolved
     if len(unprocessed) > 0:
         _log.debug("List of unresolved dependencies: %s" % unprocessed)
         missingDependencies = []
         for module in unprocessed:
             for dep in module['dependencies']:
-                missingDependencies.append(det_full_module_name(dep))
+                missingDependencies.append(det_full_module_name(dep, eb_ns=True))
 
         msg = "Dependencies not met. Cannot resolve %s" % missingDependencies
         _log.error(msg)
