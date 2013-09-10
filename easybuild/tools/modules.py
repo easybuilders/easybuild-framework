@@ -173,7 +173,7 @@ class ModulesTool(object):
                     'versionsuffix': '',
                     'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 }
-                mod_name = os.path.sep.join(det_full_module_name(mod_dict))
+                mod_name = os.path.join(*det_full_module_name(mod_dict))
             elif isinstance(mod, basestring):
                 mod_name = mod
             elif isinstance(mod, dict):

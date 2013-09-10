@@ -700,7 +700,7 @@ class EasyBlock(object):
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                dep_mod_name = os.path.sep.join(det_full_module_name(dep))
+                dep_mod_name = os.path.join(*det_full_module_name(dep))
                 self.log.debug("Adding %s as a module dependency" % dep_mod_name)
                 load += self.moduleGenerator.load_module(dep_mod_name)
                 unload += self.moduleGenerator.unload_module(dep_mod_name)
@@ -794,7 +794,7 @@ class EasyBlock(object):
         if purge:
             m.purge()
         m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-        m.load([os.path.sep.join(det_full_module_name(self.cfg))])
+        m.load([os.path.join(*det_full_module_name(self.cfg))])
 
     def load_fake_module(self, purge=False):
         """
@@ -829,7 +829,7 @@ class EasyBlock(object):
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
                 m = modules_tool(mod_paths)
-                m.unload([os.path.sep.join(det_full_module_name(self.cfg))])
+                m.unload([os.path.join(*det_full_module_name(self.cfg))])
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)

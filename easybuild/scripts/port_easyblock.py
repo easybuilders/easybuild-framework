@@ -322,7 +322,7 @@ else:
     error("Usage: %s <path>" % sys.argv[0])
 
 # determine EasyBuild home dir, assuming this script is in <EasyBuild home>/easybuild/scripts
-easybuild_home = os.path.sep.join(os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
+easybuild_home = os.path.join(*os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
 
 print "Found EasyBuild home: %s\n" % easybuild_home
 

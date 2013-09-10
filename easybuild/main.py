@@ -447,7 +447,7 @@ def skip_available(easyconfigs, testing=False):
     m = modules_tool()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = os.path.sep.join(ec['module'])
+        module = os.path.join(*ec['module'])
         if m.exists(module):
             msg = "%s is already installed (module found), skipping " % module
             print_msg(msg, log=_log, silent=testing)
@@ -520,7 +520,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
                 else:
                     path = None
-                    mod_name = os.path.sep.join(det_full_module_name(entry['ec'], eb_ns=True))
+                    mod_name = os.path.join(*det_full_module_name(entry['ec'], eb_ns=True))
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
                 if path is not None:
@@ -944,7 +944,7 @@ def dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return os.path.sep.join(det_full_module_name(spec))
+            return os.path.join(*det_full_module_name(spec))
 
     # enhance list of specs
     for spec in specs:
