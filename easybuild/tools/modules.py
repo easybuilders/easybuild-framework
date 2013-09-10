@@ -102,6 +102,9 @@ class ModulesTool(object):
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = None
 
+        # version of modules tool
+        self.version = None
+
     @property
     def modules(self):
         """Property providing access to deprecated 'modules' class variable."""
@@ -456,7 +459,8 @@ class Lmod(ModulesTool):
             ver_re = re.compile("^Modules based on Lua: Version (?P<version>[0-9.]+) \(.*", re.M)
             res = ver_re.search(txt)
             if res:
-                lmod_ver = res.group('version')
+                self.version = res.group('version')
+                self.log.info("Found Lmod version %s" % self.version)
             else:
                 self.log.error("Failed to determine Lmod version from 'lmod help' output: %s" % txt)
             stderr.close()
@@ -464,13 +468,14 @@ class Lmod(ModulesTool):
             self.log.error("Failed to check Lmod version: %s" % err)
 
         # we need at least Lmod v5.0
-        if LooseVersion(lmod_ver) >= LooseVersion('5.0'):
-            # Lmod v5.0.1 is highly recommended
-            recommended_version = '5.0.1'
-            if LooseVersion(lmod_ver) < LooseVersion(recommended_version):
-                self.log.warning("Lmod v%s is highly recommended." % recommended_version)
+        req_version = '5.0'
+        if LooseVersion(self.version) >= LooseVersion(req_version):
+            # Lmod v5.1.5 is highly recommended
+            opt_version = '5.1.5'
+            if LooseVersion(self.version) < LooseVersion(opt_version):
+                self.log.warning("Lmod v%s is highly recommended." % opt_version)
         else:
-            self.log.error("EasyBuild requires Lmod v5.0 or more recent")
+            self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended)" % (req_version, opt_version))
 
         # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
         for modpath in self.mod_paths:
@@ -492,14 +497,18 @@ class Lmod(ModulesTool):
         @param name: a (partial) module name for filtering (default: None)
         """
         # only retain actual modules, exclude module directories
-        # FIXME: this is a (bloody slow) temporary workaround for a bug in Lmod 5.x (up to 5.1.1)
         def is_mod(mod):
             """Determine is given path is an actual module, or just a directory."""
-            for mod_path in self.mod_paths:
-                full_path = os.path.join(mod_path, mod)
-                if os.path.exists(full_path) and os.path.isfile(full_path):
-                    return True
-            return False
+            if LooseVersion(self.version) < LooseVersion('5.1.5'):
+                # this is a (potentially bloody slow) workaround for a bug in Lmod 5.x (< 5.1.5)
+                for mod_path in self.mod_paths:
+                    full_path = os.path.join(mod_path, mod)
+                    if os.path.exists(full_path) and os.path.isfile(full_path):
+                        return True
+                return False
+            else:
+                # module directories end with a trailing slash in Lmod version >= 5.1.5
+                return not mod.endswith('/')
 
         mods = super(Lmod, self).available(mod_name=mod_name)
         real_mods = [mod for mod in mods if is_mod(mod)]
