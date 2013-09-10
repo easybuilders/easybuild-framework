@@ -104,7 +104,8 @@ class RobotTest(TestCase):
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
-            }]
+            }],
+            'parsed': True,
         }
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
         # Dependency should be found

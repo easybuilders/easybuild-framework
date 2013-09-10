@@ -485,7 +485,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
     # as long as there is progress in processing the modules, keep on trying
     loopcnt = 0
-    maxloopcnt = 100
+    maxloopcnt = 100  # 10000
     robotAddedDependency = True
     while robotAddedDependency:
 

@@ -234,6 +234,9 @@ class EasyConfig(object):
         # update templating dictionary
         self.generate_template_values()
 
+        # indicate that this is a parsed easyconfig
+        self._config['parsed'] = [True, "This is a parsed easyconfig", "MANDATORY"]
+
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
@@ -488,11 +491,16 @@ class EasyConfig(object):
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
         attr = ['name', 'version', 'versionsuffix', 'dummy']
-        dependency = {'name': '', 'version': '', 'versionsuffix': '', 'dummy': False}
+        dependency = {
+            'name': '',
+            'version': '',
+            'versionsuffix': '',
+            'dummy': False,
+        }
         if isinstance(dep, dict):
             dependency.update(dep)
-        # Try and convert to list
         elif isinstance(dep, (list, tuple)):
+            # try and convert to list
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
@@ -505,7 +513,7 @@ class EasyConfig(object):
         elif dependency['toolchain']['name'] == 'dummy':
             dependency['dummy'] = True
 
-        # Validations
+        # validations
         if not dependency['name']:
             self.log.error("Dependency without name given")
 

@@ -240,7 +240,7 @@ def get_custom_module_naming_scheme():
         _log.error("Custom module naming scheme %s could not be found!" % module_naming_scheme)
 
 
-def det_full_module_name(ec, eb_ns=False, dep=False):
+def det_full_module_name(ec, eb_ns=False):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
@@ -248,23 +248,22 @@ def det_full_module_name(ec, eb_ns=False, dep=False):
     If a KeyError occurs when determining the module name, e.g. because the information supplied for dependencies
     is insufficient, an attempt is made to locate and parse an easyconfig file, and do another attempt.
     """
-    if dep:
-        # for dependencies, we need to look for an easyconfig file to parse first,
-        # to ensure that version/versionsuffix/toolchain specifications are correct
-        # e.g. an OpenMPI dependency built with a GCC/4.6.4 toolchain can be specified as
-        # ('OpenMPI', '1.6.4-GCC-4.7.2'), or ('OpenMPI', '1.6.4', '-GCC-4.7.2')
-        # in a dummy toolchain build, but both may result in a wrong module name mapping
-        # this is caused by the underspecified/ambiguous way in which dependencies are currently defined
-        # see also https://github.com/hpcugent/easybuild-framework/issues/686
-        pass  # FIXME: placeholder
+    _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
+    # import can't be done on top because of circular dependency
+    from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
     if eb_ns:
         # return module name under EasyBuild module naming scheme
-        # import can't be done on top because of circular dependency
-        from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
         return EasyBuildModuleNamingScheme().det_full_module_name(ec)
     else:
-        try:
-            return get_custom_module_naming_scheme().det_full_module_name(ec)
-        except KeyError, err:
-            _log.debug("KeyError occured (%s), will attempt to find a matching easyconfig file and retry." % err)
-            _log.error("BOOM! Not implemented yet.")
+        if not ec.get('parsed', False) and config.get_module_naming_scheme() != EasyBuildModuleNamingScheme.__name__:
+            # for dependencies under a alternative/non-EasyBuild module naming scheme,
+            # we need to obtain an easyconfig file and parse it first,
+            # to ensure that the module name can be correctly generated
+            # e.g., an OpenMPI dependency built with a GCC/4.6.4 toolchain can be specified as
+            # ('OpenMPI', '1.6.4-GCC-4.7.2'), or ('OpenMPI', '1.6.4', '-GCC-4.7.2')
+            # in a dummy toolchain build, but both may result in a wrong module name mapping
+            #
+            # this is caused by the underspecified/ambiguous way in which dependencies are currently defined,
+            # see also https://github.com/hpcugent/easybuild-framework/issues/686
+            _log.error("Can not ensure correct module name generation for non-parsed easyconfig specifications.")
+        return get_custom_module_naming_scheme().det_full_module_name(ec)

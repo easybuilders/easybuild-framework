@@ -167,6 +167,18 @@ if { [is-loaded mod_name] } {
 
         test_default()
 
+        # generating module name from non-parsed easyconfig works fine
+        non_parsed = {
+            'name': 'foo',
+            'version': '1.2.3',
+            'versionsuffix': '-bar',
+            'toolchain': {
+                'name': 't00ls',
+                'version': '6.6.6',
+            },
+        }
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', os.path.join(*det_full_module_name(non_parsed)))
+
         # install custom module naming scheme dynamically
         sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox'))
         reload(easybuild)
@@ -190,6 +202,10 @@ if { [is-loaded mod_name] } {
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
             self.assertEqual(ec2mod_map[ec_name], os.path.join(*det_full_module_name(ec)))
+
+        # generating module name from non-parsed easyconfig does not work (and shouldn't)
+        error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."
+        self.assertErrorRegex(EasyBuildError, error_msg, det_full_module_name, non_parsed)
 
         # restore default module naming scheme, and retest
         config.variables['module_naming_scheme'] = orig_module_naming_scheme

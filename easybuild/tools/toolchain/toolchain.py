@@ -200,6 +200,7 @@ class Toolchain(object):
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'versionsuffix': '',
             'dummy': True,
+            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_full_module_name
         }
 
     def det_module_name(self, name=None, version=None):
