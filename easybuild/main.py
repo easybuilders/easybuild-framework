@@ -432,6 +432,8 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
             _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
             easyconfig['dependencies'].append(dep)
 
+        # FIXME: obtain parsed easyconfigs for dependencies
+
         del ec
 
         # this is used by the parallel builder
@@ -530,8 +532,8 @@ def resolve_dependencies(unprocessed, robot, force=False):
                     processedSpecs = process_easyconfig(path, validate=(not force))
 
                     # ensure that selected easyconfig provides required dependency
-                    mods = [det_full_module_name(spec['ec'], eb_ns=True) for spec in processedSpecs]
-                    dep_mod_name = det_full_module_name(cand_dep, eb_ns=True)
+                    mods = [det_full_module_name(spec['ec']) for spec in processedSpecs]
+                    dep_mod_name = det_full_module_name(cand_dep)
                     if not dep_mod_name in mods:
                         _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
 
