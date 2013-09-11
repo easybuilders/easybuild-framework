@@ -41,6 +41,7 @@ from easybuild.framework.easyblock import get_class
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.repository import init_repository
 from vsc import fancylogger
 
