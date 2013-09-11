@@ -54,7 +54,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
-    job_module_dict = {}
+    job_ids = {}
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
@@ -68,6 +68,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
     ppn = get_ppn()
 
+    def tokey(dep):
+        """Determine key for specified dependency."""
+        return det_full_module_name(dep)
+
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
@@ -79,13 +83,13 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
 
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
-        job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
+        job_deps = [job_ids[tokey(dep)] for dep in ec['unresolvedDependencies'] if tokey(dep) in job_ids]
         new_job.add_dependencies(job_deps)
         new_job.submit()
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
-        job_module_dict[new_job.module] = new_job.jobid
+        job_ids[new_job.module] = new_job.jobid
         new_job.cleanup()
         jobs.append(new_job)
 
