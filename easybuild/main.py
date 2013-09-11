@@ -432,8 +432,6 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
             _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
             easyconfig['dependencies'].append(dep)
 
-        # FIXME: obtain parsed easyconfigs for dependencies
-
         del ec
 
         # this is used by the parallel builder
@@ -468,30 +466,30 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
     if force:
         # assume that no modules are available when forced
-        availableModules = []
+        available_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        availableModules = [tuple(m.split(os.path.sep)) for m in modules_tool().available()]
+        available_modules = [tuple(m.split(os.path.sep)) for m in modules_tool().available()]
 
-        if len(availableModules) == 0:
+        if len(available_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
 
-    orderedSpecs = []
+    ordered_ecs = []
     # All available modules can be used for resolving dependencies except
     # those that will be installed
-    beingInstalled = [p['module'] for p in unprocessed]
-    processed = [m for m in availableModules if not m in beingInstalled]
+    being_installed = [p['module'] for p in unprocessed]
+    processed = [m for m in available_modules if not m in being_installed]
 
     _log.debug('unprocessed before resolving deps: %s' % unprocessed)
 
     # as long as there is progress in processing the modules, keep on trying
     loopcnt = 0
-    maxloopcnt = 100  # 10000
-    robotAddedDependency = True
-    while robotAddedDependency:
+    maxloopcnt = 10000
+    robot_add_dep = True
+    while robot_add_dep:
 
-        robotAddedDependency = False
+        robot_add_dep = False
 
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
@@ -500,20 +498,21 @@ def resolve_dependencies(unprocessed, robot, force=False):
             _log.error(msg)
 
         # first try resolving dependencies without using external dependencies
-        lastProcessedCount = -1
-        while len(processed) > lastProcessedCount:
-            lastProcessedCount = len(processed)
-            orderedSpecs.extend(find_resolved_modules(unprocessed, processed))
+        last_processed_count = -1
+        while len(processed) > last_processed_count:
+            last_processed_count = len(processed)
+            ordered_ecs.extend(find_resolved_modules(unprocessed, processed))
 
         # robot: look for an existing dependency, add one
         if robot and len(unprocessed) > 0:
 
-            beingInstalled = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
+            being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
 
             for entry in unprocessed:
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
-                candidates = [d for d in entry['dependencies'] if not det_full_module_name(d, eb_ns=True) in beingInstalled]
+                deps = entry['dependencies']
+                candidates = [d for d in deps if not det_full_module_name(d, eb_ns=True) in being_installed]
                 if len(candidates) > 0:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -538,7 +537,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
                         _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
 
                     unprocessed.extend(processedSpecs)
-                    robotAddedDependency = True
+                    robot_add_dep = True
                     break
 
     _log.debug('unprocessed after resolving deps: %s' % unprocessed)
@@ -546,35 +545,35 @@ def resolve_dependencies(unprocessed, robot, force=False):
     # there are dependencies that cannot be resolved
     if len(unprocessed) > 0:
         _log.debug("List of unresolved dependencies: %s" % unprocessed)
-        missingDependencies = []
-        for module in unprocessed:
-            for dep in module['dependencies']:
-                missingDependencies.append(det_full_module_name(dep, eb_ns=True))
+        missing_dependencies = []
+        for ec in unprocessed:
+            for dep in ec['dependencies']:
+                missing_dependencies.append(det_full_module_name(dep, eb_ns=True))
 
-        msg = "Dependencies not met. Cannot resolve %s" % missingDependencies
+        msg = "Dependencies not met. Cannot resolve %s" % missing_dependencies
         _log.error(msg)
 
-    _log.info("Dependency resolution complete, building as follows:\n%s" % orderedSpecs)
-    return orderedSpecs
+    _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
+    return ordered_ecs
 
 
 def find_resolved_modules(unprocessed, processed):
     """
-    Find modules in unprocessed which can be fully resolved using easyconfigs in processed
+    Find easyconfigs in unprocessed which can be fully resolved using easyconfigs in processed
     """
-    orderedSpecs = []
+    ordered_ecs = []
 
-    for module in unprocessed:
-        module['dependencies'] = [d for d in module['dependencies'] if not det_full_module_name(d) in processed]
+    for ec in unprocessed:
+        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in processed]
 
-        if len(module['dependencies']) == 0:
-            _log.debug("Adding easyconfig %s to final list" % module['spec'])
-            orderedSpecs.append(module)
-            processed.append(module['module'])
+        if len(ec['dependencies']) == 0:
+            _log.debug("Adding easyconfig %s to final list" % ec['spec'])
+            ordered_ecs.append(ec)
+            processed.append(ec['module'])
 
     unprocessed[:] = [m for m in unprocessed if len(m['dependencies']) > 0]
 
-    return orderedSpecs
+    return ordered_ecs
 
 
 def process_software_build_specs(options):

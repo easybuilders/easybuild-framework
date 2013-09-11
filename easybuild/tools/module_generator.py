@@ -258,4 +258,9 @@ def det_full_module_name(ec, eb_ns=False):
         try:
             return get_custom_module_naming_scheme().det_full_module_name(ec)
         except KeyError, err:
-            _log.error("Error when determining module name for %s: %s" % err)
+            # easyconfig keys available for generating module name are limited to name/version/versionsuffix/toolchain
+            # because dependency specifications only provide these keys
+            # to support more involved module naming scheme, a parsed easyconfig file is always required
+            error_msg = "An error occured when determining module name for %s, " % ec
+            error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
+            _log.error(error_msg)

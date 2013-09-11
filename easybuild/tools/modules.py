@@ -141,7 +141,7 @@ class ModulesTool(object):
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
-        @param name: a (partial) module name for filtering (default: None)
+        @param mod_name: a (partial) module name for filtering (default: None)
         """
         if mod_name is None:
             mod_name = ''
@@ -177,7 +177,7 @@ class ModulesTool(object):
             elif isinstance(mod, basestring):
                 mod_name = mod
             elif isinstance(mod, dict):
-                mod_name = det_full_module_name(mod)
+                mod_name = os.path.join(*det_full_module_name(mod))
             else:
                 self.log.error("Can't add module %s: unknown type" % str(mod))
 

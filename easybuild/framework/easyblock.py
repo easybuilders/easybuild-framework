@@ -1101,7 +1101,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            mod_name = det_full_module_name(self.cfg)
+            mod_name = os.path.join(*det_full_module_name(self.cfg))
             if self.modules_tool.exists(mod_name):
                 self.skip = True
                 self.log.info("Current version (name: %s, version: %s) found." % mod_name)
@@ -1731,7 +1731,7 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         try:
-            full_name = '-'.join(det_full_module_name(self.cfg))
+            full_name = os.path.join(*det_full_module_name(self.cfg))
             print_msg("building and installing %s..." % full_name, self.log)
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log)
