@@ -52,50 +52,58 @@ def search_toolchain(name):
 
     log = fancylogger.getLogger("search_toolchain")
 
-    # import all available toolchains, so we know about them
-    tc_modules = []
-    for path in sys.path:
-        for module in glob.glob(os.path.join(path, 'easybuild', 'toolchains', '*.py')):
-            if not module.endswith('__init__.py'):
-                modpath = "easybuild.toolchains.%s" % module.split(os.path.sep)[-1].split('.')[0]
-                log.debug("importing toolchain module %s" % modpath)
-                tc_modules.append(__import__(modpath, globals(), locals(), ['']))
-
-    # make sure all defined toolchain constants are available in toolchain module
     package = easybuild.tools.toolchain
-    tc_const_prefix = 'TC_CONSTANT_'
-    tc_const_re = re.compile('^%s(.*)$' % tc_const_prefix)
-    for tc_mod in tc_modules:
-        # determine classes imported in this module
-        mod_classes = []
-        for elem in [getattr(tc_mod, x) for x in dir(tc_mod)]:
-            if hasattr(elem, '__module__'):
-                # exclude the toolchain class defined in that module
-                if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                    log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
-                    mod_classes.append(elem)
+    check_attr_name = 'TC_CONSTANTS_PROCESSED'
 
-        # look for constants in modules of imported classes, and make them available
-        for mod_class_mod in [sys.modules[mod_class.__module__] for mod_class in mod_classes]:
-            for elem in dir(mod_class_mod):
-                res = tc_const_re.match(elem)
-                if res:
-                    tc_const_name = res.group(1)
-                    tc_const_value = getattr(mod_class_mod, elem)
-                    log.debug("Found constant %s ('%s') in module %s, adding it to %s" % (tc_const_name,
-                                                                                          tc_const_value,
-                                                                                          mod_class_mod.__name__,
-                                                                                          package.__name__))
-                    if hasattr(package, tc_const_name):
-                        cur_value = getattr(package, tc_const_name)
-                        if not tc_const_value == cur_value:
-                            log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % (package.__name__,
-                                                                                                 tc_const_name,
-                                                                                                 cur_value,
-                                                                                                 tc_const_value
-                                                                                                ))
-                    else:
-                        setattr(package, tc_const_name, tc_const_value)
+    if not hasattr(package, check_attr_name) or not getattr(package, check_attr_name):
+        # import all available toolchains, so we know about them
+        tc_modules = []
+        for path in sys.path:
+            for module in glob.glob(os.path.join(path, 'easybuild', 'toolchains', '*.py')):
+                if not module.endswith('__init__.py'):
+                    modpath = "easybuild.toolchains.%s" % module.split(os.path.sep)[-1].split('.')[0]
+                    log.debug("importing toolchain module %s" % modpath)
+                    tc_modules.append(__import__(modpath, globals(), locals(), ['']))
+
+        # make sure all defined toolchain constants are available in toolchain module
+        tc_const_prefix = 'TC_CONSTANT_'
+        tc_const_re = re.compile('^%s(.*)$' % tc_const_prefix)
+        for tc_mod in tc_modules:
+            # determine classes imported in this module
+            mod_classes = []
+            for elem in [getattr(tc_mod, x) for x in dir(tc_mod)]:
+                if hasattr(elem, '__module__'):
+                    # exclude the toolchain class defined in that module
+                    if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
+                        log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
+                        mod_classes.append(elem)
+
+            # look for constants in modules of imported classes, and make them available
+            for mod_class_mod in [sys.modules[mod_class.__module__] for mod_class in mod_classes]:
+                for elem in dir(mod_class_mod):
+                    res = tc_const_re.match(elem)
+                    if res:
+                        tc_const_name = res.group(1)
+                        tc_const_value = getattr(mod_class_mod, elem)
+                        log.debug("Found constant %s ('%s') in module %s, adding it to %s" % (tc_const_name,
+                                                                                              tc_const_value,
+                                                                                              mod_class_mod.__name__,
+                                                                                              package.__name__))
+                        if hasattr(package, tc_const_name):
+                            cur_value = getattr(package, tc_const_name)
+                            if not tc_const_value == cur_value:
+                                log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % (package.__name__,
+                                                                                                     tc_const_name,
+                                                                                                     cur_value,
+                                                                                                     tc_const_value
+                                                                                                    ))
+                        else:
+                            setattr(package, tc_const_name, tc_const_value)
+
+        # indicate that processing of toolchain constants is done, so it's not done again
+        setattr(package, check_attr_name, True)
+    else:
+        log.debug("Skipping importing of toolchain modules, processing of toolchain constants is already done.")
 
     # obtain all subclasses of toolchain
     found_tcs = nub(get_subclasses(Toolchain))
