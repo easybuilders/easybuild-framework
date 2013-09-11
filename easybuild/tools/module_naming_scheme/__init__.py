@@ -43,6 +43,6 @@ class ModuleNamingScheme(object):
 
         @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
-        @return: tuple with full module name, e.g.: ('<name>, '<compiler>', '<mpi_lib>', '<version>')
+        @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
         """
         return NotImplementedError

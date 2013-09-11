@@ -575,7 +575,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, *det_full_module_name(self.cfg))
+            installdir = os.path.join(basepath, det_full_module_name(self.cfg))
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -632,6 +632,10 @@ class EasyBlock(object):
     # MODULE UTILITY FUNCTIONS
     #
 
+    def det_devel_module_filename(self):
+        """Determine devel module filename."""
+        return "%s-easybuild-devel" % det_full_module_name(self.cfg).replace(os.path.sep, '-')
+
     def make_devel_module(self, create_in_builddir=False):
         """
         Create a develop module file which sets environment based on the build
@@ -677,7 +681,7 @@ class EasyBlock(object):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-        filename = os.path.join(output_dir, "%s-easybuild-devel" % '-'.join(det_full_module_name(self.cfg)))
+        filename = os.path.join(output_dir, self.det_devel_module_filename())
         self.log.debug("Writing devel module to %s" % filename)
 
         write_file(filename, header+load_txt+env_txt)
@@ -700,7 +704,7 @@ class EasyBlock(object):
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                dep_mod_name = os.path.join(*det_full_module_name(dep))
+                dep_mod_name = det_full_module_name(dep)
                 self.log.debug("Adding %s as a module dependency" % dep_mod_name)
                 load += self.moduleGenerator.load_module(dep_mod_name)
                 unload += self.moduleGenerator.unload_module(dep_mod_name)
@@ -729,7 +733,7 @@ class EasyBlock(object):
         environment_name = convert_name(self.name, upper=True)
         txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
         txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), "%s-easybuild-devel" % '-'.join(det_full_module_name(self.cfg)))
+        devel_path = os.path.join("$root", log_path(), self.det_devel_module_filename())
         txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
@@ -794,7 +798,7 @@ class EasyBlock(object):
         if purge:
             m.purge()
         m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-        m.load([os.path.join(*det_full_module_name(self.cfg))])
+        m.load([det_full_module_name(self.cfg)])
 
     def load_fake_module(self, purge=False):
         """
@@ -829,7 +833,7 @@ class EasyBlock(object):
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
                 m = modules_tool(mod_paths)
-                m.unload([os.path.join(*det_full_module_name(self.cfg))])
+                m.unload([det_full_module_name(self.cfg)])
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
@@ -1101,7 +1105,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            mod_name = os.path.join(*det_full_module_name(self.cfg))
+            mod_name = det_full_module_name(self.cfg)
             if self.modules_tool.exists(mod_name):
                 self.skip = True
                 self.log.info("Current version (name: %s, version: %s) found." % mod_name)
@@ -1731,7 +1735,7 @@ class EasyBlock(object):
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
         try:
-            full_name = os.path.join(*det_full_module_name(self.cfg))
+            full_name = det_full_module_name(self.cfg)
             print_msg("building and installing %s..." % full_name, self.log)
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log)

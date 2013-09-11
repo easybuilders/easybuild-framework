@@ -447,7 +447,7 @@ def skip_available(easyconfigs, testing=False):
     m = modules_tool()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = os.path.join(*ec['module'])
+        module = ec['module']
         if m.exists(module):
             msg = "%s is already installed (module found), skipping" % module
             print_msg(msg, log=_log, silent=testing)
@@ -470,7 +470,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        available_modules = [tuple(m.split(os.path.sep)) for m in modules_tool().available()]
+        available_modules = modules_tool().available()
 
         if len(available_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -521,7 +521,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
 
                 else:
                     path = None
-                    mod_name = os.path.join(*det_full_module_name(entry['ec'], eb_ns=True))
+                    mod_name = det_full_module_name(entry['ec'], eb_ns=True)
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
                 if path is not None:
@@ -866,7 +866,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(module['originalSpec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % os.path.join(*det_full_module_name(app.cfg)))
+                repo.commit("Built %s" % det_full_module_name(app.cfg))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -946,7 +946,7 @@ def dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return os.path.join(*det_full_module_name(spec))
+            return det_full_module_name(spec)
 
     # enhance list of specs
     for spec in specs:
@@ -1049,14 +1049,14 @@ def write_to_xml(succes, failed, filename):
     for (obj, fase, error, _) in failed:
         # try to pretty print
         try:
-            el = create_failure(os.path.join(*det_full_module_name(obj.cfg)), fase, error)
+            el = create_failure(det_full_module_name(obj.cfg), fase, error)
         except AttributeError:
             el = create_failure(obj, fase, error)
 
         root.firstChild.appendChild(el)
 
     for (obj, stats) in succes:
-        el = create_success(os.path.join(*det_full_module_name(obj.cfg)), stats)
+        el = create_success(det_full_module_name(obj.cfg), stats)
         root.firstChild.appendChild(el)
 
     output_file = open(filename, "w")
@@ -1318,7 +1318,7 @@ def print_dry_run(easyconfigs, robot=None):
             ans = '[ ]'
         else:
             ans = '[x]'
-        mod = os.path.join(*det_full_module_name(spec['ec']))
+        mod = det_full_module_name(spec['ec'])
         print dry_run_fmt % (ans, spec['spec'], mod)
     
 

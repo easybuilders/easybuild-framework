@@ -72,10 +72,10 @@ class ModuleGenerator(object):
             module_path = self.tmpdir
 
         # Real file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, *det_full_module_name(self.app.cfg))
+        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name(self.app.cfg))
 
         # Make symlink in moduleclass category
-        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], *det_full_module_name(self.app.cfg))
+        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
 
         # Create directories and links
         for directory in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
@@ -270,5 +270,5 @@ def det_full_module_name(ec, eb_ns=False):
             error_msg = "An error occured when determining module name for %s, " % ec
             error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
             _log.error(error_msg)
-    _log.debug("Obtained module name %s" % str(mod_name))
+    _log.debug("Obtained module name %s" % mod_name)
     return mod_name

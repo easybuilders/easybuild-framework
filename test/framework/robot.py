@@ -83,7 +83,7 @@ class RobotTest(TestCase):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
             'spec': '_',
-            'module': ("name", "version"),
+            'module': 'name/version',
             'dependencies': []
         }
         res = main.resolve_dependencies([deepcopy(easyconfig)], None)
@@ -97,7 +97,7 @@ class RobotTest(TestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
             },
             'spec': '_',
-            'module': ("name", "version"),
+            'module': 'name/version',
             'dependencies': [{
                 'name': 'gzip',
                 'version': '1.4',
@@ -112,7 +112,7 @@ class RobotTest(TestCase):
         self.assertEqual(len(res), 2)
 
         # here we have include a Dependency in the easyconfig list
-        easyconfig['module'] = ("gzip", "1.4")
+        easyconfig['module'] = 'gzip/1.4'
 
         res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None)
         # all dependencies should be resolved
@@ -132,8 +132,8 @@ class RobotTest(TestCase):
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
 
         # GCC should be first (required by gzip dependency)
-        self.assertEqual(('GCC', '4.6.3'), res[0]['module'])
-        self.assertEqual(('name', 'version'), res[-1]['module'])
+        self.assertEqual('GCC/4.6.3', res[0]['module'])
+        self.assertEqual('name/version', res[-1]['module'])
 
 
     def tearDown(self):

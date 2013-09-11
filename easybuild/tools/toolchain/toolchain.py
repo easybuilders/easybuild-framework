@@ -209,7 +209,7 @@ class Toolchain(object):
             name = self.name
         if version is None:
             version = self.version
-        return os.path.join(*det_full_module_name(self.as_dict(name, version)))
+        return det_full_module_name(self.as_dict(name, version))
 
     def _toolchain_exists(self, name=None, version=None):
         """
@@ -278,7 +278,7 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            mod_name = os.path.join(*det_full_module_name(dep))
+            mod_name = det_full_module_name(dep)
             if not self.modules_tool.exists(mod_name):
                 self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
             else:
@@ -311,13 +311,13 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([os.path.join(*det_full_module_name(dep)) for dep in self.dependencies])
+                self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
         self.log.debug("Loading toolchain module and dependencies...")
         self.modules_tool.load([self.det_module_name()])
-        self.modules_tool.load([os.path.join(*det_full_module_name(dep)) for dep in self.dependencies])
+        self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
 
         # determine direct toolchain dependencies
         mod_name = self.det_module_name()

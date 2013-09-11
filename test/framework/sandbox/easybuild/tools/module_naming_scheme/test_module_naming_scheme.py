@@ -1,3 +1,5 @@
+import os
+
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 
 
@@ -13,10 +15,11 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         @return: n-element tuple with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
         """
         if ec['toolchain']['name'] == 'goolf':
-            return ('gnu', 'openmpi', ec['name'], ec['version'])
+            mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
         elif ec['toolchain']['name'] == 'GCC':
-            return ('gnu', ec['name'], ec['version'])
+            mod_name = os.path.join('gnu', ec['name'], ec['version'])
         elif ec['toolchain']['name'] == 'ictce':
-            return ('intel', 'intelmpi', ec['name'], ec['version'])
+            mod_name = os.path.join('intel', 'intelmpi', ec['name'], ec['version'])
         else:
-            return (ec['name'], ec['version'])
+            mod_name = os.path.join(ec['name'], ec['version'])
+        return mod_name

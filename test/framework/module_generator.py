@@ -164,7 +164,7 @@ if { [is-loaded mod_name] } {
                 ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
                 mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
-                self.assertEqual(os.path.join(mod_name, mod_version), os.path.join(*det_full_module_name(ec)))
+                self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
 
         test_default()
 
@@ -178,7 +178,7 @@ if { [is-loaded mod_name] } {
                 'version': '6.6.6',
             },
         }
-        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', os.path.join(*det_full_module_name(non_parsed)))
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name(non_parsed))
 
         # install custom module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
@@ -208,7 +208,7 @@ if { [is-loaded mod_name] } {
             ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
-            self.assertEqual(ec2mod_map[ec_name], os.path.join(*det_full_module_name(ec)))
+            self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # generating module name from non-parsed easyconfig does not work (and shouldn't)
         error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."
