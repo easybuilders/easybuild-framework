@@ -11,8 +11,8 @@ feature + bugfix release
         - a function named 'det_full_module_name' must be implemented, that determines the module name
           in the form of an n-tuple based on the supplied dictionary(-like) argument
     - the active module naming scheme is determined by EasyBuild configuration option 'module_naming_scheme'
-    - for now, only the 'name', 'version', 'versionsuffix' and 'toolchain' easyconfig parameters are guaranteed to be provided
-        - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work/refactoring (see #687)
+    - for now, only the name/version/versionsuffix/toolchain easyconfig parameters are guaranteed to be provided
+        - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work (see #687)
     - implementing this involved a number of intrusive changes:
         - the API of the modules.py Python module needed to be changed, breaking backward compatibility
             - the function for which the signatures were modified are considered to be internal to the framework,
