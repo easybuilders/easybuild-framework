@@ -311,12 +311,13 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([os.path.join(*dep) for dep in self.dependencies])
+                self.modules_tool.load([os.path.join(*det_full_module_name(dep)) for dep in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
-        self.modules_tool.load([os.path.join(self.name, self.version)])
-        self.modules_tool.load([os.path.join(*dep) for dep in self.dependencies])
+        self.log.debug("Loading toolchain module and dependencies...")
+        self.modules_tool.load([self.det_module_name()])
+        self.modules_tool.load([os.path.join(*det_full_module_name(dep)) for dep in self.dependencies])
 
         # determine direct toolchain dependencies
         mod_name = self.det_module_name()
