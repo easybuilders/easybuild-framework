@@ -35,6 +35,7 @@ import shutil
 import sys
 import tempfile
 from unittest import TestCase, TestLoader, main
+from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.options as eboptions
 import easybuild.tools.module_generator
@@ -180,12 +181,18 @@ if { [is-loaded mod_name] } {
         self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', os.path.join(*det_full_module_name(non_parsed)))
 
         # install custom module naming scheme dynamically
-        sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox'))
+        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        sys.path.append(test_mns_parent_dir)
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
         orig_module_naming_scheme = config.get_module_naming_scheme()
         config.variables['module_naming_scheme'] = 'TestModuleNamingScheme'
+        mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
+        mns_mod = __import__(mns_path, globals(), locals(), [''])
+        test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
+        easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
+
 
         ec2mod_map = {
             'GCC-4.6.3': 'GCC/4.6.3',
