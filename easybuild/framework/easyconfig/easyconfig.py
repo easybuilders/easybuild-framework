@@ -481,7 +481,7 @@ class EasyConfig(object):
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
         if it is a tuple or a list the attributes are expected to be in the following order:
-        ['name', 'version', 'versionsuffix', 'dummy']
+        ('name', 'version', 'versionsuffix', 'toolchain')
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
@@ -490,15 +490,19 @@ class EasyConfig(object):
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        attr = ['name', 'version', 'versionsuffix', 'dummy']
+        attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             'name': '',
             'version': '',
             'versionsuffix': '',
+            'toolchain': None,
             'dummy': False,
         }
         if isinstance(dep, dict):
             dependency.update(dep)
+            # make sure 'dummy' key is handled appropriately
+            if dep.has_key('dummy') and not dep.has_key('toolchain'):
+                dependency['toolchain'] = dep['dummy']
         elif isinstance(dep, (list, tuple)):
             # try and convert to list
             dep = list(dep)
@@ -506,11 +510,26 @@ class EasyConfig(object):
         else:
             self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
 
-        # dependency inherits toolchain, unless it's specified to be a dummy-toolchain dependency
-        dependency['toolchain'] = copy.deepcopy(self['toolchain'])
-        if dependency['dummy']:
-            dependency['toolchain'] = {'name': 'dummy', 'version': 'dummy'}
-        elif dependency['toolchain']['name'] == 'dummy':
+        # dependency inherits toolchain, unless it's specified to have a custom toolchain
+        tc = copy.deepcopy(self['toolchain'])
+        tc_spec = dependency['toolchain']
+        if tc_spec:
+            # (true) boolean value simply indicates that a dummy toolchain is used
+            if isinstance(tc_spec, bool):
+                tc = {'name': 'dummy', 'version': 'dummy'}
+            # two-element list/tuple value indicates custom toolchain specification
+            elif isinstance(tc_spec, (list, tuple, )):
+                if len(tc_spec) == 2:
+                    tc = {'name': tc_spec[0], 'version': tc_spec[1]}
+                else:
+                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(dep))
+            else:
+                self.log.error("Unsupported type of value for toolchain encountered in %s" % str(dep))
+
+        dependency['toolchain'] = tc
+
+        # make sure 'dummy' value is set correctly
+        if dependency['toolchain']['name'] == 'dummy':
             dependency['dummy'] = True
 
         # validations
