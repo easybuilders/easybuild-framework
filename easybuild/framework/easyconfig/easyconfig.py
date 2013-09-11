@@ -501,7 +501,7 @@ class EasyConfig(object):
         if isinstance(dep, dict):
             dependency.update(dep)
             # make sure 'dummy' key is handled appropriately
-            if dep.has_key('dummy') and not dep.has_key('toolchain'):
+            if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
         elif isinstance(dep, (list, tuple)):
             # try and convert to list
@@ -522,9 +522,9 @@ class EasyConfig(object):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
-                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(dep))
+                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
             else:
-                self.log.error("Unsupported type of value for toolchain encountered in %s" % str(dep))
+                self.log.error("Unsupported type of value for toolchain encountered: %s => %s" % (tc_spec, type(tc_spec)))
 
         dependency['toolchain'] = tc
 

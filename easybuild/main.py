@@ -449,7 +449,7 @@ def skip_available(easyconfigs, testing=False):
     for ec in check_easyconfigs:
         module = os.path.join(*ec['module'])
         if m.exists(module):
-            msg = "%s is already installed (module found), skipping " % module
+            msg = "%s is already installed (module found), skipping" % module
             print_msg(msg, log=_log, silent=testing)
             _log.info(msg)
         else:
@@ -863,7 +863,8 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
                 # upload spec to central repository
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'originalSpec' in module:
-                    repo.add_easyconfig(module['originalSpec'], app.name, det_full_ec_version(app.cfg) + ".block", buildstats, currentbuildstats)
+                    block = det_full_ec_version(app.cfg) + ".block"
+                    repo.add_easyconfig(module['originalSpec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % os.path.join(*det_full_module_name(app.cfg)))
                 del repo

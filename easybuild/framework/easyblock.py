@@ -667,7 +667,7 @@ class EasyBlock(object):
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
-                        mod_name = path.rsplit('/', 1)[-1]
+                        mod_name = path.rsplit(os.path.sep, 1)[-1]
                         load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
