@@ -133,7 +133,7 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
-    buildstats = repo.get_buildstats(ec_tuple)
+    buildstats = repo.get_buildstats(*ec_tuple)
     resources = {}
     if buildstats:
         previous_time = buildstats[-1]['build_time']
