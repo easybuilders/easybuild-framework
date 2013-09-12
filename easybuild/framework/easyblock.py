@@ -709,7 +709,7 @@ class EasyBlock(object):
                 load += self.moduleGenerator.load_module(dep_mod_name)
                 unload += self.moduleGenerator.unload_module(dep_mod_name)
             else:
-                self.log.debug("Skipping builddependency %s" % dep_mod_name)
+                self.log.debug("Skipping build dependency %s" % dep)
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
