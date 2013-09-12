@@ -183,7 +183,7 @@ class EasyBuildOptions(GeneralOption):
                                     'For more info, use --avail-repositories.'),
                                     'strlist', 'store',
                                     oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
-                "avail-repositories":(("Show all repository types (incl. non-usable)"),
+                "avail-repositories":("Show all repository types (incl. non-usable)",
                                       None, "store_true", False,),
                 'logfile-format': ('Directory name and format of the log file ',
                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
@@ -199,9 +199,13 @@ class EasyBuildOptions(GeneralOption):
                 'modules-tool': ('Modules tool to use',
                                  'choice', 'store', oldstyle_defaults['modules_tool'],
                                  sorted(avail_modules_tools().keys())),
+                "avail-modules-tools":("Show all supported module tools",
+                                       None, "store_true", False,),
                 'module-naming-scheme': ('Module naming scheme', 'choice', 'store',
                                          oldstyle_defaults['module_naming_scheme'],
                                          sorted(avail_module_naming_schemes().keys())),
+                "avail-module-naming-schemes":("Show all supported module naming schemes",
+                                               None, "store_true", False,),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
@@ -318,7 +322,8 @@ class EasyBuildOptions(GeneralOption):
                 self.options.list_easyblocks, self.options.list_toolchains,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
-                ]):
+                self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
+               ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
@@ -372,6 +377,14 @@ class EasyBuildOptions(GeneralOption):
         # dump known repository types
         if self.options.avail_repositories:
             msg += self.avail_repositories()
+
+        # dump supported modules tools
+        if self.options.avail_modules_tools:
+            msg += self.avail_list('modules tools', avail_modules_tools())
+
+        # dump supported module naming schemes
+        if self.options.avail_module_naming_schemes:
+            msg += self.avail_list('module naming schemes', avail_module_naming_schemes())
 
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
@@ -516,6 +529,13 @@ class EasyBuildOptions(GeneralOption):
             txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
+
+    def avail_list(self, name, items):
+        """Show list of available values passed by argument."""
+        txt = ["List of supported %s:" % name]
+        for item in items:
+            txt.append("\t%s" % item)
+        return '\n'.join(txt)
 
     def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""

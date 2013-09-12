@@ -405,6 +405,40 @@ class CommandLineOptionsTest(TestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_avail_lists(self):
+        """Test listing available values of certain types."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        name_items = {
+            'modules-tools': ['EnvironmentModulesC', 'Lmod'],
+            'module-naming-schemes': ['EasyBuildModuleNamingScheme'],
+        }
+        for (name, items) in name_items.items():
+            args = [
+                    '--avail-%s' % name,
+                    '--unittest-file=%s' % self.logfile,
+                   ]
+            try:
+                main((args, dummylogfn))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = read_file(self.logfile)
+
+            words = name.replace('-', ' ')
+            info_msg = r"INFO List of supported %s:" % words
+            self.assertTrue(re.search(info_msg, outtxt), "Info message with list of available %s" % words)
+            for item in items:
+                res = re.findall("^\s*%s" % item, outtxt, re.M)
+                self.assertTrue(res, "%s is included in list of available %s" % (item, words))
+                # every item should only be mentioned once
+                n = len(res)
+                self.assertEqual(n, 1, "%s is only mentioned once (count: %d)" % (item, n))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
 
