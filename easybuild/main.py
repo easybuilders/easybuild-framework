@@ -1269,7 +1269,9 @@ def regtest(options, easyconfig_paths):
 
     # skip easyconfigs for which a module is already available, unless forced
     if not options.force:
+        self.log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
         easyconfigs = skip_available(easyconfigs)
+        self.log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
 
     if options.sequential:
         return build_easyconfigs(easyconfigs, output_dir, test_results, options)
