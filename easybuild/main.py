@@ -310,7 +310,7 @@ def main(testing_data=(None, None)):
             jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build",
                                                           robot_path=options.robot)
             txt = ["List of submitted jobs:"]
-            txt.extend(["%s: %s" % (job.name, job.jobid) for job in jobs])
+            txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
 
             msg = "\n".join(txt)
