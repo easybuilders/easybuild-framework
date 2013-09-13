@@ -100,7 +100,7 @@ from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBL
 _log = None
 
 
-def main(testing_data=(None, None)):
+def main(testing_data=(None, None, None)):
     """
     Main function:
     @arg options: a tuple: (options, paths, logger, logfile, hn) as defined in parse_options
@@ -117,7 +117,7 @@ def main(testing_data=(None, None)):
 
     # steer behavior when testing main
     testing = testing_data[0] is not None
-    args, logfile = testing_data
+    args, logfile, do_build = testing_data
 
     # initialise options
     eb_go = eboptions.parse_options(args=args)
@@ -322,7 +322,7 @@ def main(testing_data=(None, None)):
     # build software, will exit when errors occurs (except when regtesting)
     correct_built_cnt = 0
     all_built_cnt = 0
-    if not testing:
+    if not testing or (testing and do_build):
         for spec in orderedSpecs:
             (success, _) = build_and_install_software(spec, options, origEnviron, silent=testing)
             if success:
@@ -806,7 +806,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
     name = module['module'][0]
     try:
         app_class = get_class(easyblock, name=name)
-        app = app_class(spec, debug=options.debug, robot_path=options.robot)
+        app = app_class(spec, debug=options.debug, robot_path=options.robot, silent=silent)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg), silent=silent)
