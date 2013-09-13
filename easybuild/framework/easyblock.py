@@ -88,7 +88,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False):
         """
         Initialize the EasyBlock instance.
         """
@@ -152,6 +152,9 @@ class EasyBlock(object):
 
         # sanity check fail error messages to report (if any)
         self.sanity_check_fail_msgs = []
+
+        # should we keep quiet?
+        self.silent = silent
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -1738,9 +1741,9 @@ class EasyBlock(object):
 
         try:
             full_name = "%s-%s" % (self.name, self.get_installversion())
-            print_msg("building and installing %s..." % full_name, self.log)
+            print_msg("building and installing %s..." % full_name, self.log, silent=self.silent)
             for (stop_name, descr, step_methods, skippable) in steps:
-                print_msg("%s..." % descr, self.log)
+                print_msg("%s..." % descr, self.log, silent=self.silent)
                 self.run_step(stop_name, step_methods, skippable=skippable)
 
         except StopException:
