@@ -200,6 +200,7 @@ if { [is-loaded mod_name] } {
             'gzip-1.4-GCC-4.6.3': 'gnu/gzip/1.4',
             'gzip-1.5-goolf-1.4.10': 'gnu/openmpi/gzip/1.5',
             'gzip-1.5-ictce-4.1.13': 'intel/intelmpi/gzip/1.5',
+            'toy-0.0': 'toy/0.0',
         }
 
         # test custom naming scheme

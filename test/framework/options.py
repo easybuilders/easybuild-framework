@@ -101,7 +101,7 @@ class CommandLineOptionsTest(TestCase):
         """Test using no arguments."""
 
         try:
-            main(([], self.logfile))
+            main(([], self.logfile, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -119,7 +119,7 @@ class CommandLineOptionsTest(TestCase):
                     debug_arg,
                    ]
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 myerr = err
             outtxt = read_file(self.logfile)
@@ -138,7 +138,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             myerr = None
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 myerr = err
             outtxt = read_file(self.logfile)
@@ -160,7 +160,7 @@ class CommandLineOptionsTest(TestCase):
                     quiet_arg,
                    ]
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -190,7 +190,7 @@ class CommandLineOptionsTest(TestCase):
 
         error_thrown = False
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             error_thrown = err
 
@@ -210,7 +210,7 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                ]
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -247,7 +247,7 @@ class CommandLineOptionsTest(TestCase):
                     '--job',
                    ] + job_args
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -286,7 +286,7 @@ class CommandLineOptionsTest(TestCase):
                     stdout_arg,
                    ]
             try:
-                main((args, dummylogfn))
+                main((args, dummylogfn, False))
             except (SystemExit, Exception), err:
                 myerr = err
 
@@ -331,7 +331,7 @@ class CommandLineOptionsTest(TestCase):
                     args.extend(['-e', custom])
 
                 try:
-                    main((args, dummylogfn))
+                    main((args, dummylogfn, False))
                 except (SystemExit, Exception), err:
                     pass
                 outtxt = read_file(self.logfile)
@@ -361,7 +361,9 @@ class CommandLineOptionsTest(TestCase):
         # also check whether available custom easyconfig parameters are listed
         orig_sys_path = sys.path[:]
 
+        import easybuild
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        easybuild = reload(easybuild)
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
@@ -388,7 +390,7 @@ class CommandLineOptionsTest(TestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, dummylogfn))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -421,7 +423,7 @@ class CommandLineOptionsTest(TestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             try:
-                main((args, dummylogfn))
+                main((args, dummylogfn, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -448,7 +450,9 @@ class CommandLineOptionsTest(TestCase):
         # adjust PYTHONPATH such that test easyblocks are found
         orig_sys_path = sys.path[:]
 
+        import easybuild
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        easybuild = reload(easybuild)
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
@@ -464,7 +468,7 @@ class CommandLineOptionsTest(TestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             try:
-                main((args, dummylogfn))
+                main((args, dummylogfn, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -486,7 +490,7 @@ class CommandLineOptionsTest(TestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, dummylogfn))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -517,7 +521,7 @@ class CommandLineOptionsTest(TestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, dummylogfn))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -540,7 +544,7 @@ class CommandLineOptionsTest(TestCase):
                ]
         myerr = None
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             myerr = err
         outtxt = read_file(self.logfile)
