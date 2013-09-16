@@ -106,8 +106,8 @@ class ModuleGenerator(object):
         """
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
-        txt = '\n'.join([
-            "#%%Module",  # double % to escape!
+        lines = [
+            "#%%Module",  # double % to escape string formatting!
             "",
             "proc ModulesHelp { } {",
             "    puts stderr {   %(description)s",
@@ -118,20 +118,27 @@ class ModuleGenerator(object):
             "",
             "set root    %(installdir)s",
             "",
-        ]) % {'description': description, 'installdir': self.app.installdir}
+        ]
 
         if self.app.cfg['moduleloadnoconflict']:
-            txt += '\n'.join([
+            lines.extend([
                 "if { ![is-loaded %(name)s/%(version)s] } {",
                 "    if { [is-loaded %(name)s] } {",
                 "        module unload %(name)s",
                 "    }",
                 "}",
                 "",
-        ]) % {'name': self.app.name, 'version': self.app.version}
+            ])
 
         elif conflict:
-            txt += "\nconflict    %s\n" % self.app.name
+            lines.append("conflict    %s\n" % self.app.name)
+
+        txt = '\n'.join(lines) % {
+            'name': self.app.name,
+            'version': self.app.version,
+            'description': description,
+            'installdir': self.app.installdir,
+        }
 
         return txt
 

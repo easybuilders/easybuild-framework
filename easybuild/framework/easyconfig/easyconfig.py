@@ -530,15 +530,14 @@ class EasyConfig(object):
         dependency['toolchain'] = tc
 
         # make sure 'dummy' value is set correctly
-        if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-            dependency['dummy'] = True
+        dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
 
         # validations
         if not dependency['name']:
-            self.log.error("Dependency without name given")
+            self.log.error("Dependency specified without name: %s" % dependency)
 
         if not dependency['version']:
-            self.log.error('Dependency without version.')
+            self.log.error("Dependency specified without version: %s" % dependency)
 
         return dependency
 
