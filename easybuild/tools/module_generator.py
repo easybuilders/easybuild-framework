@@ -40,6 +40,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme
+from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
@@ -222,7 +223,6 @@ def avail_module_naming_schemes():
     mns_attr = 'AVAIL_MODULE_NAMING_SCHEMES'
     if not hasattr(module_naming_scheme, mns_attr):
         # all subclasses of ModuleNamingScheme available in the easybuild.tools.module_naming_scheme namespace are eligible
-        avail_mnss = {}
         for path in sys.path:
             for mod in glob.glob(os.path.join(path, 'easybuild', 'tools', 'module_naming_scheme', '*.py')):
                 if not mod.endswith('__init__.py'):
@@ -230,9 +230,8 @@ def avail_module_naming_schemes():
                     mns_path = "easybuild.tools.module_naming_scheme.%s" % mns_name
                     _log.debug("importing module %s..." % mns_path)
                     mns_mod = __import__(mns_path, globals(), locals(), [''])
-                    # add subclasses by imported module to also include classes in modules that were added dynamically
-                    # e.g. during unit testing
-                    avail_mnss.update(dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)]))
+        # construct name-to-class dict of available module naming scheme
+        avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
 
         # cache dict of available module naming scheme in module constant
         setattr(module_naming_scheme, mns_attr, avail_mnss)
