@@ -46,6 +46,7 @@ from easybuild.tools.filetools import run_cmd
 from easybuild.tools.module_generator import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -516,7 +517,7 @@ class EasyConfig(object):
         if tc_spec is not None:
             # (true) boolean value simply indicates that a dummy toolchain is used
             if isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': 'dummy', 'version': 'dummy'}
+                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
             # two-element list/tuple value indicates custom toolchain specification
             elif isinstance(tc_spec, (list, tuple, )):
                 if len(tc_spec) == 2:
@@ -529,7 +530,7 @@ class EasyConfig(object):
         dependency['toolchain'] = tc
 
         # make sure 'dummy' value is set correctly
-        if dependency['toolchain']['name'] == 'dummy':
+        if dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
             dependency['dummy'] = True
 
         # validations

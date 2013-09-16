@@ -40,6 +40,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
 
@@ -196,7 +197,7 @@ def det_full_ec_version(ec):
     ecver = None
 
     # determine main install version based on toolchain
-    if ec['toolchain']['name'] == 'dummy':
+    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
         ecver = ec['version']
     else:
         ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
@@ -272,3 +273,7 @@ def det_full_module_name(ec, eb_ns=False):
             _log.error(error_msg)
     _log.debug("Obtained module name %s" % mod_name)
     return mod_name
+
+def det_devel_module_filename(ec):
+    """Determine devel module filename."""
+    return "%s-easybuild-devel" % det_full_module_name(ec).replace(os.path.sep, '-')

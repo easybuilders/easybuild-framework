@@ -75,6 +75,7 @@ class ToyBuildTest(TestCase):
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
+        reload(easybuild.tools.module_naming_scheme)
 
         # clear log
         write_file(self.logfile, '')

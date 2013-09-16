@@ -37,6 +37,7 @@ from vsc import fancylogger
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -46,9 +47,6 @@ class Toolchain(object):
 
     OPTIONS_CLASS = ToolchainOptions
     VARIABLES_CLASS = ToolchainVariables
-
-    DUMMY_NAME = 'dummy'  # The official dummy toolchain name
-    DUMMY_VERSION = 'dummy'  # if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
 
     NAME = None
     VERSION = None
@@ -197,7 +195,7 @@ class Toolchain(object):
         return {
             'name': name,
             'version': version,
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_full_module_name
@@ -220,15 +218,14 @@ class Toolchain(object):
         if not version:
             version = self.version
 
-        if name == self.DUMMY_NAME:
-            self.log.debug("_toolchain_exists: checking for %s toolchain. Always exists, returning True" %
-                           self.DUMMY_NAME)
+        if name == DUMMY_TOOLCHAIN_NAME:
+            self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
             return True
 
         # TODO: what about dummy versions ?
 
         mod_name = self.det_module_name(name, version)
-        self.log.debug("_toolchain_exists: checking for name %s version %s (module name: %s)" % (name, version, mod_name))
+        self.log.debug("_toolchain_exists: checking for name %s version %s (module: %s)" % (name, version, mod_name))
         return self.modules_tool.exists(mod_name)
 
     def set_options(self, options):
@@ -246,14 +243,14 @@ class Toolchain(object):
         """ Generate a version string for a dependency on a module using this toolchain """
         # Add toolchain to version string
         toolchain = ''
-        if self.name != self.DUMMY_NAME:
+        if self.name != DUMMY_TOOLCHAIN_NAME:
             toolchain = '-%s-%s' % (self.name, self.version)
-        elif self.version != self.DUMMY_VERSION:
+        elif self.version != DUMMY_TOOLCHAIN_VERSION:
             toolchain = '%s' % (self.version)
 
         # Check if dependency is independent of toolchain
-        # TODO: assuming DUMMY_NAME here, what about version?
-        if self.DUMMY_NAME in dependency and dependency[self.DUMMY_NAME]:
+        # TODO: assuming dummy here, what about version?
+        if DUMMY_TOOLCHAIN_NAME in dependency and dependency[DUMMY_TOOLCHAIN_NAME]:
             toolchain = ''
 
         suffix = dependency.get('versionsuffix', '')
@@ -306,8 +303,8 @@ class Toolchain(object):
         if not self._toolchain_exists():
             self.log.raiseException("No module found for toolchain name '%s' (%s)" % (self.name, self.version))
 
-        if self.name == self.DUMMY_NAME:
-            if self.version == self.DUMMY_VERSION:
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')

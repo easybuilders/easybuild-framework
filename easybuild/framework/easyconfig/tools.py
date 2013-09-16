@@ -50,6 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_ec_version
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 
@@ -206,7 +207,7 @@ def select_or_generate_ec(fp, paths, specs):
     ec_files = []
     cfg = {
         'version': '*',
-        'toolchain': {'name': 'dummy', 'version': '*'},
+        'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
         'versionprefix': '*',
         'versionsuffix': '*',
     }

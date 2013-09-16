@@ -49,6 +49,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
 from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -171,7 +172,10 @@ class ModulesTool(object):
                     'name': mod[0],
                     'version': mod[1],
                     'versionsuffix': '',
-                    'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                    'toolchain': {
+                        'name': DUMMY_TOOLCHAIN_NAME,
+                        'version': DUMMY_TOOLCHAIN_VERSION,
+                    },
                 }
                 mod_name = det_full_module_name(mod_dict)
             elif isinstance(mod, basestring):

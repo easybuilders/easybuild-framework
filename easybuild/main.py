@@ -94,6 +94,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_ec_version, det_full_module_name
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.repository import init_repository
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
 
@@ -427,7 +428,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
             easyconfig['dependencies'].append(dep)
 
         # add toolchain as dependency too
-        if ec.toolchain.name != 'dummy':
+        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
             dep = ec.toolchain.as_dict()
             _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
             easyconfig['dependencies'].append(dep)
@@ -548,7 +549,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
         missing_dependencies = []
         for ec in unprocessed:
             for dep in ec['dependencies']:
-                missing_dependencies.append(det_full_module_name(dep, eb_ns=True))
+                missing_dependencies.append('%s for %s' % (det_full_module_name(dep, eb_ns=True), dep))
 
         msg = "Dependencies not met. Cannot resolve %s" % missing_dependencies
         _log.error(msg)
