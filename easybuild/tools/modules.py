@@ -70,10 +70,10 @@ outputMatchers = {
     # ModuleCmd_Avail.c(804):ERROR:64: Directory '/usr/local/modulefiles/SCIENTIFIC/tremolo' not found
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
     # available with --terse has one module per line
-    # matches modules such as "ictce/3.2.1.015.u4(default)"
+    # matches modules such as "ictce/3.2.1.015.u4"
     # line ending with : is ignored (the modulepath in --terse)
     # FIXME: --terse ignores defaultness
-    'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$")
+    'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)\s*[^:\S]*$")
 }
 
 _log = fancylogger.getLogger('modules', fname=False)
@@ -148,8 +148,8 @@ class ModulesTool(object):
             mod_name = ''
         mods = self.run_module('avail', mod_name)
 
-        # sort list of modules in alphabetical order, default last
-        mods.sort(key=lambda m: (m['default'] or '__') + m['mod_name'])
+        # sort list of modules in alphabetical order
+        mods.sort(key=lambda m: m['mod_name'])
         ans = nub([mod['mod_name'] for mod in mods])
 
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
@@ -528,7 +528,7 @@ class Lmod(ModulesTool):
     def loaded_modules(self):
         """Return a list of loaded modules."""
         # run_module already returns a list of Python dictionaries for loaded modules
-        # only retain 'mod_name' keys, get rid of any others (e.g. 'default')
+        # only retain 'mod_name' keys, get rid of any other keys
         return [mod['mod_name'] for mod in self.run_module('list')]
 
     def update(self):

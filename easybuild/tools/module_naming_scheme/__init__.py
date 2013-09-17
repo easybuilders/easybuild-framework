@@ -41,7 +41,8 @@ class ModuleNamingScheme(object):
         """
         Determine full module name from given easyconfig, according to module naming scheme.
 
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
         @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
         """
