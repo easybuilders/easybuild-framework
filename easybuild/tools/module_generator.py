@@ -51,6 +51,9 @@ _log = fancylogger.getLogger('module_generator', fname=False)
 # general module class
 GENERAL_CLASS = 'all'
 
+# suffix for devel module filename
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+
 
 class ModuleGenerator(object):
     """
@@ -309,4 +312,4 @@ def det_full_module_name(ec, eb_ns=False):
 
 def det_devel_module_filename(ec):
     """Determine devel module filename."""
-    return "%s-easybuild-devel" % det_full_module_name(ec).replace(os.path.sep, '-')
+    return det_full_module_name(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX

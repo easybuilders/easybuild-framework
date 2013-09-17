@@ -48,7 +48,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool
 from easybuild.tools.filetools import convert_name, run_cmd, read_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
@@ -208,26 +208,24 @@ class ModulesTool(object):
         """
         Load all requested modules.
         """
-        if modules is not None:
-            for mod in modules:
-                self.run_module('load', mod)
-        else:
+        if modules is None:
             # deprecated behavior if no modules were passed by argument
             self.log.deprecated("Loading modules listed in _modules class variable", '2.0')
-            for mod in self._modules:
-                self.run_module('load', mod)
+            modules = self._modules[:]
+        
+        for mod in modules:
+            self.run_module('load', mod)
 
     def unload(self, modules=None):
         """
         Unload all requested modules.
         """
-        if modules is not None:
-            for mod in modules:
-                self.run_module('unload', mod)
-        else:
+        if modules is None:
             self.log.deprecated("Unloading modules listed in _modules class variable", '2.0')
-            for mod in self._modules:
-                self.run_module('unload', mod)
+            modules = self._modules[:]
+
+        for mod in modules:
+            self.run_module('unload', mod)
 
     def purge(self):
         """
@@ -369,15 +367,13 @@ class ModulesTool(object):
             # ignore any deeper dependencies
             moddeps = []
 
-        deps = mods[:]
-
         # add dependencies of dependency modules only if they're not there yet
         for moddepdeps in moddeps:
             for dep in moddepdeps:
-                if not dep in deps:
-                    deps.append(dep)
+                if not dep in mods:
+                    mods.append(dep)
 
-        return deps
+        return mods
 
     def update(self):
         """Update after new modules were added."""
@@ -417,7 +413,7 @@ class EnvironmentModulesC(ModulesTool):
             self.log.debug("No way found to determine loaded modules, assuming no modules are loaded.")
 
         # filter devel modules, since they cannot be split like this
-        loaded_modules = [mod for mod in mods if not mod.endswith("easybuild-devel")]
+        loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
 
         return loaded_modules
 
@@ -428,6 +424,10 @@ class EnvironmentModulesC(ModulesTool):
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
+
+    # required and optimal version
+    REQ_VERSION = LooseVersion('5.0')
+    OPT_VERSION = LooseVersion('5.1.5')
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
@@ -472,14 +472,13 @@ class Lmod(ModulesTool):
             self.log.error("Failed to check Lmod version: %s" % err)
 
         # we need at least Lmod v5.0
-        req_version = '5.0'
-        if LooseVersion(self.version) >= LooseVersion(req_version):
+        if LooseVersion(self.version) >= self.REQ_VERSION:
             # Lmod v5.1.5 is highly recommended
-            opt_version = '5.1.5'
-            if LooseVersion(self.version) < LooseVersion(opt_version):
-                self.log.warning("Lmod v%s is highly recommended." % opt_version)
+            if LooseVersion(self.version) < self.OPT_VERSION:
+                self.log.warning("Lmod v%s is highly recommended." % self.OPT_VERSION)
         else:
-            self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended)" % (req_version, opt_version))
+            vers = (self.REQ_VERSION, self.OPT_VERSION, self.version)
+            self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended), found v%s" % vers)
 
         # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
         for modpath in self.mod_paths:
@@ -503,7 +502,10 @@ class Lmod(ModulesTool):
         # only retain actual modules, exclude module directories
         def is_mod(mod):
             """Determine is given path is an actual module, or just a directory."""
-            if LooseVersion(self.version) < LooseVersion('5.1.5'):
+            # trigger error when workaround below can be removed
+            if self.REQ_VERSION >= LooseVersion('5.1.5'):
+                self.log.error("Code cleanup required since required Lmod version is >= v5.1.5")
+            if LooseVersion(self.version) < self.OPT_VERSION:
                 # this is a (potentially bloody slow) workaround for a bug in Lmod 5.x (< 5.1.5)
                 for mod_path in self.mod_paths:
                     full_path = os.path.join(mod_path, mod)
@@ -519,9 +521,7 @@ class Lmod(ModulesTool):
 
         # only retain modules that with a <mod_name> prefix
         # Lmod will also returns modules with a matching substring
-        if mod_name is None:
-            mod_name = ''
-        correct_real_mods = [mod for mod in real_mods if mod.startswith(mod_name)]
+        correct_real_mods = [mod for mod in real_mods if mod_name is None or mod.startswith(mod_name)]
 
         return correct_real_mods
 

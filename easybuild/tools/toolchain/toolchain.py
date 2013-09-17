@@ -188,6 +188,7 @@ class Toolchain(object):
         return version
 
     def as_dict(self, name=None, version=None):
+        """Return toolchain specification as a dictionary."""
         if name is None:
             name = self.name
         if version is None:
@@ -203,10 +204,6 @@ class Toolchain(object):
 
     def det_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
-        if name is None:
-            name = self.name
-        if version is None:
-            version = self.version
         return det_full_module_name(self.as_dict(name, version))
 
     def _toolchain_exists(self, name=None, version=None):

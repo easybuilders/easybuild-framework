@@ -84,7 +84,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
 
         # Sometimes unresolvedDependencies will contain things, not needed to be build.
-        job_deps = [job_ids[tokey(dep)] for dep in ec['unresolvedDependencies'] if tokey(dep) in job_ids]
+        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolvedDependencies']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
         new_job.submit()
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
