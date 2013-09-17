@@ -42,6 +42,7 @@ from vsc.utils.missing import get_subclasses, nub
 
 import easybuild.tools.toolchain
 from easybuild.tools.toolchain.toolchain import Toolchain
+from easybuild.tools.utilities import import_available_modules
 
 
 def search_toolchain(name):
@@ -57,13 +58,7 @@ def search_toolchain(name):
 
     if not hasattr(package, check_attr_name) or not getattr(package, check_attr_name):
         # import all available toolchains, so we know about them
-        tc_modules = []
-        for path in sys.path:
-            for module in glob.glob(os.path.join(path, 'easybuild', 'toolchains', '*.py')):
-                if not module.endswith('__init__.py'):
-                    modpath = "easybuild.toolchains.%s" % module.split(os.path.sep)[-1].split('.')[0]
-                    log.debug("importing toolchain module %s" % modpath)
-                    tc_modules.append(__import__(modpath, globals(), locals(), ['']))
+        tc_modules = import_available_modules('easybuild.toolchains')
 
         # make sure all defined toolchain constants are available in toolchain module
         tc_const_prefix = 'TC_CONSTANT_'

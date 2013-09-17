@@ -43,7 +43,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools import config, module_naming_scheme
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import quote_str
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -227,13 +227,8 @@ def avail_module_naming_schemes():
     mns_attr = 'AVAIL_MODULE_NAMING_SCHEMES'
     if not hasattr(module_naming_scheme, mns_attr):
         # all subclasses of ModuleNamingScheme available in the easybuild.tools.module_naming_scheme namespace are eligible
-        for path in sys.path:
-            for mod in glob.glob(os.path.join(path, 'easybuild', 'tools', 'module_naming_scheme', '*.py')):
-                if not mod.endswith('__init__.py'):
-                    mns_name = mod.split(os.path.sep)[-1].split('.')[0]
-                    mns_path = "easybuild.tools.module_naming_scheme.%s" % mns_name
-                    _log.debug("importing module %s..." % mns_path)
-                    mns_mod = __import__(mns_path, globals(), locals(), [''])
+        import_available_modules('easybuild.tools.module_naming_scheme')
+
         # construct name-to-class dict of available module naming scheme
         avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
 

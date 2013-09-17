@@ -212,7 +212,7 @@ class ModulesTool(object):
             # deprecated behavior if no modules were passed by argument
             self.log.deprecated("Loading modules listed in _modules class variable", '2.0')
             modules = self._modules[:]
-        
+
         for mod in modules:
             self.run_module('load', mod)
 
