@@ -387,7 +387,7 @@ class EasyConfigTest(TestCase):
         os.remove(tweaked_fn)
 
     def test_installversion(self):
-        """test generation of install version"""
+        """Test generation of install version."""
 
         ver = "3.14"
         verpref = "myprefix|"
@@ -405,9 +405,6 @@ class EasyConfigTest(TestCase):
         }
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
-        # legacy version
-        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-        self.assertEqual(installver, correct_installver)
 
         correct_installver =  "%s%s%s" % (verpref, ver, versuff)
         cfg = {
@@ -418,7 +415,22 @@ class EasyConfigTest(TestCase):
         }
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
-        # legacy version
+
+    def test_legacy_installversion(self):
+        """Test generation of install version (legacy)."""
+
+        ver = "3.14"
+        verpref = "myprefix|"
+        versuff = "|mysuffix"
+        tcname = "GCC"
+        tcver = "4.6.3"
+        dummy = "dummy"
+
+        correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
+        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
+        self.assertEqual(installver, correct_installver)
+
+        correct_installver =  "%s%s%s" % (verpref, ver, versuff)
         installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 

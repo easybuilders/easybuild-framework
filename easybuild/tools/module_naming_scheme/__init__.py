@@ -29,6 +29,7 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 @author: Kenneth Hoste (Ghent University)
 """
 from pkgutil import extend_path
+from vsc import fancylogger
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
@@ -36,6 +37,10 @@ __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
 
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize logger."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def det_full_module_name(self, ec):
         """
