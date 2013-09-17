@@ -34,6 +34,7 @@ Generating module files.
 """
 import glob
 import os
+import string
 import sys
 import tempfile
 from vsc import fancylogger
@@ -246,11 +247,32 @@ def get_custom_module_naming_scheme():
     """
     avail_mnss = avail_module_naming_schemes()
     _log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
-    module_naming_scheme = config.get_module_naming_scheme()
-    if module_naming_scheme in avail_mnss:
-        return avail_mnss[module_naming_scheme]()
+    sel_mns = config.get_module_naming_scheme()
+    if sel_mns in avail_mnss:
+        return avail_mnss[sel_mns]()
     else:
-        _log.error("Custom module naming scheme %s could not be found!" % module_naming_scheme)
+        _log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
+
+
+def is_valid_module_name(mod_name):
+    """Check whether the specified value is a valid module name."""
+    # module name must be a string
+    if not isinstance(mod_name, basestring):
+        _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
+        return False
+    # module name must be relative path
+    elif mod_name.startswith(os.path.sep):
+        _log.warning("Module name (%s) should be a relative file path" % mod_name)
+        return False
+    else:
+        # check whether filename only contains printable characters
+        # (except for carriage-control characters \r, \x0b and \xoc)
+        invalid_chars = [x for x in mod_name if not x in string.printable[:-3]]
+        if len(invalid_chars) > 0:
+            _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
+            return False
+    _log.debug("Module name %s validated")
+    return True
 
 
 def det_full_module_name(ec, eb_ns=False):
@@ -277,7 +299,12 @@ def det_full_module_name(ec, eb_ns=False):
             error_msg = "An error occured when determining module name for %s, " % ec
             error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
             _log.error(error_msg)
-    _log.debug("Obtained module name %s" % mod_name)
+
+    if not is_valid_module_name(mod_name):
+        _log.error("%s is not a valid module name" % str(mod_name))
+    else:
+        _log.debug("Obtained module name %s" % str(mod_name))
+
     return mod_name
 
 def det_devel_module_filename(ec):

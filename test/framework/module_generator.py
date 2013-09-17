@@ -41,7 +41,7 @@ import easybuild.tools.options as eboptions
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name
+from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
@@ -218,6 +218,29 @@ if { [is-loaded mod_name] } {
         # restore default module naming scheme, and retest
         config.variables['module_naming_scheme'] = orig_module_naming_scheme
         test_default()
+
+    def test_mod_name_validation(self):
+        """Test module naming validation."""
+        # module name must be a string
+        self.assertTrue(not is_valid_module_name(('foo', 'bar')))
+        self.assertTrue(not is_valid_module_name(['foo', 'bar']))
+        self.assertTrue(not is_valid_module_name(123))
+
+        # module name must be relative
+        self.assertTrue(not is_valid_module_name('/foo/bar'))
+
+        # module name must only contain valid characters
+        self.assertTrue(not is_valid_module_name('foo\x0bbar'))
+        self.assertTrue(not is_valid_module_name('foo\x0cbar'))
+        self.assertTrue(not is_valid_module_name('foo\rbar'))
+        self.assertTrue(not is_valid_module_name('foo\0bar'))
+
+        # valid module name must be accepted
+        self.assertTrue(is_valid_module_name('gzip/goolf-1.4.10-suffix'))
+        self.assertTrue(is_valid_module_name('GCC/4.7.2'))
+        self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
+        self.assertTrue(is_valid_module_name('ictce'))
+
 
 def suite():
     """ returns all the testcases in this module """
