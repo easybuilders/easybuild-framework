@@ -32,22 +32,29 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
+import bz2
+import copy
 import errno
+import gzip
 import os
+import operator
 import re
 import shutil
 import signal
 import stat
 import subprocess
+import tarfile
 import tempfile
 import time
 import urllib
+import zipfile
 from vsc import fancylogger
 
 import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
 from easybuild.tools.asyncprocess import send_all, recv_some
+from easybuild.tools.utilities import get_subsubclasses_for
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
@@ -102,6 +109,54 @@ STRING_ENCODING_CHARMAP = {
 }
 
 
+def extract_archive(filename, destination_dir):
+    """Extracts a given archive to the destination directory"""
+    if not os.path.isfile(filename):
+        _log.error("Can't extract file %s: no such file" % filename)
+
+    if not os.path.isdir(destination_dir):
+        try:
+            os.makedirs(destination_dir)
+        except OSError, err:
+            _log.exception("Can't extract file %s: directory %s can't be created: %err ",
+                           filename, destination_dir, err)
+
+    destination_dir = os.path.abspath(destination_dir)
+    # output_file = os.path.splitext(os.path.split(fn)[1])[0]
+    for cls in get_subsubclasses_for(Extractor):
+        if cls.can_handle(filename):
+            return cls.extract(filename, destination_dir)
+    raise BadArchiveException
+
+
+class Extractor(object):
+    """"This is an abstract implementation for an extractor class
+    it's purpose is to extract compressed archives
+    """
+    # magic number identifying files this class can handle
+    # you can find magic numbers in from http://www.garykessler.net/library/file_sigs.html
+    # e.g.,
+    # LZW: "\x1F\x9D",
+    # LZH: "\x1F\xA0",
+    magic = "This is not a magic numbers string"
+    # magic starts at offset
+    offset = 0
+
+    @classmethod
+    def can_handle(cls, filename):
+        """Returns True if this class can handle the given file
+        This uses magic numbers"""
+        f = open(filename)
+        f.seek(cls.offset)
+        can_handle = f.read(len(cls.magic)) == cls.magic
+        f.close()
+        return can_handle
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Do the actual extraction"""
+        pass
+
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     f = None
@@ -136,11 +191,124 @@ def write_file(path, txt):
         _log.error("Failed to write to %s: %s" % (path, err))
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
+class UnZIP(Extractor):
+    """Implementation of the Extractor class for unzipping files
+    uses zipfile"""
+    magic = "\x50\x4B\x03\x04"
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Do the actual extraction uzing zipfile"""
+        zfile = zipfile.ZipFile(filename)
+        for name in zfile.namelist():
+            dirname, filename = os.path.split(name)
+            dirname = os.path.join(destination, dirname)
+            dest_name = os.path.join(dirname, filename)
+            _log.debug("Decompressing %s on %s", filename, dest_name)
+            if not os.path.exists(dirname):
+                os.mkdir(dirname)
+            fd = open(dest_name, "w")
+            fd.write(zfile.read(name))
+            fd.close()
+        return destination
+
+
+class UnTAR(Extractor):
+    """Implementation of the Extractor class for extracting (possibly compressed) tarballs"""
+    magic = None
+
+    @classmethod
+    def can_handle(cls, filename):
+        """Returns True if this class can handle the given file
+        This uses the built in tarfile.is_tarfile method"""
+        return tarfile.is_tarfile(filename)
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Do the actual extraction using TarFile.extractAll
+        (copied from the python 2.5 implementation, since this is not available in python 2.4"""
+        tar_file = tarfile.open(filename, mode='r:*')
+        directories = []
+        for tarinfo in tar_file:
+            if tarinfo.isdir():
+                directories.append(tarinfo)
+                tarinfo = copy.copy(tarinfo)
+                tarinfo.mode = 0o700
+            tar_file.extract(tarinfo, destination)
+        directories.sort(key=operator.attrgetter('name'))
+        directories.reverse()
+
+        for tarinfo in directories:
+            dirpath = os.path.join(destination, tarinfo.name)
+            tar_file.chown(tarinfo, dirpath)
+            tar_file.utime(tarinfo, dirpath)
+            tar_file.chmod(tarinfo, dirpath)
+        return destination
+
+
+class UnBZIP2(Extractor):
+    """Implementation of the Extractor class for extracting BZIP2 compressed files"""
+    magic = "\x42\x5A\x68"
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Do the actuall extracting using bzip2 library"""
+        outfile = os.path.join(destination, filename)
+        if filename.endswith('.bz2'):
+            outfile = outfile[:-4]
+        open(outfile, 'w').write(bz2.decompress(open(filename).read()))
+        return destination
+
+
+class UnGZIP(Extractor):
+    """Implementation of the Extractor class for extracting GZIP compressed files"""
+    magic = "\x1f\x8b\x08"
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Do the actuall extracting using bzip2 library"""
+        outfile = os.path.join(destination, filename)
+        if filename.endswith('.gz'):
+            outfile = outfile[:-3]
+        #TODO: do a buffered read, so we don't try to read 4G into memory ?
+        open(outfile, 'w').write(gzip.open(filename).read())
+        return destination
+
+
+class SystemExtractor(Extractor):
+    """Abstract Extractor implementation,
+    this uses a subprocess to run the extraction command,
+    this is usefull for extracting files that have no simple python extraction libraries yet
+    """
+    extract_command = None
+
+    @classmethod
+    def extract(cls, filename, destination):
+        """Extract the given file to destination using a shell command"""
+        #TODO: move all these lines to Extractor, and have _extract function
+        outfile = os.path.join(destination, filename)
+        if filename.endswith(cls.extention):
+            outfile = outfile[:(0 - len(cls.extention))]
+        #TODO: error checking
+        return run_cmd(cls.extract_command % {'filename': filename, 'destination': outfile})[0]
+
+
+
+class UnXZ(SystemExtractor):
+    """Use system tools to extract XZ files, since this is not easily done in python yet"""
+    magic = "\xFD7zXZ"
+    extract_command = "unxz %(filename)s > %(destination)s"
+    extention = ".xz"
+
+#TODO: extract .iso, .deb and .rpm
+
+
+def extract_file(fn, dest, cmd=None, extra_options=None):
     """
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
+    _log.deprecated("extract_file is deprecated, use extract_archive instead please", "2.0")
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
@@ -162,22 +330,24 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
         _log.error("Can't change to directory %s: %s" % (absDest, err))
 
     if not cmd:
-        cmd = extract_cmd(fn, overwrite=overwrite)
+        while not os.path.isdir(fn) and os.path.exists(fn):
+            # recursively extract archives
+            cmd = extract_cmd(fn, return_dict=True)
+            run_cmd(cmd['cmd'] % cmd, simple=True)
+            fn = cmd['filename_no_ext']
     else:
         # complete command template with filename
         cmd = cmd % fn
-    if not cmd:
-        _log.error("Can't extract file %s with unknown filetype" % fn)
 
-    if extra_options:
-        cmd = "%s %s" % (cmd, extra_options)
-
-    run_cmd(cmd, simple=True)
+        if extra_options:
+            cmd = "%s %s" % (cmd, extra_options)
+        run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
-def download_file(filename, url, path):
 
+def download_file(filename, url, path):
+    """Download given filename from url to path"""
     _log.debug("Downloading %s from %s to %s" % (filename, url, path))
 
     # make sure directory exists
@@ -257,6 +427,7 @@ def extract_cmd(fn, overwrite=False):
     - based on file suffix
     - better to use Python magic?
     """
+    _log.deprecated("extract_cmd is deprecated, use extract_archive instead please", "2.0")
     ff = [x.lower() for x in fn.split('.')]
     ftype = None
 
@@ -318,6 +489,8 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     if not os.path.isdir(dest):
         _log.error("Can't patch directory %s: no such directory" % dest)
         return
+
+    # TODO: we might need to extract the patch first
 
     ## copy missing files
     if copy:
@@ -382,7 +555,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             else:
                 _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
 
-        if p == None: # p can also be zero, so don't use "not p"
+        if p is None:  # p can also be zero, so don't use "not p"
             ## no match
             _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
         else:
@@ -399,6 +572,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         return
 
     return result
+
 
 def adjust_cmd(func):
     """Make adjustments to given command, if required."""
@@ -420,6 +594,7 @@ def adjust_cmd(func):
         return func(cmd, *args, **kwargs)
 
     return inner
+
 
 @adjust_cmd
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
@@ -454,7 +629,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
+                             stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
     if inp:
@@ -514,7 +689,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - replace newline
 
     def escape_special(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])" , r"\\\1", string)
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
@@ -635,10 +810,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
-                                                                                    maxHitCount,
-                                                                                    stdoutErr[-500:]
-                                                                                    ))
+            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
+                       (cmd, maxHitCount, stdoutErr[-500:])
+                       )
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -728,9 +902,9 @@ def convert_name(name, upper=False):
     """
     ## no regexps
     charmap = {
-         '+':'plus',
-         '-':'min'
-        }
+        '+': 'plus',
+        '-': 'min'
+    }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
 
@@ -769,10 +943,9 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     if stdout and res:
         if msg:
             _log.info("parseLogError msg: %s" % msg)
-        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
-                                                                              '\n'.join([x[0] for x in res])
-                                                                              ))
-
+        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" %
+                  (regExp, '\n'.join([x[0] for x in res]))
+                  )
     return res
 
 
@@ -845,10 +1018,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
-        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
-                  (100*fail_ratio, 100*max_fail_ratio))
+        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
+                   (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100*fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
 
 def patch_perl_script_autoflush(path):
@@ -875,7 +1048,7 @@ def mkdir(directory, parents=False):
     """
     Create a directory
     Directory is the path to create
-    
+
     When parents is True then no error if directory already exists
     and make parent directories as needed (cfr. mkdir -p)
     """
@@ -888,7 +1061,7 @@ def mkdir(directory, parents=False):
                 _log.debug("Directory %s already exitst" % directory)
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:#not parrents
+    else:  # not parrents
         try:
             os.mkdir(directory)
             _log.debug("Succesfully created directory %s" % directory)
@@ -898,11 +1071,12 @@ def mkdir(directory, parents=False):
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
+
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
-    for i in range(0,n):
+    for i in range(n):
         try:
             shutil.rmtree(path)
             ok = True
@@ -915,11 +1089,12 @@ def rmtree2(path, n=3):
     else:
         _log.info("Path %s successfully removed." % path)
 
+
 def copytree(src, dst, symlinks=False, ignore=None):
     """
     Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
     and this code can be improved...
-    
+
     Recursively copy a directory tree using copy2().
 
     The destination directory must not already exist.
@@ -948,7 +1123,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError #@UndefinedVariable
+        WindowsError  # @UndefinedVariable
     except NameError:
         WindowsError = None
 
@@ -991,6 +1166,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     if errors:
         raise Error, errors
 
+
 def encode_string(name):
     """
     This encoding function handles funky software names ad infinitum, like:
@@ -1003,16 +1179,53 @@ def encode_string(name):
     * http://celldesigner.org/help/CDH_Species_01.html
     * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
-    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
 
     """
 
+    charmap = {
+        ' ': "_space_",
+        '!': "_exclamation_",
+        '"': "_quotation_",
+        '#': "_hash_",
+        '$': "_dollar_",
+        '%': "_percent_",
+        '&': "_ampersand_",
+        '(': "_leftparen_",
+        ')': "_rightparen_",
+        '*': "_asterisk_",
+        '+': "_plus_",
+        ',': "_comma_",
+        '-': "_minus_",
+        '.': "_period_",
+        '/': "_slash_",
+        ':': "_colon_",
+        ';': "_semicolon_",
+        '<': "_lessthan_",
+        '=': "_equals_",
+        '>': "_greaterthan_",
+        '?': "_question_",
+        '@': "_atsign_",
+        '[': "_leftbracket_",
+        '\'': "_apostrophe_",
+        '\\': "_backslash_",
+        ']': "_rightbracket_",
+        '^': "_circumflex_",
+        '_': "_underscore_",
+        '`': "_backquote_",
+        '{': "_leftcurly_",
+        '|': "_verticalbar_",
+        '}': "_rightcurly_",
+        '~': "_tilde_"
+    }
+
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    result = ''.join(map(lambda x: charmap.get(x, x), name))
     return result
+
 
 def decode_string(name):
     """Decoding function to revert result of encode_string."""
@@ -1021,9 +1234,11 @@ def decode_string(name):
         result = re.sub(escaped_char, char, result)
     return result
 
+
 def encode_class_name(name):
     """return encoded version of class name"""
-    return EASYBLOCK_CLASS_PREFIX + encode_string(name)
+    return "EB_" + encode_string(name)
+
 
 def decode_class_name(name):
     """Return decoded version of class name."""
@@ -1033,3 +1248,7 @@ def decode_class_name(name):
     else:
         name = name[len(EASYBLOCK_CLASS_PREFIX):]
         return decode_string(name)
+
+
+class BadArchiveException(Exception):
+    """Thrown when an unsupported archive file was detected when trying to extract it"""

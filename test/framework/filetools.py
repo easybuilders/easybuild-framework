@@ -32,17 +32,16 @@ Unit tests for filetools.py
 import os
 import tempfile
 from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
 
+from easybuild.tools import build_log
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
 
-
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
-    class_names = [
+    CLASS_NAMES = [
         ('GCC', 'EB_GCC'),
         ('7zip', 'EB_7zip'),
         ('Charm++', 'EB_Charm_plus__plus_'),
@@ -51,8 +50,14 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.log = build_log.get_log()
         self.legacySetUp()
+
+        # go to the data subdir to find all archives
+        abspath = os.path.abspath(__file__)
+        dname = os.path.dirname(abspath)
+        dname = os.path.join(dname, 'data')
+        os.chdir(dname)
 
     def legacySetUp(self):
         self.log.deprecated("legacySetUp", "2.0")
@@ -102,7 +107,7 @@ class FileToolsTest(TestCase):
         # a more 'complex' command to run, make sure all required output is there
         (out, ec) = ft.run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
         self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n"*300))
+        self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
     def test_run_cmd_qa(self):
@@ -158,13 +163,13 @@ class FileToolsTest(TestCase):
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
-        for (class_name, encoded_class_name) in self.class_names:
+        for (class_name, encoded_class_name) in self.CLASS_NAMES:
             self.assertEqual(ft.encode_class_name(class_name), encoded_class_name)
             self.assertEqual(ft.encode_class_name(ft.decode_class_name(encoded_class_name)), encoded_class_name)
 
     def test_decode_class_name(self):
         """Test decoding of class names."""
-        for (class_name, encoded_class_name) in self.class_names:
+        for (class_name, encoded_class_name) in self.CLASS_NAMES:
             self.assertEqual(ft.decode_class_name(encoded_class_name), class_name)
             self.assertEqual(ft.decode_class_name(ft.encode_class_name(class_name)), class_name)
 
@@ -184,12 +189,79 @@ class FileToolsTest(TestCase):
         ft.write_file(fp, perltxt)
         ft.patch_perl_script_autoflush(fp)
         txt = ft.read_file(fp)
-        self.assertTrue(len(txt.split('\n')) == len(perl_lines)+4)
-        self.assertTrue(txt.startswith(perl_lines[0]+"\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
+        self.assertTrue(len(txt.split('\n')) == len(perl_lines) + 4)
+        self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
             self.assertTrue(line in txt)
         os.remove(fp)
         os.remove("%s.eb.orig" % fp)
+
+    def test_extract_tar(self):
+        """Test the extraction of a tar file"""
+        out = ft.extract_archive('test.tar', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_gziped_tar(self):
+        """Test the extraction of a gzipped tar file"""
+        out = ft.extract_archive('test.tar.gz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+        out = ft.extract_archive('test.tgz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extracted_bzipped_tar(self):
+        """Test the extraction of a bzipped tar file"""
+        out = ft.extract_archive('test.tar.bz2', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+        out = ft.extract_archive('test.tbz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_zip(self):
+        """Test the extraction of a zip file"""
+        out = ft.extract_archive('test.zip', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_bzip2(self):
+        """Test the extraction of a bzip2 file"""
+        out = ft.extract_archive('test.txt.bz2', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_gzip(self):
+        """Test the extraction of a gzip file"""
+        out = ft.extract_archive('test.txt.gz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_xzed_tar(self):
+        """Test the extraction of a xz'ed tarfile"""
+        out = ft.extract_archive('test.tar.xz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+    def test_extract_xz(self):
+        """Test the extraction of a xz'ed file"""
+        out = ft.extract_archive('test.txt.xz', '.')
+        out_file = os.path.join(out, 'test.txt')
+        self.assertEqual(open(out_file).read(), 'test ok\n')
+        os.remove(out_file)
+
+#TODO: deb, rpm, iso
+
 
 def suite():
     """ returns all the testcases in this module """

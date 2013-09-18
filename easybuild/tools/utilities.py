@@ -100,3 +100,16 @@ def remove_unwanted_chars(inputstring):
     All non-letter and non-numeral characters are considered unwanted except for underscore ('_'), see UNWANTED_CHARS.
     """
     return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
+
+
+def get_subsubclasses_for(cls):
+    """returns all subclasses for a class, and recursively it's all those subclasses"""
+    subclasses = []
+
+    for _cls in cls.__subclasses__():
+        subclasses.append(_cls)
+
+        if len(_cls.__subclasses__()) > 0:
+            subclasses.extend(get_subsubclasses_for(_cls))
+
+    return subclasses
