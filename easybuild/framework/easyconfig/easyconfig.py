@@ -236,7 +236,7 @@ class EasyConfig(object):
         self.generate_template_values()
 
         # indicate that this is a parsed easyconfig
-        self._config['parsed'] = [True, "This is a parsed easyconfig", "MANDATORY"]
+        self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
 
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""

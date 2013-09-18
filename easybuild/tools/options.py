@@ -410,7 +410,8 @@ class EasyBuildOptions(GeneralOption):
             ebb_msg = ''
             extra_names = []
         txt = ["Available easyconfig parameters%s" % ebb_msg]
-        for key, values in mapping.items():
+        params = [(k,v) for (k,v) in mapping.items() if k.upper() not in ['HIDDEN']]
+        for key, values in params:
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
             for name, value in values:
