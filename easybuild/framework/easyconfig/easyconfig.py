@@ -43,7 +43,7 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
-from easybuild.tools.module_generator import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION

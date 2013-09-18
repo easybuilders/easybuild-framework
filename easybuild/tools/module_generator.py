@@ -42,7 +42,8 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
@@ -200,26 +201,6 @@ class ModuleGenerator(object):
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
 
-def det_full_ec_version(ec):
-    """
-    Determine exact install version, based on supplied easyconfig.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
-    """
-
-    ecver = None
-
-    # determine main install version based on toolchain
-    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
-        ecver = ec['version']
-    else:
-        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
-
-    # prepend/append version prefix/suffix
-    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
-
-    return ecver
-
-
 def avail_module_naming_schemes():
     """
     Returns a list of available module naming schemes.
@@ -282,8 +263,6 @@ def det_full_module_name(ec, eb_ns=False):
     is insufficient, an attempt is made to locate and parse an easyconfig file, and do another attempt.
     """
     _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
-    # import can't be done on top because of circular dependency
-    from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
     if eb_ns:
         # return module name under EasyBuild module naming scheme
         mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)

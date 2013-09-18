@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 

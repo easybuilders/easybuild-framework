@@ -48,7 +48,7 @@ from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd, read_file, write_file
-from easybuild.tools.module_generator import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str

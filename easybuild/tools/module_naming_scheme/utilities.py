@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2009-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,26 +23,35 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of (default) EasyBuild module naming scheme.
+Utility functions for implementating module naming schemes.
 
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Fotis Georgatos (Uni.Lu)
 """
 
-import os
-
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 
-class EasyBuildModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing the default EasyBuild module naming scheme."""
+def det_full_ec_version(ec):
+    """
+    Determine exact install version, based on supplied easyconfig.
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    """
 
-    def det_full_module_name(self, ec):
-        """
-        Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
+    ecver = None
 
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
+    # determine main install version based on toolchain
+    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+        ecver = ec['version']
+    else:
+        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
 
-        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
-        """
-        return os.path.join(ec['name'], det_full_ec_version(ec))
+    # prepend/append version prefix/suffix
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
+
+    return ecver
+

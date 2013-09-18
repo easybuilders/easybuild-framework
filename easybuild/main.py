@@ -91,7 +91,8 @@ from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_ec_version, det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
