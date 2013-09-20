@@ -188,7 +188,7 @@ class EasyBuildOptions(GeneralOption):
                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
                 'tmp-logdir': ('Log directory where temporary log files are stored',
                             None, 'store', oldstyle_defaults['tmp_logdir']),
-                'sourcepath': ('Path to where sources should be downloaded',
+                'sourcepath': ('Path(s) to where sources should be downloaded',
                                None, 'store', oldstyle_defaults['sourcepath']),
                 'moduleclasses': (('Extend supported module classes'
                                    ' (For more info on the default classes, use --show-default-moduleclasses)'),
