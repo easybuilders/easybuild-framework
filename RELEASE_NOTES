@@ -6,6 +6,7 @@ v1.8.0 (October 4th 2013)
 
 feature + bugfix release
 - add support for using alternative module naming schemes (#679)
+    - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
     - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be used
         - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
         - a function named 'det_full_module_name' must be implemented, that determines the module name
@@ -14,7 +15,7 @@ feature + bugfix release
     - for now, only the name/version/versionsuffix/toolchain easyconfig parameters are guaranteed to be provided
         - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work (see #687)
     - implementing this involved a number of intrusive changes:
-        - the API of the modules.py Python module needed to be changed, breaking backward compatibility
+        - the API of the modules.py module needed to be changed, breaking backward compatibility
             - the function for which the signatures were modified are considered to be internal to the framework,
               so this should have minor impact w.r.t. easyblocks
             - affected functions include: available, exists, show, modulefile_path, dependencies_for

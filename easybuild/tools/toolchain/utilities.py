@@ -45,6 +45,9 @@ from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.utilities import import_available_modules
 
 
+TC_CONST_PREFIX = 'TC_CONSTANT_'
+
+
 def search_toolchain(name):
     """
     Find a toolchain with matching name
@@ -54,15 +57,14 @@ def search_toolchain(name):
     log = fancylogger.getLogger("search_toolchain")
 
     package = easybuild.tools.toolchain
-    check_attr_name = 'TC_CONSTANTS_PROCESSED'
+    check_attr_name = '%s_PROCESSED' % TC_CONST_PREFIX
 
     if not hasattr(package, check_attr_name) or not getattr(package, check_attr_name):
         # import all available toolchains, so we know about them
         tc_modules = import_available_modules('easybuild.toolchains')
 
         # make sure all defined toolchain constants are available in toolchain module
-        tc_const_prefix = 'TC_CONSTANT_'
-        tc_const_re = re.compile('^%s(.*)$' % tc_const_prefix)
+        tc_const_re = re.compile('^%s(.*)$' % TC_CONST_PREFIX)
         for tc_mod in tc_modules:
             # determine classes imported in this module
             mod_classes = []

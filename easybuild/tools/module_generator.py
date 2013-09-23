@@ -243,6 +243,10 @@ def is_valid_module_name(mod_name):
     elif mod_name.startswith(os.path.sep):
         _log.warning("Module name (%s) should be a relative file path" % mod_name)
         return False
+    # module name should not be empty
+    elif not len(mod_name) > 0:
+        _log.warning("Module name (%s) should have length > 0." % mod_name)
+        return False
     else:
         # check whether filename only contains printable characters
         # (except for carriage-control characters \r, \x0b and \xoc)
@@ -257,10 +261,11 @@ def is_valid_module_name(mod_name):
 def det_full_module_name(ec, eb_ns=False):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
-    Returns a tuple with the module name parts, e.g. ('GCC', '4.6.3'), ('Python', '2.7.5-ictce-4.1.13')
-
-    If a KeyError occurs when determining the module name, e.g. because the information supplied for dependencies
-    is insufficient, an attempt is made to locate and parse an easyconfig file, and do another attempt.
+    Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
+    with the following requirements:
+        - module name is specified as a relative path
+        - string representing module name has length > 0
+        - module name only contains printable characters (string.printable, except carriage-control chars)
     """
     _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
     if eb_ns:
@@ -273,6 +278,7 @@ def det_full_module_name(ec, eb_ns=False):
             # easyconfig keys available for generating module name are limited to name/version/versionsuffix/toolchain
             # because dependency specifications only provide these keys
             # to support more involved module naming scheme, a parsed easyconfig file is always required
+            # see https://github.com/hpcugent/easybuild-framework/issues/687
             error_msg = "An error occured when determining module name for %s, " % ec
             error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
             _log.error(error_msg)
@@ -280,7 +286,7 @@ def det_full_module_name(ec, eb_ns=False):
     if not is_valid_module_name(mod_name):
         _log.error("%s is not a valid module name" % str(mod_name))
     else:
-        _log.debug("Obtained module name %s" % str(mod_name))
+        _log.debug("Obtained module name %s" % mod_name)
 
     return mod_name
 

@@ -1112,7 +1112,6 @@ class EasyBlock(object):
         # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
-        self.mod_name = det_full_module_name(self.cfg)
         if self.cfg['skip']:
             if self.modules_tool.exists(self.mod_name):
                 self.skip = True
@@ -1742,9 +1741,9 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
+        self.mod_name = det_full_module_name(self.cfg)
+        print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
         try:
-            full_name = det_full_module_name(self.cfg)
-            print_msg("building and installing %s..." % full_name, self.log, silent=self.silent)
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log, silent=self.silent)
                 self.run_step(stop_name, step_methods, skippable=skippable)

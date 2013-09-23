@@ -38,6 +38,7 @@ from easybuild.tools.ordereddict import OrderedDict
 
 # we use a tuple here so we can sort them based on the numbers
 ALL_CATEGORIES = {
+    "HIDDEN" : (-1, 'hidden'),
     "MANDATORY" : (0, 'mandatory'),
     "CUSTOM" : (1, 'easyblock-specific'),
     "TOOLCHAIN" : (2, 'toolchain'),
@@ -48,7 +49,6 @@ ALL_CATEGORIES = {
     "EXTENSIONS" : (7, 'extensions'),
     "MODULES" : (8, 'modules'),
     "OTHER" : (9, 'other'),
-    "HIDDEN" : (666, 'hidden'),
 }
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])

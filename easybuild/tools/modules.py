@@ -463,7 +463,7 @@ class Lmod(ModulesTool):
             ver_re = re.compile("^Modules based on Lua: Version (?P<version>[0-9.]+) \(.*", re.M)
             res = ver_re.search(txt)
             if res:
-                self.version = res.group('version')
+                self.version = LooseVersion(res.group('version'))
                 self.log.info("Found Lmod version %s" % self.version)
             else:
                 self.log.error("Failed to determine Lmod version from 'lmod help' output: %s" % txt)
@@ -472,9 +472,9 @@ class Lmod(ModulesTool):
             self.log.error("Failed to check Lmod version: %s" % err)
 
         # we need at least Lmod v5.0
-        if LooseVersion(self.version) >= self.REQ_VERSION:
+        if self.version >= self.REQ_VERSION:
             # Lmod v5.1.5 is highly recommended
-            if LooseVersion(self.version) < self.OPT_VERSION:
+            if self.version < self.OPT_VERSION:
                 self.log.warning("Lmod v%s is highly recommended." % self.OPT_VERSION)
         else:
             vers = (self.REQ_VERSION, self.OPT_VERSION, self.version)
@@ -503,9 +503,10 @@ class Lmod(ModulesTool):
         def is_mod(mod):
             """Determine is given path is an actual module, or just a directory."""
             # trigger error when workaround below can be removed
-            if self.REQ_VERSION >= LooseVersion('5.1.5'):
-                self.log.error("Code cleanup required since required Lmod version is >= v5.1.5")
-            if LooseVersion(self.version) < self.OPT_VERSION:
+            fixed_lmod_version = '5.1.5'
+            if self.REQ_VERSION >= LooseVersion(fixed_lmod_version):
+                self.log.error("Code cleanup required since required Lmod version is >= v%s" % fixed_lmod_version)
+            if self.version < self.OPT_VERSION:
                 # this is a (potentially bloody slow) workaround for a bug in Lmod 5.x (< 5.1.5)
                 for mod_path in self.mod_paths:
                     full_path = os.path.join(mod_path, mod)

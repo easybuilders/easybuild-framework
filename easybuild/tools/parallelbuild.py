@@ -38,11 +38,12 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import read_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.repository import init_repository
 from vsc import fancylogger
 
@@ -84,8 +85,8 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         _log.info("creating job for ec: %s" % str(ec))
         new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
 
-        # Sometimes unresolvedDependencies will contain things, not needed to be build.
-        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolvedDependencies']) if dep in job_ids]
+        # sometimes unresolved_deps will contain things, not needed to be build
+        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
         new_job.submit()
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
@@ -180,5 +181,5 @@ def prepare_easyconfig(ec, robot_path=None):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except:
-        pass
+    except (OSError, EasyBuildError), err:
+        _log.error("An error occured while preparing %s: %s" % (ec, err))

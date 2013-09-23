@@ -437,7 +437,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         del ec
 
         # this is used by the parallel builder
-        easyconfig['unresolvedDependencies'] = copy.deepcopy(easyconfig['dependencies'])
+        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
 
         easyconfigs.append(easyconfig)
 
@@ -530,15 +530,15 @@ def resolve_dependencies(unprocessed, robot, force=False):
                     cand_dep = candidates[0]
                     _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
 
-                    processedSpecs = process_easyconfig(path, validate=(not force))
+                    processed_ecs = process_easyconfig(path, validate=(not force))
 
                     # ensure that selected easyconfig provides required dependency
-                    mods = [det_full_module_name(spec['ec']) for spec in processedSpecs]
+                    mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
                     dep_mod_name = det_full_module_name(cand_dep)
                     if not dep_mod_name in mods:
                         _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
 
-                    unprocessed.extend(processedSpecs)
+                    unprocessed.extend(processed_ecs)
                     robot_add_dep = True
                     break
 
@@ -953,13 +953,13 @@ def dep_graph(fn, specs, silent=False):
     # enhance list of specs
     for spec in specs:
         spec['module'] = mk_node_name(spec['ec'])
-        spec['unresolvedDependencies'] = [mk_node_name(s) for s in spec['unresolvedDependencies']]  # [s[0] for s in spec['unresolvedDependencies']]
+        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
 
     # build directed graph
     dgr = digraph()
     dgr.add_nodes([spec['module'] for spec in specs])
     for spec in specs:
-        for dep in spec['unresolvedDependencies']:
+        for dep in spec['unresolved_deps']:
             dgr.add_edge((spec['module'], dep))
 
     # write to file
