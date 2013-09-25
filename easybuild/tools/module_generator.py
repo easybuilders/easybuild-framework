@@ -254,7 +254,7 @@ def is_valid_module_name(mod_name):
         if len(invalid_chars) > 0:
             _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
             return False
-    _log.debug("Module name %s validated")
+    _log.debug("Module name %s validated" % mod_name)
     return True
 
 
