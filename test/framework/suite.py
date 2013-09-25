@@ -44,7 +44,7 @@ import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.filetools as f
 import test.framework.github as g
-import test.framework.modulegenerator as mg
+import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.options as o
 import test.framework.repository as r

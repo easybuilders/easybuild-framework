@@ -75,6 +75,7 @@ class ToyBuildTest(TestCase):
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
+        reload(easybuild.tools.module_naming_scheme)
 
         # clear log
         write_file(self.logfile, '')
@@ -90,13 +91,13 @@ class ToyBuildTest(TestCase):
                 '--installpath=%s' % installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
+                '--force',
                ]
         try:
             main((args, dummylogfn, True))
         except (SystemExit, Exception), err:
             print err
         outtxt = read_file(self.logfile)
-        #print outtxt
 
         # if the module exists, it should be fine
         self.assertTrue(os.path.exists(os.path.join(installpath, 'modules', 'all', 'toy', '0.0')))

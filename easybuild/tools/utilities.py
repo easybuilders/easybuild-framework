@@ -27,7 +27,10 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
+import os
 import string
+import sys
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
@@ -100,3 +103,20 @@ def remove_unwanted_chars(inputstring):
     All non-letter and non-numeral characters are considered unwanted except for underscore ('_'), see UNWANTED_CHARS.
     """
     return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
+
+
+def import_available_modules(namespace):
+    """
+    Import all available module in the specified namespace.
+
+    @param namespace: The namespace to import modules from.
+    """
+    modules = []
+    for path in sys.path:
+        for module in glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py'])):
+            if not module.endswith('__init__.py'):
+                mod_name = module.split(os.path.sep)[-1].split('.')[0]
+                modpath = '.'.join([namespace, mod_name])
+                _log.debug("importing module %s" % modpath)
+                modules.append(__import__(modpath, globals(), locals(), ['']))
+    return modules

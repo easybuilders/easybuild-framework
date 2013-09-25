@@ -130,9 +130,9 @@ class Repository(object):
         """
         pass
 
-    def get_buildstats(self, name, version):
+    def get_buildstats(self, name, ec_version):
         """
-        Get the build statististics for module with name and version
+        Get the build statististics for software with name and easyconfig version
         """
         pass
 
@@ -197,7 +197,7 @@ class FileRepository(Repository):
 
         return dest
 
-    def get_buildstats(self, name, version):
+    def get_buildstats(self, name, ec_version):
         """
         return the build statistics
         """
@@ -206,9 +206,9 @@ class FileRepository(Repository):
             self.log.debug("module (%s) has not been found in the repo" % name)
             return []
 
-        dest = os.path.join(full_path, "%s.eb" % version)
+        dest = os.path.join(full_path, "%s.eb" % ec_version)
         if not os.path.isfile(dest):
-            self.log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
+            self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
         eb = EasyConfig(dest, validate=False)
