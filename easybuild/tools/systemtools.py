@@ -159,26 +159,33 @@ def get_cpu_speed():
     """
     # Linux with cpu scaling
     try:
-        with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq','r') as f:
-            return float(f.read())/1000
+        f = open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq','r')
+        cpu_freq = float(f.read())/1000
+        f.close()
+        return cpu_freq
     except IOError:
         pass
 
     # Linux without cpu scaling
     try:
-        with open('/proc/cpuinfo','r') as f:
-            for line in f:
-                cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]*)",line)
-                if cpu_freq:
-                    return cpu_freq.group(1)
+        f = open('/proc/cpuinfo','r')
+        for line in f:
+            cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]*)",line)
+            if cpu_freq:
+                break
+        f.close()
+        return cpu_freq
     except IOError:
         pass
 
     # OS X (untested!)
-    out, exitcode = run_cmd("sysctl -n hw.cpufrequency_max")
-    out = float(out.strip())/(1000*1000)
-    if not exitcode:
-        return out
+    try:
+        out, exitcode = run_cmd("sysctl -n hw.cpufrequency_max")
+        out = float(out.strip())/(1000*1000)
+        if not exitcode:
+            return out
+    except:
+        pass
 
     return UNKNOWN
 
