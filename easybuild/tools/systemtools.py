@@ -149,7 +149,7 @@ def get_cpu_model():
     if not exitcode:
         return out
 
-    return 'UNKNOWN'
+    return UNKNOWN
 
 
 def get_cpu_speed():
