@@ -30,6 +30,7 @@ Unit tests for eb command line options.
 
 import os
 import re
+import shutil
 import sys
 import tempfile
 from unittest import TestCase, TestLoader
@@ -39,6 +40,7 @@ from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -222,6 +224,85 @@ class CommandLineOptionsTest(TestCase):
             os.environ['MODULEPATH'] = orig_modulepath
         else:
             os.environ.pop('MODULEPATH')
+
+    def test_skip(self):
+        """Test skipping installation of module (--skip, -k)."""
+
+        pwd = os.getcwd()
+
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # set MODULEPATH to included modules
+        orig_modulepath = os.getenv('MODULEPATH', None)
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # check log message with --skip for existing module
+        args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--force',
+                '--skip',
+                '--debug',
+               ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        outtxt = read_file(self.logfile)
+
+        found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
+        found = re.search(found_msg, outtxt, re.M)
+        self.assertTrue(found, "Module found message present with --skip, outtxt: %s" % outtxt)
+
+        # cleanup for next test
+        write_file(self.logfile, '')
+        os.chdir(pwd)
+        modules_tool().purge()
+
+        # check log message with --skip for non-existing module
+        args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--try-software-version=1.2.3.4.5.6.7.8.9',
+                '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
+                '--force',
+                '--skip',
+                '--debug',
+               ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+
+        found = re.search(found_msg, outtxt)
+        self.assertTrue(not found, "Module found message not there with --skip for non-existing modules: %s" % outtxt)
+
+        not_found_msg = "No module toy/1.2.3.4.5.6.7.8.9 found. Not skipping anything."
+        not_found = re.search(not_found_msg, outtxt)
+        self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
+
+        # restore original MODULEPATH
+        if orig_modulepath is not None:
+            os.environ['MODULEPATH'] = orig_modulepath
+        else:
+            os.environ.pop('MODULEPATH')
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
 
     def test_job(self):
         """Test submitting build as a job."""

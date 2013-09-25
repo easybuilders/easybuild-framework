@@ -805,6 +805,8 @@ class EasyBlock(object):
                 m.purge()
             m.check_module_path()  # make sure MODULEPATH is set correctly after purging
             m.load([self.mod_name])
+        else:
+            self.log.warning("Not loading module, since self.mod_name is not set.")
 
     def load_fake_module(self, purge=False):
         """
@@ -842,6 +844,8 @@ class EasyBlock(object):
                 # self.mod_name might not be set (e.g. during unit tests)
                 if self.mod_name is not None:
                     m.unload([self.mod_name])
+                else:
+                    self.log.warning("Not unloading module, since self.mod_name is not set.")
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
@@ -1115,10 +1119,10 @@ class EasyBlock(object):
         if self.cfg['skip']:
             if self.modules_tool.exists(self.mod_name):
                 self.skip = True
-                self.log.info("Current version (name: %s, version: %s) found." % self.mod_name)
-                self.log.info("Going to skip actually main build and potential existing extensions. Expert only.")
+                self.log.info("Module %s found." % self.mod_name)
+                self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
             else:
-                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % self.mod_name)
+                self.log.info("No module %s found. Not skipping anything." % self.mod_name)
 
         # Set group id, if a group was specified
         if self.cfg['group']:

@@ -533,10 +533,7 @@ class EasyBuildOptions(GeneralOption):
 
     def avail_list(self, name, items):
         """Show list of available values passed by argument."""
-        txt = ["List of supported %s:" % name]
-        for item in items:
-            txt.append("\t%s" % item)
-        return '\n'.join(txt)
+        return "List of supported %s:\n\t%s" % (name, '\n\t'.join(items))
 
     def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""
