@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,26 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This declares the namespace for the tools submodule of EasyBuild,
-which contains support utilities.
+Implementation of (default) EasyBuild module naming scheme.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
 """
-from pkgutil import extend_path
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+import os
+
+from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+
+
+class EasyBuildModuleNamingScheme(ModuleNamingScheme):
+    """Class implementing the default EasyBuild module naming scheme."""
+
+    def det_full_module_name(self, ec):
+        """
+        Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
+
+        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
+
+        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
+        """
+        return os.path.join(ec['name'], det_full_ec_version(ec))

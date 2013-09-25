@@ -1,6 +1,35 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.8.0 (October 4th 2013)
+---------------------------
+
+feature + bugfix release
+- add support for using alternative module naming schemes (#679)
+    - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
+    - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be used
+        - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
+        - a function named 'det_full_module_name' must be implemented, that determines the module name
+          in the form of an n-tuple based on the supplied dictionary(-like) argument
+    - the active module naming scheme is determined by EasyBuild configuration option 'module_naming_scheme'
+    - for now, only the name/version/versionsuffix/toolchain easyconfig parameters are guaranteed to be provided
+        - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work (see #687)
+    - implementing this involved a number of intrusive changes:
+        - the API of the modules.py module needed to be changed, breaking backward compatibility
+            - the function for which the signatures were modified are considered to be internal to the framework,
+              so this should have minor impact w.r.t. easyblocks
+            - affected functions include: available, exists, show, modulefile_path, dependencies_for
+        - the format for specifying dependencies was extended, to allow for specifying a custom toolchain
+            - this allows to fix inaccurate specifications,
+              like "('OpenMPI', '1.6.4-GCC-4.7.2')" to "('OpenMPI', '1.6.4', '', ('GCC', '4.7.2'))"
+        - the recommended version for Lmod was bumped to v5.1.5
+            - using earlier 5.x version still works, but may be very slow when 'available' is used
+- various other enhancements, including:
+    -
+- various bug fixes, including:
+    - avoid importing toolchain modules over and over again to make toolchain constants available in toolchain module (#679)
+    - only change the group id if current gid is different from what we want in adjust_permissions function (#685)
+
 v1.7.0 (September 2nd 2013)
 ---------------------------
 
