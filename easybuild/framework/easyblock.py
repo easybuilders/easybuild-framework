@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
-from easybuild.tools.config import read_only_installdir, source_path, module_classes
+from easybuild.tools.config import read_only_installdir, source_paths, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
@@ -342,15 +342,7 @@ class EasyBlock(object):
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
         """
-        srcpath = source_path()
-
-        # make sure we always deal with a list, to avoid code duplication
-        if isinstance(srcpath, basestring):
-            srcpaths = [srcpath]
-        elif isinstance(srcpath, list):
-            srcpaths = srcpath
-        else:
-            self.log.error("Source path '%s' has incorrect type: %s" % (srcpath, type(srcpath)))
+        srcpaths = source_paths()
 
         # should we download or just try and find it?
         if filename.startswith("http://") or filename.startswith("ftp://"):
@@ -1599,7 +1591,12 @@ class EasyBlock(object):
             if os.path.isabs(test):
                 path = test
             else:
-                path = os.path.join(source_path(), self.name, test)
+                for source_path in source_paths():
+                    path = os.path.join(source_path, self.name, test)
+                    if os.path.exists(path):
+                        break
+                if not os.path.exists(path):
+                    self.log.error("Test specifies invalid path: %s" % path)
 
             try:
                 self.log.debug("Running test %s" % path)
