@@ -341,14 +341,6 @@ def build_path():
     return variables['buildpath']
 
 
-def source_path():
-    """
-    Return the source path (deprecated)
-    """
-    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
-    return variables['sourcepath']
-
-
 def source_paths():
     """
     Return the list of source paths
@@ -360,6 +352,14 @@ def source_paths():
     else:
         typ = type(variables['sourcepath'])
         _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+
+
+def source_path():
+    """
+    Return the source path (deprecated)
+    """
+    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
+    return source_paths()
 
 
 def install_path(typ=None):
