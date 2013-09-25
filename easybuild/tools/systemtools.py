@@ -26,6 +26,7 @@
 Module with useful functions for getting system information
 
 @author: Jens Timmerman (Ghent University)
+@auther: Ward Poelmans (Ghent University)
 """
 import os
 import platform
@@ -149,6 +150,37 @@ def get_cpu_model():
         return out
 
     return 'UNKNOWN'
+
+
+def get_cpu_speed():
+    """
+    returns the maximum cpu speed in MHz
+    In case of throtteling, return the highest cpu speed
+    """
+    # Linux with cpu scaling
+    try:
+        with open('/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq','r') as f:
+            return float(f.read())/1000
+    except IOError:
+        pass
+
+    # Linux without cpu scaling
+    try:
+        with open('/proc/cpuinfo','r') as f:
+            for line in f:
+                cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]*)",line)
+                if cpu_freq:
+                    return cpu_freq.group(1)
+    except IOError:
+        pass
+
+    # OS X (untested!)
+    out, exitcode = run_cmd("sysctl -n hw.cpufrequency_max")
+    out = float(out.strip())/(1000*1000)
+    if not exitcode:
+        return out
+
+    return UNKNOWN
 
 
 def get_kernel_name():
