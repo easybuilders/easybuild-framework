@@ -483,7 +483,8 @@ class Lmod(ModulesTool):
             self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended), found v%s" % vers)
 
         # we need to run 'lmod python use <path>' to make sure all paths in $MODULEPATH are taken into account
-        for modpath in self.mod_paths:
+        # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
+        for modpath in self.mod_paths[::-1]:
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
             full_cmd = [self.cmd, 'python', 'use', modpath]
