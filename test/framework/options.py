@@ -56,6 +56,7 @@ class CommandLineOptionsTest(TestCase):
 
     def setUp(self):
         """Prepare for running unit tests."""
+        self.pwd = os.getcwd()
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
@@ -64,6 +65,7 @@ class CommandLineOptionsTest(TestCase):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
+        os.chdir(self.pwd)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -235,8 +237,6 @@ class CommandLineOptionsTest(TestCase):
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
 
-        pwd = os.getcwd()
-
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
         installpath = tempfile.mkdtemp()
@@ -273,7 +273,7 @@ class CommandLineOptionsTest(TestCase):
 
         # cleanup for next test
         write_file(self.logfile, '')
-        os.chdir(pwd)
+        os.chdir(self.pwd)
         modules_tool().purge()
 
         # check log message with --skip for non-existing module
