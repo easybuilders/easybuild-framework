@@ -845,6 +845,10 @@ class EasyBlock(object):
         # restore original environment
         modify_env(os.environ, orig_env)
 
+    def load_dependency_modules(self):
+        """Load dependency modules."""
+        self.modules_tool.load([det_full_module_name(dep) for dep in self.cfg.dependencies()])
+
     #
     # EXTENSIONS UTILITY FUNCTIONS
     #

@@ -36,9 +36,11 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools import config
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
@@ -48,9 +50,13 @@ class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
     logfile = None
+    # initialize configuration so modules_tool() function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     def setUp(self):
         """Prepare for running unit tests."""
+        self.pwd = os.getcwd()
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
@@ -59,6 +65,7 @@ class CommandLineOptionsTest(TestCase):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
+        os.chdir(self.pwd)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -188,6 +195,7 @@ class CommandLineOptionsTest(TestCase):
         # check log message without --force
         args = [
                 eb_file,
+                '--debug',
                ]
 
         error_thrown = False
@@ -210,6 +218,7 @@ class CommandLineOptionsTest(TestCase):
         args = [
                 eb_file,
                 '--force',
+                '--debug',
                ]
         try:
             main((args, self.logfile, False))
@@ -227,8 +236,6 @@ class CommandLineOptionsTest(TestCase):
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
-
-        pwd = os.getcwd()
 
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
@@ -266,7 +273,7 @@ class CommandLineOptionsTest(TestCase):
 
         # cleanup for next test
         write_file(self.logfile, '')
-        os.chdir(pwd)
+        os.chdir(self.pwd)
         modules_tool().purge()
 
         # check log message with --skip for non-existing module
