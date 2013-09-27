@@ -488,7 +488,6 @@ class Lmod(ModulesTool):
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
             full_cmd = [self.cmd, 'python', 'use', modpath]
-            self.log.debug("Running '%s'" % ' '.join(full_cmd))
             proc = subprocess.Popen(full_cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
             (stdout, stderr) = proc.communicate()
             exec stdout
