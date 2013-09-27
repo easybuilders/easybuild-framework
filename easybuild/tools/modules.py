@@ -91,7 +91,7 @@ class ModulesTool(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if mod_paths:
-            self.mod_paths = set(mod_paths)
+            self.mod_paths = nub(mod_paths)
         else:
             self.mod_paths = None
 
@@ -129,10 +129,12 @@ class ModulesTool(object):
 
         if self.mod_paths:
             # set the module path environment accordingly
-            os.environ['MODULEPATH'] = ":".join(self.mod_paths)
+            os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
+            self.log.debug("$MODULEPATH set based on supplied list of module paths: %s" % os.environ['MODULEPATH'])
         else:
             # take module path from environment
-            self.mod_paths = os.environ['MODULEPATH'].split(':')
+            self.mod_paths = nub(os.environ['MODULEPATH'].split(':'))
+            self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
         if not 'LOADEDMODULES' in os.environ:
             os.environ['LOADEDMODULES'] = ''
@@ -480,14 +482,15 @@ class Lmod(ModulesTool):
             vers = (self.REQ_VERSION, self.OPT_VERSION, self.version)
             self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended), found v%s" % vers)
 
-        # we need to run 'lmod python add <path>' to make sure all paths in $MODULEPATH are taken into account
-        for modpath in self.mod_paths:
+        # we need to run 'lmod python use <path>' to make sure all paths in $MODULEPATH are taken into account
+        # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
+        for modpath in self.mod_paths[::-1]:
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
-            if modpath not in os.environ['MODULEPATH']:
-                proc = subprocess.Popen([self.cmd, 'python', 'use', modpath], stdout=PIPE, stderr=PIPE, env=os.environ)
-                (stdout, stderr) = proc.communicate()
-                exec stdout
+            full_cmd = [self.cmd, 'python', 'use', modpath]
+            proc = subprocess.Popen(full_cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            (stdout, stderr) = proc.communicate()
+            exec stdout
 
         # make sure lmod spider cache is up to date
         self.update()

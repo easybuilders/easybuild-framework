@@ -1167,43 +1167,60 @@ class GeneralOption(object):
         return args
 
 
-def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
-    """A function that returns a single level GeneralOption option parser
+class SimpleOptionParser(ExtOptionParser):
+    DESCRIPTION_DOCSTRING = True
+
+
+class SimpleOption(GeneralOption):
+    PARSER = SimpleOptionParser
+
+    def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+        """Initialisation
         @param go_dict : General Option option dict
         @param short_descr : short description of main options
         @param long_descr : longer description of main options
         @param config_files : list of configfiles to read options from
 
-    a general options dict has as key the long option name, and is followed by a list/tuple
+        a general options dict has as key the long option name, and is followed by a list/tuple
         mandatory are 4 elements : option help, type, action, default
         a 5th element is optional and is the short help name (if any)
 
+        the generated help will include the docstring
+        """
+        self.go_dict = go_dict
+        if short_groupdescr is None:
+            short_groupdescr = 'Main options'
+        if long_groupdescr is None:
+            long_groupdescr = ''
+        self.descr = [short_groupdescr, long_groupdescr]
+
+        kwargs = {
+            'go_prefixloggername': True,
+            'go_mainbeforedefault': True,
+        }
+        if config_files is not None:
+            kwargs['go_configfiles'] = config_files
+
+        super(SimpleOption, self).__init__(**kwargs)
+
+    def main_options(self):
+        if self.go_dict is not None:
+            prefix = None
+            self.add_group_parser(self.go_dict, self.descr, prefix=prefix)
+
+
+def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+    """A function that returns a single level GeneralOption option parser
+
+    @param go_dict : General Option option dict
+    @param short_descr : short description of main options
+    @param long_descr : longer description of main options
+    @param config_files : list of configfiles to read options from
+
+    a general options dict has as key the long option name, and is followed by a list/tuple
+    mandatory are 4 elements : option help, type, action, default
+    a 5th element is optional and is the short help name (if any)
+
     the generated help will include the docstring
-
-    returns instance of trivial subclass of GeneralOption
     """
-    if short_groupdescr is None:
-        short_groupdescr = 'Main options'
-    if long_groupdescr is None:
-        long_groupdescr = ''
-    descr = [short_groupdescr, long_groupdescr]
-
-    class SimpleOptionParser(ExtOptionParser):
-        DESCRIPTION_DOCSTRING = True
-
-    class SimpleOption(GeneralOption):
-        PARSER = SimpleOptionParser
-
-        def main_options(self):
-            if go_dict is not None:
-                prefix = None
-                self.add_group_parser(go_dict, descr, prefix=prefix)
-
-    kwargs = {
-              'go_prefixloggername': True,
-              'go_mainbeforedefault': True,
-              }
-    if config_files is not None:
-        kwargs['go_configfiles'] = config_files
-
-    return SimpleOption(**kwargs)
+    return SimpleOption(go_dict, descr, short_groupdescr, long_groupdescr, config_files)
