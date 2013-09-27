@@ -274,10 +274,7 @@ class CommandLineOptionsTest(TestCase):
         # cleanup for next test
         write_file(self.logfile, '')
         os.chdir(pwd)
-        m = modules_tool()
-        # make the logger still works after stuff has been cleaned up by main
-        m.log = fancylogger.getLogger(self.__class__.__name__)
-        m.purge()
+        modules_tool().purge()
 
         # check log message with --skip for non-existing module
         args = [
