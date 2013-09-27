@@ -91,7 +91,7 @@ class ModulesTool(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if mod_paths:
-            self.mod_paths = set(mod_paths)
+            self.mod_paths = nub(mod_paths)
         else:
             self.mod_paths = None
 
@@ -129,11 +129,11 @@ class ModulesTool(object):
 
         if self.mod_paths:
             # set the module path environment accordingly
-            os.environ['MODULEPATH'] = ":".join(self.mod_paths)
+            os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
             self.log.debug("$MODULEPATH set based on supplied list of module paths: %s" % os.environ['MODULEPATH'])
         else:
             # take module path from environment
-            self.mod_paths = os.environ['MODULEPATH'].split(':')
+            self.mod_paths = nub(os.environ['MODULEPATH'].split(':'))
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
         if not 'LOADEDMODULES' in os.environ:
