@@ -200,7 +200,7 @@ def get_cpu_speed():
                 if cpu_freq is None:
                     raise SystemToolsException("Failed to determine CPU frequency from %s" % cpuinfo_fp)
                 else:
-                    return float(cpu_freq)
+                    return float(cpu_freq.group(1))
             except IOError, err:
                 _log.warning("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
 
