@@ -76,13 +76,14 @@ def get_core_count():
     os_type = get_os_type()
 
     if os_type == LINUX:
-        cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp):
-            txt = read_file(cpuinfo_fp, log_error=False)
+        try:
+            txt = read_file('/proc/cpuinfo', log_error=False)
             # sometimes this is uppercase
             res = txt.lower().count('processor\t:')
             if res > 0:
                 return res
+        except IOError, err:
+            raise SystemToolsException("An error occured while determining core count: %s" % err)
     else:
         # BSD
         try:
@@ -109,9 +110,8 @@ def get_cpu_vendor():
     os_type = get_os_type()
 
     if os_type == LINUX:
-        cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp):
-            txt = read_file(cpuinfo_fp, log_error=False)
+        try:
+            txt = read_file('/proc/cpuinfo', log_error=False)
             arch = UNKNOWN
             # vendor_id might not be in the /proc/cpuinfo, so this might fail
             res = regexp.search(txt)
@@ -127,8 +127,8 @@ def get_cpu_vendor():
                 arch = res.groupdict().get('vendorid', UNKNOWN)
             if ARM in arch:
                 return ARM
-        else:
-            raise SystemToolsException("Can't determine CPU vendor since %s isn't available." % cpuinfo_fp)
+        except IOError, err:
+            raise SystemToolsException("An error occured while determining CPU vendor since: %s" % err)
 
     elif os_type == DARWIN:
         out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
@@ -154,13 +154,12 @@ def get_cpu_model():
     os_type = get_os_type()
     if os_type == LINUX:
         regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
-        cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp):
-            txt = read_file(cpuinfo_fp, log_error=False)
+        try:
+            txt = read_file('/proc/cpuinfo', log_error=False)
             if txt is not None:
                 return regexp.search(txt).groupdict()['modelname'].strip()
-        else:
-            raise SystemToolsException("Can't determine CPU model since %s isn't available." % cpuinfo_fp)
+        except IOError, err:
+            raise SystemToolsException("An error occured when determining CPU model: %s" % err)
 
     elif os_type == DARWIN:
         out, exitcode = run_cmd("sysctl -n machdep.cpu.brand_string")
@@ -181,17 +180,17 @@ def get_cpu_speed():
         try:
              # Linux with cpu scaling
             max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-            if os.path.exists(max_freq_fp):
+            try:
                 f = open(max_freq_fp, 'r')
                 cpu_freq = float(f.read())/1000
                 f.close()
                 return cpu_freq
-            else:
-                _log.warning("System file for max. CPU clock frequency with CPU scaling not found (%s)." % max_freq_fp)
+            except IOError, err:
+                _log.warning("Failed to read %s to determine max. CPU clock frequency with CPU scaling: %s" % (max_freq_fp, err))
 
             # Linux without cpu scaling
             cpuinfo_fp = '/proc/cpuinfo'
-            if os.path.exists(cpuinfo_fp):
+            try:
                 f = open(cpuinfo_fp, 'r')
                 for line in f:
                     cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)
@@ -202,8 +201,8 @@ def get_cpu_speed():
                     raise SystemToolsException("Failed to determine CPU frequency from %s" % cpuinfo_fp)
                 else:
                     return float(cpu_freq)
-            else:
-                _log.warning("System file with CPU clock frequency without CPU scaling not found (%s)." % cpuinfo_fp)
+            except IOError, err:
+                _log.warning("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
 
         except (IOError, OSError), err:
             raise SystemToolsException("Determining CPU speed failed, exception occured: %s" % err)
