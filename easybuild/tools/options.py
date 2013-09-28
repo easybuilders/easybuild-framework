@@ -43,10 +43,11 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
+from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
-from easybuild.tools import filetools
 from easybuild.tools.modules import avail_modules_tools
+from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository import avail_repositories
@@ -94,6 +95,8 @@ class EasyBuildOptions(GeneralOption):
                             "strict":("Set strictness level",
                                       "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
+                            "dry-run":("Resolve dependencies and print build list, then stop", 
+                                      None, "store_true", False),
                             })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -180,13 +183,13 @@ class EasyBuildOptions(GeneralOption):
                                     'For more info, use --avail-repositories.'),
                                     'strlist', 'store',
                                     oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
-                "avail-repositories":(("Show all repository types (incl. non-usable)"),
+                "avail-repositories":("Show all repository types (incl. non-usable)",
                                       None, "store_true", False,),
                 'logfile-format': ('Directory name and format of the log file ',
                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
                 'tmp-logdir': ('Log directory where temporary log files are stored',
                             None, 'store', oldstyle_defaults['tmp_logdir']),
-                'sourcepath': ('Path to where sources should be downloaded',
+                'sourcepath': ('Path(s) to where sources should be downloaded (string, colon-separated)',
                                None, 'store', oldstyle_defaults['sourcepath']),
                 'moduleclasses': (('Extend supported module classes'
                                    ' (For more info on the default classes, use --show-default-moduleclasses)'),
@@ -196,6 +199,13 @@ class EasyBuildOptions(GeneralOption):
                 'modules-tool': ('Modules tool to use',
                                  'choice', 'store', oldstyle_defaults['modules_tool'],
                                  sorted(avail_modules_tools().keys())),
+                "avail-modules-tools":("Show all supported module tools",
+                                       None, "store_true", False,),
+                'module-naming-scheme': ('Module naming scheme', 'choice', 'store',
+                                         oldstyle_defaults['module_naming_scheme'],
+                                         sorted(avail_module_naming_schemes().keys())),
+                "avail-module-naming-schemes":("Show all supported module naming schemes",
+                                               None, "store_true", False,),
                 # this one is sort of an exception, it's something jobscripts can set,
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
@@ -312,7 +322,8 @@ class EasyBuildOptions(GeneralOption):
                 self.options.list_easyblocks, self.options.list_toolchains,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
-                ]):
+                self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
+               ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
@@ -367,6 +378,14 @@ class EasyBuildOptions(GeneralOption):
         if self.options.avail_repositories:
             msg += self.avail_repositories()
 
+        # dump supported modules tools
+        if self.options.avail_modules_tools:
+            msg += self.avail_list('modules tools', avail_modules_tools())
+
+        # dump supported module naming schemes
+        if self.options.avail_module_naming_schemes:
+            msg += self.avail_list('module naming schemes', avail_module_naming_schemes())
+
         # dump default moduleclasses with description
         if self.options.show_default_moduleclasses:
             msg += self.show_default_moduleclasses()
@@ -391,7 +410,8 @@ class EasyBuildOptions(GeneralOption):
             ebb_msg = ''
             extra_names = []
         txt = ["Available easyconfig parameters%s" % ebb_msg]
-        for key, values in mapping.items():
+        params = [(k,v) for (k,v) in mapping.items() if k.upper() not in ['HIDDEN']]
+        for key, values in params:
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
             for name, value in values:
@@ -510,6 +530,10 @@ class EasyBuildOptions(GeneralOption):
             txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
+
+    def avail_list(self, name, items):
+        """Show list of available values passed by argument."""
+        return "List of supported %s:\n\t%s" % (name, '\n\t'.join(items))
 
     def show_default_moduleclasses(self):
         """Show list of default moduleclasses and description."""

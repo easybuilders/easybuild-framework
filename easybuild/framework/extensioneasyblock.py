@@ -119,10 +119,11 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # pass or fail sanity check
         if not sanity_check_ok:
+            msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
             if self.is_extension:
-                self.log.warning("Sanity check for %s failed!" % self.name)
+                self.log.warning(msg)
             else:
-                self.log.error("Sanity check for %s failed!" % self.name)
+                self.log.error(msg)
             return False
         else:
             self.log.info("Sanity check for %s successful!" % self.name)

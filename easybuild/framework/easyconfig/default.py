@@ -38,17 +38,18 @@ from easybuild.tools.ordereddict import OrderedDict
 
 # we use a tuple here so we can sort them based on the numbers
 ALL_CATEGORIES = {
-                  "MANDATORY" : (0, 'mandatory'),
-                  "CUSTOM" : (1, 'easyblock-specific'),
-                  "TOOLCHAIN" : (2, 'toolchain'),
-                  "BUILD" : (3, 'build'),
-                  "FILEMANAGEMENT" : (4, 'file-management'),
-                  "DEPENDENCIES" : (5, 'dependencies'),
-                  "LICENSE" : (6, 'license'),
-                  "EXTENSIONS" : (7, 'extensions'),
-                  "MODULES" : (8, 'modules'),
-                  "OTHER" : (9, 'other'),
-                  }
+    "HIDDEN" : (-1, 'hidden'),
+    "MANDATORY" : (0, 'mandatory'),
+    "CUSTOM" : (1, 'easyblock-specific'),
+    "TOOLCHAIN" : (2, 'toolchain'),
+    "BUILD" : (3, 'build'),
+    "FILEMANAGEMENT" : (4, 'file-management'),
+    "DEPENDENCIES" : (5, 'dependencies'),
+    "LICENSE" : (6, 'license'),
+    "EXTENSIONS" : (7, 'extensions'),
+    "MODULES" : (8, 'modules'),
+    "OTHER" : (9, 'other'),
+}
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -95,6 +96,7 @@ DEFAULT_CONFIG = {
                                                "(format: {'files':<list>, 'dirs':<list>})"), "BUILD"],
                   'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                                   "Using a non-tuple is equivalent to (name, '-h')"), "BUILD"],
+                  'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", "BUILD"],
 
                   'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                                         'If not, this is added to the guessed path.'), "FILEMANAGEMENT"],

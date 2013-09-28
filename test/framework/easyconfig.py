@@ -34,17 +34,19 @@ import os
 import re
 import shutil
 import tempfile
+from unittest import TestCase, TestLoader, main
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
-from unittest import TestCase, TestLoader, main
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
@@ -53,13 +55,13 @@ class EasyConfigTest(TestCase):
     contents = None
     eb_file = ''
 
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
     def setUp(self):
-        """ create temporary easyconfig file """
+        """Set up everything for running a unit test."""
+
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
         self.cwd = os.getcwd()
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -136,18 +138,18 @@ class EasyConfigTest(TestCase):
             'stop = "notvalid"',
         ])
         self.prep()
-        eb = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
-        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", eb.validate)
+        ec = EasyConfig(self.eb_file, validate=False, valid_stops=self.all_stops)
+        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", ec.validate)
 
-        eb['stop'] = 'patch'
+        ec['stop'] = 'patch'
         # this should now not crash
-        eb.validate()
+        ec.validate()
 
-        eb['osdependencies'] = ['non-existent-dep']
-        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", eb.validate)
+        ec['osdependencies'] = ['non-existent-dep']
+        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
 
         # dummy toolchain, installversion == version
-        self.assertEqual(eb.get_installversion(), "3.14")
+        self.assertEqual(det_full_ec_version(ec), "3.14")
 
         os.chmod(self.eb_file, 0000)
         self.assertErrorRegex(EasyBuildError, "Unexpected IOError", EasyConfig, self.eb_file)
@@ -197,8 +199,8 @@ class EasyConfigTest(TestCase):
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
-        self.assertEqual(first['tc'], '1.1-GCC-4.6.3')
-        self.assertEqual(second['tc'], '2.2-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
         # same tests for builddependencies
         first = eb.builddependencies()[0]
@@ -210,8 +212,8 @@ class EasyConfigTest(TestCase):
         self.assertEqual(first['version'], "1.1")
         self.assertEqual(second['version'], "2.2")
 
-        self.assertEqual(first['tc'], '1.1-GCC-4.6.3')
-        self.assertEqual(second['tc'], '2.2-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
+        self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
         eb['dependencies'] = ["wrong type"]
         self.assertErrorRegex(EasyBuildError, "wrong type from unsupported type", eb.dependencies)
@@ -385,7 +387,7 @@ class EasyConfigTest(TestCase):
         os.remove(tweaked_fn)
 
     def test_installversion(self):
-        """test generation of install version"""
+        """Test generation of install version."""
 
         ver = "3.14"
         verpref = "myprefix|"
@@ -394,11 +396,43 @@ class EasyConfigTest(TestCase):
         tcver = "4.6.3"
         dummy = "dummy"
 
-        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
+        correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
+        cfg = {
+            'version': ver,
+            'toolchain': {'name': tcname, 'version': tcver},
+            'versionprefix': verpref,
+            'versionsuffix': versuff,
+        }
+        installver = det_full_ec_version(cfg)
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
 
+        correct_installver =  "%s%s%s" % (verpref, ver, versuff)
+        cfg = {
+            'version': ver,
+            'toolchain': {'name': dummy, 'version': tcver},
+            'versionprefix': verpref,
+            'versionsuffix': versuff,
+        }
+        installver = det_full_ec_version(cfg)
+        self.assertEqual(installver, correct_installver)
+
+    def test_legacy_installversion(self):
+        """Test generation of install version (legacy)."""
+
+        ver = "3.14"
+        verpref = "myprefix|"
+        versuff = "|mysuffix"
+        tcname = "GCC"
+        tcver = "4.6.3"
+        dummy = "dummy"
+
+        correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
+        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
+        self.assertEqual(installver, correct_installver)
+
+        correct_installver =  "%s%s%s" % (verpref, ver, versuff)
         installver = det_installversion(ver, dummy, tcver, verpref, versuff)
-        self.assertEqual(installver, "%s%s%s" % (verpref, ver, versuff))
+        self.assertEqual(installver, correct_installver)
 
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
@@ -572,9 +606,9 @@ class EasyConfigTest(TestCase):
             dirs = path.split(os.path.sep)
             if len(dirs) > 3 and 'site-packages' in dirs:
                 if path.endswith('.egg'):
-                    path = os.path.sep.join(dirs[:-4])  # strip of lib/python2.7/site-packages/*.egg part
+                    path = os.path.join(*dirs[:-4])  # strip of lib/python2.7/site-packages/*.egg part
                 else:
-                    path = os.path.sep.join(dirs[:-3])  # strip of lib/python2.7/site-packages part
+                    path = os.path.join(*dirs[:-3])  # strip of lib/python2.7/site-packages part
 
             return path
 

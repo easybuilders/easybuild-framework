@@ -43,8 +43,10 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -179,10 +181,12 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if not isinstance(prev_value, basestring):
-            self.log.error("Can't update configuration value for %s, because it's not a string." % key)
-
-        self[key] = '%s %s ' % (prev_value, value)
+        if isinstance(prev_value, basestring):
+            self[key] = '%s %s ' % (prev_value, value)
+        elif isinstance(prev_value, list):
+            self[key] = prev_value + value
+        else:
+            self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
     def parse(self, path):
         """
@@ -230,6 +234,9 @@ class EasyConfig(object):
 
         # update templating dictionary
         self.generate_template_values()
+
+        # indicate that this is a parsed easyconfig
+        self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
 
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
@@ -326,7 +333,7 @@ class EasyConfig(object):
     def dependencies(self):
         """
         returns an array of parsed dependencies
-        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'suffix': ''}
+        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
 
         deps = []
@@ -384,13 +391,6 @@ class EasyConfig(object):
 
         self._toolchain = tc
         return self._toolchain
-
-    def get_installversion(self):
-        """
-        return the installation version
-        """
-        return det_installversion(self['version'], self.toolchain.name, self.toolchain.version,
-                                  self['versionprefix'], self['versionsuffix'])
 
     def dump(self, fp):
         """
@@ -482,35 +482,62 @@ class EasyConfig(object):
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
         if it is a tuple or a list the attributes are expected to be in the following order:
-        ['name', 'version', 'suffix', 'dummy']
+        ('name', 'version', 'versionsuffix', 'toolchain')
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'suffix', 'dummy', 'tc']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        attr = ['name', 'version', 'suffix', 'dummy']
-        dependency = {'name': '', 'version': '', 'suffix': '', 'dummy': False}
+        attr = ['name', 'version', 'versionsuffix', 'toolchain']
+        dependency = {
+            'name': '',
+            'version': '',
+            'versionsuffix': '',
+            'toolchain': None,
+            'dummy': False,
+        }
         if isinstance(dep, dict):
             dependency.update(dep)
-        # Try and convert to list
+            # make sure 'dummy' key is handled appropriately
+            if 'dummy' in dep and not 'toolchain' in dep:
+                dependency['toolchain'] = dep['dummy']
         elif isinstance(dep, (list, tuple)):
+            # try and convert to list
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
             self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
 
-        # Validations
+        # dependency inherits toolchain, unless it's specified to have a custom toolchain
+        tc = copy.deepcopy(self['toolchain'])
+        tc_spec = dependency['toolchain']
+        if tc_spec is not None:
+            # (true) boolean value simply indicates that a dummy toolchain is used
+            if isinstance(tc_spec, bool) and tc_spec:
+                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
+            # two-element list/tuple value indicates custom toolchain specification
+            elif isinstance(tc_spec, (list, tuple, )):
+                if len(tc_spec) == 2:
+                    tc = {'name': tc_spec[0], 'version': tc_spec[1]}
+                else:
+                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
+            else:
+                self.log.error("Unsupported type of value for toolchain encountered: %s => %s" % (tc_spec, type(tc_spec)))
+
+        dependency['toolchain'] = tc
+
+        # make sure 'dummy' value is set correctly
+        dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+
+        # validations
         if not dependency['name']:
-            self.log.error("Dependency without name given")
+            self.log.error("Dependency specified without name: %s" % dependency)
 
         if not dependency['version']:
-            self.log.error('Dependency without version.')
-
-        if not 'tc' in dependency:
-            dependency['tc'] = self.toolchain.get_dependency_version(dependency)
+            self.log.error("Dependency specified without version: %s" % dependency)
 
         return dependency
 
@@ -600,23 +627,16 @@ def build_easyconfig_constants_dict():
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
-    """
-    Determine exact install version, based on supplied parameters.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
-    """
-
-    installversion = None
-
-    # determine main install version based on toolchain
-    if toolchain_name == 'dummy':
-        installversion = version
-    else:
-        installversion = "%s-%s-%s" % (version, toolchain_name, toolchain_version)
-
-    # prepend/append prefix/suffix
-    installversion = ''.join([x for x in [prefix, installversion, suffix] if x])
-
-    return installversion
+    """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
+    old_fn = 'framework.easyconfig.easyconfig.det_installversion'
+    _log.deprecated('Use module_generator.det_full_ec_version instead of %s' % old_fn, '2.0')
+    cfg = {
+        'version': version,
+        'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+        'versionprefix': prefix,
+        'versionsuffix': suffix,
+    }
+    return det_full_ec_version(cfg)
 
 
 def resolve_template(value, tmpl_dict):

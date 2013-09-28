@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2011-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,32 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This declares the namespace for the tools submodule of EasyBuild,
-which contains support utilities.
+Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
-@author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 from pkgutil import extend_path
+from vsc import fancylogger
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+
+
+class ModuleNamingScheme(object):
+    """Abstract class for a module naming scheme implementation."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize logger."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+    def det_full_module_name(self, ec):
+        """
+        Determine full module name from given easyconfig, according to module naming scheme.
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+
+        @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
+        """
+        return NotImplementedError

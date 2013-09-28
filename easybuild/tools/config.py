@@ -42,7 +42,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
-from easybuild.tools.utilities import read_environment as _read_environment
+from easybuild.tools.environment import read_environment as _read_environment
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -252,6 +252,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
         'modules_tool': 'EnvironmentModulesC',
+        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
     }
 
     # sanity check
@@ -341,11 +342,25 @@ def build_path():
     return variables['buildpath']
 
 
+def source_paths():
+    """
+    Return the list of source paths
+    """
+    if isinstance(variables['sourcepath'], basestring):
+        return variables['sourcepath'].split(':')
+    elif isinstance(variables['sourcepath'], (tuple, list)):
+        return variables['sourcepath']
+    else:
+        typ = type(variables['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+
+
 def source_path():
     """
-    Return the source path
+    Return the source path (deprecated)
     """
-    return variables['sourcepath']
+    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
+    return source_paths()
 
 
 def install_path(typ=None):
@@ -392,7 +407,15 @@ def get_modules_tool():
     """
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
-    return variables['modules_tool']
+    # 'modules_tool' key will only be present if EasyBuild config is initialized
+    return variables.get('modules_tool', None)
+
+
+def get_module_naming_scheme():
+    """
+    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    """
+    return variables['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):
@@ -491,8 +514,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.utilities"""
-    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    """Depreacted location for read_environment, use easybuild.tools.environment"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
     return _read_environment(env_vars, strict)
 
 

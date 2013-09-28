@@ -23,16 +23,39 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This declares the namespace for the tools submodule of EasyBuild,
-which contains support utilities.
+EasyBuild support for building and installing toy, implemented as an easyblock
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
-@author: Pieter De Baets (Ghent University)
-@author: Jens Timmerman (Ghent University)
 """
-from pkgutil import extend_path
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+import os
+import shutil
+
+from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+from easybuild.tools.filetools import run_cmd
+
+class EB_toy(EasyBlock):
+    """Support for building/installing toy."""
+
+    def configure_step(self):
+        """Configure build of toy."""
+        os.rename('toy.source', 'toy.c')
+
+    def build_step(self):
+        """Build toy."""
+        run_cmd('gcc toy.c -o toy')
+
+    def install_step(self):
+        """Install toy."""
+        bindir = os.path.join(self.installdir, 'bin')
+        os.mkdir(bindir)
+        shutil.copy2('toy', bindir)
+
+    def sanity_check_step(self):
+        """Custom sanity check for toy."""
+        custom_paths = {
+            'files': ['bin/toy'],
+            'dirs': [],
+        }
+        super(EB_toy, self).sanity_check_step(custom_paths=custom_paths)

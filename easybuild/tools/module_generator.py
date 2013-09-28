@@ -32,18 +32,28 @@ Generating module files.
 @author: Jens Timmerman (Ghent University)
 @author: Fotis Georgatos (Uni.Lu)
 """
+import glob
 import os
+import string
+import sys
 import tempfile
 from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.config import install_path
-from easybuild.tools.utilities import quote_str
+from easybuild.tools import config, module_naming_scheme
+from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.utilities import import_available_modules, quote_str
 
 
-_log = fancylogger.getLogger('moduleGenerator', fname=False)
+_log = fancylogger.getLogger('module_generator', fname=False)
 
 # general module class
 GENERAL_CLASS = 'all'
+
+# suffix for devel module filename
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
 class ModuleGenerator(object):
@@ -60,7 +70,7 @@ class ModuleGenerator(object):
         """
         Creates the absolute filename for the module.
         """
-        module_path = install_path('mod')
+        module_path = config.install_path('mod')
 
         # Fake mode: set installpath to temporary dir
         if self.fake:
@@ -69,11 +79,10 @@ class ModuleGenerator(object):
             module_path = self.tmpdir
 
         # Real file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, self.app.name, self.app.get_installversion())
+        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name(self.app.cfg))
 
         # Make symlink in moduleclass category
-        classPath = os.path.join(module_path, self.app.cfg['moduleclass'], self.app.name)
-        classPathFile = os.path.join(classPath, self.app.get_installversion())
+        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
 
         # Create directories and links
         for directory in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
@@ -103,55 +112,65 @@ class ModuleGenerator(object):
         """
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
-        txt = "#%Module\n"
-        txt += """
-proc ModulesHelp { } {
-    puts stderr {   %(description)s
-}
-}
-
-module-whatis {%(description)s}
-
-set root    %(installdir)s
-
-""" % {'description': description, 'installdir': self.app.installdir}
+        lines = [
+            "#%%Module",  # double % to escape string formatting!
+            "",
+            "proc ModulesHelp { } {",
+            "    puts stderr {   %(description)s",
+            "    }",
+            "}",
+            "",
+            "module-whatis {%(description)s}",
+            "",
+            "set root    %(installdir)s",
+            "",
+        ]
 
         if self.app.cfg['moduleloadnoconflict']:
-            txt += """
-if { ![is-loaded %(name)s/%(version)s] } {
-    if { [is-loaded %(name)s] } {
-        module unload %(name)s
-    }
-}
-
-""" % {'name': self.app.name, 'version': self.app.version}
+            lines.extend([
+                "if { ![is-loaded %(name)s/%(version)s] } {",
+                "    if { [is-loaded %(name)s] } {",
+                "        module unload %(name)s",
+                "    }",
+                "}",
+                "",
+            ])
 
         elif conflict:
-            txt += "conflict    %s\n" % self.app.name
+            lines.append("conflict    %s\n" % self.app.name)
+
+        txt = '\n'.join(lines) % {
+            'name': self.app.name,
+            'version': self.app.version,
+            'description': description,
+            'installdir': self.app.installdir,
+        }
 
         return txt
 
-    def load_module(self, name, version):
+    def load_module(self, mod_name):
         """
-        Generate load statements for module with name and version.
+        Generate load statements for module.
         """
-        return """
-if { ![is-loaded %(name)s/%(version)s] } {
-    module load %(name)s/%(version)s
-}
-""" % {'name': name, 'version': version}
+        return '\n'.join([
+            "",
+            "if { ![is-loaded %(mod_name)s] } {",
+            "    module load %(mod_name)s",
+            "}",
+            "",
+        ]) % {'mod_name': mod_name}
 
-    def unload_module(self, name, version):
+    def unload_module(self, mod_name):
         """
-        Generate unload statements for module with name and version.
+        Generate unload statements for module.
         """
-        return """
-if { ![is-loaded %(name)s/%(version)s] } {
-    if { [is-loaded %(name)s] } {
-        module unload %(name)s
-    }
-}
-""" % {'name': name, 'version': version}
+        return '\n'.join([
+            "",
+            "if { [is-loaded %(mod_name)s] } {",
+            "    module unload %(mod_name)s",
+            "}",
+            "",
+        ]) % {'mod_name': mod_name}
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
@@ -181,3 +200,96 @@ if { ![is-loaded %(name)s/%(version)s] } {
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
+
+def avail_module_naming_schemes():
+    """
+    Returns a list of available module naming schemes.
+    """
+    mns_attr = 'AVAIL_MODULE_NAMING_SCHEMES'
+    if not hasattr(module_naming_scheme, mns_attr):
+        # all subclasses of ModuleNamingScheme available in the easybuild.tools.module_naming_scheme namespace are eligible
+        import_available_modules('easybuild.tools.module_naming_scheme')
+
+        # construct name-to-class dict of available module naming scheme
+        avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
+
+        # cache dict of available module naming scheme in module constant
+        setattr(module_naming_scheme, mns_attr, avail_mnss)
+        return avail_mnss
+    else:
+        return getattr(module_naming_scheme, mns_attr)
+
+
+def get_custom_module_naming_scheme():
+    """
+    Get custom module naming scheme as specified in configuration.
+    """
+    avail_mnss = avail_module_naming_schemes()
+    _log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
+    sel_mns = config.get_module_naming_scheme()
+    if sel_mns in avail_mnss:
+        return avail_mnss[sel_mns]()
+    else:
+        _log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
+
+
+def is_valid_module_name(mod_name):
+    """Check whether the specified value is a valid module name."""
+    # module name must be a string
+    if not isinstance(mod_name, basestring):
+        _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
+        return False
+    # module name must be relative path
+    elif mod_name.startswith(os.path.sep):
+        _log.warning("Module name (%s) should be a relative file path" % mod_name)
+        return False
+    # module name should not be empty
+    elif not len(mod_name) > 0:
+        _log.warning("Module name (%s) should have length > 0." % mod_name)
+        return False
+    else:
+        # check whether filename only contains printable characters
+        # (except for carriage-control characters \r, \x0b and \xoc)
+        invalid_chars = [x for x in mod_name if not x in string.printable[:-3]]
+        if len(invalid_chars) > 0:
+            _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
+            return False
+    _log.debug("Module name %s validated" % mod_name)
+    return True
+
+
+def det_full_module_name(ec, eb_ns=False):
+    """
+    Determine full module name by selected module naming scheme, based on supplied easyconfig.
+    Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
+    with the following requirements:
+        - module name is specified as a relative path
+        - string representing module name has length > 0
+        - module name only contains printable characters (string.printable, except carriage-control chars)
+    """
+    _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
+    if eb_ns:
+        # return module name under EasyBuild module naming scheme
+        mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
+    else:
+        try:
+            mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
+        except KeyError, err:
+            # easyconfig keys available for generating module name are limited to name/version/versionsuffix/toolchain
+            # because dependency specifications only provide these keys
+            # to support more involved module naming scheme, a parsed easyconfig file is always required
+            # see https://github.com/hpcugent/easybuild-framework/issues/687
+            error_msg = "An error occured when determining module name for %s, " % ec
+            error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
+            _log.error(error_msg)
+
+    if not is_valid_module_name(mod_name):
+        _log.error("%s is not a valid module name" % str(mod_name))
+    else:
+        _log.debug("Obtained module name %s" % mod_name)
+
+    return mod_name
+
+def det_devel_module_filename(ec):
+    """Determine devel module filename."""
+    return det_full_module_name(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
