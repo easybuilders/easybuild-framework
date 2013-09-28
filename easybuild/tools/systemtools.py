@@ -77,7 +77,7 @@ def get_core_count():
 
     if os_type == LINUX:
         cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp, 'r'):
+        if os.path.exists(cpuinfo_fp):
             txt = read_file(cpuinfo_fp, log_error=False)
             # sometimes this is uppercase
             res = txt.lower().count('processor\t:')
@@ -110,7 +110,7 @@ def get_cpu_vendor():
 
     if os_type == LINUX:
         cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp, 'r'):
+        if os.path.exists(cpuinfo_fp):
             txt = read_file(cpuinfo_fp, log_error=False)
             arch = UNKNOWN
             # vendor_id might not be in the /proc/cpuinfo, so this might fail
@@ -155,7 +155,7 @@ def get_cpu_model():
     if os_type == LINUX:
         regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
         cpuinfo_fp = '/proc/cpuinfo'
-        if os.path.exists(cpuinfo_fp, 'r'):
+        if os.path.exists(cpuinfo_fp):
             txt = read_file(cpuinfo_fp, log_error=False)
             if txt is not None:
                 return regexp.search(txt).groupdict()['modelname'].strip()
@@ -191,7 +191,7 @@ def get_cpu_speed():
 
             # Linux without cpu scaling
             cpuinfo_fp = '/proc/cpuinfo'
-            if os.path.exists(cpuinfo_fp, 'r'):
+            if os.path.exists(cpuinfo_fp):
                 f = open(cpuinfo_fp, 'r')
                 for line in f:
                     cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)
