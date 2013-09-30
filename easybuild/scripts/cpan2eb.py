@@ -47,7 +47,8 @@ class CpanMeta(object):
     """
     def __init__(self):
         """Constructor"""
-        dummy = {'download_url': 'example.com/bla', 'release': 0, 'version': 0, 'distribution': 'ExtUtils-MakeMaker'}
+        dummy = {'download_url': 'example.com/bla', 'release': '0', 'version': '0', 'distribution': 'ExtUtils-MakeMaker',
+                 'modulename': 'ExtUtils::MakeMaker'}
         self.cache = {'ExtUtils::MakeMaker': dummy,  'perl': dummy}
         self.graph = {'ExtUtils::MakeMaker': [], 'perl': []}
         self.client = Client('api.metacpan.org', token="bla")
@@ -58,6 +59,7 @@ class CpanMeta(object):
         depsjson = self.client.get("/v0/release/%(author)s/%(release)s" % json)
         depsjson = depsjson[1]
         depsjson.update(json)
+        depsjson.update({'modulename': modulename})
         return depsjson
 
     def get_recursive_data(self, modulename):
@@ -130,8 +132,8 @@ for module in topological_sort(modules, go.args[0]):
     url, name = data['download_url'].rsplit("/", 1)
     data.update({'url': url, 'tarball': name})  # distribution sometimes contains subdirs
     #print module
-    if data['release'] != '0' and data['version'] != '0':
-        print    """('%(distribution)s', '%(version)s', {
+    if data['release'] is not '0' and data['version'] is not '0':
+        print    """('%(modulename)s', '%(version)s', {
                     'source_tmpl': '%(tarball)s',
                     'source_urls': ['%(url)s'],
                 }),""" % data
