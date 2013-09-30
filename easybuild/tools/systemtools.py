@@ -84,6 +84,8 @@ def get_avail_core_count():
                 _log.debug("No list of allowed CPUs found, not in a cpuset.")
         except (IOError, OSError), err:
             _log.warning("Failed to read /proc/%s/status to determine the cpuset: %s" % (mypid, err))
+    else:
+        _log.warning("Not attempting to find a cpuset, trying to find all CPUs")
 
     return get_core_count()
 
