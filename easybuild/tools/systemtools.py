@@ -62,27 +62,27 @@ def get_avail_core_count():
     os_type = get_os_type()
 
     if os_type == LINUX:
-        mypid = os.getpid()
         try:
+            mypid = os.getpid()
             f = open("/proc/%s/status" % mypid,'r')
-            for line in f:
-                cpuset = re.match("^Cpus_allowed_list:\s*([0-9,-]+)",line)
-                if cpuset is not None:
-                    break
+            txt = f.read()
             f.close()
+            cpuset = re.match("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
             if cpuset is not None:
                 cpuset_list = cpuset.group(1).split(',')
                 numofcpus = 0
                 for cpus in cpuset_list:
                     cpu_range = re.match("(\d+)-(\d+)",cpus)
                     if cpu_range is not None:
-                        numofcpus += int(cpu_range.group(2))-int(cpu_range.group(1))+1
+                        numofcpus += int(cpu_range.group(2)) - int(cpu_range.group(1)) + 1
                     else:
                         numofcpus += 1
 
                 _log.info("In cpuset with %s CPUs" % numofcpus)
                 return numofcpus
-        except IOError, err:
+            else:
+                _log.debug("No list of allowed CPUs found, not in a cpuset.")
+        except (IOError, OSError), err:
             _log.warning("Failed to read /proc/%s/status to determine the cpuset: %s" % (mypid, err))
 
     return get_core_count()
