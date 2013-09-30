@@ -53,6 +53,41 @@ class SystemToolsException(Exception):
     """raised when systemtools fails"""
 
 
+def get_avail_core_count():
+    """
+    Returns the number of available CPUs. This differs from get_core_count() in that it keeps
+    cpusets in mind. When not in a cpuset, it returns get_core_count().
+    Linux only for the moment.
+    """
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        mypid = os.getpid()
+        try:
+            f = open("/proc/%s/status" % mypid,'r')
+            for line in f:
+                cpuset = re.match("^Cpus_allowed_list:\s*([0-9,-]+)",line)
+                if cpuset is not None:
+                    break
+            f.close()
+            if cpuset is not None:
+                cpuset_list = cpuset.group(1).split(',')
+                numofcpus = 0
+                for cpus in cpuset_list:
+                    cpu_range = re.match("(\d+)-(\d+)",cpus)
+                    if cpu_range is not None:
+                        numofcpus += int(cpu_range.group(2))-int(cpu_range.group(1))+1
+                    else:
+                        numofcpus += 1
+
+                _log.info("In cpuset with %s CPUs" % numofcpus)
+                return numofcpus
+        except IOError, err:
+            _log.warning("Failed to read /proc/%s/status to determine the cpuset: %s" % (mypid, err))
+
+    return get_core_count()
+
+
 def get_core_count():
     """Try to detect the number of virtual or physical CPUs on this system.
 
