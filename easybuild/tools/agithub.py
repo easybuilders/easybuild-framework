@@ -38,7 +38,7 @@ try:
 except ImportError:
     import simplejson as json
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 class Client(object):
   http_methods = (
       'get',
@@ -47,7 +47,7 @@ class Client(object):
       'put',
       )
 
-  def __init__(self, username=None, password=None, token=None):
+  def __init__(self, url, username=None, password=None, token=None):
     if username is not None:
       if password is None and token is None:
         raise TypeError("You need a password to authenticate as " + username)
@@ -59,6 +59,7 @@ class Client(object):
       elif token is not None:
         self.auth_header = 'Token %s' % token
     self.username = username
+    self.url = url
 
   def get(self, url, headers={}, **params):
     url += self.urlencode(params)
@@ -80,7 +81,7 @@ class Client(object):
     if self.username:
         headers['Authorization'] = self.auth_header
     else:
-        headers['User-Agent'] = 'agithub'
+        headers['User-Agent'] = 'easybuild'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()
@@ -105,7 +106,7 @@ class Client(object):
     return 'Basic ' + base64.b64encode('%s:%s' % (self.username, password)).strip()
 
   def get_connection(self):
-    return httplib.HTTPSConnection('api.github.com')
+    return httplib.HTTPSConnection(self.url)
 
 
 class Github(object):
@@ -132,6 +133,7 @@ class Github(object):
   automatically supports the full API--so why should you care?
   '''
   def __init__(self, *args, **kwargs):
+    kwargs['url'] = "api.github.com"
     self.client = Client(*args, **kwargs)
   def __getattr__(self, key):
     return RequestBuilder(self.client).__getattr__(key)
