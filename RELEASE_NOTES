@@ -29,6 +29,7 @@ feature + bugfix release
 - various bug fixes, including:
     - avoid importing toolchain modules over and over again to make toolchain constants available in toolchain module (#679)
     - only change the group id if current gid is different from what we want in adjust_permissions function (#685)
+    - restore original environment after running 'module purge' (#692)
 
 v1.7.0 (September 2nd 2013)
 ---------------------------
