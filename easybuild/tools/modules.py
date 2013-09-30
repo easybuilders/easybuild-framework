@@ -112,6 +112,12 @@ class ModulesTool(object):
         self.log.deprecated("'modules' class variable is deprecated, just use load([<list of modules>])", '2.0')
         return self._modules
 
+    def check_cmd_avail(self):
+        """Check whether modules tool command is available."""
+        which_ec = subprocess.call(["which", self.cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if which_ec != 0:
+            self.log.error("%s modules tool can not be used, '%s' command is not available." % (self.__class__.__name__, self.cmd))
+
     def check_module_path(self):
         """
         Check if MODULEPATH is set and change it if necessary.
@@ -389,10 +395,7 @@ class EnvironmentModulesC(ModulesTool):
         """Constructor, set modulecmd-specific class variable values."""
         super(EnvironmentModulesC, self).__init__(*args, **kwargs)
         self.cmd = "modulecmd"
-
-        which_ec = subprocess.call(["which", "modulecmd"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if which_ec != 0:
-            self.log.error("EnvironmentModulesC modules tool can not be used, 'modulecmd' is not available.")
+        self.check_cmd_avail()
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
@@ -435,14 +438,10 @@ class Lmod(ModulesTool):
         """Constructor, set lmod-specific class variable values."""
         super(Lmod, self).__init__(*args, **kwargs)
         self.cmd = "lmod"
+        self.check_cmd_avail()
 
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
-
-        # ensure Lmod is available
-        which_ec = subprocess.call(["which", "lmod"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if which_ec != 0:
-            self.log.error("Lmod modules tool can not be used, 'lmod' is not available.")
 
         # check Lmod version
         try:
@@ -488,6 +487,7 @@ class Lmod(ModulesTool):
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
             full_cmd = [self.cmd, 'python', 'use', modpath]
+            self.log.debug("Running %s" % ' '.join(full_cmd))
             proc = subprocess.Popen(full_cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
             (stdout, stderr) = proc.communicate()
             exec stdout
