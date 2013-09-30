@@ -70,16 +70,10 @@ def get_avail_core_count():
             cpuset = re.match("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
             if cpuset is not None:
                 cpuset_list = cpuset.group(1).split(',')
-                numofcpus = 0
-                for cpus in cpuset_list:
-                    cpu_range = re.match("(\d+)-(\d+)",cpus)
-                    if cpu_range is not None:
-                        numofcpus += int(cpu_range.group(2)) - int(cpu_range.group(1)) + 1
-                    else:
-                        numofcpus += 1
-
-                _log.info("In cpuset with %s CPUs" % numofcpus)
-                return numofcpus
+                # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
+                num_of_cpus = sum([(lambda x: x[-1] - x[0] + 1)(map(int, r.split('-'))) for r in cpuset_list])
+                _log.info("In cpuset with %s CPUs" % num_of_cpus)
+                return num_of_cpus
             else:
                 _log.debug("No list of allowed CPUs found, not in a cpuset.")
         except (IOError, OSError), err:
