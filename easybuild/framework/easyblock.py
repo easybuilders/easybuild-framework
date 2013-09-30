@@ -146,6 +146,9 @@ class EasyBlock(object):
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
 
+        # keep track of original environment, so we restore it if needed
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # at the end of __init__, initialise the logging
         self._init_log()
 
@@ -795,6 +798,8 @@ class EasyBlock(object):
             # purge all loaded modules if desired
             if purge:
                 m.purge()
+                # restore original environment
+                modify_env(os.environ, self.orig_environ)
             m.check_module_path()  # make sure MODULEPATH is set correctly after purging
             m.load([self.mod_name])
         else:

@@ -261,7 +261,7 @@ def main(testing_data=(None, None, None)):
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
     # before building starts, take snapshot of environment (watch out -t option!)
-    origEnviron = copy.deepcopy(os.environ)
+    orig_environ = copy.deepcopy(os.environ)
     os.chdir(os.environ['PWD'])
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
@@ -328,7 +328,7 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for spec in orderedSpecs:
-            (success, _) = build_and_install_software(spec, options, origEnviron, silent=testing)
+            (success, _) = build_and_install_software(spec, options, orig_environ, silent=testing)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1
@@ -786,7 +786,7 @@ def get_build_stats(app, starttime):
     return buildstats
 
 
-def build_and_install_software(module, options, origEnviron, exitOnFailure=True, silent=False):
+def build_and_install_software(module, options, orig_environ, exitOnFailure=True, silent=False):
     """
     Build the software
     """
@@ -797,7 +797,7 @@ def build_and_install_software(module, options, origEnviron, exitOnFailure=True,
     # restore original environment
     _log.info("Resetting environment")
     filetools.errorsFoundInLog = 0
-    modify_env(os.environ, origEnviron)
+    modify_env(os.environ, orig_environ)
 
     cwd = os.getcwd()
 
