@@ -454,7 +454,7 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                targetdir = candidate_filepaths[0]
+                targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
                 if not os.path.isdir(targetdir):
                     try:
                         os.makedirs(targetdir)
