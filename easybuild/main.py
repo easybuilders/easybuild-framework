@@ -1104,6 +1104,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, options):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
+        instance.mod_name = det_full_module_name(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()
