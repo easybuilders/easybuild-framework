@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-##
+# #
 # Copyright 2012-2013 Ghent University
 #
 # This file is part of vsc-base,
@@ -23,7 +23,7 @@
 #
 # You should have received a copy of the GNU Library General Public License
 # along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Various functions that are missing from the default Python library.
 
@@ -197,7 +197,6 @@ class RUDict(dict):
                     self.r_update(k, {k: v})
 
         for k in F:
-            logger.debug("Hmmz")
             self.r_update(k, {k: F[k]})
 
     def r_update(self, key, other_dict):

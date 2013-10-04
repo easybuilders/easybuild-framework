@@ -31,9 +31,13 @@ Creating a new toolchain should be as simple as possible.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import os
 from vsc import fancylogger
+
 from easybuild.tools.environment import setvar
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -43,9 +47,6 @@ class Toolchain(object):
 
     OPTIONS_CLASS = ToolchainOptions
     VARIABLES_CLASS = ToolchainVariables
-
-    DUMMY_NAME = 'dummy'  # The official dummy toolchain name
-    DUMMY_VERSION = 'dummy'  # if name==DUMMY_NAME and version==DUMMY_VERSION, do not load dependencies
 
     NAME = None
     VERSION = None
@@ -186,6 +187,25 @@ class Toolchain(object):
 
         return version
 
+    def as_dict(self, name=None, version=None):
+        """Return toolchain specification as a dictionary."""
+        if name is None:
+            name = self.name
+        if version is None:
+            version = self.version
+        return {
+            'name': name,
+            'version': version,
+            'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
+            'versionsuffix': '',
+            'dummy': True,
+            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_full_module_name
+        }
+
+    def det_module_name(self, name=None, version=None):
+        """Determine module name for this toolchain."""
+        return det_full_module_name(self.as_dict(name, version))
+
     def _toolchain_exists(self, name=None, version=None):
         """
         Verify if there exists a toolchain by this name and version
@@ -195,15 +215,15 @@ class Toolchain(object):
         if not version:
             version = self.version
 
-        if self.name == self.DUMMY_NAME:
-            self.log.debug("_toolchian_exists: checking for %s toolchain. Always exists, returning True" %
-                           self.DUMMY_NAME)
+        if name == DUMMY_TOOLCHAIN_NAME:
+            self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
             return True
 
         # TODO: what about dummy versions ?
 
-        self.log.debug("_toolchain_exists: checking for name %s version %s" % (name, version))
-        return self.modules_tool.exists(name, version)
+        mod_name = self.det_module_name(name, version)
+        self.log.debug("_toolchain_exists: checking for name %s version %s (module: %s)" % (name, version, mod_name))
+        return self.modules_tool.exists(mod_name)
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -220,17 +240,17 @@ class Toolchain(object):
         """ Generate a version string for a dependency on a module using this toolchain """
         # Add toolchain to version string
         toolchain = ''
-        if self.name != self.DUMMY_NAME:
+        if self.name != DUMMY_TOOLCHAIN_NAME:
             toolchain = '-%s-%s' % (self.name, self.version)
-        elif self.version != self.DUMMY_VERSION:
+        elif self.version != DUMMY_TOOLCHAIN_VERSION:
             toolchain = '%s' % (self.version)
 
         # Check if dependency is independent of toolchain
-        # TODO: assuming DUMMY_NAME here, what about version?
-        if self.DUMMY_NAME in dependency and dependency[self.DUMMY_NAME]:
+        # TODO: assuming dummy here, what about version?
+        if DUMMY_TOOLCHAIN_NAME in dependency and dependency[DUMMY_TOOLCHAIN_NAME]:
             toolchain = ''
 
-        suffix = dependency.get('suffix', '')
+        suffix = dependency.get('versionsuffix', '')
 
         if 'version' in dependency:
             version = "".join([dependency['version'], toolchain, suffix])
@@ -252,16 +272,9 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            if 'tk' in dep:
-                # TODO LEGACY to be cleaned up
-                self.log.raiseException('add_dependencies: legacy tk found in dep %s' % dep)
-
-            if not 'tc' in dep:
-                dep['tc'] = self.get_dependency_version(dep)
-
-            if not self.modules_tool.exists(dep['name'], dep['tc']):
-                self.log.raiseException('add_dependencies: no module found for dependency %s/%s' %
-                                        (dep['name'], dep['tc']))
+            mod_name = det_full_module_name(dep)
+            if not self.modules_tool.exists(mod_name):
+                self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
             else:
                 self.dependencies.append(dep)
                 self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
@@ -287,26 +300,26 @@ class Toolchain(object):
         if not self._toolchain_exists():
             self.log.raiseException("No module found for toolchain name '%s' (%s)" % (self.name, self.version))
 
-        if self.name == self.DUMMY_NAME:
-            if self.version == self.DUMMY_VERSION:
+        if self.name == DUMMY_TOOLCHAIN_NAME:
+            if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.add_module(self.dependencies)
-                self.modules_tool.load()
+                self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
-        self.modules_tool.add_module([(self.name, self.version)])
-        self.modules_tool.add_module(self.dependencies)
-        self.modules_tool.load()
+        self.log.debug("Loading toolchain module and dependencies...")
+        self.modules_tool.load([self.det_module_name()])
+        self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
 
-        # determine direct toolchain dependencies (legacy, not really used anymore)
-        self.toolchain_dependencies = self.modules_tool.dependencies_for(self.name, self.version, depth=0)
+        # determine direct toolchain dependencies
+        mod_name = self.det_module_name()
+        self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
-        toolchain_module_deps = set([mod['name'] for mod in self.toolchain_dependencies])
+        toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
         toolchain_elements_mod_names = set([y for x in dir(self) if x.endswith('_MODULE_NAME') for y in eval("self.%s" % x)])
         # filter out toolchain name (e.g. 'GCC') from list of toolchain elements
         toolchain_elements_mod_names = set([x for x in toolchain_elements_mod_names if not x == self.name])
