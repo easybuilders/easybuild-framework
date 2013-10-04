@@ -184,6 +184,7 @@ def refactor(txt):
                     ('toolkit_name', "toolkit['name']"),
                     ('toolkit_version', "toolkit['version']"),
                     ('installversion', 'get_installversion'),
+                    ('get_installversion', 'det_full_ec_version'),
                     ('installsize', 'det_installsize'),
                     ('packages', 'extensions_step'),
                     ('find_package_patches', 'fetch_extension_patches'),
@@ -321,7 +322,7 @@ else:
     error("Usage: %s <path>" % sys.argv[0])
 
 # determine EasyBuild home dir, assuming this script is in <EasyBuild home>/easybuild/scripts
-easybuild_home = os.path.sep.join(os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
+easybuild_home = os.path.join(*os.path.abspath(sys.argv[0]).split(os.path.sep)[:-3])
 
 print "Found EasyBuild home: %s\n" % easybuild_home
 

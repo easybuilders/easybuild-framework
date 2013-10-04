@@ -1,6 +1,44 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.8.0 (October 4th 2013)
+-------------------------
+
+feature + bugfix release
+- add support for using alternative module naming schemes (#679, #696, #705, #706, #707)
+    - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
+    - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be provided to EasyBuild
+        - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
+        - a function named 'det_full_module_name' must be implemented, that determines the module name
+          in the form of an string based on the supplied dictionary(-like) argument
+    - the active module naming scheme is determined by EasyBuild configuration option 'module_naming_scheme'
+    - for now, only the name/version/versionsuffix/toolchain easyconfig parameters are guaranteed to be provided
+        - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work (see #687)
+    - implementing this involved a number of intrusive changes:
+        - the API of the modules.py module needed to be changed, breaking backward compatibility
+            - the function for which the signatures were modified are considered to be internal to the framework,
+              so this should have very minor impact w.r.t. easyblocks not included with EasyBuild
+            - affected functions include: available, exists, show, modulefile_path, dependencies_for
+        - the format for specifying dependencies was extended, to allow for specifying a custom toolchain
+            - this allows to fix inaccurate dependency specifications,
+              like "('OpenMPI', '1.6.4-GCC-4.7.2')" to "('OpenMPI', '1.6.4', '', ('GCC', '4.7.2'))"
+            - see also https://github.com/hpcugent/easybuild-easyconfigs/pull/431
+        - the recommended version for Lmod was bumped to v5.1.5
+            - using earlier 5.x version still works, but may be very slow when 'available' is used,
+              due to bugs and a missing feature in Lmod versions prior to v5.1.5 on which we rely
+- various other enhancements, including:
+    - only (try to) change group id if it is different from what is wanted (#685)
+    - added toy build unit test (#688)
+    - support for specifying a list of source paths in EasyBuild configuration (#690, #702)
+    - add function to determine CPU clock speed in systemtools.py (#694, #699)
+- various bug fixes, including:
+    - avoid importing toolchain modules over and over again to make toolchain constants available in toolchain module (#679)
+    - only change the group id if current gid is different from what we want in adjust_permissions function (#685)
+    - restore original environment after running 'module purge' (#698)
+        - important sidenote: this results in resetting the entire environment, and has impact on the sanity check step;
+          any environment variables that are set before the EasyBlock.sanity_check_step method fires, are no longer there
+          when the sanity check commands are run (cfr. https://github.com/hpcugent/easybuild-easyblocks/pull/268)
+
 v1.7.0 (September 2nd 2013)
 ---------------------------
 

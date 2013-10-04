@@ -252,6 +252,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
         'modules_tool': 'EnvironmentModulesC',
+        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
     }
 
     # sanity check
@@ -341,11 +342,25 @@ def build_path():
     return variables['buildpath']
 
 
+def source_paths():
+    """
+    Return the list of source paths
+    """
+    if isinstance(variables['sourcepath'], basestring):
+        return variables['sourcepath'].split(':')
+    elif isinstance(variables['sourcepath'], (tuple, list)):
+        return variables['sourcepath']
+    else:
+        typ = type(variables['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+
+
 def source_path():
     """
-    Return the source path
+    Return the source path (deprecated)
     """
-    return variables['sourcepath']
+    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
+    return source_paths()
 
 
 def install_path(typ=None):
@@ -394,6 +409,13 @@ def get_modules_tool():
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
     return variables.get('modules_tool', None)
+
+
+def get_module_naming_scheme():
+    """
+    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    """
+    return variables['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):

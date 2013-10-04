@@ -38,9 +38,12 @@ import re
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_class
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.repository import init_repository
 from vsc import fancylogger
 
@@ -54,7 +57,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
-    job_module_dict = {}
+    job_ids = {}
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
@@ -68,6 +71,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
     ppn = get_ppn()
 
+    def tokey(dep):
+        """Determine key for specified dependency."""
+        return det_full_module_name(dep)
+
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
@@ -78,14 +85,14 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         _log.info("creating job for ec: %s" % str(ec))
         new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
 
-        # Sometimes unresolvedDependencies will contain things, not needed to be build.
-        job_deps = [job_module_dict[dep] for dep in ec['unresolvedDependencies'] if dep in job_module_dict]
+        # sometimes unresolved_deps will contain things, not needed to be build
+        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
         new_job.submit()
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
-        job_module_dict[new_job.module] = new_job.jobid
+        job_ids[new_job.module] = new_job.jobid
         new_job.cleanup()
         jobs.append(new_job)
 
@@ -119,22 +126,23 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
 
     _log.info("Dictionary of environment variables passed to job: %s" % easybuild_vars)
 
-    # create unique name based on module name
-    name = "%s-%s" % easyconfig['module']
+    # obtain unique name based on name/easyconfig version tuple
+    ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
+    name = '-'.join(ec_tuple)
 
     var = config.oldstyle_environment_variables['test_output_path']
     easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
-    buildstats = repo.get_buildstats(*easyconfig['module'])
+    buildstats = repo.get_buildstats(*ec_tuple)
     resources = {}
     if buildstats:
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
     job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
-    job.module = easyconfig['module']
+    job.module = det_full_module_name(easyconfig['ec'])
 
     return job
 
@@ -148,7 +156,7 @@ def get_easyblock_instance(easyconfig, robot_path=None):
     returns an instance of EasyBlock (or subclass thereof)
     """
     spec = easyconfig['spec']
-    name = easyconfig['module'][0]
+    name = easyconfig['ec']['name']
 
     # handle easyconfigs with custom easyblocks
     easyblock = None
@@ -173,5 +181,5 @@ def prepare_easyconfig(ec, robot_path=None):
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
-    except:
-        pass
+    except (OSError, EasyBuildError), err:
+        _log.error("An error occured while preparing %s: %s" % (ec, err))
