@@ -35,6 +35,9 @@ feature + bugfix release
     - avoid importing toolchain modules over and over again to make toolchain constants available in toolchain module (#679)
     - only change the group id if current gid is different from what we want in adjust_permissions function (#685)
     - restore original environment after running 'module purge' (#698)
+        - important sidenote: this results in resetting the entire environment, and has impact on the sanity check step;
+          any environment variables that are set before the EasyBlock.sanity_check_step method fires, are no longer there
+          when the sanity check commands are run (cfr. https://github.com/hpcugent/easybuild-easyblocks/pull/268)
 
 v1.7.0 (September 2nd 2013)
 ---------------------------
