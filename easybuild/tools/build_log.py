@@ -74,7 +74,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 filepath_dirs.remove(dirName)
             else:
                 break
-        return "(at %s:%s in %s)" % (os.path.sep.join(filepath_dirs), line, function_name)
+        return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""

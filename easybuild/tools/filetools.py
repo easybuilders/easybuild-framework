@@ -822,7 +822,13 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 os.chmod(path, permissionBits)
 
             if group_id:
-                os.chown(path, -1, group_id)
+                # only change the group id if it the current gid is different from what we want
+                cur_gid = os.stat(path).st_gid
+                if not cur_gid == group_id:
+                    _log.debug("Changing group id of %s to %s" % (path, group_id))
+                    os.chown(path, -1, group_id)
+                else:
+                    _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
 
         except OSError, err:
             if ignore_errors:

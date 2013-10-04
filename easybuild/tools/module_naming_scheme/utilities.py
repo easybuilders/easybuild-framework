@@ -23,16 +23,35 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This declares the namespace for the tools submodule of EasyBuild,
-which contains support utilities.
+Utility functions for implementating module naming schemes.
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
+@author: Fotis Georgatos (Uni.Lu)
 """
-from pkgutil import extend_path
 
-# we're not the only ones in this namespace
-__path__ = extend_path(__path__, __name__)  #@ReservedAssignment
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+
+
+def det_full_ec_version(ec):
+    """
+    Determine exact install version, based on supplied easyconfig.
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    """
+
+    ecver = None
+
+    # determine main install version based on toolchain
+    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+        ecver = ec['version']
+    else:
+        ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
+
+    # prepend/append version prefix/suffix
+    ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
+
+    return ecver
+
