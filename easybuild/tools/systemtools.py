@@ -68,7 +68,7 @@ def get_avail_core_count():
             f = open("/proc/%s/status" % mypid,'r')
             txt = f.read()
             f.close()
-            cpuset = re.match("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
+            cpuset = re.search("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
             if cpuset is not None:
                 cpuset_list = cpuset.group(1).split(',')
                 # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
