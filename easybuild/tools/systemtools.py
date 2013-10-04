@@ -60,6 +60,7 @@ def get_avail_core_count():
     Linux only for the moment.
     """
     os_type = get_os_type()
+    max_num_cores = get_core_count()
 
     if os_type == LINUX:
         try:
@@ -73,7 +74,8 @@ def get_avail_core_count():
                 # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
                 num_of_cpus = sum([(lambda x: x[-1] - x[0] + 1)(map(int, r.split('-'))) for r in cpuset_list])
                 _log.info("In cpuset with %s CPUs" % num_of_cpus)
-                return num_of_cpus
+                # when not in a cpuset, the number can be higher then the number of real cores.
+                return min(num_of_cpus, max_num_cores)
             else:
                 _log.debug("No list of allowed CPUs found, not in a cpuset.")
         except (IOError, OSError), err:
@@ -81,7 +83,7 @@ def get_avail_core_count():
     else:
         _log.warning("Not attempting to find a cpuset, trying to find all CPUs")
 
-    return get_core_count()
+    return max_num_cores
 
 
 def get_core_count():
