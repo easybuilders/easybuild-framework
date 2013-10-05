@@ -27,11 +27,14 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import string
+import sys
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
+import easybuild.tools.environment as env
 
 _log = fancylogger.getLogger('tools.utilities')
 
@@ -60,17 +63,8 @@ def read_environment(env_vars, strict=False):
         @param: env_vars: a dict with key a name, value a environment variable name
         @param: strict, boolean, if True enforces that all specified environment variables are found
     """
-    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
-
-    if not len(env_vars) == len(result):
-        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
-        msg = 'Following name/variable not found in environment: %s' % missing
-        if strict:
-            _log.error(msg)
-        else:
-            _log.debug(msg)
-
-    return result
+    _log.deprecated("moved read_environment to tools.environment", "2.0")
+    return env.read_environment(env_vars, strict)
 
 
 def flatten(lst):
@@ -109,3 +103,20 @@ def remove_unwanted_chars(inputstring):
     All non-letter and non-numeral characters are considered unwanted except for underscore ('_'), see UNWANTED_CHARS.
     """
     return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
+
+
+def import_available_modules(namespace):
+    """
+    Import all available module in the specified namespace.
+
+    @param namespace: The namespace to import modules from.
+    """
+    modules = []
+    for path in sys.path:
+        for module in glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py'])):
+            if not module.endswith('__init__.py'):
+                mod_name = module.split(os.path.sep)[-1].split('.')[0]
+                modpath = '.'.join([namespace, mod_name])
+                _log.debug("importing module %s" % modpath)
+                modules.append(__import__(modpath, globals(), locals(), ['']))
+    return modules

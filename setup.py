@@ -61,13 +61,21 @@ def find_rel_test():
     current = os.getcwd()
     os.chdir(basedir)
     res = []
-    for subdir in ["easyblocks_sandbox", "easyconfigs", "modules"]:
+    for subdir in ["sandbox", "easyconfigs", "modules"]:
         res.extend([os.path.join(root, filename)
                     for root, dirnames, filenames in os.walk(subdir)
                     for filename in filenames if os.path.isfile(os.path.join(root, filename))])
     os.chdir(current)
     return res
 
+easybuild_packages = [
+    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
+    "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
+    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
+    "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",
+    "test.framework", "test",
+    "vsc", "vsc.utils",
+]
 
 setup(
     name="easybuild-framework",
@@ -78,42 +86,33 @@ setup(
 install software in a structured and robust way.
 This package contains the EasyBuild framework, which supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",
-    license="GPLv2",
-    keywords="software build building installation installing compilation HPC scientific",
-    url="http://hpcugent.github.com/easybuild",
-    packages=[
-        "easybuild", "easybuild.framework",
-        "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
-        "easybuild.toolchains", "easybuild.toolchains.compiler",
-        "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg",
-        "easybuild.tools", "easybuild.tools.toolchain", "test.framework",
-        "vsc", "vsc.utils", "test",
-        ],
-    package_dir={'test.framework': "test/framework"},
-    package_data={"test.framework": find_rel_test()},
-    scripts=["eb"],
-    data_files=[
+    license = "GPLv2",
+    keywords = "software build building installation installing compilation HPC scientific",
+    url = "http://hpcugent.github.com/easybuild",
+    packages = easybuild_packages,
+    package_dir = {'test.framework': "test/framework"},
+    package_data = {"test.framework": find_rel_test()},
+    scripts = ["eb"],
+    data_files = [
         ('easybuild', ["easybuild/easybuild_config.py"]),
-        ],
-    long_description="""This package contains the EasyBuild
+    ],
+    long_description = """This package contains the EasyBuild
 framework, which supports the creation of custom easyblocks that
 implement support for installing particular (groups of) software
 packages.
 
 """ + read("README.rst"),
-    classifiers=[
-                   "Development Status :: 5 - Production/Stable",
-                   "Environment :: Console",
-                   "Intended Audience :: System Administrators",
-                   "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-                   "Operating System :: POSIX :: Linux",
-                   "Programming Language :: Python :: 2.4",
-                   "Topic :: Software Development :: Build Tools",
-                  ],
-    platforms="Linux",
-    provides=["eb", "easybuild.framework", "easybuild.toolchains", "easybuild.toolchains.compiler",
-                "easybuild.toolchains.mpi", "easybuild.toolchains.fft", "easybuild.toolchains.linalg",
-                "easybuild.tools", "easybuild.tools.toolchain", "easybuild.test", "vsc"],
-    test_suite="easybuild.test.suite",
-    zip_safe=False,
+    classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Environment :: Console",
+        "Intended Audience :: System Administrators",
+        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+        "Operating System :: POSIX :: Linux",
+        "Programming Language :: Python :: 2.4",
+        "Topic :: Software Development :: Build Tools",
+    ],
+    platforms = "Linux",
+    provides = ["eb"] + easybuild_packages,
+    test_suite = "test.framework.suite",
+    zip_safe = False,
 )

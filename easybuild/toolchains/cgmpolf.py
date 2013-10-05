@@ -40,8 +40,3 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Cgmpolf(Cgmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmpolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []

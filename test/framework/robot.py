@@ -34,31 +34,41 @@ from unittest import TestCase, TestSuite
 from unittest import main as unittestmain
 from vsc import fancylogger
 
-import easybuild.tools.modules as modules
-import easybuild.main as main
+import easybuild.tools.options as eboptions
+from easybuild import main
+from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules = modules.Modules
-orig_main_modules = main.Modules
+orig_modules_tool = modules.modules_tool
+orig_main_modules_tool = main.modules_tool
 
 
-class MockModule(modules.Modules):
-    """ MockModule class, allows for controlling what Modules() will return """
+class MockModule(modules.ModulesTool):
+    """ MockModule class, allows for controlling what modules_tool() will return """
 
     def available(self, *args):
         """ no module should be available """
         return []
 
 
+def mock_module(mod_paths=None):
+    """Get mock module instance."""
+    return MockModule(mod_paths=mod_paths)
+
+
 class RobotTest(TestCase):
     """ Testcase for the robot dependency resolution """
 
     def setUp(self):
-        """ dynamically replace Modules class with MockModule """
+        """Set up everything for a unit test."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         # replace Modules class with something we have control over
-        modules.Modules = MockModule
-        main.Modules = MockModule
+        config.modules_tool = mock_module
+        main.modules_tool = mock_module
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
         # redefine the main log when calling the main functions directly
@@ -73,23 +83,36 @@ class RobotTest(TestCase):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
             'spec': '_',
-            'module': ("name", "version"),
+            'module': 'name/version',
             'dependencies': []
         }
         res = main.resolve_dependencies([deepcopy(easyconfig)], None)
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
+            'ec': {
+                'name': 'foo',
+                'version': '1.2.3',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            },
             'spec': '_',
-            'module': ("name", "version"),
-            'dependencies': [('gzip', '1.4')]
+            'module': 'name/version',
+            'dependencies': [{
+                'name': 'gzip',
+                'version': '1.4',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'dummy': True,
+            }],
+            'parsed': True,
         }
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
         # here we have include a Dependency in the easyconfig list
-        easyconfig['module'] = ("gzip", "1.4")
+        easyconfig['module'] = 'gzip/1.4'
 
         res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None)
         # all dependencies should be resolved
@@ -99,18 +122,24 @@ class RobotTest(TestCase):
         self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None)
 
         # test if dependencies of an automatically found file are also loaded
-        easyconfig_dep['dependencies'] = [('gzip', "1.4-GCC-4.6.3")]
+        easyconfig_dep['dependencies'] = [{
+            'name': 'gzip',
+            'version': '1.4',
+            'versionsuffix': '',
+            'toolchain': {'name': 'GCC', 'version': '4.6.3'},
+            'dummy': True,
+        }]
         res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
 
         # GCC should be first (required by gzip dependency)
-        self.assertEqual(('GCC', '4.6.3'), res[0]['module'])
-        self.assertEqual(('name', 'version'), res[-1]['module'])
+        self.assertEqual('GCC/4.6.3', res[0]['module'])
+        self.assertEqual('name/version', res[-1]['module'])
 
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        modules.Modules = orig_modules
-        main.Modules = orig_main_modules
+        config.modules_tool = orig_modules_tool
+        main.modules_tool = orig_main_modules_tool
         os.chdir(self.cwd)
 
 

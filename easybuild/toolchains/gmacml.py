@@ -31,11 +31,10 @@ EasyBuild support for gmacml compiler toolchain (includes GCC, MVAPICH2, ACML, B
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.acml import Acml
-from easybuild.toolchains.linalg.blacs import Blacs
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 
 
-class Gmacml(Gcc, Mvapich2, Acml, Blacs, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, MVAPICH2, ACML, BLACS, ScaLAPACK and FFTW."""
+class Gmacml(Gcc, Mvapich2, Acml, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MVAPICH2, ACML, ScaLAPACK and FFTW."""
     NAME = 'gmacml'

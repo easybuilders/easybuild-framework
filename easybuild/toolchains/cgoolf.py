@@ -40,8 +40,3 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Cgoolf(Cgompi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgoolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []

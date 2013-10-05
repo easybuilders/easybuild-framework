@@ -85,6 +85,10 @@ exts_list = ['ext1']
         sys.stdout.close()
         sys.stdout = stdoutorig
 
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
     def test_fake_module_load(self):
         """Testcase for fake module load"""
         self.contents = """
@@ -97,7 +101,12 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.variables['install_path']
-        eb.load_fake_module()
+        fake_mod_data = eb.load_fake_module()
+        eb.clean_up_fake_module(fake_mod_data)
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
 
     def test_extensions_step(self):
         """Test the extensions_step"""
@@ -129,6 +138,10 @@ exts_list = ['ext1']
         self.assertRaises(EasyBuildError, eb.skip_extensions)
         self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
 
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
         self.contents = """
@@ -154,6 +167,9 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # 'ext2' should not
         self.assertFalse('ext2' in [y for x in eb.exts for y in x.values()])
 
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
 
     def tearDown(self):
         """ make sure to remove the temporary file """

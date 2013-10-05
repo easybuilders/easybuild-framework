@@ -25,11 +25,12 @@
 # #
 """
 This script is a collection of all the testcases.
-Usage: "python -m easybuild.test.suite.py" or "./easybuild/test/suite.py"
+Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import sys
 import tempfile
@@ -38,33 +39,37 @@ from vsc import fancylogger
 
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
+import test.framework.config as c
+import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
 import test.framework.easyconfigversion as ev
-import test.framework.modulegenerator as mg
-import test.framework.modules as m
 import test.framework.filetools as f
+import test.framework.github as g
+import test.framework.module_generator as mg
+import test.framework.modules as m
+import test.framework.options as o
 import test.framework.repository as r
 import test.framework.robot as robot
-import test.framework.easyblock as b
-import test.framework.variables as v
-import test.framework.github as g
-import test.framework.toolchainvariables as tcv
+import test.framework.systemtools as s
 import test.framework.toolchain as tc
-import test.framework.options as o
-import test.framework.config as c
+import test.framework.toolchainvariables as tcv
+import test.framework.toy_build as t
+import test.framework.variables as v
 
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
+os.remove(log_fn)
 fancylogger.logToFile(log_fn)
 log = fancylogger.getLogger()
 log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
-SUITE = unittest.TestSuite([x.suite() for x in [r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, o, c]])
+# note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
+SUITE = unittest.TestSuite([x.suite() for x in [o, r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s]])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""
@@ -84,4 +89,5 @@ if not res.wasSuccessful():
     print "Log available at %s" % log_fn, xml_msg
     sys.exit(2)
 else:
-    os.remove(log_fn)
+    for f in glob.glob('%s*' % log_fn):
+        os.remove(f)
