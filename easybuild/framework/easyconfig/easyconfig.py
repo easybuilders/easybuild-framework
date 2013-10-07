@@ -32,6 +32,7 @@ Easyconfig module that contains the EasyConfig class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -132,6 +133,9 @@ class EasyConfig(object):
 
         # parse easyconfig file
         self.parse(path)
+
+        # update easyconfig using env vars
+        self.parse_env()
 
         # handle allowed system dependencies
         self.handle_allowed_system_deps()
@@ -237,6 +241,32 @@ class EasyConfig(object):
 
         # indicate that this is a parsed easyconfig
         self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
+
+    def parse_env(self):
+        """
+        Override easyconfig settings from the environment.
+        When a environment variable of the form EB_EC_PARAM_<EB NAME>_<CONFIG> the value for
+        <CONFIG> is overriden.
+        """
+        env_re = re.compile("^EB_EC_PARAM_%s_(\w+)$" % self.name.upper())
+        for env_var in os.environ.keys():
+            check_env = env_re.search(env_var)
+            if check_env is not None:
+                new_config = check_env.group(1).lower()
+                if new_config in self._config:
+                    if isinstance(self[new_config], basestring):
+                        self[new_config] = os.environ[env_var]
+                    elif isinstance(self[new_config], list):
+                        self[new_config] = os.environ[env_var].split(os.pathsep)
+                    elif isinstance(self[new_config], dict):
+                        try:
+                            self[new_config] = {x.split('=')[0] : x.split('=')[1] for x in os.environ[env_var].split(os.pathsep)}
+                        except IndexError, err:
+                            self.log.error("Environment variable %s has an invalid syntax for a dict: %s" % (env_var,err))
+
+                    self.log.info("Environment config option override for %s to %s" % (new_config,self[new_config]))
+                else:
+                    self.log.debug("Ignoring unknown environment config override for %s (value: %s)" % (new_config,os.environ[env_var]))
 
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
