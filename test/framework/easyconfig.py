@@ -110,7 +110,7 @@ class EasyConfigTest(TestCase):
             'version = "3.14"',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "mandatory variables .* not provided", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "mandatory variables? .* not provided", EasyConfig, self.eb_file)
 
         self.contents += '\n' + '\n'.join([
             'homepage = "http://google.com"',
@@ -152,7 +152,7 @@ class EasyConfigTest(TestCase):
         self.assertEqual(det_full_ec_version(ec), "3.14")
 
         os.chmod(self.eb_file, 0000)
-        self.assertErrorRegex(EasyBuildError, "Unexpected IOError", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
         os.chmod(self.eb_file, 0755)
 
         self.contents += "\nsyntax_error'"
@@ -262,7 +262,7 @@ class EasyConfigTest(TestCase):
         extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
 
         # test extra mandatory vars
-        self.assertErrorRegex(EasyBuildError, r"mandatory variables \S* not provided",
+        self.assertErrorRegex(EasyBuildError, r"mandatory variables? \S* not provided",
                               EasyConfig, self.eb_file, extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
