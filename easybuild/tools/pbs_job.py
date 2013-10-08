@@ -45,6 +45,7 @@ except ImportError:
                          "Please make sure pbs_python is installed and usable.")
 
 MAX_WALLTIME = 72
+MAX_SUBMISSION_ATTEMPTS = 3
 
 def connect_to_server(pbs_server=None):
     """Connect to PBS server and return connection."""
@@ -219,11 +220,17 @@ class PbsJob(object):
 
         # extend paramater should be 'NULL' because this is required by the python api
         extend = 'NULL'
-        jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, extend)
-
+        # job submission sometimes fails without producing an error, so retry if no job ID was obtained
+        jobid = None
+        for attempt in xrange(0, MAX_SUBMISSION_ATTEMPTS):
+            jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, extend)
+            if jobid is not None:
+                break
+            self.log.warning("Job submission returned None as ID, retrying job submission (attempt %d)" % attempt)
+        # make sure job was properly submitted
         is_error, errormsg = pbs.error()
-        if is_error:
-            self.log.error("Failed to submit job script %s: error %s" % (scriptfn, errormsg))
+        if is_error or jobid is None:
+            self.log.error("Failed to submit job script %s (job id: %s, error %s)" % (scriptfn, jobid, errormsg))
         else:
             self.log.debug("Succesful job submission returned jobid %s" % jobid)
             self.jobid = jobid
