@@ -1284,7 +1284,7 @@ def regtest(options, easyconfig_paths):
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
-        command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
+        command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, robot_path=options.robot)
 
