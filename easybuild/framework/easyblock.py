@@ -32,6 +32,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -47,18 +48,21 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_path, install_path, log_path, get_log_filename
-from easybuild.tools.config import read_only_installdir, source_path, module_classes
+from easybuild.tools.config import read_only_installdir, source_paths, module_classes
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2, modify_env
+from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
+from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
-from easybuild.tools.modules import Modules, get_software_root
+from easybuild.tools.modules import get_software_root, modules_tool
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import get_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -86,7 +90,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False):
         """
         Initialize the EasyBlock instance.
         """
@@ -101,21 +105,25 @@ class EasyBlock(object):
 
         # extensions
         self.exts = None
+        self.exts_all = None
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
-        # easyconfig for this application
-        all_stops = [x[0] for x in self.get_steps()]
-        self.cfg = EasyConfig(path,
-                              extra_options=self.extra_options(),
-                              validate=validate_ec,
-                              valid_module_classes=module_classes(),
-                              valid_stops=all_stops
-                              )
-
+        # modules interface with default MODULEPATH
+        self.modules_tool = modules_tool()
         # module generator
         self.moduleGenerator = None
+
+        # easyconfig for this application
+        all_stops = [x[0] for x in self.get_steps()]
+        self.cfg = EasyConfig(
+            path,
+            extra_options=self.extra_options(),
+            validate=validate_ec,
+            valid_module_classes=module_classes(),
+            valid_stops=all_stops,
+        )
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = False
@@ -138,11 +146,23 @@ class EasyBlock(object):
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
 
+        # keep track of original environment, so we restore it if needed
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # at the end of __init__, initialise the logging
         self._init_log()
 
         # iterate configure/build/options
         self.iter_opts = {}
+
+        # sanity check fail error messages to report (if any)
+        self.sanity_check_fail_msgs = []
+
+        # should we keep quiet?
+        self.silent = silent
+
+        # full module name to generate
+        self.mod_name = None
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -155,7 +175,7 @@ class EasyBlock(object):
         if not self.log is None:
             return
 
-        self.logfile = get_log_filename(self.name, self.version)
+        self.logfile = get_log_filename(self.name, self.version, add_salt=True)
         fancylogger.logToFile(self.logfile)
 
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
@@ -291,14 +311,15 @@ class EasyBlock(object):
                               }
 
                     if ext_options.get('source_tmpl', None):
-                        fn = ext_options['source_tmpl'] % ext_src
+                        fn = resolve_template(ext_options['source_tmpl'], ext_src)
                     else:
-                        fn = def_src_tmpl % ext_src
+                        fn = resolve_template(def_src_tmpl, ext_src)
 
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        src_fn = self.obtain_file(fn, extension=True, urls=ext_options.get('source_urls', None))
+                        source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
+                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
@@ -329,15 +350,7 @@ class EasyBlock(object):
         - searches in different subdirectories of source path
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
         """
-        srcpath = source_path()
-
-        # make sure we always deal with a list, to avoid code duplication
-        if isinstance(srcpath, basestring):
-            srcpaths = [srcpath]
-        elif isinstance(srcpath, list):
-            srcpaths = srcpath
-        else:
-            self.log.error("Source path '%s' has incorrect type: %s" % (srcpath, type(srcpath)))
+        srcpaths = source_paths()
 
         # should we download or just try and find it?
         if filename.startswith("http://") or filename.startswith("ftp://"):
@@ -384,13 +397,16 @@ class EasyBlock(object):
             foundfile = None
             failedpaths = []
 
+            # always look first in the dir of the current eb file
+            ebpath = [os.path.dirname(self.cfg.path)]
+
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
             if not self.robot_path is None:
                 common_filepaths.append(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
-            for path in common_filepaths + srcpaths:
+            for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
                 namepath = os.path.join(path, self.name)
                 letterpath = os.path.join(path, self.name.lower()[0], self.name)
@@ -438,7 +454,7 @@ class EasyBlock(object):
                     source_urls = []
                 source_urls.extend(self.cfg['source_urls'])
 
-                targetdir = candidate_filepaths[0]
+                targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
                 if not os.path.isdir(targetdir):
                     try:
                         os.makedirs(targetdir)
@@ -562,7 +578,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.name, self.get_installversion())
+            installdir = os.path.join(basepath, self.mod_name)
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -654,8 +670,8 @@ class EasyBlock(object):
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
-                        name, version = path.rsplit('/', 1)
-                        load_txt += mod_gen.load_module(name, version)
+                        mod_name = path.rsplit(os.path.sep, 1)[-1]
+                        load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -664,7 +680,7 @@ class EasyBlock(object):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
-        filename = os.path.join(output_dir, "%s-%s-easybuild-devel" % (self.name, self.get_installversion()))
+        filename = os.path.join(output_dir, det_devel_module_filename(self.cfg))
         self.log.debug("Writing devel module to %s" % filename)
 
         write_file(filename, header+load_txt+env_txt)
@@ -679,19 +695,20 @@ class EasyBlock(object):
         load = unload = ''
 
         # Load toolchain
-        if self.toolchain.name != 'dummy':
-            load += self.moduleGenerator.load_module(self.toolchain.name, self.toolchain.version)
-            unload += self.moduleGenerator.unload_module(self.toolchain.name, self.toolchain.version)
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            load += self.moduleGenerator.load_module(self.toolchain.det_module_name())
+            unload += self.moduleGenerator.unload_module(self.toolchain.det_module_name())
 
         # Load dependencies
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                self.log.debug("Adding %s/%s as a module dependency" % (dep['name'], dep['tc']))
-                load += self.moduleGenerator.load_module(dep['name'], dep['tc'])
-                unload += self.moduleGenerator.unload_module(dep['name'], dep['tc'])
+                dep_mod_name = det_full_module_name(dep)
+                self.log.debug("Adding %s as a module dependency" % dep_mod_name)
+                load += self.moduleGenerator.load_module(dep_mod_name)
+                unload += self.moduleGenerator.unload_module(dep_mod_name)
             else:
-                self.log.debug("Skipping builddependency %s/%s" % (dep['name'], dep['tc']))
+                self.log.debug("Skipping build dependency %s" % str(dep))
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
@@ -715,13 +732,18 @@ class EasyBlock(object):
         environment_name = convert_name(self.name, upper=True)
         txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
         txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), "%s-%s-easybuild-devel" % (self.name,
-            self.get_installversion()))
+        devel_path = os.path.join("$root", log_path(), det_devel_module_filename(self.cfg))
         txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
         for (key, value) in self.cfg['modextravars'].items():
             txt += self.moduleGenerator.set_environment(key, value)
+        for (key, value) in self.cfg['modextrapaths'].items():
+            if isinstance(value, basestring):
+                value = [value]
+            elif not isinstance(value, (tuple, list)):
+                self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
+            txt = self.moduleGenerator.prepend_paths(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
@@ -734,8 +756,8 @@ class EasyBlock(object):
         txt = self.module_extra_extensions
 
         # set environment variable that specifies list of extensions
-        if self.exts:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts])
+        if self.exts_all:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
 
         return txt
@@ -763,19 +785,25 @@ class EasyBlock(object):
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
+            'ACLOCAL_PATH' : ['share/aclocal'],
         }
 
     def load_module(self, mod_paths=None, purge=True):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        m = Modules(mod_paths)
-        # purge all loaded modules if desired
-        if purge:
-            m.purge()
-        m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-        m.add_module([[self.name, self.get_installversion()]])
-        m.load()
+        # self.mod_name might not be set (e.g. during unit tests)
+        if self.mod_name is not None:
+            m = modules_tool(mod_paths)
+            # purge all loaded modules if desired
+            if purge:
+                m.purge()
+                # restore original environment
+                modify_env(os.environ, self.orig_environ)
+            m.check_module_path()  # make sure MODULEPATH is set correctly after purging
+            m.load([self.mod_name])
+        else:
+            self.log.warning("Not loading module, since self.mod_name is not set.")
 
     def load_fake_module(self, purge=False):
         """
@@ -785,10 +813,10 @@ class EasyBlock(object):
         # take a copy of the environment before loading the fake module, so we can restore it
         orig_env = copy.deepcopy(os.environ)
 
-        # make fake module
+        # create fake module
         fake_mod_path = self.make_module_step(True)
 
-        # create Modules instance
+        # load fake module
         mod_paths = [fake_mod_path]
         mod_paths.extend(self.orig_modulepath.split(':'))
         self.log.debug("mod_paths: %s" % mod_paths)
@@ -808,16 +836,23 @@ class EasyBlock(object):
         if fake_mod_path:
             try:
                 mod_paths = [fake_mod_path]
-                mod_paths.extend(Modules().modulePath)
-                m = Modules(mod_paths)
-                m.add_module([[self.name, self.get_installversion()]])
-                m.unload()
+                mod_paths.extend(self.modules_tool.mod_paths)
+                m = modules_tool(mod_paths)
+                # self.mod_name might not be set (e.g. during unit tests)
+                if self.mod_name is not None:
+                    m.unload([self.mod_name])
+                else:
+                    self.log.warning("Not unloading module, since self.mod_name is not set.")
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
 
         # restore original environment
         modify_env(os.environ, orig_env)
+
+    def load_dependency_modules(self):
+        """Load dependency modules."""
+        self.modules_tool.load([det_full_module_name(dep) for dep in self.cfg.dependencies()])
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -903,10 +938,6 @@ class EasyBlock(object):
 
         return installsize
 
-    def get_installversion(self):
-        """Get full install version (including toolchain and version suffix)."""
-        return self.cfg.get_installversion()
-
     def guess_start_dir(self):
         """
         Return the directory where to start the whole configure/make/make install cycle from
@@ -971,7 +1002,7 @@ class EasyBlock(object):
         Prints the environment changes and loaded modules to the debug log
         - pretty prints the environment for easy copy-pasting
         """
-        mods = [(mod['name'], mod['version']) for mod in Modules().loaded_modules()]
+        mods = [(mod['name'], mod['version']) for mod in self.modules_tool.loaded_modules()]
         mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
         self.loaded_modules = mods
 
@@ -1066,34 +1097,33 @@ class EasyBlock(object):
         """
         Verify if all is ok to start build.
         """
-        # Check whether modules are loaded
-        loadedmods = Modules().loaded_modules()
+        # check whether modules are loaded
+        loadedmods = self.modules_tool.loaded_modules()
         if len(loadedmods) > 0:
             self.log.warning("Loaded modules detected: %s" % loadedmods)
 
-        # Do all dependencies have a toolchain version
+        # do all dependencies have a toolchain version?
         self.toolchain.add_dependencies(self.cfg.dependencies())
         if not len(self.cfg.dependencies()) == len(self.toolchain.dependencies):
             self.log.debug("dep %s (%s)" % (len(self.cfg.dependencies()), self.cfg.dependencies()))
             self.log.debug("tc.dep %s (%s)" % (len(self.toolchain.dependencies), self.toolchain.dependencies))
             self.log.error('Not all dependencies have a matching toolchain version')
 
-        # Check if the application is not loaded at the moment
+        # check if the application is not loaded at the moment
         (root, env_var) = get_software_root(self.name, with_env_var=True)
         if root:
             self.log.error("Module is already loaded (%s is set), installation cannot continue." % env_var)
 
-        # Check if main install needs to be skipped
+        # check if main install needs to be skipped
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if Modules().exists(self.name, self.get_installversion()):
+            if self.modules_tool.exists(self.mod_name):
                 self.skip = True
-                self.log.info("Current version (name: %s, version: %s) found." % (self.name, self.get_installversion))
-                self.log.info("Going to skip actually main build and potential existing extensions. Expert only.")
+                self.log.info("Module %s found." % self.mod_name)
+                self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
             else:
-                self.log.info("No current version (name: %s, version: %s) found. Not skipping anything." % (self.name,
-                    self.get_installversion()))
+                self.log.info("No module %s found. Not skipping anything." % self.mod_name)
 
         # Set group id, if a group was specified
         if self.cfg['group']:
@@ -1199,6 +1229,7 @@ class EasyBlock(object):
         """
         Pre-configure step. Set's up the builddir just before starting configure
         """
+        self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
         self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
@@ -1247,6 +1278,7 @@ class EasyBlock(object):
         self.prepare_for_extensions()
 
         self.exts = self.fetch_extension_sources()
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
             self.skip_extensions()
@@ -1342,14 +1374,12 @@ class EasyBlock(object):
             else:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
+                    self.log.debug("Obtained class %s for installing extension %s" % (cls, ext['name']))
                     inst = cls(self, ext)
                     self.log.debug("Installing extension %s with default class %s" % (ext['name'], default_class))
-                except (ImportError, NameError), errbis:
-                    msg = "Also failed to use default class %s from %s for extension %s: %s" % (default_class,
-                                                                                                default_class_modpath,
-                                                                                                ext['name'],
-                                                                                                err)
-                    msg += ", giving up:\n%s\n%s" % (err, errbis)
+                except (ImportError, NameError), err:
+                    msg = "Also failed to use default class %s from %s for extension %s: %s, giving up" % \
+                        (default_class, default_class_modpath, ext['name'], err)
                     self.log.error(msg)
 
             # real work
@@ -1399,7 +1429,7 @@ class EasyBlock(object):
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
 
-    def sanity_check_step(self, custom_paths=None, custom_commands=None):
+    def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """
         Do a sanity check on the installation
         - if *any* of the files/subdirectories in the installation directory listed
@@ -1429,8 +1459,6 @@ class EasyBlock(object):
             self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
                            "values should be lists (at least one non-empty)).")
 
-        self.sanity_check_fail_msgs = []
-
         # check if files exist
         for f in paths['files']:
             p = os.path.join(self.installdir, f)
@@ -1450,13 +1478,14 @@ class EasyBlock(object):
                 self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
         fake_mod_data = None
-        try:
-            # unload all loaded modules before loading fake module
-            # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
-            fake_mod_data = self.load_fake_module(purge=True)
-        except EasyBuildError, err:
-            self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
-            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+        if not extension:
+            try:
+                # unload all loaded modules before loading fake module
+                # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
+                fake_mod_data = self.load_fake_module(purge=True)
+            except EasyBuildError, err:
+                self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # chdir to installdir (better environment for running tests)
         os.chdir(self.installdir)
@@ -1496,11 +1525,12 @@ class EasyBlock(object):
             else:
                 self.log.debug("sanity check command %s ran successfully! (output: %s)" % (cmd, out))
 
-        failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
+        if not extension:
+            failed_exts = [ext.name for ext in self.ext_instances if not ext.sanity_check_step()]
 
-        if failed_exts:
-            self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
-            self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+            if failed_exts:
+                self.sanity_check_fail_msgs.append("sanity checks for %s extensions failed!" % failed_exts)
+                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         # cleanup
         if fake_mod_data:
@@ -1537,6 +1567,8 @@ class EasyBlock(object):
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
 
+        env.restore_env_vars(self.cfg['unwanted_env_vars'])
+
     def make_module_step(self, fake=False):
         """
         Generate a module file.
@@ -1560,6 +1592,8 @@ class EasyBlock(object):
         if not fake:
             self.make_devel_module()
 
+        self.modules_tool.update()
+
         return modpath
 
     def test_cases_step(self):
@@ -1572,7 +1606,12 @@ class EasyBlock(object):
             if os.path.isabs(test):
                 path = test
             else:
-                path = os.path.join(source_path(), self.name, test)
+                for source_path in source_paths():
+                    path = os.path.join(source_path, self.name, test)
+                    if os.path.exists(path):
+                        break
+                if not os.path.exists(path):
+                    self.log.error("Test specifies invalid path: %s" % path)
 
             try:
                 self.log.debug("Running test %s" % path)
@@ -1712,11 +1751,11 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
+        self.mod_name = det_full_module_name(self.cfg)
+        print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
         try:
-            full_name = "%s-%s" % (self.name, self.get_installversion())
-            print_msg("building and installing %s..." % full_name, self.log)
             for (stop_name, descr, step_methods, skippable) in steps:
-                print_msg("%s..." % descr, self.log)
+                print_msg("%s..." % descr, self.log, silent=self.silent)
                 self.run_step(stop_name, step_methods, skippable=skippable)
 
         except StopException:

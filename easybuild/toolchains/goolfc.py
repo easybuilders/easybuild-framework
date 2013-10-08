@@ -37,8 +37,3 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 class Goolfc(GccCUDA, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC+CUDA, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolfc'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []

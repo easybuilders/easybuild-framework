@@ -37,10 +37,11 @@ from unittest import main as unittestmain
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.main import main
-from easybuild.tools.config import build_path, source_path, install_path, get_repository, log_file_format
+from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
+from easybuild.tools.config import log_file_format
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.filetools import write_file
-from easybuild.tools.repository import FileRepository
+from easybuild.tools.repository import FileRepository, init_repository
 
 
 class EasyBuildConfigTest(TestCase):
@@ -118,23 +119,37 @@ class EasyBuildConfigTest(TestCase):
         self.assertEqual(build_path(), test_buildpath)
         del os.environ['EASYBUILDBUILDPATH']
 
-        # source path
-        config.variables = ConfigurationVariables()
+        # source path(s)
+        test_sourcepaths = [
+            os.path.join(self.tmpdir, 'source', 'path'),
+            ':'.join([
+                os.path.join(self.tmpdir, 'source', 'path1'),
+                os.path.join(self.tmpdir, 'source', 'path2'),
+            ]),
+            ':'.join([
+                os.path.join(self.tmpdir, 'source', 'path1'),
+                os.path.join(self.tmpdir, 'source', 'path2'),
+                os.path.join(self.tmpdir, 'source', 'path3'),
+            ]),
+        ]
+        for test_sourcepath in test_sourcepaths:
+            config.variables = ConfigurationVariables()
+            os.environ['EASYBUILDSOURCEPATH'] = test_sourcepath
+            self.configure(args=[])
+            self.assertEqual(build_path(), os.path.join(os.path.expanduser('~'), '.local', 'easybuild',
+                                                        DEFAULT_PATH_SUBDIRS['buildpath']))
+            self.assertEqual(source_paths(), test_sourcepath.split(':'))
+            del os.environ['EASYBUILDSOURCEPATH']
+
         test_sourcepath = os.path.join(self.tmpdir, 'source', 'path')
-        os.environ['EASYBUILDSOURCEPATH'] = test_sourcepath
-        self.configure(args=[])
-        self.assertEqual(build_path(), os.path.join(os.path.expanduser('~'), '.local', 'easybuild',
-                                                    DEFAULT_PATH_SUBDIRS['buildpath']))
-        self.assertEqual(source_path(), test_sourcepath)
-        del os.environ['EASYBUILDSOURCEPATH']
 
         # install path
         config.variables = ConfigurationVariables()
         test_installpath = os.path.join(self.tmpdir, 'install', 'path')
         os.environ['EASYBUILDINSTALLPATH'] = test_installpath
         self.configure(args=[])
-        self.assertEqual(source_path(), os.path.join(os.path.expanduser('~'), '.local', 'easybuild',
-                                                     DEFAULT_PATH_SUBDIRS['sourcepath']))
+        self.assertEqual(source_paths()[0], os.path.join(os.path.expanduser('~'), '.local', 'easybuild',
+                                                          DEFAULT_PATH_SUBDIRS['sourcepath']))
         self.assertEqual(install_path(), os.path.join(test_installpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_installpath,
                                                                  DEFAULT_PATH_SUBDIRS['subdir_modules']))
@@ -146,11 +161,11 @@ class EasyBuildConfigTest(TestCase):
         os.environ['EASYBUILDPREFIX'] = test_prefixpath
         self.configure(args=[])
         self.assertEqual(build_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['buildpath']))
-        self.assertEqual(source_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
+        self.assertEqual(source_paths()[0], os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
 
@@ -159,11 +174,11 @@ class EasyBuildConfigTest(TestCase):
         os.environ['EASYBUILDBUILDPATH'] = test_buildpath
         self.configure(args=[])
         self.assertEqual(build_path(), test_buildpath)
-        self.assertEqual(source_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
+        self.assertEqual(source_paths()[0], os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         # also check old style vs new style
@@ -175,11 +190,11 @@ class EasyBuildConfigTest(TestCase):
         os.environ['EASYBUILDSOURCEPATH'] = test_sourcepath
         self.configure(args=[])
         self.assertEqual(build_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['buildpath']))
-        self.assertEqual(source_path(), test_sourcepath)
+        self.assertEqual(source_paths()[0], test_sourcepath)
         self.assertEqual(install_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_prefixpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         del os.environ['EASYBUILDSOURCEPATH']
@@ -188,11 +203,11 @@ class EasyBuildConfigTest(TestCase):
         os.environ['EASYBUILDINSTALLPATH'] = test_installpath
         self.configure(args=[])
         self.assertEqual(build_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['buildpath']))
-        self.assertEqual(source_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
+        self.assertEqual(source_paths()[0], os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['sourcepath']))
         self.assertEqual(install_path(), os.path.join(test_installpath, DEFAULT_PATH_SUBDIRS['subdir_software']))
         self.assertEqual(install_path(typ='mod'), os.path.join(test_installpath,
                                                                DEFAULT_PATH_SUBDIRS['subdir_modules']))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         del os.environ['EASYBUILDINSTALLPATH']
@@ -256,10 +271,10 @@ modules_install_suffix = '%(modsuffix)s'
         # check finding and use of config file
         self.assertEqual(cfg_fn, myconfigfile)
         self.assertEqual(build_path(), buildpath)
-        self.assertEqual(source_path(), sourcepath)
+        self.assertEqual(source_paths()[0], sourcepath)
         self.assertEqual(install_path(), os.path.join(installpath, softsuffix))
         self.assertEqual(install_path(typ='mod'), os.path.join(installpath, modsuffix))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, repopath)
         self.assertEqual(log_file_format(return_directory=True), logdir)
@@ -302,10 +317,10 @@ modules_install_suffix = '%(modsuffix)s'
         # verify configuration
         self.assertEqual(cfg_fn, mycustomconfigfile)
         self.assertEqual(build_path(), buildpath)
-        self.assertEqual(source_path(), sourcepath)
+        self.assertEqual(source_paths()[0], sourcepath)
         self.assertEqual(install_path(), os.path.join(installpath, softsuffix))
         self.assertEqual(install_path(typ='mod'), os.path.join(installpath, modsuffix))
-        repo = get_repository()
+        repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, repopath)
         self.assertEqual(log_file_format(return_directory=True), logdir)
@@ -316,6 +331,17 @@ modules_install_suffix = '%(modsuffix)s'
     def test_generaloption_config(self):
         """Test new-style configuration (based on generaloption)."""
 
+        # check whether configuration via environment variables works as expected
+        prefix = os.path.join(self.tmpdir, 'testprefix')
+        buildpath_env_var = os.path.join(self.tmpdir, 'envvar', 'build', 'path')
+        os.environ['EASYBUILD_PREFIX'] = prefix
+        os.environ['EASYBUILD_BUILDPATH'] = buildpath_env_var
+        options = self.configure_options(args=[])
+        self.assertEqual(build_path(), buildpath_env_var)
+        del os.environ['EASYBUILD_PREFIX']
+        del os.environ['EASYBUILD_BUILDPATH']
+
+        # check whether configuration via command line arguments works
         prefix = os.path.join(self.tmpdir, 'test1')
         install = os.path.join(self.tmpdir, 'test2', 'install')
         repopath = os.path.join(self.tmpdir, 'test2', 'repo')
@@ -339,6 +365,25 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(options.installpath, install)
         self.assertEqual(options.config, config_file)
 
+        # check mixed command line/env var configuration
+        prefix = os.path.join(self.tmpdir, 'test3')
+        install = os.path.join(self.tmpdir, 'test4', 'install')
+        subdir_software = 'eb-soft'
+        args = [
+            '--config', config_file,  # force empty oldstyle config file
+            '--installpath', install,
+        ]
+
+        os.environ['EASYBUILD_PREFIX'] = prefix
+        os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = subdir_software
+
+        options = self.configure_options(args=args)
+
+        self.assertEqual(build_path(), os.path.join(prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(install, subdir_software))
+
+        del os.environ['EASYBUILD_PREFIX']
+        del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

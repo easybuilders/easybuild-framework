@@ -43,8 +43,10 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
@@ -179,10 +181,12 @@ class EasyConfig(object):
         Update a string configuration value with a value (i.e. append to it).
         """
         prev_value = self[key]
-        if not isinstance(prev_value, basestring):
-            self.log.error("Can't update configuration value for %s, because it's not a string." % key)
-
-        self[key] = '%s %s ' % (prev_value, value)
+        if isinstance(prev_value, basestring):
+            self[key] = '%s %s ' % (prev_value, value)
+        elif isinstance(prev_value, list):
+            self[key] = prev_value + value
+        else:
+            self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
     def parse(self, path):
         """
@@ -218,6 +222,12 @@ class EasyConfig(object):
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
+
+        # update templating dictionary
+        self.generate_template_values()
+
+        # indicate that this is a parsed easyconfig
+        self._config['parsed'] = [True, "This is a parsed easyconfig", "HIDDEN"]
 
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
@@ -314,7 +324,7 @@ class EasyConfig(object):
     def dependencies(self):
         """
         returns an array of parsed dependencies
-        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'suffix': ''}
+        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
 
         deps = []
@@ -372,13 +382,6 @@ class EasyConfig(object):
 
         self._toolchain = tc
         return self._toolchain
-
-    def get_installversion(self):
-        """
-        return the installation version
-        """
-        return det_installversion(self['version'], self.toolchain.name, self.toolchain.version,
-                                  self['versionprefix'], self['versionsuffix'])
 
     def dump(self, fp):
         """
@@ -470,35 +473,62 @@ class EasyConfig(object):
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
         if it is a tuple or a list the attributes are expected to be in the following order:
-        ['name', 'version', 'suffix', 'dummy']
+        ('name', 'version', 'versionsuffix', 'toolchain')
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'suffix', 'dummy', 'tc']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
-        attr = ['name', 'version', 'suffix', 'dummy']
-        dependency = {'name': '', 'version': '', 'suffix': '', 'dummy': False}
+        attr = ['name', 'version', 'versionsuffix', 'toolchain']
+        dependency = {
+            'name': '',
+            'version': '',
+            'versionsuffix': '',
+            'toolchain': None,
+            'dummy': False,
+        }
         if isinstance(dep, dict):
             dependency.update(dep)
-        # Try and convert to list
+            # make sure 'dummy' key is handled appropriately
+            if 'dummy' in dep and not 'toolchain' in dep:
+                dependency['toolchain'] = dep['dummy']
         elif isinstance(dep, (list, tuple)):
+            # try and convert to list
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
             self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
 
-        # Validations
+        # dependency inherits toolchain, unless it's specified to have a custom toolchain
+        tc = copy.deepcopy(self['toolchain'])
+        tc_spec = dependency['toolchain']
+        if tc_spec is not None:
+            # (true) boolean value simply indicates that a dummy toolchain is used
+            if isinstance(tc_spec, bool) and tc_spec:
+                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
+            # two-element list/tuple value indicates custom toolchain specification
+            elif isinstance(tc_spec, (list, tuple, )):
+                if len(tc_spec) == 2:
+                    tc = {'name': tc_spec[0], 'version': tc_spec[1]}
+                else:
+                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
+            else:
+                self.log.error("Unsupported type of value for toolchain encountered: %s => %s" % (tc_spec, type(tc_spec)))
+
+        dependency['toolchain'] = tc
+
+        # make sure 'dummy' value is set correctly
+        dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+
+        # validations
         if not dependency['name']:
-            self.log.error("Dependency without name given")
+            self.log.error("Dependency specified without name: %s" % dependency)
 
         if not dependency['version']:
-            self.log.error('Dependency without version.')
-
-        if not 'tc' in dependency:
-            dependency['tc'] = self.toolchain.get_dependency_version(dependency)
+            self.log.error("Dependency specified without version: %s" % dependency)
 
         return dependency
 
@@ -518,7 +548,7 @@ class EasyConfig(object):
 
         # step 1-3 work with easyconfig.templates constants
         # use a copy to make sure the original is not touched/modified
-        template_values = template_constant_dict(self._config.copy(),
+        template_values = template_constant_dict(copy.deepcopy(self._config),
                                                  ignore=ignore, skip_lower=skip_lower)
 
         # update the template_values dict
@@ -529,72 +559,15 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
-    def _resolve_template(self, value):
-        """Given a value, try to susbstitute the templated strings with actual values.
-            - value: some python object (supported are string, tuple/list, dict or some mix thereof)
-        """
-        if self.template_values is None or len(self.template_values) == 0:
-            self.generate_template_values()
-
-        if isinstance(value, basestring):
-            # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
-            #         but ignore a string like '%(name)s'
-            # behaviour of strings like '%(name)s',
-            #   make sure that constructs like %%(name)s are preserved
-            #   higher order escaping in the original text is considered advanced users only,
-            #   and a big no-no otherwise. It indicates that want some new functionality
-            #   in easyconfigs, so just open an issue for it.
-            #   detailed behaviour:
-            #     if a an odd number of % prefixes the (name)s,
-            #     we assume that templating is assumed and the behaviour is as follows
-            #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
-            #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
-            #     if a an even number of % prefixes the (name)s,
-            #     we assume that no templating is desired and the behaviour is as follows
-            #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
-            #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
-            # examples:
-            # '10%' -> '10%%'
-            # '%s' -> '%%s'
-            # '%%' -> '%%%%'
-            # '%(name)s' -> '%(name)s'
-            # '%%(name)s' -> '%%(name)s'
-            value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
-
-            try:
-                value = value % self.template_values
-            except KeyError:
-                self.log.warning("Unable to resolve template value %s with dict %s" %
-                                 (value, self.template_values))
-        else:
-            # this block deals with references to objects and returns other references
-            # for reading this is ok, but for self['x'] = {}
-            # self['x']['y'] = z does not work
-            # self['x'] is a get, will return a reference to a templated version of self._config['x']
-            # and the ['y] = z part will be against this new reference
-            # you will need to do
-            # self.enable_templating = False
-            # self['x']['y'] = z
-            # self.enable_templating = True
-            # or (direct but evil)
-            # self._config['x']['y'] = z
-            # it can not be intercepted with __setitem__ because the set is done at a deeper level
-            if isinstance(value, list):
-                value = [self._resolve_template(val) for val in value]
-            elif isinstance(value, tuple):
-                value = tuple(self._resolve_template(list(value)))
-            elif isinstance(value, dict):
-                value = dict([(key, self._resolve_template(val)) for key, val in value.items()])
-
-        return value
-
     def __getitem__(self, key):
         """
         will return the value without the help text
         """
         value = self._config[key][0]
         if self.enable_templating:
-            return self._resolve_template(value)
+            if self.template_values is None or len(self.template_values) == 0:
+                self.generate_template_values()
+            return resolve_template(value, self.template_values)
         else:
             return value
 
@@ -616,22 +589,72 @@ class EasyConfig(object):
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
-    """
-    Determine exact install version, based on supplied parameters.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
-    """
+    """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
+    old_fn = 'framework.easyconfig.easyconfig.det_installversion'
+    _log.deprecated('Use module_generator.det_full_ec_version instead of %s' % old_fn, '2.0')
+    cfg = {
+        'version': version,
+        'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+        'versionprefix': prefix,
+        'versionsuffix': suffix,
+    }
+    return det_full_ec_version(cfg)
 
-    installversion = None
 
-    # determine main install version based on toolchain
-    if toolchain_name == 'dummy':
-        installversion = version
+def resolve_template(value, tmpl_dict):
+    """Given a value, try to susbstitute the templated strings with actual values.
+        - value: some python object (supported are string, tuple/list, dict or some mix thereof)
+        - tmpl_dict: template dictionary
+    """
+    if isinstance(value, basestring):
+        # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
+        #         but ignore a string like '%(name)s'
+        # behaviour of strings like '%(name)s',
+        #   make sure that constructs like %%(name)s are preserved
+        #   higher order escaping in the original text is considered advanced users only,
+        #   and a big no-no otherwise. It indicates that want some new functionality
+        #   in easyconfigs, so just open an issue for it.
+        #   detailed behaviour:
+        #     if a an odd number of % prefixes the (name)s,
+        #     we assume that templating is assumed and the behaviour is as follows
+        #     '%(name)s' -> '%(name)s', and after templating with {'name':'x'} -> 'x'
+        #     '%%%(name)s' -> '%%%(name)s', and after templating with {'name':'x'} -> '%x'
+        #     if a an even number of % prefixes the (name)s,
+        #     we assume that no templating is desired and the behaviour is as follows
+        #     '%%(name)s' -> '%%(name)s', and after templating with {'name':'x'} -> '%(name)s'
+        #     '%%%%(name)s' -> '%%%%(name)s', and after templating with {'name':'x'} -> '%%(name)s'
+        # examples:
+        # '10%' -> '10%%'
+        # '%s' -> '%%s'
+        # '%%' -> '%%%%'
+        # '%(name)s' -> '%(name)s'
+        # '%%(name)s' -> '%%(name)s'
+        value = re.sub(r'(%)(?!%*\(\w+\)s)', r'\1\1', value)
+
+        try:
+            value = value % tmpl_dict
+        except KeyError:
+            _log.warning("Unable to resolve template value %s with dict %s" %
+                             (value, tmpl_dict))
     else:
-        installversion = "%s-%s-%s" % (version, toolchain_name, toolchain_version)
+        # this block deals with references to objects and returns other references
+        # for reading this is ok, but for self['x'] = {}
+        # self['x']['y'] = z does not work
+        # self['x'] is a get, will return a reference to a templated version of self._config['x']
+        # and the ['y] = z part will be against this new reference
+        # you will need to do
+        # self.enable_templating = False
+        # self['x']['y'] = z
+        # self.enable_templating = True
+        # or (direct but evil)
+        # self._config['x']['y'] = z
+        # it can not be intercepted with __setitem__ because the set is done at a deeper level
+        if isinstance(value, list):
+            value = [resolve_template(val, tmpl_dict) for val in value]
+        elif isinstance(value, tuple):
+            value = tuple(resolve_template(list(value), tmpl_dict))
+        elif isinstance(value, dict):
+            value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
 
-    # prepend/append prefix/suffix
-    installversion = ''.join([x for x in [prefix, installversion, suffix] if x])
-
-    return installversion
-
+    return value
 

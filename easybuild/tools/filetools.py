@@ -44,6 +44,7 @@ import time
 import urllib
 from vsc import fancylogger
 
+import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
 from easybuild.tools.asyncprocess import send_all, recv_some
@@ -229,21 +230,25 @@ def find_base_dir():
         return lst
 
     lst = get_local_dirs_purged()
-    newDir = os.getcwd()
+    new_dir = os.getcwd()
     while len(lst) == 1:
-        newDir = os.path.join(os.getcwd(), lst[0])
-        if not os.path.isdir(newDir):
+        new_dir = os.path.join(os.getcwd(), lst[0])
+        if not os.path.isdir(new_dir):
             break
 
         try:
-            os.chdir(newDir)
+            os.chdir(new_dir)
         except OSError, err:
-            _log.exception("Changing to dir %s from current dir %s failed: %s" % (newDir, os.getcwd(), err))
+            _log.exception("Changing to dir %s from current dir %s failed: %s" % (new_dir, os.getcwd(), err))
         lst = get_local_dirs_purged()
 
+    # make sure it's a directory, and not a (single) file that was in a tarball for example
+    while not os.path.isdir(new_dir):
+        new_dir = os.path.dirname(new_dir)
+
     _log.debug("Last dir list %s" % lst)
-    _log.debug("Possible new dir %s found" % newDir)
-    return newDir
+    _log.debug("Possible new dir %s found" % new_dir)
+    return new_dir
 
 
 def extract_cmd(fn, overwrite=False):
@@ -713,24 +718,8 @@ def modify_env(old, new):
     """
     Compares 2 os.environ dumps. Adapts final environment.
     """
-    oldKeys = old.keys()
-    newKeys = new.keys()
-    for key in newKeys:
-        ## set them all. no smart checking for changed/identical values
-        if key in oldKeys:
-            ## hmm, smart checking with debug logging
-            if not new[key] == old[key]:
-                _log.debug("Key in new environment found that is different from old one: %s (%s)" % (key, new[key]))
-                env.setvar(key, new[key])
-        else:
-            _log.debug("Key in new environment found that is not in old one: %s (%s)" % (key, new[key]))
-            env.setvar(key, new[key])
-
-    for key in oldKeys:
-        if not key in newKeys:
-            _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
-            os.unsetenv(key)
-            del os.environ[key]
+    _log.deprecated("moved modify_env to tools.environment", "2.0")
+    return env.modify_env(old, new)
 
 
 def convert_name(name, upper=False):
@@ -761,7 +750,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     global errorsFoundInLog
 
     if regExp and type(regExp) == bool:
-        regExp = r"(?<![(,]|\w)(?:error|segmentation fault|failed)(?![(,]|\.?\w)"
+        regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
         _log.debug('Using default regular expression: %s' % regExp)
     elif type(regExp) == str:
         pass
@@ -833,7 +822,13 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
                 os.chmod(path, permissionBits)
 
             if group_id:
-                os.chown(path, -1, group_id)
+                # only change the group id if it the current gid is different from what we want
+                cur_gid = os.stat(path).st_gid
+                if not cur_gid == group_id:
+                    _log.debug("Changing group id of %s to %s" % (path, group_id))
+                    os.chown(path, -1, group_id)
+                else:
+                    _log.debug("Group id of %s is already OK (%s)" % (path, group_id))
 
         except OSError, err:
             if ignore_errors:

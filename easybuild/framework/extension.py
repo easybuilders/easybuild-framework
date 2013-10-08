@@ -62,6 +62,8 @@ class Extension(object):
 
         self.toolchain.prepare(self.cfg['onlytcmod'])
 
+        self.sanity_check_fail_msgs = []
+
     @property
     def name(self):
         """
@@ -132,7 +134,6 @@ class Extension(object):
         if modname == False:
             # allow skipping of sanity check by setting module name to False
             return True
-
         else:
             template = {
                         'ext_name': modname,
@@ -146,15 +147,16 @@ class Extension(object):
                        }
             cmd = cmd % template
 
+            stdin = None
             if inp:
                 stdin = inp % template
-                # set log_ok to False so we can catch the error instead of run_cmd
-                (output, ec) = run_cmd(cmd, log_ok=False, simple=False, inp=stdin, regexp=False)
-            else:
-                (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
+            # set log_ok to False so we can catch the error instead of run_cmd
+            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False)
 
             if ec:
-                self.log.warn("Extension: %s failed to install! (output: %s)" % (self.name, output))
+                msg = "%s failed to install, cmd '%s' (stdin: %s) output: %s" % (self.name, cmd, stdin, output)
+                self.log.warn("Extension: %s" % msg)
+                self.sanity_check_fail_msgs.append(msg)
                 return False
             else:
                 return True

@@ -30,15 +30,19 @@ Unit tests for eb command line options.
 
 import os
 import re
+import shutil
 import sys
 import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools import config
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from vsc import fancylogger
 
@@ -46,9 +50,13 @@ class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
     logfile = None
+    # initialize configuration so modules_tool() function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     def setUp(self):
         """Prepare for running unit tests."""
+        self.pwd = os.getcwd()
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
@@ -57,6 +65,7 @@ class CommandLineOptionsTest(TestCase):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
+        os.chdir(self.pwd)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -101,7 +110,7 @@ class CommandLineOptionsTest(TestCase):
         """Test using no arguments."""
 
         try:
-            main(([], self.logfile))
+            main(([], self.logfile, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -119,7 +128,7 @@ class CommandLineOptionsTest(TestCase):
                     debug_arg,
                    ]
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 myerr = err
             outtxt = read_file(self.logfile)
@@ -138,7 +147,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             myerr = None
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 myerr = err
             outtxt = read_file(self.logfile)
@@ -160,7 +169,7 @@ class CommandLineOptionsTest(TestCase):
                     quiet_arg,
                    ]
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -186,11 +195,12 @@ class CommandLineOptionsTest(TestCase):
         # check log message without --force
         args = [
                 eb_file,
+                '--debug',
                ]
 
         error_thrown = False
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             error_thrown = err
 
@@ -198,7 +208,7 @@ class CommandLineOptionsTest(TestCase):
 
         self.assertTrue(not error_thrown, "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown)
 
-        already_msg = "GCC \(version 4.6.3\) is already installed"
+        already_msg = "GCC/4.6.3 is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
         # clear log file
@@ -208,9 +218,10 @@ class CommandLineOptionsTest(TestCase):
         args = [
                 eb_file,
                 '--force',
+                '--debug',
                ]
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -222,6 +233,83 @@ class CommandLineOptionsTest(TestCase):
             os.environ['MODULEPATH'] = orig_modulepath
         else:
             os.environ.pop('MODULEPATH')
+
+    def test_skip(self):
+        """Test skipping installation of module (--skip, -k)."""
+
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # set MODULEPATH to included modules
+        orig_modulepath = os.getenv('MODULEPATH', None)
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # check log message with --skip for existing module
+        args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--force',
+                '--skip',
+                '--debug',
+               ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        outtxt = read_file(self.logfile)
+
+        found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
+        found = re.search(found_msg, outtxt, re.M)
+        self.assertTrue(found, "Module found message present with --skip, outtxt: %s" % outtxt)
+
+        # cleanup for next test
+        write_file(self.logfile, '')
+        os.chdir(self.pwd)
+        modules_tool().purge()
+
+        # check log message with --skip for non-existing module
+        args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--try-software-version=1.2.3.4.5.6.7.8.9',
+                '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
+                '--force',
+                '--skip',
+                '--debug',
+               ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+
+        found = re.search(found_msg, outtxt)
+        self.assertTrue(not found, "Module found message not there with --skip for non-existing modules: %s" % outtxt)
+
+        not_found_msg = "No module toy/1.2.3.4.5.6.7.8.9 found. Not skipping anything."
+        not_found = re.search(not_found_msg, outtxt)
+        self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
+
+        # restore original MODULEPATH
+        if orig_modulepath is not None:
+            os.environ['MODULEPATH'] = orig_modulepath
+        else:
+            os.environ.pop('MODULEPATH')
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -247,13 +335,14 @@ class CommandLineOptionsTest(TestCase):
                     '--job',
                    ] + job_args
             try:
-                main((args, self.logfile))
+                main((args, self.logfile, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s\n" % ' '.join(job_args)
-            self.assertTrue(re.search(job_msg, outtxt), "Info log message with job command template when using --job (job_msg: %s)" % job_msg)
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
+            assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
+            self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
@@ -265,6 +354,9 @@ class CommandLineOptionsTest(TestCase):
     # since it fiddles with the logging infrastructure which may break things
     def test_zzz_logtostdout(self):
         """Testing redirecting log to stdout."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
 
         for stdout_arg in ['--logtostdout', '-l']:
 
@@ -282,7 +374,7 @@ class CommandLineOptionsTest(TestCase):
                     stdout_arg,
                    ]
             try:
-                main((args, None))
+                main((args, dummylogfn, False))
             except (SystemExit, Exception), err:
                 myerr = err
 
@@ -298,6 +390,8 @@ class CommandLineOptionsTest(TestCase):
             # cleanup
             os.remove(fn)
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
         fancylogger.logToFile(self.logfile)
 
     def test_avail_easyconfig_params(self):
@@ -305,6 +399,10 @@ class CommandLineOptionsTest(TestCase):
 
         def run_test(custom=None, extra_params=[]):
             """Inner function to run actual test in current setting."""
+
+            fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+            os.close(fd)
+
             for avail_arg in [
                               '-a',
                               '--avail-easyconfig-params',
@@ -321,7 +419,7 @@ class CommandLineOptionsTest(TestCase):
                     args.extend(['-e', custom])
 
                 try:
-                    main((args, None))
+                    main((args, dummylogfn, False))
                 except (SystemExit, Exception), err:
                     pass
                 outtxt = read_file(self.logfile)
@@ -345,16 +443,20 @@ class CommandLineOptionsTest(TestCase):
                                     (param, avail_arg, args, outtxt)
                                     )
 
+            if os.path.exists(dummylogfn):
+                os.remove(dummylogfn)
+
         # also check whether available custom easyconfig parameters are listed
-        orig_sys_path = sys.path
+        orig_sys_path = sys.path[:]
 
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         easybuild = reload(easybuild)
         import easybuild.easyblocks
-        easybuild.easyblocks = reload(easybuild.easyblocks)
+        reload(easybuild.easyblocks)
         import easybuild.easyblocks.generic
-        easybuild.easyblocks.generic = reload(easybuild.easyblocks.generic)
+        reload(easybuild.easyblocks.generic)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
@@ -363,15 +465,20 @@ class CommandLineOptionsTest(TestCase):
         # restore original Python search path
         sys.path = orig_sys_path
 
-    def test_list_toolchains(self):
+    # double underscore to make sure it runs first, which is required to detect certain types of bugs,
+    # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
+    def test__list_toolchains(self):
         """Test listing known compiler toolchains."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
 
         args = [
                 '--list-toolchains',
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -385,17 +492,58 @@ class CommandLineOptionsTest(TestCase):
             n = len(res)
             self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+    def test_avail_lists(self):
+        """Test listing available values of certain types."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        name_items = {
+            'modules-tools': ['EnvironmentModulesC', 'Lmod'],
+            'module-naming-schemes': ['EasyBuildModuleNamingScheme'],
+        }
+        for (name, items) in name_items.items():
+            args = [
+                    '--avail-%s' % name,
+                    '--unittest-file=%s' % self.logfile,
+                   ]
+            try:
+                main((args, dummylogfn, False))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = read_file(self.logfile)
+
+            words = name.replace('-', ' ')
+            info_msg = r"INFO List of supported %s:" % words
+            self.assertTrue(re.search(info_msg, outtxt), "Info message with list of available %s" % words)
+            for item in items:
+                res = re.findall("^\s*%s" % item, outtxt, re.M)
+                self.assertTrue(res, "%s is included in list of available %s" % (item, words))
+                # every item should only be mentioned once
+                n = len(res)
+                self.assertEqual(n, 1, "%s is only mentioned once (count: %d)" % (item, n))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
 
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
         # adjust PYTHONPATH such that test easyblocks are found
-        orig_sys_path = sys.path
+        orig_sys_path = sys.path[:]
 
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'easyblocks_sandbox')))
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         easybuild = reload(easybuild)
         import easybuild.easyblocks
-        easybuild.easyblocks = reload(easybuild.easyblocks)
+        reload(easybuild.easyblocks)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         # simple view
         for list_arg in ['--list-easyblocks', '--list-easyblocks=simple']:
@@ -408,7 +556,7 @@ class CommandLineOptionsTest(TestCase):
                     '--unittest-file=%s' % self.logfile,
                    ]
             try:
-                main((args, None))
+                main((args, dummylogfn, False))
             except (SystemExit, Exception), err:
                 pass
             outtxt = read_file(self.logfile)
@@ -430,7 +578,7 @@ class CommandLineOptionsTest(TestCase):
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = read_file(self.logfile)
@@ -443,19 +591,25 @@ class CommandLineOptionsTest(TestCase):
 
             self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
 
         # restore original Python search path
         sys.path = orig_sys_path
 
     def test_search(self):
         """Test searching for easyconfigs."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
         args = [
                 '--search=gzip',
                 '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
                ]
         try:
-            main((args, None))
+            main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
@@ -464,6 +618,9 @@ class CommandLineOptionsTest(TestCase):
         self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
             self.assertTrue(re.search("%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -475,7 +632,7 @@ class CommandLineOptionsTest(TestCase):
                ]
         myerr = None
         try:
-            main((args, self.logfile))
+            main((args, self.logfile, False))
         except (SystemExit, Exception), err:
             myerr = err
         outtxt = read_file(self.logfile)

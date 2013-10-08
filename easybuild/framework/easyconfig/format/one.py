@@ -64,3 +64,9 @@ class FormatOneZero(EasyConfigFormatConfigObj):
                            (toolchain_version, tc_version))
 
         return cfg
+
+    def parse(self, txt):
+        """
+        Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
+        """
+        super(FormatOneZero, self).parse(txt, strict_section_markers=True)

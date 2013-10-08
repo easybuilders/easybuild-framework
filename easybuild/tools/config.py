@@ -34,13 +34,15 @@ EasyBuild configuration (paths, preferences, etc.)
 """
 
 import os
+import random
+import string
 import tempfile
 import time
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.repository import Repository, get_repositories
-from easybuild.tools.utilities import read_environment as _read_environment
+import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+from easybuild.tools.environment import read_environment as _read_environment
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -249,6 +251,8 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+        'modules_tool': 'EnvironmentModulesC',
+        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
     }
 
     # sanity check
@@ -302,19 +306,6 @@ def init(options, config_options_dict):
 
     _log.debug("Config variables: %s" % variables)
 
-    # Create an instance of the repository class
-    if 'repository' in variables and not isinstance(variables['repository'], Repository):
-        repo = get_repositories().get(options.repository)
-        repoargs = options.repositorypath
-
-        try:
-            repository = repo(*repoargs)
-        except Exception, err:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (options.repository, repo.__name__, repoargs, err))
-
-        variables['repository'] = repository
-
     def create_dir(dirtype, dirname):
         _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
         try:
@@ -351,11 +342,25 @@ def build_path():
     return variables['buildpath']
 
 
+def source_paths():
+    """
+    Return the list of source paths
+    """
+    if isinstance(variables['sourcepath'], basestring):
+        return variables['sourcepath'].split(':')
+    elif isinstance(variables['sourcepath'], (tuple, list)):
+        return variables['sourcepath']
+    else:
+        typ = type(variables['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+
+
 def source_path():
     """
-    Return the source path
+    Return the source path (deprecated)
     """
-    return variables['sourcepath']
+    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
+    return source_paths()
 
 
 def install_path(typ=None):
@@ -389,6 +394,28 @@ def get_repository():
     Return the repository (git, svn or file)
     """
     return variables['repository']
+
+
+def get_repositorypath():
+    """
+    Return the repository path
+    """
+    return variables['repositorypath']
+
+
+def get_modules_tool():
+    """
+    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    """
+    # 'modules_tool' key will only be present if EasyBuild config is initialized
+    return variables.get('modules_tool', None)
+
+
+def get_module_naming_scheme():
+    """
+    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    """
+    return variables['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):
@@ -433,28 +460,34 @@ def get_build_log_path():
         return defaults['tmp_logdir']
 
 
-def get_log_filename(name, version):
+def get_log_filename(name, version, add_salt=False):
     """
     Generate a filename to be used for logging
     """
-    # this can't be imported at the top, otherwise we'd have a cyclic dependency
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = os.path.join(get_build_log_path(), log_file_format() % {
-                                                                       'name': name,
-                                                                       'version': version,
-                                                                       'date': date,
-                                                                       'time': timeStamp
-                                                                       })
+    filename = log_file_format() % {
+        'name': name,
+        'version': version,
+        'date': date,
+        'time': timeStamp,
+    }
+
+    if add_salt:
+        salt = ''.join(random.choice(string.letters) for i in range(5))
+        filename_parts = filename.split('.')
+        filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
+
+    filepath = os.path.join(get_build_log_path(), filename)
 
     # Append numbers if the log file already exist
     counter = 1
-    while os.path.isfile(filename):
+    while os.path.isfile(filepath):
         counter += 1
-        filename = "%s.%d" % (filename, counter)
+        filepath = "%s.%d" % (filepath, counter)
 
-    return filename
+    return filepath
 
 
 def read_only_installdir():
@@ -481,8 +514,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.utilities"""
-    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    """Depreacted location for read_environment, use easybuild.tools.environment"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
     return _read_environment(env_vars, strict)
 
 
@@ -509,7 +542,10 @@ def oldstyle_read_configuration(filename):
     """
     _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
 
-    file_variables = get_repositories(check_usable=False)
+    # import avail_repositories here to avoid cyclic dependencies
+    # this block of code is going to be removed in EB v2.0
+    from easybuild.tools.repository import avail_repositories
+    file_variables = avail_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)
     except (IOError, SyntaxError), err:

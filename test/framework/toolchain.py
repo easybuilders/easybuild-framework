@@ -32,9 +32,11 @@ import os
 import re
 from unittest import TestCase, TestLoader, main
 
+import easybuild.tools.config as config
+import easybuild.tools.modules as modules
+import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.modules import Modules
 from test.framework.utilities import find_full_path
 
 class ToolchainTest(TestCase):
@@ -48,7 +50,11 @@ class ToolchainTest(TestCase):
             self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
-        """Setup for tests."""
+        """Set up everything for a unit test."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
@@ -96,6 +102,15 @@ class ToolchainTest(TestCase):
         mpif90 = tc.get_variable('MPIF90')
         self.assertEqual(mpif90, "mpif90")
 
+        ompi_cc = tc.get_variable('OMPI_CC')
+        self.assertEqual(ompi_cc, "gcc")
+        ompi_cxx = tc.get_variable('OMPI_CXX')
+        self.assertEqual(ompi_cxx, "g++")
+        ompi_f77 = tc.get_variable('OMPI_F77')
+        self.assertEqual(ompi_f77, "gfortran")
+        ompi_fc = tc.get_variable('OMPI_FC')
+        self.assertEqual(ompi_fc, "gfortran")
+
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
         tc_class, _ = search_toolchain("goalf")
@@ -111,6 +126,7 @@ class ToolchainTest(TestCase):
         self.assertEqual(f77, "mpif77")
         f90 = tc.get_variable('F90')
         self.assertEqual(f90, "mpif90")
+
         mpicc = tc.get_variable('MPICC')
         self.assertEqual(mpicc, "mpicc")
         mpicxx = tc.get_variable('MPICXX')
@@ -119,6 +135,15 @@ class ToolchainTest(TestCase):
         self.assertEqual(mpif77, "mpif77")
         mpif90 = tc.get_variable('MPIF90')
         self.assertEqual(mpif90, "mpif90")
+
+        ompi_cc = tc.get_variable('OMPI_CC')
+        self.assertEqual(ompi_cc, "gcc")
+        ompi_cxx = tc.get_variable('OMPI_CXX')
+        self.assertEqual(ompi_cxx, "g++")
+        ompi_f77 = tc.get_variable('OMPI_F77')
+        self.assertEqual(ompi_f77, "gfortran")
+        ompi_fc = tc.get_variable('OMPI_FC')
+        self.assertEqual(ompi_fc, "gfortran")
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -373,7 +398,7 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
-        Modules().purge()
+        modules.modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
 
 def suite():
