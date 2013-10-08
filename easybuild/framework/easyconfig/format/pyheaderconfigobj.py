@@ -74,7 +74,7 @@ def build_easyconfig_constants_dict():
 def build_easyconfig_variables_dict():
     """Make a dictionary with all variables that can be used"""
     vars_dict = {
-        "shared_lib_ext": get_shared_lib_ext(),
+        "shared_lib_ext": get_shared_lib_ext(),  # FIXME: redeprecate this
         }
 
     return vars_dict
@@ -102,12 +102,16 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
 
-    def parse(self, txt):
+    def parse(self, txt, strict_section_markers=False):
         """
         Pre-process txt to extract header, docstring and pyheader
         """
         # where is the first section?
-        regex = re.compile(ConfigObj._sectionmarker.pattern, re.VERBOSE | re.M)
+        sectionmarker_pattern = ConfigObj._sectionmarker.pattern
+        if strict_section_markers:
+            # don't allow indentation for section markers
+            sectionmarker_pattern = re.sub('^.*?indentation.*$', '', sectionmarker_pattern, flags=re.M)
+        regex = re.compile(sectionmarker_pattern, re.VERBOSE | re.M)
         reg = regex.search(txt)
         if reg is None:
             # no section
