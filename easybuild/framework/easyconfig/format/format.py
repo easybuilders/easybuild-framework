@@ -29,9 +29,10 @@ The main easyconfig format class
 @author: Stijn De Weirdt (Ghent University)
 """
 import re
+from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.format.version import EasyVersion
-from vsc import fancylogger
 
 
 # format is mandatory major.minor
@@ -94,3 +95,11 @@ class EasyConfigFormat(object):
         raise NotImplementedError
 
 
+
+def get_format_version_classes(version=None):
+    """Return the (first) subclass from EasyConfigFormat that has matching version."""
+    all_classes = get_subclasses(EasyConfigFormat)
+    if version is None:
+        return all_classes
+    else:
+        return [x for x in all_classes if x.VERSION == version and x.USABLE]

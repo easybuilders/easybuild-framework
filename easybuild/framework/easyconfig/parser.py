@@ -33,8 +33,8 @@ import os
 
 from vsc import fancylogger
 
-from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
-from easybuild.framework.easyconfig.format.locate import get_format_version_classes
+from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
+from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.tools.filetools import read_file, write_file
 
 
