@@ -62,7 +62,7 @@ class EasyConfigParser(object):
     def process(self, filename=None):
         """Create an instance"""
         self._read(filename=filename)
-        self._set_format_instance()
+        self._set_formatter()
 
     def _check_filename(self, filename):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""

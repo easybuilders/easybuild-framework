@@ -41,6 +41,10 @@ class EasyVersion(LooseVersion):
     """Exact LooseVersion. No modifications needed (yet)"""
     # TODO: replace all LooseVersion with EasyVersion in eb
 
+    def __len__(self):
+        """Determine length of this EasyVersion instance."""
+        return len(self.version)
+
 
 class VersionOperator(object):
     """
@@ -168,7 +172,6 @@ class VersionOperator(object):
                     break
             self.log.debug('Insert version %s in index %s' % ())
             self.versions.insert(version_dict, insert_idx)
-
 
 class ToolchainOperator(object):
     """Dict with toolchains and versionoperator instance"""
