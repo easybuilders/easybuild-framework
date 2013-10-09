@@ -53,16 +53,16 @@ class EasyConfigParser(object):
         self.set = None  # read method and args
 
         self.format_version = format_version
-        self.format = None
+        self._formatter = None
 
         if filename is not None:
             self._check_filename(filename)
             self.process()
 
-    def process(self):
+    def process(self, filename=None):
         """Create an instance"""
-        self.read()
-        self.get_format_instance()
+        self._read(filename=filename)
+        self._set_format_instance()
 
     def _check_filename(self, filename):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
@@ -78,7 +78,7 @@ class EasyConfigParser(object):
         if self.get is None:
             self.log.raiseException('Failed to determine get method for filename %s' % filename)
 
-    def read(self, filename=None):
+    def _read(self, filename=None):
         """Read the easyconfig, dump content in self.rawcontent"""
         if filename is not None:
             self._check_filename(filename)
@@ -94,7 +94,7 @@ class EasyConfigParser(object):
             # TODO replace with proper error, also fix unittest
             self.log.error("Unexpected IOError: %s" % txt)
 
-    def set_format_version(self):
+    def _set_format_version(self):
         """Extract the format version from the raw content"""
         if self.format_version is None:
             self.format_version = get_format_version(self.rawcontent)
@@ -102,9 +102,9 @@ class EasyConfigParser(object):
                 self.log.debug('No version found, using default %s' % FORMAT_DEFAULT_VERSION)
                 self.format_version = FORMAT_DEFAULT_VERSION
 
-    def get_format_version_class(self):
+    def _get_format_version_class(self):
         """Locate the class matching the version"""
-        self.set_format_version()
+        self._set_format_version()
         found_classes = get_format_version_classes(version=self.format_version)
         if len(found_classes) == 0:
             self.log.error('No format classes found matching version %s' % (self.format_version))
@@ -114,11 +114,11 @@ class EasyConfigParser(object):
         else:
             return found_classes[0]
 
-    def get_format_instance(self):
-        """Return an instance of the formatter"""
-        klass = self.get_format_version_class()
-        self.format = klass()
-        self.format.parse(self.rawcontent)
+    def _set_formatter(self):
+        """Obtain instance of the formatter"""
+        klass = self._get_format_version_class()
+        self._formatter = klass()
+        self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):
         """Create the text for the formatter instance"""
@@ -134,3 +134,7 @@ class EasyConfigParser(object):
         except:
             self.log.raiseException('Failed to process content with method %s and args %s' %
                                     (self.set[0], self.set[1]))
+
+    def get_config_dict(self):
+        """Return parsed easyconfig as a dict."""
+        return self._formatter.get_config_dict()

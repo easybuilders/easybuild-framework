@@ -194,7 +194,7 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         parser = EasyConfigParser(path, format_version=None)
-        local_vars = parser.format.get_config_dict()
+        local_vars = parser.get_config_dict()
 
         # validate mandatory keys
         missing_keys = [key for key in self.mandatory if key not in local_vars]
