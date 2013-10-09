@@ -88,10 +88,10 @@ class VersionOperator(object):
             ops.append(re.sub(r'(.)', r'\\\1', op))
 
         # regexp to parse version expression
-        # - version should start/end with any word character except separator
-        # - minimal version length is 1
+        # - ver_str should start/end with any word character except separator
+        # - minimal ver_str length is 1
         # - operator part at the end is optional
-        reg_text = r"(?P<version>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<operator>%(ops)s))?" % {
+        reg_text = r"(?P<ver_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<operator>%(ops)s))?" % {
             'sep': self.SEPARATOR,
             'ops': '|'.join(ops),
         }
@@ -102,61 +102,58 @@ class VersionOperator(object):
         self.log.debug("version_operator pattern '%s' (begin_end: %s)" % (reg.pattern, begin_end))
         return reg
 
-    def _convert(self, version):
+    def _convert(self, ver_str):
         """Convert string to EasyVersion instance that can be compared"""
-        if version is None:
-            version = '0.0.0'
-            self.log.warning('_convert: no version passed, set it to %s' % version)
+        if ver_str is None:
+            ver_str = '0.0.0'
+            self.log.warning('_convert: no version passed, set it to %s' % ver_str)
         try:
-            e_version = EasyVersion(version)
-        except:
-            self.log.raiseException('Failed to convert txt %s to version' % version)
+            version = EasyVersion(ver_str)
+        except (AttributeError, ValueError), err:
+            self.log.error('Failed to convert %s to an EasyVersion instance: %s' % (ver_str, err))
 
-        self.log.debug('converted txt %s to version %s' % (version, e_version))
-        return e_version
+        self.log.debug('converted string %s to version %s' % (ver_str, version))
+        return version
 
-    def _operator_check(self, version=None, operator=None):
+    def _operator_check(self, ver_str=None, operator='=='):
         """
         Return function that functions as a check against version and operator
-            @param version: string, sort-of mandatory
+            @param ver_str: string, sort-of mandatory
             @param oper: string, default to ==
         No positional args to allow **reg.search(txt).groupdict()
         """
-        e_version = self._convert(version)
-        if operator is None:
-            operator = '=='
-            self.log.debug('_operator_check: no operator passed, set it to %s' % operator)
+        version = self._convert(ver_str)
 
         if operator in self.OPERATOR:
             op = self.OPERATOR[operator]
         else:
-            self.log.raiseException('Failed to match operator %s to operator function' % operator)
+            self.log.error('Failed to match specified operator %s to operator function' % operator)
 
-        def check(txt):
-            """The check function. txt-version is always the second arg in comparing"""
-            e_testvers = self._convert(txt)
-            res = op(e_version, e_testvers)
-            self.log.debug('Check %s version %s using operator %s: %s' % (e_version, e_testvers, op, res))
+        def check(test_ver_str):
+            """The check function; test version is always the second arg in comparing"""
+            test_ver = self._convert(test_ver_str)
+            res = op(version, test_ver)
+            self.log.debug('Check %s version %s using operator %s: %s' % (version, test_ver, op, res))
             return res
 
         return check
 
-    def match(self, txt):
+    def match(self, ver_str):
         """
-        See if txt matches a version operator
+        See if argument matches a version operator
         If so, return dict with version, operator and check
         """
-        r = self.regexp.search(txt)
-        if not r:
-            self.log.error('No version_match for txt %s' % txt)
+        res = self.regexp.search(ver_str)
+        if not res:
+            self.log.error('No version_match for version expression %s' % ver_str)
             return None
 
-        res = r.groupdict()
-        res['txt'] = txt
-        res['easyversion'] = self._convert(res['version'])
-        res['check'] = self._operator_check(**res)
-        self.log.debug('version_match for txt %s: %s' % (txt, res))
-        return res
+        ver_dict = res.groupdict()
+        ver_dict['ver_str'] = ver_str
+        ver_dict['check_fn'] = self._operator_check(**ver_dict)
+        ver_dict['easyversion'] = self._convert(ver_dict['ver_str'])
+        self.log.debug('version_match for version expression %s: %s' % (ver_str, ver_dict))
+        return ver_dict
 
     def add(self, txt):
         """
@@ -177,8 +174,8 @@ class VersionOperator(object):
                                    (v_dict['easyversion'], idx, version_dict['easyversion']))
                     insert_idx = idx
                     break
-            self.log.debug('Insert version %s in index %s' % ())
-            self.versions.insert(version_dict, insert_idx)
+            self.log.debug('Insert version %s in index %s' % (version_dict, insert_idx))
+            self.versions.insert(insert_idx, version_dict)
 
 class ToolchainOperator(object):
     """Dict with toolchains and versionoperator instance"""
@@ -225,7 +222,7 @@ class ToolchainOperator(object):
             self.log.debug('No toolchainversion specified in txt %s (%s)' % (txt, res))
         else:
             vop = VersionOperator()
-            res['check'] = vop._operator_check(version=res['version'], oper=res['operator'])
+            res['check_fn'] = vop._operator_check(version=res['version'], oper=res['operator'])
         self.log.debug('toolchain_match for txt %s: %s' % (txt, res))
         return res
 

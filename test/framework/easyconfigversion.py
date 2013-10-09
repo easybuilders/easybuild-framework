@@ -8,17 +8,13 @@ import os
 from easybuild.framework.easyconfig.format.version import ConfigObjVersion, VersionOperator, ToolchainOperator
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class VersionOperatorTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_parser_regex()
-        self.test_parser_check()
+class EasyConfigVersion(TestCase):
+    """Unit tests for format.version module."""
 
     def test_parser_regex(self):
         """Test the version parser"""
@@ -44,12 +40,6 @@ class VersionOperatorTest(TestCase):
         vop.add('2.5.0_<=')
         vop.add('3.0.0_>=')
 
-class ToolchainOperatorTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_parser_toolchain_regex()
-
     def test_parser_toolchain_regex(self):
         """Test the toolchain parser"""
         top = ToolchainOperator()
@@ -61,13 +51,6 @@ class ToolchainOperatorTest(TestCase):
         self.assertTrue(top.regexp.search("%s" % (tc)))
         self.assertFalse(top.regexp.search("x%s_1.2.3_>=" % (tc)))
         self.assertFalse(top.regexp.search("%sx_1.2.3_>=" % (tc)))
-
-
-class ConfigObjTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_configobj()
 
     def test_configobj(self):
         """Test configobj sort"""
@@ -88,7 +71,7 @@ class ConfigObjTest(TestCase):
             '[3.4.5_>=]',
             '[%s_5.6.7_>=]' % tc,
             '[%s_7.8.9_>=]' % tc_names[tcmax - 1],
-            ]
+        ]
 
         co = ConfigObj(configobj_txt)
         cov = ConfigObjVersion()
@@ -96,10 +79,7 @@ class ConfigObjTest(TestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([ConfigObjTest(),
-                      VersionOperatorTest(),
-                      ToolchainOperatorTest(),
-                      ])
+    return TestLoader().loadTestsFromTestCase(EasyConfigVersion)
 
 
 if __name__ == '__main__':
