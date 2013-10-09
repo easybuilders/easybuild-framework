@@ -29,17 +29,17 @@ This describes the easyconfig version class. To be used in easybuild for anythin
 @author: Stijn De Weirdt (Ghent University)
 """
 
-import operator as _operator
+import operator as op
 import re
-
 from distutils.version import LooseVersion
-from easybuild.tools.toolchain.utilities import search_toolchain
 from vsc import fancylogger
+
+from easybuild.tools.toolchain.utilities import search_toolchain
 
 
 class EasyVersion(LooseVersion):
     """Exact LooseVersion. No modifications needed (yet)"""
-    # TODO: replace all LooseVersion with EasyVersion in eb
+    # TODO: replace all LooseVersion with EasyVersion in eb, after moving EasyVersion to easybuild/tools?
 
     def __len__(self):
         """Determine length of this EasyVersion instance."""
@@ -48,18 +48,20 @@ class EasyVersion(LooseVersion):
 
 class VersionOperator(object):
     """
-    Ordered list of versions, ordering according to operator
-    Ordering is highest first, is such that version[idx] >= version[idx+1]
+    VersionOperator class represent a version expression that includes an operator.
+
+    Supports ordered list of versions, ordering according to operator
+    Ordering is highest first, is such that versions[idx] >= versions[idx+1]
     """
 
     SEPARATOR = '_'
     OPERATOR = {
-        '==': _operator.eq,
-        '>': _operator.gt,
-        '>=': _operator.ge,
-        '<': _operator.lt,
-        '<=': _operator.le,
-        '!=': _operator.ne,
+        '==': op.eq,
+        '>': op.gt,
+        '>=': op.ge,
+        '<': op.lt,
+        '<=': op.le,
+        '!=': op.ne,
     }
 
     def __init__(self, txt=None):
@@ -80,26 +82,31 @@ class VersionOperator(object):
             5_> (anything strict larger then 5)
             @param begin_end: boolean, create a regexp with begin/end match
         """
+        # construct escaped operator symbols, e.g. '\<\='
         ops = []
         for op in self.OPERATOR.keys():
             ops.append(re.sub(r'(.)', r'\\\1', op))
 
+        # regexp to parse version expression
+        # - version should start/end with any word character except separator
+        # - minimal version length is 1
+        # - operator part at the end is optional
         reg_text = r"(?P<version>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<operator>%(ops)s))?" % {
-                        'sep': self.SEPARATOR,
-                        'ops': '|'.join(ops),
-                        }
+            'sep': self.SEPARATOR,
+            'ops': '|'.join(ops),
+        }
         if begin_end:
             reg_text = r"^%s$" % reg_text
         reg = re.compile(reg_text)
 
-        self.log.debug("version_operator pattern %s (begin_end %s)" % (reg, begin_end))
+        self.log.debug("version_operator pattern '%s' (begin_end: %s)" % (reg.pattern, begin_end))
         return reg
 
     def _convert(self, version):
         """Convert string to EasyVersion instance that can be compared"""
         if version is None:
             version = '0.0.0'
-            self.log.debug('_operator_check: no version passed, set it to %s' % version)
+            self.log.warning('_convert: no version passed, set it to %s' % version)
         try:
             e_version = EasyVersion(version)
         except:

@@ -35,33 +35,31 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 
 
 class FormatOneZero(EasyConfigFormatConfigObj):
-    """Simple extension of FormatOne with configparser blocks
-        Deprecates setting version and toolchain/toolchain version in FormatOne
-    """
+    """Support for easyconfig format 1.x"""
     VERSION = EasyVersion('1.0')
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
 
     USABLE = True  # TODO: disable it, too insecure
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
-        """There should only be one."""
+        """
+        Return parsed easyconfig as a dictionary, based on specified arguments.
+        This is easyconfig format 1.x, so there is only one easyconfig instance available.
+        """
         cfg = self.pyheader_localvars
         if not 'version' in cfg:
-            # TODO replace with proper exception, fix unittest
             self.log.error('mandatory variable version not provided')
         if version is not None and not version == cfg['version']:
-            self.log.error('Requested version not available (req %s avail %s)' % (version, cfg['version']))
+            self.log.error('Requested version %s not available, only %s' % (version, cfg['version']))
         if not 'toolchain' in cfg:
             self.log.error('mandatory variable toolchain not provided')
 
         tc_name = cfg['toolchain']['name']
         tc_version = cfg['toolchain']['version']
         if toolchain_name is not None and not toolchain_name == tc_name:
-            self.log.error('Requested toolchain_name not available (req %s avail %s)' %
-                           (toolchain_name, tc_name))
+            self.log.error('Requested toolchain name %s not available, only %s' % (toolchain_name, tc_name))
         if toolchain_version is not None and not toolchain_version == tc_version:
-            self.log.error('Requested toolchain_version not available (req %s avail %s)' %
-                           (toolchain_version, tc_version))
+            self.log.error('Requested toolchain version %s not available, only %s' % (toolchain_version, tc_version))
 
         return cfg
 
