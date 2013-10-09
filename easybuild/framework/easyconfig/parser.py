@@ -49,8 +49,8 @@ class EasyConfigParser(object):
 
         self.rawcontent = None  # the actual unparsed content
 
-        self.get = None  # write method and args
-        self.set = None  # read method and args
+        self.get_fn = None  # read method and args
+        self.set_fn = None  # write method and args
 
         self.format_version = format_version
         self._formatter = None
@@ -64,19 +64,18 @@ class EasyConfigParser(object):
         self._read(filename=filename)
         self._set_formatter()
 
-    def _check_filename(self, filename):
+    def _check_filename(self, fn):
         """Perform sanity check on the filename, and set mechanism to set the content of the file"""
-        if os.path.isfile(filename):
-            self.get = (read_file, [filename])
-            self.set = (write_file, [filename, self.rawcontent])
+        if os.path.isfile(fn):
+            self.get_fn = (read_file, (fn,))
+            self.set_fn = (write_file, (fn, self.rawcontent))
 
-        self.log.debug("Process filename %s with set method %s and get method %s" %
-                       (filename, self.set, self.get))
+        self.log.debug("Process filename %s with get function %s, set function %s" % (fn, self.get_fn, self.set_fn))
 
-        if self.set is None:
-            self.log.raiseException('Failed to determine set method for filename %s' % filename)
-        if self.get is None:
-            self.log.raiseException('Failed to determine get method for filename %s' % filename)
+        if self.get_fn is None:
+            self.log.error('Failed to determine get function for filename %s' % fn)
+        if self.set_fn is None:
+            self.log.error('Failed to determine set function for filename %s' % fn)
 
     def _read(self, filename=None):
         """Read the easyconfig, dump content in self.rawcontent"""
@@ -84,45 +83,46 @@ class EasyConfigParser(object):
             self._check_filename(filename)
 
         try:
-            self.rawcontent = self.get[0](*self.get[1])
-        except:
-            self.log.raiseException('Failed to process content with method %s and args %s' %
-                                    (self.get[0], self.get[1]))
+            self.rawcontent = self.get_fn[0](*self.get_fn[1])
+        except IOError, err:
+            self.log.error('Failed to obtain content with %s: %s' % (self.get_fn, err))
 
         if not isinstance(self.rawcontent, basestring):
-            txt = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
-            # TODO replace with proper error, also fix unittest
-            self.log.error("Unexpected IOError: %s" % txt)
+            msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
+            self.log.error("Unexpected result for raw content: %s" % msg)
 
-    def _set_format_version(self):
+    def _det_format_version(self):
         """Extract the format version from the raw content"""
         if self.format_version is None:
             self.format_version = get_format_version(self.rawcontent)
             if self.format_version is None:
-                self.log.debug('No version found, using default %s' % FORMAT_DEFAULT_VERSION)
                 self.format_version = FORMAT_DEFAULT_VERSION
+                self.log.debug('No version found, using default %s' % self.format_version)
 
     def _get_format_version_class(self):
         """Locate the class matching the version"""
-        self._set_format_version()
+        if self.format_version is None:
+            self._det_format_version()
         found_classes = get_format_version_classes(version=self.format_version)
-        if len(found_classes) == 0:
-            self.log.error('No format classes found matching version %s' % (self.format_version))
-        elif len(found_classes) > 1:
-            self.log.error('More then one format class found matching version %s: %s' %
-                           (self.format_version, found_classes))
-        else:
+        if len(found_classes) == 1:
             return found_classes[0]
+        elif not found_classes:
+            self.log.error('No format classes found matching version %s' % self.format_version)
+        else:
+            msg = 'More than one format class found matching version %s in %s' % (self.format_version, found_classes)
+            self.log.error(msg)
 
     def _set_formatter(self):
         """Obtain instance of the formatter"""
-        klass = self._get_format_version_class()
-        self._formatter = klass()
+        if self._formatter is None:
+            klass = self._get_format_version_class()
+            self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):
         """Create the text for the formatter instance"""
         # TODO create the data in self.rawcontent
+        pass
 
     def write(self, filename=None):
         """Write the easyconfig format instance, using content in self.rawcontent."""
@@ -130,10 +130,9 @@ class EasyConfigParser(object):
             self._check_filename(filename)
 
         try:
-            self.set[0](*self.set[1])
-        except:
-            self.log.raiseException('Failed to process content with method %s and args %s' %
-                                    (self.set[0], self.set[1]))
+            self.set_fn[0](*self.set_fn[1])
+        except IOError, err:
+            self.log.error('Failed to process content with %s: %s' % (self.set_fn, err))
 
     def get_config_dict(self):
         """Return parsed easyconfig as a dict."""

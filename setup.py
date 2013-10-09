@@ -78,11 +78,11 @@ easybuild_packages = [
 ]
 
 setup(
-    name="easybuild-framework",
-    version=str(VERSION),
-    author="EasyBuild community",
-    author_email="easybuild@lists.ugent.be",
-    description="""EasyBuild is a software installation framework in Python that allows you to \
+    name = "easybuild-framework",
+    version = str(VERSION),
+    author = "EasyBuild community",
+    author_email = "easybuild@lists.ugent.be",
+    description = """EasyBuild is a software installation framework in Python that allows you to \
 install software in a structured and robust way.
 This package contains the EasyBuild framework, which supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",

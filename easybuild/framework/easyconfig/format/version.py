@@ -37,6 +37,9 @@ from vsc import fancylogger
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
+DEFAULT_VERSION_OPERATOR = '=='
+
+
 class EasyVersion(LooseVersion):
     """Exact LooseVersion. No modifications needed (yet)"""
     # TODO: replace all LooseVersion with EasyVersion in eb, after moving EasyVersion to easybuild/tools?
@@ -64,30 +67,30 @@ class VersionOperator(object):
         '!=': op.ne,
     }
 
-    def __init__(self, txt=None):
+    def __init__(self, ver_str=None):
         """Initialise.
             @param txt: intialise with txt
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.regexp = self._operator_regexp()
+        self.regex = self.operator_regex()
 
         self.versions = []
 
-        if txt is not None:
-            self.add(txt)
+        if ver_str is not None:
+            self.add_version_ordered(ver_str)
 
-    def _operator_regexp(self, begin_end=True):
+    def operator_regex(self, begin_end=True):
         """
         Create the version regular expression with operator support. Support for version indications like
             5_> (anything strict larger then 5)
-            @param begin_end: boolean, create a regexp with begin/end match
+            @param begin_end: boolean, create a regex with begin/end match
         """
         # construct escaped operator symbols, e.g. '\<\='
         ops = []
         for op in self.OPERATOR.keys():
             ops.append(re.sub(r'(.)', r'\\\1', op))
 
-        # regexp to parse version expression
+        # regex to parse version expression
         # - ver_str should start/end with any word character except separator
         # - minimal ver_str length is 1
         # - operator part at the end is optional
@@ -115,11 +118,11 @@ class VersionOperator(object):
         self.log.debug('converted string %s to version %s' % (ver_str, version))
         return version
 
-    def _operator_check(self, ver_str=None, operator='=='):
+    def _operator_check(self, ver_str=None, operator=DEFAULT_VERSION_OPERATOR):
         """
         Return function that functions as a check against version and operator
-            @param ver_str: string, sort-of mandatory
-            @param oper: string, default to ==
+            @param ver_str: version string, sort-of mandatory
+            @param operator: operator string
         No positional args to allow **reg.search(txt).groupdict()
         """
         version = self._convert(ver_str)
@@ -138,12 +141,12 @@ class VersionOperator(object):
 
         return check
 
-    def match(self, ver_str):
+    def parse_version_str(self, ver_str):
         """
-        See if argument matches a version operator
-        If so, return dict with version, operator and check
+        See if argument contains a version operator
+        If so, returns dict with version, operator and check; returns None otherwise
         """
-        res = self.regexp.search(ver_str)
+        res = self.regex.search(ver_str)
         if not res:
             self.log.error('No version_match for version expression %s' % ver_str)
             return None
@@ -155,17 +158,16 @@ class VersionOperator(object):
         self.log.debug('version_match for version expression %s: %s' % (ver_str, ver_dict))
         return ver_dict
 
-    def add(self, txt):
+    def add_version_ordered(self, ver_str):
         """
-        Add version to ordered list of versions
-            Ordering is highest first, is such that version[idx] >= version[idx+1]
-            @param txt: text to match
-        Build easyconfig with most recent (=most important) first
+        Add version to ordered list of versions.
+        Ordering is highest first, such that versions[idx] >= versions[idx+1]
+        @param ver_str: text to match
+        Build easyconfig with most recent version (=most relevant) first
         """
-        version_dict = self.match(txt)
+        version_dict = self.parse_version_str(ver_str)
         if version_dict is None:
-            msg = 'version %s does not version_match' % txt
-            self.log.error(msg)
+            self.log.error('version string %s does not parse' % ver_str)
         else:
             insert_idx = 0
             for idx, v_dict in enumerate(self.versions):
@@ -184,47 +186,47 @@ class ToolchainOperator(object):
     def __init__(self):
         """Initialise"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.regexp = self._operator_regexp()
+        self.regex = self.operator_regex()
 
-    def _operator_regexp(self):
+    def operator_regex(self):
         """
         Create the regular expression for toolchain support of format
-            ^toolchain_version$
-        with toolchain one of the supported toolchains and version in version_operator syntax
+            ^<toolchain>_<ver_expr>$
+        with <toolchain> the name of one of the supported toolchains and <ver_expr> in <version>_<operator> syntax
         """
         _, all_tcs = search_toolchain('')
         tc_names = [x.NAME for x in all_tcs]
-        self.log.debug("found toolchain names %s " % (tc_names))
+        self.log.debug("found toolchain names %s " % tc_names)
 
         vop = VersionOperator()
-        vop_pattern = vop._operator_regexp(begin_end=False).pattern
-        toolchains = r'(%s)' % '|'.join(tc_names)
-        toolchain_reg = re.compile(r'^(?P<toolchainname>%s)(?:%s(?P<toolchainversion>%s))?$' %
-                                   (toolchains, self.SEPARATOR, vop_pattern))
+        vop_pattern = vop.operator_regex(begin_end=False).pattern
+        tc_names_regex = r'(%s)' % '|'.join(tc_names)
+        tc_regex = re.compile(r'^(?P<tc_name>%s)(?:%s(?P<tc_ver>%s))?$' % (tc_names_regex, self.SEPARATOR, vop_pattern))
 
-        self.log.debug("toolchain_operator pattern %s " % (toolchain_reg))
-        return toolchain_reg
+        self.log.debug("toolchain_operator pattern %s " % tc_regex.pattern)
+        return tc_regex
 
-    def toolchain_match(self, txt):
+    def toolchain_parse_version_str(self, tc_str):
         """
-        See if txt matches a toolchain_operator
-        If so, return dict with tcname and optional version, operator and check
+        See if argument matches a toolchain_operator
+        If so, return dict with toolchain and version (may be None), and optionally operator and check;
+        otherwise, return None
         """
-        r = self.toolchain_regexp.search(txt)
-        if not r:
-            self.log.error('No toolchain_match for txt %s' % txt)
+        res = self.toolchain_regex.search(tc_str)
+        if not res:
+            self.log.error('No toolchain match for %s' % tc_str)
             return None
 
-        res = r.groupdict()
-        res['txt'] = txt
-        versiontxt = res.get('toolchainversion', None)
-        if versiontxt is None:
-            self.log.debug('No toolchainversion specified in txt %s (%s)' % (txt, res))
+        tc_dict = r.groupdict()
+        tc_dict['tc_ver_str'] = tc_str
+        tc_ver_str = res.get('tc_ver', None)
+        if tc_ver_str is None:
+            self.log.debug('No toolchain version specified in %s (%s)' % (tc_ver_str, tc_dict))
         else:
             vop = VersionOperator()
-            res['check_fn'] = vop._operator_check(version=res['version'], oper=res['operator'])
-        self.log.debug('toolchain_match for txt %s: %s' % (txt, res))
-        return res
+            tc_dict['check_fn'] = vop._operator_check(version=tc_dict['ver_str'], oper=tc_dict['operator'])
+        self.log.debug('toolchain expression %s parsed to %s' % (tc_str, tc_dict))
+        return tc_dict
 
 
 class ConfigObjVersion(object):
@@ -237,7 +239,7 @@ class ConfigObjVersion(object):
       - version : dependencies
 
     Given ConfigObj instance, make instance that can check if toolchain/version is allowed,
-        return version / toolchain / toolchainversion and dependency
+    return version, toolchain name, toolchain version and dependency
 
     Mandatory (to fake v1.0 behaviour)? Set this eb wide through other config file?
     [DEFAULT]
@@ -261,22 +263,24 @@ class ConfigObjVersion(object):
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
+        # FIXME: not used?
         self.configobj = None
-
         if configobj is not None:
             self.set_configobj(configobj)
 
     def set_configobj(self, configobj):
         """
         Set the configobj
-            @param configobj: ConfigObj instance
+        @param configobj: ConfigObj instance
         """
+        # FIXME: clarify docstring, what's going on here?
+        # FIXME: add_version, add_toolchain functions totally missing?
         for name, section in configobj.items():
             if name == 'DEFAULT':
                 if 'version' in section:
                     self.add_version(section['version'], section=name)
                 if 'toolchain' in section:
-                    toolchain = self.toolchain_match(section['toolchain'])
+                    toolchain = self.toolchain_parse_version_str(section['toolchain'])
                     if toolchain is None:
                         self.log.error('Section %s toolchain %s does not toolchain_match' %
                                        (name, section['toolchain']))

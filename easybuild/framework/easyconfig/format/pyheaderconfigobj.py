@@ -200,11 +200,10 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             current_builtins = globals()['__builtins__']
             builtins = {}
             for name in self.PYHEADER_ALLOWED_BUILTINS:
-                if isinstance(current_builtins, dict) and name in current_builtins:
-                    # in unittest environment? FIXME: clarify this
-                    builtins[name] = current_builtins.get(name)
-                elif hasattr(current_builtins, name):
+                if hasattr(current_builtins, name):
                     builtins[name] = getattr(current_builtins, name)
+                elif isinstance(current_builtins, dict) and name in current_builtins:
+                    builtins[name] = current_builtins.get(name)
                 else:
                     self.log.warning('No builtin %s found.' % name)
             global_vars['__builtins__'] = builtins
