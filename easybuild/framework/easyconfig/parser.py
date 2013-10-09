@@ -43,7 +43,7 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, format_version=None):
         """Initialise the EasyConfigParser class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -52,7 +52,7 @@ class EasyConfigParser(object):
         self.get = None  # write method and args
         self.set = None  # read method and args
 
-        self.formatversion = None
+        self.format_version = format_version
         self.format = None
 
         if filename is not None:
@@ -94,22 +94,23 @@ class EasyConfigParser(object):
             # TODO replace with proper error, also fix unittest
             self.log.error("Unexpected IOError: %s" % txt)
 
-    def get_format_version(self):
+    def set_format_version(self):
         """Extract the format version from the raw content"""
-        self.formatversion = get_format_version(self.rawcontent)
-        if self.formatversion is None:
-            self.log.debug('No version found, using default %s' % FORMAT_DEFAULT_VERSION)
-            self.formatversion = FORMAT_DEFAULT_VERSION
+        if self.format_version is None:
+            self.format_version = get_format_version(self.rawcontent)
+            if self.format_version is None:
+                self.log.debug('No version found, using default %s' % FORMAT_DEFAULT_VERSION)
+                self.format_version = FORMAT_DEFAULT_VERSION
 
     def get_format_version_class(self):
         """Locate the class matching the version"""
-        self.get_format_version()
-        found_classes = get_format_version_classes(version=self.formatversion)
+        self.set_format_version()
+        found_classes = get_format_version_classes(version=self.format_version)
         if len(found_classes) == 0:
-            self.log.error('No format classes found matching version %s' % (self.formatversion))
+            self.log.error('No format classes found matching version %s' % (self.format_version))
         elif len(found_classes) > 1:
             self.log.error('More then one format class found matching version %s: %s' %
-                           (self.formatversion, found_classes))
+                           (self.format_version, found_classes))
         else:
             return found_classes[0]
 

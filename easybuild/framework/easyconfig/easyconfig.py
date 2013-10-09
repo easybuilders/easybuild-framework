@@ -188,13 +188,12 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def parse(self, path):
+    def parse(self, path, format_version=None):
         """
         Parse the file and set options
         mandatory requirements are checked here
         """
-        # TODO change the methods to select specific version
-        parser = EasyConfigParser(path)
+        parser = EasyConfigParser(path, format_version=None)
         local_vars = parser.format.get_config_dict()
 
         # validate mandatory keys
