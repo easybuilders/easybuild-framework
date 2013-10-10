@@ -87,11 +87,10 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     Extended EasyConfig format, with support for a header and sections that are actually parsed (as opposed to exec'ed).
     It's very limited for now, but is already huge improvement.
 
-    4 parts in text file
-
+    3 parts in easyconfig file:
     - header (^# style)
     - pyheader (including docstring)
-     - exec txt, extract doctstring and remainder
+     - contents is exec'ed, doctstring and remainder are extracted
     - begin of regular section until EOF
      - feed to ConfigObj
     """
