@@ -90,8 +90,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     4 parts in text file
 
     - header (^# style)
-    - docstring
-    - pyheader
+    - pyheader (including docstring)
      - exec txt, extract doctstring and remainder
     - begin of regular section until EOF
      - feed to ConfigObj
@@ -130,7 +129,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             self.parse_section(txt[start_section:])
 
     def parse_pre_section(self, txt):
-        """Parse the text block before the start of the section"""
+        """Parse the text block before the start of the first section"""
         header_reg = re.compile(r'^\s*(#.*)?$')
 
         txt_list = txt.split('\n')

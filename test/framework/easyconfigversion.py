@@ -43,9 +43,9 @@ class EasyConfigVersion(TestCase):
         first = '1.0.0_>='
         last = '3.0.0_>'
         vop.add_version_ordered('2.0.0_>=')
+        vop.add_version_ordered(last)
         vop.add_version_ordered(first)
         vop.add_version_ordered('2.5.0_<=')
-        vop.add_version_ordered(last)
 
         self.assertTrue(vop.versions[0], last)
         self.assertTrue(vop.versions[-1], first)

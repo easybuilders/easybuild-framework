@@ -51,10 +51,10 @@ class EasyVersion(LooseVersion):
 
 class VersionOperator(object):
     """
-    VersionOperator class represent a version expression that includes an operator.
+    VersionOperator class represents a version expression that includes an operator.
 
     Supports ordered list of versions, ordering according to operator
-    Ordering is highest first, is such that versions[idx] >= versions[idx+1]
+    Ordering is highest first, such that versions[idx] >= versions[idx+1]
     """
 
     SEPARATOR = '_'
