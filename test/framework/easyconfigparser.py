@@ -22,11 +22,11 @@ class EasyConfigParserTest(TestCase):
 
     def test_v10(self):
         ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb'))
-        ec = ecp.format.get_config_dict()
+        ec = ecp.get_config_dict()
 
     def test_v20(self):
         ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb'))
-        ec = ecp.format.get_config_dict()
+        ec = ecp.get_config_dict()
 
 
 def suite():
@@ -37,5 +37,4 @@ def suite():
 if __name__ == '__main__':
     # logToScreen(enable=True)
     # setLogLevelDebug()
-
     main()

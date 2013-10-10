@@ -8,47 +8,47 @@ import os
 from easybuild.framework.easyconfig.format.version import ConfigObjVersion, VersionOperator, ToolchainOperator
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class VersionOperatorTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_parser_regex()
-        self.test_parser_check()
+class EasyConfigVersion(TestCase):
+    """Unit tests for format.version module."""
 
     def test_parser_regex(self):
         """Test the version parser"""
         vop = VersionOperator()
         # version tests
-        self.assertTrue(vop.regexp.search('1.2.3_>='))
-        self.assertTrue(vop.regexp.search('1.2.3'))
-        self.assertFalse(vop.regexp.search('%s1.2.3' % vop.SEPARATOR))
+        self.assertTrue(vop.regex.search('1.2.3_>='))
+        self.assertTrue(vop.regex.search('1.2.3'))
+        self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))
 
     def test_parser_check(self):
         """Test version checker"""
         vop = VersionOperator()
-        check = vop._operator_check(**vop.regexp.search('1.2.3_>=').groupdict())
+        check = vop._operator_check(**vop.regex.search('1.2.3_>=').groupdict())
         self.assertTrue(check('1.2.3'))
-        self.assertTrue(check('1.2.2'))  # righthand side: 1.2.3 >= 1.2.2 : True
-        self.assertFalse(check('1.2.4'))  # righthand side: 1.2.3 >= 1.2.4 : False
+        self.assertTrue(check('1.2.2'))  # 1.2.3 >= 1.2.2 : True
+        self.assertFalse(check('1.2.4'))  # 1.2.3 >= 1.2.4 : False
 
-    def test_find_best_natch(self):
+        check = vop._operator_check(**vop.regex.search('1.2.3_<').groupdict())
+        self.assertFalse(check('1.2.3'))
+        self.assertFalse(check('1.2.2'))  # 1.2.3 < 1.2.2 : False
+        self.assertTrue(check('1.2.4'))  # 1.2.3 < 1.2.4 : True
+
+    def test_find_best_match(self):
         """Given set of ranges, find best match"""
         vop = VersionOperator()
-        vop.add('1.0.0_>=')
-        vop.add('2.0.0_>=')
-        vop.add('2.5.0_<=')
-        vop.add('3.0.0_>=')
+        first = '1.0.0_>='
+        last = '3.0.0_>'
+        vop.add_version_ordered('2.0.0_>=')
+        vop.add_version_ordered(last)
+        vop.add_version_ordered(first)
+        vop.add_version_ordered('2.5.0_<=')
 
-class ToolchainOperatorTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_parser_toolchain_regex()
+        self.assertTrue(vop.versions[0], last)
+        self.assertTrue(vop.versions[-1], first)
 
     def test_parser_toolchain_regex(self):
         """Test the toolchain parser"""
@@ -56,24 +56,17 @@ class ToolchainOperatorTest(TestCase):
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
         tc = tc_names[0]
-        self.assertTrue(top.regexp.search("%s_1.2.3_>=" % (tc)))
-        self.assertTrue(top.regexp.search("%s_1.2.3" % (tc)))
-        self.assertTrue(top.regexp.search("%s" % (tc)))
-        self.assertFalse(top.regexp.search("x%s_1.2.3_>=" % (tc)))
-        self.assertFalse(top.regexp.search("%sx_1.2.3_>=" % (tc)))
-
-
-class ConfigObjTest(TestCase):
-    """Test the 2.0 format"""
-
-    def runTest(self):
-        self.test_configobj()
+        self.assertTrue(top.regex.search("%s_1.2.3_>=" % tc))
+        self.assertTrue(top.regex.search("%s_1.2.3" % tc))
+        self.assertTrue(top.regex.search(tc))
+        self.assertFalse(top.regex.search("x%s_1.2.3_>=" % tc))
+        self.assertFalse(top.regex.search("%sx_1.2.3_>=" % tc))
 
     def test_configobj(self):
         """Test configobj sort"""
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
-        tcmax = 3
+        tcmax = min(len(tc_names), 3)
         if len(tc_names) < tcmax:
             tcmax = len(tc_names)
         tc = tc_names[0]
@@ -85,21 +78,21 @@ class ConfigObjTest(TestCase):
             'toolchains=%s_7.8.9_>=' % ','.join(tc_names[:tcmax]),
             'versions=1.2.3,2.3.4,3.4.5',
             '[2.3.4_>=]',
-            '[3.4.5_>=]',
+            'foo=bar',
+            '[3.4.5_>]',
+            'baz=biz',
             '[%s_5.6.7_>=]' % tc,
-            '[%s_7.8.9_>=]' % tc_names[tcmax - 1],
-            ]
+            '[%s_7.8.9_>]' % tc_names[tcmax - 1],
+        ]
 
         co = ConfigObj(configobj_txt)
         cov = ConfigObjVersion()
+        # FIXME: actually fix something
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([ConfigObjTest(),
-                      VersionOperatorTest(),
-                      ToolchainOperatorTest(),
-                      ])
+    return TestLoader().loadTestsFromTestCase(EasyConfigVersion)
 
 
 if __name__ == '__main__':

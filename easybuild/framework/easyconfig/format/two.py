@@ -35,16 +35,18 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFo
 from easybuild.framework.easyconfig.format.version import EasyVersion
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
-    """Simple extension of FormatOne with configparser blocks
-    Deprecates setting version and toolchain/toolchain version in FormatOne
-        - if no version in pyheader, then no references to it directly!
-            - either templates or insert it !
+    """Support for easyconfig format 2.x
+    Simple extension of FormatOneZero with configparser blocks
+
+    Doesn't set version and toolchain/toolchain version like in FormatOneZero
+        - if no 'version' in pyheader, then referencing it directly in pyheader doesn't work
+            - either use templates ('%(version)s'), or include version spec
 
     NOT in 2.0
-        - order preservation: need more recent ConfigParser
-        - nested sections (need other ConfigParser, eg INITools)
+        - order preservation: need more recent ConfigParser (more recent Python as minimal version)
+        - nested sections (need other ConfigParser/ConfigObj, eg INITools)
         - type validation
-        - commandline generation
+        - command line generation (--try-X command line options)
     """
     VERSION = EasyVersion('2.0')
     USABLE = True
@@ -53,8 +55,9 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def check_docstring(self):
         """Verify docstring"""
         # TODO check for @author and/or @maintainer
+        pass
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Return the best matching easyconfig dict"""
-        # Do not allow toolchain name and / or version, do allow other toolchain options in pyheader
-
+        # the toolchain name/version should not be specified in the pyheader, but other toolchain options are allowed
+        pass

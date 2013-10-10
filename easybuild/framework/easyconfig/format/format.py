@@ -29,31 +29,32 @@ The main easyconfig format class
 @author: Stijn De Weirdt (Ghent University)
 """
 import re
+from vsc import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.format.version import EasyVersion
-from vsc import fancylogger
 
 
 # format is mandatory major.minor
+FORMAT_VERSION_KEYWORD = "EASYCONFIGFORMAT"
 FORMAT_VERSION_TEMPLATE = "%(major)s.%(minor)s"
-FORMAT_VERSION_HEADER_TEMPLATE = "# EASYCONFIGFORMAT %s\n" % FORMAT_VERSION_TEMPLATE  # should end in newline
-FORMAT_VERSION_REGEXP = re.compile(r'^#\s+EASYCONFIGFORMAT\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$', re.M)
-FORMAT_DEFAULT_VERSION_STRING = '1.0'
-FORMAT_DEFAULT_VERSION = EasyVersion(FORMAT_DEFAULT_VERSION_STRING)
+FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_VERSION_TEMPLATE)  # must end in newline
+FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
+FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
 
 
 def get_format_version(txt):
-    """Get the format version as EasyVersion instance."""
-    r = FORMAT_VERSION_REGEXP.search(txt)
+    """Get the easyconfig format version as EasyVersion instance."""
+    res = FORMAT_VERSION_REGEXP.search(txt)
     format_version = None
-    if r is not None:
+    if res is not None:
         try:
-            maj_min = r.groupdict()
+            maj_min = res.groupdict()
             format_version = EasyVersion(FORMAT_VERSION_TEMPLATE % maj_min)
-        except:
-            _log.raiseException('Failed to get version from match %s' % (r.groups(),))
+        except (KeyError, TypeError), err:
+            _log.error("Failed to get version from match %s: %s" % (res.groups(), err))
     return format_version
 
 
@@ -66,32 +67,39 @@ class EasyConfigFormat(object):
         """Initialise the EasyConfigFormat class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        if not len(self.VERSION.version) == 2:
-            self.log.error('Invalid version number %s' % (self.VERSION))
+        if not len(self.VERSION) == len(FORMAT_VERSION_TEMPLATE.split('.')):
+            self.log.error('Invalid version number %s (incorrect length)' % self.VERSION)
 
-        self.rawtext = None  # text version of the
-
-        self.header = None  # the header
-        self.docstring = None  # the docstring
+        self.rawtext = None  # text version of the easyconfig
+        self.header = None  # easyconfig header (e.g., format version, license, ...)
+        self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Returns a single easyconfig dictionary."""
-        self.log.error('get_config_dict needs implementation')
+        raise NotImplementedError
 
     def validate(self):
-        """Verify the format"""
+        """Verify the easyconfig format"""
         self._check_docstring()
 
     def _check_docstring(self):
-        """Verify docstring placeholder. Do nothing by default."""
+        """Verify the easyconfig docstring. Do nothing by default."""
         pass
 
     def parse(self, txt):
         """Parse the txt according to this format. This is highly version specific"""
-        self.log.error('parse needs implementation')
+        raise NotImplementedError
 
-    def text(self):
-        """Create text according to this format. This is higly version specific"""
-        self.log.error('text needs implementation')
+    def dump(self):
+        """Dump easyconfig according to this format. This is higly version specific"""
+        raise NotImplementedError
 
 
+
+def get_format_version_classes(version=None):
+    """Return the (first) subclass from EasyConfigFormat that has matching version."""
+    all_classes = get_subclasses(EasyConfigFormat)
+    if version is None:
+        return all_classes
+    else:
+        return [x for x in all_classes if x.VERSION == version and x.USABLE]

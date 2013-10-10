@@ -24,3 +24,7 @@
 # #
 """The easyconfig.format package provides the EasyConfig format classes"""
 
+# we need to make sure all known formats are imported,
+# such that get_format_version_classes() is able to find all subclasses of EasyConfigFormat
+from easybuild.framework.easyconfig.format.one import FormatOneZero
+from easybuild.framework.easyconfig.format.two import FormatTwoZero
