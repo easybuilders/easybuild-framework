@@ -882,16 +882,17 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
         try:
             if not os.path.isdir(newLogDir):
                 os.makedirs(newLogDir)
-            applicationLog = os.path.join(newLogDir, get_log_filename(app.name, app.version))
+            log_fn = os.path.basename(get_log_filename(app.name, app.version))
+            applicationLog = os.path.join(newLogDir, log_fn)
             shutil.move(app.logfile, applicationLog)
-            _log.debug("Moved log file %s to %s (newLogDir: %s)" % (app.logfile, applicationLog, newLogDir))
+            _log.debug("Moved log file %s to %s" % (app.logfile, applicationLog))
         except (IOError, OSError), err:
             print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
 
         try:
             newspec = os.path.join(newLogDir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
             shutil.copy(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s (newLogDir: %s)" % (spec, newspec, newLogDir))
+            _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
 
