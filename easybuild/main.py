@@ -857,9 +857,9 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
         if app.cfg['stop']:
             ended = "STOPPED"
-            newLogDir = os.path.join(app.builddir, config.log_path())
+            new_log_dir = os.path.join(app.builddir, config.log_path())
         else:
-            newLogDir = os.path.join(app.installdir, config.log_path())
+            new_log_dir = os.path.join(app.installdir, config.log_path())
 
             try:
                 # upload spec to central repository
@@ -880,21 +880,21 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
         # cleanup logs
         app.close_log()
         try:
-            if not os.path.isdir(newLogDir):
-                os.makedirs(newLogDir)
+            if not os.path.isdir(new_log_dir):
+                os.makedirs(new_log_dir)
             log_fn = os.path.basename(get_log_filename(app.name, app.version))
-            applicationLog = os.path.join(newLogDir, log_fn)
-            shutil.move(app.logfile, applicationLog)
-            _log.debug("Moved log file %s to %s" % (app.logfile, applicationLog))
+            application_log = os.path.join(new_log_dir, log_fn)
+            shutil.move(app.logfile, application_log)
+            _log.debug("Moved log file %s to %s" % (app.logfile, application_log))
         except (IOError, OSError), err:
-            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
+            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, application_log, err))
 
         try:
-            newspec = os.path.join(newLogDir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
+            newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
             shutil.copy(spec, newspec)
             _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
+            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
 
     # build failed
     else:
@@ -908,7 +908,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
         # cleanup logs
         app.close_log()
-        applicationLog = app.logfile
+        application_log = app.logfile
 
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
@@ -921,7 +921,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, _log, silent=silent)
 
-    print_msg("Results of the build can be found in the log file %s" % applicationLog, _log, silent=silent)
+    print_msg("Results of the build can be found in the log file %s" % application_log, _log, silent=silent)
 
     del app
     os.chdir(cwd)
@@ -931,9 +931,9 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
         if exitOnFailure:
             sys.exit(exitCode)
         else:
-            return (False, applicationLog)
+            return (False, application_log)
     else:
-        return (True, applicationLog)
+        return (True, application_log)
 
 
 def dep_graph(fn, specs, silent=False):
