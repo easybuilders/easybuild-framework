@@ -318,7 +318,11 @@ def init(options, config_options_dict):
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
-                value = [value]
+                if isinstance(value, basestring):
+                    # only retain first path, others are considered 'read-only' and trying to create them may fail
+                    value = [value.split(os.pathsep)[0]]
+                else:
+                    value = [value]
             for directory in value:
                 if not os.path.isdir(directory):
                     _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
