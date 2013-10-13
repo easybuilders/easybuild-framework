@@ -230,7 +230,7 @@ class PbsJob(object):
             self.log.warning("Job submission returned None as ID, retrying job submission (attempt %d)" % attempt)
             # sleep for a short while after failed attempt
             self.log.debug("Starting sleep...")
-            time.sleep(5)
+            time.sleep(30)
             self.log.debug("Done sleeping...")
         # make sure job was properly submitted
         is_error, errormsg = pbs.error()
