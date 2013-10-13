@@ -231,9 +231,9 @@ class PbsJob(object):
             # sleep for a short while after failed attempt
             self.log.debug("Starting sleep...")
             time.sleep(30)
+            # reconnect to PBS server
             pbs.pbs_disconnect(self.pbsconn)
             self.pbsconn = pbs.pbs_connect(self.pbs_server)
-            # reconnect to PBS server
             self.log.debug("Done sleeping, and reconnected to server...")
         # make sure job was properly submitted
         is_error, errormsg = pbs.error()
