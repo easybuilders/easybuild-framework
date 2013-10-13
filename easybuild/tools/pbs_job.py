@@ -31,6 +31,7 @@ Interface module to TORQUE (PBS).
 """
 
 import os
+import time
 from vsc import fancylogger
 
 _log = fancylogger.getLogger('pbs_job', fname=False)
@@ -227,6 +228,10 @@ class PbsJob(object):
             if jobid is not None:
                 break
             self.log.warning("Job submission returned None as ID, retrying job submission (attempt %d)" % attempt)
+            # sleep for a short while after failed attempt
+            self.log.debug("Starting sleep...")
+            time.sleep(5)
+            self.log.debug("Done sleeping...")
         # make sure job was properly submitted
         is_error, errormsg = pbs.error()
         if is_error or jobid is None:
