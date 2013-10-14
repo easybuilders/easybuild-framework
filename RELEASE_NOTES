@@ -1,6 +1,17 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.8.1 (October 14th 2013)
+--------------------------
+
+bugfix release
+- various bug fixes, including:
+    - fix bugs in regtest procedure (#713)
+        - force 2nd and 3rd attempt of build in case 1st attempt failed
+    - fix copying of install log to install directory (#716)
+    - only create first source path if multiple paths are specified (#718)
+    - detect failed PBS job submission by checking obtained job ID for None value (#713, #717, #719, #720)
+
 v1.8.0 (October 4th 2013)
 -------------------------
 
