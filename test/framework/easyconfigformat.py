@@ -26,7 +26,7 @@ class EasyConfigFormatTest(TestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(EasyConfigParserTest)
+    return TestLoader().loadTestsFromTestCase(EasyConfigFormatTest)
 
 
 if __name__ == '__main__':
