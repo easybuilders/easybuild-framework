@@ -81,9 +81,10 @@ class VersionOperator(object):
 
     def operator_regex(self, begin_end=True):
         """
-        Create the version regular expression with operator support. Support for version indications like
-            5_> (anything strict larger then 5)
-            @param begin_end: boolean, create a regex with begin/end match
+        Create the version regular expression with operator support.
+        This supports version expressions like '>_5' (anything strict larger than 5),
+        or '<=_1.2' (anything smaller than or equal to 1.2)
+        @param begin_end: boolean, create a regex with begin/end match
         """
         # construct escaped operator symbols, e.g. '\<\='
         ops = []
@@ -91,10 +92,10 @@ class VersionOperator(object):
             ops.append(re.sub(r'(.)', r'\\\1', op))
 
         # regex to parse version expression
+        # - operator part at the start is optional
         # - ver_str should start/end with any word character except separator
         # - minimal ver_str length is 1
-        # - operator part at the end is optional
-        reg_text = r"(?P<ver_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)(?:%(sep)s(?P<operator>%(ops)s))?" % {
+        reg_text = r"(?:(?P<operator>%(ops)s)%(sep)s)?(?P<ver_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % {
             'sep': self.SEPARATOR,
             'ops': '|'.join(ops),
         }
@@ -135,7 +136,7 @@ class VersionOperator(object):
         def check(test_ver_str):
             """The check function; test version is always the second arg in comparing"""
             test_ver = self._convert(test_ver_str)
-            res = op(version, test_ver)
+            res = op(version, test_ver)  # FIXME what about '1.2.3 > 1.2dev'? can we somehow use LooseVersion version comparison here?
             self.log.debug('Check %s version %s using operator %s: %s' % (version, test_ver, op, res))
             return res
 
