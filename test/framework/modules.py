@@ -57,8 +57,6 @@ class ModulesTest(TestCase):
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
         testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-        ms = testmods.available()
-        self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
         # test modules include 3 GCC modules
         ms = testmods.available('GCC')
@@ -67,6 +65,10 @@ class ModulesTest(TestCase):
         # test modules include one GCC/4.6.3 module
         ms = testmods.available(mod_name='GCC/4.6.3')
         self.assertEqual(ms, ['GCC/4.6.3'])
+
+        # all test modules are accounted for
+        ms = testmods.available()
+        self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
