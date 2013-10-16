@@ -20,24 +20,34 @@ class EasyConfigVersion(TestCase):
         """Test the version parser"""
         vop = VersionOperator()
         # version tests
-        self.assertTrue(vop.regex.search('<_4'))
-        self.assertTrue(vop.regex.search('>=_20131016'))
-        self.assertTrue(vop.regex.search('<=_1.2.3'))
-        self.assertTrue(vop.regex.search('>_2.4'))
-        self.assertTrue(vop.regex.search('==_1.2b'))
-        self.assertTrue(vop.regex.search('!=_2.0dev'))
-        self.assertTrue(vop.regex.search('1.2.3'))
-        self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))
+        self.assertTrue(vop.regex.search('< 4'))
+        self.assertTrue(vop.regex.search('>= 20131016'))
+        self.assertTrue(vop.regex.search('<= 1.2.3'))
+        self.assertTrue(vop.regex.search('> 2.4'))
+        self.assertTrue(vop.regex.search('== 1.2b'))
+        self.assertTrue(vop.regex.search('!= 2.0dev'))
+        self.assertTrue(vop.regex.search('1.2.3'))  # operator is optional, '==' is default
+        self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))  # no separator usage w/o something to separate
+        self.assertFalse(vop.regex.search('1.2.3%s' % vop.SEPARATOR))  # no separator usage w/o something to separate
+        self.assertFalse(vop.regex.search('>  2.4'))  # double space as separator is not allowed
+        self.assertFalse(vop.regex.search('>%s 2.4' % vop.SEPARATOR))  # double separator is not allowed
+        self.assertTrue(vop.regex.search('>%sa2.4' % vop.SEPARATOR))  # version starts/ends with *any* word character
+        self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
+        self.assertTrue(vop.regex.search('>%sG2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
 
     def test_parser_check(self):
         """Test version checker"""
         vop = VersionOperator()
-        check = vop._operator_check(**vop.regex.search('>=_1.2.3').groupdict())
+        # FIXME: default operator is '=='?
+        #check = vop._operator_check(**vop.regex.search('1.2.3').groupdict())
+        #self.assertTrue(check('1.2.3'))  # 1.2.3 == 1.2.3: True
+
+        check = vop._operator_check(**vop.regex.search('>= 1.2.3').groupdict())
         self.assertTrue(check('1.2.3'))  # 1.2.3 >= 1.2.3: True
         self.assertTrue(check('1.2.2'))  # 1.2.3 >= 1.2.2 : True
         self.assertFalse(check('1.2.4'))  # 1.2.3 >= 1.2.4 : False
 
-        check = vop._operator_check(**vop.regex.search('<_1.2.3').groupdict())
+        check = vop._operator_check(**vop.regex.search('< 1.2.3').groupdict())
         self.assertFalse(check('1.2.3'))  # 1.2.3 < 1.2.3: False
         self.assertFalse(check('1.2.2'))  # 1.2.3 < 1.2.2 : False
         self.assertTrue(check('1.2.4'))  # 1.2.3 < 1.2.4 : True
@@ -48,12 +58,12 @@ class EasyConfigVersion(TestCase):
     def test_find_best_match(self):
         """Given set of ranges, find best match"""
         vop = VersionOperator()
-        first = '==_1.0.0'
-        last = '<_3.0.0'
-        vop.add_version_ordered('>=_2.0.0')
+        first = '== 1.0.0'
+        last = '< 3.0.0'
+        vop.add_version_ordered('>= 2.0.0')
         vop.add_version_ordered(last)
         vop.add_version_ordered(first)
-        vop.add_version_ordered('!=_2.5.0')
+        vop.add_version_ordered('!= 2.5.0')
 
         self.assertTrue(vop.versions[0], last)
         self.assertTrue(vop.versions[-1], first)
@@ -63,12 +73,11 @@ class EasyConfigVersion(TestCase):
         top = ToolchainOperator()
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
-        tc = tc_names[0]
-        self.assertTrue(top.regex.search("%s_>=_1.2.3" % tc))
-        self.assertTrue(top.regex.search("%s_1.2.3" % tc))
-        self.assertTrue(top.regex.search(tc))
-        self.assertFalse(top.regex.search("x%s_>=_1.2.3" % tc))
-        self.assertFalse(top.regex.search("%sx_>=_1.2.3" % tc))
+        for tc in tc_names:  # test all known toolchain names
+            for txt in ["%s >= 1.2.3" % tc, "%s 1.2.3" % tc, tc]:  # string with optional version operator
+                self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
+            for txt in ["x%s >= 1.2.3" % tc, "%sx >= 1.2.3" % tc, "foo"]:  # only recognized toolchain names
+                self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
 
     def test_configobj(self):
         """Test configobj sort"""
@@ -81,21 +90,21 @@ class EasyConfigVersion(TestCase):
         configobj_txt = [
             '[DEFAULT]',
             'version=1.2.3',
-            'toolchain=%s_5.6.7' % tc,
+            'toolchain=%s 5.6.7' % tc,
             '[[SUPPORTED]]',
-            'toolchains=%s_>=_7.8.9' % ','.join(tc_names[:tcmax]),
+            'toolchains=%s >= 7.8.9' % ','.join(tc_names[:tcmax]),
             'versions=1.2.3,2.3.4,3.4.5',
-            '[>=_2.3.4]',
+            '[>= 2.3.4]',
             'foo=bar',
-            '[==_3.4.5]',
+            '[== 3.4.5]',
             'baz=biz',
-            '[!=_%s_5.6.7]' % tc,
-            '[%s_>_7.8.9]' % tc_names[tcmax - 1],
+            '[!= %s 5.6.7]' % tc,
+            '[%s > 7.8.9]' % tc_names[tcmax - 1],
         ]
 
         co = ConfigObj(configobj_txt)
         cov = ConfigObjVersion()
-        # FIXME: actually fix something
+        # FIXME: actually check something
 
 
 def suite():

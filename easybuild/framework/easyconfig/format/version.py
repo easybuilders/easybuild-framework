@@ -57,7 +57,7 @@ class VersionOperator(object):
     Ordering is highest first, such that versions[idx] >= versions[idx+1]
     """
 
-    SEPARATOR = '_'
+    SEPARATOR = ' '  # single space as (mandatory) separator in section markers, excellent readability
     OPERATOR = {
         '==': op.eq,
         '>': op.gt,
@@ -182,7 +182,7 @@ class VersionOperator(object):
 
 class ToolchainOperator(object):
     """Dict with toolchains and versionoperator instance"""
-    SEPARATOR = '_'
+    SEPARATOR = ' '  # single space as (mandatory) separator in section markers, excellent readability
 
     def __init__(self):
         """Initialise"""
