@@ -71,7 +71,7 @@ outputMatchers = {
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
     # available with --terse has one module per line
     # matches modules such as "ictce/3.2.1.015.u4"
-    # lines ending are ':' is ignored (the modulepath in --terse)
+    # lines ending in ':' are ignored (the modulepath(s) in --terse)
     'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$"),
 }
 
