@@ -136,7 +136,7 @@ class VersionOperator(object):
         def check(test_ver_str):
             """The check function; test version is always the second arg in comparing"""
             test_ver = self._convert(test_ver_str)
-            res = op(version, test_ver)  # FIXME what about '1.2.3 > 1.2dev'? can we somehow use LooseVersion version comparison here?
+            res = op(version, test_ver)
             self.log.debug('Check %s version %s using operator %s: %s' % (version, test_ver, op, res))
             return res
 

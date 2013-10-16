@@ -43,7 +43,7 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(check('1.2.4'))  # 1.2.3 < 1.2.4 : True
 
         self.assertTrue(check('2a'))  # 1.2.3 < 2a : True
-        self.assertFalse(check('1.2dev'))  # 1.2.3 < 1.2dev : False
+        self.assertTrue(check('1.2.3dev'))  # 1.2.3 < 1.2.3dev : True (beware!)
 
     def test_find_best_match(self):
         """Given set of ranges, find best match"""
