@@ -59,12 +59,11 @@ class VersionOperator(object):
 
     SEPARATOR = ' '  # single space as (mandatory) separator in section markers, excellent readability
     OPERATOR = {
-        '==': op.eq,
+        '==': op.eq,  # no !=, exceptions to the default should be handled with a dedicated section using ==
         '>': op.gt,
         '>=': op.ge,
         '<': op.lt,
         '<=': op.le,
-        '!=': op.ne,
     }
 
     def __init__(self, ver_str=None):
@@ -82,8 +81,8 @@ class VersionOperator(object):
     def operator_regex(self, begin_end=True):
         """
         Create the version regular expression with operator support.
-        This supports version expressions like '>_5' (anything strict larger than 5),
-        or '<=_1.2' (anything smaller than or equal to 1.2)
+        This supports version expressions like '> 5' (anything strict larger than 5),
+        or '<= 1.2' (anything smaller than or equal to 1.2)
         @param begin_end: boolean, create a regex with begin/end match
         """
         # construct escaped operator symbols, e.g. '\<\='
@@ -136,7 +135,7 @@ class VersionOperator(object):
         def check(test_ver_str):
             """The check function; test version is always the second arg in comparing"""
             test_ver = self._convert(test_ver_str)
-            res = op(version, test_ver)
+            res = op(test_ver, version)
             self.log.debug('Check %s version %s using operator %s: %s' % (version, test_ver, op, res))
             return res
 
@@ -192,7 +191,7 @@ class ToolchainOperator(object):
     def operator_regex(self):
         """
         Create the regular expression for toolchain support of format
-            ^<toolchain>_<ver_expr>$
+            ^<toolchain> <ver_expr>$
         with <toolchain> the name of one of the supported toolchains and <ver_expr> in <version>_<operator> syntax
         """
         _, all_tcs = search_toolchain('')

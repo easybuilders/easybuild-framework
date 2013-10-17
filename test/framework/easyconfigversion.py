@@ -25,11 +25,11 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(vop.regex.search('<= 1.2.3'))
         self.assertTrue(vop.regex.search('> 2.4'))
         self.assertTrue(vop.regex.search('== 1.2b'))
-        self.assertTrue(vop.regex.search('!= 2.0dev'))
+        self.assertTrue(vop.regex.search('< 2.0dev'))
         self.assertTrue(vop.regex.search('1.2.3'))  # operator is optional, '==' is default
         self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))  # no separator usage w/o something to separate
         self.assertFalse(vop.regex.search('1.2.3%s' % vop.SEPARATOR))  # no separator usage w/o something to separate
-        self.assertFalse(vop.regex.search('>  2.4'))  # double space as separator is not allowed
+        self.assertFalse(vop.regex.search('>%s2.4' % vop.SEPARATOR*2))  # double space as separator is not allowed
         self.assertFalse(vop.regex.search('>%s 2.4' % vop.SEPARATOR))  # double separator is not allowed
         self.assertTrue(vop.regex.search('>%sa2.4' % vop.SEPARATOR))  # version starts/ends with *any* word character
         self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
@@ -44,29 +44,54 @@ class EasyConfigVersion(TestCase):
 
         check = vop._operator_check(**vop.regex.search('>= 1.2.3').groupdict())
         self.assertTrue(check('1.2.3'))  # 1.2.3 >= 1.2.3: True
-        self.assertTrue(check('1.2.2'))  # 1.2.3 >= 1.2.2 : True
-        self.assertFalse(check('1.2.4'))  # 1.2.3 >= 1.2.4 : False
+        self.assertFalse(check('1.2.2'))  # 1.2.2 >= 1.2.3 : False
+        self.assertTrue(check('1.2.4'))  # 1.2.4 >= 1.2.3 : True
 
         check = vop._operator_check(**vop.regex.search('< 1.2.3').groupdict())
         self.assertFalse(check('1.2.3'))  # 1.2.3 < 1.2.3: False
-        self.assertFalse(check('1.2.2'))  # 1.2.3 < 1.2.2 : False
-        self.assertTrue(check('1.2.4'))  # 1.2.3 < 1.2.4 : True
+        self.assertTrue(check('1.2.2'))  # 1.2.2 < 1.2.3 : True
+        self.assertFalse(check('1.2.4'))  # 1.2.4 < 1.2.3 : False
 
-        self.assertTrue(check('2a'))  # 1.2.3 < 2a : True
-        self.assertTrue(check('1.2.3dev'))  # 1.2.3 < 1.2.3dev : True (beware!)
+        self.assertFalse(check('2a'))  # 2a < 1.2.3 : False
+        self.assertTrue(check('1.1a'))  # 1.1a < 1.2.3 : True
+        self.assertFalse(check('1a'))  # 1a < 1.2.3 : False (beware!)
+        self.assertFalse(check('1.2.3dev'))  # 1.2.3dev < 1.2.3 : False (beware!)
 
-    def test_find_best_match(self):
-        """Given set of ranges, find best match"""
+    def test_order_version_expressions(self):
+        """Given set of ranges, order them according to version/operator (most recent/specific first)"""
+        # simple version ordering, all different versions
         vop = VersionOperator()
-        first = '== 1.0.0'
-        last = '< 3.0.0'
-        vop.add_version_ordered('>= 2.0.0')
-        vop.add_version_ordered(last)
-        vop.add_version_ordered(first)
-        vop.add_version_ordered('!= 2.5.0')
+        ver_exprs = [
+            '> 3.0.0',
+            '== 1.0.0',
+            '>= 2.5.0',
+            '> 2.0.0',
+        ]
+        # add version expressions out of order intentionally
+        vop.add_version_ordered(ver_exprs[1])
+        vop.add_version_ordered(ver_exprs[-1])
+        vop.add_version_ordered(ver_exprs[0])
+        vop.add_version_ordered(ver_exprs[2])
+        # verify whether order is what we expect it to be
+        self.assertEqual(map(lambda d: d['ver_str'], vop.versions), ver_exprs[::-1])
 
-        self.assertTrue(vop.versions[0], last)
-        self.assertTrue(vop.versions[-1], first)
+        # more complex version ordering, identical/overlapping vesions
+        vop = VersionOperator()
+        ver_exprs = [
+            '> 1.0.0',
+            '== 1.0.0',
+            '<= 1.0.1',
+            '< 1.0.1',
+            '>= 1.0.0',
+        ]
+        # add version expressions out of order intentionally
+        vop.add_version_ordered(ver_exprs[1])
+        vop.add_version_ordered(ver_exprs[-1])
+        vop.add_version_ordered(ver_exprs[3])
+        vop.add_version_ordered(ver_exprs[0])
+        vop.add_version_ordered(ver_exprs[2])
+        # verify whether order is what we expect it to be
+        self.assertEqual(map(lambda d: d['ver_str'], vop.versions), ver_exprs[::-1])
 
     def test_parser_toolchain_regex(self):
         """Test the toolchain parser"""
@@ -74,9 +99,21 @@ class EasyConfigVersion(TestCase):
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
         for tc in tc_names:  # test all known toolchain names
-            for txt in ["%s >= 1.2.3" % tc, "%s 1.2.3" % tc, tc]:  # string with optional version operator
+            # test version expressions with optional version operator
+            ok_tests = [
+                "%s >= 1.2.3" % tc,
+                "%s 1.2.3" % tc,
+                tc,
+            ]
+            for txt in ok_tests:
                 self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
-            for txt in ["x%s >= 1.2.3" % tc, "%sx >= 1.2.3" % tc, "foo"]:  # only recognized toolchain names
+            # only accept known toolchain names
+            fail_tests = [
+                "x%s >= 1.2.3" % tc,
+                "%sx >= 1.2.3" % tc,
+                "foo",
+            ]
+            for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
 
     def test_configobj(self):
