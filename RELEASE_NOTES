@@ -1,6 +1,13 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.8.2 (October 18th 2013)
+--------------------------
+
+bugfix release
+- fix regular expression used for obtaining list of modules from 'module avail' (#724)
+    - modules marked as default were being hidden from EasyBuild, causing problems when they are used as dependency
+
 v1.8.1 (October 14th 2013)
 --------------------------
 
