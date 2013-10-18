@@ -7,16 +7,13 @@ import os
 
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
 class EasyConfigFormatTest(TestCase):
     """Test the parser"""
-
-    def runTest(self):
-        self.test_parser_version_regex()
 
     def test_parser_version_regex(self):
         """Trivial parser test"""
@@ -29,7 +26,7 @@ class EasyConfigFormatTest(TestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([EasyConfigFormatTest()])
+    return TestLoader().loadTestsFromTestCase(EasyConfigFormatTest)
 
 
 if __name__ == '__main__':

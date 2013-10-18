@@ -6,7 +6,7 @@ Unit tests for easyconfig/parser.py
 import os
 
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -16,9 +16,6 @@ TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
 class EasyConfigParserTest(TestCase):
     """Test the parser"""
-    def runTest(self):
-        self.test_v10()
-        self.test_v20()
 
     def test_v10(self):
         ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb'))
@@ -31,7 +28,7 @@ class EasyConfigParserTest(TestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([EasyConfigParserTest()])
+    return TestLoader().loadTestsFromTestCase(EasyConfigParserTest)
 
 
 if __name__ == '__main__':
