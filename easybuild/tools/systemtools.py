@@ -32,6 +32,7 @@ import os
 import platform
 import re
 from vsc import fancylogger
+from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.filetools import read_file, run_cmd
 
@@ -55,79 +56,11 @@ class SystemToolsException(Exception):
 
 def get_avail_core_count():
     """
-    Returns the number of available CPUs. This differs from get_core_count() in that it keeps
-    cpusets in mind. When not in a cpuset, it returns get_core_count().
-    Linux only for the moment.
+    Returns the number of available CPUs, according to cgroups and taskssets limits
     """
-    os_type = get_os_type()
-    max_num_cores = get_core_count()
+    num_cores = sum(sched_getaffinity().cpus)
 
-    if os_type == LINUX:
-        try:
-            mypid = os.getpid()
-            f = open("/proc/%s/status" % mypid,'r')
-            txt = f.read()
-            f.close()
-            cpuset = re.search("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
-            if cpuset is not None:
-                cpuset_list = cpuset.group(1).split(',')
-                # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
-                num_of_cpus = sum([(lambda x: x[-1] - x[0] + 1)(map(int, r.split('-'))) for r in cpuset_list])
-                _log.info("In cpuset with %s CPUs" % num_of_cpus)
-                # when not in a cpuset, the number can be higher then the number of real cores.
-                return min(num_of_cpus, max_num_cores)
-            else:
-                _log.debug("No list of allowed CPUs found, not in a cpuset.")
-        except (IOError, OSError), err:
-            _log.warning("Failed to read /proc/%s/status to determine the cpuset: %s" % (mypid, err))
-    else:
-        _log.warning("Not attempting to find a cpuset, trying to find all CPUs")
-
-    return max_num_cores
-
-
-def get_core_count():
-    """Try to detect the number of virtual or physical CPUs on this system.
-
-    inspired by http://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-in-python/1006301#1006301
-    """
-    # Python 2.6+
-    try:
-        from multiprocessing import cpu_count
-        return cpu_count()
-    except (ImportError, NotImplementedError):
-        pass
-
-    # POSIX
-    try:
-        cores = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-        if cores > 0:
-            return cores
-    except (AttributeError, ValueError):
-        pass
-
-    os_type = get_os_type()
-
-    if os_type == LINUX:
-        try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            # sometimes this is uppercase
-            res = txt.lower().count('processor\t:')
-            if res > 0:
-                return res
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining core count: %s" % err)
-    else:
-        # BSD
-        try:
-            out, _ = run_cmd('sysctl -n hw.ncpu')
-            cores = int(out)
-            if cores > 0:
-                return cores
-        except ValueError:
-            pass
-
-    raise SystemToolsException('Can not determine number of cores on this system')
+    return num_cores
 
 
 def get_cpu_vendor():
