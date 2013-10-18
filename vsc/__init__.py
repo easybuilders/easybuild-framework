@@ -25,15 +25,14 @@
 # along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-@author: Jens Timmerman (Ghent University)
-
 Initialize vsc package.
-the vsc namespace is used in different folders allong the system
+The vsc namespace is used in different folders allong the system
 so explicitly declare this is also the vsc namespace
+
+@author: Jens Timmerman (Ghent University)
 """
-# not in EB
-# import pkg_resources
-# pkg_resources.declare_namespace(__name__)
+import pkg_resources
+pkg_resources.declare_namespace(__name__)
 
 # here for backwards compatibility
 from vsc.utils import fancylogger

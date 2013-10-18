@@ -63,6 +63,15 @@ def get_avail_core_count():
     return num_cores
 
 
+def get_core_count():
+    """
+    Try to detect the number of virtual or physical CPUs on this system
+    (DEPRECATED, use get_avail_core_count instead)
+    """
+    _log.deprecated("get_core_count() is deprecated, use get_avail_core_count() instead", '2.0')
+    return get_avail_core_count()
+
+
 def get_cpu_vendor():
     """Try to detect the cpu identifier
 

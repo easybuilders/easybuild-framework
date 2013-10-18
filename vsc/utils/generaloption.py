@@ -577,6 +577,7 @@ class GeneralOption(object):
         self.parser.allow_interspersed_args = self.INTERSPERSED
 
         self.configfile_parser = self.CONFIGFILE_PARSER()
+        self.configfile_remainder = {}
 
         loggername = self.__class__.__name__
         if prefixloggername:
@@ -929,8 +930,17 @@ class GeneralOption(object):
             if not section in self.config_prefix_sectionnames_map.values():
                 self.log.warning("parseconfigfiles: found section %s, won't be parsed" % section)
                 continue
-            # options are passed to the commandline option parser
 
+        # add any non-option related configfile data to configfile_remainder dict
+        cfg_sections_flat = [name for section_names in cfg_sections for name in section_names]
+        for section in self.configfile_parser.sections():
+            if not section in cfg_sections_flat:
+                self.log.debug("parseconfigfiles: found section %s, adding to remainder" % section)
+                remainder = self.configfile_remainder.setdefault(section, {})
+                for opt, val in self.configfile_parser.items(section):
+                    remainder[opt] = val
+
+        # options are passed to the commandline option parser
         for prefix, section_names in self.config_prefix_sectionnames_map.items():
             for section in section_names:
                 # default section is treated separate in ConfigParser
