@@ -5,7 +5,8 @@ Unit tests for easyconfig/format/version.py
 """
 import os
 
-from easybuild.framework.easyconfig.format.version import ConfigObjVersion, VersionOperator, ToolchainOperator
+from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
+from easybuild.framework.easyconfig.format.version import OrderedVersionOperators, ConfigObjVersion
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from unittest import TestCase, TestLoader, main
@@ -27,75 +28,100 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(vop.regex.search('== 1.2b'))
         self.assertTrue(vop.regex.search('< 2.0dev'))
         self.assertTrue(vop.regex.search('1.2.3'))  # operator is optional, '==' is default
+        self.assertFalse(vop.regex.search('>='))  # version is mandatory (even if DEFAULT_UNDEFINED_VERSION exists)
         self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))  # no separator usage w/o something to separate
         self.assertFalse(vop.regex.search('1.2.3%s' % vop.SEPARATOR))  # no separator usage w/o something to separate
-        self.assertFalse(vop.regex.search('>%s2.4' % vop.SEPARATOR*2))  # double space as separator is not allowed
+        self.assertFalse(vop.regex.search('>%s2.4' % vop.SEPARATOR * 2))  # double space as separator is not allowed
         self.assertFalse(vop.regex.search('>%s 2.4' % vop.SEPARATOR))  # double separator is not allowed
         self.assertTrue(vop.regex.search('>%sa2.4' % vop.SEPARATOR))  # version starts/ends with *any* word character
         self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
         self.assertTrue(vop.regex.search('>%sG2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
 
-    def test_parser_check(self):
+    def test_vop_test(self):
         """Test version checker"""
-        vop = VersionOperator()
-        # FIXME: default operator is '=='?
-        #check = vop._operator_check(**vop.regex.search('1.2.3').groupdict())
-        #self.assertTrue(check('1.2.3'))  # 1.2.3 == 1.2.3: True
+        vop = VersionOperator('1.2.3')
+        self.assertTrue(vop.operator == vop.DEFAULT_UNDEFINED_OPERATOR)
 
-        check = vop._operator_check(**vop.regex.search('>= 1.2.3').groupdict())
-        self.assertTrue(check('1.2.3'))  # 1.2.3 >= 1.2.3: True
-        self.assertFalse(check('1.2.2'))  # 1.2.2 >= 1.2.3 : False
-        self.assertTrue(check('1.2.4'))  # 1.2.4 >= 1.2.3 : True
+        vop = VersionOperator('>= 1.2.3')
+        self.assertTrue(vop.test('1.2.3'))  # 1.2.3 >= 1.2.3: True
+        self.assertFalse(vop.test('1.2.2'))  # 1.2.2 >= 1.2.3 : False
+        self.assertTrue(vop.test('1.2.4'))  # 1.2.4 >= 1.2.3 : True
 
-        check = vop._operator_check(**vop.regex.search('< 1.2.3').groupdict())
-        self.assertFalse(check('1.2.3'))  # 1.2.3 < 1.2.3: False
-        self.assertTrue(check('1.2.2'))  # 1.2.2 < 1.2.3 : True
-        self.assertFalse(check('1.2.4'))  # 1.2.4 < 1.2.3 : False
+        vop = VersionOperator('< 1.2.3')
+        self.assertFalse(vop.test('1.2.3'))  # 1.2.3 < 1.2.3: False
+        self.assertTrue(vop.test('1.2.2'))  # 1.2.2 < 1.2.3 : True
+        self.assertFalse(vop.test('1.2.4'))  # 1.2.4 < 1.2.3 : False
 
-        self.assertFalse(check('2a'))  # 2a < 1.2.3 : False
-        self.assertTrue(check('1.1a'))  # 1.1a < 1.2.3 : True
-        self.assertFalse(check('1a'))  # 1a < 1.2.3 : False (beware!)
-        self.assertFalse(check('1.2.3dev'))  # 1.2.3dev < 1.2.3 : False (beware!)
+        self.assertFalse(vop.test('2a'))  # 2a < 1.2.3 : False
+        self.assertTrue(vop.test('1.1a'))  # 1.1a < 1.2.3 : True
+        self.assertFalse(vop.test('1a'))  # 1a < 1.2.3 : False (beware!)
+        self.assertFalse(vop.test('1.2.3dev'))  # 1.2.3dev < 1.2.3 : False (beware!)
+
+    def test_versop_overlap_conflict(self):
+        """Test overlap/conflicts"""
+        overlap_conflict = [
+            ('> 3', '> 3', (True, False)),  # equal, and thus overlap. no conflict
+            ('> 3', '< 2', (False, False)),  # no overlap
+            ('> 3', '== 3', (False, False)),  # no overlap
+            ('< 3', '> 2', (True, True)),  # overlap, and conflict (region between 2 and 3 is ambiguous)
+            ('>= 3', '== 3' , (True, True)),  # overlap, and conflict (boundary 3 is ambigous)
+            ('> 3', '>= 3' , (True, False)),  # overlap, no conflict ('> 3' is more strict then '>= 3')
+        ]
+
+        for l, r, res in overlap_conflict:
+            vl = VersionOperator(l)
+            vr = VersionOperator(r)
+            self.assertEqual(vl.test_overlap_and_conflict(vr), res)
+
+    def test_versop_gt(self):
+        """Test strict greater then ordering"""
+        left_gt_right = [
+            ('> 2', '> 1'),  # True, order by strictness equals order by boundaries for gt/ge
+            ('< 8' , '< 10'),  # True, order by strictness equals inversed order by boundaries for lt/le
+            ('== 4' , '> 3'),  # equality is more strict then inequality, but this order by boundaries
+            ('> 3', '== 2'),  # there is no overlap, so just order the intervals according their boundaries
+            ('> 1', '== 1'),  # no overlap, same boundaries, order by operator
+            ('== 1', '< 1'),  # no overlap, same boundaries, order by operator
+        ]
+        for l, r in left_gt_right:
+            self.assertTrue(VersionOperator(l) > VersionOperator(r))
 
     def test_order_version_expressions(self):
         """Given set of ranges, order them according to version/operator (most recent/specific first)"""
         # simple version ordering, all different versions
-        vop = VersionOperator()
+        ovop = OrderedVersionOperators()
         ver_exprs = [
             '> 3.0.0',
-            '== 1.0.0',
             '>= 2.5.0',
             '> 2.0.0',
+            '== 1.0.0',
         ]
         # add version expressions out of order intentionally
-        vop.add_version_ordered(ver_exprs[1])
-        vop.add_version_ordered(ver_exprs[-1])
-        vop.add_version_ordered(ver_exprs[0])
-        vop.add_version_ordered(ver_exprs[2])
+        ovop.add(ver_exprs[1])
+        ovop.add(ver_exprs[-1])
+        ovop.add(ver_exprs[0])
+        ovop.add(ver_exprs[2])
+
         # verify whether order is what we expect it to be
-        self.assertEqual(map(lambda d: d['ver_str'], vop.versions), ver_exprs[::-1])
+        self.assertEqual(ovop.versops, [VersionOperator(x) for x in ver_exprs])
 
         # more complex version ordering, identical/overlapping vesions
-        vop = VersionOperator()
+        ovop = OrderedVersionOperators()
         ver_exprs = [
             '> 1.0.0',
             '== 1.0.0',
-            '<= 1.0.1',
-            '< 1.0.1',
-            '>= 1.0.0',
+            '< 1.0.0',
         ]
         # add version expressions out of order intentionally
-        vop.add_version_ordered(ver_exprs[1])
-        vop.add_version_ordered(ver_exprs[-1])
-        vop.add_version_ordered(ver_exprs[3])
-        vop.add_version_ordered(ver_exprs[0])
-        vop.add_version_ordered(ver_exprs[2])
+        ovop.add(ver_exprs[-1])
+        ovop.add(ver_exprs[1])
+        ovop.add(ver_exprs[0])
         # verify whether order is what we expect it to be
-        self.assertEqual(map(lambda d: d['ver_str'], vop.versions), ver_exprs[::-1])
+        self.assertEqual(ovop.versops, [VersionOperator(x) for x in ver_exprs])
 
     def test_parser_toolchain_regex(self):
         """Test the toolchain parser"""
-        top = ToolchainOperator()
+        top = ToolchainVersionOperator()
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
         for tc in tc_names:  # test all known toolchain names
