@@ -6,7 +6,8 @@ Unit tests for easyconfig/format/version.py
 import os
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.framework.easyconfig.format.version import OrderedVersionOperators, ConfigObjVersion
+from easybuild.framework.easyconfig.format.version import OrderedVersionOperators, OrderedToolchainVersionOperators
+from easybuild.framework.easyconfig.format.version import ConfigObjVersion
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from unittest import TestCase, TestLoader, main
@@ -86,41 +87,41 @@ class EasyConfigVersion(TestCase):
         for l, r in left_gt_right:
             self.assertTrue(VersionOperator(l) > VersionOperator(r))
 
-    def test_order_version_expressions(self):
+    def test_ordered_versop_expressions(self):
         """Given set of ranges, order them according to version/operator (most recent/specific first)"""
         # simple version ordering, all different versions
         ovop = OrderedVersionOperators()
-        ver_exprs = [
+        versop_exprs = [
             '> 3.0.0',
             '>= 2.5.0',
             '> 2.0.0',
             '== 1.0.0',
         ]
         # add version expressions out of order intentionally
-        ovop.add(ver_exprs[1])
-        ovop.add(ver_exprs[-1])
-        ovop.add(ver_exprs[0])
-        ovop.add(ver_exprs[2])
+        ovop.add(versop_exprs[1])
+        ovop.add(versop_exprs[-1])
+        ovop.add(versop_exprs[0])
+        ovop.add(versop_exprs[2])
 
         # verify whether order is what we expect it to be
-        self.assertEqual(ovop.versops, [VersionOperator(x) for x in ver_exprs])
+        self.assertEqual(ovop.versops, [VersionOperator(x) for x in versop_exprs])
 
         # more complex version ordering, identical/overlapping vesions
         ovop = OrderedVersionOperators()
-        ver_exprs = [
+        versop_exprs = [
             '> 1.0.0',
             '== 1.0.0',
             '< 1.0.0',
         ]
         # add version expressions out of order intentionally
-        ovop.add(ver_exprs[-1])
-        ovop.add(ver_exprs[1])
-        ovop.add(ver_exprs[0])
+        ovop.add(versop_exprs[-1])
+        ovop.add(versop_exprs[1])
+        ovop.add(versop_exprs[0])
         # verify whether order is what we expect it to be
-        self.assertEqual(ovop.versops, [VersionOperator(x) for x in ver_exprs])
+        self.assertEqual(ovop.versops, [VersionOperator(x) for x in versop_exprs])
 
     def test_parser_toolchain_regex(self):
-        """Test the toolchain parser"""
+        """Test the ToolchainVersionOperator parser"""
         top = ToolchainVersionOperator()
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
@@ -141,6 +142,44 @@ class EasyConfigVersion(TestCase):
             ]
             for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
+
+    def test_ordered_tcversop_expressions(self):
+        """Given set of ranges, order them according to version/operator (most recent/specific first)"""
+        # simple version ordering, all different versions
+        ovop = OrderedVersionOperators()
+        versop_exprs = [
+            '> 3.0.0',
+            '>= 2.5.0',
+            '> 2.0.0',
+            '== 1.0.0',
+        ]
+        for versop in versop_exprs:
+            ovop.add(versop)
+
+        ovop2 = OrderedVersionOperators()
+        versop_exprs2 = [
+            '> 1.0.0',
+            '== 1.0.0',
+            '< 0.5.0',
+            '< 1.0.0',
+        ]
+        for versop in versop_exprs2:
+            ovop2.add(versop)
+
+        _, tcs = search_toolchain('')
+        tc_names = [x.NAME for x in tcs]
+        tcovop = OrderedToolchainVersionOperators()
+        # construct toolchain version operators for first and last toolchains, and add them in reverse order
+        # test the resulting ordering
+        sep = ToolchainVersionOperator.SEPARATOR
+        tcversop_exprs = ["%s%s%s" % (tc_names[0], sep, versop) for versop in versop_exprs]
+        tcversop_exprs2 = ["%s%s%s" % (tc_names[-1], sep, versop) for versop in versop_exprs2]
+        for idx in range(len(versop_exprs)):
+            tcovop.add(tcversop_exprs[::-1][idx])
+            tcovop.add(tcversop_exprs2[::-1][idx])
+
+        self.assertEqual(tcovop.tcversops[tc_names[0]].versops, ovop.versops)
+        self.assertEqual(tcovop.tcversops[tc_names[-1]].versops, ovop2.versops)
 
     def test_configobj(self):
         """Test configobj sort"""

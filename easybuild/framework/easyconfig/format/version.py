@@ -45,6 +45,7 @@ class EasyVersion(LooseVersion):
         """Determine length of this EasyVersion instance."""
         return len(self.version)
 
+
 class VersionOperator(object):
     """
     VersionOperator class represents a version expression that includes an operator.
@@ -414,14 +415,18 @@ class OrderedVersionOperators(object):
 
     def add(self, versop_new):
         """
-        Try to add version_str as VersionOperator instance to self.versions.
-        Make sure there is no conflict with existing versions, and that the 
+        Try to add versop_new as VersionOperator instance to self.versops.
+        Make sure there is no conflict with existing versops, and that the 
             ordering is kept. 
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
         """
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
+        elif not isinstance(versop_new, VersionOperator):
+            self.log.error(("versop_new needs to be VersionOperator "
+                            "instance or basestring (%s; type %s)") % (versop_new, type(versop_new)))
+            return None
 
         if versop_new in self.versops:
             # consider it an error.
@@ -448,8 +453,36 @@ class OrderedVersionOperators(object):
 
 class OrderedToolchainVersionOperators(object):
     """Ordered toolchain version operators"""
-    # sort of dict of OrderedVersionOperators?
-    # TODO : implement it
+    def __init__(self):
+        """Initialise the list"""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        self.tcversops = {}  # key: tc_name, value OrderedVersionOperators
+
+    def __str__(self):
+        """Print the ordered tcversops"""
+        tcs = self.tcversops.keys()
+        tcs.sort()
+        return "{%s}" % (", ".join(["'%s': %s" % (k, self.tcversops[k]) for k in tcs ]))
+
+    def add(self, tcversop_new):
+        """
+        Try to add tcversop_new as ToolchainVersionOperator instance to self.tcversops.
+        Make sure there is no conflict with existing versops, and that the 
+            ordering is kept. 
+
+        @param tcversop_new: ToolchainVersionOperator instance (or will be converted into one if type basestring)
+        """
+        if isinstance(tcversop_new, basestring):
+            tcversop_new = ToolchainVersionOperator(tcversop_new)
+        elif not isinstance(tcversop_new, ToolchainVersionOperator):
+            self.log.error(("tcversop_new needs to be ToolchainVersionOperator instance "
+                            "or basestring (%s; type %s)") % (tcversop_new, type(tcversop_new)))
+            return None
+
+        ovops = self.tcversops.setdefault(tcversop_new.tc_name, OrderedVersionOperators())
+        ovops.add(tcversop_new)
+
 
 class ConfigObjVersion(object):
     """
