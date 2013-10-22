@@ -106,7 +106,7 @@ class ModulesTool(object):
         self.version = None
 
         # terse command line option
-        self.terse_opt = '--terse'
+        self.add_terse_opt_fn = lambda x: x.insert(0, '--terse')
 
     @property
     def modules(self):
@@ -289,7 +289,7 @@ class ModulesTool(object):
             args = list(args)
 
         if args[0] in ('available', 'avail', 'list',):
-            args.append(self.terse_opt)  # run these in terse mode for better machinereading
+            self.add_terse_opt_fn(args)  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('mod_paths', None):
@@ -434,9 +434,11 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd.tcl-specific class variable values."""
-        super(EnvironmentModulesTcl, self).__init__(*args, **kwargs)
+        super(EnvironmentModulesC, self).__init__(*args, **kwargs)
         self.cmd = 'modulecmd.tcl'
-        self.terse_opt = '-t'  # Tcl environment modules have no --terse (yet)
+        self.check_cmd_avail()
+        # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
+        self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
 
 
 class Lmod(ModulesTool):
