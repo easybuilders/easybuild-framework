@@ -105,6 +105,9 @@ class ModulesTool(object):
         # version of modules tool
         self.version = None
 
+        # terse command line option
+        self.terse_opt = '--terse'
+
     @property
     def modules(self):
         """Property providing access to deprecated 'modules' class variable."""
@@ -286,7 +289,7 @@ class ModulesTool(object):
             args = list(args)
 
         if args[0] in ('available', 'avail', 'list',):
-            args.insert(0, '--terse')  # run these in terse mode for better machinereading
+            args.append(self.terse_opt)  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('mod_paths', None):
@@ -399,7 +402,7 @@ class EnvironmentModulesC(ModulesTool):
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
         # line that specified conflict contains software name
-        name_re = re.compile('^conflict\s*(?P<name>[^ ]+).*$', re.M)
+        name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
         return self.get_value_from_modulefile(mod_name, name_re)
 
     def loaded_modules(self):
@@ -424,6 +427,16 @@ class EnvironmentModulesC(ModulesTool):
     def update(self):
         """Update after new modules were added."""
         pass
+
+
+class EnvironmentModulesTcl(EnvironmentModulesC):
+    """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+
+    def __init__(self, *args, **kwargs):
+        """Constructor, set modulecmd.tcl-specific class variable values."""
+        super(EnvironmentModulesTcl, self).__init__(*args, **kwargs)
+        self.cmd = 'modulecmd.tcl'
+        self.terse_opt = '-t'  # Tcl environment modules have no --terse (yet)
 
 
 class Lmod(ModulesTool):
