@@ -32,6 +32,8 @@ Unit tests for modules.py.
 
 import os
 import re
+import tempfile
+import shutil
 
 import easybuild.tools.options as eboptions
 from easybuild.tools import config
@@ -53,49 +55,50 @@ class ModulesTest(TestCase):
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
         self.cwd = os.getcwd()
+        self.orig_modulepath = os.environ.get('MODULEPATH', '').split(os.pathsep)
+
+        test_modules_path = os.path.join(os.path.dirname(__file__), 'modules')
+        self.testmods = modules_tool([test_modules_path])
 
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
-        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
 
         # test modules include 3 GCC modules
-        ms = testmods.available('GCC')
+        ms = self.testmods.available('GCC')
         self.assertEqual(ms, ['GCC/4.6.3', 'GCC/4.6.4', 'GCC/4.7.2'])
 
         # test modules include one GCC/4.6.3 module
-        ms = testmods.available(mod_name='GCC/4.6.3')
+        ms = self.testmods.available(mod_name='GCC/4.6.3')
         self.assertEqual(ms, ['GCC/4.6.3'])
 
         # all test modules are accounted for
-        ms = testmods.available()
+        ms = self.testmods.available()
         self.assertEqual(len(ms), TEST_MODULES_COUNT)
 
     def test_exists(self):
         """Test if testing for module existence works."""
-        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-        self.assertTrue(testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
-        self.assertTrue(not testmods.exists(mod_name='foo/1.2.3'))
+        self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
+        self.assertTrue(not self.testmods.exists(mod_name='foo/1.2.3'))
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
-        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-        ms = testmods.available()
+        ms = self.testmods.available()
 
         for m in ms:
-            testmods.load([m])
-            self.assertTrue(m in testmods.loaded_modules())
-            testmods.purge()
+            self.testmods.load([m])
+            self.assertTrue(m in self.testmods.loaded_modules())
+            self.testmods.purge()
 
         # deprecated version
         for m in ms:
-            testmods.add_module([m])
-            testmods.load()
+            self.testmods.add_module([m])
+            self.testmods.load()
 
-            self.assertTrue(m in testmods.loaded_modules())
+            self.assertTrue(m in self.testmods.loaded_modules())
 
             # remove module again and purge to avoid conflicts when loading modules
-            testmods.remove_module([m])
-            testmods.purge()
+            self.testmods.remove_module([m])
+            self.testmods.purge()
 
     def test_LD_LIBRARY_PATH(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -104,43 +107,65 @@ class ModulesTest(TestCase):
 
         os.environ['LD_LIBRARY_PATH'] = testpath
 
-        testmods = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-
         # load module and check that previous LD_LIBRARY_PATH is still there, at the end
-        testmods.load(['GCC/4.6.3'])
+        self.testmods.load(['GCC/4.6.3'])
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
-        testmods.purge()
+        self.testmods.purge()
 
         # deprecated version
-        testmods.add_module([('GCC', '4.6.3')])
-        testmods.load()
+        self.testmods.add_module([('GCC', '4.6.3')])
+        self.testmods.load()
 
         # check that previous LD_LIBRARY_PATH is still there, at the end
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
-        testmods.purge()
+        self.testmods.purge()
 
     def test_purge(self):
         """Test if purging of modules works."""
-        m = modules_tool([os.path.join(os.path.dirname(__file__), 'modules')])
-        ms = m.available()
+        ms = self.testmods.available()
 
-        m.load([ms[0]])
-        self.assertTrue(len(m.loaded_modules()) > 0)
+        self.testmods.load([ms[0]])
+        self.assertTrue(len(self.testmods.loaded_modules()) > 0)
 
-        m.purge()
-        self.assertTrue(len(m.loaded_modules()) == 0)
+        self.testmods.purge()
+        self.assertTrue(len(self.testmods.loaded_modules()) == 0)
 
         # deprecated version
-        m.add_module([ms[0]])
-        m.load()
-        self.assertTrue(len(m.loaded_modules()) > 0)
+        self.testmods.add_module([ms[0]])
+        self.testmods.load()
+        self.assertTrue(len(self.testmods.loaded_modules()) > 0)
 
-        m.purge()
-        self.assertTrue(len(m.loaded_modules()) == 0)
+        self.testmods.purge()
+        self.assertTrue(len(self.testmods.loaded_modules()) == 0)
+
+    def test_long_module_path(self):
+        """Test dealing with a (very) long module path."""
+
+        # create a really long modules install path
+        tmpdir = tempfile.mkdtemp()
+        long_mod_path = tmpdir
+        for x in range(100):
+            long_mod_path = os.path.join(long_mod_path, 'foo')
+        long_mod_path = os.path.join(long_mod_path, 'modules')
+
+        # copy one of the test modules there
+        gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
+        os.makedirs(gcc_mod_dir)
+        gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
+        shutil.copy2(gcc_mod_path, gcc_mod_dir)
+
+        # try and use long modules path
+        m = modules_tool([long_mod_path])
+        ms = m.available()
+
+        self.assertEqual(ms, ['GCC/4.6.3'])
+
+        shutil.rmtree(tmpdir)
 
     def tearDown(self):
         """cleanup"""
         os.chdir(self.cwd)
+        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepath)
 
 def suite():
     """ returns all the testcases in this module """
