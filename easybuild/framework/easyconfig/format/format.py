@@ -80,13 +80,9 @@ class EasyConfigFormat(object):
 
     def validate(self):
         """Verify the easyconfig format"""
-        self._check_docstring()
+        raise NotImplementedError
 
-    def _check_docstring(self):
-        """Verify the easyconfig docstring. Do nothing by default."""
-        pass
-
-    def parse(self, txt):
+    def parse(self, txt, **kwargs):
         """Parse the txt according to this format. This is highly version specific"""
         raise NotImplementedError
 
