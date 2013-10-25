@@ -96,17 +96,20 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     """
 
     PYHEADER_ALLOWED_BUILTINS = []  # default no builtins
+    PYHEADER_WHITELIST = None  # no defaults
+    PYHEADER_BLACKLIST = None  # no defaults
 
     def __init__(self, *args, **kwargs):
         """Extend EasyConfigFormat with some more attributes"""
-        super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
-
         self.pyheader_localvars = None
         self.configobj = None
+
+        super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
 
     def parse(self, txt, strict_section_markers=False):
         """
         Pre-process txt to extract header, docstring and pyheader
+        Then create the configobj instance by parsing the remainder
         """
         # where is the first section?
         sectionmarker_pattern = ConfigObj._sectionmarker.pattern
@@ -125,7 +128,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         self.parse_pre_section(txt[:start_section])
         if start_section is not None:
-            self.parse_section(txt[start_section:])
+            self.parse_section_block(txt[start_section:])
 
     def parse_pre_section(self, txt):
         """Parse the text block before the start of the first section"""
@@ -209,8 +212,30 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
         return global_vars, local_vars
 
-    def parse_section(self, section):
-        """Parse the section block"""
+    def _validate_pyheader(self):
+        """Basic validation of pyheader localvars
+            it takes variable names from the PYHEADER_BLACKLIST and PYHEADER_WHITELIST
+                blacklisted variables are not allowed, whitelisted variables are
+                mandatory unless blacklisted
+        """
+        cfg = self.pyheader_localvars
+        if self.PYHEADER_BLACKLIST is None or self.PYHEADER_WHITELIST is None:
+            self.log.error('Set the PYHEADER_BLACKLIST/WHITELIST')
+
+        for variable in self.PYHEADER_BLACKLIST:
+            if variable in cfg:
+                # TODO add to easyconfig unittest (similar to mandatory)
+                self.log.error('variable %s not allowed' % variable)
+
+        for variable in self.PYHEADER_WHITELIST:
+            if variable in self.PYHEADER_BLACKLIST:
+                continue
+            if not variable in cfg:
+                # message format in sync with easyconfig mandatory unittest!
+                self.log.error('mandatory variable %s not provided' % variable)
+
+    def parse_section_block(self, section):
+        """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
             cfgobj = ConfigObj(section.split('\n'))
         except SyntaxError, err:
