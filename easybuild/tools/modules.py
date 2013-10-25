@@ -69,10 +69,49 @@ outputMatchers = {
     # ModuleCmd_Avail.c(529):ERROR:57: Error while reading directory '/usr/local/modulefiles/SCIENTIFIC'
     # ModuleCmd_Avail.c(804):ERROR:64: Directory '/usr/local/modulefiles/SCIENTIFIC/tremolo' not found
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
-    # available with --terse has one module per line
-    # matches modules such as "ictce/3.2.1.015.u4"
-    # lines ending in ':' are ignored (the modulepath(s) in --terse)
-    'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$"),
+    # 'available' with --terse has one module per line, with some extra lines (module path(s), module directories...)
+    # regex below matches modules like 'ictce/3.2.1.015.u4', 'OpenMPI/1.6.4-no-OFED', ...
+    #
+    # Module lines notes:
+    # * module name may have '(default)' appeneded [modulecmd]
+    # ignored lines:
+    # * module paths lines may start with a (empty) set of '-'s, which will be followed by a space [modulecmd.tcl]
+    # * module paths may end with a ':' [modulecmd, lmod]
+    # * module directories lines may end with a '/' [lmod >= 5.1.5]
+    #
+    # Note: module paths may be relative paths!
+    #
+    # Example outputs for the different supported module tools, for the same set of modules files (only two, both GCC):
+    #
+    #   $ modulecmd python avail --terse GCC > /dev/null
+    #       /path/tomodules:
+    #       GCC/4.6.3
+    #       GCC/4.6.4(default)
+    #
+    #   $ lmod python avail --terse GCC > /dev/null
+    #       /path/to/modules:
+    #       GCC/
+    #       GCC/4.6.3
+    #       GCC/4.6.4
+    #
+    #   $ modulecmd.tcl python avail -t GCC > /dev/null
+    #       -------- /path/to/modules --------
+    #       GCC/4.6.3
+    #       GCC/4.6.4
+    #
+    # Note on modulecmd.tcl: if the terminal is not wide enough, or the module path too long, the '-'s are not there!
+    #
+    # Any modules with a name that does not match the regex constructed below, will be HIDDEN from EasyBuild
+    #
+    'available': re.compile(r"""
+        ^(?!-*\s)                     # disallow lines starting with (empty) list of '-'s followed by a space
+        \s*                           # ignore whitespace at start of the line
+        (?P<mod_name>                 # start named group for module name
+            [^\s\(]*[^:/]             # module name must not have '(' or whitespace in it, must not end with ':' or '/'
+        )                             # end named group for module name
+        (?P<default>\(default\))?     # optional '(default)' that's not part of module name
+        \s*$                          # ignore whitespace at the end of the line
+        """, re.VERBOSE),
 }
 
 _log = fancylogger.getLogger('modules', fname=False)
@@ -131,7 +170,7 @@ class ModulesTool(object):
             cmd = "type module"
             (out, ec) = run_cmd(cmd, log_all=False, log_ok=False)
             if ec != 0 or not module_regexp.match(out):
-                errormsg += "; environment-modules doesn't seem to be installed: "
+                errormsg += ", and it seems like no module tool is installed; "
                 errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
             self.log.error(errormsg)
 
@@ -289,7 +328,7 @@ class ModulesTool(object):
             args = list(args)
 
         if args[0] in ('available', 'avail', 'list',):
-            self.add_terse_opt_fn(args)  # run these in terse mode for better machinereading
+            self.add_terse_opt_fn(args)  # run these in terse mode for easier machine reading
 
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('mod_paths', None):
