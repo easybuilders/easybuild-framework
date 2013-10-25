@@ -55,13 +55,46 @@ class ModulesTest(TestCase):
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
         self.cwd = os.getcwd()
-        self.orig_modulepath = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
 
-        test_modules_path = os.path.join(os.path.dirname(__file__), 'modules')
-        self.testmods = modules_tool([test_modules_path])
+        self.testmods = None
+
+    def init_testmods(self, test_modules_paths=None):
+        """Initialize set of test modules for test."""
+
+        if test_modules_paths is None:
+            test_modules_paths = [os.path.join(os.path.dirname(__file__), 'modules')]
+        self.testmods = modules_tool(test_modules_paths)
+
+    # for Lmod, this test has to run first, to avoid that it fails;
+    # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
+    def test__long_module_path(self):
+        """Test dealing with a (very) long module path."""
+
+        # create a really long modules install path
+        tmpdir = tempfile.mkdtemp()
+        long_mod_path = tmpdir
+        for x in range(100):
+            long_mod_path = os.path.join(long_mod_path, 'foo')
+        long_mod_path = os.path.join(long_mod_path, 'modules')
+
+        # copy one of the test modules there
+        gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
+        os.makedirs(gcc_mod_dir)
+        gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
+        shutil.copy2(gcc_mod_path, gcc_mod_dir)
+
+        # try and use long modules path
+        self.init_testmods(test_modules_paths=[long_mod_path])
+        ms = self.testmods.available()
+
+        self.assertEqual(ms, ['GCC/4.6.3'])
+
+        shutil.rmtree(tmpdir)
 
     def test_avail(self):
         """Test if getting a (restricted) list of available modules works."""
+        self.init_testmods()
 
         # test modules include 3 GCC modules
         ms = self.testmods.available('GCC')
@@ -77,11 +110,13 @@ class ModulesTest(TestCase):
 
     def test_exists(self):
         """Test if testing for module existence works."""
+        self.init_testmods()
         self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
         self.assertTrue(not self.testmods.exists(mod_name='foo/1.2.3'))
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
+        self.init_testmods()
         ms = self.testmods.available()
 
         for m in ms:
@@ -100,11 +135,11 @@ class ModulesTest(TestCase):
             self.testmods.remove_module([m])
             self.testmods.purge()
 
-    def test_LD_LIBRARY_PATH(self):
+    def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
+        self.init_testmods()
 
         testpath = '/this/is/just/a/test'
-
         os.environ['LD_LIBRARY_PATH'] = testpath
 
         # load module and check that previous LD_LIBRARY_PATH is still there, at the end
@@ -122,6 +157,7 @@ class ModulesTest(TestCase):
 
     def test_purge(self):
         """Test if purging of modules works."""
+        self.init_testmods()
         ms = self.testmods.available()
 
         self.testmods.load([ms[0]])
@@ -138,34 +174,10 @@ class ModulesTest(TestCase):
         self.testmods.purge()
         self.assertTrue(len(self.testmods.loaded_modules()) == 0)
 
-    def test_long_module_path(self):
-        """Test dealing with a (very) long module path."""
-
-        # create a really long modules install path
-        tmpdir = tempfile.mkdtemp()
-        long_mod_path = tmpdir
-        for x in range(100):
-            long_mod_path = os.path.join(long_mod_path, 'foo')
-        long_mod_path = os.path.join(long_mod_path, 'modules')
-
-        # copy one of the test modules there
-        gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
-        os.makedirs(gcc_mod_dir)
-        gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
-        shutil.copy2(gcc_mod_path, gcc_mod_dir)
-
-        # try and use long modules path
-        m = modules_tool([long_mod_path])
-        ms = m.available()
-
-        self.assertEqual(ms, ['GCC/4.6.3'])
-
-        shutil.rmtree(tmpdir)
-
     def tearDown(self):
         """cleanup"""
         os.chdir(self.cwd)
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepath)
+        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
 
 def suite():
     """ returns all the testcases in this module """
