@@ -37,7 +37,9 @@ _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
 
 class License(object):
-    """EasyBuild easyconfig license class"""
+    """EasyBuild easyconfig license class
+        This is also the default restrictive license
+    """
     HIDDEN = False  # disable subclasses from being seen/used
     NAME = None
     VERSION = None
@@ -62,6 +64,11 @@ class License(object):
         self.distribute_source = self.DISTRIBUTE_SOURCE
         self.group_source = self.GROUP_SOURCE
         self.group_binary = self.GROUP_BINARY
+
+
+class VeryRestrictive(License):
+    """Default license should be very restrictive, so nothing to do here, just a placeholder"""
+    pass
 
 
 class License_Open(License):
