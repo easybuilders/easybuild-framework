@@ -30,9 +30,11 @@ This is a mix between version 1 and configparser-style configuration
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.framework.easyconfig.format.version import EasyVersion
+from easybuild.framework.easyconfig.format.version import EasyVersion, ConfigObjVersion
+
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
     """Support for easyconfig format 2.x
@@ -52,12 +54,45 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     USABLE = True
     PYHEADER_ALLOWED_BUILTINS = ['len']
 
-    def check_docstring(self):
-        """Verify docstring"""
-        # TODO check for @author and/or @maintainer
-        pass
+    AUTHOR_DOCSTRING_REGEX = re.compile(r'^\s*@author\s*:\s*(?P<author>\S.*?)\s*$', re.M)
+    MAINTAINER_DOCSTRING_REGEX = re.compile(r'^\s*@maintainer\s*:\s*(?P<maintainer>\S.*?)\s*$', re.M)
+
+    AUTHOR_REQUIRED = True
+    MAINTAINER_REQUIRED = False
+
+    PYHEADER_WHITELIST = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_BLACKLIST = ['version', 'toolchain']
+
+    def validate(self):
+        """Format validation"""
+        self._check_docstring()
+
+    def _check_docstring(self):
+        """Verify docstring
+            field @author: people who contributed to the easyconfig
+            field @maintainer: people who can be contacted in case of problems
+        """
+        authors = []
+        maintainers = []
+        for auth_reg in self.AUTHOR_DOCSTRING_REGEX.finditer(self.docstring):
+            res = auth_reg.groupdict()
+            authors.append(res['author'])
+
+        for maint_reg in self.MAINTAINER_DOCSTRING_REGEX.finditer(self.docstring):
+            res = maint_reg.groupdict()
+            maintainers.append(res['maintainer'])
+
+        if self.AUTHOR_REQUIRED and not authors:
+            self.log.error('No author in docstring')
+
+        if self.MAINTAINER_REQUIRED and not maintainers:
+            self.log.error('No maintainer in docstring')
+
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Return the best matching easyconfig dict"""
-        # the toolchain name/version should not be specified in the pyheader, but other toolchain options are allowed
+        # the toolchain name/version should not be specified in the pyheader,
+        #     but other toolchain options are allowed
+
+        print ConfigObjVersion(self.configobj)
         pass
