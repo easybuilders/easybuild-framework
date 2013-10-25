@@ -79,6 +79,7 @@ class EasyBuildOptions(GeneralOption):
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
+        # TODO: make real ordered dict
         opts = OrderedDict({
                             "only-blocks":("Only build listed blocks",
                                            None, "extend", None, "b", {'metavar':"BLOCKS"}),
@@ -95,7 +96,7 @@ class EasyBuildOptions(GeneralOption):
                             "strict":("Set strictness level",
                                       "choice", "store", filetools.WARN, strictness_options),
                             "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
-                            "dry-run":("Resolve dependencies and print build list, then stop", 
+                            "dry-run":("Resolve dependencies and print build list, then stop",
                                       None, "store_true", False),
                             })
 
@@ -410,7 +411,7 @@ class EasyBuildOptions(GeneralOption):
             ebb_msg = ''
             extra_names = []
         txt = ["Available easyconfig parameters%s" % ebb_msg]
-        params = [(k,v) for (k,v) in mapping.items() if k.upper() not in ['HIDDEN']]
+        params = [(k, v) for (k, v) in mapping.items() if k.upper() not in ['HIDDEN']]
         for key, values in params:
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
