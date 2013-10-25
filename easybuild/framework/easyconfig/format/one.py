@@ -39,7 +39,16 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     VERSION = EasyVersion('1.0')
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
 
+    # TODO this is the MANDATORY list in easyconfig.py should be removed there
+    PYHEADER_WHITELIST = ['version', 'name', 'toolchain', 'homepage', 'description']
+    PYHEADER_BLACKLIST = []
+
     USABLE = True  # TODO: disable it, too insecure
+
+    def validate(self):
+        """Format validation"""
+        # minimal checks
+        self._validate_pyheader()
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """
@@ -47,12 +56,8 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         This is easyconfig format 1.x, so there is only one easyconfig instance available.
         """
         cfg = self.pyheader_localvars
-        if not 'version' in cfg:
-            self.log.error('mandatory variable version not provided')
         if version is not None and not version == cfg['version']:
             self.log.error('Requested version %s not available, only %s' % (version, cfg['version']))
-        if not 'toolchain' in cfg:
-            self.log.error('mandatory variable toolchain not provided')
 
         tc_name = cfg['toolchain']['name']
         tc_version = cfg['toolchain']['version']
