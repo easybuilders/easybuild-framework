@@ -38,6 +38,14 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
         self.assertTrue(vop.regex.search('>%sG2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
 
+
+    def test_boolean(self):
+        """Test boolean test"""
+        self.assertTrue(VersionOperator('>= 123'))
+        self.assertTrue(VersionOperator('123'))
+
+        self.assertFalse(VersionOperator('<='))
+
     def test_vop_test(self):
         """Test version checker"""
         vop = VersionOperator('1.2.3')
@@ -134,14 +142,18 @@ class EasyConfigVersion(TestCase):
             ]
             for txt in ok_tests:
                 self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
+                self.assertTrue(ToolchainVersionOperator(txt))
+
             # only accept known toolchain names
             fail_tests = [
                 "x%s >= 1.2.3" % tc,
                 "%sx >= 1.2.3" % tc,
                 "foo",
+                ">= 1.2.3",
             ]
             for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
+                self.assertFalse(ToolchainVersionOperator(txt))
 
     def test_ordered_tcversop_expressions(self):
         """Given set of ranges, order them according to version/operator (most recent/specific first)"""
