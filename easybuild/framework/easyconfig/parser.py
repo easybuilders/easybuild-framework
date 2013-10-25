@@ -134,6 +134,9 @@ class EasyConfigParser(object):
         except IOError, err:
             self.log.error('Failed to process content with %s: %s' % (self.set_fn, err))
 
-    def get_config_dict(self):
+    def get_config_dict(self, **kwargs):
         """Return parsed easyconfig as a dict."""
-        return self._formatter.get_config_dict()
+        validate = kwargs.pop('validate', True)  # bypass the validation step, typically for testing
+        if validate:
+            self._formatter.validate()
+        return self._formatter.get_config_dict(**kwargs)
