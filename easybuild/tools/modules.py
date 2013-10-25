@@ -141,6 +141,9 @@ class ModulesTool(object):
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = None
 
+        # shell that should be used to run module command (specified above) in (if any)
+        self.shell = None
+
         # version of modules tool
         self.version = None
 
@@ -155,8 +158,13 @@ class ModulesTool(object):
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
-        which_ec = subprocess.call(["which", self.cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if which_ec != 0:
+        proc = subprocess.Popen(['which', self.cmd], stdout=PIPE, stderr=subprocess.STDOUT)
+        if proc:
+            # we may need the full path for the module command, because we may be specifying a shell to Popen
+            (stdout, stderr) = proc.communicate()
+            self.cmd = stdout.strip()
+            self.log.info("Full path for module command is %s, so using it" % self.cmd)
+        else:
             self.log.error("%s modules tool can not be used, '%s' command is not available." % (self.__class__.__name__, self.cmd))
 
     def check_module_path(self):
@@ -337,17 +345,21 @@ class ModulesTool(object):
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
             self.log.deprecated("Use of 'modulePath' named argument in 'run_module', should use 'mod_paths'.", "2.0")
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
-        self.log.debug("Running '%s python %s' from %s..." % (self.cmd, ' '.join(args), os.getcwd()))
+
         # change our LD_LIBRARY_PATH here
         environ = os.environ.copy()
         environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" %
-                       (os.environ.get('LD_LIBRARY_PATH', ''), environ['LD_LIBRARY_PATH']))
+        cur_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
+        new_ld_library_path = environ['LD_LIBRARY_PATH']
+        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (cur_ld_library_path, new_ld_library_path))
 
-        # module command is now getting an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
-        # this needs to be taken into account when updating the environment via produced output, see below
-        self.log.debug("Running module cmd '%s python %s'" % (self.cmd, ' '.join(args)))
-        proc = subprocess.Popen([self.cmd, 'python'] + args, stdout=PIPE, stderr=PIPE, env=environ)
+        # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
+        cmdlist = [self.cmd, 'python']
+        if self.shell is not None:
+            cmdlist.insert(0, self.shell)
+
+        self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
+        proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
@@ -356,6 +368,9 @@ class ModulesTool(object):
         if kwargs.get('return_output', False):
             return stdout + stderr
         else:
+            # the module command was run with an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
+            # this needs to be taken into account when updating the environment via produced output, see below
+
             # keep track of current LD_LIBRARY_PATH, so we can correct the adjusted LD_LIBRARY_PATH below
             prev_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')[::-1]
 
@@ -475,6 +490,8 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """Constructor, set modulecmd.tcl-specific class variable values."""
         super(EnvironmentModulesC, self).__init__(*args, **kwargs)
         self.cmd = 'modulecmd.tcl'
+        # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
+        self.shell = 'tclsh'
         self.check_cmd_avail()
         # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
         self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
@@ -508,7 +525,7 @@ class Lmod(ModulesTool):
             stdout = open(stdout_fn, 'w')
             stderr = open(stdout_fn, 'w')
             # version is printed in 'lmod help' output
-            subprocess.call(["lmod", "help"], stdout=stdout, stderr=stderr)
+            subprocess.call([self.cmd, "help"], stdout=stdout, stderr=stderr)
             stdout.close()
             stderr.close()
 
@@ -520,7 +537,7 @@ class Lmod(ModulesTool):
                 self.version = LooseVersion(res.group('version'))
                 self.log.info("Found Lmod version %s" % self.version)
             else:
-                self.log.error("Failed to determine Lmod version from 'lmod help' output: %s" % txt)
+                self.log.error("Failed to determine Lmod version from '%s help' output: %s" % (self.cmd, txt))
             stderr.close()
         except (IOError, OSError), err:
             self.log.error("Failed to check Lmod version: %s" % err)
@@ -599,7 +616,7 @@ class Lmod(ModulesTool):
 
         try:
             cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-            self.log.debug("Updating lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
+            self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
             cache_dir = os.path.dirname(cache_filefn)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
@@ -696,7 +713,7 @@ def avail_modules_tools():
 
 def modules_tool(mod_paths=None):
     """
-    Return interface to modules tool (environment modules, lmod)
+    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
     modules_tool = get_modules_tool()
