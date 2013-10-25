@@ -197,6 +197,7 @@ class EasyConfig(object):
         local_vars = parser.get_config_dict()
 
         # validate mandatory keys
+        # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
         missing_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_keys:
             self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
@@ -509,7 +510,7 @@ class EasyConfig(object):
             if isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
             # two-element list/tuple value indicates custom toolchain specification
-            elif isinstance(tc_spec, (list, tuple, )):
+            elif isinstance(tc_spec, (list, tuple,)):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
