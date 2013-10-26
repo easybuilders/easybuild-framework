@@ -376,7 +376,12 @@ class ModulesTool(object):
 
             # Change the environment
             try:
-                clean_stdout = '\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
+                tweak_fn = kwargs.get('tweak_stdout')
+                if tweak_fn is not None:
+                    clean_stdout = tweak_fn(stdout)
+                else:
+                    # FIXME figure out what we're filtering here exactly, this looks wrong...
+                    clean_stdout = stdout #'\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
                 exec clean_stdout
             except Exception, err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
@@ -495,6 +500,25 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         self.check_cmd_avail()
         # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
         self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
+
+    def run_module(self, *args, **kwargs):
+        """
+        Run module command, tweak output that is exec'ed if necessary.
+        """
+        # old versions of modulecmd.tcl spit out something like "exec '<file>'" for load commands,
+        # which is not correct Python code (and it knows, as the comments in modulecmd.tcl indicate)
+        # so, rewrite "exec '/tmp/modulescript_X'" to the correct "execfile('/tmp/modulescript_X')"
+        def tweak_stdout(txt):
+            """Tweak stdout before it's exec'ed as Python code."""
+            modulescript_regex = "^exec\s+[\"'](?P<modulescript>/tmp/modulescript_[0-9_]+)[\"']$"
+            return re.sub(modulescript_regex, r"execfile('\1')", txt)
+
+        tweak_stdout_fn = None
+        if 'load' in args:
+            tweak_stdout_fn = tweak_stdout
+        kwargs.update({'tweak_stdout': tweak_stdout_fn})
+
+        return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
 
 
 class Lmod(ModulesTool):
