@@ -71,9 +71,8 @@ outputMatchers = {
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
     # available with --terse has one module per line
     # matches modules such as "ictce/3.2.1.015.u4"
-    # line ending with : is ignored (the modulepath in --terse)
-    # FIXME: --terse ignores defaultness
-    'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)\s*[^:\S]*$")
+    # lines ending in ':' are ignored (the modulepath(s) in --terse)
+    'available': re.compile(r"^\s*(?P<mod_name>[^\(\s:]+)(?P<default>\(default\))?\s*[^:\S]*$"),
 }
 
 _log = fancylogger.getLogger('modules', fname=False)
@@ -105,6 +104,9 @@ class ModulesTool(object):
 
         # version of modules tool
         self.version = None
+
+        # terse command line option
+        self.add_terse_opt_fn = lambda x: x.insert(0, '--terse')
 
     @property
     def modules(self):
@@ -287,7 +289,7 @@ class ModulesTool(object):
             args = list(args)
 
         if args[0] in ('available', 'avail', 'list',):
-            args.insert(0, '--terse')  # run these in terse mode for better machinereading
+            self.add_terse_opt_fn(args)  # run these in terse mode for better machinereading
 
         originalModulePath = os.environ['MODULEPATH']
         if kwargs.get('mod_paths', None):
@@ -400,7 +402,7 @@ class EnvironmentModulesC(ModulesTool):
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
         # line that specified conflict contains software name
-        name_re = re.compile('^conflict\s*(?P<name>[^ ]+).*$', re.M)
+        name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
         return self.get_value_from_modulefile(mod_name, name_re)
 
     def loaded_modules(self):
@@ -425,6 +427,18 @@ class EnvironmentModulesC(ModulesTool):
     def update(self):
         """Update after new modules were added."""
         pass
+
+
+class EnvironmentModulesTcl(EnvironmentModulesC):
+    """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+
+    def __init__(self, *args, **kwargs):
+        """Constructor, set modulecmd.tcl-specific class variable values."""
+        super(EnvironmentModulesC, self).__init__(*args, **kwargs)
+        self.cmd = 'modulecmd.tcl'
+        self.check_cmd_avail()
+        # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
+        self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
 
 
 class Lmod(ModulesTool):
