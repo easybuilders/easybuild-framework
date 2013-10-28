@@ -488,38 +488,6 @@ class OrderedVersionOperators(object):
                 self.log.debug('Adding data %s map' % str(data))
                 self.map[versop_new] = data
 
-class OrderedToolchainVersionOperators(object):
-    """Ordered toolchain version operators"""
-    def __init__(self):
-        """Initialise the list"""
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-
-        self.tcversops = {}  # key: tc_name, value OrderedVersionOperators
-
-    def __str__(self):
-        """Print the ordered tcversops"""
-        tcs = self.tcversops.keys()
-        tcs.sort()
-        return "{%s}" % (", ".join(["'%s': %s" % (k, self.tcversops[k]) for k in tcs ]))
-
-    def add(self, tcversop_new, data=None):
-        """
-        Try to add tcversop_new as ToolchainVersionOperator instance to self.tcversops.
-        Make sure there is no conflict with existing versops, and that the 
-            ordering is kept. 
-
-        @param tcversop_new: ToolchainVersionOperator instance (or will be converted into one if type basestring)
-        """
-        if isinstance(tcversop_new, basestring):
-            tcversop_new = ToolchainVersionOperator(tcversop_new)
-        elif not isinstance(tcversop_new, ToolchainVersionOperator):
-            self.log.error(("tcversop_new needs to be ToolchainVersionOperator instance "
-                            "or basestring (%s; type %s)") % (tcversop_new, type(tcversop_new)))
-            return None
-
-        ovops = self.tcversops.setdefault(tcversop_new.tc_name, OrderedVersionOperators())
-        ovops.add(tcversop_new, data=data)
-
 
 class ConfigObjVersion(object):
     """
@@ -558,18 +526,23 @@ class ConfigObjVersion(object):
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        # TODO rename, this is for prototyping
-        self.ovos = OrderedVersionOperators()
-        self.otcvos = OrderedToolchainVersionOperators()
+        self.versops = OrderedVersionOperators()
+        self.tcversops = OrderedVersionOperators()
+        self.tcname = None
+
+        self.default = {}  # default section
+        self.sections = {}  # non-default sections
 
         if configobj is not None:
-            self.set(configobj)
+            self.parse(configobj)
 
     def parse_sections(self, sectiondict):
         """Parse the configobj instance 
             convert all supported section, keys and values to their resp representations
 
             @param sectiondict: a dict with represents the section defined parameters
+            
+            returns a nested dict of dicts
         """
         # configobj already converts
         #    ','-separated strings in lists
@@ -577,7 +550,7 @@ class ConfigObjVersion(object):
         # list of supported keywords, all else will fail
         #    toolchains: ,-sep list of toolchainversionoperators
         #    version: versionoperator
-        SUPPORTED_KEYS = ('version', 'toolchains')
+        SUPPORTED_KEYS = ('versions', 'toolchains')
         res = {}
 
         for key, value in sectiondict.items():
@@ -597,7 +570,14 @@ class ConfigObjVersion(object):
 
             else:
                 newkey = key
-                if key in ('toolchains',):
+                if key in ('toolchains', 'versions'):
+                    if key == 'toolchains':
+                        klass = ToolchainVersionOperator
+                    elif key == 'versions':
+                        klass = VersionOperator
+                    else:
+                        self.log.error('Bug: supported but unknown key %s' % key)
+
                     # list of supported toolchains
                     # first one is default
                     if isinstance(value, basestring):
@@ -606,24 +586,56 @@ class ConfigObjVersion(object):
                         # TODO this is annoying. check if we can force this in configobj
                         value = value.split(',')
                     newvalue = []
-                    for tcversop_txt in value:
-                        newvalue.append(ToolchainVersionOperator(tcversop_txt))
-                elif key in ('version',):
-                    newvalue = VersionOperator(value)
+                    for txt in value:
+                        # remove possible surrounding whitespace (some people add space after comma)
+                        newvalue.append(klass(txt.strip()))
+
                 # these are the last 3
                 elif isinstance(value, basestring):
                     newvalue = value
                 elif not key in SUPPORTED_KEYS:
                     self.log.error('Unsupported key %s with value %s in section' % (key, value))
                 else:
-                    self.log.error('Supported but unknown key %s (value %s; type %s)' % (key, value, type(value)))
+                    self.log.error('Bug: supported but unknown key %s (value %s; type %s)' % (key, value, type(value)))
 
             self.log.debug('Converted key %s value %s in newkey %s newvalue %s' % (key, value, newkey, newvalue))
             res[newkey] = newvalue
 
         return res
 
-    def set(self, configobj):
+    def set_toolchain(self, tcname, processed=None, path=None):
+        """Build the ordered versionoperator and toolchainversionoperator, 
+            ignoring all other toolchains
+            @param tcname: toolchain name to keep
+            @param processed: the processed nested-dict to filter
+            @param path: list of keys to identify the path in the dict 
+        """
+        if processed is None:
+            processed = self.sections
+        if path is None:
+            path = []
+
+        # walk over all processed, add matching toolchain to tcversops
+        newprocessed = {}
+        for key, value in processed.items():
+            if isinstance(value, dict):
+                if isinstance(key, ToolchainVersionOperator):
+                    if not key.tc_name == tcname:
+                        continue
+
+                    # add it to toolchainversops
+                    self.tcversops.add(key, path)
+                # one level up
+
+            elif key == 'toolchains':
+                # remove any other toolchain
+                for tcversop in value:
+                    if tcname == tcversop.tc_name:
+                        self.tcversops.add(tcversop, path)
+            else:
+                newprocessed[key] = value
+
+    def parse(self, configobj):
         """
         First parse the configobj instance
         Then build the structure to support the versionoperators and all other parts of the structure
@@ -638,12 +650,22 @@ class ConfigObjVersion(object):
 
         # check for defaults section
         default = processed.pop('DEFAULT', {})
-        # if version defined, this is the default version
-        # TODO: mandatory?
-        # if toolchains defined: these are the supported toolchains with version info
-        #    first toolchain is default toolchain
-        # TODO: mandatory?
+        DEFAULT_KEYWORDS = ('toolchains', 'versions')
+        # default should only have versions and toolchains
+        # no nesting
+        #  - add DEFAULT key,values to the root of processed
+        for key, value in default.items():
+            if not key in DEFAULT_KEYWORDS:
+                self.log.error('Unsupported key %s in DEFAULT section' % key)
+            processed[key] = value
 
-        # process remainder
-        for name, sectiondict in processed.items():
-            print name, sectiondict
+        if 'versions' in default:
+            # first of list is special: it is the default
+            default['default_version'] = default['versions'][0]
+        if 'toolchains' in default:
+            # first of list is special
+            default['default_toolchain'] = default['toolchains'][0]
+
+        self.log.debug("parse: default %s, sections %s" % (default, processed))
+        self.default = default
+        self.sections = processed
