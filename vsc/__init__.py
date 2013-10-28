@@ -31,8 +31,9 @@ so explicitly declare this is also the vsc namespace
 
 @author: Jens Timmerman (Ghent University)
 """
-import pkg_resources
-pkg_resources.declare_namespace(__name__)
+# avoid that EasyBuild uses vsc package from somewhere else, e.g. a system vsc-base installation
+#import pkg_resources
+#pkg_resources.declare_namespace(__name__)
 
 # here for backwards compatibility
 from vsc.utils import fancylogger
