@@ -94,5 +94,33 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         # the toolchain name/version should not be specified in the pyheader,
         #     but other toolchain options are allowed
 
-        print ConfigObjVersion(self.configobj)
+        cov = ConfigObjVersion(self.configobj)
+
+        # we only need to find one version / toolchain combo
+        # esp the toolchain name should be fixed, so no need to process anything but one toolchain
+        if version is None:
+            # check for default version
+            if 'default_version' in cov.default:
+                version = cov.default['default_version']
+                self.log.debug('get_config_dict: no version specified, using default version %s' % version)
+            else:
+                self.log.error('get_config_dict: no version specified, no default version found')
+
+        if toolchain_name is None:
+            # check for default version
+            if 'default_toolchain' in cov.default:
+                toolchain = cov.default['default_toolchain']
+                toolchain_name = toolchain.tc_name
+                self.log.debug('get_config_dict: no toolchain_name specified, using default %s' % toolchain)
+            else:
+                self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
+
+        # toolchain name is known, remove all others from processed
+        cov.set_toolchain(toolchain_name)
+
+        if toolchain_version is None:
+            # is there any toolchain with this version?
+            # TODO implement
+            pass
+
         pass
