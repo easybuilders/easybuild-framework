@@ -46,7 +46,7 @@ from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python 
 from optparse import _ as _gettext  # this is gettext normally
 from vsc.utils.dateandtime import date_parser, datetime_parser
 from vsc.utils.fancylogger import getLogger, setLogLevel
-from vsc.utils.missing import shell_quote, shell_unquote
+from vsc.utils.missing import shell_quote
 
 
 def set_columns(cols=None):
@@ -326,10 +326,10 @@ class ExtOptionParser(OptionParser):
             indent = " "
             # kwargs and ** magic to deal with width
             kwargs = {
-                      'initial_indent': indent * 2,
-                      'subsequent_indent': indent * 2,
-                      'replace_whitespace': False,
-                      }
+                'initial_indent': indent * 2,
+                'subsequent_indent': indent * 2,
+                'replace_whitespace': False,
+            }
             width = os.environ.get('COLUMNS', None)
             if width is not None:
                 # default textwrap width
@@ -372,6 +372,7 @@ class ExtOptionParser(OptionParser):
             - class constant is used to avoid _taken_action as option in the __dict__
         """
         values = OptionParser.get_default_values(self)
+
         class ExtValues(self.VALUES_CLASS):
             _action_taken = {}
 
@@ -521,6 +522,10 @@ class GeneralOption(object):
         - go_loggername : name of logger, default classname
         - go_initbeforedefault : set the main options before the default ones
 
+    Sections starting with the string 'raw_' in the sectionname will be parsed as raw sections,
+    meaning there will be no interpolation of the strings. This comes in handy if you want to configure strings
+    with templates in them.
+
     Options process order (last one wins)
         0. default defined with option
         1. value in (last) configfile (last configfile wins)
@@ -569,14 +574,15 @@ class GeneralOption(object):
         set_columns(kwargs.pop('go_columns', None))
 
         kwargs.update({
-                       'option_class': ExtOption,
-                       'usage': kwargs.get('usage', self.USAGE),
-                       'version': self.VERSION,
-                       })
+            'option_class': ExtOption,
+            'usage': kwargs.get('usage', self.USAGE),
+            'version': self.VERSION,
+        })
         self.parser = self.PARSER(**kwargs)
         self.parser.allow_interspersed_args = self.INTERSPERSED
 
         self.configfile_parser = self.CONFIGFILE_PARSER()
+        self.configfile_remainder = {}
 
         loggername = self.__class__.__name__
         if prefixloggername:
@@ -633,10 +639,10 @@ class GeneralOption(object):
     def _make_debug_options(self):
         """Add debug/logging options: debug and info"""
         self._logopts = {
-                         'debug': ("Enable debug log mode", None, "store_debuglog", False, 'd'),
-                         'info': ("Enable info log mode", None, "store_infolog", False),
-                         'quiet': ("Enable info quiet/warning mode", None, "store_warninglog", False),
-                         }
+            'debug': ("Enable debug log mode", None, "store_debuglog", False, 'd'),
+            'info': ("Enable info log mode", None, "store_infolog", False),
+            'quiet': ("Enable info quiet/warning mode", None, "store_warninglog", False),
+        }
 
         descr = ['Debug and logging options', '']
         self.log.debug("Add debug and logging options descr %s opts %s (no prefix)" % (descr, self._logopts))
@@ -651,9 +657,9 @@ class GeneralOption(object):
     def _make_configfiles_options(self):
         """Add configfiles option"""
         opts = {
-                'configfiles':("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
-                'ignoreconfigfiles':("Ignore configfiles", None, "extend", self.DEFAULT_IGNORECONFIGFILES),
-                }
+            'configfiles': ("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
+            'ignoreconfigfiles': ("Ignore configfiles", None, "extend", self.DEFAULT_IGNORECONFIGFILES),
+        }
         descr = ['Configfile options', '']
         self.log.debug("Add configfiles options descr %s opts %s (no prefix)" % (descr, opts))
         self.add_group_parser(opts, descr, prefix=None)
@@ -791,9 +797,9 @@ class GeneralOption(object):
                 self.log.raiseException("PROCESSED_OPTIONS_PROPERTIES length mismatch")
 
             nameds = {
-                      'dest': opt_dest,
-                      'action': action,
-                      }
+                'dest': opt_dest,
+                'action': action,
+            }
             metavar = self.make_option_metavar(key, details)
             if metavar is not None:
                 nameds['metavar'] = metavar
@@ -929,8 +935,19 @@ class GeneralOption(object):
             if not section in self.config_prefix_sectionnames_map.values():
                 self.log.warning("parseconfigfiles: found section %s, won't be parsed" % section)
                 continue
-            # options are passed to the commandline option parser
 
+        # add any non-option related configfile data to configfile_remainder dict
+        cfg_sections_flat = [name for section_names in cfg_sections for name in section_names]
+        for section in self.configfile_parser.sections():
+            if section not in cfg_sections_flat:
+                self.log.debug("parseconfigfiles: found section %s, adding to remainder" % section)
+                remainder = self.configfile_remainder.setdefault(section, {})
+                # parse te remaining options, sections starting with 'raw_' as their name will be considered raw sections
+
+                for opt, val in self.configfile_parser.items(section, raw=(section.startswith('raw_'))):
+                    remainder[opt] = val
+
+        # options are passed to the commandline option parser
         for prefix, section_names in self.config_prefix_sectionnames_map.items():
             for section in section_names:
                 # default section is treated separate in ConfigParser
@@ -1117,8 +1134,8 @@ class GeneralOption(object):
                 # not default!
                 self.log.debug("generate_cmd_line adding %s value %s. store action found" %
                                (opt_name, opt_value))
-                if (action in ('store_true', 'store_debuglog',)  and default == True and opt_value == False) or \
-                    (action in ('store_false',) and default == False and opt_value == True):
+                if (action in ('store_true', 'store_debuglog',) and default is True and opt_value is False) or \
+                    (action in ('store_false',) and default is False and opt_value is True):
                     if hasattr(self.parser.option_class, 'ENABLE') and hasattr(self.parser.option_class, 'DISABLE'):
                         args.append("--%s-%s" % (self.parser.option_class.DISABLE, opt_name))
                     else:
@@ -1126,8 +1143,8 @@ class GeneralOption(object):
                                         "with missing ENABLE/DISABLE in option_class") %
                                        (opt_name, default, action))
                 else:
-                    if opt_value == default and ((action in ('store_true', 'store_debuglog',) and default == False) \
-                                                 or (action in ('store_false',) and default == True)):
+                    if opt_value == default and ((action in ('store_true', 'store_debuglog',) and default is False)
+                                                 or (action in ('store_false',) and default is True)):
                         if hasattr(self.parser.option_class, 'ENABLE') and \
                             hasattr(self.parser.option_class, 'DISABLE'):
                             args.append("--%s-%s" % (self.parser.option_class.DISABLE, opt_name))
