@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2011-2013 Ghent University
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of vsc-base,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -25,15 +25,28 @@
 # along with vsc-base. If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Initialize vsc package.
-The vsc namespace is used in different folders allong the system
-so explicitly declare this is also the vsc namespace
+Module offering the Singleton class.
 
-@author: Jens Timmerman (Ghent University)
+
+This class can be used as the C{__metaclass__} class field to ensure only a
+single instance of the class gets used in the run of an application or
+script.
+
+>>> class A(object):
+...     __metaclass__ = Singleton
+
+@author: Andy Georges (Ghent University)
 """
-# avoid that EasyBuild uses vsc package from somewhere else, e.g. a system vsc-base installation
-#import pkg_resources
-#pkg_resources.declare_namespace(__name__)
 
-# here for backwards compatibility
-from vsc.utils import fancylogger
+
+class Singleton(type):
+    """Serves as  metaclass for classes that should implement the Singleton pattern.
+
+    See http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
