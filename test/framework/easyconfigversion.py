@@ -6,7 +6,7 @@ Unit tests for easyconfig/format/version.py
 import os
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.framework.easyconfig.format.version import OrderedVersionOperators, OrderedToolchainVersionOperators
+from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ConfigObjVersion
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -155,44 +155,6 @@ class EasyConfigVersion(TestCase):
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
                 self.assertFalse(ToolchainVersionOperator(txt))
 
-    def test_ordered_tcversop_expressions(self):
-        """Given set of ranges, order them according to version/operator (most recent/specific first)"""
-        # simple version ordering, all different versions
-        ovop = OrderedVersionOperators()
-        versop_exprs = [
-            '> 3.0.0',
-            '>= 2.5.0',
-            '> 2.0.0',
-            '== 1.0.0',
-        ]
-        for versop in versop_exprs:
-            ovop.add(versop)
-
-        ovop2 = OrderedVersionOperators()
-        versop_exprs2 = [
-            '> 1.0.0',
-            '== 1.0.0',
-            '< 0.5.0',
-            '< 1.0.0',
-        ]
-        for versop in versop_exprs2:
-            ovop2.add(versop)
-
-        _, tcs = search_toolchain('')
-        tc_names = [x.NAME for x in tcs]
-        tcovop = OrderedToolchainVersionOperators()
-        # construct toolchain version operators for first and last toolchains, and add them in reverse order
-        # test the resulting ordering
-        sep = ToolchainVersionOperator.SEPARATOR
-        tcversop_exprs = ["%s%s%s" % (tc_names[0], sep, versop) for versop in versop_exprs]
-        tcversop_exprs2 = ["%s%s%s" % (tc_names[-1], sep, versop) for versop in versop_exprs2]
-        for idx in range(len(versop_exprs)):
-            tcovop.add(tcversop_exprs[::-1][idx])
-            tcovop.add(tcversop_exprs2[::-1][idx])
-
-        self.assertEqual(tcovop.tcversops[tc_names[0]].versops, ovop.versops)
-        self.assertEqual(tcovop.tcversops[tc_names[-1]].versops, ovop2.versops)
-
     def test_configobj(self):
         """Test configobj sort"""
         _, tcs = search_toolchain('')
@@ -203,9 +165,6 @@ class EasyConfigVersion(TestCase):
         tc = tc_names[0]
         configobj_txt = [
             '[DEFAULT]',
-            'version=1.2.3',
-            'toolchain=%s 5.6.7' % tc,
-            '[[SUPPORTED]]',
             'toolchains=%s >= 7.8.9' % ','.join(tc_names[:tcmax]),
             'versions=1.2.3,2.3.4,3.4.5',
             '[>= 2.3.4]',
