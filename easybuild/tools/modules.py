@@ -194,6 +194,17 @@ class ModulesTool(object):
         if not 'LOADEDMODULES' in os.environ:
             os.environ['LOADEDMODULES'] = ''
 
+    def use_module_paths(self):
+        """Run 'module use' on all paths in $MODULEPATH."""
+        # we need to run '<module command> python use <path>' on all paths in $MODULEPATH
+        # not all modules tools follow whatever is in $MODULEPATH, some take extra action for every module path
+        # usually, additional environment variables are set, e.g. $LMOD_DEFAULT_MODULEPATH or $MODULEPATH_modshare
+        # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
+        for modpath in self.mod_paths[::-1]:
+            if not os.path.isabs(modpath):
+                modpath = os.path.join(os.getcwd(), modpath)
+            self.run_module(['use', modpath])
+
     def available(self, mod_name=None):
         """
         Return a list of available modules for the given (partial) module name;
@@ -326,6 +337,10 @@ class ModulesTool(object):
         """Get the software name for a given module name."""
         raise NotImplementedError
 
+    def set_ld_library_path(self, ld_library_paths):
+        """Set $LD_LIBRARY_PATH to the given list of paths."""
+        os.environ['LD_LIBRARY_PATH'] = ':'.join(ld_library_paths)
+
     def run_module(self, *args, **kwargs):
         """
         Run module command.
@@ -338,12 +353,17 @@ class ModulesTool(object):
         if args[0] in ('available', 'avail', 'list',):
             self.add_terse_opt_fn(args)  # run these in terse mode for easier machine reading
 
-        originalModulePath = os.environ['MODULEPATH']
+        originalModulePath = None
         if kwargs.get('mod_paths', None):
+            originalModulePath = os.environ['MODULEPATH']
             os.environ['MODULEPATH'] = kwargs.get('mod_paths')
+            self.log.deprecated("Use of 'mod_paths' named argument in 'run_module'", "2.0")
         elif kwargs.get('modulePath', None):
+            originalModulePath = os.environ['MODULEPATH']
             os.environ['MODULEPATH'] = kwargs.get('modulePath')
-            self.log.deprecated("Use of 'modulePath' named argument in 'run_module', should use 'mod_paths'.", "2.0")
+            self.log.deprecated("Use of 'modulePath' named argument in 'run_module'", "2.0")
+        # after setting $MODULEPATH, we should run use_module_paths(),
+        # but we can't do that here becaue it would yield infinite recursion on run_module
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
 
         # change our LD_LIBRARY_PATH here
@@ -363,7 +383,11 @@ class ModulesTool(object):
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
-        os.environ['MODULEPATH'] = originalModulePath
+        if originalModulePath is not None:
+            os.environ['MODULEPATH'] = originalModulePath
+            self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
+            # after setting $MODULEPATH, we should run self.use_module_paths(),
+            # but we can't do that here becaue it would yield infinite recursion on run_module
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -394,7 +418,7 @@ class ModulesTool(object):
 
             self.log.debug("Correcting paths in LD_LIBRARY_PATH from %s to %s" %
                            (curr_ld_library_path, new_ld_library_path))
-            os.environ['LD_LIBRARY_PATH'] = ':'.join(new_ld_library_path)
+            self.set_ld_library_path(new_ld_library_path)
 
             # Process stderr
             result = []
@@ -458,6 +482,9 @@ class EnvironmentModulesC(ModulesTool):
         self.cmd = "modulecmd"
         self.check_cmd_avail()
 
+        # run 'modulecmd python use <path>' for all paths in $MODULEPATH
+        self.use_module_paths()
+
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
         # line that specified conflict contains software name
@@ -498,13 +525,26 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
         self.shell = 'tclsh'
         self.check_cmd_avail()
+
         # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
         self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
+
+        # run 'modulecmd.tcl python use <path>' for all paths in $MODULEPATH
+        self.use_module_paths()
+
+    def set_ld_library_path(self, ld_library_paths):
+        """Set $LD_LIBRARY_PATH to the given list of paths."""
+        super(EnvironmentModulesTcl, self).set_ld_library_path(ld_library_paths)
+        # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
+        os.environ['LD_LIBRARY_PATH_modshare'] = ':1:'.join(ld_library_paths)
 
     def run_module(self, *args, **kwargs):
         """
         Run module command, tweak output that is exec'ed if necessary.
         """
+        if isinstance(args[0], (list, tuple,)):
+            args = args[0]
+
         # old versions of modulecmd.tcl spit out something like "exec '<file>'" for load commands,
         # which is not correct Python code (and it knows, as the comments in modulecmd.tcl indicate)
         # so, rewrite "exec '/tmp/modulescript_X'" to the correct "execfile('/tmp/modulescript_X')"
@@ -514,7 +554,8 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             return re.sub(modulescript_regex, r"execfile('\1')", txt)
 
         tweak_stdout_fn = None
-        if 'load' in args:
+        # for 'active' module (sub)commands that yield changes in environment, we need to tweak stdout before exec'ing
+        if args[0] in ['load', 'purge', 'use']:
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
@@ -575,16 +616,8 @@ class Lmod(ModulesTool):
             vers = (self.REQ_VERSION, self.OPT_VERSION, self.version)
             self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended), found v%s" % vers)
 
-        # we need to run 'lmod python use <path>' to make sure all paths in $MODULEPATH are taken into account
-        # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
-        for modpath in self.mod_paths[::-1]:
-            if not os.path.isabs(modpath):
-                modpath = os.path.join(os.getcwd(), modpath)
-            full_cmd = [self.cmd, 'python', 'use', modpath]
-            self.log.debug("Running %s" % ' '.join(full_cmd))
-            proc = subprocess.Popen(full_cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-            (stdout, stderr) = proc.communicate()
-            exec stdout
+        # run 'lmod python use <path>' for all paths in $MODULEPATH
+        self.use_module_paths()
 
         # make sure lmod spider cache is up to date
         self.update()
