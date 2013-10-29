@@ -203,7 +203,10 @@ class ModulesTool(object):
         for modpath in self.mod_paths[::-1]:
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
-            self.run_module(['use', modpath])
+            if os.path.exists(modpath):
+                self.run_module(['use', modpath])
+            else:
+                self.log.warning("Ignoring non-existing module path in $MODULEPATH: %s" % modpath)
 
     def available(self, mod_name=None):
         """
