@@ -68,15 +68,16 @@ class ModulesTest(TestCase):
 
     # for Lmod, this test has to run first, to avoid that it fails;
     # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
-    def test__long_module_path(self):
+    def test_long_module_path(self):
         """Test dealing with a (very) long module path."""
 
         # create a really long modules install path
         tmpdir = tempfile.mkdtemp()
         long_mod_path = tmpdir
-        for x in range(100):
-            long_mod_path = os.path.join(long_mod_path, 'foo')
-        long_mod_path = os.path.join(long_mod_path, 'modules')
+        subdir = 'foo'
+        # Lmod v5.1.5 doesn't support module paths longer than 256 characters, so stay just under that magic limit
+        while (len(os.path.abspath(long_mod_path)) + len(subdir)) < 256:
+            long_mod_path = os.path.join(long_mod_path, subdir)
 
         # copy one of the test modules there
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
