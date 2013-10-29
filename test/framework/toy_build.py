@@ -101,7 +101,8 @@ class ToyBuildTest(TestCase):
         outtxt = read_file(self.logfile)
 
         # if the module exists, it should be fine
-        self.assertTrue(os.path.exists(os.path.join(installpath, 'modules', 'all', 'toy', '0.0')))
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module), "toy build succeeded: %s" % outtxt)
 
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
