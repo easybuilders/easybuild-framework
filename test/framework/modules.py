@@ -76,7 +76,7 @@ class ModulesTest(TestCase):
         long_mod_path = tmpdir
         subdir = 'foo'
         # Lmod v5.1.5 doesn't support module paths longer than 256 characters, so stay just under that magic limit
-        while (len(os.path.abspath(long_mod_path)) + len(subdir)) < 256:
+        while (len(os.path.abspath(long_mod_path)) + len(subdir)) < 240:
             long_mod_path = os.path.join(long_mod_path, subdir)
 
         # copy one of the test modules there
