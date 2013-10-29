@@ -558,7 +558,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         tweak_stdout_fn = None
         # for 'active' module (sub)commands that yield changes in environment, we need to tweak stdout before exec'ing
-        if args[0] in ['load', 'purge', 'use']:
+        if args[0] in ['load', 'purge', 'unload', 'use']:
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
