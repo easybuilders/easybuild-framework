@@ -405,11 +405,8 @@ class ModulesTool(object):
             try:
                 tweak_fn = kwargs.get('tweak_stdout')
                 if tweak_fn is not None:
-                    clean_stdout = tweak_fn(stdout)
-                else:
-                    # FIXME figure out what we're filtering here exactly, this looks wrong...
-                    clean_stdout = stdout #'\n'.join([line for line in stdout.split('\n') if line.startswith('os.environ[')])
-                exec clean_stdout
+                    stdout = tweak_fn(stdout)
+                exec stdout
             except Exception, err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
