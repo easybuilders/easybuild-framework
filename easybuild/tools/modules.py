@@ -47,7 +47,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool
-from easybuild.tools.filetools import convert_name, run_cmd, read_file
+from easybuild.tools.filetools import convert_name, run_cmd, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
@@ -158,14 +158,13 @@ class ModulesTool(object):
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
-        proc = subprocess.Popen(['which', self.cmd], stdout=PIPE, stderr=subprocess.STDOUT)
-        if proc:
-            # we may need the full path for the module command, because we may be specifying a shell to Popen
-            (stdout, stderr) = proc.communicate()
-            self.cmd = stdout.strip()
+        cmd_path = which(self.cmd)
+        if cmd_path is not None:
+            self.cmd = cmd_path
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
-            self.log.error("%s modules tool can not be used, '%s' command is not available." % (self.__class__.__name__, self.cmd))
+            mod_tool = self.__class__.__name__
+            self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
 
     def check_module_path(self):
         """

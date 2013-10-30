@@ -176,7 +176,20 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
 
     return find_base_dir()
 
+
+def which(cmd):
+    """Return (first) path in $PATH for specified command, or None if command is not found."""
+    paths = os.environ.get('PATH', '').split(os.pathsep)
+    for path in paths:
+        cmd_path = os.path.join(path, cmd)
+        if os.access(cmd_path, os.X_OK):
+            _log.info("Command %s found at %s" % (cmd, cmd_path))
+            return cmd_path
+    _log.warning("Could not locate command '%s' (with permissions to execute it) anywhere in %s" % (cmd, paths))
+    return None
+
 def download_file(filename, url, path):
+    """Download a file from the given URL, to the specified path."""
 
     _log.debug("Downloading %s from %s to %s" % (filename, url, path))
 
