@@ -201,13 +201,8 @@ class ModulesTool(object):
         # usually, additional environment variables are set, e.g. $LMOD_DEFAULT_MODULEPATH or $MODULEPATH_modshare
         # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
         for modpath in self.mod_paths[::-1]:
-            # only use absolute paths
             if not os.path.isabs(modpath):
                 modpath = os.path.join(os.getcwd(), modpath)
-            # make sure module paths ends with '/', required for modulecmd.tcl under some circumstances
-            if not modpath.endswith(os.path.sep):
-                modpath += os.path.sep
-            # only use module paths that exist
             if os.path.exists(modpath):
                 self.run_module(['use', modpath])
             else:
