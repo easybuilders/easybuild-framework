@@ -575,11 +575,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
         # under certain circumstances, modulecmd.tcl (DEISA variant) spits out available modules like this
-        clean_mods = []
-        for mod in mods:
-            if mod.startswith(os.path.sep):
-                mod = mod[1:]
-            clean_mods.append(mod)
+        clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
 
         return clean_mods
 
