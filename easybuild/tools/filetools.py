@@ -182,10 +182,11 @@ def which(cmd):
     paths = os.environ.get('PATH', '').split(os.pathsep)
     for path in paths:
         cmd_path = os.path.join(path, cmd)
-        if os.access(cmd_path, os.X_OK):
+        # only accept path is command is there, and both readable and executable
+        if os.access(cmd_path, os.R_OK | os.X_OK):
             _log.info("Command %s found at %s" % (cmd, cmd_path))
             return cmd_path
-    _log.warning("Could not locate command '%s' (with permissions to execute it) anywhere in %s" % (cmd, paths))
+    _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
 
 def download_file(filename, url, path):

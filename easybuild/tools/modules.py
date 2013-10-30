@@ -105,7 +105,6 @@ output_matchers = {
     #
     'available': re.compile(r"""
         ^(?!-*\s)                     # disallow lines starting with (empty) list of '-'s followed by a space
-        \s*                           # ignore whitespace at start of the line
         (?P<mod_name>                 # start named group for module name
             [^\s\(]*[^:/]             # module name must not have '(' or whitespace in it, must not end with ':' or '/'
         )                             # end named group for module name
