@@ -355,15 +355,17 @@ class ModulesTool(object):
         if args[0] in ('available', 'avail', 'list',):
             self.add_terse_opt_fn(args)  # run these in terse mode for easier machine reading
 
-        originalModulePath = None
-        if kwargs.get('mod_paths', None):
-            originalModulePath = os.environ['MODULEPATH']
-            os.environ['MODULEPATH'] = kwargs.get('mod_paths')
-            self.log.deprecated("Use of 'mod_paths' named argument in 'run_module'", "2.0")
-        elif kwargs.get('modulePath', None):
-            originalModulePath = os.environ['MODULEPATH']
-            os.environ['MODULEPATH'] = kwargs.get('modulePath')
-            self.log.deprecated("Use of 'modulePath' named argument in 'run_module'", "2.0")
+        module_path_key = None
+        original_module_path = None
+        if 'mod_paths' in kwargs:
+            module_path_key =  'mod_paths'
+        elif 'modulePath' in kwargs:
+            module_path_key =  'modulePath'
+        if module_path_key is not None:
+            original_module_path = os.environ['MODULEPATH']
+            os.environ['MODULEPATH'] = kwargs[module_path_key]
+            self.log.deprecated("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
+
         # after setting $MODULEPATH, we should run use_module_paths(),
         # but we can't do that here becaue it would yield infinite recursion on run_module
         self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
@@ -385,8 +387,8 @@ class ModulesTool(object):
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
-        if originalModulePath is not None:
-            os.environ['MODULEPATH'] = originalModulePath
+        if original_module_path is not None:
+            os.environ['MODULEPATH'] = original_module_path
             self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
             # after setting $MODULEPATH, we should run self.use_module_paths(),
             # but we can't do that here becaue it would yield infinite recursion on run_module
