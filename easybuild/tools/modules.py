@@ -564,6 +564,24 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
 
+    def available(self, mod_name=None):
+        """
+        Return a list of available modules for the given (partial) module name;
+        use None to obtain a list of all available modules.
+
+        @param name: a (partial) module name for filtering (default: None)
+        """
+        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
+        # strip off slash at beginning, if it's there
+        # under certain circumstances, modulecmd.tcl (DEISA variant) spits out available modules like this
+        clean_mods = []
+        for mod in mods:
+            if mod.startswith(os.path.sep):
+                mod = mod[1:]
+            clean_mods.append(mod)
+
+        return clean_mods
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
