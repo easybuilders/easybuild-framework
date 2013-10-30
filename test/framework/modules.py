@@ -63,7 +63,7 @@ class ModulesTest(TestCase):
         """Initialize set of test modules for test."""
 
         if test_modules_paths is None:
-            test_modules_paths = [os.path.join(os.path.dirname(__file__), 'modules')]
+            test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
         self.testmods = modules_tool(test_modules_paths)
 
     # for Lmod, this test has to run first, to avoid that it fails;
