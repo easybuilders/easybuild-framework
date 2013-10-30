@@ -61,7 +61,7 @@ DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
-outputMatchers = {
+output_matchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
@@ -427,15 +427,15 @@ class ModulesTool(object):
             # Process stderr
             result = []
             for line in stderr.split('\n'):  # IGNORE:E1103
-                if outputMatchers['whitespace'].search(line):
+                if output_matchers['whitespace'].search(line):
                     continue
 
-                error = outputMatchers['error'].search(line)
+                error = output_matchers['error'].search(line)
                 if error:
                     self.log.error(line)
                     raise EasyBuildError(line)
 
-                modules = outputMatchers['available'].finditer(line)
+                modules = output_matchers['available'].finditer(line)
                 for module in modules:
                     result.append(module.groupdict())
             return result
