@@ -189,9 +189,6 @@ class ModulesTool(object):
             self.mod_paths = nub(os.environ['MODULEPATH'].split(':'))
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
-        if not 'LOADEDMODULES' in os.environ:
-            os.environ['LOADEDMODULES'] = ''
-
     def use_module_paths(self):
         """Run 'module use' on all paths in $MODULEPATH."""
         # we need to run '<module command> python use <path>' on all paths in $MODULEPATH
@@ -438,7 +435,13 @@ class ModulesTool(object):
 
     def loaded_modules(self):
         """Return a list of loaded modules."""
-        raise NotImplementedError
+        # obtain list of loaded modules from 'module list' using --terse
+        mods = [mod['mod_name'] for mod in self.run_module('list')]
+
+        # filter out devel modules
+        loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
+
+        return loaded_modules
 
     # depth=sys.maxint should be equivalent to infinite recursion depth
     def dependencies_for(self, mod_name, depth=sys.maxint):
@@ -490,25 +493,6 @@ class EnvironmentModulesC(ModulesTool):
         # line that specified conflict contains software name
         name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
         return self.get_value_from_modulefile(mod_name, name_re)
-
-    def loaded_modules(self):
-        """Return a list of loaded modules."""
-
-        loaded_modules = []
-        mods = []
-
-        # 'modulecmd python list' doesn't yield anything useful, prints to stdout
-        # rely on $LOADEDMODULES
-        if os.getenv('LOADEDMODULES'):
-            # format: name1/version1:name2/version2:...:nameN/versionN
-            mods = os.getenv('LOADEDMODULES').split(':')
-        else:
-            self.log.debug("No way found to determine loaded modules, assuming no modules are loaded.")
-
-        # filter devel modules, since they cannot be split like this
-        loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
-
-        return loaded_modules
 
     def update(self):
         """Update after new modules were added."""
@@ -669,12 +653,6 @@ class Lmod(ModulesTool):
         correct_real_mods = [mod for mod in real_mods if mod_name is None or mod.startswith(mod_name)]
 
         return correct_real_mods
-
-    def loaded_modules(self):
-        """Return a list of loaded modules."""
-        # run_module already returns a list of Python dictionaries for loaded modules
-        # only retain 'mod_name' keys, get rid of any other keys
-        return [mod['mod_name'] for mod in self.run_module('list')]
 
     def update(self):
         """Update after new modules were added."""
