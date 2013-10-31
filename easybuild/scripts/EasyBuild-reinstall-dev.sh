@@ -6,10 +6,12 @@ then
 else
     PREFIX=$1
 
-    libpath=`python -c "import distutils.sysconfig; print distutils.sysconfig.get_python_lib(prefix='$PREFIX');"`
+    lib64path=`python -c "import distutils.sysconfig; print distutils.sysconfig.get_python_lib(prefix='$PREFIX');"`
+    libpath=`echo $lib64path | sed 's/lib64/lib/g'`
     mkdir -p $libpath
+    mkdir -p $lib64path
 
-    export PYTHONPATH=$libpath:$PYTHONPATH
+    export PYTHONPATH=$lib64path:$libpath:$PYTHONPATH
     export PATH=$PREFIX/bin:$PATH
 
     for pkg in easyconfigs easyblocks framework;
@@ -19,6 +21,6 @@ else
     done
 
     echo "Please make sure you have the following settings in place for future sessions:"
-    echo "  export PYTHONPATH=$libpath:\$PYTHONPATH"
+    echo "  export PYTHONPATH=$lib64path:$libpath:\$PYTHONPATH"
     echo "  export PATH=$PREFIX/bin:\$PATH"
 fi
