@@ -62,6 +62,15 @@ def get_avail_core_count():
     """
     Returns the number of available CPUs, according to cgroups and taskssets limits
     """
+    # tiny inner function to help figure out number of available cores in a cpuset
+    def count_bits(n):
+        """Count the number of set bits for a given integer."""
+        bit_cnt = 0
+        while n > 0:
+            n &= n - 1
+            bit_cnt += 1
+        return bit_cnt
+
     os_type = get_os_type()
     if os_type == LINUX:
         try:
@@ -69,7 +78,7 @@ def get_avail_core_count():
             num_cores = int(sum(sched_getaffinity().cpus))
             return num_cores
         except NameError:
-            # in case sched_getaffinity isn't available, fall back to quering /proc
+            # in case sched_getaffinity isn't available, fall back to relying on /proc/cpuinfo
 
             # determine total number of cores via /proc/cpuinfo
             try:
@@ -82,21 +91,17 @@ def get_avail_core_count():
             # determine cpuset we're in (if any)
             mypid = os.getpid()
             try:
-                f = open("/proc/%s/status" % mypid,'r')
+                f = open("/proc/%s/status" % mypid, 'r')
                 txt = f.read()
                 f.close()
-                cpuset = re.search("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
+                cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
             except IOError:
                 cpuset = None
 
             if cpuset is not None:
-                cpuset_list = cpuset.group(1).split(',')
-                # convert list of string ranges (e.g. "1,2-4,6") to int ranges
-                int_ranges = [map(int, r.split('-')) for r in cpuset_list]
-                # only retain ranges relevant according to max_num_cores, cap high value of last range to max_num_cores
-                filtered_ranges = [(low, min(high, max_num_cores - 1)) for (low, high) in int_ranges if low < max_num_cores]
-                # count total amount of cores in cpuset based on filtered ranges
-                num_cores_in_cpuset = sum([(lambda x: x[-1] - x[0] + 1)(r) for r in filtered_ranges])
+                # use cpuset mask to determine actual number of available cores
+                mask_as_int = int(cpuset.group(1).replace(',', ''), 16)
+                num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
                 _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
                 return num_cores_in_cpuset
             else:
