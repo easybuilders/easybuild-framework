@@ -294,6 +294,7 @@ class CommandLineOptionsTest(TestCase):
             pass
         outtxt = read_file(self.logfile)
 
+        found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
         found = re.search(found_msg, outtxt)
         self.assertTrue(not found, "Module found message not there with --skip for non-existing modules: %s" % outtxt)
 
@@ -301,11 +302,15 @@ class CommandLineOptionsTest(TestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
+        modules_tool().purge()
+
         # restore original MODULEPATH
         if orig_modulepath is not None:
             os.environ['MODULEPATH'] = orig_modulepath
         else:
             os.environ.pop('MODULEPATH')
+        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
+        modules_tool()
 
         # cleanup
         shutil.rmtree(buildpath)
