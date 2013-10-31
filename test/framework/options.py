@@ -28,6 +28,7 @@ Unit tests for eb command line options.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import copy
 import os
 import re
 import shutil
@@ -41,6 +42,7 @@ from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools import config
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
@@ -237,6 +239,9 @@ class CommandLineOptionsTest(TestCase):
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
 
+        # keep track of original environment to restore after purging *all* loaded modules
+        orig_environ = copy.deepcopy(os.environ)
+
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
         installpath = tempfile.mkdtemp()
@@ -311,6 +316,7 @@ class CommandLineOptionsTest(TestCase):
             os.environ.pop('MODULEPATH')
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
         modules_tool()
+        modify_env(os.environ, orig_environ)
 
         # cleanup
         shutil.rmtree(buildpath)
