@@ -777,7 +777,7 @@ def get_build_stats(app, starttime):
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
-                              ('core_count', systemtools.get_core_count()),
+                              ('core_count', systemtools.get_avail_core_count()),
                               ('timestamp', int(time.time())),
                               ('build_time', buildtime),
                               ('install_size', app.det_installsize()),

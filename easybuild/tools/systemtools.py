@@ -32,6 +32,7 @@ import os
 import platform
 import re
 from vsc import fancylogger
+from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.filetools import read_file, run_cmd
 
@@ -53,48 +54,34 @@ class SystemToolsException(Exception):
     """raised when systemtools fails"""
 
 
-def get_core_count():
-    """Try to detect the number of virtual or physical CPUs on this system.
-
-    inspired by http://stackoverflow.com/questions/1006289/how-to-find-out-the-number-of-cpus-in-python/1006301#1006301
+def get_avail_core_count():
     """
-    # Python 2.6+
-    try:
-        from multiprocessing import cpu_count
-        return cpu_count()
-    except (ImportError, NotImplementedError):
-        pass
-
-    # POSIX
-    try:
-        cores = int(os.sysconf('SC_NPROCESSORS_ONLN'))
-        if cores > 0:
-            return cores
-    except (AttributeError, ValueError):
-        pass
-
+    Returns the number of available CPUs, according to cgroups and taskssets limits
+    """
     os_type = get_os_type()
-
     if os_type == LINUX:
-        try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            # sometimes this is uppercase
-            res = txt.lower().count('processor\t:')
-            if res > 0:
-                return res
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining core count: %s" % err)
+        num_cores = sum(sched_getaffinity().cpus)
+        return num_cores
     else:
         # BSD
         try:
             out, _ = run_cmd('sysctl -n hw.ncpu')
-            cores = int(out)
-            if cores > 0:
-                return cores
+            num_cores = int(out)
+            if num_cores > 0:
+                return num_cores
         except ValueError:
             pass
 
     raise SystemToolsException('Can not determine number of cores on this system')
+
+
+def get_core_count():
+    """
+    Try to detect the number of virtual or physical CPUs on this system
+    (DEPRECATED, use get_avail_core_count instead)
+    """
+    _log.deprecated("get_core_count() is deprecated, use get_avail_core_count() instead", '2.0')
+    return get_avail_core_count()
 
 
 def get_cpu_vendor():
