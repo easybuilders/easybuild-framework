@@ -46,9 +46,9 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_modules_tool
+from easybuild.tools.config import get_modules_tool, install_path
 from easybuild.tools.filetools import convert_name, run_cmd, read_file, which
-from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX
+from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
@@ -180,14 +180,23 @@ class ModulesTool(object):
                 errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
             self.log.error(errormsg)
 
-        if self.mod_paths:
-            # set the module path environment accordingly
-            os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
-            self.log.debug("$MODULEPATH set based on supplied list of module paths: %s" % os.environ['MODULEPATH'])
-        else:
+        # if self.mod_paths is not specified, use $MODULEPATH and make sure the EasyBuild module path is in there (first)
+        if self.mod_paths is None:
             # take module path from environment
-            self.mod_paths = nub(os.environ['MODULEPATH'].split(':'))
+            self.mod_paths = [x for x in nub(os.environ['MODULEPATH'].split(':')) if len(x) > 0]
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
+
+            # determine module path for EasyBuild install path to be included in $MODULEPATH
+            eb_modpath = os.path.join(install_path(typ='modules'), GENERAL_CLASS)
+
+            # make sure EasyBuild module path is in 1st place
+            self.mod_paths = [x for x in self.mod_paths if not x == eb_modpath]
+            self.mod_paths.insert(0, eb_modpath)
+            self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
+
+        # set the module path environment accordingly
+        os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
+        self.log.info("$MODULEPATH set based on list of module paths: %s" % os.environ['MODULEPATH'])
 
     def use_module_paths(self):
         """Run 'module use' on all paths in $MODULEPATH."""
