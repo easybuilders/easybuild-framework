@@ -41,7 +41,7 @@ class SystemToolsTest(TestCase):
 
     def test_core_count(self):
         """Test getting core count."""
-        for core_count in get_avail_core_count() get_core_count():
+        for core_count in [get_avail_core_count(), get_core_count()]:
             self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count))
             self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
