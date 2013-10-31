@@ -32,7 +32,11 @@ import os
 import platform
 import re
 from vsc import fancylogger
-from vsc.utils.affinity import sched_getaffinity
+try:
+    # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
+    from vsc.utils.affinity import sched_getaffinity
+except ImportError:
+    pass
 
 from easybuild.tools.filetools import read_file, run_cmd
 
@@ -60,8 +64,40 @@ def get_avail_core_count():
     """
     os_type = get_os_type()
     if os_type == LINUX:
-        num_cores = sum(sched_getaffinity().cpus)
-        return num_cores
+        try:
+            # the preferred approach is via sched_getaffinity (yields a long, so cast it down to int)
+            num_cores = int(sum(sched_getaffinity().cpus))
+            return num_cores
+        except NameError:
+            # in case sched_getaffinity isn't available, fall back to quering /proc
+
+            # determine cpuset we're in (if any)
+            mypid = os.getpid()
+            try:
+                f = open("/proc/%s/status" % mypid,'r')
+                txt = f.read()
+                f.close()
+                cpuset = re.search("^Cpus_allowed_list:\s*([0-9,-]+)", txt, re.M)
+            except IOError:
+                cpuset = None
+
+            if cpuset is not None:
+                cpuset_list = cpuset.group(1).split(',')
+                # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
+                num_of_cpus = sum([(lambda x: x[-1] - x[0] + 1)(map(int, r.split('-'))) for r in cpuset_list])
+                _log.info("In cpuset with %s CPUs" % num_of_cpus)
+                # when not in a cpuset, the number can be higher then the number of real cores.
+                return min(num_of_cpus, max_num_cores)
+            else:
+                _log.debug("No list of allowed CPUs found, not in a cpuset.")
+                try:
+                    txt = read_file('/proc/cpuinfo', log_error=False)
+                    # sometimes this is uppercase
+                    res = txt.lower().count('processor\t:')
+                    if res > 0:
+                        return res
+                except IOError, err:
+                    raise SystemToolsException("An error occured while determining core count: %s" % err)
     else:
         # BSD
         try:
