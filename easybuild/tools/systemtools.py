@@ -71,6 +71,14 @@ def get_avail_core_count():
         except NameError:
             # in case sched_getaffinity isn't available, fall back to quering /proc
 
+            # determine total number of cores via /proc/cpuinfo
+            try:
+                txt = read_file('/proc/cpuinfo', log_error=False)
+                # sometimes this is uppercase
+                max_num_cores = txt.lower().count('processor\t:')
+            except IOError, err:
+                raise SystemToolsException("An error occured while determining total core count: %s" % err)
+
             # determine cpuset we're in (if any)
             mypid = os.getpid()
             try:
@@ -83,21 +91,17 @@ def get_avail_core_count():
 
             if cpuset is not None:
                 cpuset_list = cpuset.group(1).split(',')
-                # convert list of ranges (e.g. "1,2-4,6") to range size (e.g. 4 - 2 + 1 = 3), and sum
-                num_of_cpus = sum([(lambda x: x[-1] - x[0] + 1)(map(int, r.split('-'))) for r in cpuset_list])
-                _log.info("In cpuset with %s CPUs" % num_of_cpus)
-                # when not in a cpuset, the number can be higher then the number of real cores.
-                return min(num_of_cpus, max_num_cores)
+                # convert list of string ranges (e.g. "1,2-4,6") to int ranges
+                int_ranges = [map(int, r.split('-')) for r in cpuset_list]
+                # only retain ranges relevant according to max_num_cores, cap high value of last range to max_num_cores
+                filtered_ranges = [(low, min(high, max_num_cores - 1)) for (low, high) in int_ranges if low < max_num_cores]
+                # count total amount of cores in cpuset based on filtered ranges
+                num_cores_in_cpuset = sum([(lambda x: x[-1] - x[0] + 1)(r) for r in filtered_ranges])
+                _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
+                return num_cores_in_cpuset
             else:
                 _log.debug("No list of allowed CPUs found, not in a cpuset.")
-                try:
-                    txt = read_file('/proc/cpuinfo', log_error=False)
-                    # sometimes this is uppercase
-                    res = txt.lower().count('processor\t:')
-                    if res > 0:
-                        return res
-                except IOError, err:
-                    raise SystemToolsException("An error occured while determining core count: %s" % err)
+                return max_num_cores
     else:
         # BSD
         try:
