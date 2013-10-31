@@ -169,21 +169,10 @@ class ModulesTool(object):
         """
         Check if MODULEPATH is set and change it if necessary.
         """
-        if not 'MODULEPATH' in os.environ:
-            errormsg = 'MODULEPATH not found in environment'
-            # check if environment-modules is found
-            module_regexp = re.compile(r"^module is a function\s*\nmodule\s*()")
-            cmd = "type module"
-            (out, ec) = run_cmd(cmd, log_all=False, log_ok=False)
-            if ec != 0 or not module_regexp.match(out):
-                errormsg += ", and it seems like no module tool is installed; "
-                errormsg += "'%s' failed with exit code %s and output: '%s'" % (cmd, ec, out.strip('\n'))
-            self.log.error(errormsg)
-
         # if self.mod_paths is not specified, use $MODULEPATH and make sure the EasyBuild module path is in there (first)
         if self.mod_paths is None:
             # take module path from environment
-            self.mod_paths = [x for x in nub(os.environ['MODULEPATH'].split(':')) if len(x) > 0]
+            self.mod_paths = [x for x in nub(os.environ.get('MODULEPATH', '').split(':')) if len(x) > 0]
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
             # determine module path for EasyBuild install path to be included in $MODULEPATH
@@ -748,7 +737,7 @@ def curr_module_paths():
     """
     Return a list of current module paths.
     """
-    return os.environ['MODULEPATH'].split(':')
+    return os.environ.get('MODULEPATH', '').split(':')
 
 
 def mk_module_path(paths):
