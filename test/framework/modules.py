@@ -183,6 +183,8 @@ class ModulesTest(TestCase):
         """cleanup"""
         os.chdir(self.cwd)
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
+        # reinitialize a modules tool, to trigger 'module use' on module paths
+        modules_tool()
 
 def suite():
     """ returns all the testcases in this module """
