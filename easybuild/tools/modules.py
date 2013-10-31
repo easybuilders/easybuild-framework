@@ -530,6 +530,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         # old versions of modulecmd.tcl spit out something like "exec '<file>'" for load commands,
         # which is not correct Python code (and it knows, as the comments in modulecmd.tcl indicate)
         # so, rewrite "exec '/tmp/modulescript_X'" to the correct "execfile('/tmp/modulescript_X')"
+        # this is required for the DEISA variant of modulecmd.tcl which is commonly used
         def tweak_stdout(txt):
             """Tweak stdout before it's exec'ed as Python code."""
             modulescript_regex = "^exec\s+[\"'](?P<modulescript>/tmp/modulescript_[0-9_]+)[\"']$"
@@ -552,7 +553,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         """
         mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name)
         # strip off slash at beginning, if it's there
-        # under certain circumstances, modulecmd.tcl (DEISA variant) spits out available modules like this
+        # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
 
         return clean_mods
