@@ -59,6 +59,10 @@ class ModulesTest(TestCase):
 
         self.testmods = None
 
+        # purge with original $MODULEPATH before running each test
+        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
+        modules_tool().purge()
+
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
 
