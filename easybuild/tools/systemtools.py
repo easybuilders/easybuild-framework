@@ -58,9 +58,21 @@ def get_avail_core_count():
     """
     Returns the number of available CPUs, according to cgroups and taskssets limits
     """
-    num_cores = sum(sched_getaffinity().cpus)
+    os_type = get_os_type()
+    if os_type == LINUX:
+        num_cores = sum(sched_getaffinity().cpus)
+        return num_cores
+    else:
+        # BSD
+        try:
+            out, _ = run_cmd('sysctl -n hw.ncpu')
+            num_cores = int(out)
+            if num_cores > 0:
+                return num_cores
+        except ValueError:
+            pass
 
-    return num_cores
+    raise SystemToolsException('Can not determine number of cores on this system')
 
 
 def get_core_count():
