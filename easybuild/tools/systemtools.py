@@ -78,35 +78,37 @@ def get_avail_core_count():
             num_cores = int(sum(sched_getaffinity().cpus))
             return num_cores
         except NameError:
-            # in case sched_getaffinity isn't available, fall back to relying on /proc/cpuinfo
+            pass
 
-            # determine total number of cores via /proc/cpuinfo
-            try:
-                txt = read_file('/proc/cpuinfo', log_error=False)
-                # sometimes this is uppercase
-                max_num_cores = txt.lower().count('processor\t:')
-            except IOError, err:
-                raise SystemToolsException("An error occured while determining total core count: %s" % err)
+        # in case sched_getaffinity isn't available, fall back to relying on /proc/cpuinfo
 
-            # determine cpuset we're in (if any)
-            mypid = os.getpid()
-            try:
-                f = open("/proc/%s/status" % mypid, 'r')
-                txt = f.read()
-                f.close()
-                cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
-            except IOError:
-                cpuset = None
+        # determine total number of cores via /proc/cpuinfo
+        try:
+            txt = read_file('/proc/cpuinfo', log_error=False)
+            # sometimes this is uppercase
+            max_num_cores = txt.lower().count('processor\t:')
+        except IOError, err:
+            raise SystemToolsException("An error occured while determining total core count: %s" % err)
 
-            if cpuset is not None:
-                # use cpuset mask to determine actual number of available cores
-                mask_as_int = int(cpuset.group(1).replace(',', ''), 16)
-                num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
-                _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
-                return num_cores_in_cpuset
-            else:
-                _log.debug("No list of allowed CPUs found, not in a cpuset.")
-                return max_num_cores
+        # determine cpuset we're in (if any)
+        mypid = os.getpid()
+        try:
+            f = open("/proc/%s/status" % mypid, 'r')
+            txt = f.read()
+            f.close()
+            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
+        except IOError:
+            cpuset = None
+
+        if cpuset is not None:
+            # use cpuset mask to determine actual number of available cores
+            mask_as_int = int(cpuset.group(1).replace(',', ''), 16)
+            num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
+            _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
+            return num_cores_in_cpuset
+        else:
+            _log.debug("No list of allowed CPUs found, not in a cpuset.")
+            return max_num_cores
     else:
         # BSD
         try:
