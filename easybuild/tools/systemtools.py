@@ -102,7 +102,7 @@ def get_avail_core_count():
 
         if cpuset is not None:
             # use cpuset mask to determine actual number of available cores
-            mask_as_int = int(cpuset.group(1).replace(',', ''), 16)
+            mask_as_int = long(cpuset.group(1).replace(',', ''), 16)
             num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
             _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
             return num_cores_in_cpuset
