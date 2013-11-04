@@ -39,6 +39,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
 
+
 _log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
 
 

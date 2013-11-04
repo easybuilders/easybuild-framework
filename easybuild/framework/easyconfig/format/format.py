@@ -91,7 +91,6 @@ class EasyConfigFormat(object):
         raise NotImplementedError
 
 
-
 def get_format_version_classes(version=None):
     """Return the (usable) subclasses from EasyConfigFormat that have a matching version."""
     all_classes = get_subclasses(EasyConfigFormat)
