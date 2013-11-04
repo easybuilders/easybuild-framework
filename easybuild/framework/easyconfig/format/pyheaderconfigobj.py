@@ -77,7 +77,7 @@ def build_easyconfig_variables_dict():
     """Make a dictionary with all variables that can be used"""
     _log.deprecated("Magic 'global' easyconfigs variables like shared_lib_ext should no longer be used", '2.0')
     vars_dict = {
-        "shared_lib_ext": get_shared_lib_ext(),  # FIXME: redeprecate this
+        "shared_lib_ext": get_shared_lib_ext(),
     }
 
     return vars_dict
@@ -91,7 +91,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     3 parts in easyconfig file:
     - header (^# style)
     - pyheader (including docstring)
-     - contents is exec'ed, doctstring and remainder are extracted
+     - contents is exec'ed, docstring and remainder are extracted
     - begin of regular section until EOF
      - feed to ConfigObj
     """
@@ -102,10 +102,9 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def __init__(self, *args, **kwargs):
         """Extend EasyConfigFormat with some more attributes"""
+        super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
         self.pyheader_localvars = None
         self.configobj = None
-
-        super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
 
     def parse(self, txt, strict_section_markers=False):
         """
@@ -116,6 +115,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         sectionmarker_pattern = ConfigObj._sectionmarker.pattern
         if strict_section_markers:
             # don't allow indentation for section markers
+            # done by rewriting section marker regex, such that we don't have to patch configobj.py
             sectionmarker_pattern = re.sub('^.*?indentation.*$', '', sectionmarker_pattern, flags=re.M)
         regex = re.compile(sectionmarker_pattern, re.VERBOSE | re.M)
         reg = regex.search(txt)
@@ -133,11 +133,9 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def parse_pre_section(self, txt):
         """Parse the text block before the start of the first section"""
-        header_reg = re.compile(r'^\s*(#.*)?$')
-
-        txt_list = txt.split('\n')
-
         header_text = []
+        txt_list = txt.split('\n')
+        header_reg = re.compile(r'^\s*(#.*)?$')
 
         while len(txt_list) > 0:
             line = txt_list.pop(0)
@@ -145,7 +143,9 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             format_version = get_format_version(line)
             if format_version is not None:
                 if not format_version == self.VERSION:
-                    self.log.error("Invalid version %s for current format class" % (format_version))
+                    self.log.error("Invalid format version %s for current format class" % format_version)
+                else:
+                    self.log.info("Valid format version %s found" % format_version)
                 # version is not part of header
                 continue
 
