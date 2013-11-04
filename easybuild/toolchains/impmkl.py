@@ -24,19 +24,19 @@
 ##
 """
 EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH2,
-and Intel Math Kernel Library (MKL).
+Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
 
 @author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.mpi.mpich2 import Mpich2
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
-
-class Impmkl(IntelIccIfort, Mpich2, IntelMKL):
+class Impmkl(IntelIccIfort, Mpich2, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), MPICH2,
-    and Intel Math Kernel Library (MKL).
+    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'impmkl'
