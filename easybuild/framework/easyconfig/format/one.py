@@ -39,7 +39,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     VERSION = EasyVersion('1.0')
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
 
-    PYHEADER_WHITELIST = ['version', 'name', 'toolchain', 'homepage', 'description']
+    PYHEADER_MANDATORY = ['version', 'name', 'toolchain', 'homepage', 'description']
     PYHEADER_BLACKLIST = []
 
     USABLE = True  # TODO: disable it, too insecure

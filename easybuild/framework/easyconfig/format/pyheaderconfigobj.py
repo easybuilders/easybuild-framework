@@ -96,7 +96,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     """
 
     PYHEADER_ALLOWED_BUILTINS = []  # default no builtins
-    PYHEADER_WHITELIST = None  # no defaults
+    PYHEADER_MANDATORY = None  # no defaults
     PYHEADER_BLACKLIST = None  # no defaults
 
     def __init__(self, *args, **kwargs):
@@ -214,20 +214,20 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def _validate_pyheader(self):
         """Basic validation of pyheader localvars
-            it takes variable names from the PYHEADER_BLACKLIST and PYHEADER_WHITELIST
+            it takes variable names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY
                 blacklisted variables are not allowed, whitelisted variables are
                 mandatory unless blacklisted
         """
         cfg = self.pyheader_localvars
-        if self.PYHEADER_BLACKLIST is None or self.PYHEADER_WHITELIST is None:
-            self.log.error('Set the PYHEADER_BLACKLIST/WHITELIST')
+        if self.PYHEADER_BLACKLIST is None or self.PYHEADER_MANDATORY is None:
+            self.log.error('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
 
         for variable in self.PYHEADER_BLACKLIST:
             if variable in cfg:
                 # TODO add to easyconfig unittest (similar to mandatory)
                 self.log.error('variable %s not allowed' % variable)
 
-        for variable in self.PYHEADER_WHITELIST:
+        for variable in self.PYHEADER_MANDATORY:
             if variable in self.PYHEADER_BLACKLIST:
                 continue
             if not variable in cfg:

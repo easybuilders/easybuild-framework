@@ -60,7 +60,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False
 
-    PYHEADER_WHITELIST = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     def validate(self):
