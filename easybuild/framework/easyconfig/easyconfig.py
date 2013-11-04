@@ -48,6 +48,7 @@ from easybuild.tools.modules import get_software_root_env_var_name, get_software
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -110,7 +111,7 @@ class EasyConfig(object):
 
         # extend mandatory keys
         for key, value in extra_options.items():
-            if value[2] == ALL_CATEGORIES['MANDATORY']:
+            if value[2] == MANDATORY:
                 self.mandatory.append(key)
 
         # set valid stops
