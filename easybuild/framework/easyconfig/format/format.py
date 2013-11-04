@@ -93,7 +93,7 @@ class EasyConfigFormat(object):
 
 
 def get_format_version_classes(version=None):
-    """Return the (first) subclass from EasyConfigFormat that has matching version."""
+    """Return the (usable) subclasses from EasyConfigFormat that have a matching version."""
     all_classes = get_subclasses(EasyConfigFormat)
     if version is None:
         return all_classes
