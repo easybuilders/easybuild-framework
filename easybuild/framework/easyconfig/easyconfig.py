@@ -194,7 +194,7 @@ class EasyConfig(object):
         Parse the file and set options
         mandatory requirements are checked here
         """
-        parser = EasyConfigParser(path, format_version=None)
+        parser = EasyConfigParser(path, format_version=format_version)
         local_vars = parser.get_config_dict()
 
         # validate mandatory keys
