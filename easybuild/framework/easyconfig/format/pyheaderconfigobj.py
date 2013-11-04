@@ -137,6 +137,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         txt_list = txt.split('\n')
         header_reg = re.compile(r'^\s*(#.*)?$')
 
+        # pop lines from txt_list into header_text, until we're not in header anymore
         while len(txt_list) > 0:
             line = txt_list.pop(0)
 
@@ -151,7 +152,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
             r = header_reg.search(line)
             if not r:
-                # put the line back
+                # put the line back, and quit (done with header)
                 txt_list.insert(0, line)
                 break
             header_text.append(line)
@@ -205,7 +206,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
                 if hasattr(current_builtins, name):
                     builtins[name] = getattr(current_builtins, name)
                 elif isinstance(current_builtins, dict) and name in current_builtins:
-                    builtins[name] = current_builtins.get(name)
+                    builtins[name] = current_builtins[name]
                 else:
                     self.log.warning('No builtin %s found.' % name)
             global_vars['__builtins__'] = builtins
@@ -214,34 +215,34 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         return global_vars, local_vars
 
     def _validate_pyheader(self):
-        """Basic validation of pyheader localvars
-            it takes variable names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY
-                blacklisted variables are not allowed, whitelisted variables are
-                mandatory unless blacklisted
         """
-        cfg = self.pyheader_localvars
+        Basic validation of pyheader localvars.
+        This takes variable names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY;
+        blacklisted variables are not allowed, mandatory variables are
+        mandatory unless blacklisted
+        """
+        if self.pyheader_localvars is None:
+            self.log.error("self.pyheader_localvars must be initialized")
         if self.PYHEADER_BLACKLIST is None or self.PYHEADER_MANDATORY is None:
             self.log.error('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
 
         for variable in self.PYHEADER_BLACKLIST:
-            if variable in cfg:
+            if variable in self.pyheader_localvars:
                 # TODO add to easyconfig unittest (similar to mandatory)
-                self.log.error('variable %s not allowed' % variable)
+                self.log.error('variable %s not allowed in pyheader' % variable)
 
         for variable in self.PYHEADER_MANDATORY:
             if variable in self.PYHEADER_BLACKLIST:
                 continue
-            if not variable in cfg:
+            if not variable in self.pyheader_localvars:
                 # message format in sync with easyconfig mandatory unittest!
-                self.log.error('mandatory variable %s not provided' % variable)
+                self.log.error('mandatory variable %s not provided in pyheader' % variable)
 
     def parse_section_block(self, section):
         """Parse the section block by trying to convert it into a ConfigObj instance"""
         try:
-            cfgobj = ConfigObj(section.split('\n'))
+            self.configobj = ConfigObj(section.split('\n'))
         except SyntaxError, err:
             self.log.error('Failed to convert section text %s: %s' % (section, err))
 
-        self.log.debug("Found ConfigObj instance %s" % cfgobj)
-
-        self.configobj = cfgobj
+        self.log.debug("Found ConfigObj instance %s" % self.configobj)
