@@ -24,9 +24,9 @@
 # #
 
 """
-This describes the easyconfig format versions 2.X
+This describes the easyconfig format versions 2.x
 
-This is a mix between version 1 and configparser-style configuration
+This is a mix between version 1.0 and configparser-style configuration
 
 @author: Stijn De Weirdt (Ghent University)
 """
@@ -37,12 +37,13 @@ from easybuild.framework.easyconfig.format.version import EasyVersion, ConfigObj
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
-    """Support for easyconfig format 2.x
+    """
+    Support for easyconfig format 2.0
     Simple extension of FormatOneZero with configparser blocks
 
-    Doesn't set version and toolchain/toolchain version like in FormatOneZero
-        - if no 'version' in pyheader, then referencing it directly in pyheader doesn't work
-            - either use templates ('%(version)s'), or include version spec
+    Doesn't set version and toolchain/toolchain version like in FormatOneZero;
+    if no 'version' in pyheader, then referencing it directly in pyheader doesn't work
+    => either use templates ('%(version)s'), or include version spec
 
     NOT in 2.0
         - order preservation: need more recent ConfigParser (more recent Python as minimal version)
