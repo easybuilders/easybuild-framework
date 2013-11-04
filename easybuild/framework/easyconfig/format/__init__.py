@@ -22,7 +22,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
-"""The easyconfig.format package provides the EasyConfig format classes"""
+"""
+The easybuild.framework.easyconfig.format package provides the EasyConfig format classes
+
+@author: Stijn De Weirdt (Ghent University)
+"""
 
 # we need to make sure all known formats are imported,
 # such that get_format_version_classes() is able to find all subclasses of EasyConfigFormat
