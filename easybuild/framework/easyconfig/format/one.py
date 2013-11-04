@@ -39,7 +39,6 @@ class FormatOneZero(EasyConfigFormatConfigObj):
     VERSION = EasyVersion('1.0')
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
 
-    # TODO this is the MANDATORY list in easyconfig.py should be removed there
     PYHEADER_WHITELIST = ['version', 'name', 'toolchain', 'homepage', 'description']
     PYHEADER_BLACKLIST = []
 
