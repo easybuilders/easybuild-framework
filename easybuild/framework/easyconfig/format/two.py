@@ -53,7 +53,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     """
     VERSION = EasyVersion('2.0')
     USABLE = True
+
     PYHEADER_ALLOWED_BUILTINS = ['len']
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     NAME_DOCSTRING_PATTERN = r'^\s*__LABEL__\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
     AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'author'), re.M)
@@ -62,17 +65,15 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False
 
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
-    PYHEADER_BLACKLIST = ['version', 'toolchain']
-
     def validate(self):
         """Format validation"""
         self._check_docstring()
 
     def _check_docstring(self):
-        """Verify docstring
-            field @author: people who contributed to the easyconfig
-            field @maintainer: people who can be contacted in case of problems
+        """
+        Verify docstring.
+        field @author: people who contributed to the easyconfig
+        field @maintainer: people who can be contacted in case of problems
         """
         authors = []
         maintainers = []
@@ -90,30 +91,29 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         if self.MAINTAINER_REQUIRED and not maintainers:
             self.log.error('No maintainer in docstring')
 
-
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Return the best matching easyconfig dict"""
         # the toolchain name/version should not be specified in the pyheader,
-        #     but other toolchain options are allowed
+        # but other toolchain options are allowed
 
         cov = ConfigObjVersion(self.configobj)
 
         # we only need to find one version / toolchain combo
-        # esp the toolchain name should be fixed, so no need to process anything but one toolchain
+        # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
         if version is None:
             # check for default version
             if 'default_version' in cov.default:
                 version = cov.default['default_version']
-                self.log.debug('get_config_dict: no version specified, using default version %s' % version)
+                self.log.info('get_config_dict: no version specified, using default version %s' % version)
             else:
                 self.log.error('get_config_dict: no version specified, no default version found')
 
         if toolchain_name is None:
-            # check for default version
+            # check for default toolchain
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
-                self.log.debug('get_config_dict: no toolchain_name specified, using default %s' % toolchain)
+                self.log.info('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
             else:
                 self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
 

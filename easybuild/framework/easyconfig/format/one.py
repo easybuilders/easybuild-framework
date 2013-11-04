@@ -37,12 +37,11 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 class FormatOneZero(EasyConfigFormatConfigObj):
     """Support for easyconfig format 1.x"""
     VERSION = EasyVersion('1.0')
-    PYHEADER_ALLOWED_BUILTINS = None  # allow all
+    USABLE = True  # TODO: disable it at some point, too insecure
 
+    PYHEADER_ALLOWED_BUILTINS = None  # allow all
     PYHEADER_MANDATORY = ['version', 'name', 'toolchain', 'homepage', 'description']
     PYHEADER_BLACKLIST = []
-
-    USABLE = True  # TODO: disable it at some point, too insecure
 
     def validate(self):
         """Format validation"""
