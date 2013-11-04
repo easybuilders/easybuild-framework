@@ -63,7 +63,7 @@ from easybuild.tools.module_generator import det_full_module_name, det_devel_mod
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import get_core_count
+from easybuild.tools.systemtools import get_avail_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -743,7 +743,7 @@ class EasyBlock(object):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
                 self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
-            txt = self.moduleGenerator.prepend_paths(key, value)
+            txt += self.moduleGenerator.prepend_paths(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
@@ -1040,7 +1040,7 @@ class EasyBlock(object):
             except ValueError, err:
                 self.log.error("Parallelism %s not integer: %s" % (nr, err))
         else:
-            nr = get_core_count()
+            nr = get_avail_core_count()
             # check ulimit -u
             out, ec = run_cmd('ulimit -u')
             try:
