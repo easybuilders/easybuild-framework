@@ -777,7 +777,7 @@ def get_build_stats(app, starttime):
                               ('host', os.uname()[1]),
                               ('platform' , platform.platform()),
                               ('cpu_model', systemtools.get_cpu_model()),
-                              ('core_count', systemtools.get_core_count()),
+                              ('core_count', systemtools.get_avail_core_count()),
                               ('timestamp', int(time.time())),
                               ('build_time', buildtime),
                               ('install_size', app.det_installsize()),
@@ -857,9 +857,9 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
         if app.cfg['stop']:
             ended = "STOPPED"
-            newLogDir = os.path.join(app.builddir, config.log_path())
+            new_log_dir = os.path.join(app.builddir, config.log_path())
         else:
-            newLogDir = os.path.join(app.installdir, config.log_path())
+            new_log_dir = os.path.join(app.installdir, config.log_path())
 
             try:
                 # upload spec to central repository
@@ -880,17 +880,21 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
         # cleanup logs
         app.close_log()
         try:
-            if not os.path.isdir(newLogDir):
-                os.makedirs(newLogDir)
-            applicationLog = os.path.join(newLogDir, get_log_filename(app.name, app.version))
-            shutil.move(app.logfile, applicationLog)
-        except IOError, err:
-            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applicationLog, err))
+            if not os.path.isdir(new_log_dir):
+                os.makedirs(new_log_dir)
+            log_fn = os.path.basename(get_log_filename(app.name, app.version))
+            application_log = os.path.join(new_log_dir, log_fn)
+            shutil.move(app.logfile, application_log)
+            _log.debug("Moved log file %s to %s" % (app.logfile, application_log))
+        except (IOError, OSError), err:
+            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, application_log, err))
 
         try:
-            shutil.copy(spec, os.path.join(newLogDir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg))))
-        except IOError, err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, newLogDir, err))
+            newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
+            shutil.copy(spec, newspec)
+            _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
+        except (IOError, OSError), err:
+            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
 
     # build failed
     else:
@@ -904,7 +908,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
         # cleanup logs
         app.close_log()
-        applicationLog = app.logfile
+        application_log = app.logfile
 
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
@@ -917,7 +921,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
     if app.postmsg:
         print_msg("\nWARNING: %s\n" % app.postmsg, _log, silent=silent)
 
-    print_msg("Results of the build can be found in the log file %s" % applicationLog, _log, silent=silent)
+    print_msg("Results of the build can be found in the log file %s" % application_log, _log, silent=silent)
 
     del app
     os.chdir(cwd)
@@ -927,9 +931,9 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
         if exitOnFailure:
             sys.exit(exitCode)
         else:
-            return (False, applicationLog)
+            return (False, application_log)
     else:
-        return (True, applicationLog)
+        return (True, application_log)
 
 
 def dep_graph(fn, specs, silent=False):
@@ -1284,7 +1288,7 @@ def regtest(options, easyconfig_paths):
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
-        command += "if [ $? -ne 0 ]; then %(cmd)s && %(cmd)s; fi" % {'cmd': cmd}
+        command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, robot_path=options.robot)
 
