@@ -31,7 +31,8 @@ Unit tests for systemtools.py
 from unittest import TestCase, TestLoader, main
 
 from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
-from easybuild.tools.systemtools import get_core_count, get_cpu_model, get_cpu_speed, get_cpu_vendor
+from easybuild.tools.systemtools import get_avail_core_count, get_core_count
+from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor
 from easybuild.tools.systemtools import get_os_type, get_shared_lib_ext, get_platform_name, get_os_name, get_os_version
 
 
@@ -40,9 +41,9 @@ class SystemToolsTest(TestCase):
 
     def test_core_count(self):
         """Test getting core count."""
-        core_count = get_core_count()
-        self.assertTrue(isinstance(core_count, int))
-        self.assertTrue(core_count > 0)
+        for core_count in [get_avail_core_count(), get_core_count()]:
+            self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
+            self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
     def test_cpu_model(self):
         """Test getting CPU model."""

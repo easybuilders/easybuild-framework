@@ -45,7 +45,7 @@ import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
@@ -450,12 +450,14 @@ class EasyConfig(object):
         # - uses rpm -q and dpkg -s --> can be run as non-root!!
         # - fallback on which
         # - should be extended to files later?
-        if run_cmd('which rpm', simple=True, log_ok=False):
-            cmd = "rpm -q %s" % dep
-        elif run_cmd('which dpkg', simple=True, log_ok=False):
-            cmd = "dpkg -s %s" % dep
+        cmd = "exit 1"
+        if get_os_name() in ['debian', 'ubuntu']:
+            if run_cmd('which dpkg', simple=True, log_ok=False):
+                cmd = "dpkg -s %s" % dep
         else:
-            cmd = "exit 1"
+            # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+            if run_cmd('which rpm', simple=True, log_ok=False):
+                cmd = "rpm -q %s" % dep
 
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 

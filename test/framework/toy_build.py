@@ -28,6 +28,7 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 """
 
+import glob
 import os
 import re
 import shutil
@@ -100,11 +101,22 @@ class ToyBuildTest(TestCase):
         outtxt = read_file(self.logfile)
 
         # if the module exists, it should be fine
-        self.assertTrue(os.path.exists(os.path.join(installpath, 'modules', 'all', 'toy', '0.0')))
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module), "toy build succeeded: %s" % outtxt)
 
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
         self.assertTrue(success.search(outtxt))
+
+        # make sure installation log file and easyconfig file are copied to install dir
+        install_log_path_pattern = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'easybuild-toy-0.0-*.log')
+        self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1)
+
+        ec_file_path = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(ec_file_path))
+
+        devel_module_path = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0-easybuild-devel')
+        self.assertTrue(os.path.exists(devel_module_path))
 
         # clear log
         write_file(self.logfile, '')
