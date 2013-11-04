@@ -30,6 +30,7 @@ Unit tests for modules.py.
 @author: Stijn De Weirdt (Ghent University)
 """
 
+import copy
 import os
 import re
 import tempfile
@@ -37,6 +38,7 @@ import shutil
 
 import easybuild.tools.options as eboptions
 from easybuild.tools import config
+from easybuild.tools.environment import modify_env
 from easybuild.tools.modules import modules_tool
 from unittest import TestCase, TestLoader, main
 
@@ -50,6 +52,9 @@ class ModulesTest(TestCase):
 
     def setUp(self):
         """set up everything for a unit test."""
+        # keep track of original environment, so we can restore it
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # initialize configuration so config.get_modules_tool function works
         eb_go = eboptions.parse_options()
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
@@ -185,6 +190,7 @@ class ModulesTest(TestCase):
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
         # reinitialize a modules tool, to trigger 'module use' on module paths
         modules_tool()
+        modify_env(os.environ, self.orig_environ)
 
 def suite():
     """ returns all the testcases in this module """
