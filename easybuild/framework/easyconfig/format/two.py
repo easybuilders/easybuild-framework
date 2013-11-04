@@ -55,8 +55,9 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     USABLE = True
     PYHEADER_ALLOWED_BUILTINS = ['len']
 
-    AUTHOR_DOCSTRING_REGEX = re.compile(r'^\s*@author\s*:\s*(?P<author>\S.*?)\s*$', re.M)
-    MAINTAINER_DOCSTRING_REGEX = re.compile(r'^\s*@maintainer\s*:\s*(?P<maintainer>\S.*?)\s*$', re.M)
+    NAME_DOCSTRING_PATTERN = r'^\s*__LABEL__\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
+    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'author'), re.M)
+    MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'maintainer'), re.M)
 
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False
@@ -77,11 +78,11 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         maintainers = []
         for auth_reg in self.AUTHOR_DOCSTRING_REGEX.finditer(self.docstring):
             res = auth_reg.groupdict()
-            authors.append(res['author'])
+            authors.append(res['name'])
 
         for maint_reg in self.MAINTAINER_DOCSTRING_REGEX.finditer(self.docstring):
             res = maint_reg.groupdict()
-            maintainers.append(res['maintainer'])
+            maintainers.append(res['name'])
 
         if self.AUTHOR_REQUIRED and not authors:
             self.log.error('No author in docstring')
