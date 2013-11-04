@@ -96,6 +96,9 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
      - feed to ConfigObj
     """
 
+    VERSION = None  # should be set to a EasyVersion instance
+    USABLE = False  # 'abstract' format is not usable by definition
+
     PYHEADER_ALLOWED_BUILTINS = []  # default no builtins
     PYHEADER_MANDATORY = None  # no defaults
     PYHEADER_BLACKLIST = None  # no defaults
