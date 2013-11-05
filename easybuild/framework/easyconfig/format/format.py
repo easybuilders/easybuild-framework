@@ -60,8 +60,8 @@ def get_format_version(txt):
 
 class EasyConfigFormat(object):
     """EasyConfigFormat class"""
-    VERSION = EasyVersion('0.0')
-    USABLE = False  # Disable this class as usable format
+    VERSION = EasyVersion('0.0')  # dummy EasyVersion instance (shouldn't be None)
+    USABLE = False  # disable this class as usable format
 
     def __init__(self):
         """Initialise the EasyConfigFormat class"""
