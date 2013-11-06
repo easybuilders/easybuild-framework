@@ -34,7 +34,7 @@ import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
 
-from easybuild.tools.configobj import ConfigObj, Section
+from easybuild.tools.configobj import Section
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -556,7 +556,7 @@ class ConfigObjVersion(object):
         if configobj is not None:
             self.parse(configobj)
 
-    def parse_sections(self, configobj, parent=None, depth=0):
+    def parse_sections(self, configobj, toparse=None, parent=None, depth=0):
         """
         Parse configobj instance; convert all supported sections, keys and values to their respective representations
             
@@ -577,7 +577,11 @@ class ConfigObjVersion(object):
             # parent specified, so not a top section
             parsed_sections = Section(parent=parent, depth=depth+1, main=configobj)
 
-        for key, value in configobj.items():
+        # start with full configobj initially, and then process subsections recursively
+        if toparse is None:
+            toparse = configobj
+
+        for key, value in toparse.items():
             if isinstance(value, Section):
                 self.log.debug("Enter subsection key %s value %s" % (key, value))
                 # only 3 types of sectionkeys supported: VersionOperator, ToolchainVersionOperator, and DEFAULT
@@ -597,7 +601,7 @@ class ConfigObjVersion(object):
                         self.log.error("Unsupported section marker '%s'" % key)
 
                 # parse value as a section, recursively
-                new_value = self.parse_sections(ConfigObj(value), parent=value.parent, depth=value.depth)
+                new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
 
             else:
                 new_key = key
