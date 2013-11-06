@@ -38,7 +38,6 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
         self.assertTrue(vop.regex.search('>%sG2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
 
-
     def test_boolean(self):
         """Test boolean test"""
         self.assertTrue(VersionOperator('>= 123'))
