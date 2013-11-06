@@ -89,11 +89,14 @@ class EasyConfigVersion(TestCase):
             ('< 8' , '< 10'),  # True, order by strictness equals inversed order by boundaries for lt/le
             ('== 4' , '> 3'),  # equality is more strict then inequality, but this order by boundaries
             ('> 3', '== 2'),  # there is no overlap, so just order the intervals according their boundaries
-            ('> 1', '== 1'),  # no overlap, same boundaries, order by operator
+            ('== 1', '> 1'),  # no overlap, same boundaries, order by operator
             ('== 1', '< 1'),  # no overlap, same boundaries, order by operator
+            ('> 1', '>= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
+            ('< 1', '<= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
+            ('> 1', '< 1'),  # no overlap, same boundaries, order by operator (quite arbitrary in this case)
         ]
         for l, r in left_gt_right:
-            self.assertTrue(VersionOperator(l) > VersionOperator(r))
+            self.assertTrue(VersionOperator(l) > VersionOperator(r), "%s gt %s" % (l, r))
 
     def test_ordered_versop_expressions(self):
         """Given set of ranges, order them according to version/operator (most recent/specific first)"""
@@ -117,8 +120,8 @@ class EasyConfigVersion(TestCase):
         # more complex version ordering, identical/overlapping vesions
         ovop = OrderedVersionOperators()
         versop_exprs = [
-            '> 1.0.0',
             '== 1.0.0',
+            '> 1.0.0',
             '< 1.0.0',
         ]
         # add version expressions out of order intentionally

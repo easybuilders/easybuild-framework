@@ -31,7 +31,8 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['version'], '4.6.3')
 
     def test_v20(self):
-        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb'))
+        fn = os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb')
+        ecp = EasyConfigParser(fn)
 
         formatter = ecp._formatter
         self.assertEqual(formatter.VERSION, EasyVersion('2.0'))
@@ -40,7 +41,13 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
-        ec = ecp.get_config_dict()
+        parse_error = None
+        ec = None
+        try:
+            ec = ecp.get_config_dict()
+        except Exception, err:
+            parse_error = err
+        self.assertTrue(ec, "error in parsing of %s (result: %s): %s" % (fn, ec, parse_error))
 
         # this should be ok: ie the default values
         # self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
@@ -48,7 +55,8 @@ class EasyConfigParserTest(TestCase):
         # self.assertEqual(ec['version'], '4.6.3')
 
     def test_v20_extra(self):
-        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb'))
+        fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
+        ecp = EasyConfigParser(fn)
 
         formatter = ecp._formatter
         self.assertEqual(formatter.VERSION, EasyVersion('2.0'))
@@ -57,7 +65,14 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
+        parse_error = None
+        ec = None
         ec = ecp.get_config_dict()
+        try:
+            ec = ecp.get_config_dict()
+        except Exception, err:
+            parse_error = err
+        self.assertTrue(ec, "error in parsing of %s (result: %s): %s" % (fn, ec, parse_error))
 
 
 def suite():

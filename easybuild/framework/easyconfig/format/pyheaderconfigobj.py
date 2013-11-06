@@ -125,7 +125,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             start_section = None
         else:
             start_section = reg.start()
-            self.log.debug('Section starts at idx %s' % start_section)
+            sections_start = txt[start_section:start_section+20]
+            self.log.debug('First section starts at idx %s: """%s..."""' % (start_section, sections_start))
 
         self.parse_pre_section(txt[:start_section])
         if start_section is not None:

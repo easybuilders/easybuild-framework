@@ -24,7 +24,7 @@
 # #
 
 """
-This describes the easyconfig version class. To be used in easybuild for anything related to version checking
+This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
 @author: Stijn De Weirdt (Ghent University)
 """
@@ -34,7 +34,7 @@ import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
 
-from easybuild.tools.configobj import Section
+from easybuild.tools.configobj import ConfigObj, Section
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -47,7 +47,6 @@ class EasyVersion(LooseVersion):
         """Determine length of this EasyVersion instance."""
         return len(self.version)
 
-# TODO major issue what to do in case of misparse. error or not?
 
 class VersionOperator(object):
     """
@@ -61,57 +60,58 @@ class VersionOperator(object):
         '<': op.lt,
         '<=': op.le,
     }
-    INCLUDE_OPERATORS = ('==', '>=', '<=')  # these version operators include the version-boundary
-    ORDERED_OPERATORS = ('>', '>=', '==', '<=', '<')  # arbitrary ordering for consistency
-    OPERATOR_FAMILIES = (('>', '>='), ('<', '<='))  # similar operators
+    REVERSE_OPERATOR = dict([(v, k) for k, v in OPERATOR.items()])
+    INCLUDE_OPERATORS = ['==', '>=', '<=']  # these version operators include the version-boundary
+    ORDERED_OPERATORS = ['==', '>', '>=', '<', '<=']  # ordering by strictness
+    OPERATOR_FAMILIES = [['>', '>='], ['<', '<=']]  # similar operators
     DEFAULT_UNDEFINED_VERSION = EasyVersion('0.0.0')
-    DEFAULT_UNDEFINED_OPERATOR = op.eq
+    DEFAULT_UNDEFINED_OPERATOR = OPERATOR['>']
 
     def __init__(self, versop_str=None, error_on_parse_failure=False):
-        """Initialise.
-            @param versop: intialise with version operator string
-            @param error_on_parse_failure: log.error in case of parse error
+        """
+        Initialise VersionOperator instance.
+        @param versop_str: intialise with version operator string
+        @param error_on_parse_failure: log.error in case of parse error
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.error_on_parse_failure = error_on_parse_failure
-
-        self.regex = self.versop_regex()
 
         self.versop_str = None
         self.operator_str = None
         self.version_str = None
         self.version = None
         self.operator = None
-        self._test_fn = None
+        self.regex = self.versop_regex()
 
+        self.error_on_parse_failure = error_on_parse_failure
         if not versop_str is None:
             self.set(versop_str)
 
     def parse_error(self, msg):
         """Special function to deal with parse errors"""
+        # TODO major issue what to do in case of misparse. error or not?
         if self.error_on_parse_failure:
             self.log.error(msg)
         else:
             self.log.debug(msg)
 
     def __bool__(self):
-        """deal with if tests etc"""
-        return self.is_set()
-
+        """Interpretation of a VersionOperator instance as a boolean expression: is it valid?"""
+        return self.is_valid()
     # py2 compat
     __nonzero__ = __bool__
 
-    def is_set(self):
+    def is_valid(self):
         """Check if this is a valid VersionOperator"""
         return not(self.version is None or self.operator is None)
 
     def set(self, versop_str):
-        """Convert versop_str and set the attributes.
-            Return None in case of failure (eg versop_str doesn't parse), True in case of success
+        """
+        Parse argument and set attributes.
+        Returns None in case of failure (e.g. if supplied string doesn't parse), True in case of success.
         """
         versop_dict = self.parse_versop_str(versop_str)
         if versop_dict is None:
-            self.log.debug("Failed to set versop_str %s" % versop_str)
+            self.log.warning("set('%s'): Failed to parse argument" % versop_str)
             return None
         else:
             for k, v in versop_dict.items():
@@ -119,38 +119,41 @@ class VersionOperator(object):
             return True
 
     def test(self, test_version):
-        """Convert test_version in EasyVersion if needed, and return self.operator(test_version,self.version)
-            Wrapper around self._test_fn. 
-            @param test_version: a version string or EasyVersion instance
         """
+        Convert argument to an EasyVersion instance if needed, and return self.operator(<argument>, self.version)
+        @param test_version: a version string or EasyVersion instance
+        """
+        # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
-            self.log.error('self is False. Not initialised yet?')
+            self.log.error('Not a valid VersionOperator. Not initialised yet?')
 
         if isinstance(test_version, basestring):
             test_version = self._convert(test_version)
         elif not isinstance(test_version, EasyVersion):
-            self.log.error('test_verstion_str %s should be basestring or EasyVersion (type %s)' % type(test_version))
+            self.log.error("test: argument should be a basestring or EasyVersion (type %s)" % (type(test_version)))
 
         res = self.operator(test_version, self.version)
-        self.log.debug('Testversion %s version %s operator %s: %s' % (test_version, self.version, self.operator, res))
+        self.log.debug("%s %s %s: %s" % (test_version, self.REVERSE_OPERATOR[self.operator], self.version, res))
 
         return res
 
     def __str__(self):
-        """Return string"""
+        """Return string representation of this VersionOperator instance"""
         if self.operator is None:
             operator = self.DEFAULT_UNDEFINED_OPERATOR
         else:
             operator = self.operator
-        operator_str = dict([(v, k) for k, v in self.OPERATOR.items()]).get(operator)
-        return "%s%s%s" % (operator_str, self.SEPARATOR, self.version)
+        operator_str = self.REVERSE_OPERATOR[operator]
+        return ''.join(map(str, [operator_str, self.SEPARATOR, self.version]))
 
     def __repr__(self):
-        """Return the vers_str (ignores begin_end)"""
+        """Return instance as string (ignores begin_end)"""
         return "%s('%s')" % (self.__class__.__name__, self)
 
     def __eq__(self, versop):
-        """Is self equal to versop"""
+        """Compare this instance to supplied argument."""
+        if not isinstance(versop, self.__class__):
+            self.log.error("Types don't match in comparison: %s, expected %s" % (type(versop), self.__class__))
         return self.version == versop.version and self.operator == versop.operator
 
     def __ne__(self, versop):
@@ -181,7 +184,7 @@ class VersionOperator(object):
             reg_text = r"^%s$" % reg_text
         reg = re.compile(reg_text)
 
-        self.log.debug("versop pattern '%s' (begin_end: %s)" % (reg.pattern, begin_end))
+        self.log.debug("versop regex pattern '%s' (begin_end: %s)" % (reg.pattern, begin_end))
         return reg
 
     def _convert(self, version_str):
@@ -213,11 +216,9 @@ class VersionOperator(object):
 
     def parse_versop_str(self, versop_str, versop_dict=None):
         """
-        If argument contains a version operator, returns a dict with 
-            version and test_fn; 
-            returns None otherwise
-            @param versop_str: the string to parse 
-            @param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
+        If argument contains a version operator, returns a dict with version and operator; returns None otherwise
+        @param versop_str: the string to parse
+        @param versop_dict: advanced usage: pass intialised versop_dict (eg for ToolchainVersionOperator)
         """
         if versop_dict is None:
             versop_dict = {}
@@ -242,15 +243,14 @@ class VersionOperator(object):
 
     def test_overlap_and_conflict(self, versop_other):
         """
-        Test if there is any overlap between this versop and versop_other, and if so, 
-        if it is a conflict or not.
+        Test if there is any overlap between this instance and versop_other, and if so, if there is a conflict or not.
         
         Returns 2 booleans: has_overlap, is_conflict
         
-        @param versop_other: VersionOperator instances
+        @param versop_other: a VersionOperator instance
         
         Examples:
-            '> 3' and '> 3' : equal, and thus overlap
+            '> 3' and '> 3' : equal, and thus overlap (no conflict)
             '> 3' and '< 2' : no overlap
             '< 3' and '> 2' : overlap, and conflict (region between 2 and 3 is ambiguous)
             '> 3' and '== 3' : no overlap
@@ -262,12 +262,12 @@ class VersionOperator(object):
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
             return True, False
-
         # from here on, this versop and versop_other are not equal
+
+        same_boundary = self.version == versop_other.version
         boundary_self_in_other = versop_other.test(self.version)
         boundary_other_in_self = self.test(versop_other.version)
 
-        same_boundary = self.version == versop_other.version
         same_family = False
         for fam in self.OPERATOR_FAMILIES:
             fam_op = [self.OPERATOR[x] for x in fam]
@@ -282,80 +282,91 @@ class VersionOperator(object):
             msg = "Both %s are in each others range" % versop_msg
             if same_boundary:
                 if op.xor(self_includes_boundary, other_includes_boundary):
-                    self.log.debug("%s, one of them includes the boundary and one of them is strict; return True,False" % msg)
+                    self.log.debug("%s, one includes boundary and one is strict => overlap, no conflict" % msg)
                     return True, False
                 else:
-                    # conflict.
-                    self.log.debug("%s, and both include the boundary; Conflict, returning True,True" % msg)
+                    # conflict
+                    self.log.debug("%s, and both include the boundary => overlap and conflict" % msg)
                     return True, True
             else:
-                # conflict.
-                self.log.debug("%s, and different boundaries; Conflict, returning True,True" % msg)
+                # conflict
+                self.log.debug("%s, and different boundaries => overlap and conflict" % msg)
                 return True, True
         else:
+            # same boundary, so never a conflict, only possible overlap
             msg = 'same boundary %s, same_family %s;' % (same_boundary, same_family)
             if same_boundary:
                 if same_family:
                     # overlap if one includes the boundary
-                    ans = self_includes_boundary or other_includes_boundary
+                    overlap = self_includes_boundary or other_includes_boundary
                 else:
                     # overlap if they both include the boundary
-                    ans = self_includes_boundary and other_includes_boundary
+                    overlap = self_includes_boundary and other_includes_boundary
             else:
-                ans = boundary_self_in_other or boundary_other_in_self
-            self.log.debug("No conflict between %s;%s overlap %s " % (versop_msg, msg, ans))
-            return ans, False
+                # overlap if boundary of one is in other
+                overlap = boundary_self_in_other or boundary_other_in_self
+            self.log.debug("No conflict between %s; %s overlap %s, no conflict" % (versop_msg, msg, overlap))
+            return overlap, False
 
     def __gt__(self, versop_other):
-        """self is greater then versop_other if it is more strict in case of overlap or
-            in case self.version > versop_other.version otherwise.
-            Return None in case of conflict.
+        """
+        Determine if this instance is greater than supplied argument.
 
-            e.g. '> 2' > '> 1' : True, order by strictness equals order by boundaries for gt/ge
-                 '< 8' > '< 10': True, order by strictness equals inversed order by boundaries for lt/le
-                 '== 4' > '> 3' : equality is more strict then inequality, but this order by boundaries
-                 '> 3' > '== 2' : there is no overlap, so just order the intervals according their boundaries
-                 '> 1' > '== 1' > '< 1' : no overlap, same boundaries, order by operator
+        Returns True if it is more strict in case of overlap, or if self.version > versop_other.version otherwise.
+        Returns None in case of conflict.
+
+        @param versop_other: a VersionOperator instance
+
+        Examples:
+            '> 2' > '> 1' : True, order by strictness equals order by boundaries for >, >=
+            '< 8' > '< 10': True, order by strictness equals inversed order by boundaries for <, <=
+            '== 4' > '> 3' : equality is more strict than inequality, but this order by boundaries
+            '> 3' > '== 2' : there is no overlap, so just order the intervals according their boundaries
+            '> 1' > '== 1' > '< 1' : no overlap, same boundaries, order by operator
         """
         overlap, conflict = self.test_overlap_and_conflict(versop_other)
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
         if conflict:
-            self.log.debug('gt: conflict %s. returning None' % versop_msg)
-            ans = None
-        else:
-            if overlap:
-                # just test one of them, because there is overlap and no conflict, no strange things can happen
-                if self.operator in (op.gt, op.ge) or versop_other.operator in (op.gt, op.ge):
-                    # test ordered boundaries/
-                    gt_op = op.gt
-                    msg = 'have gt/ge operator; order by version'
-                else:
-                    gt_op = op.lt
-                    msg = 'have lt/le operator; order by inverse version'
+            self.log.debug('gt: conflict %s, returning None' % versop_msg)
+            return None
+
+        if overlap:
+            # just test one of them, because there is overlap and no conflict, no strange things can happen
+            gte_ops = [self.OPERATOR['>'], self.OPERATOR['>=']]
+            if self.operator in gte_ops or versop_other.operator in gte_ops:
+                # test ordered boundaries
+                gt_op = self.OPERATOR['>']
+                msg = 'have >, >= operator; order by version'
             else:
-                # no overlap, order by version
-                gt_op = op.gt
-                msg = 'no overlap; order by version'
+                gt_op = self.OPERATOR['<']
+                msg = 'have <, <= operator; order by inverse version'
+        else:
+            # no overlap, order by version
+            gt_op = self.OPERATOR['>']
+            msg = 'no overlap; order by version'
 
-            ans = self._gt_safe(gt_op, versop_other)
-            self.log.debug('gt: %s, %s, ans %s' % (versop_msg, msg, ans))
+        is_gt = self._gt_safe(gt_op, versop_other)
+        self.log.debug('gt: %s, %s => %s' % (versop_msg, msg, is_gt))
 
-        return ans
+        return is_gt
 
     def _gt_safe(self, version_gt_op, versop_other):
         """Conflict free comparsion by version first, and if versions are equal, by operator"""
         if len(self.ORDERED_OPERATORS) != len(self.OPERATOR):
-            self.log.error('Inconsistency between ORDERED_OPERATORS and OPERATORS')
+            self.log.error('Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)')
 
         ordered_operators = [self.OPERATOR[x] for x in self.ORDERED_OPERATORS]
         if self.version == versop_other.version:
             # order by operator, lowest index wins
-            idx = ordered_operators.index(self.operator)
-            idx_other = ordered_operators.index(versop_other.operator)
+            op_idx = ordered_operators.index(self.operator)
+            op_other_idx = ordered_operators.index(versop_other.operator)
             # strict inequality, already present operator wins
             # but this should be used with conflict-free versops
-            return idx < idx_other
+            _, conflict = self.test_overlap_and_conflict(versop_other)
+            if conflict:
+                self.log.error("Conflicting version operator expressions should not be compared with _gt_safe")
+            return op_idx < op_other_idx
         else:
             return version_gt_op(self.version, versop_other.version)
 
@@ -364,7 +375,10 @@ class ToolchainVersionOperator(VersionOperator):
     """Class which represents a toolchain and versionoperator instance"""
 
     def __init__(self, tcversop_str=None):
-        """Initialise"""
+        """
+        Initialise VersionOperator instance.
+        @param tcversop_str: intialise with toolchain version operator string
+        """
         super(ToolchainVersionOperator, self).__init__()
 
         self.tc_name = None
@@ -374,24 +388,25 @@ class ToolchainVersionOperator(VersionOperator):
             self.set(tcversop_str)
 
     def __str__(self):
-        """Return string"""
+        """Return string presentation of this instance"""
         version_str = super(ToolchainVersionOperator, self).__str__()
-        return "%s%s%s" % (self.tc_name, self.SEPARATOR, version_str)
+        return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
     def __repr__(self):
-        """Return the vers_str (ignores begin_end)"""
+        """Return instance as string (ignores begin_end)"""
         return "%s('%s')" % (self.__class__.__name__, self)
 
-    def is_set(self):
-        """Check if this is a valid VersionOperator"""
-        return not(self.tc_name is None or super(ToolchainVersionOperator, self).is_set is False)
+    def is_valid(self):
+        """Check if this is a valid ToolchainVersionOperator"""
+        _, all_tcs = search_toolchain('')
+        tc_names = [x.NAME for x in all_tcs]
+        known_tc_name = self.tc_name in tc_names
+        return not(self.tc_name is None or not super(ToolchainVersionOperator, self).is_valid()) and known_tc_name
 
     def versop_regex(self):
         """
-        Create the regular expression for toolchain support of format
-            ^<toolchain> <versop_expr>$
-                with <toolchain> the name of one of the supported toolchains and 
-                <versop_expr> in '<operator> <version>' syntax
+        Create the regular expression for toolchain support of format ^<toolchain> <versop_expr>$ ,
+        with <toolchain> the name of one of the supported toolchains and <versop_expr> in '<operator> <version>' syntax
         """
         _, all_tcs = search_toolchain('')
         tc_names = [x.NAME for x in all_tcs]
@@ -402,18 +417,17 @@ class ToolchainVersionOperator(VersionOperator):
         tc_names_regex = r'(?P<tc_name>(?:%s))' % '|'.join(tc_names)
         tc_regex = re.compile(r'^%s(?:%s%s)?$' % (tc_names_regex, self.SEPARATOR, versop_pattern))
 
-        self.log.debug("Toolchain_versop pattern %s " % tc_regex.pattern)
+        self.log.debug("toolchain versop regex pattern %s " % tc_regex.pattern)
         return tc_regex
 
     def parse_versop_str(self, tcversop_str):
         """
-        If argument matches a toolchain versop, return dict with 
-            toolchain name and version, and optionally operator and test_function.
-        Otherwise, return None
+        If argument matches a toolchain versop, return dict with toolchain name and version, and optionally operator.
+        Otherwise, return None.
         """
         res = self.regex.search(tcversop_str)
         if not res:
-            self.parse_error('No toolchain versionoperator match for %s' % tcversop_str)
+            self.parse_error("No toolchain version operator match for '%s'" % tcversop_str)
             return None
 
         tcversop_dict = res.groupdict()
@@ -421,73 +435,69 @@ class ToolchainVersionOperator(VersionOperator):
 
         tcversop_dict = super(ToolchainVersionOperator, self).parse_versop_str(None, versop_dict=tcversop_dict)
 
-        self.log.debug('toolchain versop expression %s parsed to %s' % (tcversop_str, tcversop_dict))
+        self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
 
 
 class OrderedVersionOperators(object):
     """
-    Ordered version operators. The ordering is defined such that 
-        one can test from left to right and that assume that the first 
-        matching version operator is the one that is the best match.
+    Ordered version operators. The ordering is defined such that one can test from left to right,
+    and assume that the first matching version operator is the one that is the best match.
         
-    E.g. '> 3' and '> 2' should be ordered ['> 3', '> 2'], because for 
-        4, both with match, but 3 is considered more strict.
+    Example: '> 2', '> 3' should be ordered ['> 3', '> 2'], because for 4, both match, but 3 is considered more strict.
 
-    Conflicting versops are not allowed.   
+    Conflicting version operators are not allowed.
     """
 
     def __init__(self):
-        """Initialise the list"""
+        """Initialise the list of version operators as an empty list."""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         self.versops = []
-        self.map = {}
+        self.parents = {}
 
     def __str__(self):
         """Print the list"""
         return str(self.versops)
 
-    def add(self, versop_new, data=None):
+    def add(self, versop_new, parent=None):
         """
-        Try to add versop_new as VersionOperator instance to self.versops.
-        Make sure there is no conflict with existing versops, and that the 
-            ordering is kept. 
+        Try to add argument as VersionOperator instance to current list of version operators.
+        Make sure there is no conflict with existing versops, and that the ordering is maintained.
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
+        @param data: additional data for supplied version operator to be stored
         """
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            self.log.error(("versop_new needs to be VersionOperator "
-                            "instance or basestring (%s; type %s)") % (versop_new, type(versop_new)))
-            return None
+            arg = (versop_new, type(versop_new))
+            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % arg)
 
         if versop_new in self.versops:
-            # consider it an error.
+            # adding the same version operator twice is considered a failure
             self.log.error("Versop %s already added." % versop_new)
-            return None
         else:
             # no need for equality testing, we consider it an error
             gt_test = [versop_new > versop for versop in self.versops]
             if None in gt_test:
                 # conflict
-                msg = 'add: conflict between versop_new %s and existing versions %s'
-                conflict_versops = [(idx, self.versops[idx]) for idx, gt_val in gt_test if gt_val is None]
+                msg = 'add: conflict(s) between versop_new %s and existing versions %s'
+                conflict_versops = [(idx, self.versops[idx]) for idx, gt_val in enumerate(gt_test) if gt_val is None]
                 self.log.error(msg % (versop_new, conflict_versops))
             else:
                 if True in gt_test:
-                    # first element for which
+                    # determine first element for which comparison is True
                     insert_idx = gt_test.index(True)
                     self.log.debug('add: insert versop %s in index %s' % (versop_new, insert_idx))
                     self.versops.insert(insert_idx, versop_new)
                 else:
                     self.log.debug("add: versop_new %s is not > then any element, appending it" % versop_new)
                     self.versops.append(versop_new)
+                self.log.debug("add: new ordered list of version operators: %s" % self.versops)
 
-                self.log.debug('Adding data %s map' % str(data))
-                self.map[versop_new] = data
-
+                self.log.debug("Keeping track of parent section for %s: %s" % (versop_new, parent))
+                self.parents[versop_new] = parent
 
 class ConfigObjVersion(object):
     """
@@ -503,7 +513,7 @@ class ConfigObjVersion(object):
 
     Mandatory/minimal (to mimic v1.0 behaviour)
     [DEFAULT]
-    version=version_operator
+    versions=version_operator
     toolchains=toolchain_version_operator
 
     Optional
@@ -511,161 +521,195 @@ class ConfigObjVersion(object):
     [[SUPPORTED]]
     toolchains=toolchain_versop[,...]
     versions=versop[,...]
-    [versionX_operatorZ]
-    [versionY_operatorZZ]
-    [toolchainX_operatorZ]
-    [toolchainY_operatorZZ]
+    [<operator> <version>]
+    [<operator> <version>]
+    [<toolchain> <operator> <version>]
+    [<toolchain> <operator> <version>]
     
-    TODO: Add nested/recursive example
     """
+    # TODO: add nested/recursive example to docstring
+
+    DEFAULT = 'DEFAULT'
+    # list of known marker types (except default)
+    KNOWN_MARKER_TYPES = [ToolchainVersionOperator, VersionOperator]  # order matters, see parse_sections
+    VERSION_OPERATOR_VALUE_TYPES = {
+        'toolchains': ToolchainVersionOperator,
+        'versions': VersionOperator,
+    }
 
     def __init__(self, configobj=None):
         """
-        Initialise.
-            @param configobj: ConfigObj instance
+        Initialise ConfigObjVersion instance
+        @param configobj: ConfigObj instance
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        self.versops = OrderedVersionOperators()
-        self.tcversops = OrderedVersionOperators()
         self.tcname = None
 
         self.default = {}  # default section
         self.sections = {}  # non-default sections
+        self.unfiltered_sections = {}  # unfiltered non-default sections
+
+        self.versops = OrderedVersionOperators()
+        self.tcversops = OrderedVersionOperators()
 
         if configobj is not None:
             self.parse(configobj)
 
-    def parse_sections(self, sectiondict):
-        """Parse the configobj instance 
-            convert all supported section, keys and values to their resp representations
-
-            @param sectiondict: a dict with represents the section defined parameters
-            
-            returns a nested dict of dicts
+    def parse_sections(self, configobj, parent=None, depth=0):
         """
-        # configobj already converts
-        #    ','-separated strings in lists
+        Parse configobj instance; convert all supported sections, keys and values to their respective representations
+            
+        Returns a dict of parsed sections
+
+        @param configobj: a ConfigObj instance, basically a dict of (unparsed) sections
+        """
+        # note: configobj already converts comma-separated strings in lists
         #
         # list of supported keywords, all else will fail
-        #    toolchains: ,-sep list of toolchainversionoperators
-        #    version: versionoperator
+        #    versions: comma-seperated list of version operators
+        #    toolchains: comma-seperated list of toolchain version operators
         SUPPORTED_KEYS = ('versions', 'toolchains')
-        res = {}
+        if parent is None:
+            # no parent, so top sections
+            parsed_sections = {}
+        else:
+            # parent specified, so not a top section
+            parsed_sections = Section(parent=parent, depth=depth+1, main=configobj)
 
-        for key, value in sectiondict.items():
+        for key, value in configobj.items():
             if isinstance(value, Section):
                 self.log.debug("Enter subsection key %s value %s" % (key, value))
-                # only 3 types of sectionkeys supported: ToolchainOperatorVersion and OperatorVersion and DEFAULT
-                if key in ('DEFAULT',):
-                    newkey = key
+                # only 3 types of sectionkeys supported: VersionOperator, ToolchainVersionOperator, and DEFAULT
+                if key in [self.DEFAULT]:
+                    new_key = key
                 else:
-                    newkey = ToolchainVersionOperator(key)
-                    if not newkey:
-                        newkey = VersionOperator(key)
-                        if not newkey:
-                            self.log.error('Unsupported sectionkey %s' % key)
+                    # try parsing key as toolchain version operator first
+                    # try parsing as version operator if it's not a toolchain version operator
+                    for marker_type in self.KNOWN_MARKER_TYPES:
+                        new_key = marker_type(key)
+                        if new_key:
+                            self.log.debug("'%s' was parsed as a %s section marker" % (key, marker_type.__name__))
+                            break
+                        else:
+                            self.log.debug("Not a %s section marker" % marker_type.__name__)
+                    if not new_key:
+                        self.log.error("Unsupported section marker '%s'" % key)
 
-                newvalue = self.parse_sections(value)
+                # parse value as a section, recursively
+                new_value = self.parse_sections(ConfigObj(value), parent=value.parent, depth=value.depth)
 
             else:
-                newkey = key
-                if key in ('toolchains', 'versions'):
-                    if key == 'toolchains':
-                        klass = ToolchainVersionOperator
-                    elif key == 'versions':
-                        klass = VersionOperator
-                    else:
-                        self.log.error('Bug: supported but unknown key %s' % key)
+                new_key = key
 
-                    # list of supported toolchains
+                # don't allow any keys we don't know about (yet)
+                if not new_key in SUPPORTED_KEYS:
+                    self.log.error('Unsupported key %s with value %s in section' % (new_key, value))
+
+                # parse individual key-value assignments
+                if new_key in self.VERSION_OPERATOR_VALUE_TYPES:
+                    value_type = self.VERSION_OPERATOR_VALUE_TYPES[new_key]
+                    # list of supported toolchains/versions
                     # first one is default
                     if isinstance(value, basestring):
                         # so the split should be unnecessary
-                        # (if it's not alist already, it's just one value)
+                        # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj
                         value = value.split(',')
-                    newvalue = []
-                    for txt in value:
-                        # remove possible surrounding whitespace (some people add space after comma)
-                        newvalue.append(klass(txt.strip()))
-
-                # these are the last 3
-                elif isinstance(value, basestring):
-                    newvalue = value
-                elif not key in SUPPORTED_KEYS:
-                    self.log.error('Unsupported key %s with value %s in section' % (key, value))
+                    # remove possible surrounding whitespace (some people add space after comma)
+                    new_value = map(lambda x: value_type(x.strip()), value)
                 else:
-                    self.log.error('Bug: supported but unknown key %s (value %s; type %s)' % (key, value, type(value)))
+                    tup = (new_key, value, type(value))
+                    self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
 
-            self.log.debug('Converted key %s value %s in newkey %s newvalue %s' % (key, value, newkey, newvalue))
-            res[newkey] = newvalue
+            self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
+            parsed_sections[new_key] = new_value
 
-        return res
+        return parsed_sections
 
-    def set_toolchain(self, tcname, processed=None, path=None):
-        """Build the ordered versionoperator and toolchainversionoperator, 
-            ignoring all other toolchains
-            @param tcname: toolchain name to keep
-            @param processed: the processed nested-dict to filter
-            @param path: list of keys to identify the path in the dict 
+    def validate_and_filter_by_toolchain(self, tcname, processed=None, filtered_sections=None, other_sections=None):
+        """
+        Build the ordered version operator and toolchain version operator, ignoring all other toolchains
+        @param tcname: toolchain name to keep
+        @param processed: a processed dict of sections to filter
+        @param path: list of keys to identify the path in the dict
         """
         if processed is None:
             processed = self.sections
-        if path is None:
-            path = []
+        if filtered_sections is None:
+            filtered_sections = {}
+        if other_sections is None:
+            other_sections = {}
 
-        # walk over all processed, add matching toolchain to tcversops
-        newprocessed = {}
+        # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
+        # add section markers relevant to specified toolchain to self.tcversops
         for key, value in processed.items():
-            if isinstance(value, dict):
+            if isinstance(value, Section):
                 if isinstance(key, ToolchainVersionOperator):
                     if not key.tc_name == tcname:
+                        self.log.debug("Found marker for other toolchain '%s'" % key.tc_name)
+                        # also perform sanity check for other toolchains, make add check for conflicts
+                        tc_overops = other_sections.setdefault(key.tc_name, OrderedVersionOperators())
+                        tc_overops.add(key)
+                        # nothing more to do here, just continue with other sections
                         continue
+                    else:
+                        # add marker to self.tcversops (which triggers a conflict check)
+                        self.tcversops.add(key)
+                        filtered_sections[key] = value
+                elif isinstance(key, VersionOperator):
+                    # keep track of all version operators, and enforce conflict check
+                    self.versops.add(key)
+                    filtered_sections[key] = value
+                else:
+                    self.log.error("Unhandled section marker type '%s', not in %s?" % (type(key), self.KNOWN_MARKER_TYPES))
 
-                    # add it to toolchainversops
-                    self.tcversops.add(key, path)
-                # one level up
+                # recursively go deeper for (relevant) sections
+                self.validate_and_filter_by_toolchain(tcname, value, filtered_sections, other_sections)
 
-            elif key == 'toolchains':
-                # remove any other toolchain
-                for tcversop in value:
-                    if tcname == tcversop.tc_name:
-                        self.tcversops.add(tcversop, path)
+            elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                if key == 'toolchains':
+                    # remove any other toolchain from list
+                    filtered_sections[key] = [tcversop for tcversop in value if tcversop.tc_name == tcname]
+                else:
+                    # retain all other values
+                    filtered_sections[key] = value
             else:
-                newprocessed[key] = value
+                filtered_sections[key] = value
+
+        self.unfiltered_sections = self.sections
+        self.sections = filtered_sections
 
     def parse(self, configobj):
         """
         First parse the configobj instance
         Then build the structure to support the versionoperators and all other parts of the structure
 
-            @param configobj: ConfigObj instance
+        @param configobj: ConfigObj instance
         """
         # keep reference to original (in case it's needed/wanted)
         self.configobj = configobj
 
         # process the configobj instance
-        processed = self.parse_sections(self.configobj)
+        self.sections = self.parse_sections(self.configobj)
 
         # check for defaults section
-        default = processed.pop('DEFAULT', {})
+        default = self.sections.pop(self.DEFAULT, {})
         DEFAULT_KEYWORDS = ('toolchains', 'versions')
         # default should only have versions and toolchains
         # no nesting
-        #  - add DEFAULT key,values to the root of processed
+        #  - add DEFAULT key,values to the root of self.sections
         for key, value in default.items():
             if not key in DEFAULT_KEYWORDS:
-                self.log.error('Unsupported key %s in DEFAULT section' % key)
-            processed[key] = value
+                self.log.error('Unsupported key %s in %s section' % (key, self.DEFAULT))
+            self.sections[key] = value
 
         if 'versions' in default:
             # first of list is special: it is the default
             default['default_version'] = default['versions'][0]
         if 'toolchains' in default:
-            # first of list is special
+            # first of list is special: it is the default
             default['default_toolchain'] = default['toolchains'][0]
 
-        self.log.debug("parse: default %s, sections %s" % (default, processed))
         self.default = default
-        self.sections = processed
+        self.log.debug("parse: default %s, sections %s" % (self.default, self.sections))

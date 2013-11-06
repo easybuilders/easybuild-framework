@@ -58,7 +58,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
-    NAME_DOCSTRING_PATTERN = r'^\s*__LABEL__\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
+    NAME_DOCSTRING_PATTERN = r'^\s*@__LABEL__\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
     AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'author'), re.M)
     MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'maintainer'), re.M)
 
@@ -86,10 +86,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             maintainers.append(res['name'])
 
         if self.AUTHOR_REQUIRED and not authors:
-            self.log.error('No author in docstring')
+            self.log.error("No author in docstring (regex: '%s')" % self.AUTHOR_DOCSTRING_REGEX.pattern)
 
         if self.MAINTAINER_REQUIRED and not maintainers:
-            self.log.error('No maintainer in docstring')
+            self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Return the best matching easyconfig dict"""
@@ -104,7 +104,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             # check for default version
             if 'default_version' in cov.default:
                 version = cov.default['default_version']
-                self.log.info('get_config_dict: no version specified, using default version %s' % version)
+                self.log.warning('get_config_dict: no version specified, using default version %s' % version)
             else:
                 self.log.error('get_config_dict: no version specified, no default version found')
 
@@ -113,16 +113,21 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
-                self.log.info('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
+                self.log.warning('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
             else:
                 self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
 
-        # toolchain name is known, remove all others from processed
-        cov.set_toolchain(toolchain_name)
+        # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
+        # this also performs some validation, and checks for conflicts between section markers
+        self.log.debug("full parsed configobj (before filtering): %s" % cov.sections)
+        cov.validate_and_filter_by_toolchain(toolchain_name)
+        self.log.debug("parsed configobj (after filtering): %s" % cov.sections)
 
         if toolchain_version is None:
             # is there any toolchain with this version?
             # TODO implement
             pass
 
-        pass
+        # TODO: determine 'path' to take based on version
+
+        return cov # FIXME, this is clearly wrong (but we need to return something non-None)
