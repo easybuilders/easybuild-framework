@@ -275,7 +275,7 @@ class PbsJob(object):
             else:
                 self.holds.remove(hold_type)
 
-    def has_holds():
+    def has_holds(self):
         """Return whether this job has holds or not."""
         return bool(self.holds)
 
