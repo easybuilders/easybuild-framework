@@ -268,6 +268,7 @@ class PbsJob(object):
             if hold_type not in KNOWN_HOLD_TYPES:
                 self.log.error("release_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
             ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
+            self.log.debug("Released hold of type %s for job %s" % (hold_type, self.jobid))
             is_error, errormsg = pbs.error()
             if is_error or ec:
                 tup = (hold_type, self.jobid, is_error, ec, errormsg)
