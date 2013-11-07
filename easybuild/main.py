@@ -705,6 +705,7 @@ def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
     # the first block contains common statements
     common = pieces.pop(0)
     if pieces:
+        _log.deprecated("Blocks in easyconfigs are no longer supported, to prepare for easyconfig format 2.x", '1.8.9')
         # make a map of blocks
         blocks = []
         while pieces:
