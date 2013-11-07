@@ -251,11 +251,17 @@ class PbsJob(object):
             self.jobid = jobid
             os.remove(scriptfn)
 
-    def set_hold(self, hold_type=pbs.USER_HOLD):
+    def set_hold(self, hold_type=None):
         """Set hold on job of specified type."""
+        # we can't set this default for hold_type in function signature,
+        # because we need to be able to load this module even when the pbs module is not available
+        if hold_type is None:
+            hold_type = pbs.USER_HOLD
+        # only set hold if it wasn't set before
         if hold_type not in self.holds:
             if hold_type not in KNOWN_HOLD_TYPES:
                 self.log.error("set_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
+            # set hold, check for errors, and keep track of this hold
             ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
             is_error, errormsg = pbs.error()
             if is_error or ec:
@@ -263,20 +269,30 @@ class PbsJob(object):
                 self.log.error("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
             else:
                 self.holds.append(hold_type)
+        else:
+            self.log.warning("Hold type %s was already set for %s" % (hold_type, self.jobid))
 
-    def release_hold(self, hold_type=pbs.USER_HOLD):
+    def release_hold(self, hold_type=None):
         """Release hold on job of specified type."""
+        # we can't set this default for hold_type in function signature,
+        # because we need to be able to load this module even when the pbs module is not available
+        if hold_type is None:
+            hold_type = pbs.USER_HOLD
+        # only release hold if it was set
         if hold_type in self.holds:
             if hold_type not in KNOWN_HOLD_TYPES:
                 self.log.error("release_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
+            # release hold, check for errors, remove from list of holds
             ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
             self.log.debug("Released hold of type %s for job %s" % (hold_type, self.jobid))
             is_error, errormsg = pbs.error()
             if is_error or ec:
                 tup = (hold_type, self.jobid, is_error, ec, errormsg)
-                self.log.error("Failed to release hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+                self.log.error("Failed to release hold type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
             else:
                 self.holds.remove(hold_type)
+        else:
+            self.log.warning("No hold type %s was set for %s, so skipping hold release" % (hold_type, self.jobid))
 
     def has_holds(self):
         """Return whether this job has holds or not."""
@@ -338,7 +354,7 @@ class PbsJob(object):
 
         # create attribute list to query pbs with
         if types is None:
-            jobattr = 'NULL'
+            jobattr = NULL
         else:
             jobattr = pbs.new_attrl(len(types))
             for idx, attr in enumerate(types):
@@ -349,7 +365,7 @@ class PbsJob(object):
         if self.clean_conn:
             pbs.pbs_disconnect(self.pbsconn)
             self.pbsconn = pbs.pbs_connect(self.pbs_server)
-        jobs = pbs.pbs_statjob(self.pbsconn, self.jobid, jobattr, 'NULL')
+        jobs = pbs.pbs_statjob(self.pbsconn, self.jobid, jobattr, NULL)
         if len(jobs) == 0:
             # no job found, return None info
             res = None
