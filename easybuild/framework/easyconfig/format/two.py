@@ -122,6 +122,9 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         cov.validate_and_filter_by_toolchain(toolchain_name)
         self.log.debug("parsed configobj (after filtering): %s" % cov.sections)
 
+        # FIXME we're not done yet here...
+        raise NotImplementedError
+
         if toolchain_version is None:
             # is there any toolchain with this version?
             # TODO implement

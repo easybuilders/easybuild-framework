@@ -41,13 +41,7 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
-        parse_error = None
-        ec = None
-        try:
-            ec = ecp.get_config_dict()
-        except Exception, err:
-            parse_error = err
-        self.assertTrue(ec, "error in parsing of %s (result: %s): %s" % (fn, ec, parse_error))
+        self.assertRaises(NotImplementedError, ecp.get_config_dict)
 
         # this should be ok: ie the default values
         # self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
@@ -65,14 +59,7 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
-        parse_error = None
-        ec = None
-        ec = ecp.get_config_dict()
-        try:
-            ec = ecp.get_config_dict()
-        except Exception, err:
-            parse_error = err
-        self.assertTrue(ec, "error in parsing of %s (result: %s): %s" % (fn, ec, parse_error))
+        self.assertRaises(NotImplementedError, ecp.get_config_dict)
 
 
 def suite():
