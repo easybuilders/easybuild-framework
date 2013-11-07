@@ -569,7 +569,7 @@ class ConfigObjVersion(object):
         #
         # list of supported keywords, all else will fail
         #    versions: comma-separated list of version operators
-        #    toolchains: comma-seperated list of toolchain version operators
+        #    toolchains: comma-separated list of toolchain version operators
         SUPPORTED_KEYS = ('versions', 'toolchains')
         if parent is None:
             # no parent, so top sections

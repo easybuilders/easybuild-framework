@@ -45,7 +45,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     referencing 'version' directly in pyheader doesn't work => use templating '%(version)s'
 
     NOT in 2.0
-        - order preservation: need more recent ConfiObj (more recent Python as minimal version)
+        - order preservation: need more recent ConfigObj (more recent Python as minimal version)
         - nested sections (need other ConfigParser/ConfigObj, eg INITools)
         - type validation
         - command line generation (--try-X command line options)
