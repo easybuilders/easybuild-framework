@@ -88,19 +88,22 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
-        new_job.submit()
+
+        # place user hold on job to prevent it from starting too quickly,
+        # we might still need it in the queue to set it as a dependency for another job;
+        # only set hold for job without dependencies, other jobs have a dependency hold set anyway
+        with_hold = False
+        if not job_deps:
+            with_hold = True
+
+        # actually (try to) submit job
+        new_job.submit(with_hold)
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
         job_ids[new_job.module] = new_job.jobid
         new_job.cleanup()
         jobs.append(new_job)
-
-        # place user hold on job to prevent it from starting too quickly,
-        # we might still need it in the queue to set it as a dependency for another job;
-        # only set hold for job without dependencies, other jobs have a dependency hold set anyway
-        if not jobs_deps:
-            new_job.set_hold()
 
     # release all user holds on jobs after submission is completed
     for job in jobs:

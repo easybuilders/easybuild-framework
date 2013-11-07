@@ -31,10 +31,13 @@ Interface module to TORQUE (PBS).
 """
 
 import os
+import tempfile
 import time
 from vsc import fancylogger
 
+
 _log = fancylogger.getLogger('pbs_job', fname=False)
+
 
 pbs_import_failed = None
 try:
@@ -48,6 +51,9 @@ except ImportError:
 MAX_WALLTIME = 72
 # extend paramater should be 'NULL' in some functions because this is required by the python api
 NULL = 'NULL'
+# list of known hold types for PBS
+KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
+
 
 def connect_to_server(pbs_server=None):
     """Connect to PBS server and return connection."""
@@ -59,6 +65,7 @@ def connect_to_server(pbs_server=None):
         pbs_server = pbs.pbs_default()
     return pbs.pbs_connect(pbs_server)
 
+
 def disconnect_from_server(conn):
     """Disconnect a given connection."""
     if pbs_import_failed:
@@ -66,6 +73,7 @@ def disconnect_from_server(conn):
         return None
 
     pbs.pbs_disconnect(conn)
+
 
 def get_ppn():
     """Guess the ppn for full node"""
@@ -85,6 +93,7 @@ def get_ppn():
     log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
 
     return freq_np
+
 
 class PbsJob(object):
     """Interaction with TORQUE"""
@@ -163,21 +172,21 @@ class PbsJob(object):
 
         self.deps.extend(job_ids)
 
-    def submit(self):
+    def submit(self, with_hold=False):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
         self.log.debug("Going to submit script %s" % txt)
 
         # Build default pbs_attributes list
         pbs_attributes = pbs.new_attropl(1)
-        pbs_attributes[0].name = 'Job_Name'
+        pbs_attributes[0].name = pbs.ATTR_N  # Job_Name
         pbs_attributes[0].value = self.name
 
         # set resource requirements
         resourse_attributes = pbs.new_attropl(len(self.resources))
         idx = 0
         for k, v in self.resources.items():
-            resourse_attributes[idx].name = 'Resource_List'
+            resourse_attributes[idx].name = pbs.ATTR_l  # Resource_List
             resourse_attributes[idx].resource = k
             resourse_attributes[idx].value = v
             idx += 1
@@ -191,6 +200,14 @@ class PbsJob(object):
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
+        # submit job with (user) hold if requested
+        if with_hold:
+            hold_attributes = pbs.new_attropl(1)
+            hold_attributes[0].name = pbs.ATTR_h
+            hold_attributes[0].value = pbs.USER_HOLD
+            pbs_attributes.extend(hold_attributes)
+            self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
+
         # add a bunch of variables (added by qsub)
         # also set PBS_O_WORKDIR to os.getcwd()
         os.environ.setdefault('WORKDIR', os.getcwd())
@@ -200,7 +217,7 @@ class PbsJob(object):
         # extend PBS variables with specified variables
         pbsvars.extend(["%s=%s" % (name, value) for (name, value) in self.env_vars.items()])
         variable_attributes = pbs.new_attropl(1)
-        variable_attributes[0].name = 'Variable_List'
+        variable_attributes[0].name = pbs.ATTR_v  # Variable_List
         variable_attributes[0].value = ",".join(pbsvars)
 
         pbs_attributes.extend(variable_attributes)
@@ -208,12 +225,11 @@ class PbsJob(object):
 
         # mail settings
         mail_attributes = pbs.new_attropl(1)
-        mail_attributes[0].name = 'Mail_Points'
+        mail_attributes[0].name = pbs.ATTR_m  # Mail_Points
         mail_attributes[0].value = 'n'  # disable all mail
         pbs_attributes.extend(mail_attributes)
         self.log.debug("Job mail attributes: %s" % mail_attributes[0].value)
 
-        import tempfile
         fh, scriptfn = tempfile.mkstemp()
         f = os.fdopen(fh, 'w')
         self.log.debug("Writing temporary job script to %s" % scriptfn)
@@ -233,9 +249,11 @@ class PbsJob(object):
             self.jobid = jobid
             os.remove(scriptfn)
 
-    def set_hold(self, hold_type='u'):
+    def set_hold(self, hold_type=pbs.USER_HOLD):
         """Set hold on job of specified type."""
         if hold_type not in self.holds:
+            if hold_type not in KNOWN_HOLD_TYPES:
+                self.log.error("set_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
             ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
             is_error, errormsg = pbs.error()
             if is_error or ec:
@@ -244,16 +262,18 @@ class PbsJob(object):
             else:
                 self.holds.append(hold_type)
 
-    def release_hold(self, hold_type='u'):
+    def release_hold(self, hold_type=pbs.USER_HOLD):
         """Release hold on job of specified type."""
         if hold_type in self.holds:
+            if hold_type not in KNOWN_HOLD_TYPES:
+                self.log.error("release_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
             ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
             is_error, errormsg = pbs.error()
             if is_error or ec:
                 tup = (hold_type, self.jobid, is_error, ec, errormsg)
                 self.log.error("Failed to release hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
             else:
-                self.holds.x...(hold_type)
+                self.holds.remove(hold_type)
 
     def has_holds():
         """Return whether this job has holds or not."""
