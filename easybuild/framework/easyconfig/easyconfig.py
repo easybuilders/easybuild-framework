@@ -260,7 +260,7 @@ class EasyConfig(object):
                         self[new_config] = os.environ[env_var].split(os.pathsep)
                     elif isinstance(self[new_config], dict):
                         try:
-                            self[new_config] = {x.split('=')[0] : x.split('=')[1] for x in os.environ[env_var].split(os.pathsep)}
+                            self[new_config] = dict([(x.split('=')[0], x.split('=')[1]) for x in os.environ[env_var].split(os.pathsep)])
                         except IndexError, err:
                             self.log.error("Environment variable %s has an invalid syntax for a dict: %s" % (env_var,err))
 
