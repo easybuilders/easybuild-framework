@@ -145,8 +145,12 @@ class PbsJob(object):
             self.queue = 'long'
         else:
             self.queue = 'short'
+        # job id of this job
         self.jobid = None
+        # list of dependencies for this job
         self.deps = []
+        # list of holds that are placed on this job
+        self.holds = []
 
     def add_dependencies(self, job_ids):
         """
@@ -231,19 +235,29 @@ class PbsJob(object):
 
     def set_hold(self, hold_type='u'):
         """Set hold on job of specified type."""
-        ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
-        is_error, errormsg = pbs.error()
-        if is_error or ec:
-            tup = (hold_type, self.jobid, is_error, ec, errormsg)
-            self.log.error("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+        if hold_type not in self.holds:
+            ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
+            is_error, errormsg = pbs.error()
+            if is_error or ec:
+                tup = (hold_type, self.jobid, is_error, ec, errormsg)
+                self.log.error("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+            else:
+                self.holds.append(hold_type)
 
     def release_hold(self, hold_type='u'):
         """Release hold on job of specified type."""
-        ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
-        is_error, errormsg = pbs.error()
-        if is_error or ec:
-            tup = (hold_type, self.jobid, is_error, ec, errormsg)
-            self.log.error("Failed to release hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+        if hold_type in self.holds:
+            ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
+            is_error, errormsg = pbs.error()
+            if is_error or ec:
+                tup = (hold_type, self.jobid, is_error, ec, errormsg)
+                self.log.error("Failed to release hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+            else:
+                self.holds.x...(hold_type)
+
+    def has_holds():
+        """Return whether this job has holds or not."""
+        return bool(self.holds)
 
     def state(self):
         """
