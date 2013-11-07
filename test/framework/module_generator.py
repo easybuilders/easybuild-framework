@@ -153,15 +153,17 @@ if { [is-loaded mod_name] } {
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
+        ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
 
         def test_default():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in os.listdir(ecs_dir):
-                ec_path = os.path.join(ecs_dir, ec_file)
+            for ec_file in ec_files:
+                ec_path = os.path.abspath(ec_file)
                 ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
                 # derive module name directly from easyconfig file name
-                ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+                ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
                 mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
                 self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
@@ -204,11 +206,11 @@ if { [is-loaded mod_name] } {
         }
 
         # test custom naming scheme
-        for ec_file in os.listdir(ecs_dir):
-            ec_path = os.path.join(ecs_dir, ec_file)
+        for ec_file in ec_files:
+            ec_path = os.path.abspath(ec_file)
             ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
             # derive module name directly from easyconfig file name
-            ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+            ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
             self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # generating module name from non-parsed easyconfig does not work (and shouldn't)
