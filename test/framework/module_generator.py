@@ -163,7 +163,7 @@ if { [is-loaded mod_name] } {
                 ec_path = os.path.abspath(ec_file)
                 ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
                 # derive module name directly from easyconfig file name
-                ec_name = '.'.join(ec_file.split('/')[-1].split('.')[:-1])  # cut off '.eb' end
+                ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
                 mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
                 self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
@@ -210,7 +210,7 @@ if { [is-loaded mod_name] } {
             ec_path = os.path.abspath(ec_file)
             ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
             # derive module name directly from easyconfig file name
-            ec_name = '.'.join(ec_file.split('/')[-1].split('.')[:-1])  # cut off '.eb' end
+            ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
             self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # generating module name from non-parsed easyconfig does not work (and shouldn't)

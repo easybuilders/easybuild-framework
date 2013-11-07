@@ -24,9 +24,9 @@
 # #
 
 """
-This describes the easyconfig format versions 2.X
+This describes the easyconfig format versions 2.x
 
-This is a mix between version 1 and configparser-style configuration
+This is a mix between version 1.0 and configparser-style configuration
 
 @author: Stijn De Weirdt (Ghent University)
 """
@@ -37,90 +37,96 @@ from easybuild.framework.easyconfig.format.version import EasyVersion, ConfigObj
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
-    """Support for easyconfig format 2.x
+    """
+    Support for easyconfig format 2.0
     Simple extension of FormatOneZero with configparser blocks
 
-    Doesn't set version and toolchain/toolchain version like in FormatOneZero
-        - if no 'version' in pyheader, then referencing it directly in pyheader doesn't work
-            - either use templates ('%(version)s'), or include version spec
+    Doesn't set version and toolchain/toolchain version like in FormatOneZero;
+    referencing 'version' directly in pyheader doesn't work => use templating '%(version)s'
 
     NOT in 2.0
-        - order preservation: need more recent ConfigParser (more recent Python as minimal version)
+        - order preservation: need more recent ConfigObj (more recent Python as minimal version)
         - nested sections (need other ConfigParser/ConfigObj, eg INITools)
         - type validation
         - command line generation (--try-X command line options)
     """
     VERSION = EasyVersion('2.0')
     USABLE = True
-    PYHEADER_ALLOWED_BUILTINS = ['len']
 
-    AUTHOR_DOCSTRING_REGEX = re.compile(r'^\s*@author\s*:\s*(?P<author>\S.*?)\s*$', re.M)
-    MAINTAINER_DOCSTRING_REGEX = re.compile(r'^\s*@maintainer\s*:\s*(?P<maintainer>\S.*?)\s*$', re.M)
+    PYHEADER_ALLOWED_BUILTINS = ['len']
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_BLACKLIST = ['version', 'toolchain']
+
+    NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
+    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'author', re.M)
+    MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'maintainer', re.M)
 
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False
-
-    PYHEADER_WHITELIST = ['name', 'homepage', 'description', 'license', 'docurl', ]
-    PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     def validate(self):
         """Format validation"""
         self._check_docstring()
 
     def _check_docstring(self):
-        """Verify docstring
-            field @author: people who contributed to the easyconfig
-            field @maintainer: people who can be contacted in case of problems
+        """
+        Verify docstring.
+        field @author: people who contributed to the easyconfig
+        field @maintainer: people who can be contacted in case of problems
         """
         authors = []
         maintainers = []
         for auth_reg in self.AUTHOR_DOCSTRING_REGEX.finditer(self.docstring):
             res = auth_reg.groupdict()
-            authors.append(res['author'])
+            authors.append(res['name'])
 
         for maint_reg in self.MAINTAINER_DOCSTRING_REGEX.finditer(self.docstring):
             res = maint_reg.groupdict()
-            maintainers.append(res['maintainer'])
+            maintainers.append(res['name'])
 
         if self.AUTHOR_REQUIRED and not authors:
-            self.log.error('No author in docstring')
+            self.log.error("No author in docstring (regex: '%s')" % self.AUTHOR_DOCSTRING_REGEX.pattern)
 
         if self.MAINTAINER_REQUIRED and not maintainers:
-            self.log.error('No maintainer in docstring')
-
+            self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
     def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
         """Return the best matching easyconfig dict"""
         # the toolchain name/version should not be specified in the pyheader,
-        #     but other toolchain options are allowed
+        # but other toolchain options are allowed
 
         cov = ConfigObjVersion(self.configobj)
 
         # we only need to find one version / toolchain combo
-        # esp the toolchain name should be fixed, so no need to process anything but one toolchain
+        # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
         if version is None:
             # check for default version
             if 'default_version' in cov.default:
                 version = cov.default['default_version']
-                self.log.debug('get_config_dict: no version specified, using default version %s' % version)
+                self.log.warning('get_config_dict: no version specified, using default version %s' % version)
             else:
                 self.log.error('get_config_dict: no version specified, no default version found')
 
         if toolchain_name is None:
-            # check for default version
+            # check for default toolchain
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
-                self.log.debug('get_config_dict: no toolchain_name specified, using default %s' % toolchain)
+                self.log.warning('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
             else:
                 self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
 
-        # toolchain name is known, remove all others from processed
-        cov.set_toolchain(toolchain_name)
+        # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
+        # this also performs some validation, and checks for conflicts between section markers
+        self.log.debug("full parsed configobj (before filtering): %s" % cov.sections)
+        cov.validate_and_filter_by_toolchain(toolchain_name)
+        self.log.debug("parsed configobj (after filtering): %s" % cov.sections)
 
         if toolchain_version is None:
             # is there any toolchain with this version?
             # TODO implement
             pass
 
-        pass
+        # TODO: determine 'path' to take based on version
+
+        return cov # FIXME, this is clearly wrong (but we need to return something non-None)

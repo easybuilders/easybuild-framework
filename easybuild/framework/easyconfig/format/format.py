@@ -60,8 +60,8 @@ def get_format_version(txt):
 
 class EasyConfigFormat(object):
     """EasyConfigFormat class"""
-    VERSION = EasyVersion('0.0')
-    USABLE = False  # Disable this class as usable format
+    VERSION = EasyVersion('0.0')  # dummy EasyVersion instance (shouldn't be None)
+    USABLE = False  # disable this class as usable format
 
     def __init__(self):
         """Initialise the EasyConfigFormat class"""
@@ -91,9 +91,8 @@ class EasyConfigFormat(object):
         raise NotImplementedError
 
 
-
 def get_format_version_classes(version=None):
-    """Return the (first) subclass from EasyConfigFormat that has matching version."""
+    """Return the (usable) subclasses from EasyConfigFormat that have a matching version."""
     all_classes = get_subclasses(EasyConfigFormat)
     if version is None:
         return all_classes

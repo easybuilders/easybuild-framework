@@ -122,7 +122,7 @@ class EasyConfigParser(object):
     def set_format_text(self):
         """Create the text for the formatter instance"""
         # TODO create the data in self.rawcontent
-        pass
+        raise NotImplementedError
 
     def write(self, filename=None):
         """Write the easyconfig format instance, using content in self.rawcontent."""
@@ -136,7 +136,7 @@ class EasyConfigParser(object):
 
     def get_config_dict(self, **kwargs):
         """Return parsed easyconfig as a dict."""
-        validate = kwargs.pop('validate', True)  # bypass the validation step, typically for testing
+        validate = kwargs.pop('validate', True)  # allows to bypass the validation step, typically for testing
         if validate:
             self._formatter.validate()
         return self._formatter.get_config_dict(**kwargs)
