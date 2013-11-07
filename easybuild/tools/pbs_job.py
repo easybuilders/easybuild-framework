@@ -46,6 +46,8 @@ except ImportError:
                          "Please make sure pbs_python is installed and usable.")
 
 MAX_WALLTIME = 72
+# extend paramater should be 'NULL' in some functions because this is required by the python api
+NULL = 'NULL'
 
 def connect_to_server(pbs_server=None):
     """Connect to PBS server and return connection."""
@@ -162,12 +164,10 @@ class PbsJob(object):
         txt = self.script
         self.log.debug("Going to submit script %s" % txt)
 
-
         # Build default pbs_attributes list
         pbs_attributes = pbs.new_attropl(1)
         pbs_attributes[0].name = 'Job_Name'
         pbs_attributes[0].value = self.name
-
 
         # set resource requirements
         resourse_attributes = pbs.new_attropl(len(self.resources))
@@ -218,11 +218,9 @@ class PbsJob(object):
 
         self.log.debug("Going to submit to queue %s" % self.queue)
 
-        # extend paramater should be 'NULL' because this is required by the python api
-        extend = 'NULL'
         # job submission sometimes fails without producing an error, e.g. when one of the dependency jobs has already finished
         # when that occurs, None will be returned by pbs_submit as job id
-        jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, extend)
+        jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, NULL)
         is_error, errormsg = pbs.error()
         if is_error or jobid is None:
             self.log.error("Failed to submit job script %s (job id: %s, error %s)" % (scriptfn, jobid, errormsg))
@@ -230,6 +228,22 @@ class PbsJob(object):
             self.log.debug("Succesful job submission returned jobid %s" % jobid)
             self.jobid = jobid
             os.remove(scriptfn)
+
+    def set_hold(self, hold_type='u'):
+        """Set hold on job of specified type."""
+        ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
+        is_error, errormsg = pbs.error()
+        if is_error or ec:
+            tup = (hold_type, self.jobid, is_error, ec, errormsg)
+            self.log.error("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+
+    def release_hold(self, hold_type='u'):
+        """Release hold on job of specified type."""
+        ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
+        is_error, errormsg = pbs.error()
+        if is_error or ec:
+            tup = (hold_type, self.jobid, is_error, ec, errormsg)
+            self.log.error("Failed to release hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
 
     def state(self):
         """

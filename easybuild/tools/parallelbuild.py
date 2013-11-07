@@ -96,6 +96,15 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         new_job.cleanup()
         jobs.append(new_job)
 
+        # place user hold on job to prevent it from starting too quickly,
+        # we might still need it in the queue to set it as a dependency for another job
+        new_job.set_hold()
+
+    # release user holds on jobs after submission is completed
+    for job in jobs:
+        _log.info("releasing hold on job %s" % job.jobid)
+        job.release_hold()
+
     disconnect_from_server(conn)
 
     return jobs
