@@ -116,7 +116,8 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         if strict_section_markers:
             # don't allow indentation for section markers
             # done by rewriting section marker regex, such that we don't have to patch configobj.py
-            sectionmarker_pattern = re.sub('^.*?indentation.*$', '', sectionmarker_pattern, flags=re.M)
+            indented_markers_regex = re.compile('^.*?indentation.*$', re.M)
+            sectionmarker_pattern = indented_markers_regex.sub('', sectionmarker_pattern)
         regex = re.compile(sectionmarker_pattern, re.VERBOSE | re.M)
         reg = regex.search(txt)
         if reg is None:
