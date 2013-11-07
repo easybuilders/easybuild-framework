@@ -39,20 +39,21 @@ from vsc import fancylogger
 _log = fancylogger.getLogger('pbs_job', fname=False)
 
 
+MAX_WALLTIME = 72
+# extend paramater should be 'NULL' in some functions because this is required by the python api
+NULL = 'NULL'
+# list of known hold types
+KNOWN_HOLD_TYPES = []
+
 pbs_import_failed = None
 try:
     from PBSQuery import PBSQuery
     import pbs
+    KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 except ImportError:
     _log.debug("Failed to import pbs from pbs_python. Silently ignoring, is only a real issue with --job")
     pbs_import_failed = ("PBSQuery or pbs modules not available. "
                          "Please make sure pbs_python is installed and usable.")
-
-MAX_WALLTIME = 72
-# extend paramater should be 'NULL' in some functions because this is required by the python api
-NULL = 'NULL'
-# list of known hold types for PBS
-KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 
 
 def connect_to_server(pbs_server=None):
