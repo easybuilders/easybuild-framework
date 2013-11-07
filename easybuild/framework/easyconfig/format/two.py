@@ -42,11 +42,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     Simple extension of FormatOneZero with configparser blocks
 
     Doesn't set version and toolchain/toolchain version like in FormatOneZero;
-    if no 'version' in pyheader, then referencing it directly in pyheader doesn't work
-    => either use templates ('%(version)s'), or include version spec
+    referencing 'version' directly in pyheader doesn't work => use templating '%(version)s'
 
     NOT in 2.0
-        - order preservation: need more recent ConfigParser (more recent Python as minimal version)
+        - order preservation: need more recent ConfiObj (more recent Python as minimal version)
         - nested sections (need other ConfigParser/ConfigObj, eg INITools)
         - type validation
         - command line generation (--try-X command line options)
@@ -58,9 +57,9 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
-    NAME_DOCSTRING_PATTERN = r'^\s*@__LABEL__\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
-    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'author'), re.M)
-    MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_PATTERN.replace('__LABEL__', 'maintainer'), re.M)
+    NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
+    AUTHOR_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'author', re.M)
+    MAINTAINER_DOCSTRING_REGEX = re.compile(NAME_DOCSTRING_REGEX_TEMPLATE % 'maintainer', re.M)
 
     AUTHOR_REQUIRED = True
     MAINTAINER_REQUIRED = False

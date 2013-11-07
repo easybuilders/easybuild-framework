@@ -125,8 +125,11 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
             start_section = None
         else:
             start_section = reg.start()
-            sections_start = txt[start_section:start_section+20]
-            self.log.debug('First section starts at idx %s: """%s..."""' % (start_section, sections_start))
+            last_n = 100
+            pre_section_tail = txt[start_section-last_n:start_section]
+            sections_head = txt[start_section:start_section+last_n]
+            tup = (start_section, last_n, pre_section_tail, sections_head)
+            self.log.debug('Sections start at index %s, %d-chars context:\n"""%s""""\n<split>\n"""%s..."""' % tup)
 
         self.parse_pre_section(txt[:start_section])
         if start_section is not None:
@@ -230,7 +233,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         for variable in self.PYHEADER_BLACKLIST:
             if variable in self.pyheader_localvars:
                 # TODO add to easyconfig unittest (similar to mandatory)
-                self.log.error('variable %s not allowed in pyheader' % variable)
+                self.log.error('blacklisted variable %s not allowed in pyheader' % variable)
 
         for variable in self.PYHEADER_MANDATORY:
             if variable in self.PYHEADER_BLACKLIST:
