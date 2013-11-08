@@ -86,6 +86,8 @@ import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
+from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
@@ -696,32 +698,44 @@ def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
     which contain commands specific to that block. Commands in the beginning of the file
     above any block headers are common and shared between each block.
     """
-    regBlock = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
-    regDepBlock = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
+    reg_block = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
+    reg_dep_block = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
 
-    cfgName = os.path.basename(spec)
-    pieces = regBlock.split(open(spec).read())
+    spec_fn = os.path.basename(spec)
+    try:
+        txt = open(spec).read()
+    except IOError, err:
+        _log.error("Failed to read file %s: %s" % (spec, err))
 
+    # split into blocks using regex
+    pieces = reg_block.split(txt)
     # the first block contains common statements
     common = pieces.pop(0)
-    if pieces:
+
+    # determine version of easyconfig format
+    ec_format_version = get_format_version(txt)
+    if ec_format_version is None:
+        ec_format_version = FORMAT_DEFAULT_VERSION
+    _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
+
+    if pieces and ec_format_version < EasyVersion('2.0'):
         _log.deprecated("Blocks in easyconfigs are no longer supported, to prepare for easyconfig format 2.x", '1.8.9')
         # make a map of blocks
         blocks = []
         while pieces:
-            blockName = pieces.pop(0)
-            blockContents = pieces.pop(0)
+            block_name = pieces.pop(0)
+            block_contents = pieces.pop(0)
 
-            if blockName in [b['name'] for b in blocks]:
-                msg = "Found block %s twice in %s." % (blockName, spec)
+            if block_name in [b['name'] for b in blocks]:
+                msg = "Found block %s twice in %s." % (block_name, spec)
                 _log.error(msg)
 
-            block = {'name': blockName, 'contents': blockContents}
+            block = {'name': block_name, 'contents': block_contents}
 
             # dependency block
-            depBlock = regDepBlock.search(blockContents)
-            if depBlock:
-                dependencies = eval(depBlock.group(1))
+            dep_block = reg_dep_block.search(block_contents)
+            if dep_block:
+                dependencies = eval(dep_block.group(1))
                 if type(dependencies) == list:
                     block['dependencies'] = dependencies
                 else:
@@ -735,10 +749,10 @@ def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
         for block in blocks:
             name = block['name']
             if onlyBlocks and not (name in onlyBlocks):
-                print_msg("Skipping block %s-%s" % (cfgName, name), silent=silent)
+                print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
                 continue
 
-            (fd, blockPath) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (cfgName, name))
+            (fd, block_path) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (spec_fn, name))
             os.close(fd)
 
             txt = common
@@ -755,9 +769,9 @@ def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
             txt += "\n# Main block %s" % name
             txt += block['contents']
 
-            write_file(blockPath, txt)
+            write_file(block_path, txt)
 
-            specs.append(blockPath)
+            specs.append(block_path)
 
         _log.debug("Found %s block(s) in %s" % (len(specs), spec))
         return specs
