@@ -55,6 +55,9 @@ class ToolchainTest(TestCase):
         eb_go = eboptions.parse_options()
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+        # start with a clean slate
+        modules.modules_tool().purge()
+
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
@@ -398,8 +401,11 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
+        # purge any loaded modules, restore $MODULEPATH
         modules.modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
+        # reinitialize modules tool after touching $MODULEPATH
+        modules.modules_tool()
 
 def suite():
     """ return all the tests"""
