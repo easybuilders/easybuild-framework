@@ -60,6 +60,17 @@ import test.framework.toy_build as t
 import test.framework.variables as v
 
 
+# make sure temporary files can be created/used
+fd, fn = tempfile.mkstemp()
+os.close(fd)
+os.remove(fn)
+for test_fn in [fn, os.path.join(tempfile.mkdtemp(), 'test')]:
+    try:
+        open(fn, 'w').write('test')
+    except IOError, err:
+        sys.stderr.write("ERROR: Can't write to temporary file %s, set $TMPDIR to a writeable directory" % (fn, msg))
+        sys.exit(1)
+
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
