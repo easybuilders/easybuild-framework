@@ -86,8 +86,8 @@ import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.version import EasyVersion
+from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
@@ -690,94 +690,6 @@ def robot_find_easyconfig(path, name, version):
             return os.path.abspath(easyconfigPath)
 
     return None
-
-
-def retrieve_blocks_in_spec(spec, onlyBlocks, silent=False):
-    """
-    Easyconfigs can contain blocks (headed by a [Title]-line)
-    which contain commands specific to that block. Commands in the beginning of the file
-    above any block headers are common and shared between each block.
-    """
-    reg_block = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
-    reg_dep_block = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
-
-    spec_fn = os.path.basename(spec)
-    try:
-        txt = open(spec).read()
-    except IOError, err:
-        _log.error("Failed to read file %s: %s" % (spec, err))
-
-    # split into blocks using regex
-    pieces = reg_block.split(txt)
-    # the first block contains common statements
-    common = pieces.pop(0)
-
-    # determine version of easyconfig format
-    ec_format_version = get_format_version(txt)
-    if ec_format_version is None:
-        ec_format_version = FORMAT_DEFAULT_VERSION
-    _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
-
-    if pieces and ec_format_version < EasyVersion('2.0'):
-        _log.deprecated("Blocks in easyconfigs are no longer supported, to prepare for easyconfig format 2.x", '1.8.9')
-        # make a map of blocks
-        blocks = []
-        while pieces:
-            block_name = pieces.pop(0)
-            block_contents = pieces.pop(0)
-
-            if block_name in [b['name'] for b in blocks]:
-                msg = "Found block %s twice in %s." % (block_name, spec)
-                _log.error(msg)
-
-            block = {'name': block_name, 'contents': block_contents}
-
-            # dependency block
-            dep_block = reg_dep_block.search(block_contents)
-            if dep_block:
-                dependencies = eval(dep_block.group(1))
-                if type(dependencies) == list:
-                    block['dependencies'] = dependencies
-                else:
-                    block['dependencies'] = [dependencies]
-
-            blocks.append(block)
-
-        # make a new easyconfig for each block
-        # they will be processed in the same order as they are all described in the original file
-        specs = []
-        for block in blocks:
-            name = block['name']
-            if onlyBlocks and not (name in onlyBlocks):
-                print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
-                continue
-
-            (fd, block_path) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (spec_fn, name))
-            os.close(fd)
-
-            txt = common
-
-            if 'dependencies' in block:
-                for dep in block['dependencies']:
-                    if not dep in [b['name'] for b in blocks]:
-                        log.error("Block %s depends on %s, but block was not found." % (name, dep))
-
-                    dep = [b for b in blocks if b['name'] == dep][0]
-                    txt += "\n# Dependency block %s" % (dep['name'])
-                    txt += dep['contents']
-
-            txt += "\n# Main block %s" % name
-            txt += block['contents']
-
-            write_file(block_path, txt)
-
-            specs.append(block_path)
-
-        _log.debug("Found %s block(s) in %s" % (len(specs), spec))
-        return specs
-    else:
-        # no blocks, one file
-        return [spec]
 
 
 def get_build_stats(app, starttime):
