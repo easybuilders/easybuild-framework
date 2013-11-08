@@ -50,9 +50,36 @@ class ToyBuildTest(TestCase):
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
 
+        fd, self.dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # adjust PYTHONPATH such that test easyblocks are found
+        self.orig_sys_path = sys.path[:]
+
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        reload(easybuild.tools.module_naming_scheme)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        self.buildpath = tempfile.mkdtemp()
+        self.installpath = tempfile.mkdtemp()
+        self.sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
     def tearDown(self):
         """Cleanup."""
+        # remove logs
         os.remove(self.logfile)
+
+        if os.path.exists(self.dummylogfn):
+            os.remove(self.dummylogfn)
+        shutil.rmtree(self.buildpath)
+        shutil.rmtree(self.installpath)
+
+        # restore original Python search path
+        sys.path = self.orig_sys_path
 
     def assertErrorRegex(self, error, regex, call, *args):
         """Convenience method to match regex with the error message."""
@@ -67,67 +94,58 @@ class ToyBuildTest(TestCase):
 
     def test_toy_build(self):
         """Perform a toy build."""
-        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
-        os.close(fd)
-
-        # adjust PYTHONPATH such that test easyblocks are found
-        orig_sys_path = sys.path[:]
-
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        reload(easybuild.tools.module_naming_scheme)
-
-        # clear log
-        write_file(self.logfile, '')
-
-        buildpath = tempfile.mkdtemp()
-        installpath = tempfile.mkdtemp()
-        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
-
         args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
-                '--sourcepath=%s' % sourcepath,
-                '--buildpath=%s' % buildpath,
-                '--installpath=%s' % installpath,
+                '--sourcepath=%s' % self.sourcepath,
+                '--buildpath=%s' % self.buildpath,
+                '--installpath=%s' % self.installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
                ]
         try:
-            main((args, dummylogfn, True))
+            main((args, self.dummylogfn, True))
         except (SystemExit, Exception), err:
             print err
         outtxt = read_file(self.logfile)
 
         # if the module exists, it should be fine
-        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
-        self.assertTrue(os.path.exists(toy_module), "toy build succeeded: %s" % outtxt)
+        toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module), "module for toy build toy/0.0 found")
 
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
         self.assertTrue(success.search(outtxt))
 
         # make sure installation log file and easyconfig file are copied to install dir
-        install_log_path_pattern = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'easybuild-toy-0.0-*.log')
+        install_log_path_pattern = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'easybuild-toy-0.0-*.log')
         self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1)
 
-        ec_file_path = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0.eb')
+        ec_file_path = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(ec_file_path))
 
-        devel_module_path = os.path.join(installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0-easybuild-devel')
+        devel_module_path = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0-easybuild-devel')
         self.assertTrue(os.path.exists(devel_module_path))
 
-        # clear log
-        write_file(self.logfile, '')
+    def test_toy_build_with_blocks(self):
+        """Test a toy build with multiple blocks."""
+        args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-multiple.eb'),
+                '--sourcepath=%s' % self.sourcepath,
+                '--buildpath=%s' % self.buildpath,
+                '--installpath=%s' % self.installpath,
+                '--debug',
+                '--unittest-file=%s' % self.logfile,
+                '--force',
+               ]
+        try:
+            main((args, self.dummylogfn, True))
+        except (SystemExit, Exception), err:
+            print err
 
-        if os.path.exists(dummylogfn):
-            os.remove(dummylogfn)
-        shutil.rmtree(buildpath)
-        shutil.rmtree(installpath)
-
-        # restore original Python search path
-        sys.path = orig_sys_path
+        for toy_version in ['0.0-somesuffix', 'someprefix-0.0-somesuffix']:
+            toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', toy_version)
+            self.assertTrue(os.path.exists(toy_module), "module for toy/%s found" % toy_version)
 
 def suite():
     """ return all the tests in this file """

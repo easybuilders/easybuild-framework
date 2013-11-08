@@ -33,11 +33,13 @@ This is the original pure python code, to be exec'ed rather then parsed
 
 import os
 import re
+import tempfile
 from vsc import fancylogger
 
 from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
+from easybuild.tools.filetools import write_file
 
 
 _log = fancylogger.getLogger('easyconfig.format.format', fname=False)
