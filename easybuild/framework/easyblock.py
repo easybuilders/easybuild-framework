@@ -1477,6 +1477,8 @@ class EasyBlock(object):
                         self.log.debug("Sanity check: found %s %s in %s" % (key[:-1], name, self.installdir))
                         found = True
                         break
+                    else:
+                        self.log.debug("Could not find %s %s in %s" % (key[:-1], name, self.installdir))
                 if not found:
                     self.sanity_check_fail_msgs.append("no %s of %s in %s" % (key[:-1], xs, self.installdir))
                     self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
