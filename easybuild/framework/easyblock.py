@@ -1435,6 +1435,11 @@ class EasyBlock(object):
         - if *any* of the files/subdirectories in the installation directory listed
           in sanity_check_paths are non-existent (or empty), the sanity check fails
         """
+        # supported/required keys in for sanity check paths, along with function used to check the paths
+        path_keys_and_check = {
+            'files': lambda fp: os.path.exists(fp),  # files must exist
+            'dirs': lambda dp: os.path.isdir(dp) and os.listdir(dp),  # directories must exist and be non-empty
+        }
         # prepare sanity check paths
         paths = self.cfg['sanity_check_paths']
         if not paths:
@@ -1442,56 +1447,39 @@ class EasyBlock(object):
                 paths = custom_paths
                 self.log.info("Using customized sanity check paths: %s" % paths)
             else:
-                paths = {
-                         'files': [],
-                         'dirs': ["bin", "lib"],
-                        }
+                paths = {}
+                for key in path_keys_and_check:
+                    paths.setdefault(key, [])
+                paths.update({'dirs': ["bin", "lib"]})
                 self.log.info("Using default sanity check paths: %s" % paths)
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
 
         # check sanity check paths
-        ks = paths.keys()
-        ks.sort()
+        ks = sorted(paths.keys())
         valnottypes = [not isinstance(x, list) for x in paths.values()]
         lenvals = [len(x) for x in paths.values()]
-        if not ks == ["dirs", "files"] or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            self.log.error("Incorrect format for sanity_check_paths (should only have 'files' and 'dirs' keys, " \
-                           "values should be lists (at least one non-empty)).")
+        req_keys = sorted(path_keys_and_check.keys())
+        if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
+            self.log.error("Incorrect format for sanity_check_paths (should have %s keys, " \
+                           "values should be lists (at least one non-empty))." % '/'.join(req_keys))
 
-        # check if files exist
-        for fs in paths['files']:
-            if isinstance(fs, basestring):
-                fs = (fs,)
-            elif not isinstance(fs, tuple):
-                self.log.error("Unsupported value type '%s' encountered, should be basestring or tuple" % type(fs))
-            found = False
-            for cand in fs:
-                filepath = os.path.join(self.installdir, cand)
-                if os.path.exists(filepath):
-                    self.log.debug("Sanity check: found file %s in %s" % (cand, self.installdir))
-                    found = True
-                    break
-            if not found:
-                self.sanity_check_fail_msgs.append("did not find any file of %s in %s" % (fs, self.installdir))
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-
-        # check if directories exist, and whether they are non-empty
-        for ds in paths['dirs']:
-            if isinstance(ds, basestring):
-                ds = (ds,)
-            elif not isinstance(ds, tuple):
-                self.log.error("Unsupported value type '%s' encountered, should be basestring or tuple" % type(ds))
-            found = False
-            for cand in ds:
-                dirpath = os.path.join(self.installdir, cand)
-                if os.path.isdir(dirpath) and os.listdir(dirpath):
-                    self.log.debug("Sanity check: found non-empty directory %s in %s" % (cand, self.installdir))
-                    found = True
-                    break
-            if not found:
-                self.sanity_check_fail_msgs.append("did not find any non-empty dir of %s in %s" % (ds, self.installdir))
-                self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
+        for key, check_fn in path_keys_and_check.items():
+            for xs in paths[key]:
+                if isinstance(xs, basestring):
+                    xs = (xs,)
+                elif not isinstance(xs, tuple):
+                    self.log.error("Unsupported type '%s' encountered in %s, not a string or tuple" % (key, type(xs)))
+                found = False
+                for name in xs:
+                    path = os.path.join(self.installdir, name)
+                    if os.path.exists(path):
+                        self.log.debug("Sanity check: found %s %s in %s" % (key[:-1], name, self.installdir))
+                        found = True
+                        break
+                if not found:
+                    self.sanity_check_fail_msgs.append("no %s of %s in %s" % (key[:-1], xs, self.installdir))
+                    self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
         fake_mod_data = None
         if not extension:
