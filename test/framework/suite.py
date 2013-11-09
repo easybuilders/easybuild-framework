@@ -32,6 +32,7 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 """
 import glob
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -59,6 +60,21 @@ import test.framework.toolchainvariables as tcv
 import test.framework.toy_build as t
 import test.framework.variables as v
 
+
+# make sure temporary files can be created/used
+fd, fn = tempfile.mkstemp()
+os.close(fd)
+os.remove(fn)
+testdir = tempfile.mkdtemp()
+for test_fn in [fn, os.path.join(testdir, 'test')]:
+    try:
+        open(fn, 'w').write('test')
+    except IOError, err:
+        sys.stderr.write("ERROR: Can't write to temporary file %s, set $TMPDIR to a writeable directory" % (fn, msg))
+        sys.exit(1)
+os.remove(fn)
+shutil.rmtree(testdir)
+sys.exit(0)
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
