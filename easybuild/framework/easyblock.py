@@ -1443,8 +1443,8 @@ class EasyBlock(object):
                 self.log.info("Using customized sanity check paths: %s" % paths)
             else:
                 paths = {
-                         'files':[],
-                         'dirs':["bin", "lib"]
+                         'files': [],
+                         'dirs': ["bin", "lib"],
                         }
                 self.log.info("Using default sanity check paths: %s" % paths)
         else:
@@ -1460,22 +1460,38 @@ class EasyBlock(object):
                            "values should be lists (at least one non-empty)).")
 
         # check if files exist
-        for f in paths['files']:
-            p = os.path.join(self.installdir, f)
-            if not os.path.exists(p):
-                self.sanity_check_fail_msgs.append("did not find file %s in %s" % (f, self.installdir))
+        for fs in paths['files']:
+            if isinstance(fs, basestring):
+                fs = (fs,)
+            elif not isinstance(fs, tuple):
+                self.log.error("Unsupported value type '%s' encountered, should be basestring or tuple" % type(fs))
+            found = False
+            for cand in fs:
+                filepath = os.path.join(self.installdir, cand)
+                if os.path.exists(filepath):
+                    self.log.debug("Sanity check: found file %s in %s" % (cand, self.installdir))
+                    found = True
+                    break
+            if not found:
+                self.sanity_check_fail_msgs.append("did not find any file of %s in %s" % (fs, self.installdir))
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-            else:
-                self.log.debug("Sanity check: found file %s in %s" % (f, self.installdir))
 
         # check if directories exist, and whether they are non-empty
-        for d in paths['dirs']:
-            p = os.path.join(self.installdir, d)
-            if not os.path.isdir(p) or not os.listdir(p):
-                self.sanity_check_fail_msgs.append("did not find non-empty directory %s in %s" % (d, self.installdir))
+        for ds in paths['dirs']:
+            if isinstance(ds, basestring):
+                ds = (ds,)
+            elif not isinstance(ds, tuple):
+                self.log.error("Unsupported value type '%s' encountered, should be basestring or tuple" % type(ds))
+            found = False
+            for cand in ds:
+                dirpath = os.path.join(self.installdir, cand)
+                if os.path.isdir(dirpath) and os.listdir(dirpath):
+                    self.log.debug("Sanity check: found non-empty directory %s in %s" % (cand, self.installdir))
+                    found = True
+                    break
+            if not found:
+                self.sanity_check_fail_msgs.append("did not find any non-empty dir of %s in %s" % (ds, self.installdir))
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
-            else:
-                self.log.debug("Sanity check: found non-empty directory %s in %s" % (d, self.installdir))
 
         fake_mod_data = None
         if not extension:
