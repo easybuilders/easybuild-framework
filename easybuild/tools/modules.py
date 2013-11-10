@@ -711,7 +711,7 @@ def get_software_root(name, with_env_var=False):
         return root
 
 
-def get_software_libdir(name, only_one=True):
+def get_software_libdir(name, only_one=True, fs=None):
     """
     Find library subdirectories for the specified software package.
 
@@ -719,15 +719,19 @@ def get_software_libdir(name, only_one=True):
     It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
 
     @param: name of the software package
-    @only_one: indicates whether only one lib path is expected to be found
+    @param only_one: indicates whether only one lib path is expected to be found
+    @param fs: only retain library subdirs that contain one of the files in this list
     """
+    if fs is None:
+        fs = ['']
     lib_subdirs = ['lib', 'lib64']
     root = get_software_root(name)
     res = []
     if root:
         for lib_subdir in lib_subdirs:
             if os.path.exists(os.path.join(root, lib_subdir)):
-                res.append(lib_subdir)
+                if any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
+                    res.append(lib_subdir)
         # if no library subdir was found, return None
         if not res:
             return None
