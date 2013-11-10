@@ -223,6 +223,12 @@ class ModulesTest(TestCase):
         os.environ['EBROOT%s' % env_var_name] = root
         self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         self.assertEqual(get_software_libdir(name, only_one=False), ['lib', 'lib64'])
+
+        # only directories containing files in specified list should be retained
+        open(os.path.join(root, 'lib64', 'foo'), 'w').write('foo')
+        self.assertEqual(get_software_libdir(name, fs=['foo']), 'lib64')
+
+        # clean up for previous tests
         os.environ.pop('EBROOT%s' % env_var_name)
 
         # if root/version for specified software package can not be found, these functions should return None
