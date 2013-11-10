@@ -711,6 +711,37 @@ def get_software_root(name, with_env_var=False):
         return root
 
 
+def get_software_libdir(name, only_one=True):
+    """
+    Find library subdirectories for the specified software package.
+
+    Returns the library subdirectory, relative to software root.
+    It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
+
+    @param: name of the software package
+    @only_one: indicates whether only one lib path is expected to be found
+    """
+    lib_subdirs = ['lib', 'lib64']
+    root = get_software_root(name)
+    res = []
+    if root:
+        for lib_subdir in lib_subdirs:
+            if os.path.exists(os.path.join(root, lib_subdir)):
+                res.append(lib_subdir)
+        # if no library subdir was found, return None
+        if not res:
+            return None
+        if only_one:
+            if len(res) == 1:
+                res = res[0]
+            else:
+                _log.error("Multiple library subdirectories found for %s in %s: %s" % (name, root, ', '.join(res)))
+        return res
+    else:
+        # return None if software package root could not be determined
+        return None
+
+
 def get_software_version_env_var_name(name):
     """Return name of environment variable for software root."""
     newname = convert_name(name, upper=True)
