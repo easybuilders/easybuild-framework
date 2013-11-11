@@ -631,9 +631,9 @@ class EasyConfigTest(TestCase):
     def test_templating(self):
         """ test easyconfig templating """
         inp = {
-           'name':'PI',
-           'version':'3.14',
-           'namelower':'pi',
+           'name': 'PI',
+           'version': '3.14',
+           'namelower': 'pi',
            'cmd': 'tar xfvz %s',
         }
         # don't use any escaping insanity here, since it is templated itself
