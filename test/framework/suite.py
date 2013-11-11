@@ -74,7 +74,6 @@ for test_fn in [fn, os.path.join(testdir, 'test')]:
         sys.exit(1)
 os.remove(fn)
 shutil.rmtree(testdir)
-sys.exit(0)
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
