@@ -105,14 +105,19 @@ class ToyBuildTest(TestCase):
         # the toy easyconfig uses the SOFTWARE_LIBDIR constant function, we need to make sure it works as expected
         # load the toylib module, and tweak $EBROOTTOYLIB to something that works
         orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-        ms = modules_tool([os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))])
+        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+        ms = modules_tool([test_modules_path])
         ms.load(['toylib/0.0'])
         # set up a couple of lib dirs for toylib, as required for SOFTWARE_LIBDIR to work
         tmpdir = tempfile.mkdtemp()
         for libdir in ['lib', 'lib64']:
             os.mkdir(os.path.join(tmpdir, libdir))
         open(os.path.join(tmpdir, 'lib64', 'libfoo.a'), 'w').write('foo')
-        os.environ['EBROOTTOYLIB'] = tmpdir
+        # rewrite $root in toylib module to make SOFTWARE_LIBDIR work
+        toylib_module_path = os.path.join(test_modules_path, 'toylib', '0.0')
+        toylib_module_txt = open(toylib_module_path, 'r').read()
+        toylib_module_alt_txt = re.sub('^(set\s*root).*$', '\1\t%s' % tmpdir, toylib_module_txt)
+        open(toylib_module_path, 'w').write(toylib_module_alt_txt)
 
         args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
@@ -136,7 +141,7 @@ class ToyBuildTest(TestCase):
         # make sure the SOFTWARE_LIBDIR function was correctly replaced
         txt = open(toy_module, 'r').read()
         lib_regex = re.compile("requires toylib library directory lib64")
-        self.assertTrue(lib_regex.search(txt))
+        self.assertTrue(lib_regex.search(txt), "'%s' found in toy/0.0 module" % lib_regex.pattern)
 
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
@@ -154,6 +159,7 @@ class ToyBuildTest(TestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
+        open(toylib_module_path, 'w').write(toylib_module_txt)
         os.environ['MODULEPATH'] = os.pathsep.join(orig_modulepaths)
         modules_tool().purge()
 
