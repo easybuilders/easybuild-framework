@@ -2,7 +2,7 @@ name = 'toy'
 version = '0.0'
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program (requires toylib library directory %s)." % LIBDIR('toylib', fs=['libfoo.a'])
+description = "Toy C program (requires toylib library directory %s)." % SOFTWARE_LIBDIR('toylib', fs=['libfoo.a'])
 
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 

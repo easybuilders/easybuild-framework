@@ -102,12 +102,12 @@ class ToyBuildTest(TestCase):
     def test_toy_build(self):
         """Perform a toy build."""
 
-        # the toy easyconfig uses the LIBDIR constant function, we need to make sure it works as expected
+        # the toy easyconfig uses the SOFTWARE_LIBDIR constant function, we need to make sure it works as expected
         # load the toylib module, and tweak $EBROOTTOYLIB to something that works
         orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
         ms = modules_tool([os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))])
         ms.load(['toylib/0.0'])
-        # set up a couple of lib dirs for toylib, as required for LIBDIR to work
+        # set up a couple of lib dirs for toylib, as required for SOFTWARE_LIBDIR to work
         tmpdir = tempfile.mkdtemp()
         for libdir in ['lib', 'lib64']:
             os.mkdir(os.path.join(tmpdir, libdir))
@@ -133,7 +133,7 @@ class ToyBuildTest(TestCase):
         toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module), "module for toy build toy/0.0 found")
 
-        # make sure the LIBDIR function was correctly replaced
+        # make sure the SOFTWARE_LIBDIR function was correctly replaced
         txt = open(toy_module, 'r').read()
         lib_regex = re.compile("requires toylib library directory lib64")
         self.assertTrue(lib_regex.search(txt))

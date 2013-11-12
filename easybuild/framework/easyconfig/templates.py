@@ -91,7 +91,7 @@ TEMPLATE_CONSTANTS = [
 
 # template 'constant' functions that can be used in easyconfigs
 TEMPLATE_CONSTANT_FUNCTIONS = [
-    ('LIBDIR', get_software_libdir, "Obtain name of library subdir for given software name and specifications"),
+    ('SOFTWARE_LIBDIR', get_software_libdir, "Obtain name of library subdir for given software name"),
 ]
 
 # TODO derived config templates
@@ -203,6 +203,6 @@ def template_documentation():
 
     doc.append('Template constant functions that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANT_FUNCTIONS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+        doc.append('%s%s: %s (using %s from %s)' % (indent_l1, cst[0], cst[2], cst[1].__name__, cst[1].__module__))
 
     return "\n".join(doc)
