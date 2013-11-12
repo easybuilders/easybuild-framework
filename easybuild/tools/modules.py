@@ -722,15 +722,13 @@ def get_software_libdir(name, only_one=True, fs=None):
     @param only_one: indicates whether only one lib path is expected to be found
     @param fs: only retain library subdirs that contain one of the files in this list
     """
-    if fs is None:
-        fs = ['']
     lib_subdirs = ['lib', 'lib64']
     root = get_software_root(name)
     res = []
     if root:
         for lib_subdir in lib_subdirs:
             if os.path.exists(os.path.join(root, lib_subdir)):
-                if any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
+                if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
                     res.append(lib_subdir)
         # if no library subdir was found, return None
         if not res:
