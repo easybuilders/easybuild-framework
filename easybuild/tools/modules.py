@@ -43,7 +43,7 @@ import tempfile
 from distutils.version import LooseVersion
 from subprocess import PIPE
 from vsc import fancylogger
-from vsc.utils.missing import get_subclasses
+from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool, install_path
@@ -709,6 +709,39 @@ def get_software_root(name, with_env_var=False):
         return (root, env_var)
     else:
         return root
+
+
+def get_software_libdir(name, only_one=True, fs=None):
+    """
+    Find library subdirectories for the specified software package.
+
+    Returns the library subdirectory, relative to software root.
+    It fails if multiple library subdirs are found, unless only_one is False which yields a list of all library subdirs.
+
+    @param: name of the software package
+    @param only_one: indicates whether only one lib path is expected to be found
+    @param fs: only retain library subdirs that contain one of the files in this list
+    """
+    lib_subdirs = ['lib', 'lib64']
+    root = get_software_root(name)
+    res = []
+    if root:
+        for lib_subdir in lib_subdirs:
+            if os.path.exists(os.path.join(root, lib_subdir)):
+                if fs is None or any([os.path.exists(os.path.join(root, lib_subdir, f)) for f in fs]):
+                    res.append(lib_subdir)
+        # if no library subdir was found, return None
+        if not res:
+            return None
+        if only_one:
+            if len(res) == 1:
+                res = res[0]
+            else:
+                _log.error("Multiple library subdirectories found for %s in %s: %s" % (name, root, ', '.join(res)))
+        return res
+    else:
+        # return None if software package root could not be determined
+        return None
 
 
 def get_software_version_env_var_name(name):
