@@ -113,7 +113,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # unload fake module and clean up
             self.clean_up_fake_module(fake_mod_data)
 
-        if custom_paths or custom_commands:
+        if custom_paths or self.cfg['sanity_check_paths'] or custom_commands or self.cfg['sanity_check_commands']:
             EasyBlock.sanity_check_step(self, custom_paths=custom_paths, custom_commands=custom_commands,
                 extension=self.is_extension)
 
