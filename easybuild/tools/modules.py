@@ -43,7 +43,7 @@ import tempfile
 from distutils.version import LooseVersion
 from subprocess import PIPE
 from vsc import fancylogger
-from vsc.utils.missing import get_subclasses
+from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool, install_path
