@@ -100,8 +100,8 @@ extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz'
 for ext in extensions:
     suffix = ext.replace('.', '_').upper()
     TEMPLATE_CONSTANTS += [
-        ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext)),
-        ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext))
+        ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
+        ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
         ]
 
 # TODO derived config templates
