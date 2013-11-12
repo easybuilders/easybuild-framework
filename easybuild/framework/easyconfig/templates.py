@@ -33,6 +33,7 @@ be used within an Easyconfig file.
 from vsc import fancylogger
 from distutils.version import LooseVersion
 
+from easybuild.tools.modules import get_software_libdir
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
@@ -86,6 +87,11 @@ TEMPLATE_CONSTANTS = [
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
+]
+
+# template 'constant' functions that can be used in easyconfigs
+TEMPLATE_CONSTANT_FUNCTIONS = [
+    ('SOFTWARE_LIBDIR', get_software_libdir, "Obtain name of library subdir for given software name"),
 ]
 
 # TODO derived config templates
@@ -194,5 +200,9 @@ def template_documentation():
     doc.append('Template constants that can be used in easyconfigs')
     for cst in TEMPLATE_CONSTANTS:
         doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+
+    doc.append('Template constant functions that can be used in easyconfigs')
+    for cst in TEMPLATE_CONSTANT_FUNCTIONS:
+        doc.append('%s%s: %s (using %s from %s)' % (indent_l1, cst[0], cst[2], cst[1].__name__, cst[1].__module__))
 
     return "\n".join(doc)

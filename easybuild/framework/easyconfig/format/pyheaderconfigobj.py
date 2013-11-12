@@ -35,7 +35,7 @@ from vsc import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_CONSTANT_FUNCTIONS
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
 
@@ -48,6 +48,7 @@ def build_easyconfig_constants_dict():
     # sanity check
     all_consts = [
         ('TEMPLATE_CONSTANTS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
+        ('TEMPLATE_CONSTANT_FUNCTIONS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANT_FUNCTIONS])),
         ('EASYCONFIG_CONSTANTS', dict([(x[0], x[1]) for x in EASYCONFIG_CONSTANTS])),
         ('EASYCONFIG_LICENSES', EASYCONFIG_LICENSES_DICT),
     ]
