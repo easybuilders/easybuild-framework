@@ -669,12 +669,13 @@ class EasyConfigTest(TestCase):
         doc = easyconfig.templates.template_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
         temps = [
-                 easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
-                 easyconfig.templates.TEMPLATE_NAMES_CONFIG,
-                 easyconfig.templates.TEMPLATE_NAMES_LOWER,
-                 easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
-                 easyconfig.templates.TEMPLATE_CONSTANTS,
-                ]
+            easyconfig.templates.TEMPLATE_NAMES_EASYCONFIG,
+            easyconfig.templates.TEMPLATE_NAMES_CONFIG,
+            easyconfig.templates.TEMPLATE_NAMES_LOWER,
+            easyconfig.templates.TEMPLATE_NAMES_EASYBLOCK_RUN_STEP,
+            easyconfig.templates.TEMPLATE_CONSTANTS,
+            easyconfig.templates.TEMPLATE_CONSTANT_FUNCTIONS,
+        ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
     
     def test_constant_doc(self):

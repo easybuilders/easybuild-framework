@@ -45,7 +45,7 @@ from unittest import TestCase, TestLoader, main
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 29
+TEST_MODULES_COUNT = 30
 
 
 class ModulesTest(TestCase):
