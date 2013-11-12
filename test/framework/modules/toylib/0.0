@@ -1,0 +1,21 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {toy library}
+}
+
+module-whatis {toy library}
+
+set root    /tmp
+
+conflict    toylib
+
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LD_LIBRARY_PATH		$root/lib64
+
+setenv	EBROOTTOYLIB		"$root"
+setenv	EBVERSIONTOYLIB		"0.0"
+setenv	EBDEVELTOYLIB		"$root/easybuild/toylib-0.0-easybuild-devel"
+
+
+# constructed manually

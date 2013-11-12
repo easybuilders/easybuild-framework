@@ -36,10 +36,13 @@ import sys
 import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.main import main
+import easybuild.tools.options as eboptions
 from easybuild.tools import config
+from easybuild.main import main
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.modules import modules_tool
 
 
 class ToyBuildTest(TestCase):
@@ -47,6 +50,10 @@ class ToyBuildTest(TestCase):
 
     def setUp(self):
         """Test setup."""
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
 
@@ -94,6 +101,19 @@ class ToyBuildTest(TestCase):
 
     def test_toy_build(self):
         """Perform a toy build."""
+
+        # the toy easyconfig uses the LIBDIR constant function, we need to make sure it works as expected
+        # load the toylib module, and tweak $EBROOTTOYLIB to something that works
+        orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+        ms = modules_tool([os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))])
+        ms.load(['toylib/0.0'])
+        # set up a couple of lib dirs for toylib, as required for LIBDIR to work
+        tmpdir = tempfile.mkdtemp()
+        for libdir in ['lib', 'lib64']:
+            os.mkdir(os.path.join(tmpdir, libdir))
+        open(os.path.join(tmpdir, 'lib64', 'libfoo.a'), 'w').write('foo')
+        os.environ['EBROOTTOYLIB'] = tmpdir
+
         args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
                 '--sourcepath=%s' % self.sourcepath,
@@ -113,6 +133,11 @@ class ToyBuildTest(TestCase):
         toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module), "module for toy build toy/0.0 found")
 
+        # make sure the LIBDIR function was correctly replaced
+        txt = open(toy_module, 'r').read()
+        lib_regex = re.compile("requires toylib library directory lib64")
+        self.assertTrue(lib_regex.search(txt))
+
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
         self.assertTrue(success.search(outtxt))
@@ -126,6 +151,11 @@ class ToyBuildTest(TestCase):
 
         devel_module_path = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0-easybuild-devel')
         self.assertTrue(os.path.exists(devel_module_path))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        os.environ['MODULEPATH'] = os.pathsep.join(orig_modulepaths)
+        modules_tool().purge()
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
@@ -152,4 +182,6 @@ def suite():
     return TestLoader().loadTestsFromTestCase(ToyBuildTest)
 
 if __name__ == '__main__':
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     unittestmain()

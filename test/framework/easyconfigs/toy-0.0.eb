@@ -2,11 +2,13 @@ name = 'toy'
 version = '0.0'
 
 homepage = 'http://hpcugent.github.com/easybuild'
-description = "Toy C program."
+description = "Toy C program (requires toylib library directory %s)." % LIBDIR('toylib', fs=['libfoo.a'])
 
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
+
+dependencies = [('toylib', '0.0')]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],
