@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,37 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for building and installing toy, implemented as an easyblock
+EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH2,
+Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
 
 @author: Kenneth Hoste (Ghent University)
 """
 
-import os
-import shutil
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.fft.intelfftw import IntelFFTW
+from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.filetools import run_cmd
-
-class EB_toy(EasyBlock):
-    """Support for building/installing toy."""
-
-    def configure_step(self):
-        """Configure build of toy."""
-        os.rename('toy.source', 'toy.c')
-
-    def build_step(self):
-        """Build toy."""
-        run_cmd('gcc toy.c -o toy')
-
-    def install_step(self):
-        """Install toy."""
-        bindir = os.path.join(self.installdir, 'bin')
-        os.mkdir(bindir)
-        shutil.copy2('toy', bindir)
-        # also install a dummy libtoy.a, to make the default sanity check happy
-        libdir = os.path.join(self.installdir, 'lib')
-        os.mkdir(libdir)
-        f = open(os.path.join(libdir, 'libtoy.a'), 'w')
-        f.write('TOY')
-        f.close()
+class Impmkl(IntelIccIfort, Mpich2, IntelMKL, IntelFFTW):
+    """
+    Compiler toolchain with Intel compilers (icc/ifort), MPICH2,
+    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    """
+    NAME = 'impmkl'

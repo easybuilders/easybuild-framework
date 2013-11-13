@@ -328,16 +328,6 @@ def init(options, config_options_dict):
                     _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
                     create_dir(key, directory)
 
-    # update MODULEPATH if required
-    ebmodpath = os.path.join(install_path(typ='modules'), 'all')
-    # modulepath without ebmodpath
-    # ebmodpath is then always inserted in 1st place
-    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0 and not x == ebmodpath]
-    _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
-    modulepath.insert(0, ebmodpath)
-
-    os.environ['MODULEPATH'] = ':'.join(modulepath)
-
 
 def build_path():
     """

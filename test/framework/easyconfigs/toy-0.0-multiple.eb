@@ -1,0 +1,20 @@
+name = 'toy'
+version = '0.0'
+# required to fool test in modulegenerator, but will never be used (overwritten later)
+versionsuffix = '-multiple'
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+sources = [SOURCE_TAR_GZ]
+
+moduleclass = 'tools'
+
+[versionsuffixed]
+versionsuffix = '-somesuffix'
+
+[versionprefixed]
+block = 'versionsuffixed'
+versionprefix = 'someprefix-'

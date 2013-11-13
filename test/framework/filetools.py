@@ -191,6 +191,15 @@ class FileToolsTest(TestCase):
         os.remove(fp)
         os.remove("%s.eb.orig" % fp)
 
+    def test_which(self):
+        """Test which function for locating commands."""
+        python = ft.which('python')
+        self.assertTrue(python and os.path.exists(python) and os.path.isabs(python))
+
+        path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
+        self.assertTrue(path is None)
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(FileToolsTest)

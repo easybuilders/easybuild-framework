@@ -69,7 +69,7 @@ def find_rel_test():
     return res
 
 easybuild_packages = [
-    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig",
+    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
     "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",

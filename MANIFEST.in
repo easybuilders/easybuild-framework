@@ -2,6 +2,7 @@ include eb
 recursive-include easybuild *py
 recursive-include test *py *eb
 recursive-include test/framework/modules *
+recursive-include test/framework/sandbox/sources *
 include CONTRIBUTING.md
 include LICENSE
 include README.rst

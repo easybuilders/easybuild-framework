@@ -45,13 +45,14 @@ import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
-from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -110,7 +111,7 @@ class EasyConfig(object):
 
         # extend mandatory keys
         for key, value in extra_options.items():
-            if value[2] == ALL_CATEGORIES['MANDATORY']:
+            if value[2] == MANDATORY:
                 self.mandatory.append(key)
 
         # set valid stops
@@ -188,25 +189,16 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def parse(self, path):
+    def parse(self, path, format_version=None):
         """
         Parse the file and set options
         mandatory requirements are checked here
         """
-        global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        _log.deprecated("shared_lib_ext global variable when parsing easyconfigs (use SHLIB_EXT constant)", "2.0")
-        const_dict = build_easyconfig_constants_dict()
-        global_vars.update(const_dict)
-        local_vars = {}
-
-        try:
-            execfile(path, global_vars, local_vars)
-        except IOError, err:
-            self.log.exception("Unexpected IOError during execfile(): %s" % err)
-        except SyntaxError, err:
-            self.log.exception("SyntaxError in easyblock %s: %s" % (path, err))
+        parser = EasyConfigParser(path, format_version=format_version)
+        local_vars = parser.get_config_dict()
 
         # validate mandatory keys
+        # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
         missing_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_keys:
             self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
@@ -459,12 +451,14 @@ class EasyConfig(object):
         # - uses rpm -q and dpkg -s --> can be run as non-root!!
         # - fallback on which
         # - should be extended to files later?
-        if run_cmd('which rpm', simple=True, log_ok=False):
-            cmd = "rpm -q %s" % dep
-        elif run_cmd('which dpkg', simple=True, log_ok=False):
-            cmd = "dpkg -s %s" % dep
+        cmd = "exit 1"
+        if get_os_name() in ['debian', 'ubuntu']:
+            if run_cmd('which dpkg', simple=True, log_ok=False):
+                cmd = "dpkg -s %s" % dep
         else:
-            cmd = "exit 1"
+            # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+            if run_cmd('which rpm', simple=True, log_ok=False):
+                cmd = "rpm -q %s" % dep
 
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
@@ -519,7 +513,7 @@ class EasyConfig(object):
             if isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
             # two-element list/tuple value indicates custom toolchain specification
-            elif isinstance(tc_spec, (list, tuple, )):
+            elif isinstance(tc_spec, (list, tuple,)):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
@@ -595,35 +589,6 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
-
-
-def build_easyconfig_constants_dict():
-    """Make a dictionary with all constants that can be used"""
-    # sanity check
-    all_consts = [
-                  (dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS]), 'TEMPLATE_CONSTANTS'),
-                  (dict([(x[0], x[1]) for x in EASYCONFIG_CONSTANTS]), 'EASYCONFIG_CONSTANTS'),
-                  (EASYCONFIG_LICENSES_DICT, 'EASYCONFIG_LICENSES')
-                  ]
-    err = []
-    const_dict = {}
-
-    for (csts, name) in all_consts:
-        for cst_key, cst_val in csts.items():
-            ok = True
-            for (other_csts, other_name) in all_consts:
-                if name == other_name:
-                    continue
-                if cst_key in other_csts:
-                    err.append('Found name %s from %s also in %s' % (cst_key, name, other_name))
-                    ok = False
-            if ok:
-                const_dict[cst_key] = cst_val
-
-    if len(err) > 0:
-        _log.error("EasyConfig constants sanity check failed: %s" % ("\n".join(err)))
-    else:
-        return const_dict
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
