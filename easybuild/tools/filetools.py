@@ -275,35 +275,35 @@ def extract_cmd(fn, overwrite=False):
     ftype = None
 
     # gzipped or gzipped tarball
-    if ff[-1] == 'gz':
+    if ff[-1] in ['gz']:
         ftype = 'gunzip %s'
-        if ff[-2] == 'tar':
+        if ff[-2] in ['tar']:
             ftype = 'tar xzf %s'
-    if ff[-1] == 'tgz' or ff[-1] == 'gtgz':
+    if ff[-1] in ['tgz', 'gtgz']:
         ftype = 'tar xzf %s'
 
     # bzipped or bzipped tarball
-    if ff[-1] == 'bz2':
+    if ff[-1] in ['bz2']:
         ftype = 'bunzip2 %s'
-        if ff[-2] == 'tar':
+        if ff[-2] in ['tar']:
             ftype = 'tar xjf %s'
-    if ff[-1] == 'tbz':
+    if ff[-1] in ['tbz', 'tbz2', 'tb2']:
         ftype = 'tar xjf %s'
 
     # xzipped or xzipped tarball
-    if ff[-1] == 'xz':
+    if ff[-1] in ['xz']:
         ftype = 'unxz %s'
-        if ff[-2] == 'tar':
+        if ff[-2] in ['tar']:
             ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] == 'txz':
+    if ff[-1] in ['txz']:
         ftype = 'unxz %s --stdout | tar x'
 
     # tarball
-    if ff[-1] == 'tar':
+    if ff[-1] in ['tar']:
         ftype = 'tar xf %s'
 
     # zip file
-    if ff[-1] == 'zip':
+    if ff[-1] in ['zip']:
         if overwrite:
             ftype = 'unzip -qq -o %s'
         else:
