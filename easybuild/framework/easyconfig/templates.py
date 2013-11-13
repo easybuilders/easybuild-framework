@@ -75,8 +75,6 @@ TEMPLATE_CONSTANTS = [
      'http download for gnome ftp server'),
     ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(name)s',
      'gnu.org source url'),
-    ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(namefirst)s/%(namelower)s',
-     'pypi.python.org source url'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
     ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
@@ -89,7 +87,7 @@ TEMPLATE_CONSTANTS = [
      'bitbucket.org source url'),
 
     # TODO not urgent, others should pick it up
-    # CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
+    # PYPI_SOURCE CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
