@@ -81,8 +81,6 @@ TEMPLATE_CONSTANTS = [
      'CRAN (contrib) source url'),
     ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
      'cran.r-project.org (base) source url'),
-    ('CPAN_SOURCE', 'http://ftp.nluug.nl/languages/perl/CPAN/modules/by-module/%(name)s',
-     'CPAN source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
      'launchpad.net source url'),
     ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
@@ -90,7 +88,8 @@ TEMPLATE_CONSTANTS = [
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
 
-    # TODO: XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL # Not urgent, others should pick it up
+    # TODO not urgent, others should pick it up
+    # CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
@@ -102,7 +101,7 @@ for ext in extensions:
     TEMPLATE_CONSTANTS += [
         ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
         ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
-        ]
+    ]
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )

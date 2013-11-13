@@ -69,26 +69,21 @@ class FileToolsTest(TestCase):
 
     def test_extract_cmd(self):
         """Test various extract commands."""
-        cmd = ft.extract_cmd("test.zip")
-        self.assertEqual("unzip -qq test.zip", cmd)
-
-        cmd = ft.extract_cmd("/some/path/test.tar")
-        self.assertEqual("tar xf /some/path/test.tar", cmd)
-
-        cmd = ft.extract_cmd("test.tar.gz")
-        self.assertEqual("tar xzf test.tar.gz", cmd)
-
-        cmd = ft.extract_cmd("test.tgz")
-        self.assertEqual("tar xzf test.tgz", cmd)
-
-        cmd = ft.extract_cmd("test.bz2")
-        self.assertEqual("bunzip2 test.bz2", cmd)
-
-        cmd = ft.extract_cmd("test.tbz")
-        self.assertEqual("tar xjf test.tbz", cmd)
-
-        cmd = ft.extract_cmd("test.tar.bz2")
-        self.assertEqual("tar xjf test.tar.bz2", cmd)
+        tests = [
+            ('test.zip', "unzip -qq test.zip"),
+            ('/some/path/test.tar', "tar xf /some/path/test.tar"),
+            ('test.tar.gz', "tar xzf test.tar.gz"),
+            ('test.tgz', "tar xzf test.tgz"),
+            ('test.gtgz', "tar xzf test.gtgz"),
+            ('test.bz2', "bunzip2 test.bz2"),
+            ('test.tbz', "tar xjf test.tbz"),
+            ('test.tbz2', "tar xjf test.tbz2"),
+            ('test.tb2', "tar xjf test.tb2"),
+            ('test.tar.bz2', "tar xjf test.tar.bz2"),
+        ]
+        for (fn, expected_cmd) in tests:
+            cmd = ft.extract_cmd(fn)
+            self.assertEqual(expected_cmd, cmd)
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
