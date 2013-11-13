@@ -33,12 +33,16 @@ import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
 
+TC_CONSTANT_DUMMY = "DUMMY"
+
+
 class Dummy(Compiler):
     """Dummy compiler : try not to even use system gcc"""
     COMPILER_MODULE_NAME = []
+    COMPILER_FAMILY = TC_CONSTANT_DUMMY
 
-    COMPILER_CC = 'DUMMYCC'
-    COMPILER_CXX = 'DUMMYCXX'
+    COMPILER_CC = '%sCC' % TC_CONSTANT_DUMMY
+    COMPILER_CXX = '%sCXX' % TC_CONSTANT_DUMMY
 
-    COMPILER_F77 = 'DUMMYF77'
-    COMPILER_F90 = 'DUMMYF90'
+    COMPILER_F77 = '%sF77' % TC_CONSTANT_DUMMY
+    COMPILER_F90 = '%sF90' % TC_CONSTANT_DUMMY
