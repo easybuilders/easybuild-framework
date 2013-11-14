@@ -4,6 +4,34 @@ For more detailed information, please see the git log.
 v1.9.0 (November 14th 2013)
 ---------------------------
 
+feature + bugfix release
+- add support for Tcl environment modules (modulecmd.tcl) (#728, #729, #739)
+    - special care was taken to make sure also the DEISA variant of modulecmd.tcl can be used
+- code refactoring to prepare for supporting two formats for easyconfig files (#693, #750)
+    - this prepares the codebase for supporting easyconfig format v2.0
+    - some initial work on adding support for the new easyconfig format is included, but it's by no means complete yet
+    - the current easyconfig format (now dubbed v1.0) is still the default and only supported format, for now
+    - for more details, see https://github.com/hpcugent/easybuild/wiki/Easyconfig-format-two
+- various other enhancements, including:
+    - include a full version of vsc-base (see the 'vsc' subdirectory) (#740)
+        - this is a first step towards switching to using vsc-base as a proper dependency
+    - implement get_avail_core_count function in systemtools module that takes cpusets and co into account (#700)
+        - the get_core_count function is now deprecated
+    - add impmkl toolchain definition (#736)
+    - make regtest more robust: put holds on jobs without dependencies, release holds once all jobs are submitted (#751)
+    - add support for specifying multiple alternatives for sanity check paths (#753)
+    - add get_software_libdir function to modules.py (along with unit tests) (#758)
+    - add support for more file extensions and constants w.r.t. sources (#738, #760, #761)
+    - add MPICH2 support in mpi_cmd_for function (#761)
+- various bug fixes, including:
+    - fix checking of OS dependencies on Debian/Ubuntu that have 'rpm' command available (#732)
+    - make unit tests more robust w.r.t. non-writeabe /tmp and loaded modules prior to starting unit tests (#752, #756)
+    - also call EasyBlock's sanity check in ExtensionEasyblock if paths/commands are specified in easyconfig (#757)
+    - set compiler family for dummy compiler, add definition of toolchain constant for dummy (#759)
+- other
+    - add build status badges for master/develop branches to README (#742)
+    - add scripts for installing EasyBuild develop version or setting up git development environment (#730, #755)
+
 v1.8.2 (October 18th 2013)
 --------------------------
 
