@@ -28,6 +28,7 @@ Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 from vsc import fancylogger
@@ -65,17 +66,6 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 ]
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
-    # sources constants
-    ('SOURCE_TAR_GZ', '%(name)s-%(version)s.tar.gz', "Source .tar.gz tarball"),
-    ('SOURCE_TAR_XZ', '%(name)s-%(version)s.tar.xz', "Source .tar.xz tarball"),
-    ('SOURCE_TAR_BZ2', '%(name)s-%(version)s.tar.bz2', "Source .tar.bz2 tarball"),
-    ('SOURCELOWER_TAR_GZ', '%(namelower)s-%(version)s.tar.gz',
-     "Source .tar.gz tarball with lowercase name"),
-    ('SOURCELOWER_TAR_XZ', '%(namelower)s-%(version)s.tar.xz',
-     "Source .tar.xz tarball with lowercase name"),
-    ('SOURCELOWER_TAR_BZ2', '%(namelower)s-%(version)s.tar.bz2',
-     "Source .tar.bz2 tarball with lowercase name"),
-
     # source url constants
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
@@ -83,14 +73,36 @@ TEMPLATE_CONSTANTS = [
      'sourceforge.net source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(name)s',
+     'gnu.org source url'),
+    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
+     'CRAN (contrib) source url'),
+    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
+     'cran.r-project.org (base) source url'),
+    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
+     'launchpad.net source url'),
+    ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
+     'apache.org source url'),
+    ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
+     'bitbucket.org source url'),
+
+    # TODO not urgent, others should pick it up
+    # PYPI_SOURCE CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
 ]
 
-# TODO derived config templates
-# versionmajor, verisonminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
+extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz']
+for ext in extensions:
+    suffix = ext.replace('.', '_').upper()
+    TEMPLATE_CONSTANTS += [
+        ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
+        ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
+    ]
 
+# TODO derived config templates
+# versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 def template_constant_dict(config, ignore=None, skip_lower=True):
     """Create a dict for templating the values in the easyconfigs.

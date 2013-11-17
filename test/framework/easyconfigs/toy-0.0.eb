@@ -8,4 +8,9 @@ toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
 
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy')],
+    'dirs': ['bin'],
+}
+
 moduleclass = 'tools'

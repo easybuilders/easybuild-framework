@@ -32,6 +32,7 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 """
 import glob
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -42,8 +43,12 @@ import test.framework.asyncprocess as a
 import test.framework.config as c
 import test.framework.easyblock as b
 import test.framework.easyconfig as e
+import test.framework.easyconfigparser as ep
+import test.framework.easyconfigformat as ef
+import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
 import test.framework.github as g
+import test.framework.license as l
 import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.options as o
@@ -56,6 +61,20 @@ import test.framework.toy_build as t
 import test.framework.variables as v
 
 
+# make sure temporary files can be created/used
+fd, fn = tempfile.mkstemp()
+os.close(fd)
+os.remove(fn)
+testdir = tempfile.mkdtemp()
+for test_fn in [fn, os.path.join(testdir, 'test')]:
+    try:
+        open(fn, 'w').write('test')
+    except IOError, err:
+        sys.stderr.write("ERROR: Can't write to temporary file %s, set $TMPDIR to a writeable directory" % (fn, msg))
+        sys.exit(1)
+os.remove(fn)
+shutil.rmtree(testdir)
+
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
 os.close(fd)
@@ -66,7 +85,8 @@ log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-SUITE = unittest.TestSuite([x.suite() for x in [o, r, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s]])
+tests = [o, r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s, l]
+SUITE = unittest.TestSuite([x.suite() for x in tests])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
 xml_msg = ""

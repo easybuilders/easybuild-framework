@@ -51,11 +51,9 @@ class EB_toy(EasyBlock):
         bindir = os.path.join(self.installdir, 'bin')
         os.mkdir(bindir)
         shutil.copy2('toy', bindir)
-
-    def sanity_check_step(self):
-        """Custom sanity check for toy."""
-        custom_paths = {
-            'files': ['bin/toy'],
-            'dirs': [],
-        }
-        super(EB_toy, self).sanity_check_step(custom_paths=custom_paths)
+        # also install a dummy libtoy.a, to make the default sanity check happy
+        libdir = os.path.join(self.installdir, 'lib')
+        os.mkdir(libdir)
+        f = open(os.path.join(libdir, 'libtoy.a'), 'w')
+        f.write('TOY')
+        f.close()
