@@ -213,7 +213,7 @@ class EasyBlock(object):
             path = self.obtain_file(source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
-                self.src.append({'name': source, 'path': path, 'cmd': cmd})
+                self.src.append({'name': source, 'path': path, 'cmd': cmd, 'finalpath': '.'})  # always set a finalpath
             else:
                 self.log.error('No file found for source %s' % source)
 
