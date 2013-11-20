@@ -31,6 +31,7 @@ Command line options for eb
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import re
@@ -171,6 +172,8 @@ class EasyBuildOptions(GeneralOption):
                                None, 'store', oldstyle_defaults['buildpath']),
                 'installpath':  ('Final install path',
                                   None, 'store', oldstyle_defaults['installpath']),
+                'tmpdir': ('Directory to use for temporary storage',
+                               None, 'store', None),
                 'subdir-modules': ('Subdir in installpath for modules',
                                            None, 'store', oldstyle_defaults['subdir_modules']),
                 'subdir-software': ('Subdir in installpath for software',

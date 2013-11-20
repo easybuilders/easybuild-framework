@@ -32,6 +32,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -126,6 +127,14 @@ def main(testing_data=(None, None, None)):
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
     orig_paths = eb_go.args
+
+    # set the temp directory for tempfile and others
+    if options.tmpdir is not None:
+        os.environ['TMPDIR'] = options.tmpdir
+        os.environ['TEMP'] = options.tmpdir
+        os.environ['TMP'] = options.tmpdir
+        # tempfile is already called in parse_options, reset to startpoint
+        tempfile.tempdir = None
 
     # initialise logging for main
     if options.logtostdout:
