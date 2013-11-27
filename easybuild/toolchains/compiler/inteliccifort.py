@@ -57,7 +57,7 @@ class IntelIccIfort(Compiler):
         'i8': 'i8',
         'r8': 'r8',
         'optarch': 'xHOST',
-        'openmp': 'fopenmp',  # both -openmp/-fopenmp are valid, but Intel's mpif90 only considers -fopenmp (!)
+        'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
         'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
@@ -89,6 +89,7 @@ class IntelIccIfort(Compiler):
     LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
 
     def _set_compiler_vars(self):
+        """Intel compilers-specific adjustments after setting compiler variables."""
         super(IntelIccIfort, self)._set_compiler_vars()
 
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
@@ -112,4 +113,3 @@ class IntelIccIfort(Compiler):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
-
