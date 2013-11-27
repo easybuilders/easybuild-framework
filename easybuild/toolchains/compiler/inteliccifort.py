@@ -47,30 +47,31 @@ class IntelIccIfort(Compiler):
     COMPILER_MODULE_NAME = ['icc', 'ifort']
 
     COMPILER_FAMILY = TC_CONSTANT_INTELCOMP
-    COMPILER_UNIQUE_OPTS = {'intel-static': (False, "Link Intel provided libraries statically"),
-                            'no-icc': (False, "Don't set Intel specific macros"),
-                            'error-unknown-option': (False, "Error instead of warning for unknown options")
-                            }
+    COMPILER_UNIQUE_OPTS = {
+        'intel-static': (False, "Link Intel provided libraries statically"),
+        'no-icc': (False, "Don't set Intel specific macros"),
+        'error-unknown-option': (False, "Error instead of warning for unknown options"),
+    }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-                                  'i8': 'i8',
-                                  'r8':'r8',
-                                  'optarch':'xHOST',
-                                  'openmp':'openmp',
-                                  'strict': ['fp-speculation=strict', 'fp-model strict'],
-                                  'precise':['fp-model precise'],
-                                  'defaultprec':['ftz', 'fp-speculation=safe', 'fp-model source'],
-                                  'loose': ['fp-model fast=1'],
-                                  'veryloose': ['fp-model fast=2'],
-                                  'intel-static': 'static-intel',
-                                  'no-icc': 'no-icc',
-                                  'error-unknown-option': 'we10006'  # error at warning #10006: ignoring unknown option
-                                  }
+        'i8': 'i8',
+        'r8': 'r8',
+        'optarch': 'xHOST',
+        'openmp': 'fopenmp',  # both -openmp/-fopenmp are valid, but Intel's mpif90 only considers -fopenmp (!)
+        'strict': ['fp-speculation=strict', 'fp-model strict'],
+        'precise': ['fp-model precise'],
+        'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
+        'loose': ['fp-model fast=1'],
+        'veryloose': ['fp-model fast=2'],
+        'intel-static': 'static-intel',
+        'no-icc': 'no-icc',
+        'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
+    }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                                            systemtools.INTEL : 'xHOST',
-                                            systemtools.AMD : 'msse3'
-                                           }
+        systemtools.INTEL : 'xHOST',
+        systemtools.AMD : 'msse3',
+    }
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'
@@ -81,9 +82,9 @@ class IntelIccIfort(Compiler):
     COMPILER_F_UNIQUE_FLAGS = ['intel-static']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
-                                    'static': '-Bstatic',
-                                    'dynamic':'-Bdynamic',
-                                    }
+        'static': '-Bstatic',
+        'dynamic':'-Bdynamic',
+    }
 
     LIB_MULTITHREAD = ['iomp5', 'pthread']  ## iomp5 is OpenMP related
 
