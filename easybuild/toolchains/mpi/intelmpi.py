@@ -59,3 +59,12 @@ class IntelMPI(Mpich2):
         super(IntelMPI, self)._set_mpi_compiler_variables()
 
     MPI_LINK_INFO_OPTION = '-show'
+
+    def set_variables(self):
+        """Intel MPI-specific updates to variables."""
+        super(IntelMPI, self).set_variables()
+        # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
+        if self.options.get('openmp', None) and self.options.get('usempi', None):
+            mt_mpi_option = ['-mt_mpi']
+            for flags_var in ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']:
+                self.variables.nappend(flags_var, mt_mpi_option)
