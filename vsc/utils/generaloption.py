@@ -966,8 +966,7 @@ class GeneralOption(object):
 
                     configfile_options_default[opt_dest] = actual_option.default
 
-                    bool_actions = ['store_true', 'store_false', 'store_debuglog', 'store_infolog', 'store_warninglog']
-                    if actual_option.action in bool_actions:
+                    if actual_option.action in ('store_true', 'store_false',):
                         try:
                             newval = self.configfile_parser.getboolean(section, opt)
                             self.log.debug(('parseconfigfiles: getboolean for option %s value %s '
