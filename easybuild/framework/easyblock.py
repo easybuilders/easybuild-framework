@@ -213,7 +213,8 @@ class EasyBlock(object):
             path = self.obtain_file(source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
-                self.src.append({'name': source, 'path': path, 'cmd': cmd})
+                # always set a finalpath
+                self.src.append({'name': source, 'path': path, 'cmd': cmd, 'finalpath': self._generate_builddir_name()})
             else:
                 self.log.error('No file found for source %s' % source)
 
@@ -530,6 +531,18 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
+    def _generate_builddir_name(self):
+        """Generate the name for the builddir"""
+        # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
+        tcversion = self.toolchain.version
+        if tcversion.startswith('-'):
+            tcversion = tcversion[1:]
+
+        extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+        localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
+
+        return os.path.abspath(localdir)
+
 
     def make_builddir(self):
         """
@@ -537,22 +550,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir:
             # make a unique build dir
-            # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
-            tcversion = self.toolchain.version
-            if tcversion.startswith('-'):
-                tcversion = tcversion[1:]
-
-            extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
-            localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
-
-            ald = os.path.abspath(localdir)
-            tmpald = ald
-            counter = 1
-            while os.path.isdir(tmpald):
-                counter += 1
-                tmpald = "%s.%d" % (ald, counter)
-
-            self.builddir = ald
+            self.builddir = self._generate_builddir_name()
 
             self.log.debug("Creating the build directory %s (cleanup: %s)" % (self.builddir, self.cfg['cleanupoldbuild']))
 
