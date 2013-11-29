@@ -98,7 +98,7 @@ class EasyBlock(object):
         # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
-        self.checksums = {}
+        self.checksums = []
 
         # build/install directories
         self.builddir = None
@@ -206,7 +206,7 @@ class EasyBlock(object):
         """
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, (list, tuple)):
-            if index is not None and index < len(checksums):
+            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
                 return checksums[index]
             else:
                 return None
