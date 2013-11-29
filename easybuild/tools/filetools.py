@@ -244,30 +244,31 @@ def compute_checksum(path, checksum_type='md5'):
     @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1')
     """
     checksum_functions = {
-        'adler32': lambda x: '0x%s' % zlib.adler32(x),
-        'crc32': lambda x: '0x%s' % binascii.crc32(x),
-        'md5': lambda x: md5.md5(x).hexdigest(),
-        'sha1': lambda x: sha.sha(x).hexdigest(),
+        'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
+        'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
+        'md5': lambda p: md5.md5(open(p, 'r').read()).hexdigest(),
+        'sha1': lambda p: sha.sha(open(p, 'r').read()).hexdigest(),
+        'size': lambda p: os.path.getsize(p),
     }
     # use hashlib functionality if available
     if 'hashlib' in globals() and hasattr(hashlib, 'md5') and hasattr(hashlib, 'sha1'):
         checksum_functions.update({
-            'md5': lambda x: hashlib.md5(x).hexdigest(),
-            'sha1': lambda x: hashlib.sha1(x).hexdigest(),
+            'md5': lambda p: hashlib.md5(open(p, 'r').read()).hexdigest(),
+            'sha1': lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest(),
         })
 
     if not checksum_type in checksum_functions:
         _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, checksum_functions.keys()))
 
     try:
-        txt = open(path, 'r').read()
+        checksum = checksum_functions[checksum_type](path)
     except IOError, err:
         _log.error("Failed to read %s: %s" % (path, err))
 
-    return checksum_functions[checksum_type](txt)
+    return checksum
 
 
-def verify_checksum(path, checksum):
+def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
 
@@ -275,21 +276,30 @@ def verify_checksum(path, checksum):
     @param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
     """
     # if no checksum is provided, pretend checksum to be valid
-    if checksum is None:
+    if checksums is None:
         return True
 
-    if isinstance(checksum, basestring):
-        # default checksum type unless otherwise specified is MD5 (most common(?))
-        checksum_type = 'md5'
-    elif isinstance(checksum, tuple) and len(checksum) == 2:
-        checksum_type, checksum = checksum
-    else:
-        _log.error("Invalid checksum specification '%s', should be a string (MD5) or 2-tuple (type, value)." % checksum)
+    # make sure we have a list of checksums
+    if not isinstance(checksums, list):
+        checksums = [checksums]
 
-    actual_checksum = compute_checksum(path, checksum_type)
-    _log.debug("Computed %s checksum for %s: %s" % (checksum_type, path, actual_checksum))
+    for checksum in checksums:
+        if isinstance(checksum, basestring):
+            # default checksum type unless otherwise specified is MD5 (most common(?))
+            typ = 'md5'
+        elif isinstance(checksum, tuple) and len(checksum) == 2:
+            typ, checksum = checksum
+        else:
+            _log.error("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value)." % checksum)
 
-    return actual_checksum == checksum
+        actual_checksum = compute_checksum(path, typ)
+        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+
+        if actual_checksum != checksum:
+            return False
+
+    # if we land here, all checksums have been verified to be correct
+    return True
 
 
 def find_base_dir():
