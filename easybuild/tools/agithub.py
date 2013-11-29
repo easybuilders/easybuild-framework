@@ -28,6 +28,8 @@
 Interface to GitHub.
 
 @author: Jonathan Paugh
+@uathor: Jens Timmerman (Ghent University)
+@uathor: Kenneth Hoste (Ghent University)
 """
 
 import base64
@@ -39,6 +41,8 @@ except ImportError:
     import simplejson as json
 
 from vsc import fancylogger
+
+
 class Client(object):
   http_methods = (
       'get',
@@ -48,11 +52,12 @@ class Client(object):
       )
 
   def __init__(self, username=None, password=None, token=None):
+    self.auth_header = None
     if username is not None:
       if password is None and token is None:
-        raise TypeError("You need a password to authenticate as " + username)
+        raise TypeError("You need a password or an OAuth token to authenticate as " + username)
       if password is not None and token is not None:
-        raise TypeError("You cannot use both password and oauth token authenication")
+        raise TypeError("You cannot use both password and OAuth token authenication")
 
       if password is not None:
         self.auth_header = self.hash_pass(password)
@@ -77,10 +82,9 @@ class Client(object):
     return self.request('PUT', url, json.dumps(body), headers)
 
   def request(self, method, url, body, headers):
-    if self.username:
+    if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
-    else:
-        headers['User-Agent'] = 'agithub'
+    headers['User-Agent'] = 'agithub'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()
