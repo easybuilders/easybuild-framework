@@ -32,17 +32,27 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
+import binascii
 import errno
+import md5
 import os
 import re
 import shutil
 import signal
+import sha
 import stat
 import subprocess
 import tempfile
 import time
 import urllib
+import zlib
 from vsc import fancylogger
+
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+except ImportError:
+    pass
 
 import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
@@ -224,6 +234,62 @@ def download_file(filename, url, path):
 
     # failed to download after multiple attempts
     return None
+
+
+def compute_checksum(path, checksum_type='md5'):
+    """
+    Compute checksum of specified file.
+
+    @param path: Path of file to compute checksum for
+    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1')
+    """
+    checksum_functions = {
+        'adler32': lambda x: '0x%s' % zlib.adler32(x),
+        'crc32': lambda x: '0x%s' % binascii.crc32(x),
+        'md5': lambda x: md5.md5(x).hexdigest(),
+        'sha1': lambda x: sha.sha(x).hexdigest(),
+    }
+    # use hashlib functionality if available
+    if 'hashlib' in globals() and hasattr(hashlib, 'md5') and hasattr(hashlib, 'sha1'):
+        checksum_functions.update({
+            'md5': lambda x: hashlib.md5(x).hexdigest(),
+            'sha1': lambda x: hashlib.sha1(x).hexdigest(),
+        })
+
+    if not checksum_type in checksum_functions:
+        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, checksum_functions.keys()))
+
+    try:
+        txt = open(path, 'r').read()
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+
+    return checksum_functions[checksum_type](txt)
+
+
+def verify_checksum(path, checksum):
+    """
+    Verify checksum of specified file.
+
+    @param file: path of file to verify checksum of
+    @param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    """
+    # if no checksum is provided, pretend checksum to be valid
+    if checksum is None:
+        return True
+
+    if isinstance(checksum, basestring):
+        # default checksum type unless otherwise specified is MD5 (most common(?))
+        checksum_type = 'md5'
+    elif isinstance(checksum, tuple) and len(checksum) == 2:
+        checksum_type, checksum = checksum
+    else:
+        _log.error("Invalid checksum specification '%s', should be a string (MD5) or 2-tuple (type, value)." % checksum)
+
+    actual_checksum = compute_checksum(path, checksum_type)
+    _log.debug("Computed %s checksum for %s: %s" % (checksum_type, path, actual_checksum))
+
+    return actual_checksum == checksum
 
 
 def find_base_dir():
