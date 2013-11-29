@@ -9,6 +9,7 @@ description = "Toy C program."
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
+checksums = [('adler32', '0x706774088')]
 
 moduleclass = 'tools'
 
