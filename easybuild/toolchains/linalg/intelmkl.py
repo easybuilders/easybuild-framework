@@ -139,7 +139,8 @@ class IntelMKL(LinAlg):
         super(IntelMKL, self)._set_blacs_variables()
 
     def _set_scalapack_variables(self):
-        if LooseVersion(found_version) < LooseVersion('10.3'):
+        imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(imkl_version) < LooseVersion('10.3'):
             self.SCALAPACK_LIB.append("mkl_solver%(lp64)s_sequential")
             self.SCALAPACK_LIB_MT.append("mkl_solver%(lp64)s")
 
