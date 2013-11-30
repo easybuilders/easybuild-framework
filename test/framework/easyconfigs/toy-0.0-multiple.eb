@@ -9,7 +9,11 @@ description = "Toy C program."
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
-checksums = [('adler32', '0x706774088')]
+patches = ['toy-0.0_typo.patch']
+checksums = [
+    ('adler32', '0x706774088'),
+    '8ddef201603747562102c98a46ac4390',
+]
 
 moduleclass = 'tools'
 

@@ -280,7 +280,7 @@ class EasyBlock(object):
                 patchspec = {
                     'name': pf,
                     'path': path,
-                    'checksum': get_checksum_for(checksums, filename=pf, index=index),
+                    'checksum': self.get_checksum_for(checksums, filename=pf, index=index),
                 }
                 if suff:
                     if copy_file:
