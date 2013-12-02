@@ -106,8 +106,10 @@ DEFAULT_CONFIG = {
 
     'cleanupoldinstall': [True, ('Boolean to remove (True) or backup (False) the previous install '
                                  'directory with identical name or not.'), "FILEMANAGEMENT"],
-    'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install '
-                                     'directory'), "FILEMANAGEMENT"],
+    'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install directory'),
+                             "FILEMANAGEMENT"],
+    'buildininstalldir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
+                          'FILEMANAGEMENT'],
     'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
                              'or if the content of the files pointed to should be copied'),
                      "FILEMANAGEMENT"],
