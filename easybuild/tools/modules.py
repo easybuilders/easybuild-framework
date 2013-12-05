@@ -40,7 +40,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from distutils.version import LooseVersion
+from distutils.version import LooseVersion, StrictVersion
 from subprocess import PIPE
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, any
@@ -563,8 +563,7 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
 
     # required and optimal version
-    REQ_VERSION = LooseVersion('5.0')
-    OPT_VERSION = LooseVersion('5.1.5')
+    REQ_VERSION = StrictVersion('5.2')
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
@@ -593,10 +592,10 @@ class Lmod(ModulesTool):
 
             stderr = open(stdout_fn, 'r')
             txt = stderr.read()
-            ver_re = re.compile("^Modules based on Lua: Version (?P<version>[0-9.]+) \(.*", re.M)
+            ver_re = re.compile("^Modules based on Lua: Version (?P<version>\S+) \(.*", re.M)
             res = ver_re.search(txt)
             if res:
-                self.version = LooseVersion(res.group('version'))
+                self.version = res.group('version')
                 self.log.info("Found Lmod version %s" % self.version)
             else:
                 self.log.error("Failed to determine Lmod version from '%s help' output: %s" % (self.cmd, txt))
@@ -604,20 +603,16 @@ class Lmod(ModulesTool):
         except (IOError, OSError), err:
             self.log.error("Failed to check Lmod version: %s" % err)
 
-        # we need at least Lmod v5.0
-        if self.version >= self.REQ_VERSION:
-            # Lmod v5.1.5 is highly recommended
-            if self.version < self.OPT_VERSION:
-                self.log.warning("Lmod v%s is highly recommended." % self.OPT_VERSION)
-        else:
-            vers = (self.REQ_VERSION, self.OPT_VERSION, self.version)
-            self.log.error("EasyBuild requires Lmod version >= %s (>= %s recommended), found v%s" % vers)
+        # we need at least Lmod v5.2 (and it can't be a release candidate)
+        # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+        if StrictVersion(self.version.replace('rc', 'b')) < self.REQ_VERSION:
+            self.log.error("EasyBuild requires Lmod >= v%s (no rc), found v%s" % (self.REQ_VERSION, self.version))
 
         # run 'lmod python use <path>' for all paths in $MODULEPATH
         self.use_module_paths()
 
-        # make sure lmod spider cache is up to date
-        self.update()
+        # make sure Lmod ignores the spider cache
+        os.environ['LMOD_IGNORE_CACHE'] = '1'
 
     def available(self, mod_name=None):
         """
@@ -626,26 +621,9 @@ class Lmod(ModulesTool):
 
         @param name: a (partial) module name for filtering (default: None)
         """
-        # only retain actual modules, exclude module directories
-        def is_mod(mod):
-            """Determine is given path is an actual module, or just a directory."""
-            # trigger error when workaround below can be removed
-            fixed_lmod_version = '5.1.5'
-            if self.REQ_VERSION >= LooseVersion(fixed_lmod_version):
-                self.log.error("Code cleanup required since required Lmod version is >= v%s" % fixed_lmod_version)
-            if self.version < self.OPT_VERSION:
-                # this is a (potentially bloody slow) workaround for a bug in Lmod 5.x (< 5.1.5)
-                for mod_path in self.mod_paths:
-                    full_path = os.path.join(mod_path, mod)
-                    if os.path.exists(full_path) and os.path.isfile(full_path):
-                        return True
-                return False
-            else:
-                # module directories end with a trailing slash in Lmod version >= 5.1.5
-                return not mod.endswith('/')
-
         mods = super(Lmod, self).available(mod_name=mod_name)
-        real_mods = [mod for mod in mods if is_mod(mod)]
+        # only retain actual modules, exclude module directories (which end with a '/')
+        real_mods = [mod for mod in mods if not mod.endswith('/')]
 
         # only retain modules that with a <mod_name> prefix
         # Lmod will also returns modules with a matching substring
