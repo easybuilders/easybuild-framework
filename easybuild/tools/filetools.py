@@ -48,12 +48,6 @@ import urllib
 import zlib
 from vsc import fancylogger
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-except ImportError:
-    pass
-
 import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
@@ -110,6 +104,25 @@ STRING_ENCODING_CHARMAP = {
     r'}': "_rightcurly_",
     r'~': "_tilde_",
 }
+
+# default checksum for source and patch files
+DEFAULT_CHECKSUM = 'md5'
+
+# map of checksum types to checksum functions
+CHECKSUM_FUNCTIONS = {
+    'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
+    'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
+    'size': lambda p: os.path.getsize(p),
+}
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: hashlib.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
+except ImportError:
+    import md5, sha
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
 
 
 def read_file(path, log_error=True):
@@ -236,32 +249,18 @@ def download_file(filename, url, path):
     return None
 
 
-def compute_checksum(path, checksum_type='md5'):
+def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.
 
     @param path: Path of file to compute checksum for
-    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1')
+    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
-    checksum_functions = {
-        'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
-        'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
-        'md5': lambda p: md5.md5(open(p, 'r').read()).hexdigest(),
-        'sha1': lambda p: sha.sha(open(p, 'r').read()).hexdigest(),
-        'size': lambda p: os.path.getsize(p),
-    }
-    # use hashlib functionality if available
-    if 'hashlib' in globals() and hasattr(hashlib, 'md5') and hasattr(hashlib, 'sha1'):
-        checksum_functions.update({
-            'md5': lambda p: hashlib.md5(open(p, 'r').read()).hexdigest(),
-            'sha1': lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest(),
-        })
-
-    if not checksum_type in checksum_functions:
-        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, checksum_functions.keys()))
+    if not checksum_type in CHECKSUM_FUNCTIONS:
+        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
 
     try:
-        checksum = checksum_functions[checksum_type](path)
+        checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
         _log.error("Failed to read %s: %s" % (path, err))
 
@@ -286,7 +285,7 @@ def verify_checksum(path, checksums):
     for checksum in checksums:
         if isinstance(checksum, basestring):
             # default checksum type unless otherwise specified is MD5 (most common(?))
-            typ = 'md5'
+            typ = DEFAULT_CHECKSUM
         elif isinstance(checksum, tuple) and len(checksum) == 2:
             typ, checksum = checksum
         else:
