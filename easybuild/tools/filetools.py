@@ -121,8 +121,8 @@ try:
     CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
 except ImportError:
     import md5, sha
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest(),
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest(),
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
 
 
 def read_file(path, log_error=True):
