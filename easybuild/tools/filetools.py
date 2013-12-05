@@ -34,12 +34,10 @@ Set of file tools.
 """
 import binascii
 import errno
-import md5
 import os
 import re
 import shutil
 import signal
-import sha
 import stat
 import subprocess
 import tempfile
