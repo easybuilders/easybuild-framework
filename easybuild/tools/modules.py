@@ -611,7 +611,7 @@ class Lmod(ModulesTool):
         # run 'lmod python use <path>' for all paths in $MODULEPATH
         self.use_module_paths()
 
-        # make sure Lmod ignores the spider cache
+        # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
     def available(self, mod_name=None):
