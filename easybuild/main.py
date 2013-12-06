@@ -1251,9 +1251,9 @@ def print_dry_run(easyconfigs, robot=None):
     dry_run_fmt = "%3s %s (module: %s)"
     for spec in all_specs:
         if spec in unbuilt_specs:
-            ans = '[ ]'
+            ans = ' * [ ]'
         else:
-            ans = '[x]'
+            ans = ' * [x]'
         mod = det_full_module_name(spec['ec'])
         cfgs = os.getenv('CFGS')
         if cfgs[-1] == os.path.sep:
