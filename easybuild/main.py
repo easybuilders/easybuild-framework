@@ -1248,7 +1248,7 @@ def print_dry_run(easyconfigs, robot=None):
         print_msg("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs, robot, True)
     unbuilt_specs = skip_available(all_specs, True)
-    dry_run_fmt = "%3s %s (module: %s)"
+    dry_run_fmt = "%3s %s    # module: %s"
     for spec in all_specs:
         if spec in unbuilt_specs:
             ans = ' * [ ]'
