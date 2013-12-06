@@ -914,12 +914,19 @@ def search_file(path, query, silent=False):
     """
     print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
 
+    cfgs = os.getenv('CFGS')
+    if cfgs[-1] == os.path.sep:
+        cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
+
     query = query.lower()
     for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
         for filename in filenames:
             filename = os.path.join(dirpath, filename)
             if filename.lower().find(query) != -1:
-                print_msg("- %s" % filename, log=_log, silent=silent)
+                item = filename
+                if item[:len(cfgs)] == cfgs:
+                    item = '$CFGS' + item[len(cfgs):]
+                print_msg("* %s" % item, log=_log, silent=silent)
 
         # do not consider (certain) hidden directories
         # note: we still need to consider e.g., .local !
