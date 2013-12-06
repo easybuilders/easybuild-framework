@@ -39,6 +39,7 @@ from easybuild.tools.toolchain.linalg import LinAlg
 class IntelMKL(LinAlg):
     """Support for Intel MKL."""
 
+    # library settings are inspired by http://software.intel.com/en-us/articles/intel-mkl-link-line-advisor
     BLAS_MODULE_NAME = ['imkl']
     BLAS_LIB_MAP = {"lp64":'_lp64',
                     "interface":None,
@@ -59,8 +60,8 @@ class IntelMKL(LinAlg):
     BLACS_LIB_STATIC = True
 
     SCALAPACK_MODULE_NAME = ['imkl']
-    SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s", "mkl_solver%(lp64)s_sequential"]
-    SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s", "mkl_solver%(lp64)s"]
+    SCALAPACK_LIB = ["mkl_scalapack%(lp64_sc)s"]
+    SCALAPACK_LIB_MT = ["mkl_scalapack%(lp64_sc)s"]
     SCALAPACK_LIB_MAP = {"lp64_sc":"_lp64"}
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBBLAS']
     SCALAPACK_LIB_GROUP = True
@@ -138,6 +139,11 @@ class IntelMKL(LinAlg):
         super(IntelMKL, self)._set_blacs_variables()
 
     def _set_scalapack_variables(self):
+        imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(imkl_version) < LooseVersion('10.3'):
+            self.SCALAPACK_LIB.append("mkl_solver%(lp64)s_sequential")
+            self.SCALAPACK_LIB_MT.append("mkl_solver%(lp64)s")
+
         if self.options.get('32bit', None):
             ##32 bit
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_core'})
