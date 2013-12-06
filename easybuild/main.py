@@ -1257,7 +1257,7 @@ def print_dry_run(easyconfigs, robot=None):
         mod = det_full_module_name(spec['ec'])
         cfgs = os.getenv('CFGS')
         if cfgs[-1] == os.path.sep:
-            cfgs = cfgs[:-2]  # trim out os.path.sep separator, so that it becomes visible below
+            cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
         item = spec['spec']
         if item[:len(cfgs)] == cfgs:
              item = '$CFGS' + item[len(cfgs):]
