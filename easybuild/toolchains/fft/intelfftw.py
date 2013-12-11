@@ -55,11 +55,11 @@ class IntelFFTW(Fftw):
         fftw_libs = ["fftw3xc_intel%s" % fftwsuff]
         if self.options['usempi']:
             # add cluster interface
-            if LooseVersion(imklver) >= LooseVersion("11.0") and LooseVersion(imklver) < LooseVersion("11.1"):
-                fftw_libs.append("fftw3x_cdft_lp64%s" % fftwsuff)
-            elif LooseVersion(imklver) >= LooseVersion("10.3"):
-                fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
             if LooseVersion(imklver) < LooseVersion("11.1"):
+                if LooseVersion(imklver) >= LooseVersion("11.0"):
+                    fftw_libs.append("fftw3x_cdft_lp64%s" % fftwsuff)
+                elif LooseVersion(imklver) >= LooseVersion("10.3"):
+                    fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
                 fftw_libs.append("mkl_cdft_core")  # add cluster dft
             fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
 
