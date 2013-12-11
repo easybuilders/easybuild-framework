@@ -129,13 +129,18 @@ class IntelMKL(LinAlg):
             "MPICH2":'',
         }
         try:
-            self.BLACS_LIB_MAP.update({'mpi':mpimap[self.MPI_FAMILY]})
+            self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})
         except:
             self.log.raiseException(("_set_blacs_variables: mpi unsupported combination with"
                                      " MPI family %s") % self.MPI_FAMILY)
 
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
+
+        imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
+        if LooseVersion(imkl_version) >= LooseVersion('11.1')
+            # no separate BLACS lib for recent imkl versions
+            self.BLACS_LIB = []
 
         super(IntelMKL, self)._set_blacs_variables()
 
