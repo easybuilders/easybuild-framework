@@ -61,7 +61,7 @@ class IntelFFTW(Fftw):
                 elif LooseVersion(imklver) >= LooseVersion("10.3"):
                     fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
                 fftw_libs.append("mkl_cdft_core")  # add cluster dft
-            fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
+                fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
 
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
         fftw_libs.extend(self.variables['LIBBLAS'].flatten()) ## add core (contains dft) ; use flatten because ListOfList
