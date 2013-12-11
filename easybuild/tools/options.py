@@ -89,7 +89,7 @@ class EasyBuildOptions(GeneralOption):
                             "job":("Submit the build as a job", None, "store_true", False),
                             "skip":("Skip existing software (useful for installing additional packages)",
                                     None, "store_true", False, "k"),
-                            "robot":("Path to search for easyconfigs for missing dependencies." ,
+                            "robot":("Path(s) to search for easyconfigs for missing dependencies (colon-separated)" ,
                                      None, "store_or_None", default_robot_path, "r", {'metavar':"PATH"}),
                             "stop":("Stop the installation after certain step",
                                     "choice", "store_or_None", "source", "s", all_stops),
@@ -347,6 +347,10 @@ class EasyBuildOptions(GeneralOption):
 
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
+
+        # split supplied list of robot paths to obtain a list
+        if self.options.robot:
+            self.options.robot = self.options.robot.split(os.pathsep)
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
