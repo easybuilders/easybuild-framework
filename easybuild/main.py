@@ -130,11 +130,15 @@ def main(testing_data=(None, None, None)):
 
     # set the temp directory for tempfile and others
     if options.tmpdir is not None:
-        os.environ['TMPDIR'] = options.tmpdir
-        os.environ['TEMP'] = options.tmpdir
-        os.environ['TMP'] = options.tmpdir
-        # tempfile is already called in parse_options, reset to startpoint
-        tempfile.tempdir = None
+        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=options.tmpdir)
+    else:
+        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+
+    os.environ['TMPDIR'] = current_tmpdir
+    os.environ['TEMP'] = current_tmpdir
+    os.environ['TMP'] = current_tmpdir
+    # tempfile is already called in parse_options, reset to startpoint
+    tempfile.tempdir = None
 
     # initialise logging for main
     if options.logtostdout:
@@ -153,6 +157,8 @@ def main(testing_data=(None, None, None)):
 
     # hello world!
     _log.info(this_is_easybuild())
+
+    _log.info("Using %s as temporarily storage" % current_tmpdir)
 
     # test if temporary storage allows to execute files
     tmptest_fd, tmptest_file = tempfile.mkstemp()
@@ -246,7 +252,8 @@ def main(testing_data=(None, None, None)):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     if any([options.search, options.regtest]):
-        cleanup_logfile_and_exit(logfile, testing, True)
+        cleanup_logfile(logfile, current_tmpdir, testing)
+        sys.exit(0)
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
@@ -336,7 +343,7 @@ def main(testing_data=(None, None, None)):
             _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
-            cleanup_logfile_and_exit(logfile, testing, True)
+            cleanup_logfile(logfile, current_tmpdir, testing)
 
             sys.exit(0)
 
@@ -365,19 +372,25 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-        cleanup_logfile_and_exit(logfile, testing, False)
+        cleanup_logfile(logfile, None, testing)
         logfile = None
+
+    if not testing:
+        shutil.rmtree(current_tmpdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (current_tmpdir), log=None, silent=testing)
 
     return logfile
 
 
-def cleanup_logfile_and_exit(logfile, testing, doexit):
-    """Cleanup the logfile and exit"""
+def cleanup_logfile(logfile, tempdir, testing):
+    """Cleanup the logfile and the tmp directory"""
     if not testing and logfile is not None:
         os.remove(logfile)
         print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
-    if doexit:
-        sys.exit(0)
+
+    if not testing and tempdir is not None:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
 def find_easyconfigs(path):
