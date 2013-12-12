@@ -167,6 +167,8 @@ def main(testing_data=(None, None, None)):
     # specified robot paths are preferred over installed easyconfig files
     if options.robot:
         easyconfigs_paths = options.robot + easyconfigs_paths
+        options.robot.extend(easyconfigs_paths)
+        _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % options.robot)
 
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
@@ -176,7 +178,7 @@ def main(testing_data=(None, None, None)):
         search_path = [os.getcwd()]
         if easyconfigs_paths:
             search_path = easyconfigs_paths
-        search_file(search_path, options.search, silent=testing)
+        search_file(search_path, options.search, silent=testing, ignore_dirs=options.ignore_dirs)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -206,7 +208,7 @@ def main(testing_data=(None, None, None)):
             easyconfigs_map = {}
             for path in easyconfigs_pkg_full_paths:
                 _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
-                for (subpath, _, filenames) in os.walk(path):
+                for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
                     for idx, orig_path in ecs_to_find[:]:
                         if orig_path in filenames:
                             full_path = os.path.join(subpath, orig_path)
@@ -218,6 +220,10 @@ def main(testing_data=(None, None, None)):
                     # stop os.walk insanity as soon as we have all we need (os.walk loop)
                     if len(ecs_to_find) == 0:
                         break
+
+                    # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
+                    dirnames[:] = [d for d in dirnames if not d in self.ignore_dirs]
+
                 # stop os.walk insanity as soon as we have all we need (paths loop)
                 if len(ecs_to_find) == 0:
                     break
@@ -260,7 +266,7 @@ def main(testing_data=(None, None, None)):
             print_error("Can't find path %s" % path)
 
         try:
-            files = find_easyconfigs(path)
+            files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
             for f in files:
                 if not generated and try_to_generate and software_build_specs:
                     ec_file = easyconfig.tools.tweak(f, None, software_build_specs)
@@ -374,17 +380,20 @@ def cleanup_logfile_and_exit(logfile, testing, doexit):
         sys.exit(0)
 
 
-def find_easyconfigs(path):
+def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
     """
     if os.path.isfile(path):
         return [path]
 
+    if ignore_dirs is None:
+        ignore_dirs = []
+
     # walk through the start directory, retain all files that end in .eb
     files = []
     path = os.path.abspath(path)
-    for dirpath, _, filenames in os.walk(path):
+    for dirpath, dirnames, filenames in os.walk(path, topdown=True):
         for f in filenames:
             if not f.endswith('.eb') or f == 'TEMPLATE.eb':
                 continue
@@ -392,6 +401,9 @@ def find_easyconfigs(path):
             spec = os.path.join(dirpath, f)
             _log.debug("Found easyconfig %s" % spec)
             files.append(spec)
+
+        # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
+        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
 
     return files
 
@@ -920,10 +932,15 @@ def dep_graph(fn, specs, silent=False):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
-def search_file(paths, query, silent=False):
+def search_file(paths, query, silent=False, ignore_dirs=None):
     """
     Search for a particular file (only prints)
     """
+    if ignore_dirs is None:
+        ignore_dirs = ['.git', '.svn']
+    elif not isinstance(ignore_dirs, list):
+        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
+
     for path in paths:
         print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
 
@@ -938,8 +955,7 @@ def search_file(paths, query, silent=False):
             # note: we still need to consider e.g., .local !
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            # TODO (see #623): add a configuration option with subdirs to ignore (also taken into account for --robot)
-            dirnames[:] = [d for d in dirnames if not d in ['.git', '.svn']]
+            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
 
 
 def write_to_xml(succes, failed, filename):
@@ -1200,7 +1216,7 @@ def regtest(options, easyconfig_paths):
     ecfiles = []
     if easyconfig_paths:
         for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path)
+            ecfiles += find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
     else:
         _log.error("No easyconfig paths specified.")
 
@@ -1259,7 +1275,7 @@ def print_dry_run(easyconfigs, robot=None):
         all_specs = easyconfigs
     else: 
         print_msg("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, robot, True)
+        all_specs = resolve_dependencies(easyconfigs, robot, force=True)
     unbuilt_specs = skip_available(all_specs, True)
     dry_run_fmt = "%3s %s (module: %s)"
     for spec in all_specs:
