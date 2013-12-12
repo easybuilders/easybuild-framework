@@ -104,6 +104,8 @@ from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBL
 
 
 _log = None
+CFGSVAR = 'CFGS'
+
 
 
 def main(testing_data=(None, None, None)):
@@ -915,9 +917,10 @@ def search_file(path, query, silent=False):
     """
     print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
 
-    cfgs = os.getenv('CFGS')
-    if cfgs[-1] == os.path.sep:
-        cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
+    cfgs = os.getenv(CFGSVAR)
+    if cfgs:
+        if cfgs[-1] == os.path.sep:
+            cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
 
     query = query.lower()
     for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
@@ -926,7 +929,7 @@ def search_file(path, query, silent=False):
             if filename.lower().find(query) != -1:
                 item = filename
                 if item[:len(cfgs)] == cfgs:
-                    item = '$CFGS' + item[len(cfgs):]
+                    item = '$' + CFGSVAR + item[len(cfgs):]
                 print_msg("- %s" % item, log=_log, silent=silent)
 
         # do not consider (certain) hidden directories
@@ -1263,12 +1266,13 @@ def print_dry_run(easyconfigs, robot=None):
         else:
             ans = ' * [x]'
         mod = det_full_module_name(spec['ec'])
-        cfgs = os.getenv('CFGS')
-        if cfgs[-1] == os.path.sep:
-            cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
+        cfgs = os.getenv(CFGSVAR)
+        if cfgs:
+            if cfgs[-1] == os.path.sep:
+                cfgs = cfgs[:-1]  # trim out os.path.sep separator, so that it becomes visible below
         item = spec['spec']
         if item[:len(cfgs)] == cfgs:
-             item = '$CFGS' + item[len(cfgs):]
+             item = '$' + CFGSVAR + item[len(cfgs):]
         print dry_run_fmt % (ans, item, mod)
     
 
