@@ -579,9 +579,10 @@ def get_paths_for(subdir="easyconfigs", robot_path=None):
 
     # primary search path is robot path
     path_list = []
-    if not robot_path is None and isinstance(robot_path, basestring):
-        path_list.append(robot_path)
-
+    if isinstance(robot_path, list):
+        path_list = robot_path[:]
+    elif robot_path is not None:
+        path_list = [robot_path]
     # consider Python search path, e.g. setuptools install path for easyconfigs
     path_list.extend(sys.path)
 
