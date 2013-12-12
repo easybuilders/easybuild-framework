@@ -153,32 +153,30 @@ def main(testing_data=(None, None, None)):
 
     if not options.robot is None:
         if options.robot:
-            _log.info("Using robot path: %s" % options.robot)
+            _log.info("Using robot path(s): %s" % options.robot)
         else:
-            _log.error("No robot path specified, and unable to determine easybuild-easyconfigs install path.")
+            _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
-    easyconfigs_pkg_full_path = None
-
-    search_path = os.getcwd()
     if easyconfigs_paths:
-        easyconfigs_pkg_full_path = easyconfigs_paths[0]
-        if not options.robot:
-            search_path = easyconfigs_pkg_full_path
-        else:
-            search_path = options.robot
+        # keep track of paths for install easyconfigs, so we can obtain find specified easyconfigs
+        easyconfigs_pkg_full_paths = easyconfigs_paths[:]
     else:
-        _log.info("Failed to determine install path for easybuild-easyconfigs package.")
+        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # specified robot paths are preferred over installed easyconfig files
     if options.robot:
-        easyconfigs_paths = [options.robot] + easyconfigs_paths
+        easyconfigs_paths = options.robot + easyconfigs_paths
 
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
 
     # search for easyconfigs
     if options.search:
+        search_path = [os.getcwd()]
+        if easyconfigs_paths:
+            search_path = easyconfigs_paths
         search_file(search_path, options.search, silent=testing)
 
     # process software build specifications (if any), i.e.
@@ -196,22 +194,34 @@ def main(testing_data=(None, None, None)):
                   log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
-        # unless they we found at the given relative paths
-
-        if easyconfigs_pkg_full_path:
-            # create a mapping from filename to path in easybuild-easyconfigs package install path
-            easyconfigs_map = {}
-            for (subpath, _, filenames) in os.walk(easyconfigs_pkg_full_path):
-                for filename in filenames:
-                    easyconfigs_map.update({filename: os.path.join(subpath, filename)})
-
-            # try and find non-existing non-absolute eaysconfig paths in easybuild-easyconfigs package install path
+        # unless they were found at the given relative paths
+        if easyconfigs_pkg_full_paths:
+            # determine which easyconfigs files need to be found, if any
+            ecs_to_find = []
             for idx, orig_path in enumerate(orig_paths):
-                if not os.path.isabs(orig_path) and not os.path.exists(orig_path):
-                    if orig_path in easyconfigs_map:
-                        _log.info("Found %s in %s: %s" % (orig_path, easyconfigs_pkg_full_path,
-                                                         easyconfigs_map[orig_path]))
-                        orig_paths[idx] = easyconfigs_map[orig_path]
+                if orig_path == os.path.basename(orig_path) and not os.path.exists(orig_path):
+                    ecs_to_find.append((idx, orig_path))
+            _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
+
+            # create a mapping from filename to path in easybuild-easyconfigs package install paths
+            easyconfigs_map = {}
+            for path in easyconfigs_pkg_full_paths:
+                _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
+                for (subpath, _, filenames) in os.walk(path):
+                    for idx, orig_path in ecs_to_find[:]:
+                        if orig_path in filenames:
+                            full_path = os.path.join(subpath, orig_path)
+                            _log.info("Found %s in %s: %s" % (orig_path, path, full_path))
+                            orig_paths[idx] = full_path
+                            # if file was found, stop looking for it (first hit wins)
+                            ecs_to_find.remove((idx, orig_path))
+
+                    # stop os.walk insanity as soon as we have all we need (os.walk loop)
+                    if len(ecs_to_find) == 0:
+                        break
+                # stop os.walk insanity as soon as we have all we need (paths loop)
+                if len(ecs_to_find) == 0:
+                    break
 
         # indicate that specified paths do not contain generated easyconfig files
         paths = [(path, False) for path in orig_paths]
@@ -224,7 +234,7 @@ def main(testing_data=(None, None, None)):
         if paths:
             regtest_ok = regtest(options, [path[0] for path in paths])
         else:  # fallback: easybuild-easyconfigs install path
-            regtest_ok = regtest(options, [easyconfigs_pkg_full_path])
+            regtest_ok = regtest(options, easyconfigs_pkg_full_paths)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -677,17 +687,20 @@ def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=
                   "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
 
 
-def robot_find_easyconfig(path, name, version):
+def robot_find_easyconfig(paths, name, version):
     """
     Find an easyconfig for module in path
     """
+    if not isinstance(paths, list):
+        paths = [paths]
     # candidate easyconfig paths
-    easyconfigsPaths = easyconfig.tools.create_paths(path, name, version)
-    for easyconfigPath in easyconfigsPaths:
-        _log.debug("Checking easyconfig path %s" % easyconfigPath)
-        if os.path.isfile(easyconfigPath):
-            _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfigPath))
-            return os.path.abspath(easyconfigPath)
+    for path in paths:
+        easyconfigsPaths = easyconfig.tools.create_paths(path, name, version)
+        for easyconfigPath in easyconfigsPaths:
+            _log.debug("Checking easyconfig path %s" % easyconfigPath)
+            if os.path.isfile(easyconfigPath):
+                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfigPath))
+                return os.path.abspath(easyconfigPath)
 
     return None
 
@@ -908,25 +921,26 @@ def dep_graph(fn, specs, silent=False):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
-def search_file(path, query, silent=False):
+def search_file(paths, query, silent=False):
     """
     Search for a particular file (only prints)
     """
-    print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
+    for path in paths:
+        print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
 
-    query = query.lower()
-    for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-        for filename in filenames:
-            filename = os.path.join(dirpath, filename)
-            if filename.lower().find(query) != -1:
-                print_msg("- %s" % filename, log=_log, silent=silent)
+        query = query.lower()
+        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
+            for filename in filenames:
+                filename = os.path.join(dirpath, filename)
+                if filename.lower().find(query) != -1:
+                    print_msg("- %s" % filename, log=_log, silent=silent)
 
-        # do not consider (certain) hidden directories
-        # note: we still need to consider e.g., .local !
-        # replace list elements using [:], so os.walk doesn't process deleted directories
-        # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-        # TODO (see #623): add a configuration option with subdirs to ignore (also taken into account for --robot)
-        dirnames[:] = [d for d in dirnames if not d in ['.git', '.svn']]
+            # do not consider (certain) hidden directories
+            # note: we still need to consider e.g., .local !
+            # replace list elements using [:], so os.walk doesn't process deleted directories
+            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+            # TODO (see #623): add a configuration option with subdirs to ignore (also taken into account for --robot)
+            dirnames[:] = [d for d in dirnames if not d in ['.git', '.svn']]
 
 
 def write_to_xml(succes, failed, filename):
