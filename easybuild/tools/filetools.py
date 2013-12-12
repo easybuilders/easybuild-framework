@@ -210,6 +210,28 @@ def which(cmd):
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
 
+
+def det_common_path_prefix(paths):
+    """Determine common path prefix for a given list of paths."""
+    if not isinstance(paths, list):
+        _log.error("det_common_path_prefix: argument must be of type list (got %s: %s)" % (type(paths), paths))
+    elif not paths:
+        return None
+
+    # initial guess for common prefix
+    prefix = paths[0]
+    found_common = False
+    while not found_common and prefix != os.path.dirname(prefix):
+        prefix = os.path.dirname(prefix)
+        found_common = all([p.startswith(prefix) for p in paths])
+
+    if found_common:
+        # prefix may be empty string for relative paths with a non-common prefix
+        return prefix.rstrip(os.path.sep) or None
+    else:
+        return None
+
+
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 

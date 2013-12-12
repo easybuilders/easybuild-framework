@@ -227,6 +227,17 @@ class FileToolsTest(TestCase):
         # cleanup
         os.remove(fp)
 
+    def test_common_path_prefix(self):
+        """Test get common path prefix for a list of paths."""
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/foo', '/foo/bar/baz', '/foo/bar/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/', '/foo/bar/baz', '/foo/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/foo']), '/foo')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/bar', '/foo']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo']), None)
+        self.assertEqual(ft.det_common_path_prefix([]), None)
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(FileToolsTest)
