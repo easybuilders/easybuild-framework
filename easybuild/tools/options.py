@@ -211,6 +211,8 @@ class EasyBuildOptions(GeneralOption):
                 #  has no real meaning for regular eb usage
                 "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
                                None, "store", None),
+                'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
+                                'strlist', 'store', ['.git', '.svn']),
                 }
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))
