@@ -159,10 +159,9 @@ def main(testing_data=(None, None, None)):
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
-    if easyconfigs_paths:
-        # keep track of paths for install easyconfigs, so we can obtain find specified easyconfigs
-        easyconfigs_pkg_full_paths = easyconfigs_paths[:]
-    else:
+    # keep track of paths for install easyconfigs, so we can obtain find specified easyconfigs
+    easyconfigs_pkg_full_paths = easyconfigs_paths[:]
+    if not easyconfigs_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # specified robot paths are preferred over installed easyconfig files
