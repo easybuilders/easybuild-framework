@@ -32,6 +32,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import copy
@@ -926,7 +927,7 @@ def search_file(path, query, silent=False):
                 item = filename
                 if item[:len(cfgs)] == cfgs:
                     item = '$CFGS' + item[len(cfgs):]
-                print_msg("* %s" % item, log=_log, silent=silent)
+                print_msg("- %s" % item, log=_log, silent=silent)
 
         # do not consider (certain) hidden directories
         # note: we still need to consider e.g., .local !
