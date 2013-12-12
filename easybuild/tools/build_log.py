@@ -128,14 +128,17 @@ def get_log(name=None):
     return log
 
 
-def print_msg(msg, log=None, silent=False):
+def print_msg(msg, log=None, silent=False, prefix=True):
     """
     Print a message to stdout.
     """
     if log:
         log.info(msg)
     if not silent:
-        print "%s %s" % (EB_MSG_PREFIX, msg)
+        if prefix:
+            print "%s %s" % (EB_MSG_PREFIX, msg)
+        else:
+            print msg
 
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
