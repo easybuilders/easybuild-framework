@@ -431,8 +431,8 @@ class EasyBlock(object):
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
-            if not self.robot_path is None:
-                common_filepaths.append(self.robot_path)
+            if self.robot_path is not None:
+                common_filepaths.extend(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
             for path in ebpath + common_filepaths + srcpaths:

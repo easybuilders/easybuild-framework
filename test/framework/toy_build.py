@@ -102,6 +102,7 @@ class ToyBuildTest(TestCase):
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
+                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
                ]
         try:
             main((args, self.dummylogfn, True))
@@ -129,8 +130,17 @@ class ToyBuildTest(TestCase):
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
+        orig_sys_path = sys.path[:]
+        # add directory in which easyconfig file can be found to Python search path, since we're not specifying it full path below
+        tmpdir = tempfile.mkdtemp()
+        # note get_paths_for expects easybuild/easyconfigs subdir
+        ecs_path = os.path.join(tmpdir, "easybuild", "easyconfigs")
+        os.makedirs(ecs_path)
+        shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-multiple.eb'), ecs_path)
+        sys.path.append(tmpdir)
+
         args = [
-                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-multiple.eb'),
+                'toy-0.0-multiple.eb',
                 '--sourcepath=%s' % self.sourcepath,
                 '--buildpath=%s' % self.buildpath,
                 '--installpath=%s' % self.installpath,
@@ -146,6 +156,10 @@ class ToyBuildTest(TestCase):
         for toy_version in ['0.0-somesuffix', 'someprefix-0.0-somesuffix']:
             toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', toy_version)
             self.assertTrue(os.path.exists(toy_module), "module for toy/%s found" % toy_version)
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        sys.path = orig_sys_path
 
 def suite():
     """ return all the tests in this file """
