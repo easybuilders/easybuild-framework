@@ -93,7 +93,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file, write_file, run_cmd
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
@@ -130,17 +130,8 @@ def main(testing_data=(None, None, None)):
     options = eb_go.options
     orig_paths = eb_go.args
 
-    # set the temp directory for tempfile and others
-    if options.tmpdir is not None:
-        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=options.tmpdir)
-    else:
-        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
-
-    os.environ['TMPDIR'] = current_tmpdir
-    os.environ['TEMP'] = current_tmpdir
-    os.environ['TMP'] = current_tmpdir
-    # tempfile is already called in parse_options, reset to startpoint
-    tempfile.tempdir = None
+    # set temporary directory to use
+    set_tmpdir(options.tmpdir)
 
     # initialise logging for main
     if options.logtostdout:
@@ -160,15 +151,7 @@ def main(testing_data=(None, None, None)):
     # hello world!
     _log.info(this_is_easybuild())
 
-    _log.info("Using %s as temporarily storage" % current_tmpdir)
-
-    # test if temporary storage allows to execute files
-    tmptest_fd, tmptest_file = tempfile.mkstemp()
-    os.close(tmptest_fd)
-    os.chmod(tmptest_file, 0700)
-    if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
-        _log.warning("The temporary storage (%s) does not allow to execute files. This can cause problems in the build process" % tempfile.gettempdir())
-    os.remove(tmptest_file)
+    _log.info("Using %s as temporary directory" % current_tmpdir)
 
     # set strictness of filetools module
     if options.strict:

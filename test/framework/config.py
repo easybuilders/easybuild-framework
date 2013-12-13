@@ -38,7 +38,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
-from easybuild.tools.config import log_file_format
+from easybuild.tools.config import log_file_format, set_tmpdir
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
@@ -384,6 +384,39 @@ modules_install_suffix = '%(modsuffix)s'
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
+
+    def test_set_tmpdir(self):
+        """Test set_tmpdir config function."""
+        orig_tmpdir = os.environ.get('TMPDIR', None)
+        orig_temp = os.environ.get('TEMP', None)
+        orig_tmp = os.environ.get('TMP', None)
+        for tmpdir in [None, os.environ['HOME'], os.path.join(tempfile.gettempdir(), 'foo')]:
+            parent = tmpdir
+            if parent is None:
+                parent = tempfile.gettempdir()
+
+            set_tmpdir(tmpdir=tmpdir)
+
+            for var in ['TMPDIR', 'TEMP', 'TMP']:
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'easybuild-')))
+            tempfile_tmpdir = tempfile.mkdtemp()
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'easybuild-')))
+            fd, tempfile_tmpfile = tempfile.mkstemp()
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'easybuild-')))
+
+            # cleanup
+            shutil.rmtree(tempfile_tmpdir)
+            os.close(fd)
+            os.remove(tempfile_tmpfile)
+
+            # restore original state
+            for var, orig in [('TMPDIR', orig_tmpdir), ('TEMP', orig_temp), ('TMP', orig_tmp)]:
+                if orig is not None:
+                    os.environ[var] = orig
+                else:
+                    del os.environ[var]
+            tempfile.tempdir = None
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
