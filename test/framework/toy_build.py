@@ -28,6 +28,7 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 """
 
+import copy
 import glob
 import os
 import re
@@ -39,6 +40,7 @@ from unittest import main as unittestmain
 
 from easybuild.main import main
 from easybuild.tools import config
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -68,6 +70,9 @@ class ToyBuildTest(TestCase):
         self.installpath = tempfile.mkdtemp()
         self.sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
+
     def tearDown(self):
         """Cleanup."""
         # remove logs
@@ -80,6 +85,9 @@ class ToyBuildTest(TestCase):
 
         # restore original Python search path
         sys.path = self.orig_sys_path
+
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
     def assertErrorRegex(self, error, regex, call, *args):
         """Convenience method to match regex with the error message."""

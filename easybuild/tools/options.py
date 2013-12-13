@@ -31,6 +31,7 @@ Command line options for eb
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import re
@@ -201,6 +202,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store', None),
             'tmp-logdir': ("Log directory where temporary log files are stored",
                            None, 'store', oldstyle_defaults['tmp_logdir']),
+            'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))

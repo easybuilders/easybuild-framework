@@ -32,6 +32,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
@@ -91,7 +92,7 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
+from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file, det_common_path_prefix
 from easybuild.tools.module_generator import det_full_module_name
@@ -130,6 +131,9 @@ def main(testing_data=(None, None, None)):
     options = eb_go.options
     orig_paths = eb_go.args
 
+    # set temporary directory to use
+    eb_tmpdir = set_tmpdir(options.tmpdir)
+
     # initialise logging for main
     if options.logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True)
@@ -147,6 +151,8 @@ def main(testing_data=(None, None, None)):
 
     # hello world!
     _log.info(this_is_easybuild())
+
+    _log.info("Using %s as temporary directory" % eb_tmpdir)
 
     # set strictness of filetools module
     if options.strict:
@@ -285,7 +291,8 @@ def main(testing_data=(None, None, None)):
         print_dry_run(easyconfigs, robot=options.robot, silent=testing, short=not options.dry_run)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
-        cleanup_logfile_and_exit(logfile, testing, True)
+        cleanup_logfile_and_exit(logfile, eb_tmpdir, testing)
+        sys.exit(0)
 
     # skip modules that are already installed unless forced
     if not options.force:
@@ -337,7 +344,7 @@ def main(testing_data=(None, None, None)):
             _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
-            cleanup_logfile_and_exit(logfile, testing, True)
+            cleanup_logfile(logfile, eb_tmpdir, testing)
 
             sys.exit(0)
 
@@ -366,19 +373,25 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-        cleanup_logfile_and_exit(logfile, testing, False)
+        cleanup_logfile(logfile, None, testing)
         logfile = None
+
+    if not testing:
+        shutil.rmtree(eb_tmpdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (eb_tmpdir), log=None, silent=testing)
 
     return logfile
 
 
-def cleanup_logfile_and_exit(logfile, testing, doexit):
-    """Cleanup the logfile and exit"""
+def cleanup_logfile(logfile, tempdir, testing):
+    """Cleanup the logfile and the tmp directory"""
     if not testing and logfile is not None:
         os.remove(logfile)
         print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
-    if doexit:
-        sys.exit(0)
+
+    if not testing and tempdir is not None:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
 def find_easyconfigs(path, ignore_dirs=None):
@@ -1295,7 +1308,7 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
     if robot is None:
         print_msg("Dry run: printing build status of easyconfigs", log=_log, silent=silent)
         all_specs = easyconfigs
-    else: 
+    else:
         print_msg("Dry run: printing build status of easyconfigs and dependencies", log=_log, silent=silent)
         all_specs = resolve_dependencies(easyconfigs, robot, force=True)
 
@@ -1312,6 +1325,7 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
         else:
             ans = 'x'
         mod = det_full_module_name(spec['ec'])
+
         if short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix)+1:])
         else:
