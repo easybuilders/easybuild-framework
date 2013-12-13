@@ -228,7 +228,7 @@ def main(testing_data=(None, None, None)):
                         break
 
                     # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-                    dirnames[:] = [d for d in dirnames if not d in self.ignore_dirs]
+                    dirnames[:] = [d for d in dirnames if not d in options.ignore_dirs]
 
                 # stop os.walk insanity as soon as we have all we need (paths loop)
                 if len(ecs_to_find) == 0:
