@@ -91,7 +91,7 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
-from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
+from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
