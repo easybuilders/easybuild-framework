@@ -200,7 +200,6 @@ class CommandLineOptionsTest(TestCase):
         """Test forcing installation even if the module is already available."""
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
@@ -244,12 +243,6 @@ class CommandLineOptionsTest(TestCase):
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
 
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
-
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
 
@@ -259,7 +252,6 @@ class CommandLineOptionsTest(TestCase):
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use toy-0.0.eb easyconfig file that comes with the tests
@@ -291,7 +283,9 @@ class CommandLineOptionsTest(TestCase):
         write_file(self.logfile, '')
         os.chdir(self.pwd)
         modules_tool().purge()
+        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
         modify_env(os.environ, self.orig_environ)
+        modules_tool()
         tempfile.tempdir = None
 
         # check log message with --skip for non-existing module
@@ -321,13 +315,8 @@ class CommandLineOptionsTest(TestCase):
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
         modules_tool().purge()
-
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
+        modify_env(os.environ, self.orig_environ)
         modules_tool()
 
         # cleanup
@@ -338,7 +327,6 @@ class CommandLineOptionsTest(TestCase):
         """Test submitting build as a job."""
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
@@ -369,12 +357,6 @@ class CommandLineOptionsTest(TestCase):
 
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
-
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -771,7 +753,6 @@ class CommandLineOptionsTest(TestCase):
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use toy-0.0.eb easyconfig file that comes with the tests
