@@ -395,10 +395,11 @@ modules_install_suffix = '%(modsuffix)s'
             if parent is None:
                 parent = tempfile.gettempdir()
 
-            set_tmpdir(tmpdir=tmpdir)
+            mytmpdir = set_tmpdir(tmpdir=tmpdir)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
                 self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'easybuild-')))
+                self.assertEqual(os.environ[var], mytmpdir)
             self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'easybuild-')))
             tempfile_tmpdir = tempfile.mkdtemp()
             self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'easybuild-')))
