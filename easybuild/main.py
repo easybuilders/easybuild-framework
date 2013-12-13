@@ -131,7 +131,7 @@ def main(testing_data=(None, None, None)):
     orig_paths = eb_go.args
 
     # set temporary directory to use
-    set_tmpdir(options.tmpdir)
+    eb_tmpdir = set_tmpdir(options.tmpdir)
 
     # initialise logging for main
     if options.logtostdout:
@@ -151,7 +151,7 @@ def main(testing_data=(None, None, None)):
     # hello world!
     _log.info(this_is_easybuild())
 
-    _log.info("Using %s as temporary directory" % current_tmpdir)
+    _log.info("Using %s as temporary directory" % eb_tmpdir)
 
     # set strictness of filetools module
     if options.strict:
@@ -252,7 +252,7 @@ def main(testing_data=(None, None, None)):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     if any([options.search, options.regtest]):
-        cleanup_logfile(logfile, current_tmpdir, testing)
+        cleanup_logfile(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # building a dependency graph implies force, so that all dependencies are retained
@@ -343,7 +343,7 @@ def main(testing_data=(None, None, None)):
             _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
-            cleanup_logfile(logfile, current_tmpdir, testing)
+            cleanup_logfile(logfile, eb_tmpdir, testing)
 
             sys.exit(0)
 
@@ -376,8 +376,8 @@ def main(testing_data=(None, None, None)):
         logfile = None
 
     if not testing:
-        shutil.rmtree(current_tmpdir, ignore_errors=True)
-        print_msg('temporary directory %s has been removed.' % (current_tmpdir), log=None, silent=testing)
+        shutil.rmtree(eb_tmpdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (eb_tmpdir), log=None, silent=testing)
 
     return logfile
 
@@ -1286,7 +1286,7 @@ def print_dry_run(easyconfigs, robot=None):
     if robot is None:
         print_msg("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
-    else: 
+    else:
         print_msg("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs, robot, force=True)
     unbuilt_specs = skip_available(all_specs, True)
@@ -1298,7 +1298,7 @@ def print_dry_run(easyconfigs, robot=None):
             ans = '[x]'
         mod = det_full_module_name(spec['ec'])
         print dry_run_fmt % (ans, spec['spec'], mod)
-    
+
 
 
 if __name__ == "__main__":

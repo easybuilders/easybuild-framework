@@ -610,6 +610,8 @@ def set_tmpdir(tmpdir=None):
     except OSError, err:
         _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
 
+    return current_tmpdir
+
 
 # config variables constant
 variables = ConfigurationVariables()
