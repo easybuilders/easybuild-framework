@@ -65,7 +65,6 @@ class CommandLineOptionsTest(TestCase):
 
     def tearDown(self):
         """Post-test cleanup."""
-        # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
         os.chdir(self.pwd)
 
@@ -615,20 +614,99 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
 
         args = [
-                '--search=gzip',
-                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-                '--unittest-file=%s' % self.logfile,
-               ]
+            '--search=gzip',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+        ]
         try:
             main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
-        info_msg = r"Searching for gzip in"
+        info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
         self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
-            self.assertTrue(re.search("%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+            self.assertTrue(re.search(" \* \S*%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+        for search_arg in ['-S', '--search-short']:
+            open(self.logfile, 'w').write('')
+            args = [
+                search_arg,
+                'toy-0.0',
+                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '--unittest-file=%s' % self.logfile,
+            ]
+            try:
+                main((args, dummylogfn, False))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
+            self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
+            self.assertTrue(re.search('INFO CFGS\d+=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
+                self.assertTrue(re.search(" \* \$CFGS\d+/*%s" % ec, outtxt), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+            if os.path.exists(dummylogfn):
+                os.remove(dummylogfn)
+
+    def test_dry_run(self):
+        """Test dry runs."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
+            '--dry-run',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+        ]
+        try:
+            main((args, dummylogfn, False))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+        self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
+        ecs_mods = [
+            ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3"),
+            ("GCC-4.6.3.eb", "GCC/4.6.3"),
+        ]
+        for ec, mod in ecs_mods:
+            regex = re.compile(r" \* \[.\] \S+%s \(module: %s\)" % (ec, mod), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        for dry_run_arg in ['-D', '--dry-run-short']:
+            open(self.logfile, 'w').write('')
+            args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
+                dry_run_arg,
+                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '--unittest-file=%s' % self.logfile,
+            ]
+            try:
+                main((args, dummylogfn, False))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+            self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
+            self.assertTrue(re.search('INFO CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            ecs_mods = [
+                ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3"),
+                ("GCC-4.6.3.eb", "GCC/4.6.3"),
+            ]
+            for ec, mod in ecs_mods:
+                regex = re.compile(r" \* \[.\] \$CFGS\S+%s \(module: %s\)" % (ec, mod), re.M)
+                self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)

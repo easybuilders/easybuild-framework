@@ -80,7 +80,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-            'dry-run': ("Resolve dependencies and print build list, then stop", None, 'store_true', False),
+            'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
+            'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
                        None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
@@ -226,8 +227,10 @@ class EasyBuildOptions(GeneralOption):
                                 'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
             'list-toolchains': ("Show list of known toolchains",
                                 None, 'store_true', False),
-            'search': ("Search for easyconfig files in the robot directory",
+            'search': ("Search for easyconfig files in the robot directory, print full paths",
                        None, 'store', None, {'metavar': 'STR'}),
+            'search-short': ("Search for easyconfig files in the robot directory, print short paths",
+                             None, 'store', None, 'S', {'metavar': 'STR'}),
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))

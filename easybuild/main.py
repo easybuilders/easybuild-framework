@@ -32,6 +32,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import copy
@@ -92,7 +93,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import read_file, write_file, det_common_path_prefix
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
@@ -174,11 +175,12 @@ def main(testing_data=(None, None, None)):
     config.init(options, eb_go.get_options_by_section('config'))
 
     # search for easyconfigs
-    if options.search:
+    if options.search or options.search_short:
         search_path = [os.getcwd()]
         if easyconfigs_paths:
             search_path = easyconfigs_paths
-        search_file(search_path, options.search, silent=testing, ignore_dirs=options.ignore_dirs)
+        query = options.search or options.search_short
+        search_file(search_path, query, silent=testing, ignore_dirs=options.ignore_dirs, short=not options.search)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -189,10 +191,10 @@ def main(testing_data=(None, None, None)):
         if software_build_specs.has_key('name'):
             paths = [obtain_path(software_build_specs, easyconfigs_paths,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
-        elif not any([options.aggregate_regtest, options.search, options.regtest]):
+        elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
-                  "options to make EasyBuild search for easyconfigs"),
-                  log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+                         "options to make EasyBuild search for easyconfigs"),
+                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they were found at the given relative paths
@@ -222,7 +224,7 @@ def main(testing_data=(None, None, None)):
                         break
 
                     # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-                    dirnames[:] = [d for d in dirnames if not d in self.ignore_dirs]
+                    dirnames[:] = [d for d in dirnames if not d in options.ignore_dirs]
 
                 # stop os.walk insanity as soon as we have all we need (paths loop)
                 if len(ecs_to_find) == 0:
@@ -244,9 +246,6 @@ def main(testing_data=(None, None, None)):
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
-
-    if any([options.search, options.regtest]):
-        cleanup_logfile_and_exit(logfile, testing, True)
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
@@ -282,9 +281,11 @@ def main(testing_data=(None, None, None)):
     os.chdir(os.environ['PWD'])
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
-    if options.dry_run:
-        print_dry_run(easyconfigs, options.robot)
-        sys.exit(0)
+    if options.dry_run or options.dry_run_short:
+        print_dry_run(easyconfigs, robot=options.robot, silent=testing, short=not options.dry_run)
+
+    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
+        cleanup_logfile_and_exit(logfile, testing, True)
 
     # skip modules that are already installed unless forced
     if not options.force:
@@ -932,7 +933,7 @@ def dep_graph(fn, specs, silent=False):
         print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
-def search_file(paths, query, silent=False, ignore_dirs=None):
+def search_file(paths, query, silent=False, ignore_dirs=None, short=False):
     """
     Search for a particular file (only prints)
     """
@@ -941,21 +942,42 @@ def search_file(paths, query, silent=False, ignore_dirs=None):
     elif not isinstance(ignore_dirs, list):
         _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
 
+    var_lines = []
+    hit_lines = []
+    var_index = 1
+    var = None
     for path in paths:
-        print_msg("Searching for %s in %s " % (query.lower(), path), log=_log, silent=silent)
+        hits = []
+        hit_in_path = False
+        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
 
         query = query.lower()
         for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
             for filename in filenames:
                 filename = os.path.join(dirpath, filename)
                 if filename.lower().find(query) != -1:
-                    print_msg("- %s" % filename, log=_log, silent=silent)
+                    if not hit_in_path:
+                        var = "CFGS%d" % var_index
+                        var_index += 1
+                        hit_in_path = True
+                    hits.append(filename)
 
             # do not consider (certain) hidden directories
             # note: we still need to consider e.g., .local !
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
             dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+        if hits:
+            common_prefix = det_common_path_prefix(hits)
+            if short and common_prefix is not None and len(common_prefix) > len(var)*2:
+                var_lines.append("%s=%s" % (var, common_prefix))
+                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix)+1:]) for fn in hits])
+            else:
+                hit_lines.extend([" * %s" % fn for fn in hits])
+
+    for line in var_lines + hit_lines:
+        print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def write_to_xml(succes, failed, filename):
@@ -1269,22 +1291,37 @@ def regtest(options, easyconfig_paths):
 
         return True  # success
 
-def print_dry_run(easyconfigs, robot=None):
+def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
     if robot is None:
-        print_msg("Dry run: printing build status of easyconfigs")
+        print_msg("Dry run: printing build status of easyconfigs", log=_log, silent=silent)
         all_specs = easyconfigs
     else: 
-        print_msg("Dry run: printing build status of easyconfigs and dependencies")
+        print_msg("Dry run: printing build status of easyconfigs and dependencies", log=_log, silent=silent)
         all_specs = resolve_dependencies(easyconfigs, robot, force=True)
+
     unbuilt_specs = skip_available(all_specs, True)
-    dry_run_fmt = "%3s %s (module: %s)"
+    dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
+
+    var_name = 'CFGS'
+    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
+    short = short and common_prefix is not None and len(common_prefix) > len(var_name)*2
+    spec_lines = []
     for spec in all_specs:
         if spec in unbuilt_specs:
-            ans = '[ ]'
+            ans = ' '
         else:
-            ans = '[x]'
+            ans = 'x'
         mod = det_full_module_name(spec['ec'])
-        print dry_run_fmt % (ans, spec['spec'], mod)
+        if short:
+            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix)+1:])
+        else:
+            item = spec['spec']
+        spec_lines.append(dry_run_fmt % (ans, item, mod))
+
+    if short:
+        print_msg("%s=%s" % (var_name, common_prefix), log=_log, silent=silent, prefix=False)
+    for line in spec_lines:
+        print_msg(line, log=_log, silent=silent, prefix=False)
     
 
 
