@@ -32,6 +32,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -92,7 +93,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import read_file, write_file, run_cmd
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
@@ -129,6 +130,18 @@ def main(testing_data=(None, None, None)):
     options = eb_go.options
     orig_paths = eb_go.args
 
+    # set the temp directory for tempfile and others
+    if options.tmpdir is not None:
+        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=options.tmpdir)
+    else:
+        current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+
+    os.environ['TMPDIR'] = current_tmpdir
+    os.environ['TEMP'] = current_tmpdir
+    os.environ['TMP'] = current_tmpdir
+    # tempfile is already called in parse_options, reset to startpoint
+    tempfile.tempdir = None
+
     # initialise logging for main
     if options.logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True)
@@ -146,6 +159,16 @@ def main(testing_data=(None, None, None)):
 
     # hello world!
     _log.info(this_is_easybuild())
+
+    _log.info("Using %s as temporarily storage" % current_tmpdir)
+
+    # test if temporary storage allows to execute files
+    tmptest_fd, tmptest_file = tempfile.mkstemp()
+    os.close(tmptest_fd)
+    os.chmod(tmptest_file, 0700)
+    if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
+        _log.warning("The temporary storage (%s) does not allow to execute files. This can cause problems in the build process" % tempfile.gettempdir())
+    os.remove(tmptest_file)
 
     # set strictness of filetools module
     if options.strict:
@@ -246,7 +269,8 @@ def main(testing_data=(None, None, None)):
             sys.exit(31)  # exit -> 3x1t -> 31
 
     if any([options.search, options.regtest]):
-        cleanup_logfile_and_exit(logfile, testing, True)
+        cleanup_logfile(logfile, current_tmpdir, testing)
+        sys.exit(0)
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
@@ -336,7 +360,7 @@ def main(testing_data=(None, None, None)):
             _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
-            cleanup_logfile_and_exit(logfile, testing, True)
+            cleanup_logfile(logfile, current_tmpdir, testing)
 
             sys.exit(0)
 
@@ -365,19 +389,25 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-        cleanup_logfile_and_exit(logfile, testing, False)
+        cleanup_logfile(logfile, None, testing)
         logfile = None
+
+    if not testing:
+        shutil.rmtree(current_tmpdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (current_tmpdir), log=None, silent=testing)
 
     return logfile
 
 
-def cleanup_logfile_and_exit(logfile, testing, doexit):
-    """Cleanup the logfile and exit"""
+def cleanup_logfile(logfile, tempdir, testing):
+    """Cleanup the logfile and the tmp directory"""
     if not testing and logfile is not None:
         os.remove(logfile)
         print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
-    if doexit:
-        sys.exit(0)
+
+    if not testing and tempdir is not None:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
 def find_easyconfigs(path, ignore_dirs=None):
