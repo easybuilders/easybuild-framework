@@ -62,12 +62,16 @@ class CommandLineOptionsTest(TestCase):
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
 
     def tearDown(self):
         """Post-test cleanup."""
         # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
         os.chdir(self.pwd)
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -139,6 +143,9 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s: %s" % (log_msg_type, debug_arg, outtxt))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
     def test_info(self):
         """Test enabling info logging."""
 
@@ -162,6 +169,9 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
 
@@ -183,6 +193,9 @@ class CommandLineOptionsTest(TestCase):
             for log_msg_type in ['DEBUG', 'INFO']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
+
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
@@ -213,8 +226,10 @@ class CommandLineOptionsTest(TestCase):
         already_msg = "GCC/4.6.3 is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
-        # clear log file
+        # clear log file, clean up environment
         write_file(self.logfile, '')
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
         # check that --force works
         args = [
@@ -238,9 +253,6 @@ class CommandLineOptionsTest(TestCase):
 
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
-
-        # keep track of original environment to restore after purging *all* loaded modules
-        orig_environ = copy.deepcopy(os.environ)
 
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
@@ -280,6 +292,8 @@ class CommandLineOptionsTest(TestCase):
         write_file(self.logfile, '')
         os.chdir(self.pwd)
         modules_tool().purge()
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
         # check log message with --skip for non-existing module
         args = [
@@ -316,7 +330,6 @@ class CommandLineOptionsTest(TestCase):
             os.environ.pop('MODULEPATH')
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
         modules_tool()
-        modify_env(os.environ, orig_environ)
 
         # cleanup
         shutil.rmtree(buildpath)
@@ -354,6 +367,9 @@ class CommandLineOptionsTest(TestCase):
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
             assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
+
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
         # restore original MODULEPATH
         if orig_modulepath is not None:
@@ -400,6 +416,8 @@ class CommandLineOptionsTest(TestCase):
 
             # cleanup
             os.remove(fn)
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -453,6 +471,9 @@ class CommandLineOptionsTest(TestCase):
                                     "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
                                     (param, avail_arg, args, outtxt)
                                     )
+
+                modify_env(os.environ, self.orig_environ)
+                tempfile.tempdir = None
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -537,6 +558,9 @@ class CommandLineOptionsTest(TestCase):
                 n = len(res)
                 self.assertEqual(n, 1, "%s is only mentioned once (count: %d)" % (item, n))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
@@ -579,6 +603,9 @@ class CommandLineOptionsTest(TestCase):
                        ]:
 
                 self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
+
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
         # clear log
         write_file(self.logfile, '')
@@ -654,6 +681,58 @@ class CommandLineOptionsTest(TestCase):
         error_msg2 = "ERROR .* Unable to find an easyconfig for the given specifications"
         msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
+
+
+    def test_tmpdir(self):
+        """Test setting temporary directory to use by EasyBuild."""
+
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # set MODULEPATH to included modules
+        orig_modulepath = os.getenv('MODULEPATH', None)
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--debug',
+            '--tmpdir=%s' % tmpdir,
+        ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        outtxt = read_file(self.logfile)
+
+        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
+        found = re.search(tmpdir_msg, outtxt, re.M)
+        self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
+
+        for var in ['TMPDIR', 'TEMP', 'TMP']:
+            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'easybuild-')))
+        tempfile_tmpdir = tempfile.mkdtemp()
+        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'easybuild-')))
+        fd, tempfile_tmpfile = tempfile.mkstemp()
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'easybuild-')))
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
+        os.close(fd)
+        shutil.rmtree(tmpdir)
 
 
 def suite():
