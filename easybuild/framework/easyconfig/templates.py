@@ -73,7 +73,7 @@ TEMPLATE_CONSTANTS = [
      'sourceforge.net source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/gnu/%(namelower)s',
      'gnu.org source url'),
     ('GNU_SAVANNAH_SOURCE', 'http://download.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
