@@ -73,7 +73,7 @@ TEMPLATE_CONSTANTS = [
      'sourceforge.net source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
      'http download for gnome ftp server'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(name)s',
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
      'gnu.org source url'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
@@ -85,9 +85,17 @@ TEMPLATE_CONSTANTS = [
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('XORG_LIB', 'http://xorg.freedesktop.org/archive/individual/lib/',
+     'xorg lib source url'),
+    ('XORG_PROTO', 'http://xorg.freedesktop.org/archive/individual/proto/',
+     'xorg proto source url'),
+    ('XORG_UTIL', 'http://xorg.freedesktop.org/archive/individual/util/',
+     'xorg util source url'),
+    ('XORG_DATA', 'http://xorg.freedesktop.org/archive/individual/data/',
+     'xorg data source url'),
 
-    # TODO not urgent, others should pick it up
-    # PYPI_SOURCE CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
+    # TODO, not urgent, yet nice to have:
+    # PYPI_SOURCE CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
