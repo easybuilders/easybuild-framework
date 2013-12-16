@@ -64,7 +64,7 @@ except ImportError, err:
     graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
 
 try:
-    import  pygraph.readwrite.dot as dot
+    import pygraph.readwrite.dot as dot
 except ImportError, err:
     graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
 
@@ -79,7 +79,7 @@ except ImportError, err:
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import  EasyBuildError, print_msg, print_error, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_error, print_warning
 
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
@@ -87,8 +87,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.format.version import EasyVersion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
@@ -97,7 +96,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file, det_common_path_prefix
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import curr_module_paths, mk_module_path, modules_tool
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.repository import init_repository
@@ -117,9 +116,9 @@ def main(testing_data=(None, None, None)):
     """
     # disallow running EasyBuild as root
     if os.getuid() == 0:
-        sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n" \
-                        "That's not wise, so let's end this here.\n" \
-                        "Exiting.\n")
+        sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n"
+                         "That's not wise, so let's end this here.\n"
+                         "Exiting.\n")
         sys.exit(1)
 
     # steer behavior when testing main
@@ -194,13 +193,13 @@ def main(testing_data=(None, None, None)):
 
     paths = []
     if len(orig_paths) == 0:
-        if software_build_specs.has_key('name'):
+        if 'name' in software_build_specs:
             paths = [obtain_path(software_build_specs, easyconfigs_paths,
                                  try_to_generate=try_to_generate, exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
-                         log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+                        log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
     else:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they were found at the given relative paths
@@ -213,7 +212,6 @@ def main(testing_data=(None, None, None)):
             _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
 
             # create a mapping from filename to path in easybuild-easyconfigs package install paths
-            easyconfigs_map = {}
             for path in easyconfigs_pkg_full_paths:
                 _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
                 for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
@@ -291,7 +289,7 @@ def main(testing_data=(None, None, None)):
         print_dry_run(easyconfigs, robot=options.robot, silent=testing, short=not options.dry_run)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
-        cleanup_logfile_and_exit(logfile, eb_tmpdir, testing)
+        cleanup_logfile(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
@@ -626,19 +624,19 @@ def process_software_build_specs(options):
 
     # regular options: don't try to generate easyconfig, and search
     opts_map = {
-                'name': options.software_name,
-                'version': options.software_version,
-                'toolchain_name': options.toolchain_name,
-                'toolchain_version': options.toolchain_version,
-               }
+        'name': options.software_name,
+        'version': options.software_version,
+        'toolchain_name': options.toolchain_name,
+        'toolchain_version': options.toolchain_version,
+    }
 
     # try options: enable optional generation of easyconfig
     try_opts_map = {
-                    'name': options.try_software_name,
-                    'version': options.try_software_version,
-                    'toolchain_name': options.try_toolchain_name,
-                    'toolchain_version': options.try_toolchain_version,
-                   }
+        'name': options.try_software_name,
+        'version': options.try_software_version,
+        'toolchain_name': options.try_toolchain_name,
+        'toolchain_version': options.try_toolchain_version,
+    }
 
     # process easy options
     for (key, opt) in opts_map.items():
@@ -706,10 +704,10 @@ def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=
             try:
                 os.remove(fn)
             except OSError, err:
-                print_warning("Failed to remove generated easyconfig file %s." % fn)
+                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
             print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                  "to make EasyBuild try to generate a matching easyconfig, "
-                  "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
+                         "to make EasyBuild try to generate a matching easyconfig, "
+                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
 
 
 def robot_find_easyconfig(paths, name, version):
@@ -737,16 +735,16 @@ def get_build_stats(app, starttime):
 
     buildtime = round(time.time() - starttime, 2)
     buildstats = OrderedDict([
-                              ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
-                              ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-                              ('host', os.uname()[1]),
-                              ('platform' , platform.platform()),
-                              ('cpu_model', systemtools.get_cpu_model()),
-                              ('core_count', systemtools.get_avail_core_count()),
-                              ('timestamp', int(time.time())),
-                              ('build_time', buildtime),
-                              ('install_size', app.det_installsize()),
-                             ])
+        ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
+        ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
+        ('host', os.uname()[1]),
+        ('platform', platform.platform()),
+        ('cpu_model', systemtools.get_cpu_model()),
+        ('core_count', systemtools.get_avail_core_count()),
+        ('timestamp', int(time.time())),
+        ('build_time', buildtime),
+        ('install_size', app.det_installsize()),
+    ])
 
     return buildstats
 
@@ -879,7 +877,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
     # check for errors
     if exitCode > 0 or filetools.errorsFoundInLog > 0:
-        print_msg("\nWARNING: Build exited with exit code %d. %d possible error(s) were detected in the " \
+        print_msg("\nWARNING: Build exited with exit code %d. %d possible error(s) were detected in the "
                   "build logs, please verify the build.\n" % (exitCode, filetools.errorsFoundInLog),
                   _log, silent=silent)
 
@@ -983,9 +981,9 @@ def search_file(paths, query, silent=False, ignore_dirs=None, short=False):
 
         if hits:
             common_prefix = det_common_path_prefix(hits)
-            if short and common_prefix is not None and len(common_prefix) > len(var)*2:
+            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
-                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix)+1:]) for fn in hits])
+                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
             else:
                 hit_lines.extend([" * %s" % fn for fn in hits])
 
@@ -1304,6 +1302,7 @@ def regtest(options, easyconfig_paths):
 
         return True  # success
 
+
 def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
     if robot is None:
         print_msg("Dry run: printing build status of easyconfigs", log=_log, silent=silent)
@@ -1317,7 +1316,7 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
 
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
-    short = short and common_prefix is not None and len(common_prefix) > len(var_name)*2
+    short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
     spec_lines = []
     for spec in all_specs:
         if spec in unbuilt_specs:
@@ -1327,7 +1326,7 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
         mod = det_full_module_name(spec['ec'])
 
         if short:
-            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix)+1:])
+            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
         else:
             item = spec['spec']
         spec_lines.append(dry_run_fmt % (ans, item, mod))
@@ -1336,7 +1335,6 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
         print_msg("%s=%s" % (var_name, common_prefix), log=_log, silent=silent, prefix=False)
     for line in spec_lines:
         print_msg(line, log=_log, silent=silent, prefix=False)
-    
 
 
 if __name__ == "__main__":
