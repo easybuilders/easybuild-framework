@@ -48,6 +48,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -1853,10 +1854,11 @@ def get_module_path(name, generic=False, decode=True):
 
 def get_class(easyblock, name=None):
     """
-    Get class for a particular easyblock (or ConfigureMake by default)
+    Get class for a particular easyblock (or use default)
     """
 
-    app_mod_class = ("easybuild.easyblocks.generic.configuremake", "ConfigureMake")
+    def_class = get_easyconfig_parameter_default('easyblock')
+    def_mod_path = get_module_path(def_class, generic=True)
 
     try:
         # if no easyblock specified, try to find if one exists
@@ -1889,9 +1891,8 @@ def get_class(easyblock, name=None):
                 else:
                     # no easyblock could be found, so fall back to default class.
                     _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, app_mod_class, err))
-                    (modulepath, class_name) = app_mod_class
-                    cls = get_class_for(modulepath, class_name)
+                                (class_name, (def_mod_path, def_class), err))
+                    cls = get_class_for(def_mod_path, def_class)
 
         # something was specified, lets parse it
         else:

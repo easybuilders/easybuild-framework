@@ -33,8 +33,12 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
+from vsc import fancylogger
 
 from easybuild.tools.ordereddict import OrderedDict
+
+_log = fancylogger.getLogger('easyconfig.default', fname=False)
+
 
 # we use a tuple here so we can sort them based on the numbers
 ALL_CATEGORIES = {
@@ -53,6 +57,7 @@ ALL_CATEGORIES = {
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
+                  'easyblock': ['ConfigureMake', "EasyBlock to use for building", "OTHER"],
                   'name': [None, "Name of software", "MANDATORY"],
                   'version': [None, "Version of software", "MANDATORY"],
                   'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
@@ -173,3 +178,11 @@ def convert_to_help(opts, has_default=False):
 
     return mapping
 
+
+def get_easyconfig_parameter_default(param):
+    """Get default value for given easyconfig parameter."""
+    if param not in DEFAULT_CONFIG:
+        _log.error("Unkown easyconfig parameter: %s (known: %s)" % (param, sorted(DEFAULT_CONFIG.keys())))
+    else:
+        _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
+        return DEFAULT_CONFIG[param][0]
