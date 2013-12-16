@@ -239,7 +239,7 @@ class EasyBlock(object):
                     'cmd': cmd,
                     'checksum': self.get_checksum_for(checksums, filename=source, index=index),
                     # always set a finalpath
-                    'finalpath': self._generate_builddir_name(),
+                    'finalpath': self.builddir,
                 })
             else:
                 self.log.error('No file found for source %s' % source)
@@ -561,29 +561,35 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
-    def _generate_builddir_name(self):
-        """Generate the name for the builddir"""
-        # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
-        tcversion = self.toolchain.version
-        if tcversion.startswith('-'):
-            tcversion = tcversion[1:]
+    def gen_builddir(self):
+        """Generate the (unique) name for the builddir"""
+        clean_name = remove_unwanted_chars(self.name)
 
-        extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
-        localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
+        # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
+        tcversion = self.toolchain.version.lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
 
-        return os.path.abspath(localdir)
+        builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
+        # make sure build dir is unique
+        uniq_builddir = builddir
+        suff = 0
+        while(os.path.isdir(uniq_builddir)):
+            uniq_builddir = "%s.%d" % (builddir, suff)
+            suff += 1
+
+        self.builddir = uniq_builddir
+        self.log.info("Build dir set to %s" % self.builddir)
 
     def make_builddir(self):
         """
         Create the build directory.
         """
         if not self.build_in_installdir:
-            # make a unique build dir
-            self.builddir = self._generate_builddir_name()
-
+            # self.builddir should be already set by gen_builddir()
+            if not self.builddir:
+                self.log.error("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)" % (self.builddir, self.cfg['cleanupoldbuild']))
-
         else:
             self.log.info("Changing build dir to %s" % self.installdir)
             self.builddir = self.installdir
@@ -1705,6 +1711,7 @@ class EasyBlock(object):
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
             (False, lambda x: x.check_readiness_step()),
+            (False, lambda x: x.gen_builddir()),
             (False, lambda x: x.gen_installdir()),
             (True, lambda x: x.make_builddir()),
             (True, lambda x: env.reset_changes()),
