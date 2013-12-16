@@ -46,6 +46,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
     ('version_major_minor', "Major.Minor version"),
     ('version_major', "Major version"),
     ('version_minor', "Minor version"),
+    ('nameletter', "First letter of software name"),
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -58,6 +59,7 @@ TEMPLATE_NAMES_CONFIG = [
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
 TEMPLATE_NAMES_LOWER = [
     'name',
+    'nameletter',
 ]
 # values taken from the EasyBlock before each step
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
@@ -139,7 +141,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
-            #TODO: add these to ignore??
+                # only go trought this once
+                ignore.extend(['toolchain_name', 'toolchain_version'])
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
@@ -159,6 +162,12 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                     pass
                 # only go trought this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+        elif name[0].endswith('letter'):
+            # parse first letters
+            if name[0].startswith('name'):
+                softname = config['name'][0]
+                if softname is not None:
+                    template_values['nameletter'] = softname[0]
         else:
             _log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
 

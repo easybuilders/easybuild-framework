@@ -640,7 +640,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "%(name)s"',
             'version = "%(version)s"',
-            'homepage = "http://google.com"',
+            'homepage = "http://google.com/%%(nameletter)s/%%(nameletterlower)s"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
             'source_urls = [(GOOGLECODE_SOURCE)]',
@@ -659,6 +659,7 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
+        self.assertEqual(eb['homepage'], "http://google.com/P/p")
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
