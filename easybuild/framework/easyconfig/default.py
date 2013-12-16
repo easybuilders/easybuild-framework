@@ -91,6 +91,7 @@ DEFAULT_CONFIG = {
                   'sources': [[], "List of source files", "BUILD"],
                   'source_urls': [[], "List of URLs for source files", "BUILD"],
                   'patches': [[], "List of patches to apply", "BUILD"],
+                  'checksums': [[], "Checksums for sources and patches", "BUILD"],
                   'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                                   "non-zero exit status to fail"), "BUILD"],
                   'sanity_check_paths': [{}, ("List of files and directories to check "
