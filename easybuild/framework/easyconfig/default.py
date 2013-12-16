@@ -53,6 +53,7 @@ ALL_CATEGORIES = {
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
+                  'easyblock': ['ConfigureMake', "EasyBlock to use for building", "OTHER"],
                   'name': [None, "Name of software", "MANDATORY"],
                   'version': [None, "Version of software", "MANDATORY"],
                   'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
