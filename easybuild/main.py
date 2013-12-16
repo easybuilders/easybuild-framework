@@ -211,7 +211,7 @@ def main(testing_data=(None, None, None)):
                     ecs_to_find.append((idx, orig_path))
             _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
 
-            # create a mapping from filename to path in easybuild-easyconfigs package install paths
+            # find missing easyconfigs by walking paths with installed easyconfig files
             for path in easyconfigs_pkg_full_paths:
                 _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
                 for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
@@ -1304,11 +1304,12 @@ def regtest(options, easyconfig_paths):
 
 
 def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
+    lines = []
     if robot is None:
-        print_msg("Dry run: printing build status of easyconfigs", log=_log, silent=silent)
+        lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
-        print_msg("Dry run: printing build status of easyconfigs and dependencies", log=_log, silent=silent)
+        lines.append("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs, robot, force=True)
 
     unbuilt_specs = skip_available(all_specs, True)
@@ -1317,7 +1318,6 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
     short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
-    spec_lines = []
     for spec in all_specs:
         if spec in unbuilt_specs:
             ans = ' '
@@ -1329,12 +1329,12 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
         else:
             item = spec['spec']
-        spec_lines.append(dry_run_fmt % (ans, item, mod))
+        lines.append(dry_run_fmt % (ans, item, mod))
 
     if short:
-        print_msg("%s=%s" % (var_name, common_prefix), log=_log, silent=silent, prefix=False)
-    for line in spec_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
+        # insert after 'Dry run:' message
+        lines.insert(1, "%s=%s" % (var_name, common_prefix))
+    print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
 
 
 if __name__ == "__main__":
