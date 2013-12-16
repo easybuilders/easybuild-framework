@@ -708,7 +708,7 @@ class CommandLineOptionsTest(TestCase):
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
             self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
-            self.assertTrue(re.search('INFO CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            self.assertTrue(re.search('CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
             ecs_mods = [
                 ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3"),
                 ("GCC-4.6.3.eb", "GCC/4.6.3"),
