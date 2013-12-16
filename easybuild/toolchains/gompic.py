@@ -29,11 +29,10 @@ EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CU
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
-from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.gcccuda import GccCUDA
 from easybuild.toolchains.mpi.openmpi import OpenMPI
-from easybuild.toolchains.compiler.cuda import Cuda
 
 
-class Gompic(Gcc, OpenMPI, Cuda):
-    """Compiler toolchain with GCC and OpenMPI and CUDA."""
+class Gompic(GccCUDA, OpenMPI):
+    """Compiler toolchain with GCC+CUDA and OpenMPI."""
     NAME = 'gompic'
