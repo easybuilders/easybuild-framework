@@ -182,8 +182,6 @@ def convert_to_help(opts, has_default=False):
                            for opt in opts if opt[1][2] == cat]
 
     return mapping
-<<<<<<< HEAD
-=======
 
 
 def get_easyconfig_parameter_default(param):
@@ -193,4 +191,3 @@ def get_easyconfig_parameter_default(param):
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]
->>>>>>> develop
