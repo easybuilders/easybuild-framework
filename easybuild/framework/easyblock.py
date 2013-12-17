@@ -128,7 +128,7 @@ class EasyBlock(object):
         )
 
         # indicates whether build should be performed in installation dir
-        self.build_in_installdir = False
+        self.build_in_installdir = self.cfg['buildininstalldir']
 
         # logging
         self.log = None

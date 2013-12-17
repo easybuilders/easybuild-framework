@@ -239,9 +239,9 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(self.eb_file)
         resb = eb.gen_builddir()
-        eb.make_builddir()
         eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
+        eb.make_builddir()
         eb.make_installdir()
         # doesn't return anything
         self.assertEqual(resb, None)
