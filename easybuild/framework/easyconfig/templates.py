@@ -145,7 +145,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
-                # only go trought this once
+                # only go through this once
                 ignore.extend(['toolchain_name', 'toolchain_version'])
 
         elif name[0].startswith('version_'):
@@ -164,7 +164,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
-                # only go trought this once
+                # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
         elif name[0].endswith('letter'):
             # parse first letters
