@@ -46,6 +46,7 @@ from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
@@ -755,6 +756,32 @@ class EasyConfigTest(TestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+    def test_buildininstalldir(self):
+        """Test specifying build in install dir."""
+        config.variables['buildpath'] = tempfile.mkdtemp()
+        config.variables['installpath'] = tempfile.mkdtemp()
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'buildininstalldir = True',
+        ])
+        self.prep()
+        eb = EasyBlock(self.eb_file)
+        eb.gen_builddir()
+        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        eb.gen_installdir()
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(eb.builddir, eb.installdir)
+        self.assertTrue(os.path.isdir(eb.builddir))
+
+        # cleanup
+        shutil.rmtree(config.variables['buildpath'])
+        shutil.rmtree(config.variables['installpath'])
 
 
 def suite():
