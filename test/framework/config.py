@@ -28,6 +28,7 @@ Unit tests for EasyBuild configuration.
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import copy
 import os
 import shutil
 import tempfile
@@ -38,8 +39,9 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
-from easybuild.tools.config import log_file_format
+from easybuild.tools.config import log_file_format, set_tmpdir
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
 
@@ -61,6 +63,8 @@ class EasyBuildConfigTest(TestCase):
         config.variables = ConfigurationVariables()
         self.tmpdir = tempfile.mkdtemp()
         self.cleanup()
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
 
     def tearDown(self):
         """Clean up after a config test."""
@@ -69,6 +73,8 @@ class EasyBuildConfigTest(TestCase):
             shutil.rmtree(self.tmpdir)
         except OSError:
             pass
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
     def configure_options(self, args=None):
         """(re)Configure."""
@@ -210,9 +216,6 @@ class EasyBuildConfigTest(TestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
-        del os.environ['EASYBUILDINSTALLPATH']
-
-        del os.environ['EASYBUILDPREFIX']
 
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
@@ -326,7 +329,6 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(log_file_format(return_directory=True), logdir)
         self.assertEqual(log_file_format(), logtmpl)
         self.assertEqual(get_build_log_path(), tmplogdir)
-        del os.environ['EASYBUILDCONFIG']
 
     def test_generaloption_config(self):
         """Test new-style configuration (based on generaloption)."""
@@ -382,8 +384,29 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
 
-        del os.environ['EASYBUILD_PREFIX']
-        del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
+    def test_set_tmpdir(self):
+        """Test set_tmpdir config function."""
+        for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
+            parent = tmpdir
+            if parent is None:
+                parent = tempfile.gettempdir()
+
+            mytmpdir = set_tmpdir(tmpdir=tmpdir)
+
+            for var in ['TMPDIR', 'TEMP', 'TMP']:
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'easybuild-')))
+                self.assertEqual(os.environ[var], mytmpdir)
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'easybuild-')))
+            tempfile_tmpdir = tempfile.mkdtemp()
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'easybuild-')))
+            fd, tempfile_tmpfile = tempfile.mkstemp()
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'easybuild-')))
+
+            # cleanup
+            os.close(fd)
+            shutil.rmtree(mytmpdir)
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

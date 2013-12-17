@@ -46,6 +46,7 @@ TEMPLATE_NAMES_EASYCONFIG = [
     ('version_major_minor', "Major.Minor version"),
     ('version_major', "Major version"),
     ('version_minor', "Minor version"),
+    ('nameletter', "First letter of software name"),
 ]
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -58,6 +59,7 @@ TEMPLATE_NAMES_CONFIG = [
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
 TEMPLATE_NAMES_LOWER = [
     'name',
+    'nameletter',
 ]
 # values taken from the EasyBlock before each step
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
@@ -67,27 +69,43 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
     # source url constants
-    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
-     'googlecode.com source url'),
-    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
-     'sourceforge.net source url'),
-    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
-     'http download for gnome ftp server'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(name)s',
-     'gnu.org source url'),
-    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
-     'CRAN (contrib) source url'),
-    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
-     'cran.r-project.org (base) source url'),
-    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
-     'launchpad.net source url'),
     ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
+     'CRAN (contrib) source url'),
+    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
+     'http download for gnome ftp server'),
+    ('GNU_SAVANNAH_SOURCE', 'http://download.savannah.gnu.org/releases/%(namelower)s',
+     'download.savannah.gnu.org source url'),
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
+     'gnu.org source url'),
+    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
+     'googlecode.com source url'),
+    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
+     'launchpad.net source url'),
+    ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+     'pypi source url'),  # e.g., Cython, Sphinx
+    ('PYPI_LOWER_SOURCE', 'http://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+     'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
+    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
+     'cran.r-project.org (base) source url'),
+    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
+     'sourceforge.net source url'),
+    ('XORG_DATA_SOURCE', 'http://xorg.freedesktop.org/archive/individual/data/',
+     'xorg data source url'),
+    ('XORG_LIB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/lib/',
+     'xorg lib source url'),
+    ('XORG_PROTO_SOURCE', 'http://xorg.freedesktop.org/archive/individual/proto/',
+     'xorg proto source url'),
+    ('XORG_UTIL_SOURCE', 'http://xorg.freedesktop.org/archive/individual/util/',
+     'xorg util source url'),
+    ('XORG_XCB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/xcb/',
+     'xorg xcb source url'),
 
-    # TODO not urgent, others should pick it up
-    # PYPI_SOURCE CPAN_SOURCE XORG GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
+    # TODO, not urgent, yet nice to have:
+    # CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
@@ -127,7 +145,8 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
                 template_values['toolchain_version'] = tc.get('version', None)
-            #TODO: add these to ignore??
+                # only go through this once
+                ignore.extend(['toolchain_name', 'toolchain_version'])
 
         elif name[0].startswith('version_'):
             # parse major and minor version numbers
@@ -145,8 +164,14 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
-                # only go trought this once
+                # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+        elif name[0].endswith('letter'):
+            # parse first letters
+            if name[0].startswith('name'):
+                softname = config['name'][0]
+                if softname is not None:
+                    template_values['nameletter'] = softname[0]
         else:
             _log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
 

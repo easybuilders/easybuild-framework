@@ -109,7 +109,7 @@ class IntelIccIfort(Compiler):
         if self.options.get('32bit', None):
             libpaths.append('ia32')
         libpaths = ['lib/%s' % x for x in libpaths]
-        if LooseVersion(icc_version) > LooseVersion('2011.4'):
+        if LooseVersion(icc_version) > LooseVersion('2011.4') and LooseVersion(icc_version) < LooseVersion('2013_sp1'):
             libpaths = ['compiler/%s' % x for x in libpaths]
 
         self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)

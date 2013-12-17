@@ -48,6 +48,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -238,6 +239,8 @@ class EasyBlock(object):
                     'path': path,
                     'cmd': cmd,
                     'checksum': self.get_checksum_for(checksums, filename=source, index=index),
+                    # always set a finalpath
+                    'finalpath': self.builddir,
                 })
             else:
                 self.log.error('No file found for source %s' % source)
@@ -431,8 +434,8 @@ class EasyBlock(object):
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
-            if not self.robot_path is None:
-                common_filepaths.append(self.robot_path)
+            if self.robot_path is not None:
+                common_filepaths.extend(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
             for path in ebpath + common_filepaths + srcpaths:
@@ -559,32 +562,35 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
+    def gen_builddir(self):
+        """Generate the (unique) name for the builddir"""
+        clean_name = remove_unwanted_chars(self.name)
+
+        # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
+        tcversion = self.toolchain.version.lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+
+        builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
+
+        # make sure build dir is unique
+        uniq_builddir = builddir
+        suff = 0
+        while(os.path.isdir(uniq_builddir)):
+            uniq_builddir = "%s.%d" % (builddir, suff)
+            suff += 1
+
+        self.builddir = uniq_builddir
+        self.log.info("Build dir set to %s" % self.builddir)
 
     def make_builddir(self):
         """
         Create the build directory.
         """
         if not self.build_in_installdir:
-            # make a unique build dir
-            # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
-            tcversion = self.toolchain.version
-            if tcversion.startswith('-'):
-                tcversion = tcversion[1:]
-
-            extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
-            localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
-
-            ald = os.path.abspath(localdir)
-            tmpald = ald
-            counter = 1
-            while os.path.isdir(tmpald):
-                counter += 1
-                tmpald = "%s.%d" % (ald, counter)
-
-            self.builddir = ald
-
+            # self.builddir should be already set by gen_builddir()
+            if not self.builddir:
+                self.log.error("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)" % (self.builddir, self.cfg['cleanupoldbuild']))
-
         else:
             self.log.info("Changing build dir to %s" % self.installdir)
             self.builddir = self.installdir
@@ -1706,6 +1712,7 @@ class EasyBlock(object):
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
             (False, lambda x: x.check_readiness_step()),
+            (False, lambda x: x.gen_builddir()),
             (False, lambda x: x.gen_installdir()),
             (True, lambda x: x.make_builddir()),
             (True, lambda x: env.reset_changes()),
@@ -1853,10 +1860,11 @@ def get_module_path(name, generic=False, decode=True):
 
 def get_class(easyblock, name=None):
     """
-    Get class for a particular easyblock (or ConfigureMake by default)
+    Get class for a particular easyblock (or use default)
     """
 
-    app_mod_class = ("easybuild.easyblocks.generic.configuremake", "ConfigureMake")
+    def_class = get_easyconfig_parameter_default('easyblock')
+    def_mod_path = get_module_path(def_class, generic=True)
 
     try:
         # if no easyblock specified, try to find if one exists
@@ -1889,9 +1897,8 @@ def get_class(easyblock, name=None):
                 else:
                     # no easyblock could be found, so fall back to default class.
                     _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, app_mod_class, err))
-                    (modulepath, class_name) = app_mod_class
-                    cls = get_class_for(modulepath, class_name)
+                                (class_name, (def_mod_path, def_class), err))
+                    cls = get_class_for(def_mod_path, def_class)
 
         # something was specified, lets parse it
         else:

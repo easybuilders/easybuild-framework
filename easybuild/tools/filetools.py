@@ -34,12 +34,10 @@ Set of file tools.
 """
 import binascii
 import errno
-import md5
 import os
 import re
 import shutil
 import signal
-import sha
 import stat
 import subprocess
 import tempfile
@@ -47,12 +45,7 @@ import time
 import urllib
 import zlib
 from vsc import fancylogger
-
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-except ImportError:
-    pass
+from vsc.utils.missing import all
 
 import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
@@ -110,6 +103,25 @@ STRING_ENCODING_CHARMAP = {
     r'}': "_rightcurly_",
     r'~': "_tilde_",
 }
+
+# default checksum for source and patch files
+DEFAULT_CHECKSUM = 'md5'
+
+# map of checksum types to checksum functions
+CHECKSUM_FUNCTIONS = {
+    'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
+    'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
+    'size': lambda p: os.path.getsize(p),
+}
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: hashlib.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
+except ImportError:
+    import md5, sha
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
 
 
 def read_file(path, log_error=True):
@@ -199,6 +211,28 @@ def which(cmd):
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
 
+
+def det_common_path_prefix(paths):
+    """Determine common path prefix for a given list of paths."""
+    if not isinstance(paths, list):
+        _log.error("det_common_path_prefix: argument must be of type list (got %s: %s)" % (type(paths), paths))
+    elif not paths:
+        return None
+
+    # initial guess for common prefix
+    prefix = paths[0]
+    found_common = False
+    while not found_common and prefix != os.path.dirname(prefix):
+        prefix = os.path.dirname(prefix)
+        found_common = all([p.startswith(prefix) for p in paths])
+
+    if found_common:
+        # prefix may be empty string for relative paths with a non-common prefix
+        return prefix.rstrip(os.path.sep) or None
+    else:
+        return None
+
+
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
@@ -236,32 +270,18 @@ def download_file(filename, url, path):
     return None
 
 
-def compute_checksum(path, checksum_type='md5'):
+def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.
 
     @param path: Path of file to compute checksum for
-    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1')
+    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
-    checksum_functions = {
-        'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
-        'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
-        'md5': lambda p: md5.md5(open(p, 'r').read()).hexdigest(),
-        'sha1': lambda p: sha.sha(open(p, 'r').read()).hexdigest(),
-        'size': lambda p: os.path.getsize(p),
-    }
-    # use hashlib functionality if available
-    if 'hashlib' in globals() and hasattr(hashlib, 'md5') and hasattr(hashlib, 'sha1'):
-        checksum_functions.update({
-            'md5': lambda p: hashlib.md5(open(p, 'r').read()).hexdigest(),
-            'sha1': lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest(),
-        })
-
-    if not checksum_type in checksum_functions:
-        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, checksum_functions.keys()))
+    if not checksum_type in CHECKSUM_FUNCTIONS:
+        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
 
     try:
-        checksum = checksum_functions[checksum_type](path)
+        checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
         _log.error("Failed to read %s: %s" % (path, err))
 
@@ -286,7 +306,7 @@ def verify_checksum(path, checksums):
     for checksum in checksums:
         if isinstance(checksum, basestring):
             # default checksum type unless otherwise specified is MD5 (most common(?))
-            typ = 'md5'
+            typ = DEFAULT_CHECKSUM
         elif isinstance(checksum, tuple) and len(checksum) == 2:
             typ, checksum = checksum
         else:
