@@ -6,7 +6,7 @@ v1.10.0 (December Xth 2013)
 
 feature + bugfix release
 - various other enhancements, including:
-    - prefix string provided to module-whatis with 'Description: ', so Lmod's 'module spider' will pick it up (#795)
+    - prefix string provided to module-whatis with 'Description: ', so Lmod's 'module spider' will pick it up (#796)
 
 v1.9.0 (November 17th 2013)
 ---------------------------
