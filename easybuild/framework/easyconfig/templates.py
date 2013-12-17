@@ -89,6 +89,10 @@ TEMPLATE_CONSTANTS = [
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+     'pypi source url'),  # e.g., Cython, Sphinx
+    ('PYPI_LOWER_SOURCE', 'http://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+     'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
     ('XORG_DATA_SOURCE', 'http://xorg.freedesktop.org/archive/individual/data/',
      'xorg data source url'),
     ('XORG_LIB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/lib/',
