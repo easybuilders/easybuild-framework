@@ -93,7 +93,7 @@ class ModuleGeneratorTest(TestCase):
             "    }",
             "}",
             "",
-            "module-whatis {%s}" % gzip_txt,
+            "module-whatis {Description: %s}" % gzip_txt,
             "",
             "set root    %s" % self.modgen.app.installdir,
             "",
