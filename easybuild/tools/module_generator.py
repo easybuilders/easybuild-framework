@@ -120,7 +120,7 @@ class ModuleGenerator(object):
             "    }",
             "}",
             "",
-            "module-whatis {%(description)s}",
+            "module-whatis {Description: %(description)s}",
             "",
             "set root    %(installdir)s",
             "",
