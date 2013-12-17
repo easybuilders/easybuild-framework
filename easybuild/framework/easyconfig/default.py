@@ -58,58 +58,56 @@ ALL_CATEGORIES = {
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
     # MANDATORY easyconfig parameters
-    'name': [None, "Name of software", "MANDATORY"],
-    'version': [None, "Version of software", "MANDATORY"],
-    'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
     'description': [None, 'A short description of the software', "MANDATORY"],
     'homepage': [None, 'The homepage of the software', "MANDATORY"],
     'license': [None, 'Software license', "MANDATORY"],  # TODO not yet in MANDATORY_PARAMS, so not enforced
+    'name': [None, "Name of software", "MANDATORY"],
+    'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
+    'version': [None, "Version of software", "MANDATORY"],
 
     # TOOLCHAIN easyconfig parameters
-    'toolchainopts': [None, 'Extra options for compilers', "TOOLCHAIN"],
     'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
                           'the environment with module (True) or also set all other '
                           'variables (False) like compiler CC etc (if string: comma '
                           'separated list of variables that will be ignored).'), "TOOLCHAIN"],
+    'toolchainopts': [None, 'Extra options for compilers', "TOOLCHAIN"],
 
     # BUILD easyconfig parameters
+    'checksums': [[], "Checksums for sources and patches", "BUILD"],
+    'configopts': ['', 'Extra options passed to configure (default already has --prefix)', "BUILD"],
     'easyblock': ['ConfigureMake', "EasyBlock to use for building", "BUILD"],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", "BUILD"],
-    'versionsuffix': ['', 'Additional suffix for software version (placed after toolchain name)', "BUILD"],
-    'versionprefix': ['', ('Additional prefix for software version '
-                           '(placed before version and toolchain name)'), "BUILD"],
+    'installopts': ['', 'Extra options for installation', "BUILD"],
+    'makeopts': ['', 'Extra options passed to make (default already has -j X)', "BUILD"],
+    'maxparallel': [None, 'Max degree of parallelism', "BUILD"],
+    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
+                        'cores, active cpuset and restrictions in ulimit)'), "BUILD"],
+    'patches': [[], "List of patches to apply", "BUILD"],
+    'preconfigopts': ['', 'Extra options pre-passed to configure.', "BUILD"],
+    'preinstallopts': ['', 'Extra prefix options for installation.', "BUILD"],
+    'premakeopts': ['', 'Extra options pre-passed to build command.', "BUILD"],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), "BUILD"],
-    'preconfigopts': ['', 'Extra options pre-passed to configure.', "BUILD"],
-    'configopts': ['', 'Extra options passed to configure (default already has --prefix)', "BUILD"],
-    'premakeopts': ['', 'Extra options pre-passed to build command.', "BUILD"],
-    'makeopts': ['', 'Extra options passed to make (default already has -j X)', "BUILD"],
-    'preinstallopts': ['', 'Extra prefix options for installation.', "BUILD"],
-    'installopts': ['', 'Extra options for installation', "BUILD"],
-    'unpack_options': [None, "Extra options for unpacking source", "BUILD"],
-    'stop': [None, 'Keyword to halt the build process after a certain step.', "BUILD"],
-    'skip': [False, "Skip existing software", "BUILD"],
-    'skipsteps': [[], "Skip these steps", "BUILD"],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores and restrictions in ulimit)'), "BUILD"],
-    'maxparallel': [None, 'Max degree of parallelism', "BUILD"],
-    'sources': [[], "List of source files", "BUILD"],
-    'source_urls': [[], "List of URLs for source files", "BUILD"],
-    'patches': [[], "List of patches to apply", "BUILD"],
-    'checksums': [[], "Checksums for sources and patches", "BUILD"],
-    'tests': [[], ("List of test-scripts to run after install. A test script should return a "
-                   "non-zero exit status to fail"), "BUILD"],
-    'sanity_check_paths': [{}, ("List of files and directories to check "
-                                "(format: {'files':<list>, 'dirs':<list>})"), "BUILD"],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), "BUILD"],
+    'sanity_check_paths': [{}, ("List of files and directories to check "
+                                "(format: {'files':<list>, 'dirs':<list>})"), "BUILD"],
+    'skip': [False, "Skip existing software", "BUILD"],
+    'skipsteps': [[], "Skip these steps", "BUILD"],
+    'source_urls': [[], "List of URLs for source files", "BUILD"],
+    'sources': [[], "List of source files", "BUILD"],
+    'stop': [None, 'Keyword to halt the build process after a certain step.', "BUILD"],
+    'tests': [[], ("List of test-scripts to run after install. A test script should return a "
+                   "non-zero exit status to fail"), "BUILD"],
+    'unpack_options': [None, "Extra options for unpacking source", "BUILD"],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", "BUILD"],
+    'versionprefix': ['', ('Additional prefix for software version '
+                           '(placed before version and toolchain name)'), "BUILD"],
+    'versionsuffix': ['', 'Additional suffix for software version (placed after toolchain name)', "BUILD"],
 
     # FILEMANAGEMENT easyconfig parameters
-    'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
-                         'If not, this is added to the guessed path.'), "FILEMANAGEMENT"],
-    'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
-                                    'name. Experts only!'), "FILEMANAGEMENT"],
+    'buildininstalldir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
+                          'FILEMANAGEMENT'],
     'cleanupoldbuild': [True, ('Boolean to remove (True) or backup (False) the previous build '
                                'directory with identical name or not.'), "FILEMANAGEMENT"],
 
@@ -117,35 +115,37 @@ DEFAULT_CONFIG = {
                                  'directory with identical name or not.'), "FILEMANAGEMENT"],
     'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install directory'),
                              "FILEMANAGEMENT"],
-    'buildininstalldir': [False, ('Boolean to build (True) or not build (False) in the installation directory'),
-                          'FILEMANAGEMENT'],
+    'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
+                                    'name. Experts only!'), "FILEMANAGEMENT"],
     'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
                              'or if the content of the files pointed to should be copied'),
                      "FILEMANAGEMENT"],
+    'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
+                         'If not, this is added to the guessed path.'), "FILEMANAGEMENT"],
 
     # DEPENDENCIES easyconfig parameters
-    'dependencies': [[], "List of dependencies", "DEPENDENCIES"],
-    'builddependencies': [[], "List of build dependencies", "DEPENDENCIES"],
-    'osdependencies': [[], "OS dependencies that should be present on the system", "DEPENDENCIES"],
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", "DEPENDENCIES"],
+    'builddependencies': [[], "List of build dependencies", "DEPENDENCIES"],
+    'dependencies': [[], "List of dependencies", "DEPENDENCIES"],
+    'osdependencies': [[], "OS dependencies that should be present on the system", "DEPENDENCIES"],
 
     # LICENSE easyconfig parameters
+    'group': [None, "Name of the user group for which the software should be available", "LICENSE"],
+    'key': [None, 'Key for installing software', "LICENSE"],
     'license_file': [None, 'License file for software', "LICENSE"],
     'license_server': [None, 'License server for software', "LICENSE"],
     'license_server_port': [None, 'Port for license server', "LICENSE"],
-    'key': [None, 'Key for installing software', "LICENSE"],
-    'group': [None, "Name of the user group for which the software should be available", "LICENSE"],
 
     # EXTENSIONS easyconfig parameters
-    'exts_list': [[], 'List with extensions added to the base installation', "EXTENSIONS"],
-    'exts_defaultclass': [None, "List of module for and name of the default extension class", "EXTENSIONS"],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", "EXTENSIONS"],
+    'exts_defaultclass': [None, "List of module for and name of the default extension class", "EXTENSIONS"],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
                            "(templates for name, version and src)."), "EXTENSIONS"],
+    'exts_list': [[], 'List with extensions added to the base installation', "EXTENSIONS"],
 
     # MODULES easyconfig parameters
-    'modextravars': [{}, "Extra environment variables to be added to module file", "MODULES"],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", "MODULES"],
+    'modextravars': [{}, "Extra environment variables to be added to module file", "MODULES"],
     'moduleclass': ['base', 'Module class to be used for this software', "MODULES"],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', "MODULES"],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", "MODULES"],
@@ -153,98 +153,6 @@ DEFAULT_CONFIG = {
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", "OTHER"],
 }
-=======
-                  'name': [None, "Name of software", "MANDATORY"],
-                  'version': [None, "Version of software", "MANDATORY"],
-                  'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
-                  'description': [None, 'A short description of the software', "MANDATORY"],
-                  'homepage': [None, 'The homepage of the software', "MANDATORY"],
-                  # TODO not yet in MANDATORY_PARAMS, so not enforced
-                  'license': [None, 'Software license', "MANDATORY"],
-
-                  'toolchainopts': [None, 'Extra options for compilers', "TOOLCHAIN"],
-                  'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
-                                         'the environment with module (True) or also set all other '
-                                         'variables (False) like compiler CC etc (if string: comma '
-                                         'separated list of variables that will be ignored).'), "TOOLCHAIN"],
-
-                  'easybuild_version': [None, "EasyBuild-version this spec-file was written for", "BUILD"],
-                  'versionsuffix': ['', 'Additional suffix for software version (placed after toolchain name)',
-                                     "BUILD"],
-                  'versionprefix': ['', ('Additional prefix for software version '
-                                          '(placed before version and toolchain name)'), "BUILD"],
-                  'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
-                                      'after make (for e.g.,"test" for make test)'), "BUILD"],
-                  'preconfigopts': ['', 'Extra options pre-passed to configure.', "BUILD"],
-                  'configopts': ['', 'Extra options passed to configure (default already has --prefix)', "BUILD"],
-                  'premakeopts': ['', 'Extra options pre-passed to build command.', "BUILD"],
-                  'makeopts': ['', 'Extra options passed to make (default already has -j X)', "BUILD"],
-                  'preinstallopts': ['', 'Extra prefix options for installation.', "BUILD"],
-                  'installopts': ['', 'Extra options for installation', "BUILD"],
-                  'unpack_options': [None, "Extra options for unpacking source", "BUILD"],
-                  'stop': [None, 'Keyword to halt the build process after a certain step.', "BUILD"],
-                  'skip': [False, "Skip existing software", "BUILD"],
-                  'skipsteps': [[], "Skip these steps", "BUILD"],
-                  'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                                       'cores and restrictions in ulimit)'), "BUILD"],
-                  'maxparallel': [None, 'Max degree of parallelism', "BUILD"],
-                  'sources': [[], "List of source files", "BUILD"],
-                  'source_urls': [[], "List of URLs for source files", "BUILD"],
-                  'patches': [[], "List of patches to apply", "BUILD"],
-                  'checksums': [[], "Checksums for sources and patches", "BUILD"],
-                  'tests': [[], ("List of test-scripts to run after install. A test script should return a "
-                                  "non-zero exit status to fail"), "BUILD"],
-                  'sanity_check_paths': [{}, ("List of files and directories to check "
-                                               "(format: {'files':<list>, 'dirs':<list>})"), "BUILD"],
-                  'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
-                                                  "Using a non-tuple is equivalent to (name, '-h')"), "BUILD"],
-                  'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", "BUILD"],
-
-                  'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
-                                        'If not, this is added to the guessed path.'), "FILEMANAGEMENT"],
-                  'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
-                                                   'name. Experts only!'), "FILEMANAGEMENT"],
-                  'cleanupoldbuild': [True, ('Boolean to remove (True) or backup (False) the previous build '
-                                              'directory with identical name or not.'), "FILEMANAGEMENT"],
-                  'cleanupoldinstall': [True, ('Boolean to remove (True) or backup (False) the previous install '
-                                                'directory with identical name or not.'), "FILEMANAGEMENT"],
-                  'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install '
-                                                    'directory'), "FILEMANAGEMENT"],
-                  'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                                            'or if the content of the files pointed to should be copied'),
-                                            "FILEMANAGEMENT"],
-
-                  'dependencies': [[], "List of dependencies", "DEPENDENCIES"],
-                  'builddependencies': [[], "List of build dependencies", "DEPENDENCIES"],
-                  'osdependencies': [[], "OS dependencies that should be present on the system", "DEPENDENCIES"],
-                  'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))",
-                                         "DEPENDENCIES"],
-
-                  'license_file': [None, 'License file for software', "LICENSE"],
-                  'license_server': [None, 'License server for software', "LICENSE"],
-                  'license_server_port': [None, 'Port for license server', "LICENSE"],
-                  'key': [None, 'Key for installing software', "LICENSE"],
-                  'group': [None, "Name of the user group for which the software should be available", "LICENSE"],
-
-                  'exts_list': [[], 'List with extensions added to the base installation', "EXTENSIONS"],
-                  'exts_defaultclass': [None, "List of module for and name of the default extension class",
-                                         "EXTENSIONS"],
-                  'exts_classmap': [{}, "Map of extension name to class for handling build and installation.",
-                                     "EXTENSIONS"],
-                  'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
-                                          "(templates for name, version and src)."), "EXTENSIONS"],
-
-                  'modextravars': [{}, "Extra environment variables to be added to module file", "MODULES"],
-                  'modextrapaths': [{}, "Extra paths to be prepended in module file", "MODULES"],
-                  'moduleclass': ['base', 'Module class to be used for this software', "MODULES"],
-                  'moduleforceunload': [False, 'Force unload of all modules when loading the extension',
-                                         "MODULES"],
-                  'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ",
-                                            "MODULES"],
-
-                  'buildstats': [None, "A list of dicts with build statistics", "OTHER"],
-            }
->>>>>>> develop
 
 
 def sorted_categories():
