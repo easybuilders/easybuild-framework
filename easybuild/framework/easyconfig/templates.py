@@ -69,30 +69,30 @@ TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
 # constant templates that can be used in easyconfigs
 TEMPLATE_CONSTANTS = [
     # source url constants
-    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
-     'googlecode.com source url'),
-    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
-     'sourceforge.net source url'),
-    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
-     'http download for gnome ftp server'),
-    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
-     'gnu.org source url'),
-    ('GNU_SAVANNAH_SOURCE', 'http://download.savannah.gnu.org/releases/%(namelower)s',
-     'download.savannah.gnu.org source url'),
-    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
-     'CRAN (contrib) source url'),
-    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
-     'cran.r-project.org (base) source url'),
-    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
-     'launchpad.net source url'),
     ('APACHE_SOURCE', 'http://archive.apache.org/dist/%(namelower)s',
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
+     'CRAN (contrib) source url'),
+    ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
+     'http download for gnome ftp server'),
+    ('GNU_SAVANNAH_SOURCE', 'http://download.savannah.gnu.org/releases/%(namelower)s',
+     'download.savannah.gnu.org source url'),
+    ('GNU_SOURCE', 'http://ftpmirror.gnu.org/%(namelower)s',
+     'gnu.org source url'),
+    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
+     'googlecode.com source url'),
+    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
+     'launchpad.net source url'),
     ('PYPI_SOURCE', 'http://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
      'pypi source url'),  # e.g., Cython, Sphinx
     ('PYPI_LOWER_SOURCE', 'http://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
      'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
+    ('R_SOURCE', 'http://cran.r-project.org/src/base/R-%(version_major)s',
+     'cran.r-project.org (base) source url'),
+    ('SOURCEFORGE_SOURCE', 'http://download.sourceforge.net/%(namelower)s',
+     'sourceforge.net source url'),
     ('XORG_DATA_SOURCE', 'http://xorg.freedesktop.org/archive/individual/data/',
      'xorg data source url'),
     ('XORG_LIB_SOURCE', 'http://xorg.freedesktop.org/archive/individual/lib/',
@@ -105,7 +105,7 @@ TEMPLATE_CONSTANTS = [
      'xorg xcb source url'),
 
     # TODO, not urgent, yet nice to have:
-    # PYPI_SOURCE CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
+    # CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
     ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
