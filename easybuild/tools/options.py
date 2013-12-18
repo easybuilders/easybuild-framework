@@ -141,6 +141,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
