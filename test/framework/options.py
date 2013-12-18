@@ -793,6 +793,63 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
         shutil.rmtree(tmpdir)
 
+    def test_ignore_osdeps(self):
+        """Test ignoring of listed OS dependencies."""
+        txt = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://google.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'osdependencies = ["nosuchosdependency"]',
+        ])
+        fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
+        os.close(fd)
+        write_file(eb_file, txt)
+
+        # check whether non-existing OS dependencies result in failure, by default
+        args = [
+            eb_file,
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("Checking OS dependencies")
+        self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
+        regex = re.compile("One or more OS dependencies were not found: \['nosuchosdependency'\]", re.M)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
+
+        # check whether OS dependencies are effectively ignored
+        args = [
+            eb_file,
+            '--ignore-osdeps',
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("Not checking OS dependencies", re.M)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
+
+        txt += "\nstop = 'notavalidstop'"
+        write_file(eb_file, txt)
+        args = [
+            eb_file,
+            '--ignore-osdeps',
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
+        self.assertTrue(regex.search(outtxt), "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
 
 def suite():
     """ returns all the testcases in this module """
