@@ -798,7 +798,7 @@ class CommandLineOptionsTest(TestCase):
         txt = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"dummy", "version": "dummy"}',
             'osdependencies = ["nosuchosdependency"]',
