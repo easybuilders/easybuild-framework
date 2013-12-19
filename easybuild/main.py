@@ -275,8 +275,8 @@ def main(testing_data=(None, None, None)):
                     ec_file = easyconfig.tools.tweak(f, None, software_build_specs)
                 else:
                     ec_file = f
-                easyconfigs.extend(process_easyconfig(ec_file, options.only_blocks,
-                                                      validate=validate_easyconfigs))
+                easyconfigs.extend(process_easyconfig(ec_file, options.only_blocks, validate=validate_easyconfigs,
+                                                      check_osdeps=not options.ignore_osdeps))
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
@@ -301,7 +301,8 @@ def main(testing_data=(None, None, None)):
         print_msg("resolving dependencies ...", log=_log, silent=testing)
         # force all dependencies to be retained and validation to be skipped for building dep graph
         force = retain_all_deps and not validate_easyconfigs
-        orderedSpecs = resolve_dependencies(easyconfigs, options.robot, force=force)
+        orderedSpecs = resolve_dependencies(easyconfigs, options.robot, force=force,
+                                            check_osdeps=not options.ignore_osdeps)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         orderedSpecs = []
@@ -420,7 +421,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True):
+def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True, check_osdeps=True):
     """
     Process easyconfig, returning some information for each block
     """
@@ -435,7 +436,8 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         # create easyconfig
         try:
             all_stops = [x[0] for x in EasyBlock.get_steps()]
-            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops)
+            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops,
+                            check_osdeps=check_osdeps)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -495,7 +497,7 @@ def skip_available(easyconfigs, testing=False):
     return easyconfigs
 
 
-def resolve_dependencies(unprocessed, robot, force=False):
+def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
     """
     Work through the list of easyconfigs to determine an optimal order
     enabling force results in retaining all dependencies and skipping validation of easyconfigs
@@ -565,7 +567,7 @@ def resolve_dependencies(unprocessed, robot, force=False):
                     cand_dep = candidates[0]
                     _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
 
-                    processed_ecs = process_easyconfig(path, validate=(not force))
+                    processed_ecs = process_easyconfig(path, validate=(not force), check_osdeps=check_osdeps)
 
                     # ensure that selected easyconfig provides required dependency
                     mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
@@ -1259,7 +1261,7 @@ def regtest(options, easyconfig_paths):
     easyconfigs = []
     for ecfile in ecfiles:
         try:
-            easyconfigs.extend(process_easyconfig(ecfile, None))
+            easyconfigs.extend(process_easyconfig(ecfile, onlyBlocks=None, check_osdeps=not options.ignore_osdeps))
         except EasyBuildError, err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
@@ -1272,7 +1274,7 @@ def regtest(options, easyconfig_paths):
     if options.sequential:
         return build_easyconfigs(easyconfigs, output_dir, test_results, options)
     else:
-        resolved = resolve_dependencies(easyconfigs, options.robot)
+        resolved = resolve_dependencies(easyconfigs, options.robot, check_osdeps=not options.ignore_osdeps)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
@@ -1310,7 +1312,7 @@ def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, robot, force=True)
+        all_specs = resolve_dependencies(easyconfigs, robot, force=True, check_osdeps=False)
 
     unbuilt_specs = skip_available(all_specs, True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
