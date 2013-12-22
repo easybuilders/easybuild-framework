@@ -284,6 +284,9 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
         _log.error("Failed to read %s: %s" % (path, err))
+    except MemoryError, err:
+        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
 
