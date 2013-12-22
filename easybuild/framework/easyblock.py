@@ -33,6 +33,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import copy

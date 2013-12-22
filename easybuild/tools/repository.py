@@ -33,6 +33,7 @@ We have a plain filesystem, an svn and a git repository
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 import getpass
 import os
@@ -178,7 +179,7 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
-        txt = "# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
         # copy file
         txt += read_file(cfg)
