@@ -91,7 +91,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True):
         """
         Initialize the EasyBlock instance.
         """
@@ -125,6 +125,7 @@ class EasyBlock(object):
             validate=validate_ec,
             valid_module_classes=module_classes(),
             valid_stops=all_stops,
+            check_osdeps=check_osdeps,
         )
 
         # indicates whether build should be performed in installation dir
@@ -1166,7 +1167,7 @@ class EasyBlock(object):
             os.setgid(gid)
             self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
 
-    def fetch_step(self):
+    def fetch_step(self, skip_checksums=False):
         """
         prepare for building
         """
@@ -1198,10 +1199,11 @@ class EasyBlock(object):
             self.log.info('no patches provided')
 
         # compute md5 checksums for all source and patch files
-        for fil in self.src + self.patches:
-            md5_sum = compute_checksum(fil['path'], checksum_type='md5')
-            fil['md5'] = md5_sum
-            self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
+        if not skip_checksums:
+            for fil in self.src + self.patches:
+                md5_sum = compute_checksum(fil['path'], checksum_type='md5')
+                fil['md5'] = md5_sum
+                self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
 
         # set level of parallelism for build
         self.set_parallelism()
