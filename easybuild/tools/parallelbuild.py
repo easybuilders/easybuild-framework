@@ -49,7 +49,7 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=check_osdeps):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=True):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
