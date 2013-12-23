@@ -49,7 +49,7 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=check_osdeps):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
@@ -79,7 +79,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, robot_path=robot_path)
+        prepare_easyconfig(ec, robot_path=robot_path, check_osdeps=check_osdeps)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -162,7 +162,7 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     return job
 
 
-def get_easyblock_instance(easyconfig, robot_path=None):
+def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True):
     """
     Get an instance for this easyconfig
     easyconfig is in the format provided by processEasyConfig
@@ -184,13 +184,13 @@ def get_easyblock_instance(easyconfig, robot_path=None):
             break
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, debug=True, robot_path=robot_path)
+    return app_class(spec, debug=True, robot_path=robot_path, check_osdeps=check_osdeps)
 
 
-def prepare_easyconfig(ec, robot_path=None):
+def prepare_easyconfig(ec, robot_path=None, check_osdeps=True):
     """ prepare for building """
     try:
-        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path)
+        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path, check_osdeps=check_osdeps)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step(skip_checksums=True)
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
