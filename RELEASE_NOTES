@@ -24,7 +24,6 @@ feature + bugfix release
     - add support for specifying multiple robot paths (#786)
     - add various source URL constants, add support for '%(nameletter)s' and '%(nameletterlower)s' templates (#793)
     - add 'buildininstalldir' easyconfig parameter (#794)
-    - prefix string provided to module-whatis with 'Description: ', so Lmod's 'module spider' will pick it up (#796)
     - add --ignore-osdeps command line option (#799, #802)
 - various bug fixes, including:
     - enable -mt_mpi compiler flag if both usempi and openmp toolchain options are enabled (#771)
