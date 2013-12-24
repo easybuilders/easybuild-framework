@@ -48,6 +48,7 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -57,7 +58,7 @@ from easybuild.tools.config import read_only_installdir, source_paths, module_cl
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
-from easybuild.tools.filetools import decode_class_name, write_file
+from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
@@ -90,14 +91,15 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True):
         """
         Initialize the EasyBlock instance.
         """
 
-        # list of patch/source files
+        # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
+        self.checksums = []
 
         # build/install directories
         self.builddir = None
@@ -123,10 +125,11 @@ class EasyBlock(object):
             validate=validate_ec,
             valid_module_classes=module_classes(),
             valid_stops=all_stops,
+            check_osdeps=check_osdeps,
         )
 
         # indicates whether build should be performed in installation dir
-        self.build_in_installdir = False
+        self.build_in_installdir = self.cfg['buildininstalldir']
 
         # logging
         self.log = None
@@ -195,13 +198,32 @@ class EasyBlock(object):
     # FETCH UTILITY FUNCTIONS
     #
 
-    def fetch_sources(self, list_of_sources):
+    def get_checksum_for(self, checksums, filename=None, index=None):
+        """
+        Obtain checksum for given filename.
+
+        @param checksums: a list or tuple of checksums (or None)
+        @param filename: name of the file to obtain checksum for
+        @param index: index of file in list
+        """
+        # if checksums are provided as a dict, lookup by source filename as key
+        if isinstance(checksums, (list, tuple)):
+            if index is not None and index < len(checksums) and (index >= 0 or abs(index) <= len(checksums)):
+                return checksums[index]
+            else:
+                return None
+        elif checksums is None:
+            return None
+        else:
+            self.log.error("Invalid type for checksums (%s), should be list, tuple or None." % type(checksums))
+
+    def fetch_sources(self, list_of_sources, checksums=None):
         """
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
         """
 
-        for src_entry in list_of_sources:
+        for index, src_entry in enumerate(list_of_sources):
             if isinstance(src_entry, (list, tuple)):
                 cmd = src_entry[1]
                 source = src_entry[0]
@@ -213,60 +235,71 @@ class EasyBlock(object):
             path = self.obtain_file(source)
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
-                self.src.append({'name': source, 'path': path, 'cmd': cmd})
+                self.src.append({
+                    'name': source,
+                    'path': path,
+                    'cmd': cmd,
+                    'checksum': self.get_checksum_for(checksums, filename=source, index=index),
+                    # always set a finalpath
+                    'finalpath': self.builddir,
+                })
             else:
                 self.log.error('No file found for source %s' % source)
 
         self.log.info("Added sources: %s" % self.src)
 
-    def fetch_patches(self, list_of_patches, extension=False):
+    def fetch_patches(self, list_of_patches, extension=False, checksums=None):
         """
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
 
         patches = []
-        for patchFile in list_of_patches:
+        for index, patch_entry in enumerate(list_of_patches):
 
             # check if the patches can be located
             copy_file = False
             suff = None
             level = None
-            if isinstance(patchFile, (list, tuple)):
-                if not len(patchFile) == 2:
-                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patchFile)
-                pf = patchFile[0]
+            if isinstance(patch_entry, (list, tuple)):
+                if not len(patch_entry) == 2:
+                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patch_entry)
+                pf = patch_entry[0]
 
-                if isinstance(patchFile[1], int):
-                    level = patchFile[1]
-                elif isinstance(patchFile[1], basestring):
+                if isinstance(patch_entry[1], int):
+                    level = patch_entry[1]
+                elif isinstance(patch_entry[1], basestring):
                     # non-patch files are assumed to be files to copy
-                    if not patchFile[0].endswith('.patch'):
+                    if not patch_entry[0].endswith('.patch'):
                         copy_file = True
-                    suff = patchFile[1]
+                    suff = patch_entry[1]
                 else:
-                    self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patchFile)
+                    self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patch_entry)
             else:
-                pf = patchFile
+                pf = patch_entry
 
             path = self.obtain_file(pf, extension=extension)
             if path:
-                self.log.debug('File %s found for patch %s' % (path, patchFile))
-                tmppatch = {'name':pf, 'path':path}
+                self.log.debug('File %s found for patch %s' % (path, patch_entry))
+                patchspec = {
+                    'name': pf,
+                    'path': path,
+                    'checksum': self.get_checksum_for(checksums, filename=pf, index=index),
+                }
                 if suff:
                     if copy_file:
-                        tmppatch['copy'] = suff
+                        patchspec['copy'] = suff
                     else:
-                        tmppatch['sourcepath'] = suff
+                        patchspec['sourcepath'] = suff
                 if level:
-                    tmppatch['level'] = level
+                    patchspec['level'] = level
 
                 if extension:
-                    patches.append(tmppatch)
+                    patches.append(patchspec)
                 else:
-                    self.patches.append(tmppatch)
+                    self.patches.append(patchspec)
             else:
-                self.log.error('No file found for patch %s' % patchFile)
+                self.log.error('No file found for patch %s' % patch_entry)
 
         if extension:
             self.log.info("Fetched extension patches: %s" % patches)
@@ -402,8 +435,8 @@ class EasyBlock(object):
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
-            if not self.robot_path is None:
-                common_filepaths.append(self.robot_path)
+            if self.robot_path is not None:
+                common_filepaths.extend(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
             for path in ebpath + common_filepaths + srcpaths:
@@ -530,32 +563,35 @@ class EasyBlock(object):
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
+    def gen_builddir(self):
+        """Generate the (unique) name for the builddir"""
+        clean_name = remove_unwanted_chars(self.name)
+
+        # if a toolchain version starts with a -, remove the - so prevent a -- in the path name
+        tcversion = self.toolchain.version.lstrip('-')
+        lastdir = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
+
+        builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
+
+        # make sure build dir is unique
+        uniq_builddir = builddir
+        suff = 0
+        while(os.path.isdir(uniq_builddir)):
+            uniq_builddir = "%s.%d" % (builddir, suff)
+            suff += 1
+
+        self.builddir = uniq_builddir
+        self.log.info("Build dir set to %s" % self.builddir)
 
     def make_builddir(self):
         """
         Create the build directory.
         """
         if not self.build_in_installdir:
-            # make a unique build dir
-            # if a tookitversion starts with a -, remove the - so prevent a -- in the path name
-            tcversion = self.toolchain.version
-            if tcversion.startswith('-'):
-                tcversion = tcversion[1:]
-
-            extra = "%s%s-%s%s" % (self.cfg['versionprefix'], self.toolchain.name, tcversion, self.cfg['versionsuffix'])
-            localdir = os.path.join(build_path(), remove_unwanted_chars(self.name), self.version, extra)
-
-            ald = os.path.abspath(localdir)
-            tmpald = ald
-            counter = 1
-            while os.path.isdir(tmpald):
-                counter += 1
-                tmpald = "%s.%d" % (ald, counter)
-
-            self.builddir = ald
-
+            # self.builddir should be already set by gen_builddir()
+            if not self.builddir:
+                self.log.error("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)" % (self.builddir, self.cfg['cleanupoldbuild']))
-
         else:
             self.log.info("Changing build dir to %s" % self.installdir)
             self.builddir = self.installdir
@@ -1131,11 +1167,10 @@ class EasyBlock(object):
             os.setgid(gid)
             self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
 
-    def fetch_step(self):
+    def fetch_step(self, skip_checksums=False):
         """
         prepare for building
         """
-
         # check EasyBuild version
         easybuild_version = self.cfg['easybuild_version']
         if not easybuild_version:
@@ -1148,15 +1183,27 @@ class EasyBlock(object):
 
         # fetch sources
         if self.cfg['sources']:
-            self.fetch_sources(self.cfg['sources'])
+            self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
         else:
             self.log.info('no sources provided')
 
         # fetch patches
         if self.cfg['patches']:
-            self.fetch_patches(self.cfg['patches'])
+            if isinstance(self.cfg['checksums'], (list, tuple)):
+                # if checksums are provided as a list, first entries are assumed to be for sources
+                patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
+            else:
+                patches_checksums = self.cfg['checksums']
+            self.fetch_patches(self.cfg['patches'], checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
+
+        # compute md5 checksums for all source and patch files
+        if not skip_checksums:
+            for fil in self.src + self.patches:
+                md5_sum = compute_checksum(fil['path'], checksum_type='md5')
+                fil['md5'] = md5_sum
+                self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
 
         # set level of parallelism for build
         self.set_parallelism()
@@ -1178,39 +1225,43 @@ class EasyBlock(object):
             self.log.error("Failed to create parent dirs in install and modules path: %s" % err)
 
     def checksum_step(self):
-        """Verify checksum of sources, if available."""
-        pass
+        """Verify checksum of sources and patches, if a checksum is available."""
+        for fil in self.src + self.patches:
+            ok = verify_checksum(fil['path'], fil['checksum'])
+            if not ok:
+                self.log.error("Checksum verification for %s using %s failed." % (fil['path'], fil['checksum']))
+            else:
+                self.log.info("Checksum verification for %s using %s passed." % (fil['path'], fil['checksum']))
 
     def extract_step(self):
         """
         Unpack the source files.
         """
-        for tmp in self.src:
-            self.log.info("Unpacking source %s" % tmp['name'])
-            srcdir = extract_file(tmp['path'], self.builddir, cmd=tmp['cmd'],
-                                  extra_options=self.cfg['unpack_options'])
+        for src in self.src:
+            self.log.info("Unpacking source %s" % src['name'])
+            srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'], extra_options=self.cfg['unpack_options'])
             if srcdir:
-                self.src[self.src.index(tmp)]['finalpath'] = srcdir
+                self.src[self.src.index(src)]['finalpath'] = srcdir
             else:
-                self.log.error("Unpacking source %s failed" % tmp['name'])
+                self.log.error("Unpacking source %s failed" % src['name'])
 
     def patch_step(self, beginpath=None):
         """
         Apply the patches
         """
-        for tmp in self.patches:
-            self.log.info("Applying patch %s" % tmp['name'])
+        for patch in self.patches:
+            self.log.info("Applying patch %s" % patch['name'])
 
             copy = False
             # default: patch first source
             srcind = 0
-            if 'source' in tmp:
-                srcind = tmp['source']
+            if 'source' in patch:
+                srcind = patch['source']
             srcpathsuffix = ''
-            if 'sourcepath' in tmp:
-                srcpathsuffix = tmp['sourcepath']
-            elif 'copy' in tmp:
-                srcpathsuffix = tmp['copy']
+            if 'sourcepath' in patch:
+                srcpathsuffix = patch['sourcepath']
+            elif 'copy' in patch:
+                srcpathsuffix = patch['copy']
                 copy = True
 
             if not beginpath:
@@ -1219,11 +1270,11 @@ class EasyBlock(object):
             src = os.path.abspath("%s/%s" % (beginpath, srcpathsuffix))
 
             level = None
-            if 'level' in tmp:
-                level = tmp['level']
+            if 'level' in patch:
+                level = patch['level']
 
-            if not apply_patch(tmp['path'], src, copy=copy, level=level):
-                self.log.error("Applying patch %s failed" % tmp['name'])
+            if not apply_patch(patch['path'], src, copy=copy, level=level):
+                self.log.error("Applying patch %s failed" % patch['name'])
 
     def prepare_step(self):
         """
@@ -1663,6 +1714,7 @@ class EasyBlock(object):
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
             (False, lambda x: x.check_readiness_step()),
+            (False, lambda x: x.gen_builddir()),
             (False, lambda x: x.gen_installdir()),
             (True, lambda x: x.make_builddir()),
             (True, lambda x: env.reset_changes()),
@@ -1672,9 +1724,9 @@ class EasyBlock(object):
                                                    ready_substeps, False, initial=initial)
 
         source_substeps = [
-                           (False, lambda x: x.checksum_step()),
-                           (True, lambda x: x.extract_step()),
-                          ]
+            (False, lambda x: x.checksum_step()),
+            (True, lambda x: x.extract_step()),
+        ]
         source_step_spec = lambda initial: get_step('source', "unpacking", source_substeps, True, initial=initial)
 
         def prepare_step_spec(initial):
@@ -1810,10 +1862,11 @@ def get_module_path(name, generic=False, decode=True):
 
 def get_class(easyblock, name=None):
     """
-    Get class for a particular easyblock (or ConfigureMake by default)
+    Get class for a particular easyblock (or use default)
     """
 
-    app_mod_class = ("easybuild.easyblocks.generic.configuremake", "ConfigureMake")
+    def_class = get_easyconfig_parameter_default('easyblock')
+    def_mod_path = get_module_path(def_class, generic=True)
 
     try:
         # if no easyblock specified, try to find if one exists
@@ -1846,9 +1899,8 @@ def get_class(easyblock, name=None):
                 else:
                     # no easyblock could be found, so fall back to default class.
                     _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, app_mod_class, err))
-                    (modulepath, class_name) = app_mod_class
-                    cls = get_class_for(modulepath, class_name)
+                                (class_name, (def_mod_path, def_class), err))
+                    cls = get_class_for(def_mod_path, def_class)
 
         # something was specified, lets parse it
         else:

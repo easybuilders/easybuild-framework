@@ -71,7 +71,8 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None):
+    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None,
+                 check_osdeps=True):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
@@ -140,7 +141,7 @@ class EasyConfig(object):
         # perform validations
         self.validation = validate
         if self.validation:
-            self.validate()
+            self.validate(check_osdeps=check_osdeps)
 
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
@@ -236,7 +237,7 @@ class EasyConfig(object):
             env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
             env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
 
-    def validate(self):
+    def validate(self, check_osdeps=True):
         """
         Validate this EasyConfig
         - check certain variables
@@ -246,8 +247,11 @@ class EasyConfig(object):
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
-        self.log.info("Checking OS dependencies")
-        self.validate_os_deps()
+        if check_osdeps:
+            self.log.info("Checking OS dependencies")
+            self.validate_os_deps()
+        else:
+            self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):

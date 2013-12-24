@@ -32,6 +32,7 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 """
+import binascii
 import errno
 import os
 import re
@@ -42,7 +43,9 @@ import subprocess
 import tempfile
 import time
 import urllib
+import zlib
 from vsc import fancylogger
+from vsc.utils.missing import all
 
 import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
@@ -100,6 +103,25 @@ STRING_ENCODING_CHARMAP = {
     r'}': "_rightcurly_",
     r'~': "_tilde_",
 }
+
+# default checksum for source and patch files
+DEFAULT_CHECKSUM = 'md5'
+
+# map of checksum types to checksum functions
+CHECKSUM_FUNCTIONS = {
+    'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
+    'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
+    'size': lambda p: os.path.getsize(p),
+}
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: hashlib.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
+except ImportError:
+    import md5, sha
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
 
 
 def read_file(path, log_error=True):
@@ -189,6 +211,28 @@ def which(cmd):
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
 
+
+def det_common_path_prefix(paths):
+    """Determine common path prefix for a given list of paths."""
+    if not isinstance(paths, list):
+        _log.error("det_common_path_prefix: argument must be of type list (got %s: %s)" % (type(paths), paths))
+    elif not paths:
+        return None
+
+    # initial guess for common prefix
+    prefix = paths[0]
+    found_common = False
+    while not found_common and prefix != os.path.dirname(prefix):
+        prefix = os.path.dirname(prefix)
+        found_common = all([p.startswith(prefix) for p in paths])
+
+    if found_common:
+        # prefix may be empty string for relative paths with a non-common prefix
+        return prefix.rstrip(os.path.sep) or None
+    else:
+        return None
+
+
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
@@ -224,6 +268,61 @@ def download_file(filename, url, path):
 
     # failed to download after multiple attempts
     return None
+
+
+def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
+    """
+    Compute checksum of specified file.
+
+    @param path: Path of file to compute checksum for
+    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    """
+    if not checksum_type in CHECKSUM_FUNCTIONS:
+        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
+
+    try:
+        checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+    except MemoryError, err:
+        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        checksum = 'dummy_checksum_due_to_memory_error'
+
+    return checksum
+
+
+def verify_checksum(path, checksums):
+    """
+    Verify checksum of specified file.
+
+    @param file: path of file to verify checksum of
+    @param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    """
+    # if no checksum is provided, pretend checksum to be valid
+    if checksums is None:
+        return True
+
+    # make sure we have a list of checksums
+    if not isinstance(checksums, list):
+        checksums = [checksums]
+
+    for checksum in checksums:
+        if isinstance(checksum, basestring):
+            # default checksum type unless otherwise specified is MD5 (most common(?))
+            typ = DEFAULT_CHECKSUM
+        elif isinstance(checksum, tuple) and len(checksum) == 2:
+            typ, checksum = checksum
+        else:
+            _log.error("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value)." % checksum)
+
+        actual_checksum = compute_checksum(path, typ)
+        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+
+        if actual_checksum != checksum:
+            return False
+
+    # if we land here, all checksums have been verified to be correct
+    return True
 
 
 def find_base_dir():

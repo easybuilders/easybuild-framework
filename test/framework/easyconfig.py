@@ -46,6 +46,7 @@ from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
@@ -113,7 +114,7 @@ class EasyConfigTest(TestCase):
         self.assertErrorRegex(EasyBuildError, "mandatory variables? .* not provided", EasyConfig, self.eb_file)
 
         self.contents += '\n' + '\n'.join([
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
         ])
@@ -123,7 +124,7 @@ class EasyConfigTest(TestCase):
 
         self.assertEqual(eb['name'], "pi")
         self.assertEqual(eb['version'], "3.14")
-        self.assertEqual(eb['homepage'], "http://google.com")
+        self.assertEqual(eb['homepage'], "http://example.com")
         self.assertEqual(eb['toolchain'], {"name":"dummy", "version": "dummy"})
         self.assertEqual(eb['description'], "test easyconfig")
 
@@ -132,7 +133,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"dummy", "version": "dummy"}',
             'stop = "notvalid"',
@@ -164,7 +165,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"dummy", "version": "dummy"}',
             'sanity_check_paths = { "files": ["lib/lib.%s" % shared_lib_ext] }',
@@ -178,7 +179,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
             'dependencies = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
@@ -228,7 +229,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
             'toolchainopts = { "static": True}',
@@ -277,7 +278,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
             'exts_list = [',
@@ -300,13 +301,13 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
             'dependencis = [("first", "1.1"), {"name": "second", "version": "2.2"}]',
-            'source_uls = ["http://google.com"]',
-            'source_URLs = ["http://google.com"]',
-            'sourceURLs = ["http://google.com"]',
+            'source_uls = ["http://example.com"]',
+            'source_URLs = ["http://example.com"]',
+            'sourceURLs = ["http://example.com"]',
         ])
         self.prep()
         self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
@@ -322,7 +323,7 @@ class EasyConfigTest(TestCase):
         patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
         self.contents = '\n'.join([
             'name = "pi"',
-            'homepage = "http://www.google.com"',
+            'homepage = "http://www.example.com"',
             'description = "dummy description"',
             'version = "3.14"',
             'toolchain = {"name":"GCC", "version": "4.6.3"}',
@@ -456,21 +457,21 @@ class EasyConfigTest(TestCase):
                                         ])),
                     (fns[1], "\n".join(['name = "pi"',
                                         'version = "3.13"',
-                                        'homepage = "http://google.com"',
+                                        'homepage = "http://example.com"',
                                         'description = "test easyconfig"',
                                         'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
                                         'patches = %s' % patches
                                        ])),
                     (fns[2], "\n".join(['name = "pi"',
                                         'version = "3.15"',
-                                        'homepage = "http://google.com"',
+                                        'homepage = "http://example.com"',
                                         'description = "test easyconfig"',
                                         'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
                                         'patches = %s' % patches
                                        ])),
                     (fns[3], "\n".join(['name = "pi"',
                                         'version = "3.15"',
-                                        'homepage = "http://google.com"',
+                                        'homepage = "http://example.com"',
                                         'description = "test easyconfig"',
                                         'toolchain = {"name": "%s", "version": "4.5.1"}' % tcname,
                                         'patches = %s' % patches
@@ -640,7 +641,7 @@ class EasyConfigTest(TestCase):
         self.contents = '\n'.join([
             'name = "%(name)s"',
             'version = "%(version)s"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com/%%(nameletter)s/%%(nameletterlower)s"',
             'description = "test easyconfig %%(name)s"',
             'toolchain = {"name":"dummy", "version": "dummy2"}',
             'source_urls = [(GOOGLECODE_SOURCE)]',
@@ -659,6 +660,7 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb['sources'][1][1], 'tar xfvz %s')
         self.assertEqual(eb['source_urls'][0], const_dict['GOOGLECODE_SOURCE'] % inp)
         self.assertEqual(eb['sanity_check_paths']['dirs'][0], 'libfoo.%s' % get_shared_lib_ext())
+        self.assertEqual(eb['homepage'], "http://example.com/P/p")
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
@@ -691,7 +693,7 @@ class EasyConfigTest(TestCase):
         orig_contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"dummy", "version": "dummy"}',
         ])
@@ -754,6 +756,32 @@ class EasyConfigTest(TestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file, valid_stops=self.all_stops)
+
+    def test_buildininstalldir(self):
+        """Test specifying build in install dir."""
+        config.variables['buildpath'] = tempfile.mkdtemp()
+        config.variables['installpath'] = tempfile.mkdtemp()
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'buildininstalldir = True',
+        ])
+        self.prep()
+        eb = EasyBlock(self.eb_file)
+        eb.gen_builddir()
+        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        eb.gen_installdir()
+        eb.make_builddir()
+        eb.make_installdir()
+        self.assertEqual(eb.builddir, eb.installdir)
+        self.assertTrue(os.path.isdir(eb.builddir))
+
+        # cleanup
+        shutil.rmtree(config.variables['buildpath'])
+        shutil.rmtree(config.variables['installpath'])
 
 
 def suite():

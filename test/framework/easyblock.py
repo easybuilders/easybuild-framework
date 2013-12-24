@@ -43,6 +43,8 @@ from easybuild.tools import config
 from unittest import TestCase, TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
+from easybuild.tools.module_generator import det_full_module_name
+
 
 class EasyBlockTest(TestCase):
     """ Baseclass for easyblock testcases """
@@ -77,7 +79,7 @@ class EasyBlockTest(TestCase):
         self.contents =  """
 name = "pi"
 version = "3.14"
-homepage = "http://google.com"
+homepage = "http://example.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 exts_list = ['ext1']
@@ -99,7 +101,7 @@ exts_list = ['ext1']
         self.contents = """
 name = "pi"
 version = "3.14"
-homepage = "http://google.com"
+homepage = "http://example.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 """
@@ -118,7 +120,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         self.contents = """
 name = "pi"
 version = "3.14"
-homepage = "http://google.com"
+homepage = "http://example.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 exts_list = ['ext1']
@@ -152,7 +154,7 @@ exts_list = ['ext1']
         self.contents = """
 name = "pi"
 version = "3.14"
-homepage = "http://google.com"
+homepage = "http://example.com"
 description = "test easyconfig"
 toolchain = {"name":"dummy", "version": "dummy"}
 exts_list = ['ext1', 'ext2']
@@ -185,7 +187,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.contents = '\n'.join([
             'name = "%s"' % name,
             'version = "%s"' % version,
-            'homepage = "http://google.com"',
+            'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
             "dependencies = [('foo', '1.2.3')]",
@@ -222,6 +224,43 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
 
         # restore original settings
         config.variables['installpath'] = orig_installpath
+
+    def test_gen_dirs(self):
+        """Test methods that generate/set build/install directory names."""
+        self.contents =  '\n'.join([
+            "name = 'pi'",
+            "version = '3.14'",
+            "homepage = 'http://example.com'",
+            "description = 'test easyconfig'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+        ])
+        self.writeEC()
+        stdoutorig = sys.stdout
+        sys.stdout = open("/dev/null", 'w')
+        eb = EasyBlock(self.eb_file)
+        resb = eb.gen_builddir()
+        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        resi = eb.gen_installdir()
+        eb.make_builddir()
+        eb.make_installdir()
+        # doesn't return anything
+        self.assertEqual(resb, None)
+        self.assertEqual(resi, None)
+        # directories are set, and exist
+        self.assertTrue(os.path.isdir(eb.builddir))
+        self.assertTrue(os.path.isdir(eb.installdir))
+
+        # make sure build dir is unique
+        builddir = eb.builddir
+        for i in range(0,3):
+            eb.gen_builddir()
+            self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
+            eb.make_builddir()
+
+        # cleanup
+        sys.stdout.close()
+        sys.stdout = stdoutorig
+        eb.close_log()
 
     def tearDown(self):
         """ make sure to remove the temporary file """

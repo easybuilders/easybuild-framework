@@ -39,11 +39,11 @@ GITHUB_USER = "hpcugent"
 # the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
 # Github username (optional)
-GITHUB_LOGIN = None
+GITHUB_LOGIN = os.environ.get('EASYBUILD_GITHUB_LOGIN', None)
 # Github password (optional)
 GITHUB_PASSWORD = None
 # github auth token to use (optional)
-GITHUB_TOKEN = None
+GITHUB_TOKEN = os.environ.get('EASYBUILD_GITHUB_TOKEN', None)
 # branch to test
 GITHUB_BRANCH = 'master'
 

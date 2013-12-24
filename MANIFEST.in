@@ -1,4 +1,6 @@
 include eb
+include minimal_bash_completion.bash
+include optcomplete.bash
 recursive-include easybuild *py
 recursive-include test *py *eb
 recursive-include test/framework/modules *

@@ -1,0 +1,36 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/
+    }
+}
+
+module-whatis {Intel Cluster Toolkit Compiler Edition provides Intel C/C++ and Fortran compilers, Intel MPI & Intel MKL. - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/}
+
+set root    /tmp/ictce/4.1.13
+
+conflict    ictce
+
+if { ![is-loaded icc/2011.13.367] } {
+    module load icc/2011.13.367
+}
+
+if { ![is-loaded ifort/2011.13.367] } {
+    module load ifort/2011.13.367
+}
+
+if { ![is-loaded impi/4.1.0.027] } {
+    module load impi/4.1.0.027
+}
+
+if { ![is-loaded imkl/10.3.12.361] } {
+    module load imkl/10.3.12.361
+}
+
+
+setenv	EBROOTICTCE		"$root"
+setenv	EBVERSIONICTCE		"4.1.13"
+setenv	EBDEVELICTCE		"$root/easybuild/ictce-4.1.13-easybuild-devel"
+
+
+# built with EasyBuild version 1.9.0dev
