@@ -1,12 +1,37 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
-v1.10.0 (December Xth 2013)
----------------------------
+v1.10.0 (December 24th 2013)
+----------------------------
 
 feature + bugfix release
 - various other enhancements, including:
-    - prefix string provided to module-whatis with 'Description: ', so Lmod's 'module spider' will pick it up (#796)
+    - set unique default temporary directory, add --tmpdir command line option (#695)
+    - add support for computing and verifying source/patch file checksums (#774, #777, #779, #801, #802)
+        - cfr. 'checksums' easyconfig parameter
+    - add support for `eb --confighelp`, which prints out an example configuration file (#775)
+    - add initial support for `eb` tab completion in bash shells (#775, #797, #798) 
+        - see also https://github.com/hpcugent/easybuild/wiki/Setting-up-tab-completion-for-bash
+        - note: may be quite slow for now
+    - enhancements for using Lmod as modules tool (#780, #795, #796):
+        - ignore Lmod spider cache by setting $LMOD_IGNORE_CACHE (requires Lmod 5.2)
+        - bump required Lmod version to v5.2
+        - get rid of slow workaround for detecting module directories (only required for older Lmod versions)
+        - fix version parsing for Lmod release candidates (rc)
+        - improve integration with `lmod spider` by adding 'Description: ' prefix to 'module-whatis' field of module
+    - add --dry-short-short/-D and --search-short/-S command line options (#781)
+    - add toolchain definition for 'gompic', intended for using with CUDA-aware OpenMPI (#783)
+    - add support for specifying multiple robot paths (#786)
+    - add various source URL constants, add support for '%(nameletter)s' and '%(nameletterlower)s' templates (#793)
+    - add 'buildininstalldir' easyconfig parameter (#794)
+    - add --ignore-osdeps command line option (#799, #802)
+- various bug fixes, including:
+    - enable -mt_mpi compiler flag if both usempi and openmp toolchain options are enabled (#771)
+    - only use libmkl_solver* libraries for Intel MKL versions prior to 10.3 (#776)
+    - fix toolchain support for recent Intel tools (#785)
+    - code style fixes in main.py to adhere more to PEP8 (#789)
+    - make sure 'easyblock' easyconfig parameter is listed in `eb -a` (#791)
+    - fix error that may pop up when using skipsteps=source (#792)
 
 v1.9.0 (November 17th 2013)
 ---------------------------
