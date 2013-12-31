@@ -343,6 +343,8 @@ class EasyBlock(object):
                                'options': ext_options,
                               }
 
+                    checksums = ext_options.get('checksums', None)
+
                     if ext_options.get('source_tmpl', None):
                         fn = resolve_template(ext_options['source_tmpl'], ext_src)
                     else:
@@ -357,10 +359,26 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
+                            if checksums:
+                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                if verify_checksum(src_fn, fn_checksum):
+                                    self.log.info('Checksum for ext source %s verified' % fn)
+                                else:
+                                    self.log.error('Checksum for ext source %s failed' % fn)
+
                             ext_patches = self.fetch_patches(ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
+
+                                if checksums:
+                                    self.log.debug('Verifying checksums for extension patches...')
+                                    for index, ext_patch in enumerate(ext_patches):
+                                        checksum = self.get_checksum_for(checksums[1:], filename=ext_patch, index=index)
+                                        if verify_checksum(ext_patch, checksum):
+                                            self.log.info('Checksum for extension patch %s verified' % ext_patch)
+                                        else:
+                                            self.log.error('Checksum for extension patch %s failed' % ext_patch)
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
