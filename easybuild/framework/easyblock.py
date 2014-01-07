@@ -58,7 +58,7 @@ from easybuild.tools.config import build_path, install_path, log_path, get_log_f
 from easybuild.tools.config import read_only_installdir, source_paths, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, run_cmd, rmtree2
+from easybuild.tools.filetools import encode_class_name, read_file, extract_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
@@ -795,6 +795,24 @@ class EasyBlock(object):
         if self.exts_all:
             exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+
+        return txt
+
+    def make_module_footer(self):
+        """
+        Insert a footer section in the modulefile, primarily meant for contextual information
+        """
+        txt = '\n## Built with EasyBuild version %s\n' % VERBOSE_VERSION
+
+        # set environment variable that specifies list of extensions
+        if self.exts_all:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
+            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+
+        # copy footer; contents should be normally hashed out, and this is a feature, not a bug!
+        footer = '/tmp/footer'
+        if os.path.isfile(footer):
+            txt += read_file(footer)
 
         return txt
 
@@ -1639,7 +1657,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         if self.cfg['exts_list']:
             txt += self.make_module_extra_extensions()
-        txt += '\n# built with EasyBuild version %s\n' % VERBOSE_VERSION
+        txt += self.make_module_footer()
 
         write_file(self.moduleGenerator.filename, txt)
 
