@@ -821,7 +821,7 @@ class EasyBlock(object):
         """
         Insert a footer section in the modulefile, primarily meant for contextual information
         """
-        txt = '\n## Built with EasyBuild version %s\n' % VERBOSE_VERSION
+        txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
 
         # set environment variable that specifies list of extensions
         if self.exts_all:
