@@ -58,7 +58,7 @@ from easybuild.tools.config import build_path, install_path, log_path, get_log_f
 from easybuild.tools.config import read_only_installdir, source_paths, module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
-from easybuild.tools.filetools import encode_class_name, read_file, extract_file, run_cmd, rmtree2
+from easybuild.tools.filetools import encode_class_name, extract_file, read_file, rmtree2, run_cmd
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
