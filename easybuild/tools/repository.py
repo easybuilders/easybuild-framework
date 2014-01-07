@@ -166,9 +166,9 @@ class FileRepository(Repository):
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add the eb-file for for software name and version to the repository.
-        stats should be a dict containing stats.
-        if previous is true -> append the stats to the file
+        Add the eb-file for software name and version to the repository.
+        stats should be a dict containing statistics.
+        if previous is true -> append the statistics to the file
         This will return the path to the created file (for use in subclasses)
         """
         # create directory for eb file
@@ -184,7 +184,7 @@ class FileRepository(Repository):
         # copy file
         txt += read_file(cfg)
 
-        # append a line to the eb file so we don't have git merge conflicts
+        # append a line to the eb file so that we don't have git merge conflicts
         if not previous:
             statsprefix = "\n# Build statistics\nbuildstats = ["
             statssuffix = "]\n"
