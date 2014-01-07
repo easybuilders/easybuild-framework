@@ -243,9 +243,9 @@ def main(testing_data=(None, None, None)):
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         if paths:
-            regtest_ok = regtest(options, [path[0] for path in paths])
+            regtest_ok = regtest(options, [path[0] for path in paths], check_osdeps=not options.ignore_osdeps)
         else:  # fallback: easybuild-easyconfigs install path
-            regtest_ok = regtest(options, easyconfigs_pkg_full_paths)
+            regtest_ok = regtest(options, easyconfigs_pkg_full_paths, check_osdeps=not options.ignore_osdeps)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -334,7 +334,8 @@ def main(testing_data=(None, None, None)):
         _log.info("Command template for jobs: %s" % command)
         if not testing:
             jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build",
-                                                          robot_path=options.robot)
+                                                          robot_path=options.robot,
+                                                          check_osdeps=not options.ignore_osdeps)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -1220,7 +1221,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     print "Aggregate regtest results written to %s" % output_filename
 
 
-def regtest(options, easyconfig_paths):
+def regtest(options, easyconfig_paths, check_osdeps=True):
     """Run regression test, using easyconfigs available in given path."""
 
     cur_dir = os.getcwd()
@@ -1281,7 +1282,8 @@ def regtest(options, easyconfig_paths):
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, robot_path=options.robot)
+        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, robot_path=options.robot,
+                                                      check_osdeps=check_osdeps)
 
         print "List of submitted jobs:"
         for job in jobs:

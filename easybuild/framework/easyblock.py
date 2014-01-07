@@ -92,7 +92,7 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True):
         """
         Initialize the EasyBlock instance.
         """
@@ -126,6 +126,7 @@ class EasyBlock(object):
             validate=validate_ec,
             valid_module_classes=module_classes(),
             valid_stops=all_stops,
+            check_osdeps=check_osdeps,
         )
 
         # indicates whether build should be performed in installation dir
@@ -343,6 +344,8 @@ class EasyBlock(object):
                                'options': ext_options,
                               }
 
+                    checksums = ext_options.get('checksums', None)
+
                     if ext_options.get('source_tmpl', None):
                         fn = resolve_template(ext_options['source_tmpl'], ext_src)
                     else:
@@ -357,10 +360,26 @@ class EasyBlock(object):
                         if src_fn:
                             ext_src.update({'src': src_fn})
 
+                            if checksums:
+                                fn_checksum = self.get_checksum_for(checksums, filename=src_fn, index=0)
+                                if verify_checksum(src_fn, fn_checksum):
+                                    self.log.info('Checksum for ext source %s verified' % fn)
+                                else:
+                                    self.log.error('Checksum for ext source %s failed' % fn)
+
                             ext_patches = self.fetch_patches(ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
+
+                                if checksums:
+                                    self.log.debug('Verifying checksums for extension patches...')
+                                    for index, ext_patch in enumerate(ext_patches):
+                                        checksum = self.get_checksum_for(checksums[1:], filename=ext_patch, index=index)
+                                        if verify_checksum(ext_patch, checksum):
+                                            self.log.info('Checksum for extension patch %s verified' % ext_patch)
+                                        else:
+                                            self.log.error('Checksum for extension patch %s failed' % ext_patch)
                             else:
                                 self.log.debug('No patches found for extension %s.' % ext_name)
 
@@ -1185,7 +1204,7 @@ class EasyBlock(object):
             os.setgid(gid)
             self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
 
-    def fetch_step(self):
+    def fetch_step(self, skip_checksums=False):
         """
         prepare for building
         """
@@ -1217,10 +1236,11 @@ class EasyBlock(object):
             self.log.info('no patches provided')
 
         # compute md5 checksums for all source and patch files
-        for fil in self.src + self.patches:
-            md5_sum = compute_checksum(fil['path'], checksum_type='md5')
-            fil['md5'] = md5_sum
-            self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
+        if not skip_checksums:
+            for fil in self.src + self.patches:
+                md5_sum = compute_checksum(fil['path'], checksum_type='md5')
+                fil['md5'] = md5_sum
+                self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
 
         # set level of parallelism for build
         self.set_parallelism()
