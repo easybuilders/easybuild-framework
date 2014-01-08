@@ -64,8 +64,12 @@ class VersionOperator(object):
     INCLUDE_OPERATORS = ['==', '>=', '<=']  # these operators *include* the (version) boundary
     ORDERED_OPERATORS = ['==', '>', '>=', '<', '<=']  # ordering by strictness
     OPERATOR_FAMILIES = [['>', '>='], ['<', '<=']]  # similar operators
+
+    # default version and operator when version is undefined
     DEFAULT_UNDEFINED_VERSION = EasyVersion('0.0.0')
-    DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['>']
+    DEFAULT_UNDEFINED_VERSION_OPERATOR = OPERATOR_MAP['>']
+    # default operator when operator is undefined (but version is)
+    DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['==']
 
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
@@ -84,7 +88,8 @@ class VersionOperator(object):
 
         self.error_on_parse_failure = error_on_parse_failure
         if not versop_str is None:
-            self.set(versop_str)
+            if self.set(versop_str) is None:
+                self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
 
     def parse_error(self, msg):
         """Special function to deal with parse errors"""
@@ -142,7 +147,10 @@ class VersionOperator(object):
     def __str__(self):
         """Return string representation of this VersionOperator instance"""
         if self.operator is None:
-            operator = self.DEFAULT_UNDEFINED_OPERATOR
+            if self.version is None:
+                operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
+            else:
+                operator = self.DEFAULT_UNDEFINED_OPERATOR
         else:
             operator = self.operator
         operator_str = self.REVERSE_OPERATOR_MAP[operator]
@@ -204,12 +212,15 @@ class VersionOperator(object):
         self.log.debug('converted string %s to version %s' % (version_str, version))
         return version
 
-    def _convert_operator(self, operator_str):
+    def _convert_operator(self, operator_str, version=None):
         """Return the operator"""
         operator = None
         if operator_str is None:
-            operator = self.DEFAULT_UNDEFINED_OPERATOR
-            self.log.warning('_convert: operator_str None, set it to DEFAULT_UNDEFINED_OPERATOR %s' % operator)
+            if version == self.DEFAULT_UNDEFINED_VERSION or version is None:
+                operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
+            else:
+                operator = self.DEFAULT_UNDEFINED_OPERATOR
+            self.log.warning('_convert: operator_str None, set it to default operator (with version: %s) %s' % (operator, version))
         elif operator_str in self.OPERATOR_MAP:
             operator = self.OPERATOR_MAP[operator_str]
         else:
@@ -237,8 +248,11 @@ class VersionOperator(object):
         if not 'versop_str' in versop_dict:
             self.log.error('Missing versop_str in versop_dict %s' % versop_dict)
 
-        versop_dict['version'] = self._convert(versop_dict['version_str'])
-        versop_dict['operator'] = self._convert_operator(versop_dict['operator_str'])
+        version = self._convert(versop_dict['version_str'])
+        operator = self._convert_operator(versop_dict['operator_str'], version=version)
+
+        versop_dict['version'] = version
+        versop_dict['operator'] = operator
         self.log.debug('versop expression %s parsed into versop_dict %s' % (versop_dict['versop_str'], versop_dict))
 
         return versop_dict
@@ -390,7 +404,8 @@ class ToolchainVersionOperator(VersionOperator):
         self.tcversop_str = None  # the full string
 
         if not tcversop_str is None:
-            self.set(tcversop_str)
+            if self.set(tcversop_str) is None:
+                self.log.error("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
 
     def __str__(self):
         """Return string representation of this instance"""
