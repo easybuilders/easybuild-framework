@@ -29,7 +29,9 @@ This describes the easyconfig format versions 2.x
 This is a mix between version 1.0 and configparser-style configuration
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+import copy
 import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
@@ -53,7 +55,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     VERSION = EasyVersion('2.0')
     USABLE = True
 
-    PYHEADER_ALLOWED_BUILTINS = ['len']
+    PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
     PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
@@ -95,6 +97,9 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         # the toolchain name/version should not be specified in the pyheader,
         # but other toolchain options are allowed
 
+        cfg = copy.deepcopy(self.pyheader_localvars)
+        self.log.debug("Config dict based on Python header: %s" % cfg)
+
         cov = ConfigObjVersion(self.configobj)
 
         # we only need to find one version / toolchain combo
@@ -103,33 +108,39 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             # check for default version
             if 'default_version' in cov.default:
                 version = cov.default['default_version']
-                self.log.warning('get_config_dict: no version specified, using default version %s' % version)
+                self.log.info("no software version specified, using default version '%s'" % version)
             else:
-                self.log.error('get_config_dict: no version specified, no default version found')
+                self.log.error("no software version specified, no default version found")
 
         if toolchain_name is None:
             # check for default toolchain
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
-                self.log.warning('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
+                self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
+                if toolchain_version is None:
+                    toolchain_version = toolchain.version_str
+                    self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
             else:
-                self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
+                self.log.error("no toolchain name specified, no default toolchain found")
+
+        # add version/toolchain specifications to config dict
+        cfg.update({
+            'version': str(version),
+            'toolchain': {'name': toolchain_name, 'version': str(toolchain_version)},
+        })
+        self.log.debug("Config dict including version/toolchain specs: %s" % cfg)
 
         # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
         # this also performs some validation, and checks for conflicts between section markers
-        self.log.debug("full parsed configobj (before filtering): %s" % cov.sections)
+        self.log.debug("sections for full parsed configobj: %s" % cov.sections)
+        #toolchain_name = 'goolf'
         cov.validate_and_filter_by_toolchain(toolchain_name)
-        self.log.debug("parsed configobj (after filtering): %s" % cov.sections)
+        self.log.debug("sections for filtered parsed configobj: %s" % cov.sections)
 
-        # FIXME we're not done yet here...
-        raise NotImplementedError
+        section_specs = cov.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
+        cfg.update(section_specs)
+        # FIXME what about updating dict values/appending to list values? how do we allow both redefining and updating? = and +=?
 
-        if toolchain_version is None:
-            # is there any toolchain with this version?
-            # TODO implement
-            pass
-
-        # TODO: determine 'path' to take based on version
-
-        return cov # FIXME, this is clearly wrong (but we need to return something non-None)
+        self.log.debug("Final config dict: %s" % cfg)
+        return cfg
