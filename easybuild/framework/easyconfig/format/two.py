@@ -112,6 +112,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                 self.log.info("no software version specified, using default version '%s'" % version)
             else:
                 self.log.error("no software version specified, no default version found")
+        else:
+            self.log.debug("Using specified software version %s" % version)
 
         if toolchain_name is None:
             # check for default toolchain
@@ -124,6 +126,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                     self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
             else:
                 self.log.error("no toolchain name specified, no default toolchain found")
+        else:
+            self.log.debug("Using specified toolchain name %s" % toolchain_name)
+            if toolchain_version is None:
+                self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 
         # add version/toolchain specifications to config dict
         if isinstance(version, VersionOperator):

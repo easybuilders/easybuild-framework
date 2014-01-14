@@ -91,7 +91,8 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True):
+    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True,
+                 specs=None):
         """
         Initialize the EasyBlock instance.
         """
@@ -126,6 +127,7 @@ class EasyBlock(object):
             valid_module_classes=module_classes(),
             valid_stops=all_stops,
             check_osdeps=check_osdeps,
+            specs=specs,
         )
 
         # indicates whether build should be performed in installation dir

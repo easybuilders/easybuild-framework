@@ -243,9 +243,10 @@ def main(testing_data=(None, None, None)):
     if options.regtest or options.aggregate_regtest:
         _log.info("Running regression test")
         if paths:
-            regtest_ok = regtest(options, [path[0] for path in paths], check_osdeps=not options.ignore_osdeps)
+            ec_paths = [path[0] for path in paths]
         else:  # fallback: easybuild-easyconfigs install path
-            regtest_ok = regtest(options, easyconfigs_pkg_full_paths, check_osdeps=not options.ignore_osdeps)
+            ec_paths = easyconfigs_pkg_full_paths
+        regtest_ok = regtest(options, ec_paths, check_osdeps=not options.ignore_osdeps, specs=software_build_specs)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -275,8 +276,9 @@ def main(testing_data=(None, None, None)):
                     ec_file = easyconfig.tools.tweak(f, None, software_build_specs)
                 else:
                     ec_file = f
-                easyconfigs.extend(process_easyconfig(ec_file, options.only_blocks, validate=validate_easyconfigs,
-                                                      check_osdeps=not options.ignore_osdeps))
+                ecs = process_easyconfig(ec_file, options.only_blocks, validate=validate_easyconfigs,
+                                         check_osdeps=not options.ignore_osdeps, specs=software_build_specs)
+                easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
@@ -302,7 +304,7 @@ def main(testing_data=(None, None, None)):
         # force all dependencies to be retained and validation to be skipped for building dep graph
         force = retain_all_deps and not validate_easyconfigs
         orderedSpecs = resolve_dependencies(easyconfigs, options.robot, force=force,
-                                            check_osdeps=not options.ignore_osdeps)
+                                            check_osdeps=not options.ignore_osdeps, specs=software_build_specs)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         orderedSpecs = []
@@ -335,7 +337,7 @@ def main(testing_data=(None, None, None)):
         if not testing:
             jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build",
                                                           robot_path=options.robot,
-                                                          check_osdeps=not options.ignore_osdeps)
+                                                          check_osdeps=not options.ignore_osdeps, specs=software_build_specs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -353,7 +355,7 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for spec in orderedSpecs:
-            (success, _) = build_and_install_software(spec, options, orig_environ, silent=testing)
+            (success, _) = build_and_install_software(spec, options, orig_environ, silent=testing, specs=software_build_specs)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1
@@ -422,7 +424,7 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True, check_osdeps=True):
+def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True, check_osdeps=True, specs=None):
     """
     Process easyconfig, returning some information for each block
     """
@@ -438,7 +440,7 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         try:
             all_stops = [x[0] for x in EasyBlock.get_steps()]
             ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops,
-                            check_osdeps=check_osdeps)
+                            check_osdeps=check_osdeps, specs=specs)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -498,7 +500,7 @@ def skip_available(easyconfigs, testing=False):
     return easyconfigs
 
 
-def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
+def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True, specs=None):
     """
     Work through the list of easyconfigs to determine an optimal order
     enabling force results in retaining all dependencies and skipping validation of easyconfigs
@@ -568,13 +570,15 @@ def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
                     cand_dep = candidates[0]
                     _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
 
-                    processed_ecs = process_easyconfig(path, validate=(not force), check_osdeps=check_osdeps)
+                    processed_ecs = process_easyconfig(path, validate=(not force), check_osdeps=check_osdeps,
+                                                       specs=specs)
 
                     # ensure that selected easyconfig provides required dependency
                     mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
                     dep_mod_name = det_full_module_name(cand_dep)
                     if not dep_mod_name in mods:
-                        _log.error("easyconfig file %s does not contain module %s (mods: %s)" % (path, dep_mod_name, mods))
+                        tup = (path, dep_mod_name, mods)
+                        _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
 
                     unprocessed.extend(processed_ecs)
                     robot_add_dep = True
@@ -752,7 +756,7 @@ def get_build_stats(app, starttime):
     return buildstats
 
 
-def build_and_install_software(module, options, orig_environ, exitOnFailure=True, silent=False):
+def build_and_install_software(module, options, orig_environ, exitOnFailure=True, silent=False, specs=None):
     """
     Build the software
     """
@@ -782,10 +786,11 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
     name = module['ec']['name']
     try:
         app_class = get_class(easyblock, name=name)
-        app = app_class(spec, debug=options.debug, robot_path=options.robot, silent=silent)
+        app = app_class(spec, debug=options.debug, robot_path=options.robot, silent=silent, specs=specs)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg), silent=silent)
+        tup = (name, easyblock, err.msg)
+        print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
 
     # application settings
     if options.stop:
@@ -1221,7 +1226,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     print "Aggregate regtest results written to %s" % output_filename
 
 
-def regtest(options, easyconfig_paths, check_osdeps=True):
+def regtest(options, easyconfig_paths, check_osdeps=True, specs=None):
     """Run regression test, using easyconfigs available in given path."""
 
     cur_dir = os.getcwd()
@@ -1262,7 +1267,7 @@ def regtest(options, easyconfig_paths, check_osdeps=True):
     easyconfigs = []
     for ecfile in ecfiles:
         try:
-            easyconfigs.extend(process_easyconfig(ecfile, onlyBlocks=None, check_osdeps=not options.ignore_osdeps))
+            easyconfigs.extend(process_easyconfig(ecfile, onlyBlocks=None, check_osdeps=check_osdeps, specs=specs))
         except EasyBuildError, err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
@@ -1275,7 +1280,7 @@ def regtest(options, easyconfig_paths, check_osdeps=True):
     if options.sequential:
         return build_easyconfigs(easyconfigs, output_dir, test_results, options)
     else:
-        resolved = resolve_dependencies(easyconfigs, options.robot, check_osdeps=not options.ignore_osdeps)
+        resolved = resolve_dependencies(easyconfigs, options.robot, check_osdeps=check_osdeps, specs=specs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
@@ -1283,7 +1288,7 @@ def regtest(options, easyconfig_paths, check_osdeps=True):
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
         jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, robot_path=options.robot,
-                                                      check_osdeps=check_osdeps)
+                                                      check_osdeps=check_osdeps, specs=specs)
 
         print "List of submitted jobs:"
         for job in jobs:
@@ -1307,14 +1312,14 @@ def regtest(options, easyconfig_paths, check_osdeps=True):
         return True  # success
 
 
-def print_dry_run(easyconfigs, robot=None, silent=False, short=False):
+def print_dry_run(easyconfigs, robot=None, silent=False, short=False, specs=None):
     lines = []
     if robot is None:
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, robot, force=True, check_osdeps=False)
+        all_specs = resolve_dependencies(easyconfigs, robot, force=True, check_osdeps=False, specs=specs)
 
     unbuilt_specs = skip_available(all_specs, True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)

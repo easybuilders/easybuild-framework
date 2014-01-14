@@ -128,9 +128,9 @@ class EasyConfig(object):
             self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
-                            'moduleclass': self.valid_module_classes,
-                            'stop': self.valid_stops,
-                            }
+            'moduleclass': self.valid_module_classes,
+            'stop': self.valid_stops,
+        }
 
         # parse easyconfig file
         self.parse(path, specs=specs)
@@ -196,10 +196,26 @@ class EasyConfig(object):
         mandatory requirements are checked here
         """
         if specs is None:
-            specs = {}
+            arg_specs = {}
+        elif isinstance(specs, dict):
+            # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
+            arg_specs = {}
+            for key in ['toolchain_name', 'toolchain_version', 'version']:
+                if key in specs:
+                    arg_specs[key] = specs[key]
+            if 'toolchain' in specs:
+                tc = specs['toolchain']
+                if isinstance(tc, dict) and 'name' in tc and 'version' in tc:
+                    arg_specs['toolchain_name'] = tc['name']
+                    arg_specs['toolchain_version'] = tc['version']
+                else:
+                    self.log.error("Wrong toolchain specification '%s', should be dict with 'name'/'version' keys." % tc)
+            self.log.debug("Constructed specs dict %s from obtained dict %s" % (arg_specs, specs))
+        else:
+            self.log.error("Specifications should be specified using a dictionary, got %s" % type(specs))
 
         parser = EasyConfigParser(path, format_version=format_version)
-        local_vars = parser.get_config_dict(**specs)
+        local_vars = parser.get_config_dict(**arg_specs)
         self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
