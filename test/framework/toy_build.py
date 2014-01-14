@@ -100,6 +100,30 @@ class ToyBuildTest(TestCase):
                 print "err: %s" % err
             self.assertTrue(res)
 
+    def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix=''):
+        """Check whether toy build succeeded."""
+
+        full_version = ''.join([versionprefix, version, versionsuffix])
+
+        # if the module exists, it should be fine
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
+        self.assertTrue(os.path.exists(toy_module), "module for toy build toy/%s found" % full_version)
+
+        # check for success
+        success = re.compile("COMPLETED: Installation ended successfully")
+        self.assertTrue(success.search(outtxt))
+
+        # make sure installation log file and easyconfig file are copied to install dir
+        software_path = os.path.join(installpath, 'software', 'toy', full_version)
+        install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
+        self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1, "Found 1 file at %s" % install_log_path_pattern)
+
+        ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
+        self.assertTrue(os.path.exists(ec_file_path))
+
+        devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
+        self.assertTrue(os.path.exists(devel_module_path))
+
     def test_toy_build(self):
         """Perform a toy build."""
         args = [
@@ -118,23 +142,29 @@ class ToyBuildTest(TestCase):
             print err
         outtxt = read_file(self.logfile)
 
-        # if the module exists, it should be fine
-        toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', '0.0')
-        self.assertTrue(os.path.exists(toy_module), "module for toy build toy/0.0 found")
+        self.check_toy(self.installpath, outtxt)
 
-        # check for success
-        success = re.compile("COMPLETED: Installation ended successfully")
-        self.assertTrue(success.search(outtxt))
+    def test_toy_build_formatv2(self):
+        """Perform a toy build."""
+        args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
+                '--sourcepath=%s' % self.sourcepath,
+                '--buildpath=%s' % self.buildpath,
+                '--installpath=%s' % self.installpath,
+                '--debug',
+                '--unittest-file=%s' % self.logfile,
+                '--force',
+                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+                '--software-version=0.0',
+                '--toolchain=dummy,dummy',
+               ]
+        try:
+            main((args, self.dummylogfn, True))
+        except (SystemExit, Exception), err:
+            print err
+        outtxt = read_file(self.logfile)
 
-        # make sure installation log file and easyconfig file are copied to install dir
-        install_log_path_pattern = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'easybuild-toy-0.0-*.log')
-        self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1)
-
-        ec_file_path = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0.eb')
-        self.assertTrue(os.path.exists(ec_file_path))
-
-        devel_module_path = os.path.join(self.installpath, 'software', 'toy', '0.0', 'easybuild', 'toy-0.0-easybuild-devel')
-        self.assertTrue(os.path.exists(devel_module_path))
+        self.check_toy(self.installpath, outtxt)
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
@@ -160,10 +190,14 @@ class ToyBuildTest(TestCase):
             main((args, self.dummylogfn, True))
         except (SystemExit, Exception), err:
             print err
+        outtxt = read_file(self.logfile)
 
-        for toy_version in ['0.0-somesuffix', 'someprefix-0.0-somesuffix']:
-            toy_module = os.path.join(self.installpath, 'modules', 'all', 'toy', toy_version)
-            self.assertTrue(os.path.exists(toy_module), "module for toy/%s found" % toy_version)
+        for toy_prefix, toy_version, toy_suffix in [
+            ('', '0.0', '-somesuffix'),
+            ('someprefix-', '0.0', '-somesuffix')
+        ]:
+            self.check_toy(self.installpath, outtxt, version=toy_version,
+                           versionprefix=toy_prefix, versionsuffix=toy_suffix)
 
         # cleanup
         shutil.rmtree(tmpdir)
