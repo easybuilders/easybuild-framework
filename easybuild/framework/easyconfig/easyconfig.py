@@ -72,7 +72,7 @@ class EasyConfig(object):
     """
 
     def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None,
-                 check_osdeps=True):
+                 check_osdeps=True, specs=None):
         """
         initialize an easyconfig.
         path should be a path to a file that can be parsed
@@ -133,7 +133,7 @@ class EasyConfig(object):
                             }
 
         # parse easyconfig file
-        self.parse(path)
+        self.parse(path, specs=specs)
 
         # handle allowed system dependencies
         self.handle_allowed_system_deps()
@@ -190,13 +190,17 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def parse(self, path, format_version=None):
+    def parse(self, path, format_version=None, specs=None):
         """
         Parse the file and set options
         mandatory requirements are checked here
         """
+        if specs is None:
+            specs = {}
+
         parser = EasyConfigParser(path, format_version=format_version)
-        local_vars = parser.get_config_dict()
+        local_vars = parser.get_config_dict(**specs)
+        self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
@@ -220,7 +224,7 @@ class EasyConfig(object):
             # do not store variables we don't need
             if key in self._config:
                 self[key] = local_vars[key]
-                self.log.info("setting config option %s: value %s" % (key, self[key]))
+                self.log.info("setting config option %s: value %s (type: %s)" % (key, self[key], type(self[key])))
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
@@ -593,6 +597,20 @@ class EasyConfig(object):
             return self.__getitem__(key)
         else:
             return default
+
+    def asdict(self):
+        """
+        Return dict representation of this EasyConfig instance.
+        """
+        res = {}
+        for key, tup in self._config.items():
+            value = tup[0]
+            if self.enable_templating:
+                if self.template_values is None or len(self.template_values) == 0:
+                    self.generate_template_values()
+                value = resolve_template(value, self.template_values)
+            res.update({key: value})
+        return res
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
