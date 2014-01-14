@@ -1,0 +1,27 @@
+# EASYCONFIGFORMAT 2.0
+# this is a version test
+"""
+docstring test
+@author: Stijn De Weirdt (UGent)
+@maintainer: Kenneth Hoste (UGent)
+"""
+name = "gzip"
+
+homepage = "http://www.gzip.org/"
+description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+
+source_urls = ['http://ftpmirror.gnu.org/gzip']
+sources = ['%(name)s-%(version)s.tar.gz']
+
+sanity_check_paths = {
+    'files': ["bin/gunzip", "bin/gzip"],
+    'dirs': [],
+}
+
+sanity_check_commands = [True, ('gzip', '--version')]
+
+moduleclass = 'tools'
+
+[DEFAULT]
+versions = 1.4
+toolchains = dummy dummy

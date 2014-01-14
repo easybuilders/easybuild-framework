@@ -788,6 +788,20 @@ class EasyConfigTest(TestCase):
         shutil.rmtree(config.variables['buildpath'])
         shutil.rmtree(config.variables['installpath'])
 
+    def test_format_equivalence_basic(self):
+        """Test whether easyconfigs in different formats are equivalent."""
+        easyconfigs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+
+        for eb_file1, eb_file2, specs in [
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'dummy', 'toolchain_version': 'dummy'}),
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
+            ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'GCC', 'toolchain_version': '4.6.3'}),
+            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'goolf', 'toolchain_version': '1.4.10'}),
+            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'ictce', 'toolchain_version': '4.1.13'}),
+        ]:
+            ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), valid_stops=self.all_stops, validate=False)
+            ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), valid_stops=self.all_stops, validate=False, specs=specs)
+            self.assertEqual(ec1.asdict(), ec2.asdict())
 
 def suite():
     """ returns all the testcases in this module """
