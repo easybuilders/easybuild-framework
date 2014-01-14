@@ -27,8 +27,9 @@
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import operator as op
 import re
 from distutils.version import LooseVersion
@@ -89,7 +90,7 @@ class VersionOperator(object):
         self.error_on_parse_failure = error_on_parse_failure
         if not versop_str is None:
             if self.set(versop_str) is None:
-                self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
+                self.log.warning("Failed to parse '%s' as a version operator string" % versop_str)
 
     def parse_error(self, msg):
         """Special function to deal with parse errors"""
@@ -405,7 +406,7 @@ class ToolchainVersionOperator(VersionOperator):
 
         if not tcversop_str is None:
             if self.set(tcversop_str) is None:
-                self.log.error("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
+                self.log.warning("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
 
     def __str__(self):
         """Return string representation of this instance"""
@@ -549,7 +550,9 @@ class ConfigObjVersion(object):
     # list of known marker types (except default)
     KNOWN_MARKER_TYPES = [ToolchainVersionOperator, VersionOperator]  # order matters, see parse_sections
     VERSION_OPERATOR_VALUE_TYPES = {
+        # toolchains: comma-separated list of toolchain version operators
         'toolchains': ToolchainVersionOperator,
+        # versions: comma-separated list of version operators
         'versions': VersionOperator,
     }
 
@@ -583,15 +586,13 @@ class ConfigObjVersion(object):
         # note: configobj already converts comma-separated strings in lists
         #
         # list of supported keywords, all else will fail
-        #    versions: comma-separated list of version operators
-        #    toolchains: comma-separated list of toolchain version operators
-        SUPPORTED_KEYS = ('versions', 'toolchains')
+        special_keys = self.VERSION_OPERATOR_VALUE_TYPES.keys()
         if parent is None:
             # no parent, so top sections
-            parsed_sections = {}
+            parsed = {}
         else:
             # parent specified, so not a top section
-            parsed_sections = Section(parent=parent, depth=depth+1, main=configobj)
+            parsed = Section(parent=parent, depth=depth+1, main=configobj)
 
         # start with full configobj initially, and then process subsections recursively
         if toparse is None:
@@ -616,18 +617,20 @@ class ConfigObjVersion(object):
                     if not new_key:
                         self.log.error("Unsupported section marker '%s'" % key)
 
-                # parse value as a section, recursively
+                    # parse value as a section, recursively
                 new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
 
             else:
                 new_key = key
 
-                # don't allow any keys we don't know about (yet)
-                if not new_key in SUPPORTED_KEYS:
-                    self.log.error('Unsupported key %s with value %s in section' % (new_key, value))
+                # simply pass down any non-special key-value items
+                if not new_key in special_keys:
+                    #self.log.error('Unsupported key %s with value %s in section' % (new_key, value))
+                    self.log.debug('Passing down key %s with value %s' % (new_key, value))
+                    new_value = value
 
                 # parse individual key-value assignments
-                if new_key in self.VERSION_OPERATOR_VALUE_TYPES:
+                elif new_key in self.VERSION_OPERATOR_VALUE_TYPES:
                     value_type = self.VERSION_OPERATOR_VALUE_TYPES[new_key]
                     # list of supported toolchains/versions
                     # first one is default
@@ -643,9 +646,9 @@ class ConfigObjVersion(object):
                     self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
 
             self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
-            parsed_sections[new_key] = new_value
+            parsed[new_key] = new_value
 
-        return parsed_sections
+        return parsed
 
     def validate_and_filter_by_toolchain(self, tcname, processed=None, filtered_sections=None, other_sections=None):
         """
@@ -676,10 +679,12 @@ class ConfigObjVersion(object):
                         # nothing more to do here, just continue with other sections
                         continue
                     else:
+                        self.log.debug("Found marker for specified toolchain '%s': %s" % (tcname, key))
                         # add marker to self.tcversops (which triggers a conflict check)
                         self.tcversops.add(key, value)
                         filtered_sections[key] = value
                 elif isinstance(key, VersionOperator):
+                    self.log.debug("Found marker for version '%s'" % key)
                     # keep track of all version operators, and enforce conflict check
                     self.versops.add(key, value)
                     filtered_sections[key] = value
@@ -687,9 +692,10 @@ class ConfigObjVersion(object):
                     self.log.error("Unhandled section marker type '%s', not in %s?" % (type(key), self.KNOWN_MARKER_TYPES))
 
                 # recursively go deeper for (relevant) sections
-                self.validate_and_filter_by_toolchain(tcname, value, filtered_sections, other_sections)
+                self.validate_and_filter_by_toolchain(tcname, processed=value, filtered_sections=filtered_sections, other_sections=other_sections)
 
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                self.log.debug("Found version operator key-value entry (%s)" % key)
                 if key == 'toolchains':
                     # remove any other toolchain from list
                     filtered_sections[key] = [tcversop for tcversop in value if tcversop.tc_name == tcname]
@@ -697,7 +703,7 @@ class ConfigObjVersion(object):
                     # retain all other values
                     filtered_sections[key] = value
             else:
-                filtered_sections[key] = value
+                self.log.debug("Found non-special key-value entry (key %s), skipping it" % key)
 
         if top_call:
             self.unfiltered_sections = self.sections
@@ -718,21 +724,38 @@ class ConfigObjVersion(object):
 
         # check for defaults section
         default = self.sections.pop(self.DEFAULT, {})
-        DEFAULT_KEYWORDS = ('toolchains', 'versions')
+        known_default_keywords = ('toolchains', 'versions')
         # default should only have versions and toolchains
         # no nesting
-        #  - add DEFAULT key,values to the root of self.sections
+        #  - add DEFAULT key,values to the root of self.sections (FIXME (kehoste) why is this required/done!?)
         for key, value in default.items():
-            if not key in DEFAULT_KEYWORDS:
+            if not key in known_default_keywords:
                 self.log.error('Unsupported key %s in %s section' % (key, self.DEFAULT))
             self.sections[key] = value
 
         if 'versions' in default:
-            # first of list is special: it is the default
-            default['default_version'] = default['versions'][0]
+            # first of list is special: it is the default FIXME: grab latest version as default
+            default['default_version'] = default['versions'][-1]
         if 'toolchains' in default:
             # first of list is special: it is the default
             default['default_toolchain'] = default['toolchains'][0]
+        # FIXME: provide default for toolchain version as well (latest)
 
         self.default = default
-        self.log.debug("parse: default %s, sections %s" % (self.default, self.sections))
+        self.log.debug("(parse) default: %s; sections: %s" % (self.default, self.sections))
+
+    def get_specs_for(self, version=None, tcname=None, tcversion=None):
+        """
+        Return dictionary with specifications listed in sections applicable for specified info.
+        """
+        if isinstance(self.default, Section):
+            cfg = self.default.dict()
+        else:
+            cfg = copy.deepcopy(self.default)
+        # get rid of entries that are not easyconfig parameters
+        # FIXME these should go in a dedicated section SUPPORTED instead of DEFAULT?
+        for key in ['default_toolchain', 'default_version', 'toolchains', 'versions']:
+            cfg.pop(key)
+        # TODO: determine 'path' to take in sections based on version and toolchain version
+
+        return cfg
