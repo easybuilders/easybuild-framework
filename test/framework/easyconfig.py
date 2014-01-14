@@ -793,8 +793,9 @@ class EasyConfigTest(TestCase):
         easyconfigs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
         for eb_file1, eb_file2, specs in [
-            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'dummy', 'toolchain_version': 'dummy'}),
+            ('gzip-1.4.eb', 'gzip.eb', {}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'dummy', 'toolchain_version': 'dummy'}),
             ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'GCC', 'toolchain_version': '4.6.3'}),
             ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'goolf', 'toolchain_version': '1.4.10'}),
             ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'ictce', 'toolchain_version': '4.1.13'}),

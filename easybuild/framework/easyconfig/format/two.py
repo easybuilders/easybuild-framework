@@ -35,7 +35,8 @@ import copy
 import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.framework.easyconfig.format.version import EasyVersion, ConfigObjVersion
+from easybuild.framework.easyconfig.format.version import ConfigObjVersion, EasyVersion, VersionOperator
+from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -125,9 +126,14 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                 self.log.error("no toolchain name specified, no default toolchain found")
 
         # add version/toolchain specifications to config dict
+        if isinstance(version, VersionOperator):
+            version = version.get_version_str()
+        if isinstance(toolchain_version, ToolchainVersionOperator):
+            toolchain_version = toolchain_version.get_version_str()
+
         cfg.update({
-            'version': str(version),
-            'toolchain': {'name': toolchain_name, 'version': str(toolchain_version)},
+            'version': version,
+            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
         })
         self.log.debug("Config dict including version/toolchain specs: %s" % cfg)
 

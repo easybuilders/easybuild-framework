@@ -157,6 +157,10 @@ class VersionOperator(object):
         operator_str = self.REVERSE_OPERATOR_MAP[operator]
         return ''.join(map(str, [operator_str, self.SEPARATOR, self.version]))
 
+    def get_version_str(self):
+        """Return string representation of version (ignores operator)."""
+        return str(self.version)
+
     def __repr__(self):
         """Return instance as string (ignores begin_end)"""
         return "%s('%s')" % (self.__class__.__name__, self)

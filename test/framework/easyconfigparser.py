@@ -41,12 +41,11 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
-        self.assertRaises(NotImplementedError, ecp.get_config_dict)
-
         # this should be ok: ie the default values
-        # self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
-        # self.assertEqual(ec['name'], 'GCC')
-        # self.assertEqual(ec['version'], '4.6.3')
+        ec = ecp.get_config_dict()
+        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+        self.assertEqual(ec['name'], 'GCC')
+        self.assertEqual(ec['version'], '4.6.3')
 
     def test_v20_extra(self):
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
@@ -58,8 +57,6 @@ class EasyConfigParserTest(TestCase):
         self.assertTrue('name' in formatter.pyheader_localvars)
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
-
-        self.assertRaises(NotImplementedError, ecp.get_config_dict)
 
 
 def suite():
