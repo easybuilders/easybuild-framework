@@ -4,10 +4,12 @@ Unit tests for easyconfig/format/version.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import re
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ConfigObjVersion
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from unittest import TestCase, TestLoader, main
@@ -17,6 +19,17 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 class EasyConfigVersion(TestCase):
     """Unit tests for format.version module."""
+
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args, **kwargs)
+            self.assertTrue(False)  # this will fail when no exception is thrown at all
+        except error, err:
+            res = re.search(regex, err.msg)
+            if not res:
+                print "err: %s" % err
+            self.assertTrue(res)
 
     def test_parser_regex(self):
         """Test the version parser"""
@@ -43,7 +56,8 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(VersionOperator('>= 123'))
         self.assertTrue(VersionOperator('123'))
 
-        self.assertFalse(VersionOperator('<='))
+        error_msg = "Failed to parse '<=' as a version operator string"
+        self.assertErrorRegex(EasyBuildError, error_msg, VersionOperator, '<=')
 
     def test_vop_test(self):
         """Test version checker"""
@@ -155,7 +169,8 @@ class EasyConfigVersion(TestCase):
             ]
             for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
-                self.assertFalse(ToolchainVersionOperator(txt))
+                error_msg = "Failed to parse '%s' as a toolchain version operator string" % txt
+                self.assertErrorRegex(EasyBuildError, error_msg, ToolchainVersionOperator, txt)
 
     def test_configobj(self):
         """Test configobj sort"""
