@@ -792,6 +792,9 @@ class EasyConfigTest(TestCase):
         """Test whether easyconfigs in different formats are equivalent."""
         easyconfigs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
+        # set max diff high enough to make sure the difference is shown in case of problems
+        self.maxDiff = 10000
+
         for eb_file1, eb_file2, specs in [
             ('gzip-1.4.eb', 'gzip.eb', {}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),

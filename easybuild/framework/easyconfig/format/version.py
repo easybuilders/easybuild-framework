@@ -34,6 +34,7 @@ import operator as op
 import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
+from vsc.utils.missing import any
 
 from easybuild.tools.configobj import Section
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -90,7 +91,7 @@ class VersionOperator(object):
         self.error_on_parse_failure = error_on_parse_failure
         if not versop_str is None:
             if self.set(versop_str) is None:
-                self.log.warning("Failed to parse '%s' as a version operator string" % versop_str)
+                self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
 
     def parse_error(self, msg):
         """Special function to deal with parse errors"""
@@ -410,7 +411,7 @@ class ToolchainVersionOperator(VersionOperator):
 
         if not tcversop_str is None:
             if self.set(tcversop_str) is None:
-                self.log.warning("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
+                self.log.error("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
 
     def __str__(self):
         """Return string representation of this instance"""
@@ -645,6 +646,8 @@ class ConfigObjVersion(object):
                         value = value.split(',')
                     # remove possible surrounding whitespace (some people add space after comma)
                     new_value = map(lambda x: value_type(x.strip()), value)
+                    if any([x is None for x in new_value]):
+                        self.log.error("Failed to parse '%s' as a %s" % (value, value_type.__class__.__name__))
                 else:
                     tup = (new_key, value, type(value))
                     self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
@@ -738,8 +741,8 @@ class ConfigObjVersion(object):
             self.sections[key] = value
 
         if 'versions' in default:
-            # first of list is special: it is the default FIXME: grab latest version as default
-            default['default_version'] = default['versions'][-1]
+            # first of list is special: it is the default FIXME: grab latest version as default?
+            default['default_version'] = default['versions'][0]
         if 'toolchains' in default:
             # first of list is special: it is the default
             default['default_toolchain'] = default['toolchains'][0]
@@ -760,6 +763,26 @@ class ConfigObjVersion(object):
         # FIXME these should go in a dedicated section SUPPORTED instead of DEFAULT?
         for key in ['default_toolchain', 'default_version', 'toolchains', 'versions']:
             cfg.pop(key)
+
+        # make sure that requested version/toolchain are supported by this easyconfig
+        versions = [x.get_version_str() for x in self.default['versions']]
+        if version is not None and not version in versions:
+            self.log.error("Version '%s' not supported in easyconfig (only %s)" % (version, versions))
+        elif version is not None:
+            self.log.debug("Version '%s' is supported in easyconfig." % version)
+
+        tcnames = [tc.tc_name for tc in self.default['toolchains']]
+        if tcname is not None and not tcname in tcnames:
+            self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
+        elif tcname is not None:
+            self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
+            tcversions = [tc.get_version_str() for tc in self.default['toolchains'] if tc.tc_name == tcname]
+            if tcversion is not None and not tcversion in tcversions:
+                tup = (tcname, tcversion, tcversions)
+                self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
+            elif tcversion is not None:
+                self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+
         # TODO: determine 'path' to take in sections based on version and toolchain version
 
         return cfg

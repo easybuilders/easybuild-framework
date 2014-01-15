@@ -122,7 +122,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                 toolchain_name = toolchain.tc_name
                 self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
                 if toolchain_version is None:
-                    toolchain_version = toolchain.version_str
+                    toolchain_version = toolchain.get_version_str()
                     self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
             else:
                 self.log.error("no toolchain name specified, no default toolchain found")
