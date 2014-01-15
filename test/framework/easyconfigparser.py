@@ -45,7 +45,7 @@ class EasyConfigParserTest(TestCase):
         ec = ecp.get_config_dict()
         self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
         self.assertEqual(ec['name'], 'GCC')
-        self.assertEqual(ec['version'], '4.6.3')
+        self.assertEqual(ec['version'], '4.6.2')
 
     def test_v20_extra(self):
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
