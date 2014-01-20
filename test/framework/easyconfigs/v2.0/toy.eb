@@ -22,4 +22,4 @@ moduleclass = 'tools'
 
 [DEFAULT]
 versions = 1.0, 0.0
-toolchains = goolf 1.4.10, dummy dummy
+toolchains = goolf == 1.4.10, dummy == dummy
