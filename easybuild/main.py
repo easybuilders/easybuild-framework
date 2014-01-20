@@ -427,6 +427,12 @@ def find_easyconfigs(path, ignore_dirs=None):
 def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=True, check_osdeps=True, specs=None):
     """
     Process easyconfig, returning some information for each block
+    @param path: path to easyconfig file
+    @param onlyBlocks: only retain blocks in this list
+    @param regtest_online: indicates whether online regtest should be performed
+    @param validate: perform easyconfig validation after parsing
+    @param check_osdeps: check OS dependencies
+    @param specs: build specifications
     """
     blocks = retrieve_blocks_in_spec(path, onlyBlocks)
 
@@ -508,7 +514,11 @@ def skip_available(easyconfigs, testing=False):
 def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True, specs=None):
     """
     Work through the list of easyconfigs to determine an optimal order
-    enabling force results in retaining all dependencies and skipping validation of easyconfigs
+    @param unprocessed: llist of easyconfigs
+    @param robot: robot path
+    @param force: retain all dependencies and skip validation of easyconfigs (default: False)
+    @param check_osdeps: check OS dependencies (default: True)
+    @param: build specifications (default: None)
     """
 
     if force:
@@ -761,9 +771,15 @@ def get_build_stats(app, starttime):
     return buildstats
 
 
-def build_and_install_software(module, options, orig_environ, exitOnFailure=True, silent=False, specs=None):
+def build_and_install_software(module, options, orig_environ, exit_on_failure=True, silent=False, specs=None):
     """
     Build the software
+    @param module: dictionary contaning parsed easyconfig + metadata
+    @param options: build options (as parsed from command line)
+    @param orig_environ: original environment (used to reset environment)
+    @param exit_on_failure: should we exit on failures (False for testing)? (default: True)
+    @param silent: should any messages be printed to stdout? (True for testing) (default: False)
+    @param specs: build specifications (e.g. version, toolchain, ...) (default: None)
     """
     spec = module['spec']
 
@@ -909,7 +925,7 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
 
     if exitCode > 0:
         # don't exit on failure in test suite
-        if exitOnFailure:
+        if exit_on_failure:
             sys.exit(exitCode)
         else:
             return (False, application_log)
@@ -1237,7 +1253,13 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
 
 
 def regtest(options, easyconfig_paths, check_osdeps=True, specs=None):
-    """Run regression test, using easyconfigs available in given path."""
+    """
+    Run regression test, using easyconfigs available in given path
+    @param options: build options (as parsed from command line)
+    @param easyconfig_paths: path of easyconfigs to run regtest on
+    @param check_osdeps: check OS dependencies
+    @Param specs: build specifications
+    """
 
     cur_dir = os.getcwd()
 
@@ -1323,6 +1345,14 @@ def regtest(options, easyconfig_paths, check_osdeps=True, specs=None):
 
 
 def print_dry_run(easyconfigs, robot=None, silent=False, short=False, specs=None):
+    """
+    Print dry run information
+    @param easyconfigs: list of easyconfig files
+    @param robot: robot path
+    @param silent: should messages be printed to stdout?
+    @param short: should output be kept short?
+    @param specs: build specifications
+    """
     lines = []
     if robot is None:
         lines.append("Dry run: printing build status of easyconfigs")

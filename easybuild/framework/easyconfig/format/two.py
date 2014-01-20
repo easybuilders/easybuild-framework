@@ -35,8 +35,8 @@ import copy
 import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.framework.easyconfig.format.version import ConfigObjVersion, EasyVersion, VersionOperator
-from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator
+from easybuild.framework.easyconfig.format.version import ConfigObjVersion, EasyVersion
+from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -57,7 +57,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     USABLE = True
 
     PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl']
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
@@ -138,8 +138,13 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         # add version/toolchain specifications to config dict
         if isinstance(version, VersionOperator):
             version = version.get_version_str()
+        elif not isinstance(version, basestring):
+            self.log.error("Found version of unexpected type: %s (%s)" % (type(version), version))
         if isinstance(toolchain_version, ToolchainVersionOperator):
             toolchain_version = toolchain_version.get_version_str()
+        elif not isinstance(toolchain_version, basestring):
+            tup = (type(toolchain_version), toolchain_version)
+            self.log.error("Found toolchain version of unexpected type: %s (%s)" % tup)
 
         cfg.update({
             'version': version,
@@ -150,7 +155,6 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
         # this also performs some validation, and checks for conflicts between section markers
         self.log.debug("sections for full parsed configobj: %s" % cov.sections)
-        #toolchain_name = 'goolf'
         cov.validate_and_filter_by_toolchain(toolchain_name)
         self.log.debug("sections for filtered parsed configobj: %s" % cov.sections)
 

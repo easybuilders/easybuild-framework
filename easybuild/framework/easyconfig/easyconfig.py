@@ -628,7 +628,7 @@ class EasyConfig(object):
         for key, tup in self._config.items():
             value = tup[0]
             if self.enable_templating:
-                if self.template_values is None or len(self.template_values) == 0:
+                if not self.template_values:
                     self.generate_template_values()
                 value = resolve_template(value, self.template_values)
             res.update({key: value})

@@ -90,8 +90,7 @@ class VersionOperator(object):
 
         self.error_on_parse_failure = error_on_parse_failure
         if not versop_str is None:
-            if self.set(versop_str) is None:
-                self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
+            self.set(versop_str)
 
     def parse_error(self, msg):
         """Special function to deal with parse errors"""
@@ -119,8 +118,7 @@ class VersionOperator(object):
         """
         versop_dict = self.parse_versop_str(versop_str)
         if versop_dict is None:
-            self.log.warning("set('%s'): Failed to parse argument" % versop_str)
-            return None
+            self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
         else:
             for k, v in versop_dict.items():
                 setattr(self, k, v)
@@ -410,8 +408,7 @@ class ToolchainVersionOperator(VersionOperator):
         self.tcversop_str = None  # the full string
 
         if not tcversop_str is None:
-            if self.set(tcversop_str) is None:
-                self.log.error("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
+            self.set(tcversop_str)
 
     def __str__(self):
         """Return string representation of this instance"""
@@ -625,7 +622,7 @@ class ConfigObjVersion(object):
                     if not new_key:
                         self.log.error("Unsupported section marker '%s'" % key)
 
-                    # parse value as a section, recursively
+                # parse value as a section, recursively
                 new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
 
             else:
@@ -633,7 +630,6 @@ class ConfigObjVersion(object):
 
                 # simply pass down any non-special key-value items
                 if not new_key in special_keys:
-                    #self.log.error('Unsupported key %s with value %s in section' % (new_key, value))
                     self.log.debug('Passing down key %s with value %s' % (new_key, value))
                     new_value = value
 
@@ -702,7 +698,8 @@ class ConfigObjVersion(object):
                     self.log.error("Unhandled section marker type '%s', not in %s?" % (type(key), self.KNOWN_MARKER_TYPES))
 
                 # recursively go deeper for (relevant) sections
-                self.validate_and_filter_by_toolchain(tcname, processed=value, filtered_sections=filtered_sections, other_sections=other_sections)
+                self.validate_and_filter_by_toolchain(tcname, processed=value, filtered_sections=filtered_sections,
+                                                      other_sections=other_sections)
 
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.debug("Found version operator key-value entry (%s)" % key)
@@ -744,12 +741,11 @@ class ConfigObjVersion(object):
             self.sections[key] = value
 
         if 'versions' in default:
-            # first of list is special: it is the default FIXME: grab latest version as default?
+            # first of list is special: it is the default
             default['default_version'] = default['versions'][0]
         if 'toolchains' in default:
             # first of list is special: it is the default
             default['default_toolchain'] = default['toolchains'][0]
-        # FIXME: provide default for toolchain version as well (latest)
 
         self.default = default
         self.log.debug("(parse) default: %s; sections: %s" % (self.default, self.sections))
@@ -769,22 +765,28 @@ class ConfigObjVersion(object):
 
         # make sure that requested version/toolchain are supported by this easyconfig
         versions = [x.get_version_str() for x in self.default['versions']]
-        if version is not None and not version in versions:
-            self.log.error("Version '%s' not supported in easyconfig (only %s)" % (version, versions))
-        elif version is not None:
+        if version is None:
+            self.log.debug("No version specified")
+        elif version in versions:
             self.log.debug("Version '%s' is supported in easyconfig." % version)
+        else:
+            self.log.error("Version '%s' not supported in easyconfig (only %s)" % (version, versions))
 
         tcnames = [tc.tc_name for tc in self.default['toolchains']]
-        if tcname is not None and not tcname in tcnames:
-            self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
-        elif tcname is not None:
+        if tcname is None:
+            self.log.debug("Toolchain name not specified.")
+        elif tcname in tcnames:
             self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
             tcversions = [tc.get_version_str() for tc in self.default['toolchains'] if tc.tc_name == tcname]
-            if tcversion is not None and not tcversion in tcversions:
+            if tcversion is None:
+                self.log.debug("Toolchain version not specified.")
+            elif tcversion in tcversions:
+                self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+            else:
                 tup = (tcname, tcversion, tcversions)
                 self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
-            elif tcversion is not None:
-                self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+        else:
+            self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
 
         # TODO: determine 'path' to take in sections based on version and toolchain version
 
