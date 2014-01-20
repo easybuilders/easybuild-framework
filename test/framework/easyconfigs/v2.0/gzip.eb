@@ -10,8 +10,8 @@ name = "gzip"
 homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
-source_urls = ['http://ftpmirror.gnu.org/gzip']
-sources = ['%(name)s-%(version)s.tar.gz']
+source_urls = [GNU_SOURCE]
+sources = [SOURCE_TAR_GZ]
 
 sanity_check_paths = {
     'files': ["bin/gunzip", "bin/gzip"],

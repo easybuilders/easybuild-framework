@@ -8,7 +8,7 @@ description = "gzip (GNU zip) is a popular data compression program as a replace
 toolchain = {'name':'dummy','version':'dummy'}
 
 # source tarball filename
-sources = ['%s-%s.tar.gz'%(name,version)]
+sources = [SOURCE_TAR_GZ]
 
 # download location for source files
 source_urls = ['http://ftpmirror.gnu.org/gzip']
