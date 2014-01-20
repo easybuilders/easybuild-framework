@@ -133,7 +133,8 @@ class EasyConfig(object):
         }
 
         # parse easyconfig file
-        self.parse(path, specs=build_specs)
+        self.build_specs = build_specs
+        self.parse()
 
         # handle allowed system dependencies
         self.handle_allowed_system_deps()
@@ -194,39 +195,39 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def parse(self, path, format_version=None, specs=None):
+    def parse(self):
         """
         Parse the file and set options
         mandatory requirements are checked here
         """
-        if specs is None:
+        if self.build_specs is None:
             arg_specs = {}
-        elif isinstance(specs, dict):
+        elif isinstance(self.build_specs, dict):
             # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
             arg_specs = {}
             for key in ['toolchain_name', 'toolchain_version', 'version']:
-                if key in specs:
-                    arg_specs[key] = specs[key]
-            if 'toolchain' in specs:
-                tc = specs['toolchain']
+                if key in self.build_specs:
+                    arg_specs[key] = self.build_specs[key]
+            if 'toolchain' in self.build_specs:
+                tc = self.build_specs['toolchain']
                 if isinstance(tc, dict) and 'name' in tc and 'version' in tc:
                     arg_specs['toolchain_name'] = tc['name']
                     arg_specs['toolchain_version'] = tc['version']
                 else:
                     self.log.error("Wrong toolchain specification '%s', should be dict with 'name'/'version' keys." % tc)
-            self.log.debug("Constructed specs dict %s from obtained dict %s" % (arg_specs, specs))
+            self.log.debug("Constructed specs dict %s from obtained dict %s" % (arg_specs, self.build_specs))
         else:
-            self.log.error("Specifications should be specified using a dictionary, got %s" % type(specs))
+            self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
 
-        parser = EasyConfigParser(path, format_version=format_version)
+        parser = EasyConfigParser(self.path)
         local_vars = parser.get_config_dict(**arg_specs)
         self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
         missing_keys = [key for key in self.mandatory if key not in local_vars]
-        if missing_keys:
-            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
+        if missing_key:
+            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, self.path))
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
