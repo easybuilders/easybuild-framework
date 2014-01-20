@@ -59,11 +59,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         # minimal checks
         self._validate_pyheader()
 
-    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+    def get_config_dict(self):
         """
         Return parsed easyconfig as a dictionary, based on specified arguments.
         This is easyconfig format 1.x, so there is only one easyconfig instance available.
         """
+        version = self.specs.get('version', None)
+        toolchain_name = self.specs.get('toolchain_name', None)
+        toolchain_version = self.specs.get('toolchain_version', None)
         cfg = self.pyheader_localvars
         if version is not None and not version == cfg['version']:
             self.log.error('Requested version %s not available, only %s' % (version, cfg['version']))

@@ -93,7 +93,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         if self.MAINTAINER_REQUIRED and not maintainers:
             self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
-    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+    def get_config_dict(self):
         """Return the best matching easyconfig dict"""
         # the toolchain name/version should not be specified in the pyheader,
         # but other toolchain options are allowed
@@ -105,6 +105,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         # we only need to find one version / toolchain combo
         # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
+        version = self.specs.get('version', None)
         if version is None:
             # check for default version
             if 'default_version' in cov.default:
@@ -115,12 +116,14 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         else:
             self.log.debug("Using specified software version %s" % version)
 
+        toolchain_name = self.specs.get('toolchain_name', None)
         if toolchain_name is None:
             # check for default toolchain
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
                 self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
+                toolchain_version = self.specs.get('toolchain_version', None)
                 if toolchain_version is None:
                     toolchain_version = toolchain.get_version_str()
                     self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
@@ -128,6 +131,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                 self.log.error("no toolchain name specified, no default toolchain found")
         else:
             self.log.debug("Using specified toolchain name %s" % toolchain_name)
+            toolchain_version = self.specs.get('toolchain_version', None)
             if toolchain_version is None:
                 self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 

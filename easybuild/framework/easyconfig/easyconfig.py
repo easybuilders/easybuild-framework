@@ -220,13 +220,14 @@ class EasyConfig(object):
             self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
 
         parser = EasyConfigParser(self.path)
-        local_vars = parser.get_config_dict(**arg_specs)
+        parser.set_specifications(arg_specs)
+        local_vars = parser.get_config_dict()
         self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
         missing_keys = [key for key in self.mandatory if key not in local_vars]
-        if missing_key:
+        if missing_keys:
             self.log.error("mandatory variables %s not provided in %s" % (missing_keys, self.path))
 
         # provide suggestions for typos
