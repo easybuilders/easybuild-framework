@@ -71,23 +71,24 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None,
-                 check_osdeps=True, specs=None):
+    def __init__(self, path, extra_options=None, build_options=None, build_specs=None):
         """
         initialize an easyconfig.
-        path should be a path to a file that can be parsed
-        extra_options is a dict of extra variables that can be set in this specific instance
-        validate specifies whether validations should happen
+        @param path: path to easyconfig file to be parsed
+        @param extra_options: dictionary with extra variables that can be set for this specific instance
+        @param build_options: dictionary of build options, e.g. robot_path, validate, check_osdeps, ... (default: {})
+        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
+        if build_options is None:
+            build_options = {}
 
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        self.valid_module_classes = None
-        if valid_module_classes:
-            self.valid_module_classes = valid_module_classes
+        self.valid_module_classes = build_options.get('valid_module_classes', None)
+        if self.valid_module_classes:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
         else:
             self.valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
@@ -116,9 +117,8 @@ class EasyConfig(object):
                 self.mandatory.append(key)
 
         # set valid stops
-        self.valid_stops = []
-        if valid_stops:
-            self.valid_stops = valid_stops
+        self.valid_stops = build_options.get('valid_stops', [])
+        if self.valid_stops:
             self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
@@ -133,15 +133,15 @@ class EasyConfig(object):
         }
 
         # parse easyconfig file
-        self.parse(path, specs=specs)
+        self.parse(path, specs=build_specs)
 
         # handle allowed system dependencies
         self.handle_allowed_system_deps()
 
         # perform validations
-        self.validation = validate
+        self.validation = build_options.get('validate', True)
         if self.validation:
-            self.validate(check_osdeps=check_osdeps)
+            self.validate(check_osdeps=build_options.get('check_osdeps', True))
 
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
@@ -171,8 +171,12 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, extra_options={}, validate=self.validation, valid_stops=self.valid_stops,
-                        valid_module_classes=copy.deepcopy(self.valid_module_classes))
+        build_options = {
+            'validate': self.validation,
+            'valid_stops': self.valid_stops,
+            'valid_module_classes': copy.deepcopy(self.valid_module_classes),
+        }
+        ec = EasyConfig(self.path, extra_options={}, build_options=build_options)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
