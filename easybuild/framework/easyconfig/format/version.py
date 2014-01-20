@@ -457,6 +457,9 @@ class ToolchainVersionOperator(VersionOperator):
 
         tcversop_dict = super(ToolchainVersionOperator, self).parse_versop_str(None, versop_dict=tcversop_dict)
 
+        if tcversop_dict.get('version_str', None) is not None and tcversop_dict.get('operator_str', None) is None:
+            self.log.error("Toolchain version found, but no operator (use ' == '?).")
+
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
 
