@@ -439,8 +439,13 @@ def process_easyconfig(path, onlyBlocks=None, regtest_online=False, validate=Tru
         # create easyconfig
         try:
             all_stops = [x[0] for x in EasyBlock.get_steps()]
-            ec = EasyConfig(spec, validate=validate, valid_module_classes=module_classes(), valid_stops=all_stops,
-                            check_osdeps=check_osdeps, specs=specs)
+            build_options = {
+                'validate': validate,
+                'valid_module_classes': module_classes(),
+                'valid_stops': all_stops,
+                'check_osdeps': check_osdeps,
+            }
+            ec = EasyConfig(spec, build_options=build_options, build_specs=specs)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -786,7 +791,12 @@ def build_and_install_software(module, options, orig_environ, exitOnFailure=True
     name = module['ec']['name']
     try:
         app_class = get_class(easyblock, name=name)
-        app = app_class(spec, debug=options.debug, robot_path=options.robot, silent=silent, specs=specs)
+        build_options = {
+            'debug': options.debug,
+            'robot_path': options.robot,
+            'silent': silent,
+        }
+        app = app_class(spec, build_options=build_options, build_specs=specs)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         tup = (name, easyblock, err.msg)

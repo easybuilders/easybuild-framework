@@ -185,7 +185,12 @@ def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True, specs
             break
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, debug=True, robot_path=robot_path, check_osdeps=check_osdeps, specs=specs)
+    build_options = {
+        'debug': True,
+        'robot_path': robot_path,
+        'check_osdeps': check_osdeps,
+    }
+    return app_class(spec, build_options=build_options, build_specs=specs)
 
 
 def prepare_easyconfig(ec, robot_path=None, check_osdeps=True, specs=None):
