@@ -27,7 +27,10 @@ Toolchain specific variables
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
+
+import os
 
 from easybuild.tools.variables import StrList, AbsPathList
 
@@ -174,3 +177,6 @@ class LinkerFlagList(StrList):
         super(LinkerFlagList, self).sanitize()
 
 
+class CMakePaths(AbsPathList):
+    """Paths for CMake to search"""
+    SEPARATOR = os.pathsep
