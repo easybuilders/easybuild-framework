@@ -161,7 +161,7 @@ if { [is-loaded mod_name] } {
             # test default naming scheme
             for ec_file in ec_files:
                 ec_path = os.path.abspath(ec_file)
-                ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+                ec = EasyConfig(ec_path, build_options={'validate': False, 'valid_stops': all_stops})
                 # derive module name directly from easyconfig file name
                 ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
@@ -209,7 +209,7 @@ if { [is-loaded mod_name] } {
         # test custom naming scheme
         for ec_file in ec_files:
             ec_path = os.path.abspath(ec_file)
-            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+            ec = EasyConfig(ec_path, build_options={'validate': False, 'valid_stops': all_stops})
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
             self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))

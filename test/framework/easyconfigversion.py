@@ -153,7 +153,7 @@ class EasyConfigVersion(TestCase):
             # test version expressions with optional version operator
             ok_tests = [
                 "%s >= 1.2.3" % tc,
-                "%s 1.2.3" % tc,
+                "%s == 1.2.3" % tc,
                 tc,
             ]
             for txt in ok_tests:
