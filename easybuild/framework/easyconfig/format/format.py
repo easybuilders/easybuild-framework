@@ -27,7 +27,9 @@
 The main easyconfig format class
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+import copy
 import re
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
@@ -74,7 +76,13 @@ class EasyConfigFormat(object):
         self.header = None  # easyconfig header (e.g., format version, license, ...)
         self.docstring = None  # easyconfig docstring (e.g., author, maintainer, ...)
 
-    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+        self.specs = {}
+
+    def set_specifications(self, specs):
+        """Set specifications."""
+        self.specs = copy.deepcopy(specs)
+
+    def get_config_dict(self):
         """Returns a single easyconfig dictionary."""
         raise NotImplementedError
 

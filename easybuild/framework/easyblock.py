@@ -91,10 +91,15 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, debug=False, robot_path=None, validate_ec=True, silent=False, check_osdeps=True):
+    def __init__(self, path, build_options=None, build_specs=None):
         """
         Initialize the EasyBlock instance.
+        @param path: path to easyconfig file
+        @param build_options: dictionary of build options, e.g. robot_path, validate_ec, check_osdeps, ... (default: {})
+        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
+        if build_options is None:
+            build_options = {}
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -119,14 +124,14 @@ class EasyBlock(object):
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
-        self.cfg = EasyConfig(
-            path,
-            extra_options=self.extra_options(),
-            validate=validate_ec,
-            valid_module_classes=module_classes(),
-            valid_stops=all_stops,
-            check_osdeps=check_osdeps,
-        )
+        ec_build_options = copy.deepcopy(build_options)
+        ec_build_options.update({
+            'valid_module_classes': module_classes(),
+            'valid_stops': all_stops,
+            'validate': build_options.get('validate_ec', True),
+        })
+        extra = self.extra_options()
+        self.cfg = EasyConfig(path, extra_options=extra, build_options=ec_build_options, build_specs=build_specs)
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -134,7 +139,7 @@ class EasyBlock(object):
         # logging
         self.log = None
         self.logfile = None
-        self.logdebug = debug
+        self.logdebug = build_options.get('debug', False)
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
 
         # original environ will be set later
@@ -144,7 +149,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # robot path
-        self.robot_path = robot_path
+        self.robot_path = build_options.get('robot_path', None)
 
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
@@ -162,7 +167,7 @@ class EasyBlock(object):
         self.sanity_check_fail_msgs = []
 
         # should we keep quiet?
-        self.silent = silent
+        self.silent = build_options.get('silent', False)
 
         # full module name to generate
         self.mod_name = None

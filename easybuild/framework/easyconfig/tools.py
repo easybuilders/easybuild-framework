@@ -62,7 +62,7 @@ def ec_filename_for(path):
     Return a suiting file name for the easyconfig file at <path>,
     as determined by its contents.
     """
-    ec = EasyConfig(path, validate=False)
+    ec = EasyConfig(path, build_options={'validate': False})
 
     fn = "%s-%s.eb" % (ec['name'], det_full_ec_version(ec))
 
@@ -249,7 +249,7 @@ def select_or_generate_ec(fp, paths, specs):
     ec_files = nub(ec_files)
     _log.debug("Unique ec_files: %s" % ec_files)
 
-    ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
+    ecs_and_files = [(EasyConfig(f, build_options={'validate': False}), f) for f in ec_files]
 
     # TOOLCHAIN NAME
 

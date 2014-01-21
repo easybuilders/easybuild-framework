@@ -49,11 +49,17 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=True):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=True,
+                                  specs=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
-
+    @param build_command: build command to use
+    @param easyconfigs: list of easyconfig files
+    @param output_dir: output directory
+    @param robot_path: robot path
+    @param check_osdeps: check OS dependencies
+    @param specs: build specifications
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
@@ -79,7 +85,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, robot_path=robot_path, check_osdeps=check_osdeps)
+        prepare_easyconfig(ec, robot_path=robot_path, check_osdeps=check_osdeps, specs=specs)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -162,11 +168,13 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     return job
 
 
-def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True):
+def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True, specs=None):
     """
     Get an instance for this easyconfig
-    easyconfig is in the format provided by processEasyConfig
-    log is a logger object
+    @param easyconfig: parsed easyconfig
+    @param robot_path: robot path
+    @param check_osdeps: check OS dependencies
+    @param specs: build specifications
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -184,13 +192,24 @@ def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True):
             break
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, debug=True, robot_path=robot_path, check_osdeps=check_osdeps)
+    build_options = {
+        'debug': True,
+        'robot_path': robot_path,
+        'check_osdeps': check_osdeps,
+    }
+    return app_class(spec, build_options=build_options, build_specs=specs)
 
 
-def prepare_easyconfig(ec, robot_path=None, check_osdeps=True):
-    """ prepare for building """
+def prepare_easyconfig(ec, robot_path=None, check_osdeps=True, specs=None):
+    """
+    Prepare for building specified easyconfig (fetch sources)
+    @param ec: parsed easyconfig
+    @param robot_path: robot path
+    @param check_osdeps: check OS dependencies
+    @param specs: build specifications
+    """
     try:
-        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path, check_osdeps=check_osdeps)
+        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path, check_osdeps=check_osdeps, specs=specs)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step(skip_checksums=True)
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
