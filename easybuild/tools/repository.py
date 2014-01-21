@@ -452,7 +452,7 @@ def init_repository(repository, repository_path):
     elif isinstance(repository, basestring):
         repo = avail_repositories().get(repository)
         try:
-            return repo(*repository_path)
+            return repo(repository_path)
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
                        (repository, repo.__name__, repository_path, err))
