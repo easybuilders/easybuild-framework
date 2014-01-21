@@ -87,11 +87,10 @@ class EasyConfig(object):
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        self.valid_module_classes = build_options.get('valid_module_classes', None)
-        if self.valid_module_classes:
+        # use legacy module classes as default
+        self.valid_module_classes = build_options.get('valid_module_classes', ['base', 'compiler', 'lib'])
+        if 'valid_module_classes' in build_options:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
-        else:
-            self.valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
 
         # replace the category name with the category
         self._config = {}
@@ -118,8 +117,7 @@ class EasyConfig(object):
 
         # set valid stops
         self.valid_stops = build_options.get('valid_stops', [])
-        if self.valid_stops:
-            self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
+        self.log.debug("Non-empty list of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
         self._toolchain = None
@@ -204,20 +202,10 @@ class EasyConfig(object):
             arg_specs = {}
         elif isinstance(self.build_specs, dict):
             # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
-            arg_specs = {}
-            for key in ['toolchain_name', 'toolchain_version', 'version']:
-                if key in self.build_specs:
-                    arg_specs[key] = self.build_specs[key]
-            if 'toolchain' in self.build_specs:
-                tc = self.build_specs['toolchain']
-                if isinstance(tc, dict) and 'name' in tc and 'version' in tc:
-                    arg_specs['toolchain_name'] = tc['name']
-                    arg_specs['toolchain_version'] = tc['version']
-                else:
-                    self.log.error("Wrong toolchain specification '%s', should be dict with 'name'/'version' keys." % tc)
-            self.log.debug("Constructed specs dict %s from obtained dict %s" % (arg_specs, self.build_specs))
+            arg_specs = self.build_specs
         else:
             self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
+        self.log.debug("Obtained specs dict %s" % arg_specs)
 
         parser = EasyConfigParser(self.path)
         parser.set_specifications(arg_specs)

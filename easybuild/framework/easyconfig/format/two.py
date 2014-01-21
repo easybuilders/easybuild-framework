@@ -116,14 +116,15 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         else:
             self.log.debug("Using specified software version %s" % version)
 
-        toolchain_name = self.specs.get('toolchain_name', None)
+        tc_spec = self.specs.get('toolchain', {})
+        toolchain_name = tc_spec.get('name', None)
         if toolchain_name is None:
             # check for default toolchain
             if 'default_toolchain' in cov.default:
                 toolchain = cov.default['default_toolchain']
                 toolchain_name = toolchain.tc_name
                 self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
-                toolchain_version = self.specs.get('toolchain_version', None)
+                toolchain_version = tc_spec.get('version', None)
                 if toolchain_version is None:
                     toolchain_version = toolchain.get_version_str()
                     self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
@@ -131,7 +132,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
                 self.log.error("no toolchain name specified, no default toolchain found")
         else:
             self.log.debug("Using specified toolchain name %s" % toolchain_name)
-            toolchain_version = self.specs.get('toolchain_version', None)
+            toolchain_version = tc_spec.get('version', None)
             if toolchain_version is None:
                 self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 

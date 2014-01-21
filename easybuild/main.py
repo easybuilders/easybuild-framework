@@ -642,7 +642,7 @@ def process_software_build_specs(options):
     """
 
     try_to_generate = False
-    buildopts = {}
+    build_specs = {}
 
     # regular options: don't try to generate easyconfig, and search
     opts_map = {
@@ -663,13 +663,13 @@ def process_software_build_specs(options):
     # process easy options
     for (key, opt) in opts_map.items():
         if opt:
-            buildopts.update({key: opt})
+            build_specs.update({key: opt})
             # remove this key from the dict of try-options (overruled)
             try_opts_map.pop(key)
 
     for (key, opt) in try_opts_map.items():
         if opt:
-            buildopts.update({key: opt})
+            build_specs.update({key: opt})
             # only when a try option is set do we enable generating easyconfigs
             try_to_generate = True
 
@@ -680,9 +680,19 @@ def process_software_build_specs(options):
             print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
         elif options.try_toolchain:
             try_to_generate = True
-        buildopts.update({'toolchain_name': tc[0],
-                          'toolchain_version': tc[1],
-                          })
+        build_specs.update({
+            'toolchain_name': tc[0],
+            'toolchain_version': tc[1],
+        })
+
+    # provide both toolchain and toolchain_name/toolchain_version keys
+    if 'toolchain_name' in build_specs:
+        build_specs.update({
+            'toolchain': {
+                'name': build_specs['toolchain_name'],
+                'version': build_specs.get('toolchain_version', None),
+            },
+        })
 
     # process --amend and --try-amend
     if options.amend or options.try_amend:
@@ -704,9 +714,9 @@ def process_software_build_specs(options):
             # e.g., 'foo=bar,baz' => foo = ['bar', 'baz']
             if ',' in value:
                 value = value.split(',')
-            buildopts.update({param: value})
+            build_specs.update({param: value})
 
-    return (try_to_generate, buildopts)
+    return (try_to_generate, build_specs)
 
 
 def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):

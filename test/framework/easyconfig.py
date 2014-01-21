@@ -802,10 +802,10 @@ class EasyConfigTest(TestCase):
         for eb_file1, eb_file2, specs in [
             ('gzip-1.4.eb', 'gzip.eb', {}),
             ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4'}),
-            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'dummy', 'toolchain_version': 'dummy'}),
-            ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain_name': 'GCC', 'toolchain_version': '4.6.3'}),
-            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'goolf', 'toolchain_version': '1.4.10'}),
-            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain_name': 'ictce', 'toolchain_version': '4.1.13'}),
+            ('gzip-1.4.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'dummy', 'version': 'dummy'}}),
+            ('gzip-1.4-GCC-4.6.3.eb', 'gzip.eb', {'version': '1.4', 'toolchain': {'name': 'GCC', 'version': '4.6.3'}}),
+            ('gzip-1.5-goolf-1.4.10.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'goolf', 'version': '1.4.10'}}),
+            ('gzip-1.5-ictce-4.1.13.eb', 'gzip.eb', {'version': '1.5', 'toolchain': {'name': 'ictce', 'version': '4.1.13'}}),
         ]:
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), build_options=build_options)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), build_options=build_options, build_specs=specs)
