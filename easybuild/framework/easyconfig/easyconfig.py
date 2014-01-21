@@ -619,7 +619,7 @@ class EasyConfig(object):
                 if not self.template_values:
                     self.generate_template_values()
                 value = resolve_template(value, self.template_values)
-            res.update({key: value})
+            res[key] = value
         return res
 
 

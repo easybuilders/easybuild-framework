@@ -34,7 +34,6 @@ import operator as op
 import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
-from vsc.utils.missing import any
 
 from easybuild.tools.configobj import Section
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -645,7 +644,7 @@ class ConfigObjVersion(object):
                         value = value.split(',')
                     # remove possible surrounding whitespace (some people add space after comma)
                     new_value = map(lambda x: value_type(x.strip()), value)
-                    if any([x is None for x in new_value]):
+                    if None in new_value:
                         self.log.error("Failed to parse '%s' as a %s" % (value, value_type.__class__.__name__))
                 else:
                     tup = (new_key, value, type(value))
@@ -734,7 +733,9 @@ class ConfigObjVersion(object):
         known_default_keywords = ('toolchains', 'versions')
         # default should only have versions and toolchains
         # no nesting
-        #  - add DEFAULT key,values to the root of self.sections (FIXME (kehoste) why is this required/done!?)
+        #  - add DEFAULT key,values to the root of self.sections
+        #  - key-value items from other sections will be deeper down
+        #  - deepest level is best match and wins, so defaults are on top level
         for key, value in default.items():
             if not key in known_default_keywords:
                 self.log.error('Unsupported key %s in %s section' % (key, self.DEFAULT))
@@ -789,5 +790,6 @@ class ConfigObjVersion(object):
             self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
 
         # TODO: determine 'path' to take in sections based on version and toolchain version
+        # SDW: ask the versionoperator
 
         return cfg
