@@ -514,7 +514,7 @@ def skip_available(easyconfigs, testing=False):
 def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True, specs=None):
     """
     Work through the list of easyconfigs to determine an optimal order
-    @param unprocessed: llist of easyconfigs
+    @param unprocessed: list of easyconfigs
     @param robot: robot path
     @param force: retain all dependencies and skip validation of easyconfigs (default: False)
     @param check_osdeps: check OS dependencies (default: True)
