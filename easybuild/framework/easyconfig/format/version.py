@@ -165,7 +165,9 @@ class VersionOperator(object):
 
     def __eq__(self, versop):
         """Compare this instance to supplied argument."""
-        if not isinstance(versop, self.__class__):
+        if versop is None:
+            return False
+        elif not isinstance(versop, self.__class__):
             self.log.error("Types don't match in comparison: %s, expected %s" % (type(versop), self.__class__))
         return self.version == versop.version and self.operator == versop.operator
 
