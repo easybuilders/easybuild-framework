@@ -86,7 +86,8 @@ class RobotTest(TestCase):
             'module': 'name/version',
             'dependencies': []
         }
-        res = main.resolve_dependencies([deepcopy(easyconfig)], None)
+        build_options = {'robot_path': None}
+        res = main.resolve_dependencies([deepcopy(easyconfig)], build_options=build_options)
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
@@ -107,19 +108,24 @@ class RobotTest(TestCase):
             }],
             'parsed': True,
         }
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
+        build_options = {'robot_path': self.base_easyconfig_dir}
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
         # here we have include a Dependency in the easyconfig list
         easyconfig['module'] = 'gzip/1.4'
 
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep), deepcopy(easyconfig)], None)
+        ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
+        build_options = {'robot_path': None}
+        res = main.resolve_dependencies(ecs, build_options=build_options)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb)
-        self.assertRaises(EasyBuildError, main.resolve_dependencies, [deepcopy(easyconfig_dep)], None)
+        ecs = [deepcopy(easyconfig_dep)]
+        build_options = {'robot_path': None}
+        self.assertRaises(EasyBuildError, main.resolve_dependencies, ecs, build_options=build_options)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
@@ -129,7 +135,9 @@ class RobotTest(TestCase):
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
             'dummy': True,
         }]
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], self.base_easyconfig_dir)
+        ecs = [deepcopy(easyconfig_dep)]
+        build_options = {'robot_path': self.base_easyconfig_dir}
+        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual('GCC/4.6.3', res[0]['module'])
