@@ -540,18 +540,17 @@ def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
+            # note: find_resolved_modules may append entries to avail_modules (and modify unprocessed as well)
             for ec in find_resolved_modules(unprocessed, avail_modules):
                 if not ec['module'] in [x['module'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
         # robot: look for existing dependencies, add them
-        if robot and len(unprocessed) > 0:
+        if robot and unprocessed:
 
             being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
 
-            n = len(unprocessed)
-            for i in xrange(0, n):
-                entry = unprocessed[i]
+            for i, entry in enumerate(unprocessed):
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
@@ -563,7 +562,13 @@ def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
                     # note: robot_find_easyconfig may return None
                     path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
 
-                    if path is not None:
+                    if path is None:
+                        # no easyconfig found for dependency, add to list of irresolvable dependencies
+                        if cand_dep not in irresolvable:
+                            irresolvable.append(cand_dep)
+                        # remove irresolvable dependency from list of dependencies so we can continue
+                        entry['dependencies'].remove(cand_dep)
+                    else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
                         processed_ecs = process_easyconfig(path, validate=(not force), check_osdeps=check_osdeps)
 
@@ -577,12 +582,6 @@ def resolve_dependencies(unprocessed, robot, force=False, check_osdeps=True):
                             if not ec in unprocessed:
                                 unprocessed.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
-                    else:
-                        # no easyconfig found for dependency, add to list of irresolvable dependencies
-                        if cand_dep not in irresolvable:
-                            irresolvable.append(cand_dep)
-                        # remove irresolvable dependency from list of dependencies so we can continue
-                        entry['dependencies'].remove(cand_dep)
                 else:
                     mod_name = det_full_module_name(entry['ec'], eb_ns=True)
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
