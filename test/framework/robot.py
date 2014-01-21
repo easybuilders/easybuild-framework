@@ -30,7 +30,7 @@ Unit tests for robot (dependency resolution).
 
 import os
 from copy import deepcopy
-from unittest import TestCase, TestSuite
+from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 from vsc import fancylogger
 
@@ -79,7 +79,7 @@ class RobotTest(TestCase):
         self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(self.base_easyconfig_dir)
 
-    def runTest(self):
+    def test_resolve_dependencies(self):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
             'spec': '_',
@@ -145,7 +145,7 @@ class RobotTest(TestCase):
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([RobotTest()])
+    return TestLoader().loadTestsFromTestCase(RobotTest)
 
 if __name__ == '__main__':
     unittestmain()
