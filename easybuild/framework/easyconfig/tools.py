@@ -71,7 +71,7 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.filetools import run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version

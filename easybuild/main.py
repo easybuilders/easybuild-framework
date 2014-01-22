@@ -61,8 +61,8 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, process_easyconfig, resolve_dependencies
-from easybuild.framework.easyconfig.tools import skip_available, tweak
+from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, process_easyconfig
+from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available, tweak
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
