@@ -93,7 +93,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file, write_file, det_common_path_prefix
+from easybuild.tools.filetools import cleanup, det_common_path_prefix, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -114,15 +114,6 @@ def main(testing_data=(None, None, None)):
     - read easyconfig
     - build software
     """
-    def cleanup_logfile(logfile, tempdir, testing):
-        """Cleanup the logfile and the tmp directory"""
-        if not testing and logfile is not None:
-            os.remove(logfile)
-            print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
-
-        if not testing and tempdir is not None:
-            shutil.rmtree(tempdir, ignore_errors=True)
-            print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
     
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -318,7 +309,7 @@ def main(testing_data=(None, None, None)):
         print_dry_run(easyconfigs, short=not options.dry_run, build_options=build_options, build_specs=build_specs)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
-        cleanup_logfile(logfile, eb_tmpdir, testing)
+        cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
     # skip modules that are already installed unless forced
@@ -369,7 +360,7 @@ def main(testing_data=(None, None, None)):
             _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
             print msg
 
-            cleanup_logfile(logfile, eb_tmpdir, testing)
+            cleanup(logfile, eb_tmpdir, testing)
 
             sys.exit(0)
 
@@ -399,10 +390,7 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-    cleanup_logfile(logfile, eb_tmpdir, testing)
-    logfile = None
-
-    return logfile
+    cleanup(logfile, eb_tmpdir, testing)
 
 
 def find_easyconfigs(path, ignore_dirs=None):

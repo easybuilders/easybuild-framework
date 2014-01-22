@@ -1011,6 +1011,7 @@ def mkdir(directory, parents=False):
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
+
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
@@ -1027,6 +1028,18 @@ def rmtree2(path, n=3):
         _log.error("Failed to remove path %s with shutil.rmtree, even after %d attempts." % (path, n))
     else:
         _log.info("Path %s successfully removed." % path)
+
+
+def cleanup(logfile, tempdir, testing):
+    """Cleanup the specified log file and the tmp directory"""
+    if not testing and logfile is not None:
+        os.remove(logfile)
+        print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+
+    if not testing and tempdir is not None:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+
 
 def copytree(src, dst, symlinks=False, ignore=None):
     """
