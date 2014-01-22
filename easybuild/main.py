@@ -93,7 +93,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import cleanup, det_common_path_prefix, read_file, write_file
+from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -391,34 +391,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def find_easyconfigs(path, ignore_dirs=None):
-    """
-    Find .eb easyconfig files in path
-    """
-    if os.path.isfile(path):
-        return [path]
-
-    if ignore_dirs is None:
-        ignore_dirs = []
-
-    # walk through the start directory, retain all files that end in .eb
-    files = []
-    path = os.path.abspath(path)
-    for dirpath, dirnames, filenames in os.walk(path, topdown=True):
-        for f in filenames:
-            if not f.endswith('.eb') or f == 'TEMPLATE.eb':
-                continue
-
-            spec = os.path.join(dirpath, f)
-            _log.debug("Found easyconfig %s" % spec)
-            files.append(spec)
-
-        # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
-
-    return files
 
 
 def process_easyconfig(path, build_options=None, build_specs=None):

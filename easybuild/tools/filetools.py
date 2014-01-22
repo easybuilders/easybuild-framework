@@ -270,6 +270,34 @@ def download_file(filename, url, path):
     return None
 
 
+def find_easyconfigs(path, ignore_dirs=None):
+    """
+    Find .eb easyconfig files in path
+    """
+    if os.path.isfile(path):
+        return [path]
+
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    # walk through the start directory, retain all files that end in .eb
+    files = []
+    path = os.path.abspath(path)
+    for dirpath, dirnames, filenames in os.walk(path, topdown=True):
+        for f in filenames:
+            if not f.endswith('.eb') or f == 'TEMPLATE.eb':
+                continue
+
+            spec = os.path.join(dirpath, f)
+            _log.debug("Found easyconfig %s" % spec)
+            files.append(spec)
+
+        # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
+        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+    return files
+
+
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.
