@@ -54,8 +54,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTION
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_log import EasyBuildError, get_build_stats, print_error, print_msg
-from easybuild.tools.config import build_path, get_log_filename, get_repositorypath, install_path, log_path
-from easybuild.tools.config import module_classes, read_only_installdir, source_paths
+from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
+from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file
 from easybuild.tools.filetools import encode_class_name, extract_file, read_file, run_cmd, rmtree2
