@@ -70,6 +70,7 @@ from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easy
 from easybuild.tools.filetools import search_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.repository import init_repository
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
