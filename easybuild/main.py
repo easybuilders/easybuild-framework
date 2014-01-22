@@ -38,7 +38,6 @@ Main entry point for EasyBuild: build software from .eb input file
 
 import copy
 import glob
-import platform
 import os
 import re
 import shutil
@@ -90,13 +89,13 @@ from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, resolve_dependencies,
 from easybuild.framework.easyconfig.tools import skip_available, tweak
 from easybuild.tools import systemtools
+from easybuild.tools.build_log import get_build_stats
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.repository import init_repository
 from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
@@ -392,27 +391,6 @@ def main(testing_data=(None, None, None)):
     cleanup(logfile, eb_tmpdir, testing)
 
 
-def get_build_stats(app, starttime):
-    """
-    Return build statistics for this build
-    """
-
-    buildtime = round(time.time() - starttime, 2)
-    buildstats = OrderedDict([
-        ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
-        ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-        ('host', os.uname()[1]),
-        ('platform', platform.platform()),
-        ('cpu_model', systemtools.get_cpu_model()),
-        ('core_count', systemtools.get_avail_core_count()),
-        ('timestamp', int(time.time())),
-        ('build_time', buildtime),
-        ('install_size', app.det_installsize()),
-    ])
-
-    return buildstats
-
-
 def build_and_install_software(module, orig_environ, build_options=None, build_specs=None):
     """
     Build the software
@@ -488,8 +466,9 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
         # collect build stats
         _log.info("Collecting build stats...")
 
-        currentbuildstats = app.cfg['buildstats']
-        buildstats = get_build_stats(app, starttime)
+        cpu_model = systemtools.get_cpu_model()
+        core_count = systemtools.get_avail_core_count()
+        buildstats = get_build_stats(app, starttime, cpu_model, core_count)
         _log.debug("Build stats: %s" % buildstats)
 
         if app.cfg['stop']:
@@ -500,6 +479,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
 
             try:
                 # upload spec to central repository
+                currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
                 if 'originalSpec' in module:
                     block = det_full_ec_version(app.cfg) + ".block"
@@ -770,6 +750,8 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
     base_env = copy.deepcopy(os.environ)
     succes = []
 
+    cpu_model = systemtools.get_cpu_model()
+    core_count = systemtools.get_avail_core_count()
     for app in apps:
 
         # if initialisation step failed, app will be None
@@ -813,7 +795,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time)
+                buildstats = get_build_stats(app, start_time, cpu_model, core_count)
                 succes.append((app, buildstats))
 
     for result in test_results:
