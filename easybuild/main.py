@@ -37,16 +37,11 @@ Main entry point for EasyBuild: build software from .eb input file
 """
 
 import copy
-import glob
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
-import time
-import traceback
-from datetime import datetime
 from vsc import fancylogger
 from vsc.utils.missing import any
 
@@ -58,21 +53,15 @@ import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
-import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
 from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, print_dry_run
 from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available, tweak
-from easybuild.tools import systemtools
-from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
-from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import aggregate_xml_in_dirs, cleanup, find_easyconfigs
-from easybuild.tools.filetools import read_file, search_file, write_file, write_to_xml
-from easybuild.tools.module_generator import det_full_module_name
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
+from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
 from easybuild.tools.options import process_software_build_specs
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
-from easybuild.tools.version import this_is_easybuild, FRAMEWORK_VERSION, EASYBLOCKS_VERSION  # from a single location
+from easybuild.tools.version import this_is_easybuild  # from a single location
 
 
 _log = None
@@ -317,8 +306,8 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = parbuild.build_easyconfigs_in_parallel(command, ordered_ecs, build_options=build_options,
-                                                          build_specs=build_specs)
+            jobs = build_easyconfigs_in_parallel(command, ordered_ecs, build_options=build_options,
+                                                 build_specs=build_specs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -358,205 +347,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None):
-    """Build the list of easyconfigs."""
-
-    build_stopped = {}
-    apploginfo = lambda x, y: x.log.info(y)
-
-    def perform_step(step, obj, method, logfile):
-        """Perform method on object if it can be built."""
-        if (isinstance(obj, dict) and obj['spec'] not in build_stopped) or obj not in build_stopped:
-
-            # update templates before every step (except for initialization)
-            if isinstance(obj, EasyBlock):
-                obj.update_config_template_run_step()
-
-            try:
-                if step == 'initialization':
-                    _log.info("Running %s step" % step)
-                    return parbuild.get_easyblock_instance(obj, build_options=build_options)
-                else:
-                    apploginfo(obj, "Running %s step" % step)
-                    method(obj)
-            except Exception, err:  # catch all possible errors, also crashes in EasyBuild code itself
-                fullerr = str(err)
-                if not isinstance(err, EasyBuildError):
-                    tb = traceback.format_exc()
-                    fullerr = '\n'.join([tb, str(err)])
-                # we cannot continue building it
-                if step == 'initialization':
-                    obj = obj['spec']
-                test_results.append((obj, step, fullerr, logfile))
-                # keep a dict of so we can check in O(1) if objects can still be build
-                build_stopped[obj] = step
-
-    # initialize all instances
-    apps = []
-    for ec in easyconfigs:
-        instance = perform_step('initialization', ec, None, _log)
-        instance.mod_name = det_full_module_name(instance.cfg)
-        apps.append(instance)
-
-    base_dir = os.getcwd()
-    base_env = copy.deepcopy(os.environ)
-    succes = []
-
-    cpu_model = systemtools.get_cpu_model()
-    core_count = systemtools.get_avail_core_count()
-    for app in apps:
-
-        # if initialisation step failed, app will be None
-        if app:
-
-            applog = os.path.join(output_dir, "%s-%s.log" % (app.name, det_full_ec_version(app.cfg)))
-
-            start_time = time.time()
-
-            # start with a clean slate
-            os.chdir(base_dir)
-            modify_env(os.environ, base_env)
-
-            steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
-
-            for (step_name, _, step_methods, skippable) in steps:
-                if skippable and step_name in app.cfg['skipsteps']:
-                    _log.info("Skipping step %s" % step_name)
-                else:
-                    for step_method in step_methods:
-                        method_name = '_'.join(step_method.func_code.co_names)
-                        perform_step('_'.join([step_name, method_name]), app, step_method, applog)
-
-            # close log and move it
-            app.close_log()
-            try:
-                # retain old logs
-                if os.path.exists(applog):
-                    i = 0
-                    old_applog = "%s.%d" % (applog, i)
-                    while os.path.exists(old_applog):
-                        i += 1
-                        old_applog = "%s.%d" % (applog, i)
-                    shutil.move(applog, old_applog)
-                    _log.info("Moved existing log file %s to %s" % (applog, old_applog))
-
-                shutil.move(app.logfile, applog)
-                _log.info("Log file moved to %s" % applog)
-            except IOError, err:
-                print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applog, err))
-
-            if app not in build_stopped:
-                # gather build stats
-                buildstats = get_build_stats(app, start_time, cpu_model, core_count)
-                succes.append((app, buildstats))
-
-    for result in test_results:
-        _log.info("%s crashed with an error during fase: %s, error: %s, log file: %s" % result)
-
-    failed = len(build_stopped)
-    total = len(apps)
-
-    _log.info("%s of %s packages failed to build!" % (failed, total))
-
-    output_file = os.path.join(output_dir, "easybuild-test.xml")
-    _log.debug("writing xml output to %s" % output_file)
-    write_to_xml(succes, test_results, output_file)
-
-    return failed == 0
-
-
-def regtest(easyconfig_paths, build_options=None, build_specs=None):
-    """
-    Run regression test, using easyconfigs available in given path
-    @param easyconfig_paths: path of easyconfigs to run regtest on
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-
-    cur_dir = os.getcwd()
-
-    aggregate_regtest = build_options.get('aggregate_regtest', None)
-    if aggregate_regtest is not None:
-        output_file = os.path.join(aggregate_regtest, "%s-aggregate.xml" % os.path.basename(aggregate_regtest))
-        aggregate_xml_in_dirs(aggregate_regtest, output_file)
-        _log.info("aggregated xml files inside %s, output written to: %s" % (aggregate_regtest, output_file))
-        sys.exit(0)
-
-    # create base directory, which is used to place
-    # all log files and the test output as xml
-    basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.oldstyle_environment_variables['test_output_path']
-
-    regtest_output_dir = build_options.get('regtest_output_dir', None)
-    if regtest_output_dir is not None:
-        output_dir = regtest_output_dir
-    elif var in os.environ:
-        output_dir = os.path.abspath(os.environ[var])
-    else:
-        # default: current dir + easybuild-test-[timestamp]
-        output_dir = os.path.join(cur_dir, basename)
-
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
-
-    # find all easyconfigs
-    ecfiles = []
-    if easyconfig_paths:
-        for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path, ignore_dirs=build_options.get('ignore_dirs', []))
-    else:
-        _log.error("No easyconfig paths specified.")
-
-    test_results = []
-
-    # process all the found easyconfig files
-    easyconfigs = []
-    for ecfile in ecfiles:
-        try:
-            easyconfigs.extend(process_easyconfig(ecfile, build_options=build_options, build_specs=build_specs))
-        except EasyBuildError, err:
-            test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
-
-    # skip easyconfigs for which a module is already available, unless forced
-    if not build_options.get('force', False):
-        _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
-        easyconfigs = skip_available(easyconfigs)
-        _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
-
-    if build_options.get('sequential', False):
-        return build_easyconfigs(easyconfigs, output_dir, test_results, build_options=build_options)
-    else:
-        resolved = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
-
-        cmd = "eb %(spec)s --regtest --sequential -ld"
-        command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
-        # retry twice in case of failure, to avoid fluke errors
-        command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
-
-        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir,
-                                                      build_options=build_options, build_specs=build_specs)
-
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
-
-        # determine leaf nodes in dependency graph, and report them
-        all_deps = set()
-        for job in jobs:
-            all_deps = all_deps.union(job.deps)
-
-        leaf_nodes = []
-        for job in jobs:
-            if not job.jobid in all_deps:
-                leaf_nodes.append(str(job.jobid).split('.')[0])
-
-        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
-        _log.info("Submitted regression test as jobs, results in %s" % output_dir)
-
-        return True  # success
 
 
 if __name__ == "__main__":
