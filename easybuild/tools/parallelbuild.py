@@ -49,7 +49,7 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, build_options=None, build_specs=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, build_options=None, build_specs=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
@@ -87,7 +87,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, build_
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
+        new_job = create_job(build_command, ec, output_dir=output_dir, conn=conn, ppn=ppn)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
@@ -120,14 +120,19 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, build_
     return jobs
 
 
-def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
+def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     """
     Creates a job, to build a *single* easyconfig
-    build_command is a format string in which a full path to an eb file will be substituted
-    easyconfig should be in the format as processEasyConfig returns them
-    output_dir is an optional path. EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param build_command: format string for command, full path to an easyconfig file will be substituted in it
+    @param easyconfig: easyconfig as processed by process_easyconfig
+    @param output_dir: optional output path; $EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param conn: open connection to PBS server
+    @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
     returns the job
     """
+    if output_dir is None:
+        output_dir = 'easybuild-build'
+
     # create command based on build_command template
     command = build_command % {'spec': easyconfig['spec']}
 

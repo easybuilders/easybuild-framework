@@ -359,8 +359,8 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, "easybuild-build",
-                                                          build_options=build_options, build_specs=build_specs)
+            jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, build_options=build_options,
+                                                          build_specs=build_specs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -1313,8 +1313,8 @@ def regtest(easyconfig_paths, build_options=None, build_specs=None):
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir, build_options=build_options,
-                                                      build_specs=build_specs)
+        jobs = parbuild.build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir,
+                                                      build_options=build_options, build_specs=build_specs)
 
         print "List of submitted jobs:"
         for job in jobs:
