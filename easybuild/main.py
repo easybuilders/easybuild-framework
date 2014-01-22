@@ -87,9 +87,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
-from easybuild.framework.easyconfig.tools import get_paths_for
+from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
@@ -391,67 +389,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def process_easyconfig(path, build_options=None, build_specs=None):
-    """
-    Process easyconfig, returning some information for each block
-    @param path: path to easyconfig file
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-    blocks = retrieve_blocks_in_spec(path, build_options.get('only_blocks', None))
-
-    easyconfigs = []
-    for spec in blocks:
-        # process for dependencies and real installversionname
-        # - use mod? __init__ and importCfg are ignored.
-        _log.debug("Processing easyconfig %s" % spec)
-
-        # create easyconfig
-        try:
-            ec = EasyConfig(spec, build_options=build_options, build_specs=build_specs)
-        except EasyBuildError, err:
-            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
-            _log.exception(msg)
-
-        name = ec['name']
-
-        # this app will appear as following module in the list
-        easyconfig = {
-            'ec': ec,
-            'spec': spec,
-            'module': det_full_module_name(ec),
-            'dependencies': [],
-            'builddependencies': [],
-        }
-        if len(blocks) > 1:
-            easyconfig['originalSpec'] = path
-
-        # add build dependencies
-        for dep in ec.builddependencies():
-            _log.debug("Adding build dependency %s for app %s." % (dep, name))
-            easyconfig['builddependencies'].append(dep)
-
-        # add dependencies (including build dependencies)
-        for dep in ec.dependencies():
-            _log.debug("Adding dependency %s for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        # add toolchain as dependency too
-        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            dep = ec.toolchain.as_dict()
-            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        del ec
-
-        # this is used by the parallel builder
-        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
-        easyconfigs.append(easyconfig)
-
-    return easyconfigs
 
 
 def skip_available(easyconfigs, testing=False):

@@ -48,11 +48,14 @@ from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd, read_file, write_file
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
+from easybuild.framework.easyconfig.format.version import EasyVersion
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -119,6 +122,154 @@ def create_paths(path, name, version):
             os.path.join(path, name.lower()[0], name, "%s-%s.eb" % (name, version)),
             os.path.join(path, "%s-%s.eb" % (name, version)),
            ]
+
+
+def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
+    """
+    Easyconfigs can contain blocks (headed by a [Title]-line)
+    which contain commands specific to that block. Commands in the beginning of the file
+    above any block headers are common and shared between each block.
+    """
+    reg_block = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
+    reg_dep_block = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
+
+    spec_fn = os.path.basename(spec)
+    try:
+        txt = open(spec).read()
+    except IOError, err:
+        _log.error("Failed to read file %s: %s" % (spec, err))
+
+    # split into blocks using regex
+    pieces = reg_block.split(txt)
+    # the first block contains common statements
+    common = pieces.pop(0)
+
+    # determine version of easyconfig format
+    ec_format_version = get_format_version(txt)
+    if ec_format_version is None:
+        ec_format_version = FORMAT_DEFAULT_VERSION
+    _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
+
+    # blocks in easyconfigs are only supported in format versions prior to 2.0
+    if pieces and ec_format_version < EasyVersion('2.0'):
+        # make a map of blocks
+        blocks = []
+        while pieces:
+            block_name = pieces.pop(0)
+            block_contents = pieces.pop(0)
+
+            if block_name in [b['name'] for b in blocks]:
+                msg = "Found block %s twice in %s." % (block_name, spec)
+                _log.error(msg)
+
+            block = {'name': block_name, 'contents': block_contents}
+
+            # dependency block
+            dep_block = reg_dep_block.search(block_contents)
+            if dep_block:
+                dependencies = eval(dep_block.group(1))
+                if type(dependencies) == list:
+                    block['dependencies'] = dependencies
+                else:
+                    block['dependencies'] = [dependencies]
+
+            blocks.append(block)
+
+        # make a new easyconfig for each block
+        # they will be processed in the same order as they are all described in the original file
+        specs = []
+        for block in blocks:
+            name = block['name']
+            if only_blocks and not (name in only_blocks):
+                print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
+                continue
+
+            (fd, block_path) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (spec_fn, name))
+            os.close(fd)
+
+            txt = common
+
+            if 'dependencies' in block:
+                for dep in block['dependencies']:
+                    if not dep in [b['name'] for b in blocks]:
+                        log.error("Block %s depends on %s, but block was not found." % (name, dep))
+
+                    dep = [b for b in blocks if b['name'] == dep][0]
+                    txt += "\n# Dependency block %s" % (dep['name'])
+                    txt += dep['contents']
+
+            txt += "\n# Main block %s" % name
+            txt += block['contents']
+
+            write_file(block_path, txt)
+
+            specs.append(block_path)
+
+        _log.debug("Found %s block(s) in %s" % (len(specs), spec))
+        return specs
+    else:
+        # no blocks, one file
+        return [spec]
+
+
+def process_easyconfig(path, build_options=None, build_specs=None):
+    """
+    Process easyconfig, returning some information for each block
+    @param path: path to easyconfig file
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+    blocks = retrieve_blocks_in_spec(path, build_options.get('only_blocks', None))
+
+    easyconfigs = []
+    for spec in blocks:
+        # process for dependencies and real installversionname
+        _log.debug("Processing easyconfig %s" % spec)
+
+        # create easyconfig
+        try:
+            ec = EasyConfig(spec, build_options=build_options, build_specs=build_specs)
+        except EasyBuildError, err:
+            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
+            _log.exception(msg)
+
+        name = ec['name']
+
+        # this app will appear as following module in the list
+        easyconfig = {
+            'ec': ec,
+            'spec': spec,
+            'module': det_full_module_name(ec),
+            'dependencies': [],
+            'builddependencies': [],
+        }
+        if len(blocks) > 1:
+            easyconfig['originalSpec'] = path
+
+        # add build dependencies
+        for dep in ec.builddependencies():
+            _log.debug("Adding build dependency %s for app %s." % (dep, name))
+            easyconfig['builddependencies'].append(dep)
+
+        # add dependencies (including build dependencies)
+        for dep in ec.dependencies():
+            _log.debug("Adding dependency %s for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        # add toolchain as dependency too
+        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            dep = ec.toolchain.as_dict()
+            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        del ec
+
+        # this is used by the parallel builder
+        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
+
+        easyconfigs.append(easyconfig)
+
+    return easyconfigs
 
 
 def obtain_ec_for(specs, paths, fp):
