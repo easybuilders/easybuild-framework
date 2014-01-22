@@ -47,10 +47,9 @@ import zlib
 from vsc import fancylogger
 from vsc.utils.missing import all
 
-import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
-from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
-from easybuild.tools.asyncprocess import send_all, recv_some
+from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
+from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
