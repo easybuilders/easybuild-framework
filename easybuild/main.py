@@ -60,16 +60,15 @@ import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
-from easybuild.framework.easyblock import EasyBlock, get_class
+from easybuild.framework.easyblock import EasyBlock, build_and_install_software
 from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, process_easyconfig, resolve_dependencies,
 from easybuild.framework.easyconfig.tools import skip_available, tweak
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file,
+from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file
 from easybuild.tools.filetools import search_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.repository import init_repository
@@ -359,161 +358,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def build_and_install_software(module, orig_environ, build_options=None, build_specs=None):
-    """
-    Build the software
-    @param module: dictionary contaning parsed easyconfig + metadata
-    @param orig_environ: original environment (used to reset environment)
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-    silent = build_options.get('silent', False)
-
-    spec = module['spec']
-
-    print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
-
-    # restore original environment
-    _log.info("Resetting environment")
-    filetools.errorsFoundInLog = 0
-    modify_env(os.environ, orig_environ)
-
-    cwd = os.getcwd()
-
-    # load easyblock
-    easyblock = build_options.get('easyblock', None)
-    if not easyblock:
-        # try to look in .eb file
-        reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-        txt = read_file(spec)
-        for line in txt.split('\n'):
-            match = reg.search(line)
-            if match:
-                easyblock = eval(match.group(1))
-                break
-
-    name = module['ec']['name']
-    try:
-        app_class = get_class(easyblock, name=name)
-        app = app_class(spec, build_options=build_options, build_specs=build_specs)
-        _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
-    except EasyBuildError, err:
-        tup = (name, easyblock, err.msg)
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
-
-    # application settings
-    stop = build_options.get('stop', None)
-    if stop is not None:
-        _log.debug("Stop set to %s" % stop)
-        app.cfg['stop'] = stop
-
-    skip = build_options.get('skip', None)
-    if skip is not None:
-        _log.debug("Skip set to %s" % skip)
-        app.cfg['skip'] = skip
-
-    # build easyconfig
-    errormsg = '(no error)'
-    # timing info
-    starttime = time.time()
-    try:
-        run_test_cases = not build_options.get('skip_test_cases', False) and app.cfg['tests']
-        regtest_online = build_options.get('regtest_online', False)
-        result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
-    except EasyBuildError, err:
-        lastn = 300
-        errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
-        _log.exception(errormsg)
-        result = False
-
-    ended = "ended"
-
-    # successful build
-    if result:
-
-        # collect build stats
-        _log.info("Collecting build stats...")
-
-        cpu_model = systemtools.get_cpu_model()
-        core_count = systemtools.get_avail_core_count()
-        buildstats = get_build_stats(app, starttime, cpu_model, core_count)
-        _log.debug("Build stats: %s" % buildstats)
-
-        if app.cfg['stop']:
-            ended = "STOPPED"
-            new_log_dir = os.path.join(app.builddir, config.log_path())
-        else:
-            new_log_dir = os.path.join(app.installdir, config.log_path())
-
-            try:
-                # upload spec to central repository
-                currentbuildstats = app.cfg['buildstats']
-                repo = init_repository(get_repository(), get_repositorypath())
-                if 'originalSpec' in module:
-                    block = det_full_ec_version(app.cfg) + ".block"
-                    repo.add_easyconfig(module['originalSpec'], app.name, block, buildstats, currentbuildstats)
-                repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % det_full_module_name(app.cfg))
-                del repo
-            except EasyBuildError, err:
-                _log.warn("Unable to commit easyconfig to repository: %s", err)
-
-        exit_code = 0
-        succ = "successfully"
-        summary = "COMPLETED"
-
-        # cleanup logs
-        app.close_log()
-        try:
-            if not os.path.isdir(new_log_dir):
-                os.makedirs(new_log_dir)
-            log_fn = os.path.basename(get_log_filename(app.name, app.version))
-            application_log = os.path.join(new_log_dir, log_fn)
-            shutil.move(app.logfile, application_log)
-            _log.debug("Moved log file %s to %s" % (app.logfile, application_log))
-        except (IOError, OSError), err:
-            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, application_log, err))
-
-        try:
-            newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
-            shutil.copy(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
-        except (IOError, OSError), err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
-
-    # build failed
-    else:
-        exit_code = 1
-        summary = "FAILED"
-
-        buildDir = ''
-        if app.builddir:
-            buildDir = " (build directory: %s)" % (app.builddir)
-        succ = "unsuccessfully%s:\n%s" % (buildDir, errormsg)
-
-        # cleanup logs
-        app.close_log()
-        application_log = app.logfile
-
-    print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
-
-    # check for errors
-    if exit_code != 0 or filetools.errorsFoundInLog > 0:
-        print_msg("\nWARNING: Build exited with non-zero exit code %d. %d possible error(s) were detected in the "
-                  "build logs, please verify the build.\n" % (exit_code, filetools.errorsFoundInLog),
-                  _log, silent=silent)
-
-    if app.postmsg:
-        print_msg("\nWARNING: %s\n" % app.postmsg, _log, silent=silent)
-
-    print_msg("Results of the build can be found in the log file %s" % application_log, _log, silent=silent)
-
-    del app
-    os.chdir(cwd)
-
-    return (exit_code == 0, application_log)
 
 
 def write_to_xml(succes, failed, filename):

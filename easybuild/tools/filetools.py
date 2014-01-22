@@ -53,7 +53,7 @@ from easybuild.tools.build_log import print_msg  # import build_log must stay, t
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
-errorsFoundInLog = 0
+errors_found_in_log = 0
 
 # constants for strictness levels
 IGNORE = 'ignore'
@@ -938,7 +938,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     regExp is a one-line regular expression
     - default
     """
-    global errorsFoundInLog
+    global errors_found_in_log
 
     if regExp and type(regExp) == bool:
         regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
@@ -955,7 +955,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
         r = reg.search(l)
         if r:
             res.append([l, r.groups()])
-            errorsFoundInLog += 1
+            errors_found_in_log += 1
 
     if stdout and res:
         if msg:
