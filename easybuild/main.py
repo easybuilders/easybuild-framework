@@ -318,12 +318,7 @@ def main(testing_data=(None, None, None)):
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         print_msg("resolving dependencies ...", log=_log, silent=testing)
-        # force all dependencies to be retained and validation to be skipped for building dep graph
-        local_build_options = copy.deepcopy(build_options)
-        local_build_options.update({
-            'force': options.dep_graph,
-        })
-        orderedSpecs = resolve_dependencies(easyconfigs, build_options=local_build_options, build_specs=build_specs)
+        orderedSpecs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         orderedSpecs = []
@@ -881,7 +876,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        exitCode = 0
+        exit_code = 0
         succ = "successfully"
         summary = "COMPLETED"
 
@@ -906,7 +901,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
 
     # build failed
     else:
-        exitCode = 1
+        exit_code = 1
         summary = "FAILED"
 
         buildDir = ''
@@ -921,9 +916,9 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
     # check for errors
-    if exitCode > 0 or filetools.errorsFoundInLog > 0:
-        print_msg("\nWARNING: Build exited with exit code %d. %d possible error(s) were detected in the "
-                  "build logs, please verify the build.\n" % (exitCode, filetools.errorsFoundInLog),
+    if exit_code != 0 or filetools.errorsFoundInLog > 0:
+        print_msg("\nWARNING: Build exited with non-zero exit code %d. %d possible error(s) were detected in the "
+                  "build logs, please verify the build.\n" % (exit_code, filetools.errorsFoundInLog),
                   _log, silent=silent)
 
     if app.postmsg:
@@ -934,10 +929,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     del app
     os.chdir(cwd)
 
-    if exitCode > 0:
-        return (False, application_log)
-    else:
-        return (True, application_log)
+    return (exit_code == 0, application_log)
 
 
 def dep_graph(fn, specs, silent=False):
