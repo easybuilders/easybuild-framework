@@ -47,8 +47,8 @@ from distutils.version import LooseVersion
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
-import easybuild.tools.config as config
 import easybuild.tools.environment as env
+from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
