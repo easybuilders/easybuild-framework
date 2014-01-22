@@ -87,7 +87,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, skip_available
+from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, resolve_dependencies, skip_available
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
@@ -391,126 +391,6 @@ def main(testing_data=(None, None, None)):
     cleanup(logfile, eb_tmpdir, testing)
 
 
-def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
-    """
-    Work through the list of easyconfigs to determine an optimal order
-    @param unprocessed: list of easyconfigs
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-
-    robot = build_options.get('robot_path', None)
-
-    if build_options.get('force', False):
-        # assume that no modules are available when forced
-        avail_modules = []
-        _log.info("Forcing all dependencies to be retained.")
-    else:
-        # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool().available()
-
-        if len(avail_modules) == 0:
-            _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
-
-    ordered_ecs = []
-    # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['module'] for p in unprocessed]
-    avail_modules = [m for m in avail_modules if not m in being_installed]
-
-    _log.debug('unprocessed before resolving deps: %s' % unprocessed)
-
-    # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
-    irresolvable = []
-    loopcnt = 0
-    maxloopcnt = 10000
-    while unprocessed:
-        # make sure this stops, we really don't want to get stuck in an infinite loop
-        loopcnt += 1
-        if loopcnt > maxloopcnt:
-            tup = (maxloopcnt, unprocessed, irresolvable)
-            msg = "Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)" % tup
-            _log.error(msg)
-
-        # first try resolving dependencies without using external dependencies
-        # find_resolved_modules may extend 'avail_modules', hence the while loop;
-        # it will also update 'unprocessed' to only leave in entries with one or more unresolved dependencies
-        last_processed_count = -1
-        while len(avail_modules) > last_processed_count:
-            last_processed_count = len(avail_modules)
-            # note: find_resolved_modules may append entries to avail_modules (and modify unprocessed as well)
-            for ec in find_resolved_modules(unprocessed, avail_modules):
-                if not ec['module'] in [x['module'] for x in ordered_ecs]:
-                    ordered_ecs.append(ec)
-
-        # robot: look for existing dependencies, add them
-        if robot and unprocessed:
-
-            being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
-
-            for i, entry in enumerate(unprocessed):
-                # do not choose an entry that is being installed in the current run
-                # if they depend, you probably want to rebuild them using the new dependency
-                deps = entry['dependencies']
-                candidates = [d for d in deps if not det_full_module_name(d, eb_ns=True) in being_installed]
-                if len(candidates) > 0:
-                    cand_dep = candidates[0]
-                    # find easyconfig, might not find any
-                    _log.debug("Looking for easyconfig for %s" % str(cand_dep))
-                    # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
-
-                    if path is None:
-                        # no easyconfig found for dependency, add to list of irresolvable dependencies
-                        if cand_dep not in irresolvable:
-                            irresolvable.append(cand_dep)
-                        # remove irresolvable dependency from list of dependencies so we can continue
-                        entry['dependencies'].remove(cand_dep)
-                    else:
-                        _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        processed_ecs = process_easyconfig(path, build_options=build_options, build_specs=build_specs)
-
-                        # ensure that selected easyconfig provides required dependency
-                        mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
-                        dep_mod_name = det_full_module_name(cand_dep)
-                        if not dep_mod_name in mods:
-                            tup = (path, dep_mod_name, mods)
-                            _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
-
-                        for ec in processed_ecs:
-                            if not ec in unprocessed:
-                                unprocessed.append(ec)
-                                _log.debug("Added %s as dependency of %s" % (ec, entry))
-                else:
-                    mod_name = det_full_module_name(entry['ec'], eb_ns=True)
-                    _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
-
-    if irresolvable:
-        irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
-        _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
-
-    _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
-    return ordered_ecs
-
-
-def find_resolved_modules(unprocessed, avail_modules):
-    """
-    Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
-    """
-    ordered_ecs = []
-
-    for ec in unprocessed:
-        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in avail_modules]
-
-        if len(ec['dependencies']) == 0:
-            _log.debug("Adding easyconfig %s to final list" % ec['spec'])
-            ordered_ecs.append(ec)
-            avail_modules.append(ec['module'])
-
-    unprocessed[:] = [m for m in unprocessed if len(m['dependencies']) > 0]
-
-    return ordered_ecs
-
-
 def process_software_build_specs(options):
     """
     Create a dictionary with specified software build options.
@@ -614,24 +494,6 @@ def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=
             print_error(("Unable to find an easyconfig for the given specifications: %s; "
                          "to make EasyBuild try to generate a matching easyconfig, "
                          "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
-
-
-def robot_find_easyconfig(paths, name, version):
-    """
-    Find an easyconfig for module in path
-    """
-    if not isinstance(paths, list):
-        paths = [paths]
-    # candidate easyconfig paths
-    for path in paths:
-        easyconfigsPaths = easyconfig.tools.create_paths(path, name, version)
-        for easyconfigPath in easyconfigsPaths:
-            _log.debug("Checking easyconfig path %s" % easyconfigPath)
-            if os.path.isfile(easyconfigPath):
-                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfigPath))
-                return os.path.abspath(easyconfigPath)
-
-    return None
 
 
 def get_build_stats(app, starttime):

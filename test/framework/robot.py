@@ -35,13 +35,14 @@ from unittest import main as unittestmain
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
-from easybuild import main
+import easybuild.framework.easyconfig.tools as ectools
+from easybuild.framework.easyconfig.tools import resolve_dependencies
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
 orig_modules_tool = modules.modules_tool
-orig_main_modules_tool = main.modules_tool
+orig_main_modules_tool = ectools.modules_tool
 
 
 class MockModule(modules.ModulesTool):
@@ -68,11 +69,9 @@ class RobotTest(TestCase):
 
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
-        main.modules_tool = mock_module
+        ectools.modules_tool = mock_module
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
-        # redefine the main log when calling the main functions directly
-        main._log = fancylogger.getLogger("main", fname=False)
 
         self.cwd = os.getcwd()
 
@@ -87,7 +86,7 @@ class RobotTest(TestCase):
             'dependencies': []
         }
         build_options = {'robot_path': None}
-        res = main.resolve_dependencies([deepcopy(easyconfig)], build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig)], build_options=build_options)
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
@@ -109,7 +108,7 @@ class RobotTest(TestCase):
             'parsed': True,
         }
         build_options = {'robot_path': self.base_easyconfig_dir}
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
         # Dependency should be found
         self.assertEqual(len(res), 2)
 
@@ -118,14 +117,14 @@ class RobotTest(TestCase):
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         build_options = {'robot_path': None}
-        res = main.resolve_dependencies(ecs, build_options=build_options)
+        res = resolve_dependencies(ecs, build_options=build_options)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb)
         ecs = [deepcopy(easyconfig_dep)]
         build_options = {'robot_path': None}
-        self.assertRaises(EasyBuildError, main.resolve_dependencies, ecs, build_options=build_options)
+        self.assertRaises(EasyBuildError, resolve_dependencies, ecs, build_options=build_options)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
@@ -137,7 +136,7 @@ class RobotTest(TestCase):
         }]
         ecs = [deepcopy(easyconfig_dep)]
         build_options = {'robot_path': self.base_easyconfig_dir}
-        res = main.resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual('GCC/4.6.3', res[0]['module'])
@@ -147,7 +146,7 @@ class RobotTest(TestCase):
     def tearDown(self):
         """ reset the Modules back to its original """
         config.modules_tool = orig_modules_tool
-        main.modules_tool = orig_main_modules_tool
+        ectools.modules_tool = orig_main_modules_tool
         os.chdir(self.cwd)
 
 
