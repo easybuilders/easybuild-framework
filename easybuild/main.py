@@ -38,7 +38,6 @@ Main entry point for EasyBuild: build software from .eb input file
 
 import copy
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -47,9 +46,8 @@ from vsc.utils.missing import any
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, get_build_stats, print_msg, print_error, print_warning
+from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 
-import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
 import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
@@ -75,7 +73,6 @@ def main(testing_data=(None, None, None)):
     - read easyconfig
     - build software
     """
-    
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n"
@@ -236,7 +233,7 @@ def main(testing_data=(None, None, None)):
             ec_paths = [path[0] for path in paths]
         else:  # fallback: easybuild-easyconfigs install path
             ec_paths = easyconfigs_pkg_full_paths
-        regtest_ok = regtest(options, ec_paths, build_options=build_options, build_specs=build_specs)
+        regtest_ok = regtest(ec_paths, build_options=build_options, build_specs=build_specs)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -246,7 +243,7 @@ def main(testing_data=(None, None, None)):
     easyconfigs = []
     for (path, generated) in paths:
         path = os.path.abspath(path)
-        if not (os.path.exists(path)):
+        if not os.path.exists(path):
             print_error("Can't find path %s" % path)
 
         try:

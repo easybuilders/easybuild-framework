@@ -2133,7 +2133,7 @@ def get_easyblock_instance(easyconfig, build_options=None, build_specs=None):
             break
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, build_options=build_options, build_specs=specs)
+    return app_class(spec, build_options=build_options, build_specs=build_specs)
 
 
 def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None):

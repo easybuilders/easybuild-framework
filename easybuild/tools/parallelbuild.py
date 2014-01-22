@@ -35,11 +35,12 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 import math
 import os
 import re
+import sys
 from datetime import datetime
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs, get_class, get_easyblock_instance
-from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
+from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.filetools import aggregate_xml_in_dirs, find_easyconfigs, read_file

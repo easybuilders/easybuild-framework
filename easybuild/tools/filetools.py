@@ -46,12 +46,14 @@ import time
 import urllib
 import xml.dom.minidom as xml
 import zlib
+from datetime import datetime
 from vsc import fancylogger
 from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
@@ -1309,7 +1311,7 @@ def write_to_xml(succes, failed, filename):
         root.writexml(output_file)
         output_file.close()
     except IOError, err:
-        self.log.error("Failed to write out XML file %s: %s" % (filename, err))
+        _log.error("Failed to write out XML file %s: %s" % (filename, err))
 
 
 def aggregate_xml_in_dirs(base_dir, output_filename):
@@ -1350,7 +1352,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
             try:
                 dom = xml.parse(xml_file)
             except IOError, err:
-                self.log.error("Failed to read/parse XML file %s: %s" % (xml_file, err))
+                _log.error("Failed to read/parse XML file %s: %s" % (xml_file, err))
             # only one should be present, we are just discarding the rest
             testcase = dom.getElementsByTagName("testcase")[0]
             root.firstChild.appendChild(testcase)
@@ -1366,6 +1368,6 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
         root.writexml(output_file, addindent="\t", newl="\n")
         output_file.close()
     except IOError, err:
-        self.log.error("Failed to write out XML file %s: %s" % (output_filename, err))
+        _log.error("Failed to write out XML file %s: %s" % (output_filename, err))
 
     print "Aggregate regtest results written to %s" % output_filename

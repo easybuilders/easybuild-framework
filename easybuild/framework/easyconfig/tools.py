@@ -71,7 +71,7 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -218,7 +218,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             if 'dependencies' in block:
                 for dep in block['dependencies']:
                     if not dep in [b['name'] for b in blocks]:
-                        log.error("Block %s depends on %s, but block was not found." % (name, dep))
+                        _log.error("Block %s depends on %s, but block was not found." % (name, dep))
 
                     dep = [b for b in blocks if b['name'] == dep][0]
                     txt += "\n# Dependency block %s" % (dep['name'])
