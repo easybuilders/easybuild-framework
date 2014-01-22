@@ -87,7 +87,8 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, resolve_dependencies, skip_available
+from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, resolve_dependencies,
+from easybuild.framework.easyconfig.tools import skip_available, tweak
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
@@ -290,7 +291,7 @@ def main(testing_data=(None, None, None)):
             files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
             for f in files:
                 if not generated and try_to_generate and build_specs:
-                    ec_file = easyconfig.tools.tweak(f, None, build_specs)
+                    ec_file = tweak(f, None, build_specs)
                 else:
                     ec_file = f
                 ecs = process_easyconfig(ec_file, build_options=build_options, build_specs=build_specs)
@@ -389,29 +390,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
-    """Obtain a path for an easyconfig that matches the given specifications."""
-
-    # if no easyconfig files/paths were provided, but we did get a software name,
-    # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = easyconfig.tools.obtain_ec_for(specs, paths, None)
-    if not generated:
-        return (fn, generated)
-    else:
-        # if an easyconfig was generated, make sure we're allowed to use it
-        if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
-            return (fn, generated)
-        else:
-            try:
-                os.remove(fn)
-            except OSError, err:
-                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
-            print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                         "to make EasyBuild try to generate a matching easyconfig, "
-                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
 
 
 def get_build_stats(app, starttime):

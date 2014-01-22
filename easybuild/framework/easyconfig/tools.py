@@ -481,6 +481,29 @@ def obtain_ec_for(specs, paths, fp):
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
 
 
+def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
+    """Obtain a path for an easyconfig that matches the given specifications."""
+
+    # if no easyconfig files/paths were provided, but we did get a software name,
+    # we can try and find a suitable easyconfig ourselves, or generate one if we can
+    (generated, fn) = obtain_ec_for(specs, paths, None)
+    if not generated:
+        return (fn, generated)
+    else:
+        # if an easyconfig was generated, make sure we're allowed to use it
+        if try_to_generate:
+            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
+            return (fn, generated)
+        else:
+            try:
+                os.remove(fn)
+            except OSError, err:
+                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
+            print_error(("Unable to find an easyconfig for the given specifications: %s; "
+                         "to make EasyBuild try to generate a matching easyconfig, "
+                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
+
+
 def select_or_generate_ec(fp, paths, specs):
     """
     Select or generate an easyconfig file with the given requirements, from existing easyconfig files.
