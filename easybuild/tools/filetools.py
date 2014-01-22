@@ -297,6 +297,57 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
+def search_file(paths, query, build_options=None, short=False):
+    """
+    Search for a particular file (only prints)
+    """
+    if build_options is None:
+        build_options = {}
+
+    ignore_dirs = build_options.get('ignore_dirs', ['.git', '.svn'])
+    if not isinstance(ignore_dirs, list):
+        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
+
+    silent = build_options.get('silent', False)
+
+    var_lines = []
+    hit_lines = []
+    var_index = 1
+    var = None
+    for path in paths:
+        hits = []
+        hit_in_path = False
+        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
+
+        query = query.lower()
+        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
+            for filename in filenames:
+                filename = os.path.join(dirpath, filename)
+                if filename.lower().find(query) != -1:
+                    if not hit_in_path:
+                        var = "CFGS%d" % var_index
+                        var_index += 1
+                        hit_in_path = True
+                    hits.append(filename)
+
+            # do not consider (certain) hidden directories
+            # note: we still need to consider e.g., .local !
+            # replace list elements using [:], so os.walk doesn't process deleted directories
+            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+        if hits:
+            common_prefix = det_common_path_prefix(hits)
+            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
+                var_lines.append("%s=%s" % (var, common_prefix))
+                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
+            else:
+                hit_lines.extend([" * %s" % fn for fn in hits])
+
+    for line in var_lines + hit_lines:
+        print_msg(line, log=_log, silent=silent, prefix=False)
+
+
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     """
     Compute checksum of specified file.

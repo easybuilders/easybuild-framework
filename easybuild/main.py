@@ -66,7 +66,8 @@ from easybuild.framework.easyconfig.tools import skip_available, tweak
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file, write_file
+from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file,
+from easybuild.tools.filetools import search_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -152,13 +153,41 @@ def main(testing_data=(None, None, None)):
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
 
+    # building a dependency graph implies force, so that all dependencies are retained
+    # and also skips validation of easyconfigs (e.g. checking os dependencies)
+    if options.dep_graph:
+        _log.info("Enabling force to generate dependency graph.")
+        options.force = True
+
+    build_options = {
+        'aggregate_regtest': options.aggregate_regtest,
+        'check_osdeps': not options.ignore_osdeps,
+        'debug': options.debug,
+        'dry_run': options.dry_run,
+        'easyblock': options.easyblock,
+        'force': options.force,
+        'ignore_dirs': options.ignore_dirs,
+        'only_blocks': options.only_blocks,
+        'regtest_online': options.regtest_online,
+        'regtest_output_dir': options.regtest_output_dir,
+        'robot_path': options.robot,
+        'sequential': options.sequential,
+        'silent': testing,
+        'skip': options.skip,
+        'skip_test_cases': options.skip_test_cases,
+        'stop': options.stop,
+        'valid_module_classes': module_classes(),
+        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
+        'validate': not options.force,
+    }
+
     # search for easyconfigs
     if options.search or options.search_short:
         search_path = [os.getcwd()]
         if easyconfigs_paths:
             search_path = easyconfigs_paths
         query = options.search or options.search_short
-        search_file(search_path, query, silent=testing, ignore_dirs=options.ignore_dirs, short=not options.search)
+        search_file(search_path, query, build_options=build_options, short=not options.search)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -211,34 +240,6 @@ def main(testing_data=(None, None, None)):
         paths = [(path, False) for path in orig_paths]
 
     _log.debug("Paths: %s" % paths)
-
-    # building a dependency graph implies force, so that all dependencies are retained
-    # and also skips validation of easyconfigs (e.g. checking os dependencies)
-    if options.dep_graph:
-        _log.info("Enabling force to generate dependency graph.")
-        options.force = True
-
-    build_options = {
-        'aggregate_regtest': options.aggregate_regtest,
-        'check_osdeps': not options.ignore_osdeps,
-        'debug': options.debug,
-        'dry_run': options.dry_run,
-        'easyblock': options.easyblock,
-        'force': options.force,
-        'ignore_dirs': options.ignore_dirs,
-        'only_blocks': options.only_blocks,
-        'regtest_online': options.regtest_online,
-        'regtest_output_dir': options.regtest_output_dir,
-        'robot_path': options.robot,
-        'sequential': options.sequential,
-        'silent': testing,
-        'skip': options.skip,
-        'skip_test_cases': options.skip_test_cases,
-        'stop': options.stop,
-        'valid_module_classes': module_classes(),
-        'valid_stops': [x[0] for x in EasyBlock.get_steps()],
-        'validate': not options.force,
-    }
 
     # run regtest
     if options.regtest or options.aggregate_regtest:
@@ -513,53 +514,6 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     os.chdir(cwd)
 
     return (exit_code == 0, application_log)
-
-
-def search_file(paths, query, silent=False, ignore_dirs=None, short=False):
-    """
-    Search for a particular file (only prints)
-    """
-    if ignore_dirs is None:
-        ignore_dirs = ['.git', '.svn']
-    elif not isinstance(ignore_dirs, list):
-        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
-
-    var_lines = []
-    hit_lines = []
-    var_index = 1
-    var = None
-    for path in paths:
-        hits = []
-        hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
-
-        query = query.lower()
-        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for filename in filenames:
-                filename = os.path.join(dirpath, filename)
-                if filename.lower().find(query) != -1:
-                    if not hit_in_path:
-                        var = "CFGS%d" % var_index
-                        var_index += 1
-                        hit_in_path = True
-                    hits.append(filename)
-
-            # do not consider (certain) hidden directories
-            # note: we still need to consider e.g., .local !
-            # replace list elements using [:], so os.walk doesn't process deleted directories
-            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
-
-        if hits:
-            common_prefix = det_common_path_prefix(hits)
-            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_lines.append("%s=%s" % (var, common_prefix))
-                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
-            else:
-                hit_lines.extend([" * %s" % fn for fn in hits])
-
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def write_to_xml(succes, failed, filename):
