@@ -46,7 +46,6 @@ import sys
 import tempfile
 import time
 import traceback
-import xml.dom.minidom as xml
 from datetime import datetime
 from vsc import fancylogger
 from vsc.utils.missing import any
@@ -66,8 +65,8 @@ from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_avai
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file
-from easybuild.tools.filetools import search_file, write_file
+from easybuild.tools.filetools import aggregate_xml_in_dirs, cleanup, det_common_path_prefix, find_easyconfigs
+from easybuild.tools.filetools import read_file, search_file, write_file, write_to_xml
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import process_software_build_specs
@@ -361,74 +360,6 @@ def main(testing_data=(None, None, None)):
     cleanup(logfile, eb_tmpdir, testing)
 
 
-def write_to_xml(succes, failed, filename):
-    """
-    Create xml output, using minimal output required according to
-    http://stackoverflow.com/questions/4922867/junit-xml-format-specification-that-hudson-supports
-    """
-    dom = xml.getDOMImplementation()
-    root = dom.createDocument(None, "testsuite", None)
-
-    def create_testcase(name):
-        el = root.createElement("testcase")
-        el.setAttribute("name", name)
-        return el
-
-    def create_failure(name, error_type, error):
-        el = create_testcase(name)
-
-        # encapsulate in CDATA section
-        error_text = root.createCDATASection("\n%s\n" % error)
-        failure_el = root.createElement("failure")
-        failure_el.setAttribute("type", error_type)
-        el.appendChild(failure_el)
-        el.lastChild.appendChild(error_text)
-        return el
-
-    def create_success(name, stats):
-        el = create_testcase(name)
-        text = "\n".join(["%s=%s" % (key, value) for (key, value) in stats.items()])
-        build_stats = root.createCDATASection("\n%s\n" % text)
-        system_out = root.createElement("system-out")
-        el.appendChild(system_out)
-        el.lastChild.appendChild(build_stats)
-        return el
-
-    properties = root.createElement("properties")
-    framework_version = root.createElement("property")
-    framework_version.setAttribute("name", "easybuild-framework-version")
-    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
-    properties.appendChild(framework_version)
-    easyblocks_version = root.createElement("property")
-    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
-    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
-    properties.appendChild(easyblocks_version)
-
-    time = root.createElement("property")
-    time.setAttribute("name", "timestamp")
-    time.setAttribute("value", str(datetime.now()))
-    properties.appendChild(time)
-
-    root.firstChild.appendChild(properties)
-
-    for (obj, fase, error, _) in failed:
-        # try to pretty print
-        try:
-            el = create_failure(obj.mod_name, fase, error)
-        except AttributeError:
-            el = create_failure(obj, fase, error)
-
-        root.firstChild.appendChild(el)
-
-    for (obj, stats) in succes:
-        el = create_success(obj.mod_name, stats)
-        root.firstChild.appendChild(el)
-
-    output_file = open(filename, "w")
-    root.writexml(output_file)
-    output_file.close()
-
-
 def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None):
     """Build the list of easyconfigs."""
 
@@ -534,59 +465,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
     write_to_xml(succes, test_results, output_file)
 
     return failed == 0
-
-
-def aggregate_xml_in_dirs(base_dir, output_filename):
-    """
-    Finds all the xml files in the dirs and takes the testcase attribute out of them.
-    These are then put in a single output file.
-    """
-    dom = xml.getDOMImplementation()
-    root = dom.createDocument(None, "testsuite", None)
-    root.documentElement.setAttribute("name", base_dir)
-    properties = root.createElement("properties")
-    framework_version = root.createElement("property")
-    framework_version.setAttribute("name", "easybuild-framework-version")
-    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
-    properties.appendChild(framework_version)
-    easyblocks_version = root.createElement("property")
-    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
-    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
-    properties.appendChild(easyblocks_version)
-
-    time_el = root.createElement("property")
-    time_el.setAttribute("name", "timestamp")
-    time_el.setAttribute("value", str(datetime.now()))
-    properties.appendChild(time_el)
-
-    root.firstChild.appendChild(properties)
-
-    dirs = filter(os.path.isdir, [os.path.join(base_dir, d) for d in os.listdir(base_dir)])
-
-    succes = 0
-    total = 0
-
-    for d in dirs:
-        xml_file = glob.glob(os.path.join(d, "*.xml"))
-        if xml_file:
-            # take the first one (should be only one present)
-            xml_file = xml_file[0]
-            dom = xml.parse(xml_file)
-            # only one should be present, we are just discarding the rest
-            testcase = dom.getElementsByTagName("testcase")[0]
-            root.firstChild.appendChild(testcase)
-
-            total += 1
-            if not testcase.getElementsByTagName("failure"):
-                succes += 1
-
-    comment = root.createComment("%s out of %s builds succeeded" % (succes, total))
-    root.firstChild.insertBefore(comment, properties)
-    output_file = open(output_filename, "w")
-    root.writexml(output_file, addindent="\t", newl="\n")
-    output_file.close()
-
-    print "Aggregate regtest results written to %s" % output_filename
 
 
 def regtest(easyconfig_paths, build_options=None, build_specs=None):
