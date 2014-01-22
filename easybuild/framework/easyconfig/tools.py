@@ -50,6 +50,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
@@ -269,6 +270,22 @@ def process_easyconfig(path, build_options=None, build_specs=None):
 
         easyconfigs.append(easyconfig)
 
+    return easyconfigs
+
+
+def skip_available(easyconfigs, testing=False):
+    """Skip building easyconfigs for which a module is already available."""
+    avail_modules = modules_tool().available()
+    easyconfigs, check_easyconfigs = [], easyconfigs
+    for ec in check_easyconfigs:
+        module = ec['module']
+        if module in avail_modules:
+            msg = "%s is already installed (module found), skipping" % module
+            print_msg(msg, log=_log, silent=testing)
+            _log.info(msg)
+        else:
+            _log.debug("%s is not installed yet, so retaining it" % module)
+            easyconfigs.append(ec)
     return easyconfigs
 
 

@@ -87,7 +87,7 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig
+from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, skip_available
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
@@ -389,22 +389,6 @@ def main(testing_data=(None, None, None)):
     else:
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
-
-
-def skip_available(easyconfigs, testing=False):
-    """Skip building easyconfigs for which a module is already available."""
-    m = modules_tool()
-    easyconfigs, check_easyconfigs = [], easyconfigs
-    for ec in check_easyconfigs:
-        module = ec['module']
-        if m.exists(module):
-            msg = "%s is already installed (module found), skipping" % module
-            print_msg(msg, log=_log, silent=testing)
-            _log.info(msg)
-        else:
-            _log.debug("%s is not installed yet, so retaining it" % module)
-            easyconfigs.append(ec)
-    return easyconfigs
 
 
 def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
@@ -1255,7 +1239,7 @@ def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None
         })
         all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
 
-    unbuilt_specs = skip_available(all_specs, True)
+    unbuilt_specs = skip_available(all_specs, testing=True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
     var_name = 'CFGS'
