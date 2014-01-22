@@ -114,6 +114,16 @@ def main(testing_data=(None, None, None)):
     - read easyconfig
     - build software
     """
+    def cleanup_logfile(logfile, tempdir, testing):
+        """Cleanup the logfile and the tmp directory"""
+        if not testing and logfile is not None:
+            os.remove(logfile)
+            print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+
+        if not testing and tempdir is not None:
+            shutil.rmtree(tempdir, ignore_errors=True)
+            print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+    
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n"
@@ -389,25 +399,10 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-        cleanup_logfile(logfile, None, testing)
-        logfile = None
-
-    if not testing:
-        shutil.rmtree(eb_tmpdir, ignore_errors=True)
-        print_msg('temporary directory %s has been removed.' % (eb_tmpdir), log=None, silent=testing)
+    cleanup_logfile(logfile, eb_tmpdir, testing)
+    logfile = None
 
     return logfile
-
-
-def cleanup_logfile(logfile, tempdir, testing):
-    """Cleanup the logfile and the tmp directory"""
-    if not testing and logfile is not None:
-        os.remove(logfile)
-        print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
-
-    if not testing and tempdir is not None:
-        shutil.rmtree(tempdir, ignore_errors=True)
-        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
 def find_easyconfigs(path, ignore_dirs=None):
