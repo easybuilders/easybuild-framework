@@ -60,12 +60,12 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, process_easyconfig
-from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available, tweak
+from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, print_dry_run
+from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available, tweak
 from easybuild.tools import systemtools
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import aggregate_xml_in_dirs, cleanup, det_common_path_prefix, find_easyconfigs
+from easybuild.tools.filetools import aggregate_xml_in_dirs, cleanup, find_easyconfigs
 from easybuild.tools.filetools import read_file, search_file, write_file, write_to_xml
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import modules_tool
@@ -557,54 +557,6 @@ def regtest(easyconfig_paths, build_options=None, build_specs=None):
         _log.info("Submitted regression test as jobs, results in %s" % output_dir)
 
         return True  # success
-
-
-def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None):
-    """
-    Print dry run information
-    @param easyconfigs: list of easyconfig files
-    @param short: print short output (use a variable for the common prefix)
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-    lines = []
-    if build_options.get('robot_path', None) is None:
-        lines.append("Dry run: printing build status of easyconfigs")
-        all_specs = easyconfigs
-    else:
-        lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        build_options = copy.deepcopy(build_options)
-        build_options.update({
-            'force': True,
-            'check_osdeps': False,
-        })
-        all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
-
-    unbuilt_specs = skip_available(all_specs, testing=True)
-    dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
-
-    var_name = 'CFGS'
-    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
-    # only allow short if common prefix is long enough
-    short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
-    for spec in all_specs:
-        if spec in unbuilt_specs:
-            ans = ' '
-        else:
-            ans = 'x'
-        mod = det_full_module_name(spec['ec'])
-
-        if short:
-            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
-        else:
-            item = spec['spec']
-        lines.append(dry_run_fmt % (ans, item, mod))
-
-    if short:
-        # insert after 'Dry run:' message
-        lines.insert(1, "%s=%s" % (var_name, common_prefix))
-    silent = build_options.get('silent', False)
-    print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
 
 
 if __name__ == "__main__":

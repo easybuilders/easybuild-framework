@@ -72,7 +72,7 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
-from easybuild.tools.filetools import run_cmd, read_file, write_file
+from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -450,6 +450,54 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
     return ordered_ecs
+
+
+def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None):
+    """
+    Print dry run information
+    @param easyconfigs: list of easyconfig files
+    @param short: print short output (use a variable for the common prefix)
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+    lines = []
+    if build_options.get('robot_path', None) is None:
+        lines.append("Dry run: printing build status of easyconfigs")
+        all_specs = easyconfigs
+    else:
+        lines.append("Dry run: printing build status of easyconfigs and dependencies")
+        build_options = copy.deepcopy(build_options)
+        build_options.update({
+            'force': True,
+            'check_osdeps': False,
+        })
+        all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+
+    unbuilt_specs = skip_available(all_specs, testing=True)
+    dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
+
+    var_name = 'CFGS'
+    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
+    # only allow short if common prefix is long enough
+    short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
+    for spec in all_specs:
+        if spec in unbuilt_specs:
+            ans = ' '
+        else:
+            ans = 'x'
+        mod = det_full_module_name(spec['ec'])
+
+        if short:
+            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
+        else:
+            item = spec['spec']
+        lines.append(dry_run_fmt % (ans, item, mod))
+
+    if short:
+        # insert after 'Dry run:' message
+        lines.insert(1, "%s=%s" % (var_name, common_prefix))
+    silent = build_options.get('silent', False)
+    print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
 
 
 def _dep_graph(fn, specs, silent=False):
