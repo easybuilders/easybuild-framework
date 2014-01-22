@@ -46,6 +46,31 @@ from distutils.version import LooseVersion
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
+# optional Python packages, these might be missing
+# failing imports are just ignored
+# a NameError should be catched where these are used
+
+# PyGraph (used for generating dependency graphs)
+graph_errors = []
+try:
+    from pygraph.classes.digraph import digraph
+except ImportError, err:
+    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
+
+try:
+    import pygraph.readwrite.dot as dot
+except ImportError, err:
+    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
+
+# graphviz (used for creating dependency graph images)
+try:
+    sys.path.append('..')
+    sys.path.append('/usr/lib/graphviz/python/')
+    sys.path.append('/usr/lib64/graphviz/python/')
+    import gv
+except ImportError, err:
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
+
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import run_cmd, read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -425,6 +450,60 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
     return ordered_ecs
+
+
+def _dep_graph(fn, specs, silent=False):
+    """
+    Create a dependency graph for the given easyconfigs.
+    """
+
+    # check whether module names are unique
+    # if so, we can omit versions in the graph
+    names = set()
+    for spec in specs:
+        names.add(spec['ec']['name'])
+    omit_versions = len(names) == len(specs)
+
+    def mk_node_name(spec):
+        if omit_versions:
+            return spec['name']
+        else:
+            return det_full_module_name(spec)
+
+    # enhance list of specs
+    for spec in specs:
+        spec['module'] = mk_node_name(spec['ec'])
+        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
+
+    # build directed graph
+    dgr = digraph()
+    dgr.add_nodes([spec['module'] for spec in specs])
+    for spec in specs:
+        for dep in spec['unresolved_deps']:
+            dgr.add_edge((spec['module'], dep))
+
+    # write to file
+    dottxt = dot.write(dgr)
+    if fn.endswith(".dot"):
+        # create .dot file
+        write_file(fn, dottxt)
+    else:
+        # try and render graph in specified file format
+        gvv = gv.readstring(dottxt)
+        gv.layout(gvv, 'dot')
+        gv.render(gvv, fn.split('.')[-1], fn)
+
+    if not silent:
+        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
+
+
+def dep_graph(*args, **kwargs):
+    try:
+        _dep_graph(*args, **kwargs)
+    except NameError, err:
+        errors = "\n".join(graph_errors)
+        msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
+        _log.error("%s\nerr: %s" % (msg, err))
 
 
 def obtain_ec_for(specs, paths, fp):

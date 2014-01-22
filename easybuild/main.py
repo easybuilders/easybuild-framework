@@ -51,34 +51,9 @@ from datetime import datetime
 from vsc import fancylogger
 from vsc.utils.missing import any
 
-# optional Python packages, these might be missing
-# failing imports are just ignored
-# a NameError should be catched where these are used
-
-# PyGraph (used for generating dependency graphs)
-graph_errors = []
-try:
-    from pygraph.classes.digraph import digraph
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
-
-try:
-    import pygraph.readwrite.dot as dot
-except ImportError, err:
-    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
-
-# graphviz (used for creating dependency graph images)
-try:
-    sys.path.append('..')
-    sys.path.append('/usr/lib/graphviz/python/')
-    sys.path.append('/usr/lib64/graphviz/python/')
-    import gv
-except ImportError, err:
-    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
-
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_error, print_warning
+from easybuild.tools.build_log import EasyBuildError, get_build_stats, print_msg, print_error, print_warning
 
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.config as config
@@ -86,10 +61,9 @@ import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 import easybuild.tools.parallelbuild as parbuild
 from easybuild.framework.easyblock import EasyBlock, get_class
-from easybuild.framework.easyconfig.tools import get_paths_for, process_easyconfig, resolve_dependencies,
+from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, process_easyconfig, resolve_dependencies,
 from easybuild.framework.easyconfig.tools import skip_available, tweak
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import get_build_stats
 from easybuild.tools.config import get_repository, module_classes, get_log_filename, get_repositorypath, set_tmpdir
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import cleanup, det_common_path_prefix, find_easyconfigs, read_file, write_file
@@ -317,20 +291,15 @@ def main(testing_data=(None, None, None)):
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         print_msg("resolving dependencies ...", log=_log, silent=testing)
-        orderedSpecs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+        ordered_ecs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
-        orderedSpecs = []
+        ordered_ecs = []
 
     # create dependency graph and exit
     if options.dep_graph:
         _log.info("Creating dependency graph %s" % options.dep_graph)
-        try:
-            dep_graph(options.dep_graph, orderedSpecs)
-        except NameError, err:
-            errors = "\n".join(graph_errors)
-            msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
-            _log.error("%s\nerr: %s" % (msg, err))
+        dep_graph(options.dep_graph, ordered_ecs)
         sys.exit(0)
 
     # submit build as job(s) and exit
@@ -348,7 +317,7 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = parbuild.build_easyconfigs_in_parallel(command, orderedSpecs, build_options=build_options,
+            jobs = parbuild.build_easyconfigs_in_parallel(command, ordered_ecs, build_options=build_options,
                                                           build_specs=build_specs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
@@ -366,8 +335,8 @@ def main(testing_data=(None, None, None)):
     correct_built_cnt = 0
     all_built_cnt = 0
     if not testing or (testing and do_build):
-        for spec in orderedSpecs:
-            (success, _) = build_and_install_software(spec, orig_environ, build_options=build_options,
+        for ec in ordered_ecs:
+            (success, _) = build_and_install_software(ec, orig_environ, build_options=build_options,
                                                       build_specs=build_specs)
             if success:
                 correct_built_cnt += 1
@@ -544,51 +513,6 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     os.chdir(cwd)
 
     return (exit_code == 0, application_log)
-
-
-def dep_graph(fn, specs, silent=False):
-    """
-    Create a dependency graph for the given easyconfigs.
-    """
-
-    # check whether module names are unique
-    # if so, we can omit versions in the graph
-    names = set()
-    for spec in specs:
-        names.add(spec['ec']['name'])
-    omit_versions = len(names) == len(specs)
-
-    def mk_node_name(spec):
-        if omit_versions:
-            return spec['name']
-        else:
-            return det_full_module_name(spec)
-
-    # enhance list of specs
-    for spec in specs:
-        spec['module'] = mk_node_name(spec['ec'])
-        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
-
-    # build directed graph
-    dgr = digraph()
-    dgr.add_nodes([spec['module'] for spec in specs])
-    for spec in specs:
-        for dep in spec['unresolved_deps']:
-            dgr.add_edge((spec['module'], dep))
-
-    # write to file
-    dottxt = dot.write(dgr)
-    if fn.endswith(".dot"):
-        # create .dot file
-        write_file(fn, dottxt)
-    else:
-        # try and render graph in specified file format
-        gvv = gv.readstring(dottxt)
-        gv.layout(gvv, 'dot')
-        gv.render(gvv, fn.split('.')[-1], fn)
-
-    if not silent:
-        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
 
 
 def search_file(paths, query, silent=False, ignore_dirs=None, short=False):
