@@ -2029,17 +2029,17 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     # successful build
     if result:
 
-        # collect build stats
-        _log.info("Collecting build stats...")
-
-        buildstats = get_build_stats(app, starttime, get_cpu_model(), get_avail_core_count())
-        _log.debug("Build stats: %s" % buildstats)
-
         if app.cfg['stop']:
             ended = "STOPPED"
             new_log_dir = os.path.join(app.builddir, config.log_path())
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path())
+
+            # collect build stats
+            _log.info("Collecting build stats...")
+
+            buildstats = get_build_stats(app, starttime, get_cpu_model(), get_avail_core_count())
+            _log.debug("Build stats: %s" % buildstats)
 
             try:
                 # upload spec to central repository
