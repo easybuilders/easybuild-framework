@@ -2031,7 +2031,10 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
 
         if app.cfg['stop']:
             ended = "STOPPED"
-            new_log_dir = os.path.join(app.builddir, config.log_path())
+            if app.builddir is not None:
+                new_log_dir = os.path.join(app.builddir, config.log_path())
+            else:
+                new_log_dir = os.path.dirname(app.logfile)
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path())
 
