@@ -225,6 +225,7 @@ def get_cpu_speed():
             # Linux without cpu scaling
             cpuinfo_fp = '/proc/cpuinfo'
             try:
+                cpu_freq = None
                 f = open(cpuinfo_fp, 'r')
                 for line in f:
                     cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)

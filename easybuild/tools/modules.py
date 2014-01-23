@@ -502,7 +502,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd.tcl-specific class variable values."""
-        super(EnvironmentModulesC, self).__init__(*args, **kwargs)
+        super(EnvironmentModulesC, self).__init__(*args, **kwargs)  # purposely calling super of parent class
         self.cmd = 'modulecmd.tcl'
         # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
         self.shell = 'tclsh'

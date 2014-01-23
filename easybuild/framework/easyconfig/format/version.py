@@ -112,8 +112,8 @@ class VersionOperator(object):
 
     def set(self, versop_str):
         """
-        Parse argument and set attributes.
-        Returns None in case of failure (e.g. if supplied string doesn't parse), True in case of success.
+        Parse argument as a version operator, and set attributes.
+        Returns True in case of success, throws an error in case of parsing failure.
         """
         versop_dict = self.parse_versop_str(versop_str)
         if versop_dict is None:
@@ -423,6 +423,20 @@ class ToolchainVersionOperator(VersionOperator):
         known_tc_name = self.tc_name in tc_names
         return known_tc_name and super(ToolchainVersionOperator, self).is_valid()
 
+    def set(self, tcversop_str):
+        """
+        Parse argument as toolchain version string, and set attributes.
+        Returns None in case of failure (e.g. if supplied string doesn't parse), True in case of success.
+        """
+        versop_dict = self.parse_versop_str(tcversop_str)
+        if versop_dict is None:
+            self.log.warning("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
+            return None
+        else:
+            for k, v in versop_dict.items():
+                setattr(self, k, v)
+            return True
+
     def versop_regex(self):
         """
         Create the regular expression for toolchain support of format ^<toolchain> <versop_expr>$ ,
@@ -480,8 +494,8 @@ class OrderedVersionOperators(object):
         self.datamap = {}
 
     def __str__(self):
-        """Print the list"""
-        return str(self.versops)
+        """Print the list and map"""
+        return "ordered version operators: %s; data map: %s" % (self.versops, self.datamap)
 
     def add(self, versop_new, data=None):
         """
@@ -793,5 +807,7 @@ class ConfigObjVersion(object):
 
         # TODO: determine 'path' to take in sections based on version and toolchain version
         # SDW: ask the versionoperator
+        self.log.debug("self.versops: %s" % self.versops)
+        self.log.debug("self.tcversops: %s" % self.tcversops)
 
         return cfg
