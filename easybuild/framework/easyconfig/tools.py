@@ -407,7 +407,7 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
 
             being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
 
-            for i, entry in enumerate(unprocessed):
+            for i, entry in enumerate(unprocessed[:]):
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
