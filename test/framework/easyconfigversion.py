@@ -169,8 +169,9 @@ class EasyConfigVersion(TestCase):
             ]
             for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
-                error_msg = "Failed to parse '%s' as a version operator string" % txt
-                self.assertErrorRegex(EasyBuildError, error_msg, ToolchainVersionOperator, txt)
+                tcv = ToolchainVersionOperator(txt)
+                self.assertEqual(tcv.tc_name, None)
+                self.assertEqual(tcv.tcversop_str, None)
 
     def test_configobj(self):
         """Test configobj sort"""

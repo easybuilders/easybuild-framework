@@ -45,6 +45,7 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools.modules import avail_modules_tools
@@ -551,11 +552,87 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(
-                             usage=usage,
-                             description=description,
-                             prog='eb',
-                             envvar_prefix='EASYBUILD',
-                             go_args=args,
-                             )
+    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix='EASYBUILD', go_args=args)
     return eb_go
+
+
+def process_software_build_specs(options):
+    """
+    Create a dictionary with specified software build options.
+    The options arguments should be a parsed option list (as delivered by parse_options(args).options)
+    """
+
+    try_to_generate = False
+    build_specs = {}
+
+    # regular options: don't try to generate easyconfig, and search
+    opts_map = {
+        'name': options.software_name,
+        'version': options.software_version,
+        'toolchain_name': options.toolchain_name,
+        'toolchain_version': options.toolchain_version,
+    }
+
+    # try options: enable optional generation of easyconfig
+    try_opts_map = {
+        'name': options.try_software_name,
+        'version': options.try_software_version,
+        'toolchain_name': options.try_toolchain_name,
+        'toolchain_version': options.try_toolchain_version,
+    }
+
+    # process easy options
+    for (key, opt) in opts_map.items():
+        if opt:
+            build_specs[key] = opt
+            # remove this key from the dict of try-options (overruled)
+            try_opts_map.pop(key)
+
+    for (key, opt) in try_opts_map.items():
+        if opt:
+            build_specs[key] = opt
+            # only when a try option is set do we enable generating easyconfigs
+            try_to_generate = True
+
+    # process --toolchain --try-toolchain (sanity check done in tools.options)
+    tc = options.toolchain or options.try_toolchain
+    if tc:
+        if options.toolchain and options.try_toolchain:
+            print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
+        elif options.try_toolchain:
+            try_to_generate = True
+        build_specs.update({
+            'toolchain_name': tc[0],
+            'toolchain_version': tc[1],
+        })
+
+    # provide both toolchain and toolchain_name/toolchain_version keys
+    if 'toolchain_name' in build_specs:
+        build_specs['toolchain'] = {
+            'name': build_specs['toolchain_name'],
+            'version': build_specs.get('toolchain_version', None),
+        }
+
+    # process --amend and --try-amend
+    if options.amend or options.try_amend:
+
+        amends = []
+        if options.amend:
+            amends += options.amend
+            if options.try_amend:
+                print_warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+        if options.try_amend:
+            amends += options.try_amend
+            try_to_generate = True
+
+        for amend_spec in amends:
+            # e.g., 'foo=bar=baz' => foo = 'bar=baz'
+            param = amend_spec.split('=')[0]
+            value = '='.join(amend_spec.split('=')[1:])
+            # support list values by splitting on ',' if its there
+            # e.g., 'foo=bar,baz' => foo = ['bar', 'baz']
+            if ',' in value:
+                value = value.split(',')
+            build_specs.update({param: value})
+
+    return (try_to_generate, build_specs)

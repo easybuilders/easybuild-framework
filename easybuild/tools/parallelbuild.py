@@ -35,12 +35,15 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 import math
 import os
 import re
+import sys
+from datetime import datetime
 
 import easybuild.tools.config as config
-from easybuild.framework.easyblock import get_class
+from easybuild.framework.easyblock import build_easyconfigs, get_class, get_easyblock_instance
+from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import aggregate_xml_in_dirs, find_easyconfigs, read_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
@@ -49,17 +52,15 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_path=None, check_osdeps=True,
-                                  specs=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, build_options=None, build_specs=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
-    @param robot_path: robot path
-    @param check_osdeps: check OS dependencies
-    @param specs: build specifications
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
@@ -85,11 +86,11 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, robot_path=robot_path, check_osdeps=check_osdeps, specs=specs)
+        prepare_easyconfig(ec, build_options=build_options, build_specs=build_specs)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, output_dir, conn=conn, ppn=ppn)
+        new_job = create_job(build_command, ec, output_dir=output_dir, conn=conn, ppn=ppn)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
@@ -122,14 +123,19 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir, robot_
     return jobs
 
 
-def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
+def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     """
     Creates a job, to build a *single* easyconfig
-    build_command is a format string in which a full path to an eb file will be substituted
-    easyconfig should be in the format as processEasyConfig returns them
-    output_dir is an optional path. EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param build_command: format string for command, full path to an easyconfig file will be substituted in it
+    @param easyconfig: easyconfig as processed by process_easyconfig
+    @param output_dir: optional output path; $EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param conn: open connection to PBS server
+    @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
     returns the job
     """
+    if output_dir is None:
+        output_dir = 'easybuild-build'
+
     # create command based on build_command template
     command = build_command % {'spec': easyconfig['spec']}
 
@@ -168,48 +174,15 @@ def create_job(build_command, easyconfig, output_dir="", conn=None, ppn=None):
     return job
 
 
-def get_easyblock_instance(easyconfig, robot_path=None, check_osdeps=True, specs=None):
-    """
-    Get an instance for this easyconfig
-    @param easyconfig: parsed easyconfig
-    @param robot_path: robot path
-    @param check_osdeps: check OS dependencies
-    @param specs: build specifications
-
-    returns an instance of EasyBlock (or subclass thereof)
-    """
-    spec = easyconfig['spec']
-    name = easyconfig['ec']['name']
-
-    # handle easyconfigs with custom easyblocks
-    easyblock = None
-    reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-    txt = read_file(spec)
-    for line in txt.split('\n'):
-        match = reg.search(line)
-        if match:
-            easyblock = eval(match.group(1))
-            break
-
-    app_class = get_class(easyblock, name=name)
-    build_options = {
-        'debug': True,
-        'robot_path': robot_path,
-        'check_osdeps': check_osdeps,
-    }
-    return app_class(spec, build_options=build_options, build_specs=specs)
-
-
-def prepare_easyconfig(ec, robot_path=None, check_osdeps=True, specs=None):
+def prepare_easyconfig(ec, build_options=None, build_specs=None):
     """
     Prepare for building specified easyconfig (fetch sources)
     @param ec: parsed easyconfig
-    @param robot_path: robot path
-    @param check_osdeps: check OS dependencies
-    @param specs: build specifications
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     try:
-        easyblock_instance = get_easyblock_instance(ec, robot_path=robot_path, check_osdeps=check_osdeps, specs=specs)
+        easyblock_instance = get_easyblock_instance(ec, build_options=build_options, build_specs=build_specs)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step(skip_checksums=True)
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
@@ -217,3 +190,95 @@ def prepare_easyconfig(ec, robot_path=None, check_osdeps=True, specs=None):
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
         _log.error("An error occured while preparing %s: %s" % (ec, err))
+
+
+def regtest(easyconfig_paths, build_options=None, build_specs=None):
+    """
+    Run regression test, using easyconfigs available in given path
+    @param easyconfig_paths: path of easyconfigs to run regtest on
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+
+    cur_dir = os.getcwd()
+
+    aggregate_regtest = build_options.get('aggregate_regtest', None)
+    if aggregate_regtest is not None:
+        output_file = os.path.join(aggregate_regtest, "%s-aggregate.xml" % os.path.basename(aggregate_regtest))
+        aggregate_xml_in_dirs(aggregate_regtest, output_file)
+        _log.info("aggregated xml files inside %s, output written to: %s" % (aggregate_regtest, output_file))
+        sys.exit(0)
+
+    # create base directory, which is used to place
+    # all log files and the test output as xml
+    basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
+    var = config.oldstyle_environment_variables['test_output_path']
+
+    regtest_output_dir = build_options.get('regtest_output_dir', None)
+    if regtest_output_dir is not None:
+        output_dir = regtest_output_dir
+    elif var in os.environ:
+        output_dir = os.path.abspath(os.environ[var])
+    else:
+        # default: current dir + easybuild-test-[timestamp]
+        output_dir = os.path.join(cur_dir, basename)
+
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
+
+    # find all easyconfigs
+    ecfiles = []
+    if easyconfig_paths:
+        for path in easyconfig_paths:
+            ecfiles += find_easyconfigs(path, ignore_dirs=build_options.get('ignore_dirs', []))
+    else:
+        _log.error("No easyconfig paths specified.")
+
+    test_results = []
+
+    # process all the found easyconfig files
+    easyconfigs = []
+    for ecfile in ecfiles:
+        try:
+            easyconfigs.extend(process_easyconfig(ecfile, build_options=build_options, build_specs=build_specs))
+        except EasyBuildError, err:
+            test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
+
+    # skip easyconfigs for which a module is already available, unless forced
+    if not build_options.get('force', False):
+        _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
+        easyconfigs = skip_available(easyconfigs)
+        _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
+
+    if build_options.get('sequential', False):
+        return build_easyconfigs(easyconfigs, output_dir, test_results, build_options=build_options)
+    else:
+        resolved = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+
+        cmd = "eb %(spec)s --regtest --sequential -ld"
+        command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
+        # retry twice in case of failure, to avoid fluke errors
+        command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
+
+        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir,
+                                             build_options=build_options, build_specs=build_specs)
+
+        print "List of submitted jobs:"
+        for job in jobs:
+            print "%s: %s" % (job.name, job.jobid)
+        print "(%d jobs submitted)" % len(jobs)
+
+        # determine leaf nodes in dependency graph, and report them
+        all_deps = set()
+        for job in jobs:
+            all_deps = all_deps.union(job.deps)
+
+        leaf_nodes = []
+        for job in jobs:
+            if not job.jobid in all_deps:
+                leaf_nodes.append(str(job.jobid).split('.')[0])
+
+        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
+        _log.info("Submitted regression test as jobs, results in %s" % output_dir)
+
+        return True  # success

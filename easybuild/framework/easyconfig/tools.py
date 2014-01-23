@@ -46,13 +46,42 @@ from distutils.version import LooseVersion
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import run_cmd, read_file, write_file
+# optional Python packages, these might be missing
+# failing imports are just ignored
+# a NameError should be catched where these are used
+
+# PyGraph (used for generating dependency graphs)
+graph_errors = []
+try:
+    from pygraph.classes.digraph import digraph
+except ImportError, err:
+    graph_errors.append("Failed to import pygraph-core: try easy_install python-graph-core")
+
+try:
+    import pygraph.readwrite.dot as dot
+except ImportError, err:
+    graph_errors.append("Failed to import pygraph-dot: try easy_install python-graph-dot")
+
+# graphviz (used for creating dependency graph images)
+try:
+    sys.path.append('..')
+    sys.path.append('/usr/lib/graphviz/python/')
+    sys.path.append('/usr/lib64/graphviz/python/')
+    import gv
+except ImportError, err:
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
+
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
+from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
+from easybuild.framework.easyconfig.format.version import EasyVersion
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -121,6 +150,410 @@ def create_paths(path, name, version):
            ]
 
 
+def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
+    """
+    Easyconfigs can contain blocks (headed by a [Title]-line)
+    which contain commands specific to that block. Commands in the beginning of the file
+    above any block headers are common and shared between each block.
+    """
+    reg_block = re.compile(r"^\s*\[([\w.-]+)\]\s*$", re.M)
+    reg_dep_block = re.compile(r"^\s*block\s*=(\s*.*?)\s*$", re.M)
+
+    spec_fn = os.path.basename(spec)
+    try:
+        txt = open(spec).read()
+    except IOError, err:
+        _log.error("Failed to read file %s: %s" % (spec, err))
+
+    # split into blocks using regex
+    pieces = reg_block.split(txt)
+    # the first block contains common statements
+    common = pieces.pop(0)
+
+    # determine version of easyconfig format
+    ec_format_version = get_format_version(txt)
+    if ec_format_version is None:
+        ec_format_version = FORMAT_DEFAULT_VERSION
+    _log.debug("retrieve_blocks_in_spec: derived easyconfig format version: %s" % ec_format_version)
+
+    # blocks in easyconfigs are only supported in format versions prior to 2.0
+    if pieces and ec_format_version < EasyVersion('2.0'):
+        # make a map of blocks
+        blocks = []
+        while pieces:
+            block_name = pieces.pop(0)
+            block_contents = pieces.pop(0)
+
+            if block_name in [b['name'] for b in blocks]:
+                msg = "Found block %s twice in %s." % (block_name, spec)
+                _log.error(msg)
+
+            block = {'name': block_name, 'contents': block_contents}
+
+            # dependency block
+            dep_block = reg_dep_block.search(block_contents)
+            if dep_block:
+                dependencies = eval(dep_block.group(1))
+                if type(dependencies) == list:
+                    block['dependencies'] = dependencies
+                else:
+                    block['dependencies'] = [dependencies]
+
+            blocks.append(block)
+
+        # make a new easyconfig for each block
+        # they will be processed in the same order as they are all described in the original file
+        specs = []
+        for block in blocks:
+            name = block['name']
+            if only_blocks and not (name in only_blocks):
+                print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
+                continue
+
+            (fd, block_path) = tempfile.mkstemp(prefix='easybuild-', suffix='%s-%s' % (spec_fn, name))
+            os.close(fd)
+
+            txt = common
+
+            if 'dependencies' in block:
+                for dep in block['dependencies']:
+                    if not dep in [b['name'] for b in blocks]:
+                        _log.error("Block %s depends on %s, but block was not found." % (name, dep))
+
+                    dep = [b for b in blocks if b['name'] == dep][0]
+                    txt += "\n# Dependency block %s" % (dep['name'])
+                    txt += dep['contents']
+
+            txt += "\n# Main block %s" % name
+            txt += block['contents']
+
+            write_file(block_path, txt)
+
+            specs.append(block_path)
+
+        _log.debug("Found %s block(s) in %s" % (len(specs), spec))
+        return specs
+    else:
+        # no blocks, one file
+        return [spec]
+
+
+def process_easyconfig(path, build_options=None, build_specs=None):
+    """
+    Process easyconfig, returning some information for each block
+    @param path: path to easyconfig file
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+    blocks = retrieve_blocks_in_spec(path, build_options.get('only_blocks', None))
+
+    easyconfigs = []
+    for spec in blocks:
+        # process for dependencies and real installversionname
+        _log.debug("Processing easyconfig %s" % spec)
+
+        # create easyconfig
+        try:
+            ec = EasyConfig(spec, build_options=build_options, build_specs=build_specs)
+        except EasyBuildError, err:
+            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
+            _log.exception(msg)
+
+        name = ec['name']
+
+        # this app will appear as following module in the list
+        easyconfig = {
+            'ec': ec,
+            'spec': spec,
+            'module': det_full_module_name(ec),
+            'dependencies': [],
+            'builddependencies': [],
+        }
+        if len(blocks) > 1:
+            easyconfig['originalSpec'] = path
+
+        # add build dependencies
+        for dep in ec.builddependencies():
+            _log.debug("Adding build dependency %s for app %s." % (dep, name))
+            easyconfig['builddependencies'].append(dep)
+
+        # add dependencies (including build dependencies)
+        for dep in ec.dependencies():
+            _log.debug("Adding dependency %s for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        # add toolchain as dependency too
+        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            dep = ec.toolchain.as_dict()
+            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        del ec
+
+        # this is used by the parallel builder
+        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
+
+        easyconfigs.append(easyconfig)
+
+    return easyconfigs
+
+
+def skip_available(easyconfigs, testing=False):
+    """Skip building easyconfigs for which a module is already available."""
+    avail_modules = modules_tool().available()
+    easyconfigs, check_easyconfigs = [], easyconfigs
+    for ec in check_easyconfigs:
+        module = ec['module']
+        if module in avail_modules:
+            msg = "%s is already installed (module found), skipping" % module
+            print_msg(msg, log=_log, silent=testing)
+            _log.info(msg)
+        else:
+            _log.debug("%s is not installed yet, so retaining it" % module)
+            easyconfigs.append(ec)
+    return easyconfigs
+
+
+def find_resolved_modules(unprocessed, avail_modules):
+    """
+    Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
+    """
+    ordered_ecs = []
+
+    for ec in unprocessed:
+        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in avail_modules]
+
+        if len(ec['dependencies']) == 0:
+            _log.debug("Adding easyconfig %s to final list" % ec['spec'])
+            ordered_ecs.append(ec)
+            avail_modules.append(ec['module'])
+
+    unprocessed[:] = [m for m in unprocessed if len(m['dependencies']) > 0]
+
+    return ordered_ecs
+
+
+def robot_find_easyconfig(paths, name, version):
+    """
+    Find an easyconfig for module in path
+    """
+    if not isinstance(paths, list):
+        paths = [paths]
+    # candidate easyconfig paths
+    for path in paths:
+        easyconfigs_paths = create_paths(path, name, version)
+        for easyconfig_path in easyconfigs_paths:
+            _log.debug("Checking easyconfig path %s" % easyconfig_path)
+            if os.path.isfile(easyconfig_path):
+                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
+                return os.path.abspath(easyconfig_path)
+
+    return None
+
+
+def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
+    """
+    Work through the list of easyconfigs to determine an optimal order
+    @param unprocessed: list of easyconfigs
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+
+    robot = build_options.get('robot_path', None)
+
+    if build_options.get('force', False):
+        # assume that no modules are available when forced
+        avail_modules = []
+        _log.info("Forcing all dependencies to be retained.")
+    else:
+        # Get a list of all available modules (format: [(name, installversion), ...])
+        avail_modules = modules_tool().available()
+
+        if len(avail_modules) == 0:
+            _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
+
+    ordered_ecs = []
+    # all available modules can be used for resolving dependencies except those that will be installed
+    being_installed = [p['module'] for p in unprocessed]
+    avail_modules = [m for m in avail_modules if not m in being_installed]
+
+    _log.debug('unprocessed before resolving deps: %s' % unprocessed)
+
+    # resolve all dependencies, put a safeguard in place to avoid an infinite loop (shouldn't occur though)
+    irresolvable = []
+    loopcnt = 0
+    maxloopcnt = 10000
+    while unprocessed:
+        # make sure this stops, we really don't want to get stuck in an infinite loop
+        loopcnt += 1
+        if loopcnt > maxloopcnt:
+            tup = (maxloopcnt, unprocessed, irresolvable)
+            msg = "Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)" % tup
+            _log.error(msg)
+
+        # first try resolving dependencies without using external dependencies
+        # find_resolved_modules may extend 'avail_modules', hence the while loop;
+        # it will also update 'unprocessed' to only leave in entries with one or more unresolved dependencies
+        last_processed_count = -1
+        while len(avail_modules) > last_processed_count:
+            last_processed_count = len(avail_modules)
+            # note: find_resolved_modules may append entries to avail_modules (and modify unprocessed as well)
+            for ec in find_resolved_modules(unprocessed, avail_modules):
+                if not ec['module'] in [x['module'] for x in ordered_ecs]:
+                    ordered_ecs.append(ec)
+
+        # robot: look for existing dependencies, add them
+        if robot and unprocessed:
+
+            being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
+
+            for i, entry in enumerate(unprocessed):
+                # do not choose an entry that is being installed in the current run
+                # if they depend, you probably want to rebuild them using the new dependency
+                deps = entry['dependencies']
+                candidates = [d for d in deps if not det_full_module_name(d, eb_ns=True) in being_installed]
+                if len(candidates) > 0:
+                    cand_dep = candidates[0]
+                    # find easyconfig, might not find any
+                    _log.debug("Looking for easyconfig for %s" % str(cand_dep))
+                    # note: robot_find_easyconfig may return None
+                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+
+                    if path is None:
+                        # no easyconfig found for dependency, add to list of irresolvable dependencies
+                        if cand_dep not in irresolvable:
+                            irresolvable.append(cand_dep)
+                        # remove irresolvable dependency from list of dependencies so we can continue
+                        entry['dependencies'].remove(cand_dep)
+                    else:
+                        _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
+                        processed_ecs = process_easyconfig(path, build_options=build_options, build_specs=build_specs)
+
+                        # ensure that selected easyconfig provides required dependency
+                        mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
+                        dep_mod_name = det_full_module_name(cand_dep)
+                        if not dep_mod_name in mods:
+                            tup = (path, dep_mod_name, mods)
+                            _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
+
+                        for ec in processed_ecs:
+                            if not ec in unprocessed:
+                                unprocessed.append(ec)
+                                _log.debug("Added %s as dependency of %s" % (ec, entry))
+                else:
+                    mod_name = det_full_module_name(entry['ec'], eb_ns=True)
+                    _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
+
+    if irresolvable:
+        irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
+        _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
+
+    _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
+    return ordered_ecs
+
+
+def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None):
+    """
+    Print dry run information
+    @param easyconfigs: list of easyconfig files
+    @param short: print short output (use a variable for the common prefix)
+    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    """
+    lines = []
+    if build_options.get('robot_path', None) is None:
+        lines.append("Dry run: printing build status of easyconfigs")
+        all_specs = easyconfigs
+    else:
+        lines.append("Dry run: printing build status of easyconfigs and dependencies")
+        build_options = copy.deepcopy(build_options)
+        build_options.update({
+            'force': True,
+            'check_osdeps': False,
+        })
+        all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+
+    unbuilt_specs = skip_available(all_specs, testing=True)
+    dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
+
+    var_name = 'CFGS'
+    common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
+    # only allow short if common prefix is long enough
+    short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
+    for spec in all_specs:
+        if spec in unbuilt_specs:
+            ans = ' '
+        else:
+            ans = 'x'
+        mod = det_full_module_name(spec['ec'])
+
+        if short:
+            item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
+        else:
+            item = spec['spec']
+        lines.append(dry_run_fmt % (ans, item, mod))
+
+    if short:
+        # insert after 'Dry run:' message
+        lines.insert(1, "%s=%s" % (var_name, common_prefix))
+    silent = build_options.get('silent', False)
+    print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
+
+
+def _dep_graph(fn, specs, silent=False):
+    """
+    Create a dependency graph for the given easyconfigs.
+    """
+
+    # check whether module names are unique
+    # if so, we can omit versions in the graph
+    names = set()
+    for spec in specs:
+        names.add(spec['ec']['name'])
+    omit_versions = len(names) == len(specs)
+
+    def mk_node_name(spec):
+        if omit_versions:
+            return spec['name']
+        else:
+            return det_full_module_name(spec)
+
+    # enhance list of specs
+    for spec in specs:
+        spec['module'] = mk_node_name(spec['ec'])
+        spec['unresolved_deps'] = [mk_node_name(s) for s in spec['unresolved_deps']]
+
+    # build directed graph
+    dgr = digraph()
+    dgr.add_nodes([spec['module'] for spec in specs])
+    for spec in specs:
+        for dep in spec['unresolved_deps']:
+            dgr.add_edge((spec['module'], dep))
+
+    # write to file
+    dottxt = dot.write(dgr)
+    if fn.endswith(".dot"):
+        # create .dot file
+        write_file(fn, dottxt)
+    else:
+        # try and render graph in specified file format
+        gvv = gv.readstring(dottxt)
+        gv.layout(gvv, 'dot')
+        gv.render(gvv, fn.split('.')[-1], fn)
+
+    if not silent:
+        print "Wrote dependency graph for %d easyconfigs to %s" % (len(specs), fn)
+
+
+def dep_graph(*args, **kwargs):
+    try:
+        _dep_graph(*args, **kwargs)
+    except NameError, err:
+        errors = "\n".join(graph_errors)
+        msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
+        _log.error("%s\nerr: %s" % (msg, err))
+
+
 def obtain_ec_for(specs, paths, fp):
     """
     Obtain an easyconfig file to the given specifications.
@@ -173,6 +606,29 @@ def obtain_ec_for(specs, paths, fp):
         return res
     else:
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
+
+
+def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
+    """Obtain a path for an easyconfig that matches the given specifications."""
+
+    # if no easyconfig files/paths were provided, but we did get a software name,
+    # we can try and find a suitable easyconfig ourselves, or generate one if we can
+    (generated, fn) = obtain_ec_for(specs, paths, None)
+    if not generated:
+        return (fn, generated)
+    else:
+        # if an easyconfig was generated, make sure we're allowed to use it
+        if try_to_generate:
+            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
+            return (fn, generated)
+        else:
+            try:
+                os.remove(fn)
+            except OSError, err:
+                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
+            print_error(("Unable to find an easyconfig for the given specifications: %s; "
+                         "to make EasyBuild try to generate a matching easyconfig, "
+                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
 
 
 def select_or_generate_ec(fp, paths, specs):
