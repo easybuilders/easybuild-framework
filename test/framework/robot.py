@@ -139,7 +139,10 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        build_options = {'robot_path': self.base_easyconfig_dir}
+        build_options = {
+            'ignore_osdeps': True,
+            'robot_path': self.base_easyconfig_dir,
+        }
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # GCC should be first (required by gzip dependency)
@@ -164,7 +167,6 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        build_options = {'robot_path': self.base_easyconfig_dir}
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
@@ -189,7 +191,6 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        build_options = {'robot_path': self.base_easyconfig_dir}
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
