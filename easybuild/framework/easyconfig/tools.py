@@ -406,7 +406,8 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
 
             being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
 
-            for i, entry in enumerate(unprocessed[:]):
+            additional = []
+            for i, entry in enumerate(unprocessed):
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
@@ -436,12 +437,15 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
                             _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
 
                         for ec in processed_ecs:
-                            if not ec in unprocessed:
-                                unprocessed.append(ec)
+                            if not ec in unprocessed + additional:
+                                additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
                     mod_name = det_full_module_name(entry['ec'], eb_ns=True)
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
+
+            # add additional (new) easyconfigs to list of stuff to process
+            unprocessed.extend(additional)
 
     if irresolvable:
         irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
