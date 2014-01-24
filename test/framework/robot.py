@@ -48,9 +48,11 @@ orig_main_modules_tool = ectools.modules_tool
 class MockModule(modules.ModulesTool):
     """ MockModule class, allows for controlling what modules_tool() will return """
 
+    avail_modules = []
+
     def available(self, *args):
         """ no module should be available """
-        return []
+        return self.avail_modules
 
 
 def mock_module(mod_paths=None):
@@ -97,7 +99,7 @@ class RobotTest(TestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
             },
             'spec': '_',
-            'module': 'name/version',
+            'module': 'foo/1.2.3',
             'dependencies': [{
                 'name': 'gzip',
                 'version': '1.4',
@@ -109,8 +111,10 @@ class RobotTest(TestCase):
         }
         build_options = {'robot_path': self.base_easyconfig_dir}
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
-        # Dependency should be found
+        # dependency should be found, order should be correct
         self.assertEqual(len(res), 2)
+        self.assertEqual('gzip/1.4', res[0]['module'])
+        self.assertEqual('foo/1.2.3', res[-1]['module'])
 
         # here we have include a Dependency in the easyconfig list
         easyconfig['module'] = 'gzip/1.4'
@@ -140,8 +144,61 @@ class RobotTest(TestCase):
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual('GCC/4.6.3', res[0]['module'])
-        self.assertEqual('name/version', res[-1]['module'])
+        self.assertEqual('foo/1.2.3', res[-1]['module'])
 
+        # make sure that only missing stuff is built, and that available modules are not rebuilt
+        # monkey patch MockModule to pretend that all ingredients required for goolf-1.4.10 toolchain are present
+        MockModule.avail_modules = [
+            'GCC/4.7.2',
+            'OpenMPI/1.6.4-GCC-4.7.2',
+            'OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2',
+            'FFTW/3.3.3-gompi-1.4.10',
+            'ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2',
+        ]
+
+        easyconfig_dep['dependencies'] = [{
+            'name': 'goolf',
+            'version': '1.4.10',
+            'versionsuffix': '',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'dummy': True,
+        }]
+        ecs = [deepcopy(easyconfig_dep)]
+        build_options = {'robot_path': self.base_easyconfig_dir}
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+
+        # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
+        self.assertTrue(len(res), 2)
+        # goolf should be first, the software itself second
+        self.assertEqual('goolf/1.4.10', res[0]['module'])
+        self.assertEqual('foo/1.2.3', res[1]['module'])
+
+        # provide even less goolf ingredients (no OpenBLAS/ScaLAPACK), make sure the numbers add up
+        MockModule.avail_modules = [
+            'GCC/4.7.2',
+            'OpenMPI/1.6.4-GCC-4.7.2',
+            'gompi/1.4.10',
+            'FFTW/3.3.3-gompi-1.4.10',
+        ]
+
+        easyconfig_dep['dependencies'] = [{
+            'name': 'goolf',
+            'version': '1.4.10',
+            'versionsuffix': '',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'dummy': True,
+        }]
+        ecs = [deepcopy(easyconfig_dep)]
+        build_options = {'robot_path': self.base_easyconfig_dir}
+        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+
+        # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
+        self.assertTrue(len(res), 4)
+        # goolf should be first, the software itself second
+        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['module'])
+        self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['module'])
+        self.assertEqual('goolf/1.4.10', res[2]['module'])
+        self.assertEqual('foo/1.2.3', res[3]['module'])
 
     def tearDown(self):
         """ reset the Modules back to its original """
