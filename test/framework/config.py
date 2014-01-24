@@ -419,7 +419,7 @@ modules_install_suffix = '%(modsuffix)s'
         # test with config file passed via environment variable
         cfgtxt = '\n'.join([
             '[config]',
-            'installpath = %s' % testpath1,
+            'buildpath = %s' % testpath1,
         ])
         write_file(config_file, cfgtxt)
 
@@ -430,9 +430,21 @@ modules_install_suffix = '%(modsuffix)s'
         ]
         options = self.configure_options(args=args)
 
-        self.assertEqual(build_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'build'))  # default
+        self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
         self.assertEqual(source_paths(), [testpath2])  # via command line
-        self.assertEqual(install_path(), os.path.join(testpath1, 'software'))  # via config file
+        self.assertEqual(build_path(), testpath1)  # via config file
+
+        testpath3 = os.path.join(self.tmpdir, 'testTHREE')
+        os.environ['EASYBUILD_SOURCEPATH'] = testpath2
+        args = [
+            '--debug',
+            '--installpath', testpath3,
+        ]
+        options = self.configure_options(args=args)
+
+        self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
+        self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
+        self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']
 
