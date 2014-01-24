@@ -319,18 +319,19 @@ def find_resolved_modules(unprocessed, avail_modules):
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
     """
     ordered_ecs = []
+    new_avail_modules = avail_modules[:]
 
     for ec in unprocessed:
-        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in avail_modules]
+        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in new_avail_modules]
 
         if len(ec['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % ec['spec'])
             ordered_ecs.append(ec)
-            avail_modules.append(ec['module'])
+            new_avail_modules.append(ec['module'])
 
-    unprocessed[:] = [m for m in unprocessed if len(m['dependencies']) > 0]
+    new_unprocessed = [m for m in unprocessed if len(m['dependencies']) > 0]
 
-    return ordered_ecs
+    return ordered_ecs, new_unprocessed, new_avail_modules
 
 
 def robot_find_easyconfig(paths, name, version):
@@ -392,13 +393,11 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
             _log.error(msg)
 
         # first try resolving dependencies without using external dependencies
-        # find_resolved_modules may extend 'avail_modules', hence the while loop;
-        # it will also update 'unprocessed' to only leave in entries with one or more unresolved dependencies
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            # note: find_resolved_modules may append entries to avail_modules (and modify unprocessed as well)
-            for ec in find_resolved_modules(unprocessed, avail_modules):
+            more_ecs, unprocessed, avail_modules = find_resolved_modules(unprocessed, avail_modules)
+            for ec in more_ecs:
                 if not ec['module'] in [x['module'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
