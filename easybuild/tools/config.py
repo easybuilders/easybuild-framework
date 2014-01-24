@@ -31,6 +31,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import os
@@ -194,7 +195,14 @@ class ConfigurationVariables(dict):
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
-    return os.path.join(os.path.expanduser('~'), ".easybuild")
+    oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
+    newpath = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.environ["HOME"], ".config")), "easybuild")
+
+    if os.path.isdir(oldpath):
+        _log.deprecated("The easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
+        return oldpath
+    else:
+        return newpath
 
 
 def get_default_oldstyle_configfile():
@@ -268,7 +276,8 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
 
 def get_default_configfiles():
     """Return a list of default configfiles for tools.options/generaloption"""
-    return [os.path.join(get_user_easybuild_dir(), "config.cfg")]
+    return [os.path.join(get_user_easybuild_dir(), "config.cfg"),
+            os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.environ["HOME"], ".config")), "easybuild/config.cfg")]
 
 
 def get_pretend_installpath():
