@@ -340,6 +340,7 @@ modules_install_suffix = '%(modsuffix)s'
         os.environ['EASYBUILD_BUILDPATH'] = buildpath_env_var
         options = self.configure_options(args=[])
         self.assertEqual(build_path(), buildpath_env_var)
+        self.assertEqual(install_path(), os.path.join(prefix, 'software'))
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_BUILDPATH']
 
@@ -383,6 +384,69 @@ modules_install_suffix = '%(modsuffix)s'
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
+
+        del os.environ['EASYBUILD_PREFIX']
+        del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
+
+    def test_generaloption_config_file(self):
+        """Test use of new-style configuration file."""
+        oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
+        config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
+
+        testpath1 = os.path.join(self.tmpdir, 'test1')
+        testpath2 = os.path.join(self.tmpdir, 'testtwo')
+
+        write_file(oldstyle_config_file, '')
+
+        # test with config file passed via command line
+        cfgtxt = '\n'.join([
+            '[config]',
+            'installpath = %s' % testpath2,
+        ])
+        write_file(config_file, cfgtxt)
+
+        args = [
+            '--configfiles', config_file,
+            '--debug',
+            '--buildpath', testpath1,
+        ]
+        options = self.configure_options(args=args)
+
+        self.assertEqual(build_path(), testpath1)  # via command line
+        self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
+        self.assertEqual(install_path(), os.path.join(testpath2, 'software'))  # via config file
+
+        # test with config file passed via environment variable
+        cfgtxt = '\n'.join([
+            '[config]',
+            'buildpath = %s' % testpath1,
+        ])
+        write_file(config_file, cfgtxt)
+
+        os.environ['EASYBUILD_CONFIGFILES'] = config_file
+        args = [
+            '--debug',
+            '--sourcepath', testpath2,
+        ]
+        options = self.configure_options(args=args)
+
+        self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
+        self.assertEqual(source_paths(), [testpath2])  # via command line
+        self.assertEqual(build_path(), testpath1)  # via config file
+
+        testpath3 = os.path.join(self.tmpdir, 'testTHREE')
+        os.environ['EASYBUILD_SOURCEPATH'] = testpath2
+        args = [
+            '--debug',
+            '--installpath', testpath3,
+        ]
+        options = self.configure_options(args=args)
+
+        self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
+        self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
+        self.assertEqual(build_path(), testpath1)  # via config file
+
+        del os.environ['EASYBUILD_CONFIGFILES']
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
