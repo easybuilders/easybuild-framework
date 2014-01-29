@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2013 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Toy build unit test
 
@@ -139,7 +139,7 @@ class ToyBuildTest(TestCase):
         try:
             main((args, self.dummylogfn, True))
         except (SystemExit, Exception), err:
-            print err
+            print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
@@ -161,7 +161,7 @@ class ToyBuildTest(TestCase):
         try:
             main((args, self.dummylogfn, True))
         except (SystemExit, Exception), err:
-            print err
+            print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
@@ -189,7 +189,7 @@ class ToyBuildTest(TestCase):
         try:
             main((args, self.dummylogfn, True))
         except (SystemExit, Exception), err:
-            print err
+            print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         for toy_prefix, toy_version, toy_suffix in [
