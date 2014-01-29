@@ -79,7 +79,7 @@ class CpanMeta(object):
         # do the recursive thing
         for dep in data['dependency']:
             if "requires" in dep["relationship"]:
-                cpan.get_recursive_data(dep['module'])
+                self.get_recursive_data(dep['module'])
                 # if for some reason you get to many hits here, you might want to filter on build and confirure in phase: (To be further tested)
                 # if "build" in dep["phase"] or "configure" in dep["phase"]:
                 dependencies.add(dep['module'])
