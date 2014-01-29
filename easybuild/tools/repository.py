@@ -211,7 +211,7 @@ class FileRepository(Repository):
             self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
-        eb = EasyConfig(dest, validate=False)
+        eb = EasyConfig(dest, build_options={'validate': False})
         return eb['buildstats']
 
 

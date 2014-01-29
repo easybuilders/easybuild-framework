@@ -31,6 +31,7 @@ Command line options for eb
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import os
 import re
@@ -38,12 +39,13 @@ import sys
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, build_easyconfig_constants_dict
+from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools.modules import avail_modules_tools
@@ -80,24 +82,20 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-                            "only-blocks":("Only build listed blocks",
-                                           None, "extend", None, "b", {'metavar':"BLOCKS"}),
-                            "force":(("Force to rebuild software even if it's already installed "
-                                      "(i.e. if it can be found as module)"),
-                                     None, "store_true", False, "f"),
-                            "job":("Submit the build as a job", None, "store_true", False),
-                            "skip":("Skip existing software (useful for installing additional packages)",
-                                    None, "store_true", False, "k"),
-                            "robot":("Path to search for easyconfigs for missing dependencies." ,
-                                     None, "store_or_None", default_robot_path, "r", {'metavar':"PATH"}),
-                            "stop":("Stop the installation after certain step",
-                                    "choice", "store_or_None", "source", "s", all_stops),
-                            "strict":("Set strictness level",
-                                      "choice", "store", filetools.WARN, strictness_options),
-                            "logtostdout":("Redirect main log to stdout", None, "store_true", False, "l"),
-                            "dry-run":("Resolve dependencies and print build list, then stop", 
-                                      None, "store_true", False),
-                            })
+            'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
+            'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
+            'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
+                       None, 'store_true', False, 'f'),
+            'job': ("Submit the build as a job", None, 'store_true', False),
+            'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
+            'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
+            'robot': ("Path(s) to search for easyconfigs for missing dependencies (colon-separated)" ,
+                      None, 'store_or_None', default_robot_path, 'r', {'metavar': 'PATH'}),
+            'skip': ("Skip existing software (useful for installing additional packages)",
+                     None, 'store_true', False, 'k'),
+            'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
+            'strict': ("Set strictness level", 'choice', 'store', filetools.WARN, strictness_options),
+        })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -113,20 +111,20 @@ class EasyBuildOptions(GeneralOption):
                  )
 
         opts = OrderedDict({
-                             'software-name':("Search and build software with name",
-                                              None, 'store', None, {'metavar':'NAME'}),
-                             'software-version':("Search and build software with version",
-                                                 None, 'store', None, {'metavar':'VERSION'}),
-                             'toolchain':("Search and build with toolchain (name and version)",
-                                          None, 'extend', None, {'metavar':'NAME,VERSION'}),
-                             'toolchain-name':("Search and build with toolchain name",
-                                               None, 'store', None, {'metavar':'NAME'}),
-                             'toolchain-version':("Search and build with toolchain version",
-                                                  None, 'store', None, {'metavar':'VERSION'}),
-                             'amend':(("Specify additional search and build parameters (can be used multiple times); "
-                                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
-                                      None, 'append', None, {'metavar':'VAR=VALUE[,VALUE]'}),
-                             })
+            'amend':(("Specify additional search and build parameters (can be used multiple times); "
+                      "for example: versionprefix=foo or patches=one.patch,two.patch)"),
+                      None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
+            'software-name': ("Search and build software with name",
+                              None, 'store', None, {'metavar': 'NAME'}),
+            'software-version': ("Search and build software with version",
+                                 None, 'store', None, {'metavar': 'VERSION'}),
+            'toolchain': ("Search and build with toolchain (name and version)",
+                          None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+            'toolchain-name': ("Search and build with toolchain name",
+                               None, 'store', None, {'metavar': 'NAME'}),
+            'toolchain-version': ("Search and build with toolchain version",
+                                  None, 'store', None, {'metavar': 'VERSION'}),
+        })
 
         longopts = opts.keys()
         for longopt in longopts:
@@ -141,15 +139,14 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        opts = {
-                "easyblock":("easyblock to use for processing the spec file or dumping the options",
-                             None, "store", None, "e", {'metavar':"CLASS"},),
-                "pretend":(("Does the build/installation in "
-                            "a test directory located in $HOME/easybuildinstall "),
-                           None, "store_true", False, "p",),
-                "skip-test-cases":("Skip running test cases",
-                                   None, "store_true", False, "t",),
-                }
+        opts = OrderedDict({
+            'easyblock': ("easyblock to use for processing the spec file or dumping the options",
+                          None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
+                         None, 'store_true', False, 'p'),
+            'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+        })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
@@ -160,115 +157,112 @@ class EasyBuildOptions(GeneralOption):
 
         oldstyle_defaults = get_default_oldstyle_configfile_defaults()
 
-        opts = {
-                "config":("Path to EasyBuild config file",
-                          None, 'store', oldstyle_defaults['config'], "C",),
-                'prefix': (('Change prefix for buildpath, installpath, sourcepath and repositorypath '
-                            '(repositorypath prefix is only relevant in case of FileRepository repository)'
-                            '(used prefix for defaults %s)' % oldstyle_defaults['prefix']),
-                               None, 'store', None),
-                'buildpath': ('Temporary build path',
-                               None, 'store', oldstyle_defaults['buildpath']),
-                'installpath':  ('Final install path',
-                                  None, 'store', oldstyle_defaults['installpath']),
-                'subdir-modules': ('Subdir in installpath for modules',
-                                           None, 'store', oldstyle_defaults['subdir_modules']),
-                'subdir-software': ('Subdir in installpath for software',
-                                            None, 'store', oldstyle_defaults['subdir_software']),
-                'repository': ('Repository type, using repositorypath',
-                                'choice', 'store', oldstyle_defaults['repository'],
-                                sorted(avail_repositories().keys())),
-                'repositorypath': (('Repository path, used by repository '
-                                    '(is passed as list of arguments to create the repository instance). '
-                                    'For more info, use --avail-repositories.'),
-                                    'strlist', 'store',
-                                    oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
-                "avail-repositories":("Show all repository types (incl. non-usable)",
-                                      None, "store_true", False,),
-                'logfile-format': ('Directory name and format of the log file ',
-                              'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
-                'tmp-logdir': ('Log directory where temporary log files are stored',
-                            None, 'store', oldstyle_defaults['tmp_logdir']),
-                'sourcepath': ('Path(s) to where sources should be downloaded (string, colon-separated)',
-                               None, 'store', oldstyle_defaults['sourcepath']),
-                'moduleclasses': (('Extend supported module classes'
-                                   ' (For more info on the default classes, use --show-default-moduleclasses)'),
-                                  None, 'extend', oldstyle_defaults['moduleclasses']),
-                'show-default-moduleclasses': ('Show default module classes with description',
-                                               None, 'store_true', False),
-                'modules-tool': ('Modules tool to use',
-                                 'choice', 'store', oldstyle_defaults['modules_tool'],
-                                 sorted(avail_modules_tools().keys())),
-                "avail-modules-tools":("Show all supported module tools",
-                                       None, "store_true", False,),
-                'module-naming-scheme': ('Module naming scheme', 'choice', 'store',
-                                         oldstyle_defaults['module_naming_scheme'],
-                                         sorted(avail_module_naming_schemes().keys())),
-                "avail-module-naming-schemes":("Show all supported module naming schemes",
-                                               None, "store_true", False,),
-                # this one is sort of an exception, it's something jobscripts can set,
-                #  has no real meaning for regular eb usage
-                "testoutput": ("Path to where a job should place the output (to be set within jobscript)",
-                               None, "store", None),
-                }
+        opts = OrderedDict({
+            'avail-module-naming-schemes': ("Show all supported module naming schemes",
+                                            None, 'store_true', False,),
+            'avail-modules-tools': ("Show all supported module tools",
+                                    None, "store_true", False,),
+            'avail-repositories': ("Show all repository types (incl. non-usable)",
+                                    None, "store_true", False,),
+            'buildpath': ("Temporary build path", None, 'store', oldstyle_defaults['buildpath']),
+            'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
+                            'strlist', 'store', ['.git', '.svn']),
+            'installpath': ("Install path for software and modules", None, 'store', oldstyle_defaults['installpath']),
+            'config': ("Path to EasyBuild config file",
+                       None, 'store', oldstyle_defaults['config'], 'C'),
+            'logfile-format': ("Directory name and format of the log file",
+                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
+            'module-naming-scheme': ("Module naming scheme",
+                                     'choice', 'store', oldstyle_defaults['module_naming_scheme'],
+                                     sorted(avail_module_naming_schemes().keys())),
+            'moduleclasses': (("Extend supported module classes "
+                               "(For more info on the default classes, use --show-default-moduleclasses)"),
+                               None, 'extend', oldstyle_defaults['moduleclasses']),
+            'modules-tool': ("Modules tool to use",
+                             'choice', 'store', oldstyle_defaults['modules_tool'],
+                             sorted(avail_modules_tools().keys())),
+            'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
+                        "(repositorypath prefix is only relevant in case of FileRepository repository) "
+                        "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
+                        None, 'store', None),
+            'repository': ("Repository type, using repositorypath",
+                           'choice', 'store', oldstyle_defaults['repository'], sorted(avail_repositories().keys())),
+            'repositorypath': (("Repository path, used by repository "
+                                "(is passed as list of arguments to create the repository instance). "
+                                "For more info, use --avail-repositories."),
+                                'strlist', 'store',
+                                oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
+            'show-default-moduleclasses': ("Show default module classes with description",
+                                           None, 'store_true', False),
+            'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
+                           None, 'store', oldstyle_defaults['sourcepath']),
+            'subdir-modules': ("Installpath subdir for modules", None, 'store', oldstyle_defaults['subdir_modules']),
+            'subdir-software': ("Installpath subdir for software", None, 'store', oldstyle_defaults['subdir_software']),
+            # this one is sort of an exception, it's something jobscripts can set,
+            # has no real meaning for regular eb usage
+            'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
+                            None, 'store', None),
+            'tmp-logdir': ("Log directory where temporary log files are stored",
+                           None, 'store', oldstyle_defaults['tmp_logdir']),
+            'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
+        })
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def informative_options(self):
         # informative options
-        descr = ("Informative options",
-                 "Obtain information about EasyBuild.")
+        descr = ("Informative options", "Obtain information about EasyBuild.")
 
-        opts = {
-                "avail-easyconfig-params":(("Show all easyconfig parameters (include "
-                                            "easyblock-specific ones by using -e)"),
-                                            None, "store_true", False, "a",),
-                "avail-easyconfig-templates":(("Show all template names and template constants "
-                                               "that can be used in easyconfigs."),
-                                              None, "store_true", False),
-                "avail-easyconfig-constants":(("Show all constants that can be used in easyconfigs."),
-                                              None, "store_true", False),
-                "avail-easyconfig-licenses":(("Show all license constants that can be used in easyconfigs."),
-                                              None, "store_true", False),
-                "list-easyblocks":("Show list of available easyblocks",
-                                   "choice", "store_or_None", "simple", ["simple", "detailed"]),
-                "list-toolchains":("Show list of known toolchains",
-                                   None, "store_true", False),
-                "search":("Search for easyconfig files in the robot directory",
-                          None, "store", None, {'metavar':"STR"}),
-                "dep-graph":("Create dependency graph",
-                             None, "store", None, {'metavar':"depgraph.<ext>"},),
-                }
+        opts = OrderedDict({
+            'avail-easyconfig-constants': ("Show all constants that can be used in easyconfigs",
+                                           None, 'store_true', False),
+            'avail-easyconfig-licenses': ("Show all license constants that can be used in easyconfigs",
+                                          None, 'store_true', False),
+            'avail-easyconfig-params': (("Show all easyconfig parameters (include "
+                                         "easyblock-specific ones by using -e)"),
+                                         None, "store_true", False, 'a'),
+            'avail-easyconfig-templates': (("Show all template names and template constants "
+                                            "that can be used in easyconfigs"),
+                                            None, 'store_true', False),
+            'dep-graph': ("Create dependency graph",
+                          None, "store", None, {'metavar': 'depgraph.<ext>'}),
+            'list-easyblocks': ("Show list of available easyblocks",
+                                'choice', 'store_or_None', 'simple', ['simple', 'detailed']),
+            'list-toolchains': ("Show list of known toolchains",
+                                None, 'store_true', False),
+            'search': ("Search for easyconfig files in the robot directory, print full paths",
+                       None, 'store', None, {'metavar': 'STR'}),
+            'search-short': ("Search for easyconfig files in the robot directory, print short paths",
+                             None, 'store', None, 'S', {'metavar': 'STR'}),
+        })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def regtest_options(self):
         # regression test options
-        descr = ("Regression test options",
-                 "Run and control an EasyBuild regression test.")
+        descr = ("Regression test options", "Run and control an EasyBuild regression test.")
 
-        opts = {
-                "regtest":("Enable regression test mode",
-                           None, "store_true", False),
-                "regtest-online":("Enable online regression test mode",
-                                  None, "store_true", False,),
-                "sequential":("Specify this option if you want to prevent parallel build",
-                              None, "store_true", False,),
-                "regtest-output-dir":("Set output directory for test-run",
-                                      None, "store", None, {'metavar':"DIR"},),
-                "aggregate-regtest":("Collect all the xmls inside the given directory and generate a single file",
-                                     None, "store", None, {'metavar':"DIR"},),
-                }
+        opts = OrderedDict({
+            'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
+                                  None, 'store', None, {'metavar': 'DIR'}),
+            'regtest': ("Enable regression test mode",
+                        None, 'store_true', False),
+            'regtest-online': ("Enable online regression test mode",
+                               None, 'store_true', False),
+            'regtest-output-dir': ("Set output directory for test-run",
+                                   None, 'store', None, {'metavar': 'DIR'}),
+            'sequential': ("Specify this option if you want to prevent parallel build",
+                           None, 'store_true', False),
+        })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def easyconfig_options(self):
         # easyconfig options (to be passed to easyconfig instance)
-        descr = ("Options for Easyconfigs",
-                 "Options to be passed to all Easyconfig.")
+        descr = ("Options for Easyconfigs", "Options to be passed to all Easyconfig.")
 
         opts = None
         self.log.debug("easyconfig_options: descr %s opts %s" % (descr, opts))
@@ -276,8 +270,7 @@ class EasyBuildOptions(GeneralOption):
 
     def easyblock_options(self):
         # easyblock options (to be passed to easyblock instance)
-        descr = ("Options for Easyblocks",
-                 "Options to be passed to all Easyblocks.")
+        descr = ("Options for Easyblocks", "Options to be passed to all Easyblocks.")
 
         opts = None
         self.log.debug("easyblock_options: descr %s opts %s" % (descr, opts))
@@ -285,12 +278,11 @@ class EasyBuildOptions(GeneralOption):
 
     def unittest_options(self):
         # unittest options
-        descr = ("Unittest options",
-                 "Options dedicated to unittesting (experts only).")
+        descr = ("Unittest options", "Options dedicated to unittesting (experts only).")
 
-        opts = {
-                "file":("Log to this file in unittest mode", None, "store", None),
-                }
+        opts = OrderedDict({
+            'file': ("Log to this file in unittest mode", None, 'store', None),
+        })
 
         self.log.debug("unittest_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr, prefix='unittest')
@@ -346,6 +338,10 @@ class EasyBuildOptions(GeneralOption):
 
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
+
+        # split supplied list of robot paths to obtain a list
+        if self.options.robot:
+            self.options.robot = self.options.robot.split(os.pathsep)
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
@@ -410,7 +406,7 @@ class EasyBuildOptions(GeneralOption):
             ebb_msg = ''
             extra_names = []
         txt = ["Available easyconfig parameters%s" % ebb_msg]
-        params = [(k,v) for (k,v) in mapping.items() if k.upper() not in ['HIDDEN']]
+        params = [(k, v) for (k, v) in mapping.items() if k.upper() not in ['HIDDEN']]
         for key, values in params:
             txt.append("%s" % key.upper())
             txt.append('-' * len(key))
@@ -556,11 +552,87 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(
-                             usage=usage,
-                             description=description,
-                             prog='eb',
-                             envvar_prefix='EASYBUILD',
-                             go_args=args,
-                             )
+    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix='EASYBUILD', go_args=args)
     return eb_go
+
+
+def process_software_build_specs(options):
+    """
+    Create a dictionary with specified software build options.
+    The options arguments should be a parsed option list (as delivered by parse_options(args).options)
+    """
+
+    try_to_generate = False
+    build_specs = {}
+
+    # regular options: don't try to generate easyconfig, and search
+    opts_map = {
+        'name': options.software_name,
+        'version': options.software_version,
+        'toolchain_name': options.toolchain_name,
+        'toolchain_version': options.toolchain_version,
+    }
+
+    # try options: enable optional generation of easyconfig
+    try_opts_map = {
+        'name': options.try_software_name,
+        'version': options.try_software_version,
+        'toolchain_name': options.try_toolchain_name,
+        'toolchain_version': options.try_toolchain_version,
+    }
+
+    # process easy options
+    for (key, opt) in opts_map.items():
+        if opt:
+            build_specs[key] = opt
+            # remove this key from the dict of try-options (overruled)
+            try_opts_map.pop(key)
+
+    for (key, opt) in try_opts_map.items():
+        if opt:
+            build_specs[key] = opt
+            # only when a try option is set do we enable generating easyconfigs
+            try_to_generate = True
+
+    # process --toolchain --try-toolchain (sanity check done in tools.options)
+    tc = options.toolchain or options.try_toolchain
+    if tc:
+        if options.toolchain and options.try_toolchain:
+            print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
+        elif options.try_toolchain:
+            try_to_generate = True
+        build_specs.update({
+            'toolchain_name': tc[0],
+            'toolchain_version': tc[1],
+        })
+
+    # provide both toolchain and toolchain_name/toolchain_version keys
+    if 'toolchain_name' in build_specs:
+        build_specs['toolchain'] = {
+            'name': build_specs['toolchain_name'],
+            'version': build_specs.get('toolchain_version', None),
+        }
+
+    # process --amend and --try-amend
+    if options.amend or options.try_amend:
+
+        amends = []
+        if options.amend:
+            amends += options.amend
+            if options.try_amend:
+                print_warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+        if options.try_amend:
+            amends += options.try_amend
+            try_to_generate = True
+
+        for amend_spec in amends:
+            # e.g., 'foo=bar=baz' => foo = 'bar=baz'
+            param = amend_spec.split('=')[0]
+            value = '='.join(amend_spec.split('=')[1:])
+            # support list values by splitting on ',' if its there
+            # e.g., 'foo=bar,baz' => foo = ['bar', 'baz']
+            if ',' in value:
+                value = value.split(',')
+            build_specs.update({param: value})
+
+    return (try_to_generate, build_specs)

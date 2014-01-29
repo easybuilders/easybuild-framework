@@ -42,7 +42,9 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+import easybuild.tools.environment as env
 from easybuild.tools.environment import read_environment as _read_environment
+from easybuild.tools.filetools import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -318,21 +320,15 @@ def init(options, config_options_dict):
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
-                value = [value]
+                if isinstance(value, basestring):
+                    # only retain first path, others are considered 'read-only' and trying to create them may fail
+                    value = [value.split(os.pathsep)[0]]
+                else:
+                    value = [value]
             for directory in value:
                 if not os.path.isdir(directory):
                     _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
                     create_dir(key, directory)
-
-    # update MODULEPATH if required
-    ebmodpath = os.path.join(install_path(typ='modules'), 'all')
-    # modulepath without ebmodpath
-    # ebmodpath is then always inserted in 1st place
-    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0 and not x == ebmodpath]
-    _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
-    modulepath.insert(0, ebmodpath)
-
-    os.environ['MODULEPATH'] = ':'.join(modulepath)
 
 
 def build_path():
@@ -575,6 +571,46 @@ def oldstyle_read_environment(env_vars=None, strict=False):
             _log.debug("Old style env var %s not defined." % env_var)
 
     return result
+
+
+def set_tmpdir(tmpdir=None):
+    """Set temporary directory to be used by tempfile and others."""
+    try:
+        if tmpdir is not None:
+            if not os.path.exists(tmpdir):
+                os.makedirs(tmpdir)
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=tmpdir)
+        else:
+            # use tempfile default parent dir
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+    except OSError, err:
+        _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
+
+    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
+
+    for var in ['TMPDIR', 'TEMP', 'TMP']:
+        env.setvar(var, current_tmpdir)
+
+    # reset to make sure tempfile picks up new temporary directory to use
+    tempfile.tempdir = None
+
+    # test if temporary directory allows to execute files, warn if it doesn't
+    try:
+        fd, tmptest_file = tempfile.mkstemp()
+        os.close(fd)
+        os.chmod(tmptest_file, 0700)
+        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
+            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
+            msg += "This can cause problems in the build process, consider using --tmpdir."
+            _log.warning(msg)
+        else:
+            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+        os.remove(tmptest_file)
+
+    except OSError, err:
+        _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
+
+    return current_tmpdir
 
 
 # config variables constant

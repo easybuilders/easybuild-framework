@@ -28,9 +28,9 @@ EasyBuild support for dummy compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.dummy import Dummy
+from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
 
 
-class Dummy(Dummy):
+class Dummy(DummyCompiler):
     """Dummy toolchain."""
     NAME = 'dummy'

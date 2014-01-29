@@ -95,7 +95,7 @@ class Mpi(Toolchain):
         super(Mpi, self).set_variables()
 
     def _set_mpi_compiler_variables(self):
-        """Set the compiler variables"""
+        """Set the MPI compiler variables"""
         is32bit = self.options.get('32bit', None)
         if is32bit:
             self.log.debug("_set_compiler_variables: 32bit set: changing compiler definitions")
@@ -110,9 +110,10 @@ class Mpi(Toolchain):
             self.variables.nappend_el(var, value)
 
             # complete compiler variable template to produce e.g. 'mpicc -cc=icc -X -Y' from 'mpicc -cc=%(CC_base)'
-            templatedict = {c_var:str(self.variables[c_var]),
-                            '%s_base' % c_var: str(self.variables[c_var].get_first()),
-                            }
+            templatedict = {
+                c_var:str(self.variables[c_var]),
+                '%s_base' % c_var: str(self.variables[c_var].get_first()),
+            }
 
             self.variables.nappend_el(var, self.options.option('_opt_%s' % var, templatedict=templatedict))
 
@@ -170,11 +171,12 @@ class Mpi(Toolchain):
 
         # different known mpirun commands
         mpi_cmds = {
-                    toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-                    toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-                    toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-                    toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-                   }
+            toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.MPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+        }
 
         mpi_family = self.mpi_family()
 

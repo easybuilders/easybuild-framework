@@ -1,5 +1,5 @@
-##
-# Copyright 2012-2013 Ghent University
+# #
+# Copyright 2013-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,24 +21,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
-Support for dummy compiler.
+The easybuild.framework.easyconfig.format package provides the EasyConfig format classes
 
 @author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
 """
 
-import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.compiler import Compiler
-
-
-class Dummy(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
-    COMPILER_MODULE_NAME = []
-
-    COMPILER_CC = 'DUMMYCC'
-    COMPILER_CXX = 'DUMMYCXX'
-
-    COMPILER_F77 = 'DUMMYF77'
-    COMPILER_F90 = 'DUMMYF90'
+# we need to make sure all known formats are imported,
+# such that get_format_version_classes() is able to find all subclasses of EasyConfigFormat
+from easybuild.framework.easyconfig.format.one import FormatOneZero
+from easybuild.framework.easyconfig.format.two import FormatTwoZero

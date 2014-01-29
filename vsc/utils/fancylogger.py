@@ -173,7 +173,10 @@ class FancyLogger(logging.getLoggerClass()):
         """
         overwrite make record to use a fancy record (with more options)
         """
-        new_msg = msg.decode('utf8', 'replace')
+        if hasattr(msg, 'decode'):
+            new_msg = msg.decode('utf8', 'replace')
+        else:
+            new_msg = msg
         return FancyLogRecord(name, level, pathname, lineno, new_msg, args, excinfo)
 
     def raiseException(self, message, exception=None, catch=False):
@@ -343,7 +346,7 @@ def _getCallingFunctionName():
     try:
         return inspect.stack()[2][3]
     except Exception:
-        return None
+        return "?"
 
 
 def getRootLoggerName():
@@ -354,7 +357,7 @@ def getRootLoggerName():
     try:
         return inspect.stack()[-1][1].split('/')[-1].split('.')[0]
     except Exception:
-        return None
+        return "?"
 
 
 def logToScreen(enable=True, handler=None, name=None, stdout=False):

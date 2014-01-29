@@ -93,7 +93,7 @@ class ModuleGeneratorTest(TestCase):
             "    }",
             "}",
             "",
-            "module-whatis {%s}" % gzip_txt,
+            "module-whatis {Description: %s}" % gzip_txt,
             "",
             "set root    %s" % self.modgen.app.installdir,
             "",
@@ -153,15 +153,17 @@ if { [is-loaded mod_name] } {
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
+        ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
 
         def test_default():
             """Test default module naming scheme."""
             # test default naming scheme
-            for ec_file in os.listdir(ecs_dir):
-                ec_path = os.path.join(ecs_dir, ec_file)
-                ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+            for ec_file in ec_files:
+                ec_path = os.path.abspath(ec_file)
+                ec = EasyConfig(ec_path, build_options={'validate': False, 'valid_stops': all_stops})
                 # derive module name directly from easyconfig file name
-                ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
+                ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
                 mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
                 self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
@@ -201,15 +203,22 @@ if { [is-loaded mod_name] } {
             'gzip-1.5-goolf-1.4.10': 'gnu/openmpi/gzip/1.5',
             'gzip-1.5-ictce-4.1.13': 'intel/intelmpi/gzip/1.5',
             'toy-0.0': 'toy/0.0',
+            'toy-0.0-multiple': 'toy/0.0',  # test module naming scheme ignores version suffixes
         }
 
         # test custom naming scheme
-        for ec_file in os.listdir(ecs_dir):
-            ec_path = os.path.join(ecs_dir, ec_file)
-            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+        for ec_file in ec_files:
+            ec_path = os.path.abspath(ec_file)
+            build_options = {
+                'validate': False,
+                'valid_stops': all_stops,
+                'ignore_osdeps': True,
+            }
+            ec = EasyConfig(ec_path, build_options=build_options)
             # derive module name directly from easyconfig file name
-            ec_name = '.'.join(ec_file.split('.')[:-1])  # cut off '.eb' end
-            self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
+            ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
+            if ec_name in ec2mod_map:
+                self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # generating module name from non-parsed easyconfig does not work (and shouldn't)
         error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."

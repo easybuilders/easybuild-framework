@@ -30,6 +30,8 @@ Unit tests for toolchain support.
 
 import os
 import re
+import shutil
+import tempfile
 from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.config as config
@@ -55,6 +57,9 @@ class ToolchainTest(TestCase):
         eb_go = eboptions.parse_options()
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+        # start with a clean slate
+        modules.modules_tool().purge()
+
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
@@ -62,7 +67,7 @@ class ToolchainTest(TestCase):
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
-        ec = EasyConfig(ec_file, validate=False)
+        ec = EasyConfig(ec_file, build_options={'validate': False})
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
 
@@ -396,10 +401,80 @@ class ToolchainTest(TestCase):
         # check CUDA runtime lib
         self.assertTrue("-lcudart" in tc.get_variable('LIBS'))
 
+    def test_ictce_toolchain(self):
+        """Test for ictce toolchain."""
+        # hack to make Intel FFTW lib check pass
+        # rewrite $root in imkl module so we can put required lib*.a files in place
+        tmpdir = tempfile.mkdtemp()
+
+        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+        imkl_module_path = os.path.join(test_modules_path, 'imkl', '10.3.12.361')
+        imkl_module_txt = open(imkl_module_path, 'r').read()
+        regex = re.compile('^(set\s*root).*$', re.M)
+        imkl_module_alt_txt = regex.sub(r'\1\t%s' % tmpdir, imkl_module_txt)
+        open(imkl_module_path, 'w').write(imkl_module_alt_txt)
+
+        fftw_libs = ['fftw3xc_intel', 'fftw3x_cdft', 'mkl_cdft_core', 'mkl_blacs_intelmpi_lp64']
+        fftw_libs += ['mkl_blacs_intelmpi_lp64', 'mkl_intel_lp64', 'mkl_sequential', 'mkl_core']
+        for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
+            os.makedirs(os.path.join(tmpdir, subdir))
+            for fftlib in fftw_libs:
+                open(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'w').write('foo')
+
+        name = "ictce"
+        tc_class, _ = search_toolchain(name)
+        self.assertEqual(tc_class.NAME, name)
+        tc = tc_class(version="4.1.13")
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('CC'), 'icc')
+        self.assertEqual(tc.get_variable('CXX'), 'icpc')
+        self.assertEqual(tc.get_variable('F77'), 'ifort')
+        self.assertEqual(tc.get_variable('F90'), 'ifort')
+
+        tc = tc_class(version="4.1.13")
+        opts = {'usempi': True}
+        tc.set_options(opts)
+        tc.prepare()
+
+        self.assertEqual(tc.get_variable('CC'), 'mpicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('F77'), 'mpif77')
+        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+
+        tc = tc_class(version="4.1.13")
+        opts = {'usempi': True, 'openmp': True}
+        tc.set_options(opts)
+        tc.prepare()
+
+        self.assertTrue('-mt_mpi' in tc.get_variable('CFLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('CXXFLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('FFLAGS'))
+        self.assertTrue('-mt_mpi' in tc.get_variable('F90FLAGS'))
+        self.assertEqual(tc.get_variable('CC'), 'mpicc')
+        self.assertEqual(tc.get_variable('CXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('F77'), 'mpif77')
+        self.assertEqual(tc.get_variable('F90'), 'mpif90')
+        self.assertEqual(tc.get_variable('MPICC'), 'mpicc')
+        self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
+        self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
+        self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        open(imkl_module_path, 'w').write(imkl_module_txt)
+
     def tearDown(self):
         """Cleanup."""
+        # purge any loaded modules, restore $MODULEPATH
         modules.modules_tool().purge()
         os.environ['MODULEPATH'] = self.orig_modpath
+        # reinitialize modules tool after touching $MODULEPATH
+        modules.modules_tool()
 
 def suite():
     """ return all the tests"""

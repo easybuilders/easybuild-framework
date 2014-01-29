@@ -45,13 +45,14 @@ import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
-from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, template_constant_dict
+from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
@@ -70,25 +71,26 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, validate=True, valid_module_classes=None, valid_stops=None):
+    def __init__(self, path, extra_options=None, build_options=None, build_specs=None):
         """
         initialize an easyconfig.
-        path should be a path to a file that can be parsed
-        extra_options is a dict of extra variables that can be set in this specific instance
-        validate specifies whether validations should happen
+        @param path: path to easyconfig file to be parsed
+        @param extra_options: dictionary with extra variables that can be set for this specific instance
+        @param build_options: dictionary of build options, e.g. robot_path, validate, check_osdeps, ... (default: {})
+        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
+        if build_options is None:
+            build_options = {}
 
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        self.valid_module_classes = None
-        if valid_module_classes:
-            self.valid_module_classes = valid_module_classes
+        # use legacy module classes as default
+        self.valid_module_classes = build_options.get('valid_module_classes', ['base', 'compiler', 'lib'])
+        if 'valid_module_classes' in build_options:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
-        else:
-            self.valid_module_classes = ['base', 'compiler', 'lib']  # legacy module classes
 
         # replace the category name with the category
         self._config = {}
@@ -110,14 +112,12 @@ class EasyConfig(object):
 
         # extend mandatory keys
         for key, value in extra_options.items():
-            if value[2] == ALL_CATEGORIES['MANDATORY']:
+            if value[2] == MANDATORY:
                 self.mandatory.append(key)
 
         # set valid stops
-        self.valid_stops = []
-        if valid_stops:
-            self.valid_stops = valid_stops
-            self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
+        self.valid_stops = build_options.get('valid_stops', [])
+        self.log.debug("Non-empty list of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
         self._toolchain = None
@@ -126,20 +126,21 @@ class EasyConfig(object):
             self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
-                            'moduleclass': self.valid_module_classes,
-                            'stop': self.valid_stops,
-                            }
+            'moduleclass': self.valid_module_classes,
+            'stop': self.valid_stops,
+        }
 
         # parse easyconfig file
-        self.parse(path)
+        self.build_specs = build_specs
+        self.parse()
 
         # handle allowed system dependencies
         self.handle_allowed_system_deps()
 
         # perform validations
-        self.validation = validate
+        self.validation = build_options.get('validate', True)
         if self.validation:
-            self.validate()
+            self.validate(check_osdeps=build_options.get('check_osdeps', True))
 
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
@@ -169,8 +170,12 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, extra_options={}, validate=self.validation, valid_stops=self.valid_stops,
-                        valid_module_classes=copy.deepcopy(self.valid_module_classes))
+        build_options = {
+            'validate': self.validation,
+            'valid_stops': self.valid_stops,
+            'valid_module_classes': copy.deepcopy(self.valid_module_classes),
+        }
+        ec = EasyConfig(self.path, extra_options={}, build_options=build_options)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -188,28 +193,30 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def parse(self, path):
+    def parse(self):
         """
         Parse the file and set options
         mandatory requirements are checked here
         """
-        global_vars = {"shared_lib_ext": get_shared_lib_ext()}
-        _log.deprecated("shared_lib_ext global variable when parsing easyconfigs (use SHLIB_EXT constant)", "2.0")
-        const_dict = build_easyconfig_constants_dict()
-        global_vars.update(const_dict)
-        local_vars = {}
+        if self.build_specs is None:
+            arg_specs = {}
+        elif isinstance(self.build_specs, dict):
+            # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
+            arg_specs = self.build_specs
+        else:
+            self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
+        self.log.debug("Obtained specs dict %s" % arg_specs)
 
-        try:
-            execfile(path, global_vars, local_vars)
-        except IOError, err:
-            self.log.exception("Unexpected IOError during execfile(): %s" % err)
-        except SyntaxError, err:
-            self.log.exception("SyntaxError in easyblock %s: %s" % (path, err))
+        parser = EasyConfigParser(self.path)
+        parser.set_specifications(arg_specs)
+        local_vars = parser.get_config_dict()
+        self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
+        # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
         missing_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_keys:
-            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, path))
+            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, self.path))
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
@@ -227,7 +234,7 @@ class EasyConfig(object):
             # do not store variables we don't need
             if key in self._config:
                 self[key] = local_vars[key]
-                self.log.info("setting config option %s: value %s" % (key, self[key]))
+                self.log.info("setting config option %s: value %s (type: %s)" % (key, self[key], type(self[key])))
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
@@ -244,7 +251,7 @@ class EasyConfig(object):
             env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
             env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
 
-    def validate(self):
+    def validate(self, check_osdeps=True):
         """
         Validate this EasyConfig
         - check certain variables
@@ -254,8 +261,11 @@ class EasyConfig(object):
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
-        self.log.info("Checking OS dependencies")
-        self.validate_os_deps()
+        if check_osdeps:
+            self.log.info("Checking OS dependencies")
+            self.validate_os_deps()
+        else:
+            self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
@@ -459,12 +469,14 @@ class EasyConfig(object):
         # - uses rpm -q and dpkg -s --> can be run as non-root!!
         # - fallback on which
         # - should be extended to files later?
-        if run_cmd('which rpm', simple=True, log_ok=False):
-            cmd = "rpm -q %s" % dep
-        elif run_cmd('which dpkg', simple=True, log_ok=False):
-            cmd = "dpkg -s %s" % dep
+        cmd = "exit 1"
+        if get_os_name() in ['debian', 'ubuntu']:
+            if run_cmd('which dpkg', simple=True, log_ok=False):
+                cmd = "dpkg -s %s" % dep
         else:
-            cmd = "exit 1"
+            # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+            if run_cmd('which rpm', simple=True, log_ok=False):
+                cmd = "rpm -q %s" % dep
 
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
@@ -519,7 +531,7 @@ class EasyConfig(object):
             if isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
             # two-element list/tuple value indicates custom toolchain specification
-            elif isinstance(tc_spec, (list, tuple, )):
+            elif isinstance(tc_spec, (list, tuple,)):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
@@ -596,34 +608,19 @@ class EasyConfig(object):
         else:
             return default
 
-
-def build_easyconfig_constants_dict():
-    """Make a dictionary with all constants that can be used"""
-    # sanity check
-    all_consts = [
-                  (dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS]), 'TEMPLATE_CONSTANTS'),
-                  (dict([(x[0], x[1]) for x in EASYCONFIG_CONSTANTS]), 'EASYCONFIG_CONSTANTS'),
-                  (EASYCONFIG_LICENSES_DICT, 'EASYCONFIG_LICENSES')
-                  ]
-    err = []
-    const_dict = {}
-
-    for (csts, name) in all_consts:
-        for cst_key, cst_val in csts.items():
-            ok = True
-            for (other_csts, other_name) in all_consts:
-                if name == other_name:
-                    continue
-                if cst_key in other_csts:
-                    err.append('Found name %s from %s also in %s' % (cst_key, name, other_name))
-                    ok = False
-            if ok:
-                const_dict[cst_key] = cst_val
-
-    if len(err) > 0:
-        _log.error("EasyConfig constants sanity check failed: %s" % ("\n".join(err)))
-    else:
-        return const_dict
+    def asdict(self):
+        """
+        Return dict representation of this EasyConfig instance.
+        """
+        res = {}
+        for key, tup in self._config.items():
+            value = tup[0]
+            if self.enable_templating:
+                if not self.template_values:
+                    self.generate_template_values()
+                value = resolve_template(value, self.template_values)
+            res[key] = value
+        return res
 
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):

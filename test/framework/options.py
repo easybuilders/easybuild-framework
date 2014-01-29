@@ -28,6 +28,7 @@ Unit tests for eb command line options.
 @author: Kenneth Hoste (Ghent University)
 """
 
+import copy
 import os
 import re
 import shutil
@@ -36,9 +37,12 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools import config
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
@@ -48,17 +52,25 @@ class CommandLineOptionsTest(TestCase):
     """Testcases for command line options."""
 
     logfile = None
+    # initialize configuration so modules_tool() function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     def setUp(self):
         """Prepare for running unit tests."""
+        self.pwd = os.getcwd()
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
 
     def tearDown(self):
         """Post-test cleanup."""
-        # removing of self.logfile can't be done here, because it breaks logging
         os.remove(self.logfile)
+        os.chdir(self.pwd)
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -130,6 +142,9 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(res, "%s log messages are included when using %s: %s" % (log_msg_type, debug_arg, outtxt))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
     def test_info(self):
         """Test enabling info logging."""
 
@@ -153,6 +168,9 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s" % (log_msg_type, info_arg))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
 
@@ -175,11 +193,13 @@ class CommandLineOptionsTest(TestCase):
                 res = re.search(' %s ' % log_msg_type, outtxt)
                 self.assertTrue(not res, "%s log messages are *not* included when using %s (outtxt: %s)" % (log_msg_type, quiet_arg, outtxt))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
     def test_force(self):
         """Test forcing installation even if the module is already available."""
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
@@ -188,6 +208,7 @@ class CommandLineOptionsTest(TestCase):
         # check log message without --force
         args = [
                 eb_file,
+                '--debug',
                ]
 
         error_thrown = False
@@ -203,13 +224,16 @@ class CommandLineOptionsTest(TestCase):
         already_msg = "GCC/4.6.3 is already installed"
         self.assertTrue(re.search(already_msg, outtxt), "Already installed message without --force, outtxt: %s" % outtxt)
 
-        # clear log file
+        # clear log file, clean up environment
         write_file(self.logfile, '')
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
 
         # check that --force works
         args = [
                 eb_file,
                 '--force',
+                '--debug',
                ]
         try:
             main((args, self.logfile, False))
@@ -219,16 +243,8 @@ class CommandLineOptionsTest(TestCase):
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
 
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
-
     def test_skip(self):
         """Test skipping installation of module (--skip, -k)."""
-
-        pwd = os.getcwd()
 
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
@@ -236,7 +252,6 @@ class CommandLineOptionsTest(TestCase):
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use toy-0.0.eb easyconfig file that comes with the tests
@@ -266,8 +281,12 @@ class CommandLineOptionsTest(TestCase):
 
         # cleanup for next test
         write_file(self.logfile, '')
-        os.chdir(pwd)
+        os.chdir(self.pwd)
         modules_tool().purge()
+        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
+        modify_env(os.environ, self.orig_environ)
+        modules_tool()
+        tempfile.tempdir = None
 
         # check log message with --skip for non-existing module
         args = [
@@ -287,6 +306,7 @@ class CommandLineOptionsTest(TestCase):
             pass
         outtxt = read_file(self.logfile)
 
+        found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
         found = re.search(found_msg, outtxt)
         self.assertTrue(not found, "Module found message not there with --skip for non-existing modules: %s" % outtxt)
 
@@ -294,11 +314,10 @@ class CommandLineOptionsTest(TestCase):
         not_found = re.search(not_found_msg, outtxt)
         self.assertTrue(not_found, "Module not found message there with --skip for non-existing modules: %s" % outtxt)
 
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
+        modules_tool().purge()
+        # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
+        modify_env(os.environ, self.orig_environ)
+        modules_tool()
 
         # cleanup
         shutil.rmtree(buildpath)
@@ -308,7 +327,6 @@ class CommandLineOptionsTest(TestCase):
         """Test submitting build as a job."""
 
         # set MODULEPATH to included modules
-        orig_modulepath = os.getenv('MODULEPATH', None)
         os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
@@ -337,11 +355,8 @@ class CommandLineOptionsTest(TestCase):
             assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
-        # restore original MODULEPATH
-        if orig_modulepath is not None:
-            os.environ['MODULEPATH'] = orig_modulepath
-        else:
-            os.environ.pop('MODULEPATH')
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -382,6 +397,8 @@ class CommandLineOptionsTest(TestCase):
 
             # cleanup
             os.remove(fn)
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -435,6 +452,9 @@ class CommandLineOptionsTest(TestCase):
                                     "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
                                     (param, avail_arg, args, outtxt)
                                     )
+
+                modify_env(os.environ, self.orig_environ)
+                tempfile.tempdir = None
 
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
@@ -519,6 +539,9 @@ class CommandLineOptionsTest(TestCase):
                 n = len(res)
                 self.assertEqual(n, 1, "%s is only mentioned once (count: %d)" % (item, n))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
@@ -562,6 +585,9 @@ class CommandLineOptionsTest(TestCase):
 
                 self.assertTrue(re.search(pat, outtxt), "Pattern '%s' is found in output of --list-easyblocks: %s" % (pat, outtxt))
 
+            modify_env(os.environ, self.orig_environ)
+            tempfile.tempdir = None
+
         # clear log
         write_file(self.logfile, '')
 
@@ -597,20 +623,99 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
 
         args = [
-                '--search=gzip',
-                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
-                '--unittest-file=%s' % self.logfile,
-               ]
+            '--search=gzip',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+        ]
         try:
             main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
             pass
         outtxt = open(self.logfile, 'r').read()
 
-        info_msg = r"Searching for gzip in"
+        info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
         self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
-            self.assertTrue(re.search("%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+            self.assertTrue(re.search(" \* \S*%s$" % ec, outtxt, re.M), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+        for search_arg in ['-S', '--search-short']:
+            open(self.logfile, 'w').write('')
+            args = [
+                search_arg,
+                'toy-0.0',
+                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '--unittest-file=%s' % self.logfile,
+            ]
+            try:
+                main((args, dummylogfn, False))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
+            self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
+            self.assertTrue(re.search('INFO CFGS\d+=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
+                self.assertTrue(re.search(" \* \$CFGS\d+/*%s" % ec, outtxt), "Found easyconfig %s in '%s'" % (ec, outtxt))
+
+            if os.path.exists(dummylogfn):
+                os.remove(dummylogfn)
+
+    def test_dry_run(self):
+        """Test dry runs."""
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
+            '--dry-run',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+        ]
+        try:
+            main((args, dummylogfn, False))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = open(self.logfile, 'r').read()
+
+        info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+        self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
+        ecs_mods = [
+            ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3"),
+            ("GCC-4.6.3.eb", "GCC/4.6.3"),
+        ]
+        for ec, mod in ecs_mods:
+            regex = re.compile(r" \* \[.\] \S+%s \(module: %s\)" % (ec, mod), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        for dry_run_arg in ['-D', '--dry-run-short']:
+            open(self.logfile, 'w').write('')
+            args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
+                dry_run_arg,
+                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '--unittest-file=%s' % self.logfile,
+            ]
+            try:
+                main((args, dummylogfn, False))
+            except (SystemExit, Exception), err:
+                pass
+            outtxt = open(self.logfile, 'r').read()
+
+            info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
+            self.assertTrue(re.search(info_msg, outtxt, re.M), "Info message dry running in '%s'" % outtxt)
+            self.assertTrue(re.search('CFGS=', outtxt), "CFGS line message found in '%s'" % outtxt)
+            ecs_mods = [
+                ("gzip-1.4-GCC-4.6.3.eb", "gzip/1.4-GCC-4.6.3"),
+                ("GCC-4.6.3.eb", "GCC/4.6.3"),
+            ]
+            for ec, mod in ecs_mods:
+                regex = re.compile(r" \* \[.\] \$CFGS\S+%s \(module: %s\)" % (ec, mod), re.M)
+                self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -637,6 +742,114 @@ class CommandLineOptionsTest(TestCase):
         msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
+
+    def test_tmpdir(self):
+        """Test setting temporary directory to use by EasyBuild."""
+
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # set MODULEPATH to included modules
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--debug',
+            '--tmpdir=%s' % tmpdir,
+        ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        outtxt = read_file(self.logfile)
+
+        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
+        found = re.search(tmpdir_msg, outtxt, re.M)
+        self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
+
+        for var in ['TMPDIR', 'TEMP', 'TMP']:
+            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'easybuild-')))
+        tempfile_tmpdir = tempfile.mkdtemp()
+        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'easybuild-')))
+        fd, tempfile_tmpfile = tempfile.mkstemp()
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'easybuild-')))
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
+        os.close(fd)
+        shutil.rmtree(tmpdir)
+
+    def test_ignore_osdeps(self):
+        """Test ignoring of listed OS dependencies."""
+        txt = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'osdependencies = ["nosuchosdependency"]',
+        ])
+        fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
+        os.close(fd)
+        write_file(eb_file, txt)
+
+        # check whether non-existing OS dependencies result in failure, by default
+        args = [
+            eb_file,
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("Checking OS dependencies")
+        self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
+        regex = re.compile("One or more OS dependencies were not found: \['nosuchosdependency'\]", re.M)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
+
+        # check whether OS dependencies are effectively ignored
+        args = [
+            eb_file,
+            '--ignore-osdeps',
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("Not checking OS dependencies", re.M)
+        self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
+
+        txt += "\nstop = 'notavalidstop'"
+        write_file(eb_file, txt)
+        args = [
+            eb_file,
+            '--ignore-osdeps',
+            '--dry-run',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
+        self.assertTrue(regex.search(outtxt), "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
 
 def suite():
     """ returns all the testcases in this module """

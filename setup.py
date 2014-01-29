@@ -69,7 +69,7 @@ def find_rel_test():
     return res
 
 easybuild_packages = [
-    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig",
+    "easybuild", "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
     "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools",
     "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme",
@@ -92,7 +92,7 @@ implement support for installing particular (groups of) software packages.""",
     packages = easybuild_packages,
     package_dir = {'test.framework': "test/framework"},
     package_data = {"test.framework": find_rel_test()},
-    scripts = ["eb"],
+    scripts = ["eb", "optcomplete.bash", "minimal_bash_completion.bash"],
     data_files = [
         ('easybuild', ["easybuild/easybuild_config.py"]),
     ],

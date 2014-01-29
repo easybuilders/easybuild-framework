@@ -1,34 +1,124 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
-v1.8.0 (October 4th 2013)
+v1.10.0 (December 24th 2013)
+----------------------------
+
+feature + bugfix release
+- various other enhancements, including:
+    - set unique default temporary directory, add --tmpdir command line option (#695)
+    - add support for computing and verifying source/patch file checksums (#774, #777, #779, #801, #802)
+        - cfr. 'checksums' easyconfig parameter
+    - add support for `eb --confighelp`, which prints out an example configuration file (#775)
+    - add initial support for `eb` tab completion in bash shells (#775, #797, #798) 
+        - see also https://github.com/hpcugent/easybuild/wiki/Setting-up-tab-completion-for-bash
+        - note: may be quite slow for now
+    - enhancements for using Lmod as modules tool (#780, #795, #796):
+        - ignore Lmod spider cache by setting $LMOD_IGNORE_CACHE (requires Lmod 5.2)
+        - bump required Lmod version to v5.2
+        - get rid of slow workaround for detecting module directories (only required for older Lmod versions)
+        - fix version parsing for Lmod release candidates (rc)
+        - improve integration with `lmod spider` by adding 'Description: ' prefix to 'module-whatis' field of module
+    - add --dry-short-short/-D and --search-short/-S command line options (#781)
+    - add toolchain definition for 'gompic', intended for using with CUDA-aware OpenMPI (#783)
+    - add support for specifying multiple robot paths (#786)
+    - add various source URL constants, add support for '%(nameletter)s' and '%(nameletterlower)s' templates (#793)
+    - add 'buildininstalldir' easyconfig parameter (#794)
+    - add --ignore-osdeps command line option (#799, #802)
+- various bug fixes, including:
+    - enable -mt_mpi compiler flag if both usempi and openmp toolchain options are enabled (#771)
+    - only use libmkl_solver* libraries for Intel MKL versions prior to 10.3 (#776)
+    - fix toolchain support for recent Intel tools (#785)
+    - code style fixes in main.py to adhere more to PEP8 (#789)
+    - make sure 'easyblock' easyconfig parameter is listed in `eb -a` (#791)
+    - fix error that may pop up when using skipsteps=source (#792)
+
+v1.9.0 (November 17th 2013)
 ---------------------------
 
 feature + bugfix release
-- add support for using alternative module naming schemes (#679)
+- add support for Tcl environment modules (modulecmd.tcl) (#728, #729, #739)
+    - special care was taken to make sure also the DEISA variant of modulecmd.tcl can be used
+- code refactoring to prepare for supporting two formats for easyconfig files (#693, #750)
+    - this prepares the codebase for supporting easyconfig format v2.0
+    - some initial work on adding support for the new easyconfig format is included, but it's by no means complete yet
+    - the current easyconfig format (now dubbed v1.0) is still the default and only supported format, for now
+    - for more details, see https://github.com/hpcugent/easybuild/wiki/Easyconfig-format-two
+- various other enhancements, including:
+    - include a full version of vsc-base (see the 'vsc' subdirectory) (#740)
+        - this is a first step towards switching to using vsc-base as a proper dependency
+    - implement get_avail_core_count function in systemtools module that takes cpusets and co into account (#700)
+        - the get_core_count function is now deprecated
+    - add impmkl toolchain definition (#736)
+    - make regtest more robust: put holds on jobs without dependencies, release holds once all jobs are submitted (#751)
+    - add support for specifying multiple alternatives for sanity check paths (#753)
+    - add get_software_libdir function to modules.py (along with unit tests) (#758)
+    - add support for more file extensions and constants w.r.t. sources (#738, #760, #761)
+    - add MPICH2 support in mpi_cmd_for function (#761)
+- various bug fixes, including:
+    - fix checking of OS dependencies on Debian/Ubuntu that have 'rpm' command available (#732)
+    - make unit tests more robust w.r.t. non-writeabe /tmp and loaded modules prior to starting unit tests (#752, #756)
+    - also call EasyBlock's sanity check in ExtensionEasyblock if paths/commands are specified in easyconfig (#757)
+    - set compiler family for dummy compiler, add definition of toolchain constant for dummy (#759)
+- other
+    - add build status badges for master/develop branches to README (#742)
+    - add scripts for installing EasyBuild develop version or setting up git development environment (#730, #755)
+
+v1.8.2 (October 18th 2013)
+--------------------------
+
+bugfix release
+- fix regular expression used for obtaining list of modules from 'module avail' (#724)
+    - modules marked as default were being hidden from EasyBuild, causing problems when they are used as dependency
+
+v1.8.1 (October 14th 2013)
+--------------------------
+
+bugfix release
+- various bug fixes, including:
+    - fix bugs in regtest procedure (#713)
+        - force 2nd and 3rd attempt of build in case 1st attempt failed
+    - fix copying of install log to install directory (#716)
+    - only create first source path if multiple paths are specified (#718)
+    - detect failed PBS job submission by checking obtained job ID for None value (#713, #717, #719, #720)
+
+v1.8.0 (October 4th 2013)
+-------------------------
+
+feature + bugfix release
+- add support for using alternative module naming schemes (#679, #696, #705, #706, #707)
     - see https://github.com/hpcugent/easybuild/wiki/Using-a-custom-module-naming-scheme for documentation
-    - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be used
+    - module naming scheme classes that derive from the 'abstract' ModuleNamingScheme class can be provided to EasyBuild
         - the Python module providing the class must be available in the easybuild.tools.module_naming_scheme namespace
         - a function named 'det_full_module_name' must be implemented, that determines the module name
-          in the form of an n-tuple based on the supplied dictionary(-like) argument
+          in the form of an string based on the supplied dictionary(-like) argument
     - the active module naming scheme is determined by EasyBuild configuration option 'module_naming_scheme'
     - for now, only the name/version/versionsuffix/toolchain easyconfig parameters are guaranteed to be provided
         - consistently providing all easyconfig parameters (i.e., also for dependencies) requires more work (see #687)
     - implementing this involved a number of intrusive changes:
         - the API of the modules.py module needed to be changed, breaking backward compatibility
             - the function for which the signatures were modified are considered to be internal to the framework,
-              so this should have minor impact w.r.t. easyblocks
+              so this should have very minor impact w.r.t. easyblocks not included with EasyBuild
             - affected functions include: available, exists, show, modulefile_path, dependencies_for
         - the format for specifying dependencies was extended, to allow for specifying a custom toolchain
-            - this allows to fix inaccurate specifications,
+            - this allows to fix inaccurate dependency specifications,
               like "('OpenMPI', '1.6.4-GCC-4.7.2')" to "('OpenMPI', '1.6.4', '', ('GCC', '4.7.2'))"
+            - see also https://github.com/hpcugent/easybuild-easyconfigs/pull/431
         - the recommended version for Lmod was bumped to v5.1.5
-            - using earlier 5.x version still works, but may be very slow when 'available' is used
+            - using earlier 5.x version still works, but may be very slow when 'available' is used,
+              due to bugs and a missing feature in Lmod versions prior to v5.1.5 on which we rely
 - various other enhancements, including:
-    -
+    - only (try to) change group id if it is different from what is wanted (#685)
+    - added toy build unit test (#688)
+    - support for specifying a list of source paths in EasyBuild configuration (#690, #702)
+    - add function to determine CPU clock speed in systemtools.py (#694, #699)
 - various bug fixes, including:
     - avoid importing toolchain modules over and over again to make toolchain constants available in toolchain module (#679)
     - only change the group id if current gid is different from what we want in adjust_permissions function (#685)
+    - restore original environment after running 'module purge' (#698)
+        - important sidenote: this results in resetting the entire environment, and has impact on the sanity check step;
+          any environment variables that are set before the EasyBlock.sanity_check_step method fires, are no longer there
+          when the sanity check commands are run (cfr. https://github.com/hpcugent/easybuild-easyblocks/pull/268)
 
 v1.7.0 (September 2nd 2013)
 ---------------------------

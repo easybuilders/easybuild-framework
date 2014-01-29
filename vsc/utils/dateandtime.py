@@ -31,10 +31,15 @@ Module with various convenience functions and classes to deal with date, time an
 """
 
 import calendar
-import operator
 import re
 import time as _time
 from datetime import tzinfo, timedelta, datetime, date
+
+try:
+    any([0, 1])
+except:
+    from vsc.utils.missing import any
+
 
 class FancyMonth:
     """Convenience class for month math"""
@@ -52,7 +57,6 @@ class FancyMonth:
             year = tmpdate.year
 
         self.date = date(year, month, day)
-
 
         self.first = None
         self.last = None
@@ -124,7 +128,7 @@ class FancyMonth:
     def number(self, otherdate):
         """Calculate the number of months between this month (date actually) and otherdate
         """
-        if self.include == False:
+        if self.include is False:
             msg = "number: include=False not implemented"
             raise(Exception(msg))
         else:
@@ -137,14 +141,14 @@ class FancyMonth:
 
         return nr
 
-    def get_other(self, shift= -1):
+    def get_other(self, shift=-1):
         """Return month that is shifted shift months: negative integer is in past, positive is in future"""
         new = self.date.year * 12 + self.date.month - 1 + shift
         return self.__class__(date(new // 12, new % 12 + 1, 01))
 
     def interval(self, otherdate):
         """Return time ordered list of months between date and otherdate"""
-        if self.include == False:
+        if self.include is False:
             msg = "interval: include=False not implemented"
             raise(Exception(msg))
         else:
@@ -152,7 +156,7 @@ class FancyMonth:
             startdate, enddate = self.get_start_end(otherdate)
 
             start = self.__class__(startdate)
-            all_dates = [ start.get_other(m)  for m in range(nr)]
+            all_dates = [start.get_other(m) for m in range(nr)]
 
         return all_dates
 
@@ -192,6 +196,7 @@ class FancyMonth:
 
         return res
 
+
 def date_parser(txt):
     """Parse txt
 
@@ -208,8 +213,10 @@ def date_parser(txt):
     if txt.endswith('MONTH'):
         m = FancyMonth()
         res = m.parser(txt)
-    elif reduce(operator.or_, testsupportedmonths):  # TODO replace with any()
-        m = FancyMonth(month=testsupportedmonths.index(True) + 1)
+    elif any(testsupportedmonths):
+        # set day=1 or this will fail on day's with an index more then the count of days then the month you want to parse
+        # e.g. will fail on 31'st when trying to parse april
+        m = FancyMonth(month=testsupportedmonths.index(True) + 1, day=1)
         res = m.parser(txt)
     elif txt in reserveddate:
         if txt in ('TODAY',):
@@ -228,6 +235,7 @@ def date_parser(txt):
             raise(Exception(msg))
 
     return res
+
 
 def datetime_parser(txt):
     """Parse txt: tmpdate YYYY-MM-DD HH:MM:SS.mmmmmm in datetime.datetime
@@ -255,6 +263,11 @@ def datetime_parser(txt):
 
     return res
 
+
+def timestamp_parser(timestamp):
+    """Parse timestamp to datetime"""
+    return datetime.fromtimestamp(float(timestamp))
+
 #
 # example code from http://docs.python.org/library/datetime.html
 # Implements Local, the local timezone
@@ -263,8 +276,8 @@ def datetime_parser(txt):
 ZERO = timedelta(0)
 HOUR = timedelta(hours=1)
 
-# A UTC class.
 
+# A UTC class.
 class UTC(tzinfo):
     """UTC"""
 
@@ -279,12 +292,14 @@ class UTC(tzinfo):
 
 utc = UTC()
 
-# A class building tzinfo objects for fixed-offset time zones.
-# Note that FixedOffset(0, "UTC") is a different way to build a
-# UTC tzinfo object.
 
 class FixedOffset(tzinfo):
-    """Fixed offset in minutes east from UTC."""
+    """Fixed offset in minutes east from UTC.
+
+    This is a class for building tzinfo objects for fixed-offset time zones.
+    Note that FixedOffset(0, "UTC") is a different way to build a
+    UTC tzinfo object.
+    """
     def __init__(self, offset, name):
         self.__offset = timedelta(minutes=offset)
         self.__name = name
@@ -298,17 +313,20 @@ class FixedOffset(tzinfo):
     def dst(self, dt):
         return ZERO
 
-# A class capturing the platform's idea of local time.
 
-STDOFFSET = timedelta(seconds= -_time.timezone)
+STDOFFSET = timedelta(seconds=-_time.timezone)
 if _time.daylight:
-    DSTOFFSET = timedelta(seconds= -_time.altzone)
+    DSTOFFSET = timedelta(seconds=-_time.altzone)
 else:
     DSTOFFSET = STDOFFSET
 
 DSTDIFF = DSTOFFSET - STDOFFSET
 
+
 class LocalTimezone(tzinfo):
+    """
+    A class capturing the platform's idea of local time.
+    """
 
     def utcoffset(self, dt):
         if self._isdst(dt):

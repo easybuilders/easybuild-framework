@@ -1,0 +1,25 @@
+name = 'toy'
+version = '0.0'
+# required to fool test in modulegenerator, but will never be used (overwritten later)
+versionsuffix = '-multiple'
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+sources = [SOURCE_TAR_GZ]
+patches = ['toy-0.0_typo.patch']
+checksums = [
+    ('adler32', '0x706774088'),
+    '8ddef201603747562102c98a46ac4390',
+]
+
+moduleclass = 'tools'
+
+[versionsuffixed]
+versionsuffix = '-somesuffix'
+
+[versionprefixed]
+block = 'versionsuffixed'
+versionprefix = 'someprefix-'
