@@ -2042,7 +2042,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time)
+            buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
             _log.info("Build stats: %s" % buildstats)
 
             try:
@@ -2227,7 +2227,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time)
+                buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
                 succes.append((app, buildstats))
 
     for result in test_results:
