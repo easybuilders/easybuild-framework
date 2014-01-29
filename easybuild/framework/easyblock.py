@@ -55,7 +55,8 @@ from easybuild.framework.easyconfig.default import get_easyconfig_parameter_defa
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.tools.build_log import EasyBuildError, get_build_stats, print_error, print_msg
+from easybuild.tools.build_details import get_build_stats
+from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
 from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
@@ -69,7 +70,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import get_cpu_model, get_avail_core_count
+from easybuild.tools.systemtools import get_avail_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -2041,7 +2042,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, starttime, get_cpu_model(), get_avail_core_count())
+            buildstats = get_build_stats(app, starttime)
             _log.info("Build stats: %s" % buildstats)
 
             try:
@@ -2183,8 +2184,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
     base_env = copy.deepcopy(os.environ)
     succes = []
 
-    cpu_model = get_cpu_model()
-    core_count = get_avail_core_count()
     for app in apps:
 
         # if initialisation step failed, app will be None
@@ -2228,7 +2227,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time, cpu_model, core_count)
+                buildstats = get_build_stats(app, start_time)
                 succes.append((app, buildstats))
 
     for result in test_results:

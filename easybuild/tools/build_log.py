@@ -33,14 +33,11 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 
 import os
-import platform
 import sys
-import time
 from copy import copy
 from vsc import fancylogger
 
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, VERSION
+from easybuild.tools.version import VERSION
 
 
 # EasyBuild message prefix
@@ -165,23 +162,3 @@ def print_warning(message, silent=False):
     print_msg("WARNING: %s\n" % message, silent=silent)
 
 
-def get_build_stats(app, starttime, cpu_model, core_count):
-    """
-    Return build statistics for this build
-    """
-
-    time_now = time.time()
-    buildtime = round(time_now - starttime, 2)
-    buildstats = OrderedDict([
-        ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
-        ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-        ('host', os.uname()[1]),
-        ('platform', platform.platform()),
-        ('cpu_model', cpu_model),
-        ('core_count', core_count),
-        ('timestamp', int(time_now)),
-        ('build_time', buildtime),
-        ('install_size', app.det_installsize()),
-    ])
-
-    return buildstats
