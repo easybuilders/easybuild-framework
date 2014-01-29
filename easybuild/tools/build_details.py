@@ -43,16 +43,14 @@ def get_build_stats(app, start_time):
 
     time_now = time.time()
     build_time = round(time_now - start_time, 2)
-    cpu_model = get_cpu_model()
-    core_count = get_avail_core_count()
 
     buildstats = OrderedDict([
         ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
         ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
         ('host', os.uname()[1]),
         ('platform', platform.platform()),
-        ('cpu_model', cpu_model),
-        ('core_count', core_count),
+        ('cpu_model', get_cpu_model()),
+        ('core_count', get_avail_core_count()),
         ('timestamp', int(time_now)),
         ('build_time', build_time),
         ('install_size', app.det_installsize()),
