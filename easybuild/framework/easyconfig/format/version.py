@@ -72,6 +72,8 @@ class VersionOperator(object):
     # default operator when operator is undefined (but version is)
     DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['==']
 
+    DICT_SEPARATOR = ':'
+
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
         Initialise VersionOperator instance.
@@ -191,10 +193,17 @@ class VersionOperator(object):
         # - operator_str part is optional
         # - version_str should start/end with any word character except separator
         # - minimal version_str length is 1
-        reg_text = r"(?:(?P<operator_str>%(ops)s)%(sep)s)?(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % {
+        reg_text_operator = r"(?:(?P<operator_str>%(ops)s)%(sep)s)?" % {
             'sep': self.SEPARATOR,
             'ops': '|'.join(operators),
         }
+        reg_text_version = r"(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % { 'sep': self.SEPARATOR }
+        reg_text_ext = r"(?:%(sep)s(?:suffix%(extsep)s(?P<suffix>[^%(sep)s%(extsep)s\W]+)))?" % {
+            'sep': self.SEPARATOR,
+            'extsep': self.DICT_SEPARATOR,
+        }
+
+        reg_text = r"%s%s%s" % (reg_text_operator, reg_text_version, reg_text_ext)
         if begin_end:
             reg_text = r"^%s$" % reg_text
         reg = re.compile(reg_text)
@@ -345,6 +354,10 @@ class VersionOperator(object):
             '== 4' > '> 3' : equality is more strict than inequality, but this order by boundaries
             '> 3' > '== 2' : there is no overlap, so just order the intervals according their boundaries
             '> 1' > '== 1' > '< 1' : no overlap, same boundaries, order by operator
+            suffix:
+                '> 2' > '> 1': both equal (both None), ordering like above
+                '> 2 suffix:-x1' > '> 1 suffix:-x1': both equal (both -x1), ordering like above
+                '> 2 suffix:-x1' > '> 1 suffix:-x2': not equal, conflict
         """
         overlap, conflict = self.test_overlap_and_conflict(versop_other)
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
@@ -612,7 +625,7 @@ class ConfigObjVersion(object):
             parsed = {}
         else:
             # parent specified, so not a top section
-            parsed = Section(parent=parent, depth=depth+1, main=configobj)
+            parsed = Section(parent=parent, depth=depth + 1, main=configobj)
 
         # start with full configobj initially, and then process subsections recursively
         if toparse is None:
