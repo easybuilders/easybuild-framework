@@ -110,6 +110,10 @@ def main(testing_data=(None, None, None)):
     # hello world!
     _log.info(this_is_easybuild())
 
+    # how was EB called?
+    eb_commandline = eb_go.generate_cmd_line() + eb_go.args
+    _log.info("Command line: %s" % (" ".join(eb_commandline)))
+
     _log.info("Using %s as temporary directory" % eb_tmpdir)
 
     # set strictness of filetools module
@@ -147,6 +151,7 @@ def main(testing_data=(None, None, None)):
     build_options = {
         'aggregate_regtest': options.aggregate_regtest,
         'check_osdeps': not options.ignore_osdeps,
+        'commandline': eb_commandline,
         'debug': options.debug,
         'dry_run': options.dry_run,
         'easyblock': options.easyblock,
