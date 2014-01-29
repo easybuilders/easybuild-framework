@@ -641,9 +641,19 @@ class ConfigObjVersion(object):
                 # * dependencies
                 # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
+                    # parse value as a section, recursively
                     new_key = key
-                elif key in [self.SECTION_MARKER_DEPENDENCIES]:
-                    raise NotImplementedError
+                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+
+                elif key == self.SECTION_MARKER_DEPENDENCIES:
+                    new_key = 'dependencies'
+                    new_value = []
+                    for dep_name, dep_spec in value.items():
+                        if isinstance(dep_spec, Section):
+                            self.log.error("Unsupported nested section '%s' found in dependencies section" % dep_name)
+                        else:
+                            # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
+                            new_value.append((dep_name, dep_spec))
                 else:
                     # try parsing key as toolchain version operator first
                     # try parsing as version operator if it's not a toolchain version operator
@@ -657,8 +667,8 @@ class ConfigObjVersion(object):
                     if not new_key:
                         self.log.error("Unsupported section marker '%s'" % key)
 
-                # parse value as a section, recursively
-                new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    # parse value as a section, recursively
+                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
 
             else:
                 new_key = key
