@@ -1,5 +1,5 @@
 """
-Unit tests for easyconfig/format/format.py
+Unit tests for easyconfig/licenses.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
