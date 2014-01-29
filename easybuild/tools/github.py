@@ -50,7 +50,7 @@ class Githubfs(object):
         @param token:    (optional) a github api token.
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.gh = Github(username, password, token)
+        self.gh = Github(username=username, password=password, token=token)
         self.githubuser = githubuser
         self.reponame = reponame
         self.branchname = branchname
