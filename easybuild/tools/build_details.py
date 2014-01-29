@@ -36,13 +36,13 @@ from easybuild.tools.systemtools import get_cpu_model, get_avail_core_count
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 
 
-def get_build_stats(app, starttime):
+def get_build_stats(app, start_time):
     """
     Return build statistics for this build
     """
 
     time_now = time.time()
-    buildtime = round(time_now - starttime, 2)
+    build_time = round(time_now - start_time, 2)
     cpu_model = get_cpu_model()
     core_count = get_avail_core_count()
 
@@ -54,7 +54,7 @@ def get_build_stats(app, starttime):
         ('cpu_model', cpu_model),
         ('core_count', core_count),
         ('timestamp', int(time_now)),
-        ('build_time', buildtime),
+        ('build_time', build_time),
         ('install_size', app.det_installsize()),
     ])
 

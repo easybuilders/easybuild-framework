@@ -2014,7 +2014,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     # build easyconfig
     errormsg = '(no error)'
     # timing info
-    starttime = time.time()
+    start_time = time.time()
     try:
         run_test_cases = not build_options.get('skip_test_cases', False) and app.cfg['tests']
         regtest_online = build_options.get('regtest_online', False)
@@ -2042,7 +2042,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, starttime)
+            buildstats = get_build_stats(app, start_time)
             _log.info("Build stats: %s" % buildstats)
 
             try:
