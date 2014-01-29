@@ -108,8 +108,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         version = self.specs.get('version', None)
         if version is None:
             # check for default version
-            if 'default_version' in cov.default:
-                version = cov.default['default_version']
+            if 'version' in cov.default:
+                version = cov.default['version']
                 self.log.info("no software version specified, using default version '%s'" % version)
             else:
                 self.log.error("no software version specified, no default version found")
@@ -120,13 +120,13 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         toolchain_name = tc_spec.get('name', None)
         if toolchain_name is None:
             # check for default toolchain
-            if 'default_toolchain' in cov.default:
-                toolchain = cov.default['default_toolchain']
-                toolchain_name = toolchain.tc_name
+            if 'toolchain' in cov.default:
+                toolchain = cov.default['toolchain']
+                toolchain_name = toolchain['name']
                 self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
                 toolchain_version = tc_spec.get('version', None)
                 if toolchain_version is None:
-                    toolchain_version = toolchain.get_version_str()
+                    toolchain_version = toolchain['version']
                     self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
             else:
                 self.log.error("no toolchain name specified, no default toolchain found")
@@ -136,23 +136,6 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             if toolchain_version is None:
                 self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 
-        # add version/toolchain specifications to config dict
-        if isinstance(version, VersionOperator):
-            version = version.get_version_str()
-        elif not isinstance(version, basestring):
-            self.log.error("Found version of unexpected type: %s (%s)" % (type(version), version))
-        if isinstance(toolchain_version, ToolchainVersionOperator):
-            toolchain_version = toolchain_version.get_version_str()
-        elif not isinstance(toolchain_version, basestring):
-            tup = (type(toolchain_version), toolchain_version)
-            self.log.error("Found toolchain version of unexpected type: %s (%s)" % tup)
-
-        cfg.update({
-            'version': version,
-            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
-        })
-        self.log.debug("Config dict including version/toolchain specs: %s" % cfg)
-
         # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
         # this also performs some validation, and checks for conflicts between section markers
         self.log.debug("sections for full parsed configobj: %s" % cov.sections)
@@ -161,7 +144,14 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         section_specs = cov.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
         cfg.update(section_specs)
+        self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
         # FIXME what about updating dict values/appending to list values? how do we allow both redefining and updating? = and +=?
 
-        self.log.debug("Final config dict: %s" % cfg)
+        # update config with correct version/toolchain (to avoid using values specified in default section)
+        cfg.update({
+            'version': version,
+            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+        })
+
+        self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
         return cfg
