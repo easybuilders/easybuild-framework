@@ -23,8 +23,8 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-This script takes a perl module name as argument, and generates
-a string compatible with the easyconfig format with metadata about the module
+This script takes a Perl module name as argument, and generates
+a string compatible with the easyconfig 1.x format with metadata about the module
 and all it's dependencies
 
 @author: Jens Timmerman
@@ -51,7 +51,7 @@ class CpanMeta(object):
                  'modulename': 'ExtUtils::MakeMaker'}
         self.cache = {'ExtUtils::MakeMaker': dummy,  'perl': dummy}
         self.graph = {'ExtUtils::MakeMaker': [], 'perl': []}
-        self.client = Client('api.metacpan.org', token="bla")
+        self.client = Client('api.metacpan.org')
 
     def get_module_data(self, modulename):
         """Get some metadata about the current version of the module"""
@@ -70,7 +70,7 @@ class CpanMeta(object):
             return self.graph
         data = self.get_module_data(modulename)
         self.cache[modulename] = data
-        ## module's are somtimes included in a release we already know, so skip this also
+        # module's are somtimes included in a release we already know, so skip this also
         if data['release'] in self.cache:
             logger.info('%s release cached', data['release'])
             return self.graph
@@ -80,7 +80,8 @@ class CpanMeta(object):
         for dep in data['dependency']:
             if "requires" in dep["relationship"]:
                 cpan.get_recursive_data(dep['module'])
-                #if "build" in dep["phase"] or "configure" in dep["phase"]:
+                # if for some reason you get to many hits here, you might want to filter on build and confirure in phase: (To be further tested)
+                # if "build" in dep["phase"] or "configure" in dep["phase"]:
                 dependencies.add(dep['module'])
         self.graph[modulename] = dependencies
         return self.graph
@@ -117,21 +118,18 @@ def topological_sort(graph, root):
             yield node
             visited.add(node)  # been there, done that.
 
-# me might do  a lot of recursion...
-sys.setrecursionlimit(320000000)
 
 go = simple_option()
 
 cpan = CpanMeta()
 modules = cpan.get_recursive_data(go.args[0])
 print modules
-#print cpan.cache
+
 # topological soft, so we get correct dependencies order
 for module in topological_sort(modules, go.args[0]):
     data = cpan.cache[module]
     url, name = data['download_url'].rsplit("/", 1)
     data.update({'url': url, 'tarball': name})  # distribution sometimes contains subdirs
-    #print module
     if data['release'] is not '0' and data['version'] is not '0':
         print    """('%(modulename)s', '%(version)s', {
                     'source_tmpl': '%(tarball)s',
