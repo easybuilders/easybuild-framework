@@ -747,7 +747,7 @@ class EasyBlock(object):
         filename = os.path.join(output_dir, det_devel_module_filename(self.cfg))
         self.log.debug("Writing devel module to %s" % filename)
 
-        write_file(filename, header+load_txt+env_txt)
+        write_file(filename, header + load_txt + env_txt)
 
         # cleanup: unload fake module, remove fake module dir
         self.clean_up_fake_module(fake_mod_data)
@@ -2042,7 +2042,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             _log.info("Collecting build stats...")
 
             buildstats = get_build_stats(app, starttime, get_cpu_model(), get_avail_core_count())
-            _log.debug("Build stats: %s" % buildstats)
+            _log.info("Build stats: %s" % buildstats)
 
             try:
                 # upload spec to central repository
