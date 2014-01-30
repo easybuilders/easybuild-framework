@@ -29,9 +29,9 @@ Creating a new toolchain should be as simple as possible.
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
-import os
 from vsc import fancylogger
 
 from easybuild.tools.environment import setvar
@@ -381,7 +381,9 @@ class Toolchain(object):
 
         for root in self.get_software_root([dep['name'] for dep in deps]):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
+            self.variables.append_subdirs("CMAKE_INCLUDE_PATH", root, subdirs=cpp_paths)
             self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+            self.variables.append_subdirs("CMAKE_LIBRARY_PATH", root, subdirs=ld_paths)
 
     def _setenv_variables(self, donotset=None):
         """Actually set the environment variables"""

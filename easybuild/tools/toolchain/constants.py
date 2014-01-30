@@ -27,11 +27,12 @@ Toolchain specific variables
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 from easybuild.tools.variables import AbsPathList
 from easybuild.tools.toolchain.variables import LinkLibraryPaths, IncludePaths, CommandFlagList, CommaStaticLibs
-from easybuild.tools.toolchain.variables import FlagList, LibraryList
+from easybuild.tools.toolchain.variables import FlagList, LibraryList, CMakePaths
 
 
 COMPILER_VARIABLES = [
@@ -62,6 +63,10 @@ COMPILER_MAP_CLASS = {
     ],
     IncludePaths: [
         ('CPPFLAGS', 'Precompiler flags'),
+    ],
+    CMakePaths: [
+        ('CMAKE_INCLUDE_PATH', 'Include paths for CMake'),
+        ('CMAKE_LIBRARY_PATH', 'Library paths for CMake'),
     ],
     CommandFlagList: COMPILER_VARIABLES,
 }
@@ -196,5 +201,3 @@ ALL_MAP_CLASSES = [
     BLAS_MAP_CLASS, LAPACK_MAP_CLASS, BLACS_MAP_CLASS, SCALAPACK_MAP_CLASS,
     FFT_MAP_CLASS, FFTW_MAP_CLASS, CO_COMPILER_MAP_CLASS,
 ]
-
-
