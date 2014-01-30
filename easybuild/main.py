@@ -140,9 +140,11 @@ def main(testing_data=(None, None, None)):
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
+    retain_all_deps = False
     if options.dep_graph:
         _log.info("Enabling force to generate dependency graph.")
         options.force = True
+        retain_all_deps = True
 
     build_options = {
         'aggregate_regtest': options.aggregate_regtest,
@@ -155,6 +157,7 @@ def main(testing_data=(None, None, None)):
         'only_blocks': options.only_blocks,
         'regtest_online': options.regtest_online,
         'regtest_output_dir': options.regtest_output_dir,
+        'retain_all_deps': retain_all_deps,
         'robot_path': options.robot,
         'sequential': options.sequential,
         'silent': testing,
