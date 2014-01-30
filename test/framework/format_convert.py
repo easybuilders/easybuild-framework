@@ -3,8 +3,8 @@ Unit tests for easyconfig/format/convert.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-from easybuild.framework.easyconfig.format.convert import get_convert_class, Convert, ListOfStrings
-from easybuild.framework.easyconfig.format.convert import DictOfStrings, ListOfStringsAndDictOfStrings
+from easybuild.tools.convert import get_convert_class, ListOfStrings
+from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
 from easybuild.framework.easyconfig.format.convert import Dependency
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
