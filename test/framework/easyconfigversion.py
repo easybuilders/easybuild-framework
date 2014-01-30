@@ -92,7 +92,8 @@ class EasyConfigVersion(TestCase):
             # suffix
             ('> 2', '> 1', (True, False)),  # suffix both equal (both None), ordering like above
             ('> 2 suffix:-x1', '> 1 suffix:-x1', (True, False)),  # suffix both equal (both -x1), ordering like above
-            ('> 2 suffix:-x1', '> 1 suffix:-x2', (True, True)),  # suffix not equal, conflict
+            ('> 2 suffix:-x1', '> 1 suffix:-x2', (True, True)),  # suffix not equal, conflict (and overlap)
+            ('> 2 suffix:-x1', '< 1 suffix:-x2', (False, True)),  # suffix not equal, conflict (and no overlap)
         ]
 
         for l, r, res in overlap_conflict:
