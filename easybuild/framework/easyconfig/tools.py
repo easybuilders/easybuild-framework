@@ -320,16 +320,19 @@ def find_resolved_modules(unprocessed, avail_modules):
     """
     ordered_ecs = []
     new_avail_modules = avail_modules[:]
+    new_unprocessed = []
 
     for ec in unprocessed:
-        ec['dependencies'] = [d for d in ec['dependencies'] if not det_full_module_name(d) in new_avail_modules]
+        new_ec = ec.copy()
+        new_ec['dependencies'] = [d for d in new_ec['dependencies'] if not det_full_module_name(d) in new_avail_modules]
 
-        if len(ec['dependencies']) == 0:
-            _log.debug("Adding easyconfig %s to final list" % ec['spec'])
-            ordered_ecs.append(ec)
+        if len(new_ec['dependencies']) == 0:
+            _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
+            ordered_ecs.append(new_ec)
             new_avail_modules.append(ec['module'])
 
-    new_unprocessed = [m for m in unprocessed if len(m['dependencies']) > 0]
+        else:
+            new_unprocessed.append(new_ec)
 
     return ordered_ecs, new_unprocessed, new_avail_modules
 
@@ -361,9 +364,6 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
     """
 
     robot = build_options.get('robot_path', None)
-
-    # avoid side-effects to 'unprocessed' reference
-    unprocessed = copy.deepcopy(unprocessed)
 
     if build_options.get('retain_all_deps', False):
         # assume that no modules are available when forced, to retain all dependencies
