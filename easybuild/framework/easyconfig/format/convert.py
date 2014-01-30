@@ -92,12 +92,12 @@ class DictOfStrings(Convert):
         key and value are separated via SEPARATOR_KEY_VALUE
     """
     SEPARATOR_KEY_VALUE = ':'
-    SEPARATOR_DICT = ','
+    SEPARATOR_DICT = ';'
     ALLOWED_KEYS = None
     __wraps__ = dict
 
     def _from_string(self, txt):
-        """ a:b,c:d -> {'a':'b', 'c':'d'} """
+        """ a:b;c:d -> {'a':'b', 'c':'d'} """
         res = {}
         for pairs in self._split_string(txt, sep=self.SEPARATOR_DICT):
             key, value = self._split_string(pairs, sep=self.SEPARATOR_KEY_VALUE, max=1)
@@ -145,6 +145,19 @@ class ListOfStringsAndDictOfStrings(Convert):
             return self.SEPARATOR_LIST.join(self[:-1] + tmp)
         else:
             return self.SEPARATOR_LIST.join(self)
+
+
+class Patches(ListOfListOfStringsAndDictOfStrings):
+    """Handle patches as
+    A single patch looks like
+        filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, '}
+    """
+
+
+class Dependency(ListOfStrings):
+    """Handle dependency
+        versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
+    """
 
 
 def get_convert_class(class_name):
