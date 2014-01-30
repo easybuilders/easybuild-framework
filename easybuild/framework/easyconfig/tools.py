@@ -362,8 +362,11 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
 
     robot = build_options.get('robot_path', None)
 
-    if build_options.get('force', False):
-        # assume that no modules are available when forced
+    # avoid side-effects to 'unprocessed' reference
+    unprocessed = copy.deepcopy(unprocessed)
+
+    if build_options.get('retain_all_deps', False):
+        # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
@@ -471,7 +474,7 @@ def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
         build_options = copy.deepcopy(build_options)
         build_options.update({
-            'force': True,
+            'retain_all_deps': True,
             'check_osdeps': False,
         })
         all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
