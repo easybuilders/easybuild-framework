@@ -787,26 +787,24 @@ class ConfigObjVersion(object):
         #  - add DEFAULT key-value entries to the root of self.sections
         #  - key-value items from other sections will be deeper down
         #  - deepest level is best match and wins, so defaults are on top level
-        default = self.sections.pop(self.SECTION_MARKER_DEFAULT, {})
-        for key, value in default.items():
+        self.default = self.sections.pop(self.SECTION_MARKER_DEFAULT, {})
+        for key, value in self.default.items():
             self.sections[key] = value
-        self.default = default
 
         # handle supported section
         # supported should only have 'versions' and 'toolchains' keys
-        supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED, {})
-        for key, value in supported.items():
+        self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED, {})
+        for key, value in self.supported.items():
             if not key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.error('Unsupported key %s in %s section' % (key, self.SECTION_MARKER_SUPPORTED))
             self.sections['%s' % key] = value
-        self.supported = supported
 
-        if 'versions' in supported:
+        if 'versions' in self.supported:
             # first of list is special: it is the default
-            self.default['version'] = supported['versions'][0].get_version_str()
-        if 'toolchains' in supported:
+            self.default['version'] = self.supported['versions'][0].get_version_str()
+        if 'toolchains' in self.supported:
             # first of list is special: it is the default
-            self.default['toolchain'] = supported['toolchains'][0].as_dict()
+            self.default['toolchain'] = self.supported['toolchains'][0].as_dict()
 
         tup = (self.default, self.supported, self.sections)
         self.log.debug("(parse) default: %s; supported: %s, sections: %s" % tup)
