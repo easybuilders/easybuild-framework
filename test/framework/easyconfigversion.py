@@ -152,13 +152,15 @@ class EasyConfigVersion(TestCase):
         for tc in tc_names:  # test all known toolchain names
             # test version expressions with optional version operator
             ok_tests = [
-                "%s >= 1.2.3" % tc,
-                "%s == 1.2.3" % tc,
-                tc,
+                ("%s >= 1.2.3" % tc, None),  # only dict repr for == operator
+                ("%s == 1.2.3" % tc, {'name': tc, 'version': '1.2.3'}),
+                (tc, None),  # only toolchain name, no dict repr (default operator is >=, version is 0.0.0)
             ]
-            for txt in ok_tests:
+            for txt, as_dict in ok_tests:
                 self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
-                self.assertTrue(ToolchainVersionOperator(txt))
+                tcversop = ToolchainVersionOperator(txt)
+                self.assertTrue(tcversop)
+                self.assertEqual(tcversop.as_dict(), as_dict)
 
             # only accept known toolchain names
             fail_tests = [

@@ -481,7 +481,7 @@ class ToolchainVersionOperator(VersionOperator):
         Returns None if translation to a dictionary is not possible (e.g. non-equals operator, missing version, ...).
         """
         version = self.get_version_str()
-        if not None in [self.tc_name, version] and self.operator == self.OPERATOR_MAP['==']:
+        if self.operator == self.OPERATOR_MAP['==']:
             return {'name': self.tc_name, 'version': version}
         else:
             return None
