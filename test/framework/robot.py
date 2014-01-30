@@ -36,7 +36,7 @@ from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig.tools as ectools
-from easybuild.framework.easyconfig.tools import resolve_dependencies
+from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
@@ -87,7 +87,11 @@ class RobotTest(TestCase):
             'module': 'name/version',
             'dependencies': []
         }
-        build_options = {'robot_path': None}
+        build_options = {
+            'ignore_osdeps': True,
+            'robot_path': None,
+            'validate': False,
+        }
         res = resolve_dependencies([deepcopy(easyconfig)], build_options=build_options)
         self.assertEqual([easyconfig], res)
 
@@ -109,7 +113,7 @@ class RobotTest(TestCase):
             }],
             'parsed': True,
         }
-        build_options = {'robot_path': self.base_easyconfig_dir}
+        build_options.update({'robot_path': self.base_easyconfig_dir})
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
         # dependency should be found, order should be correct
         self.assertEqual(len(res), 2)
@@ -120,14 +124,13 @@ class RobotTest(TestCase):
         easyconfig['module'] = 'gzip/1.4'
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
-        build_options = {'robot_path': None}
+        build_options.update({'robot_path': None})
         res = resolve_dependencies(ecs, build_options=build_options)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb)
         ecs = [deepcopy(easyconfig_dep)]
-        build_options = {'robot_path': None}
         self.assertRaises(EasyBuildError, resolve_dependencies, ecs, build_options=build_options)
 
         # test if dependencies of an automatically found file are also loaded
@@ -139,10 +142,7 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        build_options = {
-            'ignore_osdeps': True,
-            'robot_path': self.base_easyconfig_dir,
-        }
+        build_options.update({'robot_path': self.base_easyconfig_dir})
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # GCC should be first (required by gzip dependency)
@@ -167,13 +167,47 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        res = resolve_dependencies(ecs, build_options=build_options)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
-        self.assertTrue(len(res), 2)
+        self.assertEqual(len(res), 2)
         # goolf should be first, the software itself second
         self.assertEqual('goolf/1.4.10', res[0]['module'])
         self.assertEqual('foo/1.2.3', res[1]['module'])
+
+        # force doesn't trigger rebuild of all deps, but listed easyconfigs for which a module is available are rebuilt
+        build_options.update({'force': True})
+        easyconfig['module'] = 'this/is/already/there'
+        MockModule.avail_modules.append('this/is/already/there')
+        ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
+        res = resolve_dependencies(ecs, build_options=build_options)
+
+        # there should only be three retained builds, foo + goolf dep and the additional build (even though a module is available)
+        self.assertEqual(len(res), 3)
+        # goolf should be first, the software itself second
+        self.assertEqual('this/is/already/there', res[0]['module'])
+        self.assertEqual('goolf/1.4.10', res[1]['module'])
+        self.assertEqual('foo/1.2.3', res[2]['module'])
+
+        # build that are listed but already have a module available are not retained without force
+        build_options.update({'force': False})
+        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        res = resolve_dependencies(newecs, build_options=build_options)
+        self.assertEqual(len(res), 2)
+        self.assertEqual('goolf/1.4.10', res[0]['module'])
+        self.assertEqual('foo/1.2.3', res[1]['module'])
+
+        # with retain_all_deps enabled, all dependencies ae retained
+        build_options.update({'retain_all_deps': True})
+        ecs = [deepcopy(easyconfig_dep)]
+        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        res = resolve_dependencies(newecs, build_options=build_options)
+        self.assertEqual(len(res), 9)
+        self.assertEqual('GCC/4.7.2', res[0]['module'])
+        self.assertEqual('goolf/1.4.10', res[-2]['module'])
+        self.assertEqual('foo/1.2.3', res[-1]['module'])
+
+        build_options.update({'retain_all_deps': False})
 
         # provide even less goolf ingredients (no OpenBLAS/ScaLAPACK), make sure the numbers add up
         MockModule.avail_modules = [
@@ -194,7 +228,7 @@ class RobotTest(TestCase):
         res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
-        self.assertTrue(len(res), 4)
+        self.assertEqual(len(res), 4)
         # goolf should be first, the software itself second
         self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['module'])
         self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['module'])
