@@ -48,6 +48,7 @@ from easybuild.tools import config, filetools  # @UnusedImport make sure config 
 from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
+from easybuild.tools.convert import ListOfStrings
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
@@ -341,7 +342,10 @@ class EasyBuildOptions(GeneralOption):
 
         # split supplied list of robot paths to obtain a list
         if self.options.robot:
-            self.options.robot = self.options.robot.split(os.pathsep)
+            class RobotPath(ListOfStrings):
+                SEPARATOR_LIST = os.pathsep
+                __str__ = ListOfStrings.__str__
+            self.options.robot = RobotPath(self.options.robot)
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

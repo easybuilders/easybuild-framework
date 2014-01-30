@@ -126,18 +126,23 @@ def main(testing_data=(None, None, None)):
         else:
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
+    # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
+    robot_path = None
+    if options.robot:
+        robot_path = list(options.robot)
+
     # determine easybuild-easyconfigs package install path
-    easyconfigs_paths = get_paths_for("easyconfigs", robot_path=options.robot)
+    easyconfigs_paths = get_paths_for("easyconfigs", robot_path=robot_path)
     # keep track of paths for install easyconfigs, so we can obtain find specified easyconfigs
     easyconfigs_pkg_full_paths = easyconfigs_paths[:]
     if not easyconfigs_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # specified robot paths are preferred over installed easyconfig files
-    if options.robot:
-        easyconfigs_paths = options.robot + easyconfigs_paths
-        options.robot.extend(easyconfigs_paths)
-        _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % options.robot)
+    if robot_path:
+        robot_path.extend(easyconfigs_paths)
+        easyconfigs_paths = robot_path[:]
+        _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
 
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
@@ -163,7 +168,7 @@ def main(testing_data=(None, None, None)):
         'regtest_online': options.regtest_online,
         'regtest_output_dir': options.regtest_output_dir,
         'retain_all_deps': retain_all_deps,
-        'robot_path': options.robot,
+        'robot_path': robot_path,
         'sequential': options.sequential,
         'silent': testing,
         'skip': options.skip,
