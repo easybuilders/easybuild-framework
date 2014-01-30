@@ -32,8 +32,9 @@ import re
 
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, nub
+from vsc.utils.wrapper import Wrapper
 
-from easybuild.framework.easyconfig.format.wrapper import Wrapper
+from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 
 _log = fancylogger.getLogger('easyconfig.format.convert', fname=False)
 
@@ -147,17 +148,46 @@ class ListOfStringsAndDictOfStrings(Convert):
             return self.SEPARATOR_LIST.join(self)
 
 
-class Patches(ListOfListOfStringsAndDictOfStrings):
-    """Handle patches as
-    A single patch looks like
-        filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, '}
+class Patch(ListOfStringsAndDictOfStrings):
+    """Handle single patch
+        filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+    """
+    ALLOWED_KEYS = ['level', 'dest']
+    __wraps__ = dict
+
+class Patches(ListOfStrings):
+    """Handle patches as list of Patch
     """
 
 
-class Dependency(ListOfStrings):
+class Dependency(Convert):
     """Handle dependency
         versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
     """
+    SEPARATOR_DEP = ';'
+    __wraps__ = dict
+
+    def _from_string(self, txt):
+        res = {}
+
+        items = self._split_string(txt, sep=self.SEPARATOR_DEP)
+        if len(items) < 1 or len(items) > 2:
+            raise TypeError('Dependency has at least one element (versop_str), and at most 2 (2nd element the tc_versop). Separator')
+
+        res['versop'] = VersionOperator(items[0])
+
+        if len(items) > 1:
+            res['tc_versop'] = ToolchainVersionOperator(items[1])
+
+        return res
+
+    def __str__(self):
+        """Return string"""
+        tmp = [str(self['versop'])]
+        if 'tc_versop' in self:
+            tmp.append(str(self['tc_versop']))
+
+        return self.SEPARATOR_DEP.join(tmp)
 
 
 def get_convert_class(class_name):
