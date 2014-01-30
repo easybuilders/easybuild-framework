@@ -28,10 +28,8 @@ This module implements easyconfig specific formats and their converts
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import re
-
-from easybuild.tools.convert import Convert, ListOfStringsAndDictOfStrings, ListOfStrings
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
+from easybuild.tools.convert import Convert, ListOfStringsAndDictOfStrings, ListOfStrings
 
 
 class Patch(ListOfStringsAndDictOfStrings):
