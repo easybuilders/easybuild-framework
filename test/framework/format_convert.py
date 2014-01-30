@@ -5,6 +5,10 @@ Unit tests for easyconfig/format/convert.py
 """
 from easybuild.framework.easyconfig.format.convert import get_convert_class, Convert, ListOfStrings
 from easybuild.framework.easyconfig.format.convert import DictOfStrings, ListOfStringsAndDictOfStrings
+from easybuild.framework.easyconfig.format.convert import Dependency
+
+from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
+
 from unittest import TestCase, TestLoader, main
 
 
@@ -79,6 +83,26 @@ class ConvertTest(TestCase):
         except TypeError, msg:
             pass
         self.assertFalse(msg is None)
+
+    def test_dependency(self):
+        """Test Dependency class"""
+        versop_str = '>= 1.5'
+        tc_versop_str = 'GCC >= 3.0'
+
+        versop = VersionOperator(versop_str)
+        tc_versop = ToolchainVersionOperator(tc_versop_str)
+
+        txt = Dependency.SEPARATOR_DEP.join([versop_str])
+        dest = {'versop':versop}
+        res = Dependency(txt)
+        self.assertEqual(dest, res)
+        self.assertEqual(str(res), txt)
+
+        txt = Dependency.SEPARATOR_DEP.join([versop_str, tc_versop_str])
+        dest = {'versop':versop, 'tc_versop':tc_versop}
+        res = Dependency(txt)
+        self.assertEqual(dest, res)
+        self.assertEqual(str(res), txt)
 
 
 def suite():
