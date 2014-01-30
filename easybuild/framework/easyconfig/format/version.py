@@ -795,9 +795,8 @@ class ConfigObjVersion(object):
         # handle supported section
         # supported should only have 'versions' and 'toolchains' keys
         supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED, {})
-        known_supported_keywords = self.VERSION_OPERATOR_VALUE_TYPES.keys()
         for key, value in supported.items():
-            if not key in known_supported_keywords:
+            if not key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.error('Unsupported key %s in %s section' % (key, self.SECTION_MARKER_SUPPORTED))
             self.sections['%s' % key] = value
         self.supported = supported
