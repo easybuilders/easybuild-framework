@@ -4,10 +4,12 @@ Unit tests for easyconfig/format/version.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import re
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ConfigObjVersion
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from unittest import TestCase, TestLoader, main
@@ -17,6 +19,17 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 class EasyConfigVersion(TestCase):
     """Unit tests for format.version module."""
+
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args, **kwargs)
+            self.assertTrue(False)  # this will fail when no exception is thrown at all
+        except error, err:
+            res = re.search(regex, err.msg)
+            if not res:
+                print "err: %s" % err
+            self.assertTrue(res)
 
     def test_parser_regex(self):
         """Test the version parser"""
@@ -43,7 +56,8 @@ class EasyConfigVersion(TestCase):
         self.assertTrue(VersionOperator('>= 123'))
         self.assertTrue(VersionOperator('123'))
 
-        self.assertFalse(VersionOperator('<='))
+        error_msg = "Failed to parse '<=' as a version operator string"
+        self.assertErrorRegex(EasyBuildError, error_msg, VersionOperator, '<=')
 
     def test_vop_test(self):
         """Test version checker"""
@@ -138,13 +152,15 @@ class EasyConfigVersion(TestCase):
         for tc in tc_names:  # test all known toolchain names
             # test version expressions with optional version operator
             ok_tests = [
-                "%s >= 1.2.3" % tc,
-                "%s 1.2.3" % tc,
-                tc,
+                ("%s >= 1.2.3" % tc, None),  # only dict repr for == operator
+                ("%s == 1.2.3" % tc, {'name': tc, 'version': '1.2.3'}),
+                (tc, None),  # only toolchain name, no dict repr (default operator is >=, version is 0.0.0)
             ]
-            for txt in ok_tests:
+            for txt, as_dict in ok_tests:
                 self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
-                self.assertTrue(ToolchainVersionOperator(txt))
+                tcversop = ToolchainVersionOperator(txt)
+                self.assertTrue(tcversop)
+                self.assertEqual(tcversop.as_dict(), as_dict)
 
             # only accept known toolchain names
             fail_tests = [
@@ -155,7 +171,9 @@ class EasyConfigVersion(TestCase):
             ]
             for txt in fail_tests:
                 self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
-                self.assertFalse(ToolchainVersionOperator(txt))
+                tcv = ToolchainVersionOperator(txt)
+                self.assertEqual(tcv.tc_name, None)
+                self.assertEqual(tcv.tcversop_str, None)
 
     def test_configobj(self):
         """Test configobj sort"""

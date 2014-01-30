@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ from copy import copy
 from vsc import fancylogger
 
 from easybuild.tools.version import VERSION
+
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -159,4 +160,5 @@ def print_warning(message, silent=False):
     Print warning message.
     """
     print_msg("WARNING: %s\n" % message, silent=silent)
+
 

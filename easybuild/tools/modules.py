@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -47,7 +47,7 @@ from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool, install_path
-from easybuild.tools.filetools import convert_name, run_cmd, read_file, which
+from easybuild.tools.filetools import convert_name, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
@@ -502,7 +502,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd.tcl-specific class variable values."""
-        super(EnvironmentModulesC, self).__init__(*args, **kwargs)
+        super(EnvironmentModulesC, self).__init__(*args, **kwargs)  # purposely calling super of parent class
         self.cmd = 'modulecmd.tcl'
         # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
         self.shell = 'tclsh'

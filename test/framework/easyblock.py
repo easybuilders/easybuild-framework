@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,12 +35,12 @@ import re
 import shutil
 import tempfile
 import sys
+from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.extension import Extension
 from easybuild.tools import config
-from unittest import TestCase, TestLoader, main
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from easybuild.tools.module_generator import det_full_module_name

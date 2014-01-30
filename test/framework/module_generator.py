@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -161,7 +161,7 @@ if { [is-loaded mod_name] } {
             # test default naming scheme
             for ec_file in ec_files:
                 ec_path = os.path.abspath(ec_file)
-                ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+                ec = EasyConfig(ec_path, build_options={'validate': False, 'valid_stops': all_stops})
                 # derive module name directly from easyconfig file name
                 ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
@@ -209,10 +209,16 @@ if { [is-loaded mod_name] } {
         # test custom naming scheme
         for ec_file in ec_files:
             ec_path = os.path.abspath(ec_file)
-            ec = EasyConfig(ec_path, validate=False, valid_stops=all_stops)
+            build_options = {
+                'validate': False,
+                'valid_stops': all_stops,
+                'ignore_osdeps': True,
+            }
+            ec = EasyConfig(ec_path, build_options=build_options)
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
-            self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
+            if ec_name in ec2mod_map:
+                self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # generating module name from non-parsed easyconfig does not work (and shouldn't)
         error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."

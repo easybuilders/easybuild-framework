@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,8 +27,9 @@
 This describes the easyconfig version class. To be used in EasyBuild for anything related to version checking
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import operator as op
 import re
 from distutils.version import LooseVersion
@@ -64,8 +65,12 @@ class VersionOperator(object):
     INCLUDE_OPERATORS = ['==', '>=', '<=']  # these operators *include* the (version) boundary
     ORDERED_OPERATORS = ['==', '>', '>=', '<', '<=']  # ordering by strictness
     OPERATOR_FAMILIES = [['>', '>='], ['<', '<=']]  # similar operators
+
+    # default version and operator when version is undefined
     DEFAULT_UNDEFINED_VERSION = EasyVersion('0.0.0')
-    DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['>']
+    DEFAULT_UNDEFINED_VERSION_OPERATOR = OPERATOR_MAP['>']
+    # default operator when operator is undefined (but version is)
+    DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['==']
 
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
@@ -107,13 +112,12 @@ class VersionOperator(object):
 
     def set(self, versop_str):
         """
-        Parse argument and set attributes.
-        Returns None in case of failure (e.g. if supplied string doesn't parse), True in case of success.
+        Parse argument as a version operator, and set attributes.
+        Returns True in case of success, throws an error in case of parsing failure.
         """
         versop_dict = self.parse_versop_str(versop_str)
         if versop_dict is None:
-            self.log.warning("set('%s'): Failed to parse argument" % versop_str)
-            return None
+            self.log.error("Failed to parse '%s' as a version operator string" % versop_str)
         else:
             for k, v in versop_dict.items():
                 setattr(self, k, v)
@@ -142,11 +146,18 @@ class VersionOperator(object):
     def __str__(self):
         """Return string representation of this VersionOperator instance"""
         if self.operator is None:
-            operator = self.DEFAULT_UNDEFINED_OPERATOR
+            if self.version is None:
+                operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
+            else:
+                operator = self.DEFAULT_UNDEFINED_OPERATOR
         else:
             operator = self.operator
         operator_str = self.REVERSE_OPERATOR_MAP[operator]
         return ''.join(map(str, [operator_str, self.SEPARATOR, self.version]))
+
+    def get_version_str(self):
+        """Return string representation of version (ignores operator)."""
+        return str(self.version)
 
     def __repr__(self):
         """Return instance as string (ignores begin_end)"""
@@ -154,7 +165,9 @@ class VersionOperator(object):
 
     def __eq__(self, versop):
         """Compare this instance to supplied argument."""
-        if not isinstance(versop, self.__class__):
+        if versop is None:
+            return False
+        elif not isinstance(versop, self.__class__):
             self.log.error("Types don't match in comparison: %s, expected %s" % (type(versop), self.__class__))
         return self.version == versop.version and self.operator == versop.operator
 
@@ -204,12 +217,15 @@ class VersionOperator(object):
         self.log.debug('converted string %s to version %s' % (version_str, version))
         return version
 
-    def _convert_operator(self, operator_str):
+    def _convert_operator(self, operator_str, version=None):
         """Return the operator"""
         operator = None
         if operator_str is None:
-            operator = self.DEFAULT_UNDEFINED_OPERATOR
-            self.log.warning('_convert: operator_str None, set it to DEFAULT_UNDEFINED_OPERATOR %s' % operator)
+            if version == self.DEFAULT_UNDEFINED_VERSION or version is None:
+                operator = self.DEFAULT_UNDEFINED_VERSION_OPERATOR
+            else:
+                operator = self.DEFAULT_UNDEFINED_OPERATOR
+            self.log.warning('_convert: operator_str None, set it to default operator (with version: %s) %s' % (operator, version))
         elif operator_str in self.OPERATOR_MAP:
             operator = self.OPERATOR_MAP[operator_str]
         else:
@@ -237,8 +253,11 @@ class VersionOperator(object):
         if not 'versop_str' in versop_dict:
             self.log.error('Missing versop_str in versop_dict %s' % versop_dict)
 
-        versop_dict['version'] = self._convert(versop_dict['version_str'])
-        versop_dict['operator'] = self._convert_operator(versop_dict['operator_str'])
+        version = self._convert(versop_dict['version_str'])
+        operator = self._convert_operator(versop_dict['operator_str'], version=version)
+
+        versop_dict['version'] = version
+        versop_dict['operator'] = operator
         self.log.debug('versop expression %s parsed into versop_dict %s' % (versop_dict['versop_str'], versop_dict))
 
         return versop_dict
@@ -404,6 +423,20 @@ class ToolchainVersionOperator(VersionOperator):
         known_tc_name = self.tc_name in tc_names
         return known_tc_name and super(ToolchainVersionOperator, self).is_valid()
 
+    def set(self, tcversop_str):
+        """
+        Parse argument as toolchain version string, and set attributes.
+        Returns None in case of failure (e.g. if supplied string doesn't parse), True in case of success.
+        """
+        versop_dict = self.parse_versop_str(tcversop_str)
+        if versop_dict is None:
+            self.log.warning("Failed to parse '%s' as a toolchain version operator string" % tcversop_str)
+            return None
+        else:
+            for k, v in versop_dict.items():
+                setattr(self, k, v)
+            return True
+
     def versop_regex(self):
         """
         Create the regular expression for toolchain support of format ^<toolchain> <versop_expr>$ ,
@@ -436,8 +469,22 @@ class ToolchainVersionOperator(VersionOperator):
 
         tcversop_dict = super(ToolchainVersionOperator, self).parse_versop_str(None, versop_dict=tcversop_dict)
 
+        if tcversop_dict.get('version_str', None) is not None and tcversop_dict.get('operator_str', None) is None:
+            self.log.error("Toolchain version found, but no operator (use ' == '?).")
+
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
+
+    def as_dict(self):
+        """
+        Return toolchain version operator as a dictionary with name/version keys.
+        Returns None if translation to a dictionary is not possible (e.g. non-equals operator, missing version, ...).
+        """
+        version = self.get_version_str()
+        if self.operator == self.OPERATOR_MAP['==']:
+            return {'name': self.tc_name, 'version': version}
+        else:
+            return None
 
 
 class OrderedVersionOperators(object):
@@ -458,8 +505,8 @@ class OrderedVersionOperators(object):
         self.datamap = {}
 
     def __str__(self):
-        """Print the list"""
-        return str(self.versops)
+        """Print the list and map"""
+        return "ordered version operators: %s; data map: %s" % (self.versops, self.datamap)
 
     def add(self, versop_new, data=None):
         """
@@ -530,11 +577,15 @@ class ConfigObjVersion(object):
     """
     # TODO: add nested/recursive example to docstring
 
-    DEFAULT = 'DEFAULT'
+    SECTION_MARKER_DEFAULT = 'DEFAULT'
+    SECTION_MARKER_DEPENDENCIES = 'DEPENDENCIES'
+    SECTION_MARKER_SUPPORTED = 'SUPPORTED'
     # list of known marker types (except default)
-    KNOWN_MARKER_TYPES = [ToolchainVersionOperator, VersionOperator]  # order matters, see parse_sections
+    KNOWN_VERSION_MARKER_TYPES = [ToolchainVersionOperator, VersionOperator]  # order matters, see parse_sections
     VERSION_OPERATOR_VALUE_TYPES = {
+        # toolchains: comma-separated list of toolchain version operators
         'toolchains': ToolchainVersionOperator,
+        # versions: comma-separated list of version operators
         'versions': VersionOperator,
     }
 
@@ -548,8 +599,9 @@ class ConfigObjVersion(object):
         self.tcname = None
 
         self.default = {}  # default section
-        self.sections = {}  # non-default sections
-        self.unfiltered_sections = {}  # unfiltered non-default sections
+        self.supported = {}  # supported section
+        self.sections = {}  # all other sections
+        self.unfiltered_sections = {}  # unfiltered other sections
 
         self.versops = OrderedVersionOperators()
         self.tcversops = OrderedVersionOperators()
@@ -568,15 +620,13 @@ class ConfigObjVersion(object):
         # note: configobj already converts comma-separated strings in lists
         #
         # list of supported keywords, all else will fail
-        #    versions: comma-separated list of version operators
-        #    toolchains: comma-separated list of toolchain version operators
-        SUPPORTED_KEYS = ('versions', 'toolchains')
+        special_keys = self.VERSION_OPERATOR_VALUE_TYPES.keys()
         if parent is None:
             # no parent, so top sections
-            parsed_sections = {}
+            parsed = {}
         else:
             # parent specified, so not a top section
-            parsed_sections = Section(parent=parent, depth=depth+1, main=configobj)
+            parsed = Section(parent=parent, depth=depth+1, main=configobj)
 
         # start with full configobj initially, and then process subsections recursively
         if toparse is None:
@@ -585,13 +635,36 @@ class ConfigObjVersion(object):
         for key, value in toparse.items():
             if isinstance(value, Section):
                 self.log.debug("Enter subsection key %s value %s" % (key, value))
-                # only 3 types of sectionkeys supported: VersionOperator, ToolchainVersionOperator, and DEFAULT
-                if key in [self.DEFAULT]:
-                    new_key = key
+                # only supported types of section keys are:
+                # * DEFAULT
+                # * SUPPORTED
+                # * dependencies
+                # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
+                if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
+                    # parse value as a section, recursively
+                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    self.log.debug('Converted %s section to new value %s' % (key, new_value))
+                    parsed[key] = new_value
+
+                elif key == self.SECTION_MARKER_DEPENDENCIES:
+                    new_key = 'dependencies'
+                    new_value = []
+                    for dep_name, dep_spec in value.items():
+                        if isinstance(dep_spec, Section):
+                            self.log.error("Unsupported nested section '%s' found in dependencies section" % dep_name)
+                        else:
+                            # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
+                            new_value.append((dep_name, dep_spec))
+
+                    self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
+                    if isinstance(parsed, Section):
+                        parsed.parent[new_key] = new_value
+                    else:
+                        parsed[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                 else:
                     # try parsing key as toolchain version operator first
                     # try parsing as version operator if it's not a toolchain version operator
-                    for marker_type in self.KNOWN_MARKER_TYPES:
+                    for marker_type in self.KNOWN_VERSION_MARKER_TYPES:
                         new_key = marker_type(key)
                         if new_key:
                             self.log.debug("'%s' was parsed as a %s section marker" % (key, marker_type.__name__))
@@ -601,19 +674,21 @@ class ConfigObjVersion(object):
                     if not new_key:
                         self.log.error("Unsupported section marker '%s'" % key)
 
-                # parse value as a section, recursively
-                new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    # parse value as a section, recursively
+                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+
+                    self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
+                    parsed[new_key] = new_value
 
             else:
-                new_key = key
-
-                # don't allow any keys we don't know about (yet)
-                if not new_key in SUPPORTED_KEYS:
-                    self.log.error('Unsupported key %s with value %s in section' % (new_key, value))
+                # simply pass down any non-special key-value items
+                if not key in special_keys:
+                    self.log.debug('Passing down key %s with value %s' % (key, value))
+                    new_value = value
 
                 # parse individual key-value assignments
-                if new_key in self.VERSION_OPERATOR_VALUE_TYPES:
-                    value_type = self.VERSION_OPERATOR_VALUE_TYPES[new_key]
+                elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                    value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
                     if isinstance(value, basestring):
@@ -623,14 +698,16 @@ class ConfigObjVersion(object):
                         value = value.split(',')
                     # remove possible surrounding whitespace (some people add space after comma)
                     new_value = map(lambda x: value_type(x.strip()), value)
+                    if None in new_value:
+                        self.log.error("Failed to parse '%s' as a %s" % (value, value_type.__class__.__name__))
                 else:
-                    tup = (new_key, value, type(value))
+                    tup = (key, value, type(value))
                     self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
 
-            self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
-            parsed_sections[new_key] = new_value
+                self.log.debug("Converted value '%s' for key '%s' into new value '%s'" % (value, key, new_value))
+                parsed[key] = new_value
 
-        return parsed_sections
+        return parsed
 
     def validate_and_filter_by_toolchain(self, tcname, processed=None, filtered_sections=None, other_sections=None):
         """
@@ -661,20 +738,24 @@ class ConfigObjVersion(object):
                         # nothing more to do here, just continue with other sections
                         continue
                     else:
+                        self.log.debug("Found marker for specified toolchain '%s': %s" % (tcname, key))
                         # add marker to self.tcversops (which triggers a conflict check)
                         self.tcversops.add(key, value)
                         filtered_sections[key] = value
                 elif isinstance(key, VersionOperator):
+                    self.log.debug("Found marker for version '%s'" % key)
                     # keep track of all version operators, and enforce conflict check
                     self.versops.add(key, value)
                     filtered_sections[key] = value
                 else:
-                    self.log.error("Unhandled section marker type '%s', not in %s?" % (type(key), self.KNOWN_MARKER_TYPES))
+                    self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
 
                 # recursively go deeper for (relevant) sections
-                self.validate_and_filter_by_toolchain(tcname, value, filtered_sections, other_sections)
+                self.validate_and_filter_by_toolchain(tcname, processed=value, filtered_sections=filtered_sections,
+                                                      other_sections=other_sections)
 
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                self.log.debug("Found version operator key-value entry (%s)" % key)
                 if key == 'toolchains':
                     # remove any other toolchain from list
                     filtered_sections[key] = [tcversop for tcversop in value if tcversop.tc_name == tcname]
@@ -682,7 +763,7 @@ class ConfigObjVersion(object):
                     # retain all other values
                     filtered_sections[key] = value
             else:
-                filtered_sections[key] = value
+                self.log.debug("Found non-special key-value entry (key %s), skipping it" % key)
 
         if top_call:
             self.unfiltered_sections = self.sections
@@ -701,23 +782,70 @@ class ConfigObjVersion(object):
         # process the configobj instance
         self.sections = self.parse_sections(self.configobj)
 
-        # check for defaults section
-        default = self.sections.pop(self.DEFAULT, {})
-        DEFAULT_KEYWORDS = ('toolchains', 'versions')
-        # default should only have versions and toolchains
+        # handle default section
         # no nesting
-        #  - add DEFAULT key,values to the root of self.sections
-        for key, value in default.items():
-            if not key in DEFAULT_KEYWORDS:
-                self.log.error('Unsupported key %s in %s section' % (key, self.DEFAULT))
+        #  - add DEFAULT key-value entries to the root of self.sections
+        #  - key-value items from other sections will be deeper down
+        #  - deepest level is best match and wins, so defaults are on top level
+        self.default = self.sections.pop(self.SECTION_MARKER_DEFAULT, {})
+        for key, value in self.default.items():
             self.sections[key] = value
 
-        if 'versions' in default:
-            # first of list is special: it is the default
-            default['default_version'] = default['versions'][0]
-        if 'toolchains' in default:
-            # first of list is special: it is the default
-            default['default_toolchain'] = default['toolchains'][0]
+        # handle supported section
+        # supported should only have 'versions' and 'toolchains' keys
+        self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED, {})
+        for key, value in self.supported.items():
+            if not key in self.VERSION_OPERATOR_VALUE_TYPES:
+                self.log.error('Unsupported key %s in %s section' % (key, self.SECTION_MARKER_SUPPORTED))
+            self.sections['%s' % key] = value
 
-        self.default = default
-        self.log.debug("parse: default %s, sections %s" % (self.default, self.sections))
+        if 'versions' in self.supported:
+            # first of list is special: it is the default
+            self.default['version'] = self.supported['versions'][0].get_version_str()
+        if 'toolchains' in self.supported:
+            # first of list is special: it is the default
+            self.default['toolchain'] = self.supported['toolchains'][0].as_dict()
+
+        tup = (self.default, self.supported, self.sections)
+        self.log.debug("(parse) default: %s; supported: %s, sections: %s" % tup)
+
+    def get_specs_for(self, version=None, tcname=None, tcversion=None):
+        """
+        Return dictionary with specifications listed in sections applicable for specified info.
+        """
+        if isinstance(self.default, Section):
+            cfg = self.default.dict()
+        else:
+            cfg = copy.deepcopy(self.default)
+
+        # make sure that requested version/toolchain are supported by this easyconfig
+        versions = [x.get_version_str() for x in self.supported['versions']]
+        if version is None:
+            self.log.debug("No version specified")
+        elif version in versions:
+            self.log.debug("Version '%s' is supported in easyconfig." % version)
+        else:
+            self.log.error("Version '%s' not supported in easyconfig (only %s)" % (version, versions))
+
+        tcnames = [tc.tc_name for tc in self.supported['toolchains']]
+        if tcname is None:
+            self.log.debug("Toolchain name not specified.")
+        elif tcname in tcnames:
+            self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
+            tcversions = [tc.get_version_str() for tc in self.supported['toolchains'] if tc.tc_name == tcname]
+            if tcversion is None:
+                self.log.debug("Toolchain version not specified.")
+            elif tcversion in tcversions:
+                self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+            else:
+                tup = (tcname, tcversion, tcversions)
+                self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
+        else:
+            self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
+
+        # TODO: determine 'path' to take in sections based on version and toolchain version
+        # SDW: ask the versionoperator
+        self.log.debug("self.versops: %s" % self.versops)
+        self.log.debug("self.tcversops: %s" % self.tcversops)
+
+        return cfg
