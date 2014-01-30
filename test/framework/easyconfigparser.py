@@ -58,6 +58,18 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
+    def test_v20_deps(self):
+        fn = os.path.join(TESTDIRBASE, 'v2.0', 'libpng.eb')
+        ecp = EasyConfigParser(fn)
+
+        ec = ecp.get_config_dict()
+        self.assertEqual(ec['name'], 'libpng')
+        # first version/toolchain listed is default
+        self.assertEqual(ec['version'], '1.5.10')
+        self.assertEqual(ec['toolchain'], {'name': 'goolf', 'version': '1.4.10'})
+
+        # dependencies should be parsed correctly
+        self.assertEqual(ec['dependencies'], [('zlib', '1.2.5')])
 
 def suite():
     """ returns all the testcases in this module """
