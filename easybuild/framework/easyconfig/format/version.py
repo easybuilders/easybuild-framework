@@ -642,8 +642,9 @@ class ConfigObjVersion(object):
                 # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
                     # parse value as a section, recursively
-                    new_key = key
                     new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    self.log.debug('Converted %s section to new value %s' % (key, new_value))
+                    parsed[key] = new_value
 
                 elif key == self.SECTION_MARKER_DEPENDENCIES:
                     new_key = 'dependencies'
@@ -654,6 +655,12 @@ class ConfigObjVersion(object):
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             new_value.append((dep_name, dep_spec))
+
+                    self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
+                    if isinstance(parsed, Section):
+                        parsed.parent[new_key] = new_value
+                    else:
+                        parsed[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                 else:
                     # try parsing key as toolchain version operator first
                     # try parsing as version operator if it's not a toolchain version operator
@@ -670,17 +677,18 @@ class ConfigObjVersion(object):
                     # parse value as a section, recursively
                     new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
 
-            else:
-                new_key = key
+                    self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
+                    parsed[new_key] = new_value
 
+            else:
                 # simply pass down any non-special key-value items
-                if not new_key in special_keys:
-                    self.log.debug('Passing down key %s with value %s' % (new_key, value))
+                if not key in special_keys:
+                    self.log.debug('Passing down key %s with value %s' % (key, value))
                     new_value = value
 
                 # parse individual key-value assignments
-                elif new_key in self.VERSION_OPERATOR_VALUE_TYPES:
-                    value_type = self.VERSION_OPERATOR_VALUE_TYPES[new_key]
+                elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                    value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
                     if isinstance(value, basestring):
@@ -693,11 +701,11 @@ class ConfigObjVersion(object):
                     if None in new_value:
                         self.log.error("Failed to parse '%s' as a %s" % (value, value_type.__class__.__name__))
                 else:
-                    tup = (new_key, value, type(value))
+                    tup = (key, value, type(value))
                     self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
 
-            self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
-            parsed[new_key] = new_value
+                self.log.debug("Converted value '%s' for key '%s' into new value '%s'" % (value, key, new_value))
+                parsed[key] = new_value
 
         return parsed
 
