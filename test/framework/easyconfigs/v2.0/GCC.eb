@@ -33,7 +33,7 @@ license = GPLv3
 
 moduleclass = 'compiler'
 
-[DEFAULT]
+[SUPPORTED]
 versions = 4.6.2, 4.6.3
 toolchains = dummy == dummy
 
