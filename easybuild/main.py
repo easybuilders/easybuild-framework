@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -110,6 +110,10 @@ def main(testing_data=(None, None, None)):
     # hello world!
     _log.info(this_is_easybuild())
 
+    # how was EB called?
+    eb_command_line = eb_go.generate_cmd_line() + eb_go.args
+    _log.info("Command line: %s" % (" ".join(eb_command_line)))
+
     _log.info("Using %s as temporary directory" % eb_tmpdir)
 
     # set strictness of filetools module
@@ -140,13 +144,16 @@ def main(testing_data=(None, None, None)):
 
     # building a dependency graph implies force, so that all dependencies are retained
     # and also skips validation of easyconfigs (e.g. checking os dependencies)
+    retain_all_deps = False
     if options.dep_graph:
         _log.info("Enabling force to generate dependency graph.")
         options.force = True
+        retain_all_deps = True
 
     build_options = {
         'aggregate_regtest': options.aggregate_regtest,
         'check_osdeps': not options.ignore_osdeps,
+        'command_line': eb_command_line,
         'debug': options.debug,
         'dry_run': options.dry_run,
         'easyblock': options.easyblock,
@@ -155,6 +162,7 @@ def main(testing_data=(None, None, None)):
         'only_blocks': options.only_blocks,
         'regtest_online': options.regtest_online,
         'regtest_output_dir': options.regtest_output_dir,
+        'retain_all_deps': retain_all_deps,
         'robot_path': options.robot,
         'sequential': options.sequential,
         'silent': testing,

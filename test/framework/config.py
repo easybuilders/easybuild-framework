@@ -1,5 +1,5 @@
 # #
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -66,6 +66,13 @@ class EasyBuildConfigTest(TestCase):
         # keep track of original environment to restore
         self.orig_environ = copy.deepcopy(os.environ)
 
+    def purge_environment(self):
+        """Remove any leftover easybuild variables"""
+        for x in os.environ.keys():
+            # oldstyle and newstyle
+            if x.startswith('EASYBUILD'):
+                del os.environ[x]
+
     def tearDown(self):
         """Clean up after a config test."""
         self.cleanup()
@@ -117,6 +124,7 @@ class EasyBuildConfigTest(TestCase):
 
     def test_legacy_env_vars(self):
         """Test legacy environment variables."""
+        self.purge_environment()
 
         # build path
         test_buildpath = os.path.join(self.tmpdir, 'build', 'path')
@@ -219,6 +227,7 @@ class EasyBuildConfigTest(TestCase):
 
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
+        self.purge_environment()
 
         cfg_fn = self.configure(args=[])
         self.assertTrue(cfg_fn.endswith('easybuild/easybuild_config.py'))
@@ -332,6 +341,7 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_generaloption_config(self):
         """Test new-style configuration (based on generaloption)."""
+        self.purge_environment()
 
         # check whether configuration via environment variables works as expected
         prefix = os.path.join(self.tmpdir, 'testprefix')
@@ -390,6 +400,8 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
+        self.purge_environment()
+
         oldstyle_config_file = os.path.join(self.tmpdir, 'nooldconfig.py')
         config_file = os.path.join(self.tmpdir, 'testconfig.cfg')
 
@@ -450,6 +462,7 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
+        self.purge_environment()
         for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
             parent = tmpdir
             if parent is None:

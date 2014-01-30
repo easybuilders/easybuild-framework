@@ -1,5 +1,5 @@
 # #
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -679,7 +679,7 @@ class CommandLineOptionsTest(TestCase):
         try:
             main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
-            pass
+            print "err: %s" % err
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
