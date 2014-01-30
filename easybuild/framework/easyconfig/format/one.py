@@ -40,7 +40,7 @@ from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFo
 from easybuild.framework.easyconfig.format.version import EasyVersion
 
 
-_log = fancylogger.getLogger('easyconfig.format.format', fname=False)
+_log = fancylogger.getLogger('easyconfig.format.one', fname=False)
 
 
 class FormatOneZero(EasyConfigFormatConfigObj):

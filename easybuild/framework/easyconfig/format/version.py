@@ -72,6 +72,8 @@ class VersionOperator(object):
     # default operator when operator is undefined (but version is)
     DEFAULT_UNDEFINED_OPERATOR = OPERATOR_MAP['==']
 
+    DICT_SEPARATOR = ':'
+
     def __init__(self, versop_str=None, error_on_parse_failure=False):
         """
         Initialise VersionOperator instance.
@@ -85,6 +87,7 @@ class VersionOperator(object):
         self.version_str = None
         self.version = None
         self.operator = None
+        self.suffix = None
         self.regex = self.versop_regex()
 
         self.error_on_parse_failure = error_on_parse_failure
@@ -107,7 +110,7 @@ class VersionOperator(object):
     __nonzero__ = __bool__
 
     def is_valid(self):
-        """Check if this is a valid VersionOperator"""
+        """Check if this is a valid VersionOperator. Suffix can be anything."""
         return not(self.version is None or self.operator is None)
 
     def set(self, versop_str):
@@ -126,7 +129,10 @@ class VersionOperator(object):
     def test(self, test_version):
         """
         Convert argument to an EasyVersion instance if needed, and return self.operator(<argument>, self.version)
+            Versions only, no suffix.
         @param test_version: a version string or EasyVersion instance
+        
+        
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
@@ -153,7 +159,11 @@ class VersionOperator(object):
         else:
             operator = self.operator
         operator_str = self.REVERSE_OPERATOR_MAP[operator]
-        return ''.join(map(str, [operator_str, self.SEPARATOR, self.version]))
+
+        tmp = [operator_str, self.SEPARATOR, self.version]
+        if self.suffix is not None:
+            tmp.extend([self.SEPARATOR, self.suffix])
+        return ''.join(map(str, tmp))
 
     def get_version_str(self):
         """Return string representation of version (ignores operator)."""
@@ -169,7 +179,7 @@ class VersionOperator(object):
             return False
         elif not isinstance(versop, self.__class__):
             self.log.error("Types don't match in comparison: %s, expected %s" % (type(versop), self.__class__))
-        return self.version == versop.version and self.operator == versop.operator
+        return self.version == versop.version and self.operator == versop.operator and self.suffix == versop.suffix
 
     def __ne__(self, versop):
         """Is self not equal to versop"""
@@ -191,10 +201,17 @@ class VersionOperator(object):
         # - operator_str part is optional
         # - version_str should start/end with any word character except separator
         # - minimal version_str length is 1
-        reg_text = r"(?:(?P<operator_str>%(ops)s)%(sep)s)?(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % {
+        reg_text_operator = r"(?:(?P<operator_str>%(ops)s)%(sep)s)?" % {
             'sep': self.SEPARATOR,
             'ops': '|'.join(operators),
         }
+        reg_text_version = r"(?P<version_str>[^%(sep)s\W](?:\S*[^%(sep)s\W])?)" % { 'sep': self.SEPARATOR }
+        reg_text_ext = r"(?:%(sep)s(?:suffix%(extsep)s(?P<suffix>[^%(sep)s]+)))?" % {
+            'sep': self.SEPARATOR,
+            'extsep': self.DICT_SEPARATOR,
+        }
+
+        reg_text = r"%s%s%s" % (reg_text_operator, reg_text_version, reg_text_ext)
         if begin_end:
             reg_text = r"^%s$" % reg_text
         reg = re.compile(reg_text)
@@ -277,6 +294,9 @@ class VersionOperator(object):
             '> 3' and '== 3' : no overlap
             '>= 3' and '== 3' : overlap, and conflict (boundary 3 is ambigous)
             '> 3' and '>= 3' : overlap, no conflict ('> 3' is more strict then '>= 3')
+            
+            # suffix
+            '> 2 suffix:-x1' > '> 1 suffix:-x2': suffix not equal, conflict
         """
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
@@ -288,6 +308,8 @@ class VersionOperator(object):
         same_boundary = self.version == versop_other.version
         boundary_self_in_other = versop_other.test(self.version)
         boundary_other_in_self = self.test(versop_other.version)
+
+        suffix_allowed = self.suffix == versop_other.suffix
 
         same_family = False
         for fam in self.OPERATOR_FAMILIES:
@@ -304,15 +326,15 @@ class VersionOperator(object):
             if same_boundary:
                 if op.xor(self_includes_boundary, other_includes_boundary):
                     self.log.debug("%s, one includes boundary and one is strict => overlap, no conflict" % msg)
-                    return True, False
+                    overlap_conflict = [True, False]
                 else:
                     # conflict
                     self.log.debug("%s, and both include the boundary => overlap and conflict" % msg)
-                    return True, True
+                    overlap_conflict = [True, True]
             else:
                 # conflict
                 self.log.debug("%s, and different boundaries => overlap and conflict" % msg)
-                return True, True
+                overlap_conflict = [True, True]
         else:
             # both boundaries not included in one other version expression
             # => never a conflict, only possible overlap
@@ -328,7 +350,14 @@ class VersionOperator(object):
                 # overlap if boundary of one is in other
                 overlap = boundary_self_in_other or boundary_other_in_self
             self.log.debug("No conflict between %s; %s overlap %s, no conflict" % (versop_msg, msg, overlap))
-            return overlap, False
+            overlap_conflict = [overlap, False]
+
+        if not suffix_allowed:
+            # always conflict
+            self.log.debug("Suffix for %s are not equal. Force conflict True." % versop_msg)
+            overlap_conflict[1] = True
+
+        return tuple(overlap_conflict)
 
     def __gt__(self, versop_other):
         """
@@ -345,6 +374,10 @@ class VersionOperator(object):
             '== 4' > '> 3' : equality is more strict than inequality, but this order by boundaries
             '> 3' > '== 2' : there is no overlap, so just order the intervals according their boundaries
             '> 1' > '== 1' > '< 1' : no overlap, same boundaries, order by operator
+            suffix:
+                '> 2' > '> 1': both equal (both None), ordering like above
+                '> 2 suffix:-x1' > '> 1 suffix:-x1': both equal (both -x1), ordering like above
+                '> 2 suffix:-x1' > '> 1 suffix:-x2': not equal, conflict
         """
         overlap, conflict = self.test_overlap_and_conflict(versop_other)
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
@@ -374,7 +407,9 @@ class VersionOperator(object):
         return is_gt
 
     def _gt_safe(self, version_gt_op, versop_other):
-        """Conflict free comparsion by version first, and if versions are equal, by operator"""
+        """Conflict free comparsion by version first, and if versions are equal, by operator. 
+            Suffix are not considered.
+        """
         if len(self.ORDERED_OPERATORS) != len(self.OPERATOR_MAP):
             self.log.error('Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)')
 
@@ -626,7 +661,7 @@ class ConfigObjVersion(object):
             parsed = {}
         else:
             # parent specified, so not a top section
-            parsed = Section(parent=parent, depth=depth+1, main=configobj)
+            parsed = Section(parent=parent, depth=depth + 1, main=configobj)
 
         # start with full configobj initially, and then process subsections recursively
         if toparse is None:

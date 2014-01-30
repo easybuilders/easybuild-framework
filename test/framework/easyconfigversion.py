@@ -88,6 +88,12 @@ class EasyConfigVersion(TestCase):
             ('< 3', '> 2', (True, True)),  # overlap, and conflict (region between 2 and 3 is ambiguous)
             ('>= 3', '== 3' , (True, True)),  # overlap, and conflict (boundary 3 is ambigous)
             ('> 3', '>= 3' , (True, False)),  # overlap, no conflict ('> 3' is more strict then '>= 3')
+
+            # suffix
+            ('> 2', '> 1', (True, False)),  # suffix both equal (both None), ordering like above
+            ('> 2 suffix:-x1', '> 1 suffix:-x1', (True, False)),  # suffix both equal (both -x1), ordering like above
+            ('> 2 suffix:-x1', '> 1 suffix:-x2', (True, True)),  # suffix not equal, conflict (and overlap)
+            ('> 2 suffix:-x1', '< 1 suffix:-x2', (False, True)),  # suffix not equal, conflict (and no overlap)
         ]
 
         for l, r, res in overlap_conflict:
@@ -107,6 +113,9 @@ class EasyConfigVersion(TestCase):
             ('> 1', '>= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
             ('< 1', '<= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
             ('> 1', '< 1'),  # no overlap, same boundaries, order by operator (quite arbitrary in this case)
+
+            # suffix
+            ('> 2 suffix:-x1', '> 1 suffix:-x1'),  # equal suffixes, regular ordering
         ]
         for l, r in left_gt_right:
             self.assertTrue(VersionOperator(l) > VersionOperator(r), "%s gt %s" % (l, r))
