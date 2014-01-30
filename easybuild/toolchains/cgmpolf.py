@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2014 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.

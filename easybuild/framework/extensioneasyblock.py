@@ -1,5 +1,5 @@
 ##
-# Copyright 2014-2014 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
