@@ -591,8 +591,8 @@ class EasyBlock(object):
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
-        # make sure build dir is unique if cleanupoldbuild is not set
-        if not self.cfg['cleanupoldbuild']:
+        # make sure build dir is unique if cleanupoldbuild is False or not set
+        if not self.cfg.get('cleanupoldbuild', False):
             uniq_builddir = builddir
             suff = 0
             while(os.path.isdir(uniq_builddir)):
