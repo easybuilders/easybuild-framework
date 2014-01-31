@@ -1,0 +1,28 @@
+# EASYCONFIGFORMAT 2.0
+# this is a version test
+"""
+docstring test
+@author: Stijn De Weirdt (UGent)
+@maintainer: Kenneth Hoste (UGent)
+"""
+name = "gzip"
+
+homepage = "http://www.gzip.org/"
+description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
+
+source_urls = [GNU_SOURCE]
+sources = [SOURCE_TAR_GZ]
+
+sanity_check_paths = {
+    'files': ["bin/gunzip", "bin/gzip"],
+    'dirs': [],
+}
+
+sanity_check_commands = [True, ('gzip', '--version')]
+
+[SUPPORTED]
+versions = 1.4, 1.5
+toolchains = dummy == dummy, goolf, GCC == 4.6.3, goolf == 1.4.10, ictce == 4.1.13
+
+[DEFAULT]
+moduleclass = tools

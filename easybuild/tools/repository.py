@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -211,7 +211,7 @@ class FileRepository(Repository):
             self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
-        eb = EasyConfig(dest, validate=False)
+        eb = EasyConfig(dest, build_options={'validate': False})
         return eb['buildstats']
 
 

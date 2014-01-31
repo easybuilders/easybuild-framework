@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,14 @@ This describes the easyconfig format versions 2.x
 This is a mix between version 1.0 and configparser-style configuration
 
 @author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
+import copy
 import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.framework.easyconfig.format.version import EasyVersion, ConfigObjVersion
+from easybuild.framework.easyconfig.format.version import ConfigObjVersion, EasyVersion
+from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -53,8 +56,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     VERSION = EasyVersion('2.0')
     USABLE = True
 
-    PYHEADER_ALLOWED_BUILTINS = ['len']
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl', ]
+    PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl']
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
@@ -90,46 +93,65 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         if self.MAINTAINER_REQUIRED and not maintainers:
             self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
-    def get_config_dict(self, version=None, toolchain_name=None, toolchain_version=None):
+    def get_config_dict(self):
         """Return the best matching easyconfig dict"""
         # the toolchain name/version should not be specified in the pyheader,
         # but other toolchain options are allowed
+
+        cfg = copy.deepcopy(self.pyheader_localvars)
+        self.log.debug("Config dict based on Python header: %s" % cfg)
 
         cov = ConfigObjVersion(self.configobj)
 
         # we only need to find one version / toolchain combo
         # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
+        version = self.specs.get('version', None)
         if version is None:
             # check for default version
-            if 'default_version' in cov.default:
-                version = cov.default['default_version']
-                self.log.warning('get_config_dict: no version specified, using default version %s' % version)
+            if 'version' in cov.default:
+                version = cov.default['version']
+                self.log.info("no software version specified, using default version '%s'" % version)
             else:
-                self.log.error('get_config_dict: no version specified, no default version found')
+                self.log.error("no software version specified, no default version found")
+        else:
+            self.log.debug("Using specified software version %s" % version)
 
+        tc_spec = self.specs.get('toolchain', {})
+        toolchain_name = tc_spec.get('name', None)
         if toolchain_name is None:
             # check for default toolchain
-            if 'default_toolchain' in cov.default:
-                toolchain = cov.default['default_toolchain']
-                toolchain_name = toolchain.tc_name
-                self.log.warning('get_config_dict: no toolchain_name specified, using default %s' % toolchain_name)
+            if 'toolchain' in cov.default:
+                toolchain = cov.default['toolchain']
+                toolchain_name = toolchain['name']
+                self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
+                toolchain_version = tc_spec.get('version', None)
+                if toolchain_version is None:
+                    toolchain_version = toolchain['version']
+                    self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
             else:
-                self.log.error('get_config_dict: no toolchain_name specified, no default toolchain found')
+                self.log.error("no toolchain name specified, no default toolchain found")
+        else:
+            self.log.debug("Using specified toolchain name %s" % toolchain_name)
+            toolchain_version = tc_spec.get('version', None)
+            if toolchain_version is None:
+                self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 
         # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
         # this also performs some validation, and checks for conflicts between section markers
-        self.log.debug("full parsed configobj (before filtering): %s" % cov.sections)
+        self.log.debug("sections for full parsed configobj: %s" % cov.sections)
         cov.validate_and_filter_by_toolchain(toolchain_name)
-        self.log.debug("parsed configobj (after filtering): %s" % cov.sections)
+        self.log.debug("sections for filtered parsed configobj: %s" % cov.sections)
 
-        # FIXME we're not done yet here...
-        raise NotImplementedError
+        section_specs = cov.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
+        cfg.update(section_specs)
+        self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
+        # FIXME what about updating dict values/appending to list values? how do we allow both redefining and updating? = and +=?
 
-        if toolchain_version is None:
-            # is there any toolchain with this version?
-            # TODO implement
-            pass
+        # update config with correct version/toolchain (to avoid using values specified in default section)
+        cfg.update({
+            'version': version,
+            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+        })
 
-        # TODO: determine 'path' to take based on version
-
-        return cov # FIXME, this is clearly wrong (but we need to return something non-None)
+        self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
+        return cfg

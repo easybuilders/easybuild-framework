@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -67,7 +67,7 @@ class ToolchainTest(TestCase):
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
-        ec = EasyConfig(ec_file, validate=False)
+        ec = EasyConfig(ec_file, build_options={'validate': False})
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
 

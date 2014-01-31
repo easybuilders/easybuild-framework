@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -134,9 +134,13 @@ class EasyConfigParser(object):
         except IOError, err:
             self.log.error('Failed to process content with %s: %s' % (self.set_fn, err))
 
-    def get_config_dict(self, **kwargs):
+    def set_specifications(self, specs):
+        """Set specifications."""
+        self._formatter.set_specifications(specs)
+
+    def get_config_dict(self, validate=True):
         """Return parsed easyconfig as a dict."""
-        validate = kwargs.pop('validate', True)  # allows to bypass the validation step, typically for testing
+        # allows to bypass the validation step, typically for testing
         if validate:
             self._formatter.validate()
-        return self._formatter.get_config_dict(**kwargs)
+        return self._formatter.get_config_dict()
