@@ -73,6 +73,8 @@ TEMPLATE_CONSTANTS = [
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(namelower)s/%(namelower)s/downloads',
+     'bitbucket.org downloads url'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
