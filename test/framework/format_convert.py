@@ -16,11 +16,15 @@ class ConvertTest(TestCase):
     """Test the license"""
 
     def test_subclasses(self):
-        """Check if a number of common convertmethods can be found"""
-        self.assertEqual(get_convert_class('ListOfStrings'), ListOfStrings)
+        """Check if a number of common convert classes can be found"""
+        for convert_class in ListOfStrings, DictOfStrings, ListOfStringsAndDictOfStrings:
+            self.assertEqual(get_convert_class(convert_class.__name__), convert_class)
 
     def test_listofstrings(self):
         """Test list of strings"""
+        # test default separators
+        self.assertEqual(ListOfStrings.SEPARATOR_LIST, ',')
+
         dest = ['a', 'b']
         txt = ListOfStrings.SEPARATOR_LIST.join(dest)
 
@@ -29,8 +33,17 @@ class ConvertTest(TestCase):
         self.assertEqual(res, dest)
         self.assertEqual(str(res), txt)
 
+        # retest with space separated separator
+        res = ListOfStrings(txt.replace(ListOfStrings.SEPARATOR_LIST, ListOfStrings.SEPARATOR_LIST + ' '))
+        self.assertEqual(res, dest)
+
+
     def test_dictofstrings(self):
         """Test dict of strings"""
+        # test default separators
+        self.assertEqual(DictOfStrings.SEPARATOR_DICT, ';')
+        self.assertEqual(DictOfStrings.SEPARATOR_KEY_VALUE, ':')
+
         # start with simple one because the conversion to string is ordered
         dest = {'a':'b'}
         txt = DictOfStrings.SEPARATOR_KEY_VALUE.join(dest.items()[0])
@@ -38,6 +51,11 @@ class ConvertTest(TestCase):
         res = DictOfStrings(txt)
         self.assertEqual(res, dest)
         self.assertEqual(str(res), txt)
+
+        # retest with space separated separator
+        txt2 = txt.replace(DictOfStrings.SEPARATOR_KEY_VALUE, DictOfStrings.SEPARATOR_KEY_VALUE + ' ')
+        res = ListOfStrings(txt2.replace(DictOfStrings.SEPARATOR_DICT, DictOfStrings.SEPARATOR_DICT + ' '))
+
 
         # more complex one
         dest = {'a':'b', 'c':'d'}
@@ -60,12 +78,25 @@ class ConvertTest(TestCase):
 
     def test_listofstringsanddictofstrings(self):
         """Test ListOfStringsAndDictOfStrings"""
+        # test default separators
+        self.assertEqual(ListOfStringsAndDictOfStrings.SEPARATOR_LIST, ',')
+        self.assertEqual(ListOfStringsAndDictOfStrings.SEPARATOR_DICT, ';')
+        self.assertEqual(ListOfStringsAndDictOfStrings.SEPARATOR_KEY_VALUE, ':')
+
         txt = "a,b,c:d"
         dest = ['a', 'b', {'c':'d'}]
 
         res = ListOfStringsAndDictOfStrings(txt)
         self.assertEqual(res, dest)
         self.assertEqual(str(res), txt)
+
+        # retest with space separated separator
+        txt2 = txt.replace(ListOfStringsAndDictOfStrings.SEPARATOR_LIST,
+                           ListOfStringsAndDictOfStrings.SEPARATOR_LIST + ' ')
+        txt2 = txt2.replace(ListOfStringsAndDictOfStrings.SEPARATOR_KEY_VALUE,
+                            ListOfStringsAndDictOfStrings.SEPARATOR_KEY_VALUE + ' ')
+        res = ListOfStringsAndDictOfStrings(txt2.replace(ListOfStringsAndDictOfStrings.SEPARATOR_DICT,
+                                                         ListOfStringsAndDictOfStrings.SEPARATOR_DICT + ' '))
 
         # larger test
         txt = "a,b,c:d;e:f,g,h,i:j"
