@@ -196,13 +196,14 @@ class ConfigurationVariables(dict):
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
     oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
-    newpath = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.environ["HOME"], ".config")), "easybuild")
+    newpath = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config")),
+                           "easybuild")
 
-    if os.path.isdir(oldpath):
-        _log.deprecated("The easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
-        return oldpath
-    else:
+    if os.path.isdir(newpath):
         return newpath
+    else:
+        _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
+        return oldpath
 
 
 def get_default_oldstyle_configfile():
