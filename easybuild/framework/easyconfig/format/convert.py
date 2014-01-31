@@ -24,7 +24,7 @@
 # #
 
 """
-This module implements easyconfig specific formats and their converts 
+This module implements easyconfig specific formats and their conversions.
 
 @author: Stijn De Weirdt (Ghent University)
 """
@@ -61,7 +61,7 @@ class Dependency(Convert):
 
         items = self._split_string(txt, sep=self.SEPARATOR_DEP)
         if len(items) < 1 or len(items) > 2:
-            raise TypeError('Dependency has at least one element (versop_str), and at most 2 (2nd element the tc_versop). Separator')
+            raise ValueError('Dependency has at least one element (versop_str), and at most 2 (2nd element the tc_versop). Separator')
 
         res['versop'] = VersionOperator(items[0])
 

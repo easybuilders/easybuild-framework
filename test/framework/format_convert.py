@@ -53,14 +53,14 @@ class ConvertTest(TestCase):
         try:
             res = Tmp(txt)
             msg = None
-        except TypeError, msg:
+        except ValueError, msg:
             pass
         self.assertFalse(msg is None)
 
 
     def test_listofstringsanddictofstrings(self):
         """Test ListOfStringsAndDictOfStrings"""
-        txt = 'a,b,c:d'
+        txt = "a,b,c:d"
         dest = ['a', 'b', {'c':'d'}]
 
         res = ListOfStringsAndDictOfStrings(txt)
@@ -68,8 +68,8 @@ class ConvertTest(TestCase):
         self.assertEqual(str(res), txt)
 
         # larger test
-        txt = 'a,b,c:d,d:e'
-        dest = ['a', 'b', {'c':'d', 'd':'e'}]
+        txt = "a,b,c:d;e:f,g,h,i:j"
+        dest = ['a', 'b', {'c':'d', 'e': 'f'}, 'g', 'h', {'i': 'j'}]
 
         res = ListOfStringsAndDictOfStrings(txt)
         self.assertEqual(res, dest)
@@ -80,7 +80,7 @@ class ConvertTest(TestCase):
         try:
             res = Tmp(txt)
             msg = None
-        except TypeError, msg:
+        except ValueError, msg:
             pass
         self.assertFalse(msg is None)
 

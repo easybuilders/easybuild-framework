@@ -34,7 +34,12 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, nub
 from vsc.utils.wrapper import Wrapper
 
-_log = fancylogger.getLogger('easyconfig.format.convert', fname=False)
+_log = fancylogger.getLogger('tools.convert', fname=False)
+
+
+class AllowedValueError(ValueError):
+    """Specific type of error for non-allowed keys in DictOf classes."""
+    pass
 
 
 class Convert(Wrapper):
@@ -45,13 +50,13 @@ class Convert(Wrapper):
         self.__dict__['log'] = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.__dict__['data'] = None
         if isinstance(obj, basestring):
-            data = self._from_string(obj)
+            self.data = self._from_string(obj)
         else:
             self.log.error('unsupported type %s for %s' % (type(obj), self.__class__.__name__))
-        super(Convert, self).__init__(data)
+        super(Convert, self).__init__(self.data)
 
     def _split_string(self, txt, sep=None, max=0):
-        """Split using regexp, return finditer.
+        """Split using sep, return list with results.
             @param sep: if not provided, self.SEPARATOR is tried
             @param max: split in max+1 elements (default: 0 == no limit)
         """
@@ -60,7 +65,7 @@ class Convert(Wrapper):
                 self.log.error('No SEPARATOR set, also no separator passed')
             else:
                 sep = self.SEPARATOR
-        return re.split(r'' + sep, txt, maxsplit=max)
+        return [x.strip() for x in re.split(r'' + sep, txt, maxsplit=max)]
 
     def _from_string(self, txt):
         """Convert string txt to self.data in proper type"""
@@ -76,13 +81,21 @@ class ListOfStrings(Convert):
     SEPARATOR_LIST = ','
     __wraps__ = list
 
+    def __init__(self, obj, separator_list=None):
+        self.separator_list = separator_list
+        if self.separator_list is None:
+            self.separator_list = self.SEPARATOR_LIST
+        Convert.__init__(self, obj)
+
     def _from_string(self, txt):
-        """ a,b -> ['a', 'b']"""
-        return self._split_string(txt, sep=self.SEPARATOR_LIST)
+        """Parse string as a list of strings.
+            For example: "a,b" -> ['a', 'b']
+        """
+        return self._split_string(txt, sep=self.separator_list)
 
     def __str__(self):
         """Convert to string"""
-        return self.SEPARATOR_LIST.join(self._obj)
+        return self.separator_list.join(self)
 
 
 class DictOfStrings(Convert):
@@ -90,60 +103,84 @@ class DictOfStrings(Convert):
         key/value pairs are separated via SEPARATOR_DICT
         key and value are separated via SEPARATOR_KEY_VALUE
     """
-    SEPARATOR_KEY_VALUE = ':'
     SEPARATOR_DICT = ';'
+    SEPARATOR_KEY_VALUE = ':'
     ALLOWED_KEYS = None
     __wraps__ = dict
 
+    def __init__(self, obj, separator_dict=None, separator_key_value=None, allowed_keys=None, raise_allowed=False):
+        self.separator_dict = separator_dict
+        if self.separator_dict is None:
+            self.separator_dict = self.SEPARATOR_DICT
+        self.separator_key_value = separator_key_value
+        if self.separator_key_value is None:
+            self.separator_key_value = self.SEPARATOR_KEY_VALUE
+        self.allowed_keys = allowed_keys
+        if self.allowed_keys is None:
+            self.allowed_keys = self.ALLOWED_KEYS
+        self.raise_allowed = ValueError
+        if self.raise_allowed:
+            self.raise_allowed = AllowedValueError
+
+        Convert.__init__(self, obj)
+
     def _from_string(self, txt):
-        """ a:b;c:d -> {'a':'b', 'c':'d'} """
+        """Parse string as a dictionary of strings.
+            For example: "a:b;c:d" -> {'a':'b', 'c':'d'}"
+        """
+
         res = {}
-        for pairs in self._split_string(txt, sep=self.SEPARATOR_DICT):
-            key, value = self._split_string(pairs, sep=self.SEPARATOR_KEY_VALUE, max=1)
-            if self.ALLOWED_KEYS is None or key in self.ALLOWED_KEYS:
-                res[key] = value
+        for pairs in self._split_string(txt, sep=self.separator_dict):
+            key_value = self._split_string(pairs, sep=self.separator_key_value, max=1)
+            if len(key_value) == 2:
+                key, value = key_value
+                if self.allowed_keys is None or key in self.allowed_keys:
+                    res[key] = value
+                else:
+                    raise self.raise_allowed('Unsupported key %s (supported %s)' % (key, self.allowed_keys))
             else:
-                raise TypeError('Unsupported key %s (supported %s)' % (key, self.ALLOWED_KEYS))
+                msg = 'Unsupported element %s (from pairs %s, missing key_value separator %s)'
+                raise ValueError(msg % (key_value, pairs, self.separator_key_value))
         return res
 
     def __str__(self):
         """Convert to string"""
-        tmp = [self.SEPARATOR_KEY_VALUE.join(item) for item in self.items() ]
-        return self.SEPARATOR_DICT.join(tmp)
+        return self.separator_dict.join([self.separator_key_value.join(item) for item in self.items()])
 
 
 class ListOfStringsAndDictOfStrings(Convert):
     """Returns a list of strings and with last element a dict"""
     SEPARATOR_LIST = ','
+    SEPARATOR_DICT = ';'
     SEPARATOR_KEY_VALUE = ':'
     ALLOWED_KEYS = None
     __wraps__ = list
     def _from_string(self, txt):
-        """ a,b,c:d -> ['a','b',{'c':'d'}] """
+        """Parse string as a list of strings, followed by a dictionary of strings at the end.
+            For example, "a,b,c:d;e:f,g,h,i:j" -> ['a','b',{'c':'d', 'e': 'f'}, 'g', 'h', {'i': 'j'}]
+        """
         res = []
-        res_dict = {}
-        for element in self._split_string(txt, sep=self.SEPARATOR_LIST):
-            key_value = self._split_string(element, sep=self.SEPARATOR_KEY_VALUE, max=1)
-            if len(key_value) == 2:
-                key, value = key_value
-                if self.ALLOWED_KEYS is None or key in self.ALLOWED_KEYS:
-                    res_dict[key] = value
-                else:
-                    raise TypeError('Unsupported key %s (supported %s)' % (key, self.ALLOWED_KEYS))
-            else:
+
+        for element in ListOfStrings(txt, separator_list=self.SEPARATOR_LIST):
+            try:
+                kwargs = {
+                    'separator_dict': self.SEPARATOR_DICT,
+                    'separator_key_value': self.SEPARATOR_KEY_VALUE,
+                    'allowed_keys': self.ALLOWED_KEYS,
+                    'raise_allowed': True,
+                }
+                res.append(DictOfStrings(element, **kwargs))
+            except AllowedValueError, msg:
+                # reraise it as regular ValueError
+                raise ValueError(msg)
+            except ValueError:
                 res.append(element)
 
-        if res_dict:
-            res.append(res_dict)
         return res
 
     def __str__(self):
         """Convert to string"""
-        if isinstance(self[-1], dict):
-            tmp = [self.SEPARATOR_KEY_VALUE.join(item) for item in self[-1].items() ]
-            return self.SEPARATOR_LIST.join(self[:-1] + tmp)
-        else:
-            return self.SEPARATOR_LIST.join(self)
+        return self.SEPARATOR_LIST.join([str(x) for x in self])
 
 
 def get_convert_class(class_name):
