@@ -5,7 +5,7 @@ Unit tests for easyconfig/format/convert.py
 """
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
-from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.framework.easyconfig.format.convert import Dependency, Patch
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 
@@ -51,6 +51,18 @@ class ConvertTest(TestCase):
         res = DictOfStrings(txt)
         self.assertEqual(res, dest)
         self.assertEqual(str(res), txt)
+
+        # test with auto convert list to dict
+        class Tmp(DictOfStrings):
+            MIXED_LIST = ['first']
+            __str__ = DictOfStrings.__str__
+
+        dest2 = {'first':'first_value'}
+        dest2.update(dest)
+        txt2 = DictOfStrings.SEPARATOR_DICT.join([dest2['first'], txt])
+        res = Tmp(txt2)
+        self.assertEqual(res, dest2)
+        self.assertEqual(str(res), txt2)
 
         # retest with space separated separator
         txt2 = txt.replace(DictOfStrings.SEPARATOR_KEY_VALUE, DictOfStrings.SEPARATOR_KEY_VALUE + ' ')
@@ -134,6 +146,25 @@ class ConvertTest(TestCase):
         res = Dependency(txt)
         self.assertEqual(dest, res)
         self.assertEqual(str(res), txt)
+
+    def test_patch(self):
+        """Test Patch class"""
+
+        # filename;level:<int>;dest:<string>
+        dest = {
+            'filename':'/some/path',
+            'level':1,
+            'dest':'somedir',
+        }
+        newdest = {
+            'sep':DictOfStrings.SEPARATOR_DICT,
+            'dsep':DictOfStrings.SEPARATOR_KEY_VALUE,
+        }
+        newdest.update(dest)
+        txt = "%(filename)s%(sep)slevel%(dsep)s%(level)s%(sep)sdest%(dsep)s%(dest)s" % newdest
+
+        res = Patch(txt)
+        self.assertEqual(res, dest)
 
 
 def suite():

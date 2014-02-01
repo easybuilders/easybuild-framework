@@ -106,6 +106,7 @@ class DictOfStrings(Convert):
     SEPARATOR_DICT = ';'
     SEPARATOR_KEY_VALUE = ':'
     ALLOWED_KEYS = None
+    MIXED_LIST = []
     __wraps__ = dict
 
     def __init__(self, obj, separator_dict=None, separator_key_value=None, allowed_keys=None, raise_allowed=False):
@@ -127,10 +128,17 @@ class DictOfStrings(Convert):
     def _from_string(self, txt):
         """Parse string as a dictionary of strings.
             For example: "a:b;c:d" -> {'a':'b', 'c':'d'}"
+            
+            It also supports automagic dictionary creation via the MIXED_LIST list of keys, 
+            but the order is important.
+            MIXED_LIST=['first','second']
+            will convert 
+            "val1;val2;third:val3" -> {'first': 'val1', 'second': 'val2', 'third': 'val3'}
         """
 
         res = {}
-        for pairs in self._split_string(txt, sep=self.separator_dict):
+        ml_usage = [-1]
+        for idx, pairs in enumerate(self._split_string(txt, sep=self.separator_dict)):
             key_value = self._split_string(pairs, sep=self.separator_key_value, max=1)
             if len(key_value) == 2:
                 key, value = key_value
@@ -138,6 +146,16 @@ class DictOfStrings(Convert):
                     res[key] = value
                 else:
                     raise self.raise_allowed('Unsupported key %s (supported %s)' % (key, self.allowed_keys))
+            elif idx + 1 <= len(self.MIXED_LIST):
+                # auto-complete list into dict
+                if  ml_usage[-1] == idx - 1:
+                    # all elements have to used before this one
+                    ml_usage.append(idx)
+                    res[self.MIXED_LIST[idx]] = pairs
+                else:
+                    msg = 'Unsupported element %s (previous element from mixed list is missing: current idx %s)'
+                    raise ValueError(msg % (key_value, idx))
+
             else:
                 msg = 'Unsupported element %s (from pairs %s, missing key_value separator %s)'
                 raise ValueError(msg % (key_value, pairs, self.separator_key_value))
@@ -145,7 +163,11 @@ class DictOfStrings(Convert):
 
     def __str__(self):
         """Convert to string"""
-        return self.separator_dict.join([self.separator_key_value.join(item) for item in self.items()])
+        # the str conversions are needed for subclasses that use non-string values
+        mixed_list = [str(self[ml]) for ml in self.MIXED_LIST if ml in self]
+        join = self.separator_key_value.join
+        regular = [join([it[0], str(it[1])]) for it in self.items() if not it[0] in self.MIXED_LIST]
+        return self.separator_dict.join(mixed_list + regular)
 
 
 class ListOfStringsAndDictOfStrings(Convert):
@@ -173,7 +195,8 @@ class ListOfStringsAndDictOfStrings(Convert):
             except AllowedValueError, msg:
                 # reraise it as regular ValueError
                 raise ValueError(msg)
-            except ValueError:
+            except ValueError, msg:
+                self.log.debug('ValueError catched with message %s' % msg)
                 res.append(element)
 
         return res

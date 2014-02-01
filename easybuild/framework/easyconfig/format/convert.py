@@ -29,17 +29,24 @@ This module implements easyconfig specific formats and their conversions.
 @author: Stijn De Weirdt (Ghent University)
 """
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.tools.convert import Convert, ListOfStringsAndDictOfStrings, ListOfStrings
+from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
 
 
-class Patch(ListOfStringsAndDictOfStrings):
+class Patch(DictOfStrings):
     """Handle single patch
+        # shorthand
         filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+        # full dict notation
+        filename:filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
     """
     ALLOWED_KEYS = ['level', 'dest']
-    __wraps__ = dict
-    def __init__(self):
-        raise NotImplementedError
+    MIXED_LIST = ['filename']  # filename as first element (also filename:some_path i supported)
+    __str__ = DictOfStrings.__str__
+    def _from_string(self, txt):
+        res = DictOfStrings._from_string(self, txt)
+        if 'level' in res:
+            res['level'] = int(res['level'])
+        return res
 
 
 class Patches(ListOfStrings):
