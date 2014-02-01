@@ -3,6 +3,8 @@ Unit tests for easyconfig/format/convert.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import re
+
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
 from easybuild.framework.easyconfig.format.convert import Dependency, Patch
@@ -20,6 +22,22 @@ class ConvertTest(TestCase):
         for convert_class in ListOfStrings, DictOfStrings, ListOfStringsAndDictOfStrings:
             self.assertEqual(get_convert_class(convert_class.__name__), convert_class)
 
+    def assertErrorRegex(self, error, regex, call, *args):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args)
+            self.assertTrue(False)  # this will fail when no exception is thrown at all
+        except error, err:
+            if hasattr(err, 'msg'):
+                msg = getattr(err, 'msg')
+            elif hasattr(err, 'message'):
+                msg = getattr(err, 'message')
+
+            res = re.search(regex, msg)
+            if not res:
+                print "err: %s" % err
+            self.assertTrue(res)
+
     def test_listofstrings(self):
         """Test list of strings"""
         # test default separators
@@ -36,7 +54,6 @@ class ConvertTest(TestCase):
         # retest with space separated separator
         res = ListOfStrings(txt.replace(ListOfStrings.SEPARATOR_LIST, ListOfStrings.SEPARATOR_LIST + ' '))
         self.assertEqual(res, dest)
-
 
     def test_dictofstrings(self):
         """Test dict of strings"""
@@ -80,13 +97,8 @@ class ConvertTest(TestCase):
         # test ALLOWED_KEYS
         class Tmp(DictOfStrings):
             ALLOWED_KEYS = ['x']
-        try:
-            res = Tmp(txt)
-            msg = None
-        except ValueError, msg:
-            pass
-        self.assertFalse(msg is None)
 
+        self.assertErrorRegex(ValueError, "allowed", Tmp, txt)
 
     def test_listofstringsanddictofstrings(self):
         """Test ListOfStringsAndDictOfStrings"""
@@ -120,12 +132,8 @@ class ConvertTest(TestCase):
         # test ALLOWED_KEYS
         class Tmp(ListOfStringsAndDictOfStrings):
             ALLOWED_KEYS = ['x']
-        try:
-            res = Tmp(txt)
-            msg = None
-        except ValueError, msg:
-            pass
-        self.assertFalse(msg is None)
+
+        self.assertErrorRegex(ValueError, "allowed", Tmp, txt)
 
     def test_dependency(self):
         """Test Dependency class"""

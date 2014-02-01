@@ -145,7 +145,7 @@ class DictOfStrings(Convert):
                 if self.allowed_keys is None or key in self.allowed_keys:
                     res[key] = value
                 else:
-                    raise self.raise_allowed('Unsupported key %s (supported %s)' % (key, self.allowed_keys))
+                    raise self.raise_allowed('Unsupported key %s (allowed %s)' % (key, self.allowed_keys))
             elif idx + 1 <= len(self.MIXED_LIST):
                 # auto-complete list into dict
                 if  ml_usage[-1] == idx - 1:
@@ -194,7 +194,7 @@ class ListOfStringsAndDictOfStrings(Convert):
                 res.append(DictOfStrings(element, **kwargs))
             except AllowedValueError, msg:
                 # reraise it as regular ValueError
-                raise ValueError(msg)
+                raise ValueError(str(msg))
             except ValueError, msg:
                 self.log.debug('ValueError catched with message %s' % msg)
                 res.append(element)
