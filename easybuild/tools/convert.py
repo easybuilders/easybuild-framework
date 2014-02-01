@@ -94,8 +94,8 @@ class ListOfStrings(Convert):
         return self._split_string(txt, sep=self.separator_list)
 
     def __str__(self):
-        """Convert to string"""
-        return self.separator_list.join(self)
+        """Convert to string. str() is used for easy subclassing"""
+        return self.SEPARATOR_LIST.join([str(x) for x in self])
 
 
 class DictOfStrings(Convert):
@@ -177,6 +177,7 @@ class ListOfStringsAndDictOfStrings(Convert):
     SEPARATOR_KEY_VALUE = ':'
     ALLOWED_KEYS = None
     __wraps__ = list
+
     def _from_string(self, txt):
         """Parse string as a list of strings, followed by a dictionary of strings at the end.
             For example, "a,b,c:d;e:f,g,h,i:j" -> ['a','b',{'c':'d', 'e': 'f'}, 'g', 'h', {'i': 'j'}]
@@ -202,7 +203,7 @@ class ListOfStringsAndDictOfStrings(Convert):
         return res
 
     def __str__(self):
-        """Convert to string"""
+        """Return string with ListOfStrings"""
         return self.SEPARATOR_LIST.join([str(x) for x in self])
 
 

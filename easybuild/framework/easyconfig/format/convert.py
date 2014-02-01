@@ -42,6 +42,7 @@ class Patch(DictOfStrings):
     ALLOWED_KEYS = ['level', 'dest']
     MIXED_LIST = ['filename']  # filename as first element (also filename:some_path i supported)
     __str__ = DictOfStrings.__str__
+
     def _from_string(self, txt):
         res = DictOfStrings._from_string(self, txt)
         if 'level' in res:
@@ -50,10 +51,12 @@ class Patch(DictOfStrings):
 
 
 class Patches(ListOfStrings):
-    """Handle patches as list of Patch
-    """
-    def __init__(self):
-        raise NotImplementedError
+    """Handle patches as list of Patch"""
+    __str__ = ListOfStrings.__str__
+
+    def _from_string(self, txt):
+        res = ListOfStrings._from_string(self, txt)
+        return [Patch(x) for x in res]
 
 
 class Dependency(Convert):

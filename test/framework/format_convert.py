@@ -7,7 +7,7 @@ import re
 
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
-from easybuild.framework.easyconfig.format.convert import Dependency, Patch
+from easybuild.framework.easyconfig.format.convert import Dependency, Patch, Patches
 
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 
@@ -172,6 +172,42 @@ class ConvertTest(TestCase):
         txt = "%(filename)s%(sep)slevel%(dsep)s%(level)s%(sep)sdest%(dsep)s%(dest)s" % newdest
 
         res = Patch(txt)
+        self.assertEqual(res, dest)
+
+    def test_patches(self):
+        """Test Patches"""
+
+        dest = [
+            {'filename':'fn1',
+             'level': 1,
+             },
+            {'filename':'fn2'
+             },
+            {'filename':'fn3',
+             'dest':'somedir',
+             }
+        ]
+        newdest = {
+            'lsep':ListOfStrings.SEPARATOR_LIST,
+            'sep':DictOfStrings.SEPARATOR_DICT,
+            'dsep':DictOfStrings.SEPARATOR_KEY_VALUE,
+        }
+
+        tmpl = [
+            "%(filename)s%(sep)slevel%(dsep)s%(level)s",
+            "%(filename)s",
+            "%(filename)s%(sep)sdest%(dsep)s%(dest)s",
+        ]
+
+        txtlist = []
+        for idx, p in enumerate(dest):
+            n = {}
+            n.update(newdest)
+            n.update(p)
+
+            txtlist.append(tmpl[idx] % n)
+
+        res = Patches(newdest['lsep'].join(txtlist))
         self.assertEqual(res, dest)
 
 
