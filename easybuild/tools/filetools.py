@@ -577,8 +577,8 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             else:
                 _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
 
-        if p == None: # p can also be zero, so don't use "not p"
-            ## no match
+        if p is None:  # p can also be zero, so don't use "not p"
+            # no match
             _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
         else:
             _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
@@ -594,6 +594,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         return
 
     return result
+
 
 def adjust_cmd(func):
     """Make adjustments to given command, if required."""
@@ -615,6 +616,7 @@ def adjust_cmd(func):
         return func(cmd, *args, **kwargs)
 
     return inner
+
 
 @adjust_cmd
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
@@ -649,7 +651,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
+                             stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
     if inp:
@@ -709,7 +711,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - replace newline
 
     def escape_special(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])" , r"\\\1", string)
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
@@ -831,9 +833,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
             _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
-                                                                                    maxHitCount,
-                                                                                    stdoutErr[-500:]
-                                                                                    ))
+                                                                                         maxHitCount,
+                                                                                         stdoutErr[-500:]
+                                                                                         ))
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -923,9 +925,9 @@ def convert_name(name, upper=False):
     """
     ## no regexps
     charmap = {
-         '+':'plus',
-         '-':'min'
-        }
+        '+': 'plus',
+        '-': 'min'
+    }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
 
@@ -964,9 +966,9 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     if stdout and res:
         if msg:
             _log.info("parseLogError msg: %s" % msg)
-        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
-                                                                              '\n'.join([x[0] for x in res])
-                                                                              ))
+            _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
+                                                                                     '\n'.join([x[0] for x in res])
+                                                                                     ))
 
     return res
 
@@ -1040,10 +1042,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
-        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
-                  (100*fail_ratio, 100*max_fail_ratio))
+        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
+                  (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100*fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
 
 def patch_perl_script_autoflush(path):
@@ -1070,7 +1072,7 @@ def mkdir(directory, parents=False):
     """
     Create a directory
     Directory is the path to create
-    
+
     When parents is True then no error if directory already exists
     and make parent directories as needed (cfr. mkdir -p)
     """
@@ -1083,7 +1085,7 @@ def mkdir(directory, parents=False):
                 _log.debug("Directory %s already exitst" % directory)
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:#not parrents
+    else:  # not parrents
         try:
             os.mkdir(directory)
             _log.debug("Succesfully created directory %s" % directory)
@@ -1094,11 +1096,12 @@ def mkdir(directory, parents=False):
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
 
+
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
-    for i in range(0,n):
+    for i in range(0, n):
         try:
             shutil.rmtree(path)
             ok = True
@@ -1123,11 +1126,12 @@ def cleanup(logfile, tempdir, testing):
         print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
+
 def copytree(src, dst, symlinks=False, ignore=None):
     """
     Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
     and this code can be improved...
-    
+
     Recursively copy a directory tree using copy2().
 
     The destination directory must not already exist.
@@ -1156,7 +1160,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError #@UndefinedVariable
+        WindowsError  #@UndefinedVariable
     except NameError:
         WindowsError = None
 
@@ -1199,6 +1203,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     if errors:
         raise Error, errors
 
+
 def encode_string(name):
     """
     This encoding function handles funky software names ad infinitum, like:
@@ -1211,7 +1216,7 @@ def encode_string(name):
     * http://celldesigner.org/help/CDH_Species_01.html
     * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
-    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
@@ -1222,6 +1227,7 @@ def encode_string(name):
     result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
     return result
 
+
 def decode_string(name):
     """Decoding function to revert result of encode_string."""
     result = name
@@ -1229,9 +1235,11 @@ def decode_string(name):
         result = re.sub(escaped_char, char, result)
     return result
 
+
 def encode_class_name(name):
     """return encoded version of class name"""
     return EASYBLOCK_CLASS_PREFIX + encode_string(name)
+
 
 def decode_class_name(name):
     """Return decoded version of class name."""
