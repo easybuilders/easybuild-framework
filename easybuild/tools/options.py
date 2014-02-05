@@ -344,6 +344,7 @@ class EasyBuildOptions(GeneralOption):
         if self.options.robot:
             class RobotPath(ListOfStrings):
                 SEPARATOR_LIST = os.pathsep
+                # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
                 __str__ = ListOfStrings.__str__
             self.options.robot = RobotPath(self.options.robot)
 

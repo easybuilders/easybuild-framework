@@ -158,7 +158,7 @@ class DictOfStrings(Convert):
                     ml_usage.append(idx)
                     res[self.KEYLESS_ENTRIES[idx]] = entry
                 else:
-                    msg = 'Unsupported element %s (previous element from mixed list is missing: current idx %s)'
+                    msg = 'Unsupported element %s (previous element from keyless entries is missing: current idx %s)'
                     raise ValueError(msg % (key_value, idx))
 
             else:

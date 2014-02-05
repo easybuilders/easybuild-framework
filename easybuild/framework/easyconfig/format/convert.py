@@ -36,6 +36,7 @@ class Patch(DictOfStrings):
     """Handle single patch"""
     ALLOWED_KEYS = ['level', 'dest']
     KEYLESS_ENTRIES = ['filename']  # filename as first element (also filename:some_path is supported)
+    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
     __str__ = DictOfStrings.__str__
 
     def _from_string(self, txt):
@@ -53,6 +54,7 @@ class Patch(DictOfStrings):
 
 class Patches(ListOfStrings):
     """Handle patches as list of Patch"""
+    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
     __str__ = ListOfStrings.__str__
 
     def _from_string(self, txt):
