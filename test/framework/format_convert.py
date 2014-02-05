@@ -32,6 +32,8 @@ class ConvertTest(TestCase):
                 msg = getattr(err, 'msg')
             elif hasattr(err, 'message'):
                 msg = getattr(err, 'message')
+            else:
+                msg = str(err)
 
             res = re.search(regex, msg)
             if not res:
