@@ -847,10 +847,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
-                                                                                         maxHitCount,
-                                                                                         stdoutErr[-500:]
-                                                                                         ))
+            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
+                       (cmd, maxHitCount, stdoutErr[-500:]))
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -981,9 +979,8 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     if stdout and res:
         if msg:
             _log.info("parseLogError msg: %s" % msg)
-            _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
-                                                                                     '\n'.join([x[0] for x in res])
-                                                                                     ))
+        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" %
+                  (regExp, '\n'.join([x[0] for x in res])))
 
     return res
 
