@@ -71,7 +71,7 @@ class ConvertTest(TestCase):
 
         # test with auto convert list to dict
         class Tmp(DictOfStrings):
-            MIXED_LIST = ['first']
+            KEYLESS_ENTRIES = ['first']
             __str__ = DictOfStrings.__str__
 
         dest2 = {'first':'first_value'}

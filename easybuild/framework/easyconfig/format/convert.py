@@ -33,17 +33,18 @@ from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
 
 
 class Patch(DictOfStrings):
-    """Handle single patch
-        # shorthand
-        filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
-        # full dict notation
-        filename:filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
-    """
+    """Handle single patch"""
     ALLOWED_KEYS = ['level', 'dest']
-    MIXED_LIST = ['filename']  # filename as first element (also filename:some_path i supported)
+    KEYLESS_ENTRIES = ['filename']  # filename as first element (also filename:some_path is supported)
     __str__ = DictOfStrings.__str__
 
     def _from_string(self, txt):
+        """Convert from string
+            # shorthand
+            filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+            # full dict notation
+            filename:filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+        """
         res = DictOfStrings._from_string(self, txt)
         if 'level' in res:
             res['level'] = int(res['level'])
@@ -55,23 +56,28 @@ class Patches(ListOfStrings):
     __str__ = ListOfStrings.__str__
 
     def _from_string(self, txt):
+        """Convert from comma-separated string"""
         res = ListOfStrings._from_string(self, txt)
         return [Patch(x) for x in res]
 
 
 class Dependency(Convert):
-    """Handle dependency
-        versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
-    """
+    """Handle dependency"""
     SEPARATOR_DEP = ';'
     __wraps__ = dict
 
     def _from_string(self, txt):
+        """Convert from string
+            versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
+        """
         res = {}
 
         items = self._split_string(txt, sep=self.SEPARATOR_DEP)
         if len(items) < 1 or len(items) > 2:
-            raise ValueError('Dependency has at least one element (versop_str), and at most 2 (2nd element the tc_versop). Separator')
+            msg = 'Dependency has at least one element (a version operator string), '
+            msg += 'and at most 2 (2nd element the toolchain version operator string). '
+            msg += 'Separator %s.' % self.SEPARATOR_DEP
+            raise ValueError(msg)
 
         res['versop'] = VersionOperator(items[0])
 

@@ -131,8 +131,6 @@ class VersionOperator(object):
         Convert argument to an EasyVersion instance if needed, and return self.operator(<argument>, self.version)
             Versions only, no suffix.
         @param test_version: a version string or EasyVersion instance
-        
-        
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
@@ -201,6 +199,8 @@ class VersionOperator(object):
         # - operator_str part is optional
         # - version_str should start/end with any word character except separator
         # - minimal version_str length is 1
+        # - optional extensions:
+        #    - suffix: the version suffix
         reg_text_operator = r"(?:(?P<operator_str>%(ops)s)%(sep)s)?" % {
             'sep': self.SEPARATOR,
             'ops': '|'.join(operators),
@@ -326,15 +326,15 @@ class VersionOperator(object):
             if same_boundary:
                 if op.xor(self_includes_boundary, other_includes_boundary):
                     self.log.debug("%s, one includes boundary and one is strict => overlap, no conflict" % msg)
-                    overlap_conflict = [True, False]
+                    overlap_conflict = (True, False)
                 else:
                     # conflict
                     self.log.debug("%s, and both include the boundary => overlap and conflict" % msg)
-                    overlap_conflict = [True, True]
+                    overlap_conflict = (True, True)
             else:
                 # conflict
                 self.log.debug("%s, and different boundaries => overlap and conflict" % msg)
-                overlap_conflict = [True, True]
+                overlap_conflict = (True, True)
         else:
             # both boundaries not included in one other version expression
             # => never a conflict, only possible overlap
@@ -350,14 +350,14 @@ class VersionOperator(object):
                 # overlap if boundary of one is in other
                 overlap = boundary_self_in_other or boundary_other_in_self
             self.log.debug("No conflict between %s; %s overlap %s, no conflict" % (versop_msg, msg, overlap))
-            overlap_conflict = [overlap, False]
+            overlap_conflict = (overlap, False)
 
         if not suffix_allowed:
             # always conflict
             self.log.debug("Suffix for %s are not equal. Force conflict True." % versop_msg)
-            overlap_conflict[1] = True
+            overlap_conflict = (overlap_conflict[0], True)
 
-        return tuple(overlap_conflict)
+        return overlap_conflict
 
     def __gt__(self, versop_other):
         """

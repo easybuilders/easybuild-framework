@@ -43,6 +43,10 @@ class AllowedValueError(ValueError):
 
 
 class Convert(Wrapper):
+    """
+    Convert casts a string passed via the initialisation to a Convert (sub)class instance,
+     mainly for typechecking and printing purposes.
+    """
     SEPARATOR = None
 
     def __init__(self, obj):
@@ -85,7 +89,7 @@ class ListOfStrings(Convert):
         self.separator_list = separator_list
         if self.separator_list is None:
             self.separator_list = self.SEPARATOR_LIST
-        Convert.__init__(self, obj)
+        super(ListOfStrings, self).__init__(obj)
 
     def _from_string(self, txt):
         """Parse string as a list of strings.
@@ -99,14 +103,14 @@ class ListOfStrings(Convert):
 
 
 class DictOfStrings(Convert):
-    """Convert string to dict
+    """Convert string to dictionary with string values
         key/value pairs are separated via SEPARATOR_DICT
         key and value are separated via SEPARATOR_KEY_VALUE
     """
     SEPARATOR_DICT = ';'
     SEPARATOR_KEY_VALUE = ':'
     ALLOWED_KEYS = None
-    MIXED_LIST = []
+    KEYLESS_ENTRIES = []
     __wraps__ = dict
 
     def __init__(self, obj, separator_dict=None, separator_key_value=None, allowed_keys=None, raise_allowed=False):
@@ -120,54 +124,56 @@ class DictOfStrings(Convert):
         if self.allowed_keys is None:
             self.allowed_keys = self.ALLOWED_KEYS
         self.raise_allowed = ValueError
-        if self.raise_allowed:
+        if raise_allowed:
             self.raise_allowed = AllowedValueError
 
-        Convert.__init__(self, obj)
+        super(DictOfStrings, self).__init__(obj)
 
     def _from_string(self, txt):
-        """Parse string as a dictionary of strings.
+        """Parse string as a dictionary of /with string values.
             For example: "a:b;c:d" -> {'a':'b', 'c':'d'}"
             
-            It also supports automagic dictionary creation via the MIXED_LIST list of keys, 
+            It also supports automagic dictionary creation via the KEYLESS_ENTRIES list of keys, 
             but the order is important.
-            MIXED_LIST=['first','second']
+            KEYLESS_ENTRIES=['first','second']
             will convert 
             "val1;val2;third:val3" -> {'first': 'val1', 'second': 'val2', 'third': 'val3'}
         """
 
         res = {}
         ml_usage = [-1]
-        for idx, pairs in enumerate(self._split_string(txt, sep=self.separator_dict)):
-            key_value = self._split_string(pairs, sep=self.separator_key_value, max=1)
+        for idx, entry in enumerate(self._split_string(txt, sep=self.separator_dict)):
+            key_value = self._split_string(entry, sep=self.separator_key_value, max=1)
             if len(key_value) == 2:
                 key, value = key_value
                 if self.allowed_keys is None or key in self.allowed_keys:
                     res[key] = value
                 else:
                     raise self.raise_allowed('Unsupported key %s (allowed %s)' % (key, self.allowed_keys))
-            elif idx + 1 <= len(self.MIXED_LIST):
+            elif idx + 1 <= len(self.KEYLESS_ENTRIES):
                 # auto-complete list into dict
+                # the last element has to be the previous index (with -1 being the previous index of the first index 0)
                 if  ml_usage[-1] == idx - 1:
                     # all elements have to used before this one
                     ml_usage.append(idx)
-                    res[self.MIXED_LIST[idx]] = pairs
+                    res[self.KEYLESS_ENTRIES[idx]] = entry
                 else:
                     msg = 'Unsupported element %s (previous element from mixed list is missing: current idx %s)'
                     raise ValueError(msg % (key_value, idx))
 
             else:
-                msg = 'Unsupported element %s (from pairs %s, missing key_value separator %s)'
-                raise ValueError(msg % (key_value, pairs, self.separator_key_value))
+                msg = 'Unsupported element %s (from entry %s, missing key_value separator %s)'
+                raise ValueError(msg % (key_value, entry, self.separator_key_value))
         return res
 
     def __str__(self):
         """Convert to string"""
         # the str conversions are needed for subclasses that use non-string values
-        mixed_list = [str(self[ml]) for ml in self.MIXED_LIST if ml in self]
-        join = self.separator_key_value.join
-        regular = [join([it[0], str(it[1])]) for it in self.items() if not it[0] in self.MIXED_LIST]
-        return self.separator_dict.join(mixed_list + regular)
+        keyless_entries = [str(self[ml]) for ml in self.KEYLESS_ENTRIES if ml in self]
+        def join_item(item):
+            return self.separator_key_value.join([item[0], str(item[1])])
+        regular = [join_item(it) for it in self.items() if not it[0] in self.KEYLESS_ENTRIES]
+        return self.separator_dict.join(keyless_entries + regular)
 
 
 class ListOfStringsAndDictOfStrings(Convert):
@@ -197,18 +203,20 @@ class ListOfStringsAndDictOfStrings(Convert):
                 # reraise it as regular ValueError
                 raise ValueError(str(msg))
             except ValueError, msg:
-                self.log.debug('ValueError catched with message %s' % msg)
+                # ValueError because the string can't be converted to DictOfStrings
+                # assuming regular string value
+                self.log.debug('ValueError catched with message %s, treat as regular string.' % msg)
                 res.append(element)
 
         return res
 
     def __str__(self):
-        """Return string with ListOfStrings"""
+        """Return string"""
         return self.SEPARATOR_LIST.join([str(x) for x in self])
 
 
 def get_convert_class(class_name):
-    """Return the Convert class with name class_name"""
+    """Return the Convert class with specified class name class_name"""
     res = [x for x in nub(get_subclasses(Convert)) if x.__name__ == class_name]
     if len(res) == 1:
         return res[0]
