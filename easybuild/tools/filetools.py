@@ -376,7 +376,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
 
 def calc_block_checksum(path, algorithm):
     """Calculate a checksum of a file by reading it into blocks"""
-    blocksize = algorithm.block_size * pow(2, 18)  # should give us 16 MB blocks
+    blocksize = 16777216  # 16 MB
     try:
         f = open(path, 'rb')
         for block in iter(lambda: f.read(blocksize), r''):
