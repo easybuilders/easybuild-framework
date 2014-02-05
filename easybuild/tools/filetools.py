@@ -379,7 +379,7 @@ def calc_block_checksum(path, algorithm):
     blocksize = algorithm.block_size * pow(2, 18)  # should give us 16 MB blocks
     try:
         f = open(path, 'rb')
-        for block in iter(lambda: f.read(blocksize), b''):
+        for block in iter(lambda: f.read(blocksize), r''):
             algorithm.update(block)
         f.close()
     except IOError, err:
