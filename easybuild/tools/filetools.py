@@ -1097,7 +1097,7 @@ def mkdir(directory, parents=False):
                 _log.debug("Directory %s already exitst" % directory)
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:  # not parrents
+    else:  # not parents
         try:
             os.mkdir(directory)
             _log.debug("Succesfully created directory %s" % directory)
