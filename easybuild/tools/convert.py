@@ -141,7 +141,7 @@ class DictOfStrings(Convert):
         """
 
         res = {}
-        ml_usage = [-1]
+        ke_usage = []
         for idx, entry in enumerate(self._split_string(txt, sep=self.separator_dict)):
             key_value = self._split_string(entry, sep=self.separator_key_value, max=1)
             if len(key_value) == 2:
@@ -152,14 +152,14 @@ class DictOfStrings(Convert):
                     raise self.raise_allowed('Unsupported key %s (allowed %s)' % (key, self.allowed_keys))
             elif idx + 1 <= len(self.KEYLESS_ENTRIES):
                 # auto-complete list into dict
-                # the last element has to be the previous index (with -1 being the previous index of the first index 0)
-                if  ml_usage[-1] == idx - 1:
+                # only valid if all previous keyless entries were processed before and in order
+                if  ke_usage == range(idx):
                     # all elements have to used before this one
-                    ml_usage.append(idx)
+                    ke_usage.append(idx)
                     res[self.KEYLESS_ENTRIES[idx]] = entry
                 else:
-                    msg = 'Unsupported element %s (previous element from keyless entries is missing: current idx %s)'
-                    raise ValueError(msg % (key_value, idx))
+                    msg = 'Unsupported element %s (previous keyless entries %s, current idx %s)'
+                    raise ValueError(msg % (key_value, ke_usage, idx))
 
             else:
                 msg = 'Unsupported element %s (from entry %s, missing key_value separator %s)'
