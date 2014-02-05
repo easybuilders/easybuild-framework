@@ -31,6 +31,7 @@ Set of file tools.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import binascii
 import errno
@@ -119,12 +120,12 @@ CHECKSUM_FUNCTIONS = {
 try:
     # preferred over md5/sha modules, but only available in Python 2.5 and more recent
     import hashlib
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: hashlib.md5(open(p, 'r').read()).hexdigest()
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, hashlib.md5())
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, hashlib.sha1())
 except ImportError:
     import md5, sha
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
+    CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, md5.md5())
+    CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, sha.sha())
 
 
 def read_file(path, log_error=True):
@@ -371,6 +372,20 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
+
+
+def calc_block_checksum(path, algorithm):
+    """Calculate a checksum of a file by reading it into blocks"""
+    blocksize = algorithm.block_size * pow(2, 18)  # should give us 16 MB blocks
+    try:
+        f = open(path, 'rb')
+        for block in iter(lambda: f.read(blocksize), b''):
+            algorithm.update(block)
+        f.close()
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+
+    return algorithm.hexdigest()
 
 
 def verify_checksum(path, checksums):
@@ -1096,7 +1111,6 @@ def mkdir(directory, parents=False):
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
 
-
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
@@ -1124,7 +1138,6 @@ def cleanup(logfile, tempdir, testing):
     if not testing and tempdir is not None:
         shutil.rmtree(tempdir, ignore_errors=True)
         print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
-
 
 
 def copytree(src, dst, symlinks=False, ignore=None):

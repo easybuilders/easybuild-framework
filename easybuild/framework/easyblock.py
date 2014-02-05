@@ -60,6 +60,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
 from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, run_cmd, rmtree2
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
@@ -1227,12 +1228,12 @@ class EasyBlock(object):
         else:
             self.log.info('no patches provided')
 
-        # compute md5 checksums for all source and patch files
+        # compute checksums for all source and patch files
         if not skip_checksums:
             for fil in self.src + self.patches:
-                md5_sum = compute_checksum(fil['path'], checksum_type='md5')
-                fil['md5'] = md5_sum
-                self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
+                check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
+                fil[DEFAULT_CHECKSUM] = check_sum
+                self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
 
         # set level of parallelism for build
         self.set_parallelism()
