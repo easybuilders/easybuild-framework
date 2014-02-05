@@ -36,6 +36,10 @@ Command line options for eb
 import os
 import re
 import sys
+
+from distutils.version import LooseVersion
+
+import easybuild.tools.build_log
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
@@ -95,6 +99,10 @@ class EasyBuildOptions(GeneralOption):
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', filetools.WARN, strictness_options),
+            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
+                           None, 'store', None),
+            'future': ("Allow future code (with behaviour that can be changed or removed at any given time).",
+                       None, 'store_true', None),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -307,6 +315,12 @@ class EasyBuildOptions(GeneralOption):
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
+        if self.options.future:
+            easybuild.tools.build_log.FUTURE = True
+
+        if self.options.deprecated:
+            easybuild.tools.build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
+
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
