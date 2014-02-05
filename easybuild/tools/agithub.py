@@ -85,8 +85,7 @@ class Client(object):
   def request(self, method, url, body, headers):
     if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
-    else:
-        headers['User-Agent'] = 'easybuild'
+    headers['User-Agent'] = 'easybuild'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()
