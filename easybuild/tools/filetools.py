@@ -130,7 +130,7 @@ CHECKSUM_FUNCTIONS = {
 }
 
 
-class ZlibChecksum:
+class ZlibChecksum(object):
     """
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module
