@@ -120,12 +120,15 @@ CHECKSUM_FUNCTIONS = {
 try:
     # preferred over md5/sha modules, but only available in Python 2.5 and more recent
     import hashlib
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, hashlib.md5())
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, hashlib.sha1())
+    md5_func = hashlib.md5
+    sha1_func = hashlib.sha1
 except ImportError:
     import md5, sha
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, md5.md5())
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, sha.sha())
+    md5_func = md5.md5
+    sha1_func = sha.sha
+
+CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, md5_func())
+CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, sha1_func())
 
 
 def read_file(path, log_error=True):
@@ -376,7 +379,9 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
 
 def calc_block_checksum(path, algorithm):
     """Calculate a checksum of a file by reading it into blocks"""
-    blocksize = 16777216  # 16 MB
+    # We pick a blocksize of 16 MB: it's a multiple of the internal
+    # blocksize of md5/sha1
+    blocksize = 16777216
     try:
         f = open(path, 'rb')
         for block in iter(lambda: f.read(blocksize), r''):
