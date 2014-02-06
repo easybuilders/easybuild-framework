@@ -277,8 +277,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
 
 def get_default_configfiles():
     """Return a list of default configfiles for tools.options/generaloption"""
-    return [os.path.join(get_user_easybuild_dir(), "config.cfg"),
-            os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.environ["HOME"], ".config")), "easybuild/config.cfg")]
+    return [os.path.join(get_user_easybuild_dir(), "config.cfg")]
 
 
 def get_pretend_installpath():
@@ -625,5 +624,3 @@ def set_tmpdir(tmpdir=None):
 
 # config variables constant
 variables = ConfigurationVariables()
-
-
