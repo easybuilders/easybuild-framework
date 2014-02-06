@@ -24,44 +24,62 @@
 # #
 
 """
-This module implements easyconfig specific formats and their converts 
+This module implements easyconfig specific formats and their conversions.
 
 @author: Stijn De Weirdt (Ghent University)
 """
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
-from easybuild.tools.convert import Convert, ListOfStringsAndDictOfStrings, ListOfStrings
+from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
 
 
-class Patch(ListOfStringsAndDictOfStrings):
-    """Handle single patch
-        filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
-    """
+class Patch(DictOfStrings):
+    """Handle single patch"""
     ALLOWED_KEYS = ['level', 'dest']
-    __wraps__ = dict
-    def __init__(self):
-        raise NotImplementedError
+    KEYLESS_ENTRIES = ['filename']  # filename as first element (also filename:some_path is supported)
+    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
+    __str__ = DictOfStrings.__str__
+
+    def _from_string(self, txt):
+        """Convert from string
+            # shorthand
+            filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+            # full dict notation
+            filename:filename;level:<int>;dest:<string> -> {'filename': filename, 'level': level, 'dest': dest}
+        """
+        res = DictOfStrings._from_string(self, txt)
+        if 'level' in res:
+            res['level'] = int(res['level'])
+        return res
 
 
 class Patches(ListOfStrings):
-    """Handle patches as list of Patch
-    """
-    def __init__(self):
-        raise NotImplementedError
+    """Handle patches as list of Patch"""
+    # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
+    __str__ = ListOfStrings.__str__
+
+    def _from_string(self, txt):
+        """Convert from comma-separated string"""
+        res = ListOfStrings._from_string(self, txt)
+        return [Patch(x) for x in res]
 
 
 class Dependency(Convert):
-    """Handle dependency
-        versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
-    """
+    """Handle dependency"""
     SEPARATOR_DEP = ';'
     __wraps__ = dict
 
     def _from_string(self, txt):
+        """Convert from string
+            versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
+        """
         res = {}
 
         items = self._split_string(txt, sep=self.SEPARATOR_DEP)
         if len(items) < 1 or len(items) > 2:
-            raise TypeError('Dependency has at least one element (versop_str), and at most 2 (2nd element the tc_versop). Separator')
+            msg = 'Dependency has at least one element (a version operator string), '
+            msg += 'and at most 2 (2nd element the toolchain version operator string). '
+            msg += 'Separator %s.' % self.SEPARATOR_DEP
+            raise ValueError(msg)
 
         res['versop'] = VersionOperator(items[0])
 
