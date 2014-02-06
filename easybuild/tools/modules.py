@@ -120,6 +120,18 @@ class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # position and optionname
     TERSE_OPTION = (0, '--terse')
+    # module command to use
+    COMMAND = None
+    # environment variable to detemine the module command (instead of COMMAND)
+    COMMAND_ENVIRONMENT = None
+    # run module command explicitly using this shell
+    COMMAND_SHELL = None
+    # option to determine the version
+    VERSION_OPTION = '--version'
+    # minimal required version (StrictVersion; rc -> b)
+    REQ_VERSION = None
+    # the regexp, should have a "version" group (multiline search)
+    VERSION_REGEXP = None
 
     def __init__(self, mod_paths=None):
         """
@@ -140,7 +152,11 @@ class ModulesTool(object):
         self.check_module_path()
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
-        self.cmd = None
+        self.cmd = self.COMMAND
+        if self.COMMAND_ENVIRONMENT is not None and self.COMMAND_ENVIRONMENT in os.environ:
+            self.log.debug('Set command via environment variable %s' % self.COMMAND_ENVIRONMENT)
+            self.cmd = os.environ.get[self.COMMAND_ENVIRONMENT]
+        self.log.debug('Using command %s' % self.cmd)
 
         # shell that should be used to run module command (specified above) in (if any)
         self.shell = None
@@ -148,11 +164,41 @@ class ModulesTool(object):
         # version of modules tool
         self.version = None
 
+        # some initialisation/verification
+        self.check_cmd_avail()
+        self.set_and_check_version()
+        self.use_module_paths()
+
     @property
     def modules(self):
         """Property providing access to deprecated 'modules' class variable."""
         self.log.deprecated("'modules' class variable is deprecated, just use load([<list of modules>])", '2.0')
         return self._modules
+
+    def set_and_check_version(self):
+        """Get the module version, and check any requirements"""
+        try:
+            txt = self.run_module(self.VERSION_OPTION, return_output=True)
+
+            ver_re = re.compile(self.VERSION_REGEXP, re.M)
+            res = ver_re.search(txt)
+            if res:
+                self.version = res.group('version')
+                self.log.info("Found version %s" % self.version)
+            else:
+                self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
+        except (IOError, OSError), err:
+            self.log.error("Failed to check version: %s" % err)
+
+        if self.REQ_VERSION is None:
+            self.log.debug('No version requirement defined.')
+        else:
+            # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+            if StrictVersion(self.version.replace('rc', 'b')) < StrictVersion(self.REQ_VERSION):
+                msg = "EasyBuild requires %s >= v%s (no rc), found v%s"
+                self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
+            else:
+                self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
 
     def check_cmd_avail(self):
         """Check whether modules tool command is available."""
@@ -373,8 +419,8 @@ class ModulesTool(object):
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
         cmdlist = [self.cmd, 'python']
-        if self.shell is not None:
-            cmdlist.insert(0, self.shell)
+        if self.COMMAND_SHELL is not None:
+            cmdlist.insert(0, self.COMMAND_SHELL)
 
         self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
@@ -476,15 +522,8 @@ class ModulesTool(object):
 
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
-
-    def __init__(self, *args, **kwargs):
-        """Constructor, set modulecmd-specific class variable values."""
-        super(EnvironmentModulesC, self).__init__(*args, **kwargs)
-        self.cmd = "modulecmd"
-        self.check_cmd_avail()
-
-        # run 'modulecmd python use <path>' for all paths in $MODULEPATH
-        self.use_module_paths()
+    COMMAND = "modulecmd"
+    VERSION_REGEXP = r'^\s*VERSION\s*=\s*(?P<version>\d\S*)\s*^'
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
@@ -502,18 +541,11 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     # Tcl environment modules have no --terse (yet),
     #   -t must be added after the command ('avail', 'list', etc.)
     TERSE_OPTION = (1, '-t')
-
-    def __init__(self, *args, **kwargs):
-        """Constructor, set modulecmd.tcl-specific class variable values."""
-        super(EnvironmentModulesC, self).__init__(*args, **kwargs)  # purposely calling super of parent class
-        self.cmd = 'modulecmd.tcl'
-        # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
-        self.shell = 'tclsh'
-        self.check_cmd_avail()
-
-
-        # run 'modulecmd.tcl python use <path>' for all paths in $MODULEPATH
-        self.use_module_paths()
+    COMMAND = 'modulecmd.tcl'
+    # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
+    SHELL = 'tclsh'
+    VERSION_OPTION = ''
+    VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_ld_library_path(self, ld_library_paths):
         """Set $LD_LIBRARY_PATH to the given list of paths."""
@@ -562,58 +594,32 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
+    COMMAND = 'lmod'
+    COMMAND_ENVIRONMENT = 'LMOD_CMD'
 
     # required and optimal version
+    # we need at least Lmod v5.2 (and it can't be a release candidate)
     REQ_VERSION = StrictVersion('5.2')
+
+    VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
-        super(Lmod, self).__init__(*args, **kwargs)
-        self.cmd = "lmod"
-        self.check_cmd_avail()
-
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
-
-        # check Lmod version
-        try:
-            # 'lmod python update' needs to be run after changing $MODULEPATH
-            self.run_module('update')
-
-            fd, fn = tempfile.mkstemp(prefix='lmod_')
-            os.close(fd)
-            stdout_fn = '%s_stdout.txt' % fn
-            stderr_fn = '%s_stderr.txt' % fn
-            stdout = open(stdout_fn, 'w')
-            stderr = open(stdout_fn, 'w')
-            # version is printed in 'lmod help' output
-            subprocess.call([self.cmd, "help"], stdout=stdout, stderr=stderr)
-            stdout.close()
-            stderr.close()
-
-            stderr = open(stdout_fn, 'r')
-            txt = stderr.read()
-            ver_re = re.compile("^Modules based on Lua: Version (?P<version>\S+) \(.*", re.M)
-            res = ver_re.search(txt)
-            if res:
-                self.version = res.group('version')
-                self.log.info("Found Lmod version %s" % self.version)
-            else:
-                self.log.error("Failed to determine Lmod version from '%s help' output: %s" % (self.cmd, txt))
-            stderr.close()
-        except (IOError, OSError), err:
-            self.log.error("Failed to check Lmod version: %s" % err)
-
-        # we need at least Lmod v5.2 (and it can't be a release candidate)
-        # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-        if StrictVersion(self.version.replace('rc', 'b')) < self.REQ_VERSION:
-            self.log.error("EasyBuild requires Lmod >= v%s (no rc), found v%s" % (self.REQ_VERSION, self.version))
-
-        # run 'lmod python use <path>' for all paths in $MODULEPATH
-        self.use_module_paths()
-
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
+
+        super(Lmod, self).__init__(*args, **kwargs)
+
+    def set_and_check_version(self):
+        """Get the module version, and check any requirements"""
+
+        # 'lmod python update' needs to be run after changing $MODULEPATH
+        self.run_module('update')
+
+        super(Lmod, self).set_and_check_version()
+
 
     def available(self, mod_name=None):
         """
