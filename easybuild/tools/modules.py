@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -65,7 +65,7 @@ output_matchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
     # matches errors such as "cmdTrace.c(713):ERROR:104: 'asdfasdf' is an unrecognized subcommand"
-    ## following errors should not be matches, they are considered warnings
+    # # following errors should not be matches, they are considered warnings
     # ModuleCmd_Avail.c(529):ERROR:57: Error while reading directory '/usr/local/modulefiles/SCIENTIFIC'
     # ModuleCmd_Avail.c(804):ERROR:64: Directory '/usr/local/modulefiles/SCIENTIFIC/tremolo' not found
     'error': re.compile(r"^\S+:(?P<level>\w+):(?P<code>(?!57|64)\d+):\s+(?P<msg>.*)$"),
@@ -118,6 +118,8 @@ _log = fancylogger.getLogger('modules', fname=False)
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
+    # position and optionname
+    TERSE_OPTION = (0, '--terse')
 
     def __init__(self, mod_paths=None):
         """
@@ -145,9 +147,6 @@ class ModulesTool(object):
 
         # version of modules tool
         self.version = None
-
-        # terse command line option
-        self.add_terse_opt_fn = lambda x: x.insert(0, '--terse')
 
     @property
     def modules(self):
@@ -347,14 +346,15 @@ class ModulesTool(object):
             args = list(args)
 
         if args[0] in ('available', 'avail', 'list',):
-            self.add_terse_opt_fn(args)  # run these in terse mode for easier machine reading
+            # run these in terse mode for easier machine reading
+            args.insert(*self.TERSE_OPTION)
 
         module_path_key = None
         original_module_path = None
         if 'mod_paths' in kwargs:
-            module_path_key =  'mod_paths'
+            module_path_key = 'mod_paths'
         elif 'modulePath' in kwargs:
-            module_path_key =  'modulePath'
+            module_path_key = 'modulePath'
         if module_path_key is not None:
             original_module_path = os.environ['MODULEPATH']
             os.environ['MODULEPATH'] = kwargs[module_path_key]
@@ -499,6 +499,9 @@ class EnvironmentModulesC(ModulesTool):
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
     """Interface to (Tcl) environment modules (modulecmd.tcl)."""
+    # Tcl environment modules have no --terse (yet),
+    #   -t must be added after the command ('avail', 'list', etc.)
+    TERSE_OPTION = (1, '-t')
 
     def __init__(self, *args, **kwargs):
         """Constructor, set modulecmd.tcl-specific class variable values."""
@@ -508,8 +511,6 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
         self.shell = 'tclsh'
         self.check_cmd_avail()
 
-        # Tcl environment modules have no --terse (yet), -t must be added after the command ('avail', 'list', etc.)
-        self.add_terse_opt_fn = lambda x: x.insert(1, '-t')
 
         # run 'modulecmd.tcl python use <path>' for all paths in $MODULEPATH
         self.use_module_paths()
