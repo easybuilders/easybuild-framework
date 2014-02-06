@@ -455,10 +455,11 @@ def init_repository(repository, repository_path):
         try:
             if isinstance(repository_path, basestring):
                 return repo(repository_path)
-            elif not isinstance(repository_path, (tuple, list)) or len(repository_path) > 2:
-                _log.error('repository_path should be a string or list/tuple of maximum 2 elements')
-            else:
+            elif isinstance(repository_path, (tuple, list)) and len(repository_path) == 2:
                 return repo(*repository_path)
+            else:
+                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
+                           (repository_path, type(repository_path)))
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
                        (repository, repo.__name__, repository_path, err))
