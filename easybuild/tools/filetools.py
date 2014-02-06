@@ -112,8 +112,8 @@ DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'adler32': lambda p: calc_block_checksum(p, zlib_checksum(zlib.adler32)),
-    'crc32': lambda p: calc_block_checksum(p, zlib_checksum(zlib.crc32)),
+    'adler32': lambda p: calc_block_checksum(p, zlibChecksum(zlib.adler32)),
+    'crc32': lambda p: calc_block_checksum(p, zlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
 }
 try:
@@ -130,7 +130,7 @@ CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, md5_func())
 CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, sha1_func())
 
 
-class zlib_checksum:
+class zlibChecksum:
     """
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module
@@ -399,12 +399,12 @@ def calc_block_checksum(path, algorithm):
     """Calculate a checksum of a file by reading it into blocks"""
     # We pick a blocksize of 16 MB: it's a multiple of the internal
     # blocksize of md5/sha1 (64) and gave the best speed results
-    blocksize = 16777216  # 2^24
     try:
         # in hashlib, blocksize is a class parameter
-        blocksize = algorithm.blocksize * pow(2, 18)
+        blocksize = algorithm.blocksize * 262144  # 2^18
     except AttributeError, err:
-        pass
+        blocksize = 16777216  # 2^24
+    _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
 
     try:
         f = open(path, 'rb')
