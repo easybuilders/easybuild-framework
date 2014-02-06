@@ -107,15 +107,6 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-# default checksum for source and patch files
-DEFAULT_CHECKSUM = 'md5'
-
-# map of checksum types to checksum functions
-CHECKSUM_FUNCTIONS = {
-    'adler32': lambda p: calc_block_checksum(p, zlibChecksum(zlib.adler32)),
-    'crc32': lambda p: calc_block_checksum(p, zlibChecksum(zlib.crc32)),
-    'size': lambda p: os.path.getsize(p),
-}
 try:
     # preferred over md5/sha modules, but only available in Python 2.5 and more recent
     import hashlib
@@ -126,11 +117,20 @@ except ImportError:
     md5_func = md5.md5
     sha1_func = sha.sha
 
-CHECKSUM_FUNCTIONS['md5'] = lambda p: calc_block_checksum(p, md5_func())
-CHECKSUM_FUNCTIONS['sha1'] = lambda p: calc_block_checksum(p, sha1_func())
+# default checksum for source and patch files
+DEFAULT_CHECKSUM = 'md5'
+
+# map of checksum types to checksum functions
+CHECKSUM_FUNCTIONS = {
+    'md5': lambda p: calc_block_checksum(p, md5_func()),
+    'sha1': lambda p: calc_block_checksum(p, sha1_func()),
+    'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
+    'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    'size': lambda p: os.path.getsize(p),
+}
 
 
-class zlibChecksum:
+class ZlibChecksum:
     """
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module
