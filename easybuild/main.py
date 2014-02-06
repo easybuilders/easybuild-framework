@@ -157,6 +157,7 @@ def main(testing_data=(None, None, None)):
         'debug': options.debug,
         'dry_run': options.dry_run,
         'easyblock': options.easyblock,
+        'experimental': options.experimental,
         'force': options.force,
         'ignore_dirs': options.ignore_dirs,
         'only_blocks': options.only_blocks,
