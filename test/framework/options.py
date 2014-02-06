@@ -879,7 +879,7 @@ class CommandLineOptionsTest(TestCase):
         )
         try:
             log.experimental('x')
-        except:
+        except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
 
         # set it back
