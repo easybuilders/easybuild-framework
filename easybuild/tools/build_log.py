@@ -36,6 +36,7 @@ import os
 import sys
 from copy import copy
 from vsc import fancylogger
+
 from easybuild.tools.version import VERSION
 
 
@@ -45,8 +46,8 @@ EB_MSG_PREFIX = "=="
 # the version seen by log.deprecated
 CURRENT_VERSION = VERSION
 
-# allow some experimental future code
-FUTURE = False
+# allow some experimental experimental code
+EXPERIMENTAL = False
 
 
 class EasyBuildError(Exception):
@@ -82,14 +83,14 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 break
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
-    def future(self, msg, *args, **kwargs):
-        """Handle future functionality if FUTURE is True, otherwise log exception"""
-        if FUTURE:
-            msg = 'Future functionality. Behaviour might changed/be removed later. ' + msg
+    def experimental(self, msg, *args, **kwargs):
+        """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        if EXPERIMENTAL:
+            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
             self.warning(msg, *args, **kwargs)
         else:
-            msg = 'Future functionality. Behaviour might changed/be removed later (use --future option to enable). ' + msg
-            self.exception(msg, *args)
+            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            self.error(msg, *args)
 
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""

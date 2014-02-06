@@ -101,8 +101,8 @@ class EasyBuildOptions(GeneralOption):
             'strict': ("Set strictness level", 'choice', 'store', filetools.WARN, strictness_options),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'future': ("Allow future code (with behaviour that can be changed or removed at any given time).",
-                       None, 'store_true', None),
+            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+                             None, 'store_true', None),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -315,8 +315,8 @@ class EasyBuildOptions(GeneralOption):
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
-        if self.options.future:
-            easybuild.tools.build_log.FUTURE = True
+        if self.options.experimental:
+            easybuild.tools.build_log.EXPERIMENTAL = True
 
         if self.options.deprecated:
             easybuild.tools.build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
