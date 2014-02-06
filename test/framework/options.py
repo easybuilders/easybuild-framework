@@ -37,6 +37,7 @@ import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
 
+import easybuild.tools.build_log
 import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
@@ -46,6 +47,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.version import VERSION
 from vsc import fancylogger
 
 class CommandLineOptionsTest(TestCase):
@@ -679,7 +681,7 @@ class CommandLineOptionsTest(TestCase):
         try:
             main((args, dummylogfn, False))
         except (SystemExit, Exception), err:
-            print "err: %s" % err
+            pass
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
@@ -850,6 +852,72 @@ class CommandLineOptionsTest(TestCase):
         outtxt = read_file(self.logfile)
         regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
         self.assertTrue(regex.search(outtxt), "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
+
+    def test_experimental(self):
+        """Test the experimental option"""
+        orig_value = easybuild.tools.build_log.EXPERIMENTAL
+        # make sure it's off by default
+        self.assertFalse(orig_value)
+
+        log = fancylogger.getLogger()
+
+        # force it to False
+        topt = EasyBuildOptions(
+            go_args=['--disable-experimental'],
+        )
+        try:
+            log.experimental('x')
+            # sanity check, should never be reached if it works.
+            self.assertTrue(False, "Experimental logging should be disabled by setting the --disable-experimental option")
+        except easybuild.tools.build_log.EasyBuildError, err:
+            # check error message
+            self.assertTrue('Experimental functionality.' in str(err))
+
+        # toggle experimental
+        topt = EasyBuildOptions(
+            go_args=['--experimental'],
+        )
+        try:
+            log.experimental('x')
+        except:
+            self.assertTrue(False, 'Experimental logging should be allowed by the --experimental option.')
+
+        # set it back
+        easybuild.tools.build_log.EXPERIMENTAL = orig_value
+
+    def test_deprecated(self):
+        """Test the deprecated option"""
+        orig_value = easybuild.tools.build_log.CURRENT_VERSION
+
+        # make sure it's off by default
+        self.assertEqual(orig_value, VERSION)
+
+        log = fancylogger.getLogger()
+
+        # force it to current version
+        topt = EasyBuildOptions(
+            go_args=['--deprecated=%s' % orig_value],
+        )
+
+        try:
+            log.deprecated('x', str(orig_value))
+        except easybuild.tools.build_log.EasyBuildError, err:
+            self.assertTrue(False, 'Deprecated logging should work')
+
+        # force higher version by prefixing it with 1
+        topt = EasyBuildOptions(
+            go_args=['--deprecated=1%s' % orig_value],
+        )
+        try:
+            log.deprecated('x', str(orig_value))
+            # not supposed to get here
+            self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
+        except easybuild.tools.build_log.EasyBuildError, err2:
+            self.assertTrue('DEPRECATED' in str(err2))
+
+        # set it back
+        easybuild.tools.build_log.CURRENT_VERSION = orig_value
+
 
 def suite():
     """ returns all the testcases in this module """
