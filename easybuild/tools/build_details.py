@@ -44,6 +44,7 @@ def get_build_stats(app, start_time, command_line):
 
     time_now = time.time()
     build_time = round(time_now - start_time, 2)
+    modules_tool = app.modules_tool
 
     buildstats = OrderedDict([
         ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
@@ -56,6 +57,7 @@ def get_build_stats(app, start_time, command_line):
         ('build_time', build_time),
         ('install_size', app.det_installsize()),
         ('command_line', command_line),
+        ('modules_tool', (modules_tool.__class__.__name__, modules_tool.cmd, modules_tool.version))
     ])
 
     return buildstats
