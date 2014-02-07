@@ -156,10 +156,11 @@ class ModulesTool(object):
         if self.COMMAND_ENVIRONMENT is not None and self.COMMAND_ENVIRONMENT in os.environ:
             self.log.debug('Set command via environment variable %s' % self.COMMAND_ENVIRONMENT)
             self.cmd = os.environ.get[self.COMMAND_ENVIRONMENT]
-        self.log.debug('Using command %s' % self.cmd)
 
-        # shell that should be used to run module command (specified above) in (if any)
-        self.shell = None
+        if self.cmd is None:
+            self.log.error('No command set.')
+        else:
+            self.log.debug('Using command %s' % self.cmd)
 
         # version of modules tool
         self.version = None
@@ -177,6 +178,7 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
+        txt = self.run_module(self.VERSION_OPTION, return_output=True)
         try:
             txt = self.run_module(self.VERSION_OPTION, return_output=True)
 
@@ -418,9 +420,13 @@ class ModulesTool(object):
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (cur_ld_library_path, new_ld_library_path))
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
-        cmdlist = [self.cmd, 'python']
+        cmdlist = []
         if self.COMMAND_SHELL is not None:
-            cmdlist.insert(0, self.COMMAND_SHELL)
+            if not isinstance(self.COMMAND_SHELL, (list, tuple)):
+                msg = 'COMMAND_SHELL needs to be list or tuple, now %s (value %s)'
+                self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
+            cmdlist.extend(self.COMMAND_SHELL)
+        cmdlist.extend([self.cmd, 'python'])
 
         self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
@@ -543,7 +549,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     TERSE_OPTION = (1, '-t')
     COMMAND = 'modulecmd.tcl'
     # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
-    SHELL = 'tclsh'
+    COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 

@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Unit tests for robot (dependency resolution).
 
@@ -47,13 +47,17 @@ orig_main_modules_tool = ectools.modules_tool
 
 class MockModule(modules.ModulesTool):
     """ MockModule class, allows for controlling what modules_tool() will return """
+    COMMAND = 'echo'
+    VERSION_OPTION = '1'
+    VERSION_REGEXP = r'(?P<version>\d+)'
+    # redirect to stderr, ignore 'echo python' ($0 and $1)
+    COMMAND_SHELL = ["bash", "-c", "'echo $2 $3 $4 1>&2'"]
 
     avail_modules = []
 
     def available(self, *args):
         """ no module should be available """
         return self.avail_modules
-
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
