@@ -47,6 +47,7 @@ import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
 import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
+import test.framework.format_convert as f_c
 import test.framework.github as g
 import test.framework.license as l
 import test.framework.module_generator as mg
@@ -85,7 +86,7 @@ log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s, l]
+tests = [o, r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c]
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins
