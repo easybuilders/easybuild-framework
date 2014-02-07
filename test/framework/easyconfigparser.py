@@ -93,7 +93,28 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['toolchain'], {'name': 'goolf', 'version': '1.4.10'})
 
         # dependencies should be parsed correctly
-        self.assertEqual(ec['dependencies'], [('zlib', '1.2.5')])
+        self.assertEqual(ec['dependencies'], [{'name': 'zlib', 'version': '1.2.5'}])
+
+        fn = os.path.join(TESTDIRBASE, 'v2.0', 'goolf.eb')
+        ecp = EasyConfigParser(fn)
+
+        ec = ecp.get_config_dict()
+        self.assertEqual(ec['name'], 'goolf')
+        self.assertEqual(ec['version'], '1.4.10')
+        self.assertEqual(ec['toolchain'], {'name': 'dummy', 'version': 'dummy'})
+
+        # dependencies should be parsed correctly
+        deps = [
+            {'name': 'GCC', 'version': '4.7.2'},
+            {'name': 'OpenMPI', 'version': '1.6.4', 'toolchain': {'name': 'GCC', 'version': '4.7.2'}},
+            {'name': 'OpenBLAS', 'version': '0.2.6', 'versionsuffix': '-LAPACK-3.4.2',
+             'toolchain': {'name': 'gompi', 'version': '1.4.10'}},
+            {'name': 'FFTW', 'version': '3.3.3', 'toolchain': {'name': 'gompi', 'version': '1.4.10'}},
+            {'name': 'ScaLAPACK', 'version': '2.0.2', 'versionsuffix': '-OpenBLAS-0.2.6-LAPACK-3.4.2',
+             'toolchain': {'name': 'gompi', 'version': '1.4.10'}},
+        ]
+        self.assertEqual(ec['dependencies'], deps)
+
 
 def suite():
     """ returns all the testcases in this module """
