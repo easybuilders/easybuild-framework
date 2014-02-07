@@ -68,6 +68,12 @@ class Dependency(Convert):
     SEPARATOR_DEP = ';'
     __wraps__ = dict
 
+    def __init__(self, obj, name=None):
+        """Convert pass object to a dependency, use specified name if provided."""
+        super(Dependency, self).__init__(obj)
+        if name is not None:
+            self['name'] = name
+
     def _from_string(self, txt):
         """Convert from string
             versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
@@ -96,28 +102,24 @@ class Dependency(Convert):
 
         return self.SEPARATOR_DEP.join(tmp)
 
+    def name(self):
+        """Get dependency name."""
+        return self.get('name', None)
 
-def parse_dependency(dep_name, dep_val):
-    """
-    Parse a dependency specification, as obtained from DEPENDENCIES section.
+    def version(self):
+        """Get dependency version."""
+        if 'versop' in self:
+            return self['versop'].get_version_str()
+        else:
+            return None
 
-    Returns a dictionary with string values and expected keys (name, version, versionsuffix, toolchain)."""
-    dep = Dependency(dep_val)
-    versop = dep['versop']
-    # name and version are always there
-    res = {
-        'name': dep_name,
-        'version': versop.get_version_str(),
-    }
-    # optional versionsuffix and toolchain
-    if versop.suffix is not None:
-        res.update({
-            'versionsuffix': versop.suffix,
-        })
-    if 'tc_versop' in dep:
-        tc_versop = dep['tc_versop']
-        res.update({
-            'toolchain': tc_versop.as_dict(),
-        })
+    def versionsuffix(self):
+        """Get dependency versionsuffix (if any)."""
+        return self['versop'].suffix
 
-    return res
+    def toolchain(self):
+        """Get toolchain spec for dependency (if any)."""
+        if 'tc_versop' in self:
+            return self['tc_versop'].as_dict()
+        else:
+            return None
