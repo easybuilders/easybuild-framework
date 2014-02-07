@@ -36,7 +36,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
-from easybuild.framework.easyconfig.format.convert import parse_dependency
+from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.configobj import Section
 
 
@@ -161,7 +161,10 @@ class EBConfigObj(object):
                             self.log.error("Unsupported nested section '%s' found in dependencies section" % dep_name)
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
-                            new_value.append(parse_dependency(dep_name, dep_val))
+                            dep = Dependency(dep_val, name=dep_name)
+                            if dep.name() is None or dep.version() is None:
+                                self.log.error("Failed to find name/version in parsed dependency: %s (dict: %s)" % (dep, dict(dep)))
+                            new_value.append(dep)
 
                     self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
                     if isinstance(parsed, Section):

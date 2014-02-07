@@ -50,6 +50,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
+from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import template_constant_dict
@@ -516,6 +517,15 @@ class EasyConfig(object):
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+        elif isinstance(dep, Dependency):
+            dependency['name'] = dep.name()
+            dependency['version'] = dep.version()
+            versionsuffix = det.versionsuffix()
+            if versionsuffix is not None:
+                dependency['versionsuffix'] = versionsuffix
+            toolchain = dep.toolchain()
+            if toolchain is not None:
+                dependency['toolchain'] = toolchain
         elif isinstance(dep, (list, tuple)):
             # try and convert to list
             dep = list(dep)
