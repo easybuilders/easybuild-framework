@@ -30,9 +30,9 @@ Unit tests for easyconfig/format/version.py
 import os
 import re
 
+from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
-from easybuild.framework.easyconfig.format.version import ConfigObjVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -230,7 +230,7 @@ class EasyConfigVersion(TestCase):
         ]
 
         co = ConfigObj(configobj_txt)
-        cov = ConfigObjVersion()
+        cov = EBConfigObj()
         # FIXME: actually check something
 
 
