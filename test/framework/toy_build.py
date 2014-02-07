@@ -171,6 +171,42 @@ class ToyBuildTest(TestCase):
 
         self.check_toy(self.installpath, outtxt)
 
+    def test_toy_build_formatv2_sections(self):
+        """Perform a toy build (format v2, using sections)."""
+        versions = {
+            '0.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.1': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.5': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.6': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '2.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '3.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+        }
+
+        for version, specs in versions.items():
+            args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy-with-sections.eb'),
+                '--sourcepath=%s' % self.sourcepath,
+                '--buildpath=%s' % self.buildpath,
+                '--installpath=%s' % self.installpath,
+                '--debug',
+                '--unittest-file=%s' % self.logfile,
+                '--force',
+                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+                '--software-version=%s' % version,
+                '--toolchain=dummy,dummy',
+                '--experimental',
+            ]
+            try:
+                main((args, self.dummylogfn, True))
+            except SystemExit:
+                pass
+            except Exception, err:
+                print "err: %s" % err
+            outtxt = read_file(self.logfile)
+
+            self.check_toy(self.installpath, outtxt, **specs)
+
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
         orig_sys_path = sys.path[:]
