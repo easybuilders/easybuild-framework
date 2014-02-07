@@ -95,6 +95,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
     def get_config_dict(self):
         """Return the best matching easyconfig dict"""
+        self.log.experimental(self.__class__.__name__)
+
         # the toolchain name/version should not be specified in the pyheader,
         # but other toolchain options are allowed
 

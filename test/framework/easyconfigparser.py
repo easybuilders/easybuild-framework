@@ -28,13 +28,12 @@ Unit tests for easyconfig/parser.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-
 from unittest import TestCase, TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
@@ -55,6 +54,11 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['version'], '4.6.3')
 
     def test_v20(self):
+        """Test parsing of easyconfig in format v2."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb')
         ecp = EasyConfigParser(fn)
 
@@ -71,7 +75,15 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.2')
 
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
     def test_v20_extra(self):
+        """Test parsing of easyconfig in format v2."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
         ecp = EasyConfigParser(fn)
 
@@ -82,7 +94,15 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
     def test_v20_deps(self):
+        """Test parsing of easyconfig in format v2 that includes dependencies."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'libpng.eb')
         ecp = EasyConfigParser(fn)
 
@@ -115,6 +135,9 @@ class EasyConfigParserTest(TestCase):
         ]
         self.assertEqual(ec['dependencies'], deps)
 
+
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
 def suite():
     """ returns all the testcases in this module """
