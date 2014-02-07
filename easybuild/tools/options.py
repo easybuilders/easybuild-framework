@@ -36,6 +36,11 @@ Command line options for eb
 import os
 import re
 import sys
+
+from distutils.version import LooseVersion
+
+import easybuild.tools.build_log
+import easybuild.tools.config
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
@@ -48,6 +53,7 @@ from easybuild.tools import config, filetools  # @UnusedImport make sure config 
 from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
+from easybuild.tools.convert import ListOfStrings
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
@@ -146,6 +152,12 @@ class EasyBuildOptions(GeneralOption):
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
+                           None, 'store', None),
+            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+                             None, 'store_true', False),
+            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
+                                 None, 'store_true', True),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -307,6 +319,12 @@ class EasyBuildOptions(GeneralOption):
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
+        easybuild.tools.build_log.EXPERIMENTAL = self.options.experimental
+        easybuild.tools.config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
+
+        if self.options.deprecated:
+            easybuild.tools.build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
+
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
@@ -341,7 +359,11 @@ class EasyBuildOptions(GeneralOption):
 
         # split supplied list of robot paths to obtain a list
         if self.options.robot:
-            self.options.robot = self.options.robot.split(os.pathsep)
+            class RobotPath(ListOfStrings):
+                SEPARATOR_LIST = os.pathsep
+                # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
+                __str__ = ListOfStrings.__str__
+            self.options.robot = RobotPath(self.options.robot)
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

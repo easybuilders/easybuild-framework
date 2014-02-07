@@ -1,16 +1,39 @@
+# #
+# Copyright 2013-2014 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# http://github.com/hpcugent/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+# #
 """
 Unit tests for easyconfig/parser.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-
 from unittest import TestCase, TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
@@ -31,6 +54,11 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['version'], '4.6.3')
 
     def test_v20(self):
+        """Test parsing of easyconfig in format v2."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb')
         ecp = EasyConfigParser(fn)
 
@@ -47,7 +75,15 @@ class EasyConfigParserTest(TestCase):
         self.assertEqual(ec['name'], 'GCC')
         self.assertEqual(ec['version'], '4.6.2')
 
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
     def test_v20_extra(self):
+        """Test parsing of easyconfig in format v2."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
         ecp = EasyConfigParser(fn)
 
@@ -58,7 +94,15 @@ class EasyConfigParserTest(TestCase):
         self.assertFalse('version' in formatter.pyheader_localvars)
         self.assertFalse('toolchain' in formatter.pyheader_localvars)
 
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
     def test_v20_deps(self):
+        """Test parsing of easyconfig in format v2 that includes dependencies."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         fn = os.path.join(TESTDIRBASE, 'v2.0', 'libpng.eb')
         ecp = EasyConfigParser(fn)
 
@@ -70,6 +114,9 @@ class EasyConfigParserTest(TestCase):
 
         # dependencies should be parsed correctly
         self.assertEqual(ec['dependencies'], [('zlib', '1.2.5')])
+
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
 def suite():
     """ returns all the testcases in this module """
