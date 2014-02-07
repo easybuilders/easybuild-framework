@@ -138,29 +138,34 @@ class ToyBuildTest(TestCase):
                ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
+            pass
+        except Exception, err:
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
 
     def test_toy_build_formatv2(self):
-        """Perform a toy build."""
+        """Perform a toy build (format v2)."""
         args = [
-                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
-                '--sourcepath=%s' % self.sourcepath,
-                '--buildpath=%s' % self.buildpath,
-                '--installpath=%s' % self.installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
-                '--software-version=0.0',
-                '--toolchain=dummy,dummy',
-               ]
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
+            '--sourcepath=%s' % self.sourcepath,
+            '--buildpath=%s' % self.buildpath,
+            '--installpath=%s' % self.installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+            '--software-version=0.0',
+            '--toolchain=dummy,dummy',
+            '--experimental',
+        ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
+            pass
+        except Exception, err:
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 
@@ -188,7 +193,9 @@ class ToyBuildTest(TestCase):
                ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
+            pass
+        except Exception, err:
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 

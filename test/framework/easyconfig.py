@@ -37,6 +37,7 @@ import tempfile
 from unittest import TestCase, TestLoader, main
 from vsc import fancylogger
 
+import easybuild.tools.build_log
 import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
@@ -790,6 +791,10 @@ class EasyConfigTest(TestCase):
 
     def test_format_equivalence_basic(self):
         """Test whether easyconfigs in different formats are equivalent."""
+        # hard enable experimental
+        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
+        easybuild.tools.build_log.EXPERIMENTAL = True
+
         easyconfigs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
         # set max diff high enough to make sure the difference is shown in case of problems
@@ -810,6 +815,9 @@ class EasyConfigTest(TestCase):
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), build_options=build_options)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), build_options=build_options, build_specs=specs)
             self.assertEqual(ec1.asdict(), ec2.asdict())
+
+        # restore
+        easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
 def suite():
     """ returns all the testcases in this module """
