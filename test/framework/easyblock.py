@@ -251,6 +251,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.assertTrue(os.path.isdir(eb.installdir))
 
         # make sure build dir is unique
+        eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
         for i in range(0,3):
             eb.gen_builddir()

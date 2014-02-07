@@ -289,6 +289,11 @@ class EasyConfigTest(TestCase):
             '   ("ext2", "ext_ver2", {',
             '       "source_tmpl": "gzip-1.4.eb",',  # dummy source template to avoid downloading fail
             '       "source_urls": [("http://example.com", "suffix")],'
+            '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
+            '       "checksums": [',
+            '           "673085af5622393e543b9ea31f66c590",',  # checksum for source (gzip-1.4.eb)
+            '           "5e82b0e9faa5753545bb6da12d88d04b",',  # checksum for patch ()
+            '       ],',
             '   }),',
             ']',
         ])
