@@ -95,3 +95,29 @@ class Dependency(Convert):
             tmp.append(str(self['tc_versop']))
 
         return self.SEPARATOR_DEP.join(tmp)
+
+
+def parse_dependency(dep_name, dep_val):
+    """
+    Parse a dependency specification, as obtained from DEPENDENCIES section.
+
+    Returns a dictionary with string values and expected keys (name, version, versionsuffix, toolchain)."""
+    dep = Dependency(dep_val)
+    versop = dep['versop']
+    # name and version are always there
+    res = {
+        'name': dep_name,
+        'version': versop.get_version_str(),
+    }
+    # optional versionsuffix and toolchain
+    if versop.suffix is not None:
+        res.update({
+            'versionsuffix': versop.suffix,
+        })
+    if 'tc_versop' in dep:
+        tc_versop = dep['tc_versop']
+        res.update({
+            'toolchain': tc_versop.as_dict(),
+        })
+
+    return res
