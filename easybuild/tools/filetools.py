@@ -31,8 +31,8 @@ Set of file tools.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
-import binascii
 import errno
 import glob
 import os
@@ -107,24 +107,46 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+    md5_class = hashlib.md5
+    sha1_class = hashlib.sha1
+except ImportError:
+    import md5, sha
+    md5_class = md5.md5
+    sha1_class = sha.sha
+
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'adler32': lambda p: '0x%s' % zlib.adler32(open(p, 'r').read()),
-    'crc32': lambda p: '0x%s' % binascii.crc32(open(p, 'r').read()),
+    'md5': lambda p: calc_block_checksum(p, md5_class()),
+    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
+    'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
 }
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: hashlib.md5(open(p, 'r').read()).hexdigest()
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: hashlib.sha1(open(p, 'r').read()).hexdigest()
-except ImportError:
-    import md5, sha
-    CHECKSUM_FUNCTIONS['md5'] = lambda p: md5.md5(open(p, 'r').read()).hexdigest()
-    CHECKSUM_FUNCTIONS['sha1'] = lambda p: sha.sha(open(p, 'r').read()).hexdigest()
+
+
+class ZlibChecksum(object):
+    """
+    wrapper class for adler32 and crc32 checksums to
+    match the interface of the hashlib module
+    """
+    def __init__(self, algorithm):
+        self.algorithm = algorithm
+        self.checksum = algorithm(r'')  # use the same starting point as the module
+        self.blocksize = 64  # The same as md5/sha1
+
+    def update(self, data):
+        """Calculates a new checksum using the old one and the new data"""
+        self.checksum = self.algorithm(data, self.checksum)
+
+    def hexdigest(self):
+        """Return hex string of the checksum"""
+        return '0x%s' % (self.checksum & 0xffffffff)
 
 
 def read_file(path, log_error=True):
@@ -373,6 +395,28 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     return checksum
 
 
+def calc_block_checksum(path, algorithm):
+    """Calculate a checksum of a file by reading it into blocks"""
+    # We pick a blocksize of 16 MB: it's a multiple of the internal
+    # blocksize of md5/sha1 (64) and gave the best speed results
+    try:
+        # in hashlib, blocksize is a class parameter
+        blocksize = algorithm.blocksize * 262144  # 2^18
+    except AttributeError, err:
+        blocksize = 16777216  # 2^24
+    _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
+
+    try:
+        f = open(path, 'rb')
+        for block in iter(lambda: f.read(blocksize), r''):
+            algorithm.update(block)
+        f.close()
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+
+    return algorithm.hexdigest()
+
+
 def verify_checksum(path, checksums):
     """
     Verify checksum of specified file.
@@ -577,8 +621,8 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             else:
                 _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
 
-        if p == None: # p can also be zero, so don't use "not p"
-            ## no match
+        if p is None:  # p can also be zero, so don't use "not p"
+            # no match
             _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
         else:
             _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
@@ -594,6 +638,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         return
 
     return result
+
 
 def adjust_cmd(func):
     """Make adjustments to given command, if required."""
@@ -615,6 +660,7 @@ def adjust_cmd(func):
         return func(cmd, *args, **kwargs)
 
     return inner
+
 
 @adjust_cmd
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
@@ -649,7 +695,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
+                             stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
     if inp:
@@ -709,7 +755,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - replace newline
 
     def escape_special(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])" , r"\\\1", string)
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
@@ -830,10 +876,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
-                                                                                    maxHitCount,
-                                                                                    stdoutErr[-500:]
-                                                                                    ))
+            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
+                       (cmd, maxHitCount, stdoutErr[-500:]))
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -923,9 +967,9 @@ def convert_name(name, upper=False):
     """
     ## no regexps
     charmap = {
-         '+':'plus',
-         '-':'min'
-        }
+        '+': 'plus',
+        '-': 'min'
+    }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
 
@@ -964,9 +1008,8 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     if stdout and res:
         if msg:
             _log.info("parseLogError msg: %s" % msg)
-        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
-                                                                              '\n'.join([x[0] for x in res])
-                                                                              ))
+        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" %
+                  (regExp, '\n'.join([x[0] for x in res])))
 
     return res
 
@@ -1040,10 +1083,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
-        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
-                  (100*fail_ratio, 100*max_fail_ratio))
+        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
+                  (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100*fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
 
 def patch_perl_script_autoflush(path):
@@ -1070,7 +1113,7 @@ def mkdir(directory, parents=False):
     """
     Create a directory
     Directory is the path to create
-    
+
     When parents is True then no error if directory already exists
     and make parent directories as needed (cfr. mkdir -p)
     """
@@ -1083,7 +1126,7 @@ def mkdir(directory, parents=False):
                 _log.debug("Directory %s already exitst" % directory)
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:#not parrents
+    else:  # not parents
         try:
             os.mkdir(directory)
             _log.debug("Succesfully created directory %s" % directory)
@@ -1098,7 +1141,7 @@ def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
-    for i in range(0,n):
+    for i in range(0, n):
         try:
             shutil.rmtree(path)
             ok = True
@@ -1127,7 +1170,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     """
     Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
     and this code can be improved...
-    
+
     Recursively copy a directory tree using copy2().
 
     The destination directory must not already exist.
@@ -1156,7 +1199,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError #@UndefinedVariable
+        WindowsError  #@UndefinedVariable
     except NameError:
         WindowsError = None
 
@@ -1199,6 +1242,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     if errors:
         raise Error, errors
 
+
 def encode_string(name):
     """
     This encoding function handles funky software names ad infinitum, like:
@@ -1211,7 +1255,7 @@ def encode_string(name):
     * http://celldesigner.org/help/CDH_Species_01.html
     * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
-    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
@@ -1222,6 +1266,7 @@ def encode_string(name):
     result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
     return result
 
+
 def decode_string(name):
     """Decoding function to revert result of encode_string."""
     result = name
@@ -1229,9 +1274,11 @@ def decode_string(name):
         result = re.sub(escaped_char, char, result)
     return result
 
+
 def encode_class_name(name):
     """return encoded version of class name"""
     return EASYBLOCK_CLASS_PREFIX + encode_string(name)
+
 
 def decode_class_name(name):
     """Return decoded version of class name."""
