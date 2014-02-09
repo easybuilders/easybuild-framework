@@ -196,8 +196,8 @@ class ConfigurationVariables(dict):
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
     oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
-    newpath = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config")),
-                           "easybuild")
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
+    newpath = os.path.join(xdg_config_home, "easybuild")
 
     if os.path.isdir(newpath):
         return newpath
