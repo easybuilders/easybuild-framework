@@ -5,7 +5,7 @@ Example easyconfig with dependencies
 """
 name = 'libpng'
 
-homepage = http://www.libpng.org/pub/png/libpng.html
+homepage = 'http://www.libpng.org/pub/png/libpng.html'
 description = "libpng is the official PNG reference library"
 docurls = [
     'http://www.libpng.org/pub/png/pngdocs.html',
