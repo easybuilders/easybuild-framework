@@ -199,6 +199,8 @@ class EasyBuildOptions(GeneralOption):
                         "(repositorypath prefix is only relevant in case of FileRepository repository) "
                         "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
                         None, 'store', None),
+            'recursive-module-unload': ("Enable generating of modules that unload recursively.",
+                                        None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
                            'choice', 'store', oldstyle_defaults['repository'], sorted(avail_repositories().keys())),
             'repositorypath': (("Repository path, used by repository "
