@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,8 +31,10 @@ Set of file tools.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import errno
+import glob
 import os
 import re
 import shutil
@@ -42,16 +44,20 @@ import subprocess
 import tempfile
 import time
 import urllib
+import xml.dom.minidom as xml
+import zlib
+from datetime import datetime
 from vsc import fancylogger
+from vsc.utils.missing import all
 
-import easybuild.tools.build_log  # @UnusedImport (required to get an EasyBuildLog object from fancylogger.getLogger)
 import easybuild.tools.environment as env
-from easybuild.tools.asyncprocess import Popen, PIPE, STDOUT
-from easybuild.tools.asyncprocess import send_all, recv_some
+from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
+from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
-errorsFoundInLog = 0
+errors_found_in_log = 0
 
 # constants for strictness levels
 IGNORE = 'ignore'
@@ -100,6 +106,47 @@ STRING_ENCODING_CHARMAP = {
     r'}': "_rightcurly_",
     r'~': "_tilde_",
 }
+
+try:
+    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
+    import hashlib
+    md5_class = hashlib.md5
+    sha1_class = hashlib.sha1
+except ImportError:
+    import md5, sha
+    md5_class = md5.md5
+    sha1_class = sha.sha
+
+# default checksum for source and patch files
+DEFAULT_CHECKSUM = 'md5'
+
+# map of checksum types to checksum functions
+CHECKSUM_FUNCTIONS = {
+    'md5': lambda p: calc_block_checksum(p, md5_class()),
+    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
+    'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
+    'size': lambda p: os.path.getsize(p),
+}
+
+
+class ZlibChecksum(object):
+    """
+    wrapper class for adler32 and crc32 checksums to
+    match the interface of the hashlib module
+    """
+    def __init__(self, algorithm):
+        self.algorithm = algorithm
+        self.checksum = algorithm(r'')  # use the same starting point as the module
+        self.blocksize = 64  # The same as md5/sha1
+
+    def update(self, data):
+        """Calculates a new checksum using the old one and the new data"""
+        self.checksum = self.algorithm(data, self.checksum)
+
+    def hexdigest(self):
+        """Return hex string of the checksum"""
+        return '0x%s' % (self.checksum & 0xffffffff)
 
 
 def read_file(path, log_error=True):
@@ -189,6 +236,28 @@ def which(cmd):
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
 
+
+def det_common_path_prefix(paths):
+    """Determine common path prefix for a given list of paths."""
+    if not isinstance(paths, list):
+        _log.error("det_common_path_prefix: argument must be of type list (got %s: %s)" % (type(paths), paths))
+    elif not paths:
+        return None
+
+    # initial guess for common prefix
+    prefix = paths[0]
+    found_common = False
+    while not found_common and prefix != os.path.dirname(prefix):
+        prefix = os.path.dirname(prefix)
+        found_common = all([p.startswith(prefix) for p in paths])
+
+    if found_common:
+        # prefix may be empty string for relative paths with a non-common prefix
+        return prefix.rstrip(os.path.sep) or None
+    else:
+        return None
+
+
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
@@ -224,6 +293,162 @@ def download_file(filename, url, path):
 
     # failed to download after multiple attempts
     return None
+
+
+def find_easyconfigs(path, ignore_dirs=None):
+    """
+    Find .eb easyconfig files in path
+    """
+    if os.path.isfile(path):
+        return [path]
+
+    if ignore_dirs is None:
+        ignore_dirs = []
+
+    # walk through the start directory, retain all files that end in .eb
+    files = []
+    path = os.path.abspath(path)
+    for dirpath, dirnames, filenames in os.walk(path, topdown=True):
+        for f in filenames:
+            if not f.endswith('.eb') or f == 'TEMPLATE.eb':
+                continue
+
+            spec = os.path.join(dirpath, f)
+            _log.debug("Found easyconfig %s" % spec)
+            files.append(spec)
+
+        # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
+        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+    return files
+
+
+def search_file(paths, query, build_options=None, short=False):
+    """
+    Search for a particular file (only prints)
+    """
+    if build_options is None:
+        build_options = {}
+
+    ignore_dirs = build_options.get('ignore_dirs', ['.git', '.svn'])
+    if not isinstance(ignore_dirs, list):
+        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
+
+    silent = build_options.get('silent', False)
+
+    var_lines = []
+    hit_lines = []
+    var_index = 1
+    var = None
+    for path in paths:
+        hits = []
+        hit_in_path = False
+        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
+
+        query = query.lower()
+        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
+            for filename in filenames:
+                filename = os.path.join(dirpath, filename)
+                if filename.lower().find(query) != -1:
+                    if not hit_in_path:
+                        var = "CFGS%d" % var_index
+                        var_index += 1
+                        hit_in_path = True
+                    hits.append(filename)
+
+            # do not consider (certain) hidden directories
+            # note: we still need to consider e.g., .local !
+            # replace list elements using [:], so os.walk doesn't process deleted directories
+            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
+            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+        if hits:
+            common_prefix = det_common_path_prefix(hits)
+            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
+                var_lines.append("%s=%s" % (var, common_prefix))
+                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
+            else:
+                hit_lines.extend([" * %s" % fn for fn in hits])
+
+    for line in var_lines + hit_lines:
+        print_msg(line, log=_log, silent=silent, prefix=False)
+
+
+def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
+    """
+    Compute checksum of specified file.
+
+    @param path: Path of file to compute checksum for
+    @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
+    """
+    if not checksum_type in CHECKSUM_FUNCTIONS:
+        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
+
+    try:
+        checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+    except MemoryError, err:
+        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        checksum = 'dummy_checksum_due_to_memory_error'
+
+    return checksum
+
+
+def calc_block_checksum(path, algorithm):
+    """Calculate a checksum of a file by reading it into blocks"""
+    # We pick a blocksize of 16 MB: it's a multiple of the internal
+    # blocksize of md5/sha1 (64) and gave the best speed results
+    try:
+        # in hashlib, blocksize is a class parameter
+        blocksize = algorithm.blocksize * 262144  # 2^18
+    except AttributeError, err:
+        blocksize = 16777216  # 2^24
+    _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
+
+    try:
+        f = open(path, 'rb')
+        for block in iter(lambda: f.read(blocksize), r''):
+            algorithm.update(block)
+        f.close()
+    except IOError, err:
+        _log.error("Failed to read %s: %s" % (path, err))
+
+    return algorithm.hexdigest()
+
+
+def verify_checksum(path, checksums):
+    """
+    Verify checksum of specified file.
+
+    @param file: path of file to verify checksum of
+    @param checksum: checksum value (and type, optionally, default is MD5), e.g., 'af314', ('sha', '5ec1b')
+    """
+    # if no checksum is provided, pretend checksum to be valid
+    if checksums is None:
+        return True
+
+    # make sure we have a list of checksums
+    if not isinstance(checksums, list):
+        checksums = [checksums]
+
+    for checksum in checksums:
+        if isinstance(checksum, basestring):
+            # default checksum type unless otherwise specified is MD5 (most common(?))
+            typ = DEFAULT_CHECKSUM
+        elif isinstance(checksum, tuple) and len(checksum) == 2:
+            typ, checksum = checksum
+        else:
+            _log.error("Invalid checksum spec '%s', should be a string (MD5) or 2-tuple (type, value)." % checksum)
+
+        actual_checksum = compute_checksum(path, typ)
+        _log.debug("Computed %s checksum for %s: %s (correct checksum: %s)" % (typ, path, actual_checksum, checksum))
+
+        if actual_checksum != checksum:
+            return False
+
+    # if we land here, all checksums have been verified to be correct
+    return True
 
 
 def find_base_dir():
@@ -396,8 +621,8 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             else:
                 _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
 
-        if p == None: # p can also be zero, so don't use "not p"
-            ## no match
+        if p is None:  # p can also be zero, so don't use "not p"
+            # no match
             _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
         else:
             _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
@@ -413,6 +638,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         return
 
     return result
+
 
 def adjust_cmd(func):
     """Make adjustments to given command, if required."""
@@ -434,6 +660,7 @@ def adjust_cmd(func):
         return func(cmd, *args, **kwargs)
 
     return inner
+
 
 @adjust_cmd
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
@@ -468,7 +695,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     try:
         p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                           stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
+                             stdin=subprocess.PIPE, close_fds=True, executable="/bin/bash")
     except OSError, err:
         _log.error("run_cmd init cmd %s failed:%s" % (cmd, err))
     if inp:
@@ -528,7 +755,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     # - replace newline
 
     def escape_special(string):
-        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])" , r"\\\1", string)
+        return re.sub(r"([\+\?\(\)\[\]\*\.\\\$])", r"\\\1", string)
 
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
@@ -649,10 +876,8 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             except OSError, err:
                 _log.debug("run_cmd_qa exception caught when killing child process: %s" % err)
             _log.debug("run_cmd_qa: full stdouterr: %s" % stdoutErr)
-            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" % (cmd,
-                                                                                    maxHitCount,
-                                                                                    stdoutErr[-500:]
-                                                                                    ))
+            _log.error("run_cmd_qa: cmd %s : Max nohits %s reached: end of output %s" %
+                       (cmd, maxHitCount, stdoutErr[-500:]))
 
         # the sleep below is required to avoid exiting on unknown 'questions' too early (see above)
         time.sleep(1)
@@ -742,9 +967,9 @@ def convert_name(name, upper=False):
     """
     ## no regexps
     charmap = {
-         '+':'plus',
-         '-':'min'
-        }
+        '+': 'plus',
+        '-': 'min'
+    }
     for ch, new in charmap.items():
         name = name.replace(ch, new)
 
@@ -761,7 +986,7 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     regExp is a one-line regular expression
     - default
     """
-    global errorsFoundInLog
+    global errors_found_in_log
 
     if regExp and type(regExp) == bool:
         regExp = r"(?<![(,-]|\w)(?:error|segmentation fault|failed)(?![(,-]|\.?\w)"
@@ -778,14 +1003,13 @@ def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
         r = reg.search(l)
         if r:
             res.append([l, r.groups()])
-            errorsFoundInLog += 1
+            errors_found_in_log += 1
 
     if stdout and res:
         if msg:
             _log.info("parseLogError msg: %s" % msg)
-        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" % (regExp,
-                                                                              '\n'.join([x[0] for x in res])
-                                                                              ))
+        _log.info("parseLogError (some may be harmless) regExp %s found:\n%s" %
+                  (regExp, '\n'.join([x[0] for x in res])))
 
     return res
 
@@ -859,10 +1083,10 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
-        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." % \
-                  (100*fail_ratio, 100*max_fail_ratio))
+        _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
+                  (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
-        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100*fail_ratio))
+        _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
 
 def patch_perl_script_autoflush(path):
@@ -889,7 +1113,7 @@ def mkdir(directory, parents=False):
     """
     Create a directory
     Directory is the path to create
-    
+
     When parents is True then no error if directory already exists
     and make parent directories as needed (cfr. mkdir -p)
     """
@@ -902,7 +1126,7 @@ def mkdir(directory, parents=False):
                 _log.debug("Directory %s already exitst" % directory)
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:#not parrents
+    else:  # not parents
         try:
             os.mkdir(directory)
             _log.debug("Succesfully created directory %s" % directory)
@@ -912,11 +1136,12 @@ def mkdir(directory, parents=False):
             else:
                 _log.error("Failed to create directory %s: %s" % (directory, err))
 
+
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
-    for i in range(0,n):
+    for i in range(0, n):
         try:
             shutil.rmtree(path)
             ok = True
@@ -929,11 +1154,23 @@ def rmtree2(path, n=3):
     else:
         _log.info("Path %s successfully removed." % path)
 
+
+def cleanup(logfile, tempdir, testing):
+    """Cleanup the specified log file and the tmp directory"""
+    if not testing and logfile is not None:
+        os.remove(logfile)
+        print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+
+    if not testing and tempdir is not None:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
+
+
 def copytree(src, dst, symlinks=False, ignore=None):
     """
     Copied from Lib/shutil.py in python 2.7, since we need this to work for python2.4 aswell
     and this code can be improved...
-    
+
     Recursively copy a directory tree using copy2().
 
     The destination directory must not already exist.
@@ -962,7 +1199,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     class Error(EnvironmentError):
         pass
     try:
-        WindowsError #@UndefinedVariable
+        WindowsError  #@UndefinedVariable
     except NameError:
         WindowsError = None
 
@@ -1005,6 +1242,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
     if errors:
         raise Error, errors
 
+
 def encode_string(name):
     """
     This encoding function handles funky software names ad infinitum, like:
@@ -1017,7 +1255,7 @@ def encode_string(name):
     * http://celldesigner.org/help/CDH_Species_01.html
     * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
-    * http://www.unicode.org/versions/Unicode6.1.0/ 
+    * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
@@ -1028,6 +1266,7 @@ def encode_string(name):
     result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
     return result
 
+
 def decode_string(name):
     """Decoding function to revert result of encode_string."""
     result = name
@@ -1035,9 +1274,11 @@ def decode_string(name):
         result = re.sub(escaped_char, char, result)
     return result
 
+
 def encode_class_name(name):
     """return encoded version of class name"""
     return EASYBLOCK_CLASS_PREFIX + encode_string(name)
+
 
 def decode_class_name(name):
     """Return decoded version of class name."""
@@ -1047,3 +1288,133 @@ def decode_class_name(name):
     else:
         name = name[len(EASYBLOCK_CLASS_PREFIX):]
         return decode_string(name)
+
+
+def write_to_xml(succes, failed, filename):
+    """
+    Create xml output, using minimal output required according to
+    http://stackoverflow.com/questions/4922867/junit-xml-format-specification-that-hudson-supports
+    """
+    dom = xml.getDOMImplementation()
+    root = dom.createDocument(None, "testsuite", None)
+
+    def create_testcase(name):
+        el = root.createElement("testcase")
+        el.setAttribute("name", name)
+        return el
+
+    def create_failure(name, error_type, error):
+        el = create_testcase(name)
+
+        # encapsulate in CDATA section
+        error_text = root.createCDATASection("\n%s\n" % error)
+        failure_el = root.createElement("failure")
+        failure_el.setAttribute("type", error_type)
+        el.appendChild(failure_el)
+        el.lastChild.appendChild(error_text)
+        return el
+
+    def create_success(name, stats):
+        el = create_testcase(name)
+        text = "\n".join(["%s=%s" % (key, value) for (key, value) in stats.items()])
+        build_stats = root.createCDATASection("\n%s\n" % text)
+        system_out = root.createElement("system-out")
+        el.appendChild(system_out)
+        el.lastChild.appendChild(build_stats)
+        return el
+
+    properties = root.createElement("properties")
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    properties.appendChild(framework_version)
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
+    properties.appendChild(easyblocks_version)
+
+    time = root.createElement("property")
+    time.setAttribute("name", "timestamp")
+    time.setAttribute("value", str(datetime.now()))
+    properties.appendChild(time)
+
+    root.firstChild.appendChild(properties)
+
+    for (obj, fase, error, _) in failed:
+        # try to pretty print
+        try:
+            el = create_failure(obj.mod_name, fase, error)
+        except AttributeError:
+            el = create_failure(obj, fase, error)
+
+        root.firstChild.appendChild(el)
+
+    for (obj, stats) in succes:
+        el = create_success(obj.mod_name, stats)
+        root.firstChild.appendChild(el)
+
+    try:
+        output_file = open(filename, "w")
+        root.writexml(output_file)
+        output_file.close()
+    except IOError, err:
+        _log.error("Failed to write out XML file %s: %s" % (filename, err))
+
+
+def aggregate_xml_in_dirs(base_dir, output_filename):
+    """
+    Finds all the xml files in the dirs and takes the testcase attribute out of them.
+    These are then put in a single output file.
+    """
+    dom = xml.getDOMImplementation()
+    root = dom.createDocument(None, "testsuite", None)
+    root.documentElement.setAttribute("name", base_dir)
+    properties = root.createElement("properties")
+    framework_version = root.createElement("property")
+    framework_version.setAttribute("name", "easybuild-framework-version")
+    framework_version.setAttribute("value", str(FRAMEWORK_VERSION))
+    properties.appendChild(framework_version)
+    easyblocks_version = root.createElement("property")
+    easyblocks_version.setAttribute("name", "easybuild-easyblocks-version")
+    easyblocks_version.setAttribute("value", str(EASYBLOCKS_VERSION))
+    properties.appendChild(easyblocks_version)
+
+    time_el = root.createElement("property")
+    time_el.setAttribute("name", "timestamp")
+    time_el.setAttribute("value", str(datetime.now()))
+    properties.appendChild(time_el)
+
+    root.firstChild.appendChild(properties)
+
+    dirs = filter(os.path.isdir, [os.path.join(base_dir, d) for d in os.listdir(base_dir)])
+
+    succes = 0
+    total = 0
+
+    for d in dirs:
+        xml_file = glob.glob(os.path.join(d, "*.xml"))
+        if xml_file:
+            # take the first one (should be only one present)
+            xml_file = xml_file[0]
+            try:
+                dom = xml.parse(xml_file)
+            except IOError, err:
+                _log.error("Failed to read/parse XML file %s: %s" % (xml_file, err))
+            # only one should be present, we are just discarding the rest
+            testcase = dom.getElementsByTagName("testcase")[0]
+            root.firstChild.appendChild(testcase)
+
+            total += 1
+            if not testcase.getElementsByTagName("failure"):
+                succes += 1
+
+    comment = root.createComment("%s out of %s builds succeeded" % (succes, total))
+    root.firstChild.insertBefore(comment, properties)
+    try:
+        output_file = open(output_filename, "w")
+        root.writexml(output_file, addindent="\t", newl="\n")
+        output_file.close()
+    except IOError, err:
+        _log.error("Failed to write out XML file %s: %s" % (output_filename, err))
+
+    print "Aggregate regtest results written to %s" % output_filename

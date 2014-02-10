@@ -42,6 +42,9 @@ Various functions that are missing from the default Python library.
 """
 import shlex
 import subprocess
+import time
+
+from vsc.utils import fancylogger
 
 
 def any(ls):
@@ -236,3 +239,29 @@ def get_subclasses(klass):
         res.append(cl)
     return res
 
+
+class TryOrFail(object):
+    """
+    Perform the function n times, catching each exception in the exception tuple except on the last try
+    where it will be raised again.
+    """
+    def __init__(self, n, exceptions=(Exception,), sleep=0):
+        self.n = n
+        self.exceptions = exceptions
+        self.sleep = sleep
+
+    def __call__(self, function):
+        def new_function(*args, **kwargs ):
+            log = fancylogger.getLogger(function.__name__)
+            for i in xrange(0,self.n):
+                try:
+                    return function(*args, **kwargs)
+                except self.exceptions, err:
+                    if i == self.n - 1:
+                        raise
+                    log.exception("try_or_fail caught an exception - attempt %d: %s" % (i, err))
+                    if self.sleep > 0:
+                        log.warning("try_or_fail is sleeping for %d seconds before the next attempt" % (self.sleep,))
+                        time.sleep(self.sleep)
+
+        return new_function

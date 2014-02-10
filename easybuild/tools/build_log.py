@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,8 +39,15 @@ from vsc import fancylogger
 
 from easybuild.tools.version import VERSION
 
+
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
+
+# the version seen by log.deprecated
+CURRENT_VERSION = VERSION
+
+# allow some experimental experimental code
+EXPERIMENTAL = False
 
 
 class EasyBuildError(Exception):
@@ -76,9 +83,18 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 break
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
+    def experimental(self, msg, *args, **kwargs):
+        """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        if EXPERIMENTAL:
+            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
+            self.warning(msg, *args, **kwargs)
+        else:
+            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            self.error(msg, *args)
+
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
-        fancylogger.FancyLogger.deprecated(self, msg, str(VERSION), max_ver, exception=EasyBuildError)
+        fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
@@ -128,14 +144,17 @@ def get_log(name=None):
     return log
 
 
-def print_msg(msg, log=None, silent=False):
+def print_msg(msg, log=None, silent=False, prefix=True):
     """
     Print a message to stdout.
     """
     if log:
         log.info(msg)
     if not silent:
-        print "%s %s" % (EB_MSG_PREFIX, msg)
+        if prefix:
+            print "%s %s" % (EB_MSG_PREFIX, msg)
+        else:
+            print msg
 
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
@@ -156,4 +175,5 @@ def print_warning(message, silent=False):
     Print warning message.
     """
     print_msg("WARNING: %s\n" % message, silent=silent)
+
 

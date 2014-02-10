@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,7 +45,7 @@ from unittest import TestCase, TestLoader, main
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 29
+TEST_MODULES_COUNT = 34
 
 
 class ModulesTest(TestCase):

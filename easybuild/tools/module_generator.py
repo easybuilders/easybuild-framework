@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -120,7 +120,7 @@ class ModuleGenerator(object):
             "    }",
             "}",
             "",
-            "module-whatis {%(description)s}",
+            "module-whatis {Description: %(description)s}",
             "",
             "set root    %(installdir)s",
             "",
@@ -148,13 +148,18 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
+        if recursive_unload:
+            # wrapping the module name in single quotes enables auto-unloading of dependencies on unload
+            condition = "is-loaded '%(mod_name)s'"
+        else:
+            condition = "is-loaded %(mod_name)s"
         return '\n'.join([
             "",
-            "if { ![is-loaded '%(mod_name)s'] } {",
+            "if { ![%s] } {" % condition,
             "    module load %(mod_name)s",
             "}",
             "",

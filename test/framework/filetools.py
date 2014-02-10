@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -194,6 +194,49 @@ class FileToolsTest(TestCase):
         path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
         self.assertTrue(path is None)
 
+
+    def test_checksums(self):
+        """Test checksum functionality."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, "easybuild\n")
+        known_checksums = {
+            'adler32': '0x379257805',
+            'crc32': '0x1457143216',
+            'md5': '7167b64b1ca062b9674ffef46f9325db',
+            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+        }
+
+        # make sure checksums computation/verification is correct
+        for checksum_type, checksum in known_checksums.items():
+            self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
+            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+        # md5 is default
+        self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # make sure faulty checksums are reported
+        broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
+        for checksum_type, checksum in broken_checksums.items():
+            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
+        # md5 is default
+        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+
+        # cleanup
+        os.remove(fp)
+
+    def test_common_path_prefix(self):
+        """Test get common path prefix for a list of paths."""
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/foo', '/foo/bar/baz', '/foo/bar/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/', '/foo/bar/baz', '/foo/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/foo']), '/foo')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/bar', '/foo']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo']), None)
+        self.assertEqual(ft.det_common_path_prefix([]), None)
 
 def suite():
     """ returns all the testcases in this module """

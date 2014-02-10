@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import os
@@ -42,7 +43,9 @@ from vsc import fancylogger
 from vsc.utils.missing import nub
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+import easybuild.tools.environment as env
 from easybuild.tools.environment import read_environment as _read_environment
+from easybuild.tools.filetools import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -192,7 +195,15 @@ class ConfigurationVariables(dict):
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
-    return os.path.join(os.path.expanduser('~'), ".easybuild")
+    oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
+    newpath = os.path.join(xdg_config_home, "easybuild")
+
+    if os.path.isdir(newpath):
+        return newpath
+    else:
+        _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
+        return oldpath
 
 
 def get_default_oldstyle_configfile():
@@ -571,7 +582,45 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     return result
 
 
+def set_tmpdir(tmpdir=None):
+    """Set temporary directory to be used by tempfile and others."""
+    try:
+        if tmpdir is not None:
+            if not os.path.exists(tmpdir):
+                os.makedirs(tmpdir)
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=tmpdir)
+        else:
+            # use tempfile default parent dir
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+    except OSError, err:
+        _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
+
+    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
+
+    for var in ['TMPDIR', 'TEMP', 'TMP']:
+        env.setvar(var, current_tmpdir)
+
+    # reset to make sure tempfile picks up new temporary directory to use
+    tempfile.tempdir = None
+
+    # test if temporary directory allows to execute files, warn if it doesn't
+    try:
+        fd, tmptest_file = tempfile.mkstemp()
+        os.close(fd)
+        os.chmod(tmptest_file, 0700)
+        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
+            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
+            msg += "This can cause problems in the build process, consider using --tmpdir."
+            _log.warning(msg)
+        else:
+            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+        os.remove(tmptest_file)
+
+    except OSError, err:
+        _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
+
+    return current_tmpdir
+
+
 # config variables constant
 variables = ConfigurationVariables()
-
-

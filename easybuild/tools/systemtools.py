@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2013 Ghent University
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -225,6 +225,7 @@ def get_cpu_speed():
             # Linux without cpu scaling
             cpuinfo_fp = '/proc/cpuinfo'
             try:
+                cpu_freq = None
                 f = open(cpuinfo_fp, 'r')
                 for line in f:
                     cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)

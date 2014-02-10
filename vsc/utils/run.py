@@ -82,6 +82,9 @@ RUNRUN_TIMEOUT_OUTPUT = ''
 RUNRUN_TIMEOUT_EXITCODE = 123
 RUNRUN_QA_MAX_MISS_EXITCODE = 124
 
+BASH = '/bin/bash'
+SHELL = BASH
+
 
 class DummyFunction(object):
     def __getattr__(self, name):
@@ -94,6 +97,7 @@ class Run(object):
     """Base class for static run method"""
     INIT_INPUT_CLOSE = True
     USE_SHELL = True
+    SHELL = SHELL  # set the shell via the module constant
 
     @classmethod
     def run(cls, cmd, **kwargs):
@@ -110,9 +114,14 @@ class Run(object):
             @param input: set "simple" input
             @param startpath: directory to change to before executing command
             @param disable_log: use fake logger (won't log anything)
+            @param use_shell: use the subshell 
+            @param shell: change the shell
         """
         self.input = kwargs.pop('input', None)
         self.startpath = kwargs.pop('startpath', None)
+        self.use_shell = kwargs.pop('use_shell', self.USE_SHELL)
+        self.shell = kwargs.pop('shell', self.SHELL)
+
         if kwargs.pop('disable_log', None):
             self.log = DummyFunction()  # No logging
         if not hasattr(self, 'log'):
@@ -199,8 +208,7 @@ class Run(object):
                 - raiseException
             - simple
                 - just return True/False
-
-"""
+        """
         self._run_pre()
         self._wait_for_process()
         return self._run_post()
@@ -286,8 +294,8 @@ class Run(object):
                                   'stderr': self._process_module.STDOUT,
                                   'stdin': self._process_module.PIPE,
                                   'close_fds': True,
-                                  'shell': self.USE_SHELL,
-                                  'executable': "/bin/bash",
+                                  'shell': self.use_shell,
+                                  'executable': self.shell,
                                   }
         if others is not None:
             self._popen_named_args.update(others)

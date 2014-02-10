@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,26 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for dummy compiler.
+EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
-import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.compiler import Compiler
+from easybuild.toolchains.gcccuda import GccCUDA
+from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-TC_CONSTANT_DUMMY = "DUMMY"
-
-
-class Dummy(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
-    COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_DUMMY
-
-    COMPILER_CC = '%sCC' % TC_CONSTANT_DUMMY
-    COMPILER_CXX = '%sCXX' % TC_CONSTANT_DUMMY
-
-    COMPILER_F77 = '%sF77' % TC_CONSTANT_DUMMY
-    COMPILER_F90 = '%sF90' % TC_CONSTANT_DUMMY
+class Gompic(GccCUDA, OpenMPI):
+    """Compiler toolchain with GCC+CUDA and OpenMPI."""
+    NAME = 'gompic'

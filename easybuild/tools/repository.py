@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,8 @@ We have a plain filesystem, an svn and a git repository
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 import getpass
 import os
@@ -165,9 +167,9 @@ class FileRepository(Repository):
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add the eb-file for for software name and version to the repository.
-        stats should be a dict containing stats.
-        if previous is true -> append the stats to the file
+        Add the eb-file for software name and version to the repository.
+        stats should be a dict containing statistics.
+        if previous is true -> append the statistics to the file
         This will return the path to the created file (for use in subclasses)
         """
         # create directory for eb file
@@ -178,12 +180,12 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
-        txt = "# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
         # copy file
         txt += read_file(cfg)
 
-        # append a line to the eb file so we don't have git merge conflicts
+        # append a line to the eb file so that we don't have git merge conflicts
         if not previous:
             statsprefix = "\n# Build statistics\nbuildstats = ["
             statssuffix = "]\n"
@@ -211,7 +213,7 @@ class FileRepository(Repository):
             self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
-        eb = EasyConfig(dest, validate=False)
+        eb = EasyConfig(dest, build_options={'validate': False})
         return eb['buildstats']
 
 
@@ -349,7 +351,7 @@ class SvnRepository(FileRepository):
             raise pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
-                          "properly. Run 'python -c \"import pysvn\"' to test.")
+                               "properly. Run 'python -c \"import pysvn\"' to test.")
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -452,7 +454,13 @@ def init_repository(repository, repository_path):
     elif isinstance(repository, basestring):
         repo = avail_repositories().get(repository)
         try:
-            return repo(*repository_path)
+            if isinstance(repository_path, basestring):
+                return repo(repository_path)
+            elif isinstance(repository_path, (tuple, list)) and len(repository_path) == 2:
+                return repo(*repository_path)
+            else:
+                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
+                           (repository_path, type(repository_path)))
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
                        (repository, repo.__name__, repository_path, err))
