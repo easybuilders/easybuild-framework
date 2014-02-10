@@ -1,0 +1,28 @@
+name = 'toy'
+version = '0.0'
+versionsuffix = '-deps'
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+
+toolchain = {'name': 'dummy', 'version': 'dummy'}
+
+sources = [SOURCE_TAR_GZ]
+checksums = [[
+    'f09dca47638869866e28c9f44aadc111',  # default (MD5)
+    ('adler32', '0x706774088'),
+    ('crc32', '0x652118562'),
+    ('md5', 'f09dca47638869866e28c9f44aadc111'),
+    ('sha1', 'd0f33da8d5164f0f482f82a6c52f1704f1149440'),
+    ('size', 275),
+]]
+patches = ['toy-0.0_typo.patch']
+
+dependencies = [('gompi', '1.3.12')]
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy')],
+    'dirs': ['bin'],
+}
+
+moduleclass = 'tools'
