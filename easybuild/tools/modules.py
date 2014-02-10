@@ -122,13 +122,13 @@ class ModulesTool(object):
     TERSE_OPTION = (0, '--terse')
     # module command to use
     COMMAND = None
-    # environment variable to detemine the module command (instead of COMMAND)
+    # environment variable to determine the module command (instead of COMMAND)
     COMMAND_ENVIRONMENT = None
     # run module command explicitly using this shell
     COMMAND_SHELL = None
     # option to determine the version
     VERSION_OPTION = '--version'
-    # minimal required version (StrictVersion; rc -> b)
+    # minimal required version (StrictVersion; suffix rc replaced with b (and treated as beta by StrictVersion))
     REQ_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
@@ -155,7 +155,7 @@ class ModulesTool(object):
         self.cmd = self.COMMAND
         if self.COMMAND_ENVIRONMENT is not None and self.COMMAND_ENVIRONMENT in os.environ:
             self.log.debug('Set command via environment variable %s' % self.COMMAND_ENVIRONMENT)
-            self.cmd = os.environ.get[self.COMMAND_ENVIRONMENT]
+            self.cmd = os.environ[self.COMMAND_ENVIRONMENT]
 
         if self.cmd is None:
             self.log.error('No command set.')
@@ -170,6 +170,10 @@ class ModulesTool(object):
         self.set_and_check_version()
         self.use_module_paths()
 
+    def buildstats(self):
+        """Return tuple with data to be included in buildstats"""
+        return (self.__class__.__name__, self.cmd, self.version)
+
     @property
     def modules(self):
         """Property providing access to deprecated 'modules' class variable."""
@@ -179,6 +183,9 @@ class ModulesTool(object):
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
         txt = self.run_module(self.VERSION_OPTION, return_output=True)
+        if self.VERSION_REGEXP is None:
+            self.log.error('No VERSION_REGEXP defined')
+
         try:
             txt = self.run_module(self.VERSION_OPTION, return_output=True)
 
@@ -189,7 +196,7 @@ class ModulesTool(object):
                 self.log.info("Found version %s" % self.version)
             else:
                 self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
-        except (IOError, OSError), err:
+        except (OSError), err:
             self.log.error("Failed to check version: %s" % err)
 
         if self.REQ_VERSION is None:
@@ -197,7 +204,7 @@ class ModulesTool(object):
         else:
             # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
             if StrictVersion(self.version.replace('rc', 'b')) < StrictVersion(self.REQ_VERSION):
-                msg = "EasyBuild requires %s >= v%s (no rc), found v%s"
+                msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
                 self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
             else:
                 self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
@@ -420,13 +427,12 @@ class ModulesTool(object):
         self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (cur_ld_library_path, new_ld_library_path))
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
-        cmdlist = []
+        cmdlist = [self.cmd, 'python']
         if self.COMMAND_SHELL is not None:
             if not isinstance(self.COMMAND_SHELL, (list, tuple)):
                 msg = 'COMMAND_SHELL needs to be list or tuple, now %s (value %s)'
                 self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
-            cmdlist.extend(self.COMMAND_SHELL)
-        cmdlist.extend([self.cmd, 'python'])
+            cmdlist = self.COMMAND_SHELL + cmdlist
 
         self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
@@ -602,7 +608,6 @@ class Lmod(ModulesTool):
     """Interface to Lmod."""
     COMMAND = 'lmod'
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
-
     # required and optimal version
     # we need at least Lmod v5.2 (and it can't be a release candidate)
     REQ_VERSION = '5.2'
