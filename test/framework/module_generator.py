@@ -115,8 +115,12 @@ class ModuleGeneratorTest(TestCase):
         ]
         self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
-        # with recursive unloading: module name wrapped in single quotes
-        expected[1] = "if { ![is-loaded 'mod_name'] } {"
+        # with recursive unloading: no if is-loaded guard
+        expected = [
+            "",
+            "module load mod_name",
+            "",
+        ]
         self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
 
     def test_unload(self):
