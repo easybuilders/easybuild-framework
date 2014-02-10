@@ -10,6 +10,10 @@ name = "gzip"
 homepage = "http://www.gzip.org/"
 description = "gzip (GNU zip) is a popular data compression program as a replacement for compress"
 
+docurls = ["http://www.gnu.org/software/gzip/manual/gzip.html"]
+software_license = GPLv3
+software_license_urls = ['http://www.gnu.org/software/gzip/']
+
 source_urls = [GNU_SOURCE]
 sources = [SOURCE_TAR_GZ]
 
