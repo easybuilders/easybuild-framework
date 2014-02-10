@@ -146,18 +146,18 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
+                           None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+                             None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
+                                 None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
-            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
-                           None, 'store', None),
-            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
-                             None, 'store_true', False),
-            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
-                                 None, 'store_true', True),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
