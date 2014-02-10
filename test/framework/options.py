@@ -823,10 +823,10 @@ class CommandLineOptionsTest(TestCase):
         except (SystemExit, Exception), err:
             pass
 
-        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0-deps')
         toy_module_txt = read_file(toy_module)
-        is_loaded_regex = re.compile(r"if { !\[is-loaded 'gompi/1.3.12'\] }", re.M)
-        self.assertTrue(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
+        is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
+        self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
 
         # cleanup
         shutil.rmtree(buildpath)
