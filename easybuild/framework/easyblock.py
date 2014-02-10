@@ -33,6 +33,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 
 import copy
@@ -62,7 +63,7 @@ from easybuild.tools.config import log_path, module_classes, read_only_installdi
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, run_cmd, rmtree2
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd,
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
@@ -827,6 +828,24 @@ class EasyBlock(object):
         if self.exts_all:
             exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
             txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+
+        return txt
+
+    def make_module_footer(self):
+        """
+        Insert a footer section in the modulefile, primarily meant for contextual information
+        """
+        txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
+
+        # set environment variable that specifies list of extensions
+        if self.exts_all:
+            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
+            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+
+        # copy footer; contents should be normally hashed out, and this is a feature, not a bug!
+        footer = '/tmp/footer'
+        if os.path.isfile(footer):
+            txt += read_file(footer)
 
         return txt
 
@@ -1673,7 +1692,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         if self.cfg['exts_list']:
             txt += self.make_module_extra_extensions()
-        txt += '\n# built with EasyBuild version %s\n' % VERBOSE_VERSION
+        txt += self.make_module_footer()
 
         write_file(self.moduleGenerator.filename, txt)
 
