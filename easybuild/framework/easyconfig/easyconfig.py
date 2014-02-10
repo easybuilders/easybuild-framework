@@ -50,6 +50,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
+from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import template_constant_dict
@@ -210,7 +211,7 @@ class EasyConfig(object):
         parser = EasyConfigParser(self.path)
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
-        self.log.debug("Parsing easyconfig as a dictionary: %s" % local_vars)
+        self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
@@ -229,11 +230,15 @@ class EasyConfig(object):
 
         self._legacy_license(local_vars)
 
-        for key in local_vars:
+        # we need toolchain to be set when we call _parse_dependency
+        for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
             # do not store variables we don't need
             if key in self._config:
-                self[key] = local_vars[key]
+                if key in ['builddependencies', 'dependencies']:
+                    self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
+                else:
+                    self[key] = local_vars[key]
                 self.log.info("setting config option %s: value %s (type: %s)" % (key, self[key], type(self[key])))
 
             else:
@@ -345,24 +350,13 @@ class EasyConfig(object):
         returns an array of parsed dependencies
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
-
-        deps = []
-
-        for dep in self['dependencies']:
-            deps.append(self._parse_dependency(dep))
-
-        return deps + self.builddependencies()
+        return self['dependencies'] + self.builddependencies()
 
     def builddependencies(self):
         """
         return the parsed build dependencies
         """
-        deps = []
-
-        for dep in self['builddependencies']:
-            deps.append(self._parse_dependency(dep))
-
-        return deps
+        return self['builddependencies']
 
     @property
     def name(self):
@@ -516,12 +510,21 @@ class EasyConfig(object):
             # make sure 'dummy' key is handled appropriately
             if 'dummy' in dep and not 'toolchain' in dep:
                 dependency['toolchain'] = dep['dummy']
+        elif isinstance(dep, Dependency):
+            dependency['name'] = dep.name()
+            dependency['version'] = dep.version()
+            versionsuffix = dep.versionsuffix()
+            if versionsuffix is not None:
+                dependency['versionsuffix'] = versionsuffix
+            toolchain = dep.toolchain()
+            if toolchain is not None:
+                dependency['toolchain'] = toolchain
         elif isinstance(dep, (list, tuple)):
             # try and convert to list
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
-            self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
+            self.log.error('Dependency %s of unsupported type: %s.' % (dep, type(dep)))
 
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
@@ -536,8 +539,13 @@ class EasyConfig(object):
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
                     self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
+            elif isinstance(tc_spec, dict):
+                if 'name' in tc_spec and 'version' in tc_spec:
+                    tc = copy.deepcopy(tc_spec)
+                else:
+                    self.log.error("Found toolchain spec as dict with required 'name'/'version' keys: %s" % tc_spec)
             else:
-                self.log.error("Unsupported type of value for toolchain encountered: %s => %s" % (tc_spec, type(tc_spec)))
+                self.log.error("Unsupported type for toolchain spec encountered: %s => %s" % (tc_spec, type(tc_spec)))
 
         dependency['toolchain'] = tc
 

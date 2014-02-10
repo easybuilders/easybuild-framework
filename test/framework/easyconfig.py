@@ -217,13 +217,9 @@ class EasyConfigTest(TestCase):
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
-        eb['dependencies'] = ["wrong type"]
-        self.assertErrorRegex(EasyBuildError, "wrong type from unsupported type", eb.dependencies)
-
-        eb['dependencies'] = [()]
-        self.assertErrorRegex(EasyBuildError, "without name", eb.dependencies)
-        eb['dependencies'] = [{'name': "test"}]
-        self.assertErrorRegex(EasyBuildError, "without version", eb.dependencies)
+        self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
+        self.assertErrorRegex(EasyBuildError, "without name", eb._parse_dependency, ())
+        self.assertErrorRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
 
     def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
@@ -512,21 +508,21 @@ class EasyConfigTest(TestCase):
         ver = "3.12"
         suff = "mysuff"
         specs.update({
-                      'name': name,
-                      'version': ver,
-                      'versionsuffix': suff
-                     })
+            'name': name,
+            'version': ver,
+            'versionsuffix': suff
+        })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
         self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.ec_dir], None)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
         specs.update({
-                      'toolchain_name': tcname,
-                      'toolchain_version': tcver,
-                      'version': ver,
-                      'foo': 'bar123'
-                     })
+            'toolchain_name': tcname,
+            'toolchain_version': tcver,
+            'version': ver,
+            'foo': 'bar123'
+        })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[1], "%s-%s-%s-%s%s.eb" % (name, ver, tcname, tcver, suff))
 
@@ -554,9 +550,9 @@ class EasyConfigTest(TestCase):
 
         # should pick correct toolchain version as well, i.e. now newer than what's specified, if a choice needs to be made
         specs.update({
-                      'version': '3.15',
-                      'toolchain_version': '4.4.5',
-                     })
+            'version': '3.15',
+            'toolchain_version': '4.4.5',
+        })
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], build_options={'valid_stops': self.all_stops})
@@ -570,16 +566,31 @@ class EasyConfigTest(TestCase):
 
         # should be able to prepend to list of patches and handle list of dependencies
         new_patches = ['two.patch', 'three.patch']
-        deps = [('foo', '1.2.3'), ('bar', '666')]
         specs.update({
-                      'patches': new_patches[:],
-                      'dependencies': deps
-                     })
+            'patches': new_patches[:],
+            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
+        })
+        parsed_deps = [
+            {
+                'name': 'foo',
+                'version': '1.2.3',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'dummy': False,
+            },
+            {
+                'name': 'bar',
+                'version': '666',
+                'versionsuffix': '-bleh',
+                'toolchain': {'name': 'gompi', 'version': '1.4.10'},
+                'dummy': False,
+            },
+        ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1], build_options={'valid_stops': self.all_stops})
         self.assertEqual(ec['patches'], specs['patches'])
-        self.assertEqual(ec['dependencies'], specs['dependencies'])
+        self.assertEqual(ec['dependencies'], parsed_deps)
         os.remove(res[1])
 
         # verify append functionality for lists

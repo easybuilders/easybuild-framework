@@ -23,3 +23,11 @@ moduleclass = 'tools'
 [SUPPORTED]
 versions = 1.0, 0.0
 toolchains = goolf == 1.4.10, dummy == dummy
+
+[DEFAULT]
+
+[DEPENDENCIES]
+# various types of (meaningless) dependencies: simply, with toolchain/suffix
+GCC = 4.6.4
+OpenMPI = 1.6.4; GCC == 4.6.4
+OpenBLAS = 0.2.6 suffix:-LAPACK-3.4.2; gompi == 1.3.12

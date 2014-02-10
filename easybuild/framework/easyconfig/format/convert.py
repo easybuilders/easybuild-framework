@@ -68,6 +68,12 @@ class Dependency(Convert):
     SEPARATOR_DEP = ';'
     __wraps__ = dict
 
+    def __init__(self, obj, name=None):
+        """Convert pass object to a dependency, use specified name if provided."""
+        super(Dependency, self).__init__(obj)
+        if name is not None:
+            self['name'] = name
+
     def _from_string(self, txt):
         """Convert from string
             versop_str;tc_versop_str -> {'versop': versop, 'tc_versop': tc_versop}
@@ -95,3 +101,25 @@ class Dependency(Convert):
             tmp.append(str(self['tc_versop']))
 
         return self.SEPARATOR_DEP.join(tmp)
+
+    def name(self):
+        """Get dependency name."""
+        return self.get('name', None)
+
+    def version(self):
+        """Get dependency version."""
+        if 'versop' in self:
+            return self['versop'].get_version_str()
+        else:
+            return None
+
+    def versionsuffix(self):
+        """Get dependency versionsuffix (if any)."""
+        return self['versop'].suffix
+
+    def toolchain(self):
+        """Get toolchain spec for dependency (if any)."""
+        if 'tc_versop' in self:
+            return self['tc_versop'].as_dict()
+        else:
+            return None

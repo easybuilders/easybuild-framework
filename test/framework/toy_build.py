@@ -148,6 +148,10 @@ class ToyBuildTest(TestCase):
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
+        # set $MODULEPATH such that modules for specified dependencies are found
+        modulepath = os.environ.get('MODULEPATH')
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
             '--sourcepath=%s' % self.sourcepath,
@@ -165,11 +169,15 @@ class ToyBuildTest(TestCase):
             main((args, self.dummylogfn, True))
         except SystemExit:
             pass
-        except Exception, err:
-            print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
+
+        # restore
+        if modulepath is not None:
+            os.environ['MODULEPATH'] = modulepath
+        else:
+            del os.environ['MODULEPATH']
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""

@@ -56,7 +56,7 @@ class Convert(Wrapper):
         if isinstance(obj, basestring):
             self.data = self._from_string(obj)
         else:
-            self.log.error('unsupported type %s for %s' % (type(obj), self.__class__.__name__))
+            self.log.error('unsupported type %s for %s: %s' % (type(obj), self.__class__.__name__, obj))
         super(Convert, self).__init__(self.data)
 
     def _split_string(self, txt, sep=None, max=0):
