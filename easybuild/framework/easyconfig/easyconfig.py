@@ -235,7 +235,7 @@ class EasyConfig(object):
             # validations are skipped, just set in the config
             # do not store variables we don't need
             if key in self._config:
-                if key in ['buiddependencies', 'dependencies']:
+                if key in ['builddependencies', 'dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
                 else:
                     self[key] = local_vars[key]
@@ -524,7 +524,7 @@ class EasyConfig(object):
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
-            self.log.error('Dependency %s from unsupported type: %s.' % (dep, type(dep)))
+            self.log.error('Dependency %s of unsupported type: %s.' % (dep, type(dep)))
 
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
