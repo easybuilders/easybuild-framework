@@ -66,7 +66,7 @@ class ModulesToolTest(TestCase):
 
         cmd_abspath = which(MockModulesTool.COMMAND)
 
-        #
+        # make sure absolute path of module command is being used
         self.assertEqual(mmt.cmd, cmd_abspath)
 
     def test_environment_command(self):
