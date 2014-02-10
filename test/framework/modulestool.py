@@ -86,6 +86,8 @@ class ModulesToolTest(TestCase):
         self.assertEqual(bmmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
         self.assertEqual(bmmt.cmd, cmd_abspath)
 
+        # clean it up
+        del os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT]
 
 
 def suite():
