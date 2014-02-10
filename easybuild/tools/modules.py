@@ -39,8 +39,7 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, any
@@ -141,10 +140,10 @@ class ModulesTool(object):
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
-        if mod_paths:
-            self.mod_paths = nub(mod_paths)
-        else:
+        if mod_paths is None:
             self.mod_paths = None
+        else:
+            self.mod_paths = nub(mod_paths)
 
         # DEPRECATED!
         self._modules = []

@@ -48,10 +48,10 @@ orig_main_modules_tool = ectools.modules_tool
 class MockModule(modules.ModulesTool):
     """ MockModule class, allows for controlling what modules_tool() will return """
     COMMAND = 'echo'
-    VERSION_OPTION = '1'
-    VERSION_REGEXP = r'(?P<version>\d+)'
+    VERSION_OPTION = '1.0'
+    VERSION_REGEXP = r'(?P<version>\d\S*)'
     # redirect to stderr, ignore 'echo python' ($0 and $1)
-    COMMAND_SHELL = ["bash", "-c", "'echo $2 $3 $4 1>&2'"]
+    COMMAND_SHELL = ["bash", "-c", "echo $2 $3 $4 1>&2"]
 
     avail_modules = []
 
