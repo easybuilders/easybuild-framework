@@ -63,7 +63,7 @@ from easybuild.tools.config import log_path, module_classes, read_only_installdi
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd,
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
@@ -129,6 +129,12 @@ class EasyBlock(object):
         self.modules_tool = modules_tool()
         # module generator
         self.moduleGenerator = None
+
+        # modules footer
+        self.modules_footer = None
+        modules_footer_path = build_options.get('modules_footer', None)
+        if modules_footer_path is not None:
+            self.modules_footer = read_file(modules_footer_path)
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
@@ -842,10 +848,10 @@ class EasyBlock(object):
         if self.cfg['exts_list']:
             txt += self.make_module_extra_extensions()
 
-        # copy footer; contents should be normally hashed out, and this is a feature, not a bug!
-        footer = '/tmp/footer'
-        if os.path.isfile(footer):
-            txt += read_file(footer)
+        # include modules footer if one is specified
+        if self.modules_footer is not None:
+            self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
+            txt += self.modules_footer
 
         return txt
 
