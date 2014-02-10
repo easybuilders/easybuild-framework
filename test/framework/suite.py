@@ -52,6 +52,7 @@ import test.framework.github as g
 import test.framework.license as l
 import test.framework.module_generator as mg
 import test.framework.modules as m
+import test.framework.modulestool as mt
 import test.framework.options as o
 import test.framework.repository as r
 import test.framework.robot as robot
@@ -86,7 +87,7 @@ log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ep, e, mg, m, f, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c]
+tests = [o, r, ef, ev, ep, e, mg, m, mt, f, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c]
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins

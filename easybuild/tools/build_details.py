@@ -56,6 +56,7 @@ def get_build_stats(app, start_time, command_line):
         ('build_time', build_time),
         ('install_size', app.det_installsize()),
         ('command_line', command_line),
+        ('modules_tool', app.modules_tool.buildstats()),
     ])
 
     return buildstats
