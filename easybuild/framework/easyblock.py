@@ -822,6 +822,7 @@ class EasyBlock(object):
         """
         Sets optional variables for extensions.
         """
+        # add stuff specific to individual extensions
         txt = self.module_extra_extensions
 
         # set environment variable that specifies list of extensions
@@ -837,10 +838,9 @@ class EasyBlock(object):
         """
         txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
 
-        # set environment variable that specifies list of extensions
-        if self.exts_all:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+        # add extra stuff for extensions (if any)
+        if self.cfg['exts_list']:
+            txt += self.make_module_extra_extensions()
 
         # copy footer; contents should be normally hashed out, and this is a feature, not a bug!
         footer = '/tmp/footer'
@@ -1690,8 +1690,6 @@ class EasyBlock(object):
         txt += self.make_module_dep()
         txt += self.make_module_req()
         txt += self.make_module_extra()
-        if self.cfg['exts_list']:
-            txt += self.make_module_extra_extensions()
         txt += self.make_module_footer()
 
         write_file(self.moduleGenerator.filename, txt)
