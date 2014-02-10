@@ -176,16 +176,16 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
         _log.error("Can't extract file %s: no such file" % fn)
 
     if not os.path.isdir(dest):
-        # # try to create it
+        # try to create it
         try:
             os.makedirs(dest)
         except OSError, err:
             _log.exception("Can't extract file %s: directory %s can't be created: %err " % (fn, dest, err))
 
-    # # use absolute pathnames from now on
+    # use absolute pathnames from now on
     absDest = os.path.abspath(dest)
 
-    # # change working directory
+    # change working directory
     try:
         _log.debug("Unpacking %s in directory %s." % (fn, absDest))
         os.chdir(absDest)
@@ -443,7 +443,7 @@ def find_base_dir():
       expect only the first one to give the correct path
     """
     def get_local_dirs_purged():
-        # # e.g. always purge the log directory
+        # e.g. always purge the log directory
         ignoreDirs = ["easybuild"]
 
         lst = os.listdir(os.getcwd())
@@ -542,7 +542,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.error("Can't patch directory %s: no such directory" % dest)
         return
 
-    # # copy missing files
+    # copy missing files
     if copy:
         try:
             shutil.copy2(patchFile, dest)
@@ -552,7 +552,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             _log.error("Failed to copy %s to dir %s: %s" % (patchFile, dest, err))
             return
 
-    # # use absolute paths
+    # use absolute paths
     apatch = os.path.abspath(patchFile)
     adest = os.path.abspath(dest)
 
@@ -589,7 +589,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
 
         p = None
         for line in plusLines:
-            # # locate file by stripping of /
+            # locate file by stripping of /
             f = line.group('file')
             tf2 = f.split('/')
             n = len(tf2)
@@ -636,7 +636,7 @@ def convert_name(name, upper=False):
     """
     Converts name so it can be used as variable name
     """
-    # # no regexps
+    # no regexps
     charmap = {
         '+': 'plus',
         '-': 'min'
