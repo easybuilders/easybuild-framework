@@ -744,6 +744,54 @@ class CommandLineOptionsTest(TestCase):
         msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
+    def test_footer(self):
+        """Test specifying a module footer."""
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # create file containing modules footer
+        module_footer_txt = '\n'.join([
+            "# test footer",
+            "setenv SITE_SPECIFIC_ENV_VAR foobar",
+        ])
+        fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
+        os.close(fd)
+        f = open(modules_footer, 'w')
+        f.write(module_footer_txt)
+        f.close()
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--debug',
+            '--modules-footer=%s' % modules_footer,
+        ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
+        toy_module_txt = read_file(toy_module)
+        footer_regex = re.compile(r'%s$' % module_footer_txt, re.M)
+        msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
+        self.assertTrue(footer_regex.search(toy_module_txt), msg)
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
+        shutil.rmtree(tmpdir)
+        os.remove(modules_footer)
 
     def test_tmpdir(self):
         """Test setting temporary directory to use by EasyBuild."""
