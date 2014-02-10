@@ -49,7 +49,6 @@ from vsc.utils.missing import any
 from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 
 import easybuild.tools.config as config
-import easybuild.tools.filetools as filetools
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
 from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, print_dry_run
@@ -115,10 +114,6 @@ def main(testing_data=(None, None, None)):
     _log.info("Command line: %s" % (" ".join(eb_command_line)))
 
     _log.info("Using %s as temporary directory" % eb_tmpdir)
-
-    # set strictness of filetools module
-    if options.strict:
-        filetools.strictness = options.strict
 
     if not options.robot is None:
         if options.robot:

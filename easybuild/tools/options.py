@@ -39,8 +39,6 @@ import sys
 
 from distutils.version import LooseVersion
 
-import easybuild.tools.build_log
-import easybuild.tools.config
 from easybuild.framework.easyblock import EasyBlock, get_class
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
@@ -49,7 +47,7 @@ from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
+from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
@@ -77,7 +75,7 @@ class EasyBuildOptions(GeneralOption):
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
-        strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
+        strictness_options = [run.IGNORE, run.WARN, run.ERROR]
 
         try:
             default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
@@ -102,7 +100,7 @@ class EasyBuildOptions(GeneralOption):
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
-            'strict': ("Set strictness level", 'choice', 'store', filetools.WARN, strictness_options),
+            'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -321,11 +319,15 @@ class EasyBuildOptions(GeneralOption):
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
-        easybuild.tools.build_log.EXPERIMENTAL = self.options.experimental
-        easybuild.tools.config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
+        build_log.EXPERIMENTAL = self.options.experimental
+        config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
+
+        # set strictness of run module
+        if self.options.strict:
+            run.strictness = self.options.strict
 
         if self.options.deprecated:
-            easybuild.tools.build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
+            build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
 
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
