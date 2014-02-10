@@ -154,7 +154,7 @@ class ModuleGenerator(object):
         """
         return '\n'.join([
             "",
-            "if { ![is-loaded %(mod_name)s] } {",
+            "if { ![is-loaded '%(mod_name)s'] } {",
             "    module load %(mod_name)s",
             "}",
             "",
