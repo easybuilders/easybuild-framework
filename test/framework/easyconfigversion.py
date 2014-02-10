@@ -1,3 +1,27 @@
+# #
+# Copyright 2014-2014 Ghent University
+#
+# This file is part of EasyBuild,
+# originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
+# with support of Ghent University (http://ugent.be/hpc),
+# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be/nl/en),
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
+#
+# http://github.com/hpcugent/easybuild
+#
+# EasyBuild is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation v2.
+#
+# EasyBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
+# #
 """
 Unit tests for easyconfig/format/version.py
 
@@ -6,9 +30,9 @@ Unit tests for easyconfig/format/version.py
 import os
 import re
 
+from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
-from easybuild.framework.easyconfig.format.version import ConfigObjVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -88,6 +112,13 @@ class EasyConfigVersion(TestCase):
             ('< 3', '> 2', (True, True)),  # overlap, and conflict (region between 2 and 3 is ambiguous)
             ('>= 3', '== 3' , (True, True)),  # overlap, and conflict (boundary 3 is ambigous)
             ('> 3', '>= 3' , (True, False)),  # overlap, no conflict ('> 3' is more strict then '>= 3')
+
+            # suffix
+            ('> 2', '> 1', (True, False)),  # suffix both equal (both None), ordering like above
+            ('> 2 suffix:-x1', '> 1 suffix:-x1', (True, False)),  # suffix both equal (both -x1), ordering like above
+            ('> 2 suffix:-x1', '> 1 suffix:-x2', (True, True)),  # suffix not equal, conflict (and overlap)
+            ('> 2 suffix:-x1', '< 1 suffix:-x2', (False, True)),  # suffix not equal, conflict (and no overlap)
+            ('> 2 suffix:-x1', '< 1 suffix:-x1', (False, False)),  # suffix equal, no conflict (and no overlap)
         ]
 
         for l, r, res in overlap_conflict:
@@ -107,6 +138,9 @@ class EasyConfigVersion(TestCase):
             ('> 1', '>= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
             ('< 1', '<= 1'),  # no overlap, same boundaries, order by operator (order by strictness)
             ('> 1', '< 1'),  # no overlap, same boundaries, order by operator (quite arbitrary in this case)
+
+            # suffix
+            ('> 2 suffix:-x1', '> 1 suffix:-x1'),  # equal suffixes, regular ordering
         ]
         for l, r in left_gt_right:
             self.assertTrue(VersionOperator(l) > VersionOperator(r), "%s gt %s" % (l, r))
@@ -196,7 +230,7 @@ class EasyConfigVersion(TestCase):
         ]
 
         co = ConfigObj(configobj_txt)
-        cov = ConfigObjVersion()
+        cov = EBConfigObj()
         # FIXME: actually check something
 
 

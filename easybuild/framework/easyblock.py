@@ -61,8 +61,9 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
 from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd,
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
 from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
@@ -128,6 +129,12 @@ class EasyBlock(object):
         self.modules_tool = modules_tool()
         # module generator
         self.moduleGenerator = None
+
+        # modules footer
+        self.modules_footer = None
+        modules_footer_path = build_options.get('modules_footer', None)
+        if modules_footer_path is not None:
+            self.modules_footer = read_file(modules_footer_path)
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
@@ -603,14 +610,16 @@ class EasyBlock(object):
 
         builddir = os.path.join(os.path.abspath(build_path()), clean_name, self.version, lastdir)
 
-        # make sure build dir is unique
-        uniq_builddir = builddir
-        suff = 0
-        while(os.path.isdir(uniq_builddir)):
-            uniq_builddir = "%s.%d" % (builddir, suff)
-            suff += 1
+        # make sure build dir is unique if cleanupoldbuild is False or not set
+        if not self.cfg.get('cleanupoldbuild', False):
+            uniq_builddir = builddir
+            suff = 0
+            while(os.path.isdir(uniq_builddir)):
+                uniq_builddir = "%s.%d" % (builddir, suff)
+                suff += 1
+            builddir = uniq_builddir
 
-        self.builddir = uniq_builddir
+        self.builddir = builddir
         self.log.info("Build dir set to %s" % self.builddir)
 
     def make_builddir(self):
@@ -819,6 +828,7 @@ class EasyBlock(object):
         """
         Sets optional variables for extensions.
         """
+        # add stuff specific to individual extensions
         txt = self.module_extra_extensions
 
         # set environment variable that specifies list of extensions
@@ -834,15 +844,14 @@ class EasyBlock(object):
         """
         txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
 
-        # set environment variable that specifies list of extensions
-        if self.exts_all:
-            exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+        # add extra stuff for extensions (if any)
+        if self.cfg['exts_list']:
+            txt += self.make_module_extra_extensions()
 
-        # copy footer; contents should be normally hashed out, and this is a feature, not a bug!
-        footer = '/tmp/footer'
-        if os.path.isfile(footer):
-            txt += read_file(footer)
+        # include modules footer if one is specified
+        if self.modules_footer is not None:
+            self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
+            txt += self.modules_footer
 
         return txt
 
@@ -866,6 +875,7 @@ class EasyBlock(object):
         return {
             'PATH': ['bin', 'sbin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
+            'LIBRARY_PATH': ['lib', 'lib64'],
             'CPATH':['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
@@ -1246,12 +1256,12 @@ class EasyBlock(object):
         else:
             self.log.info('no patches provided')
 
-        # compute md5 checksums for all source and patch files
+        # compute checksums for all source and patch files
         if not skip_checksums:
             for fil in self.src + self.patches:
-                md5_sum = compute_checksum(fil['path'], checksum_type='md5')
-                fil['md5'] = md5_sum
-                self.log.info("MD5 checksum for %s: %s" % (fil['path'], fil['md5']))
+                check_sum = compute_checksum(fil['path'], checksum_type=DEFAULT_CHECKSUM)
+                fil[DEFAULT_CHECKSUM] = check_sum
+                self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
 
         # set level of parallelism for build
         self.set_parallelism()
@@ -1686,8 +1696,6 @@ class EasyBlock(object):
         txt += self.make_module_dep()
         txt += self.make_module_req()
         txt += self.make_module_extra()
-        if self.cfg['exts_list']:
-            txt += self.make_module_extra_extensions()
         txt += self.make_module_footer()
 
         write_file(self.moduleGenerator.filename, txt)

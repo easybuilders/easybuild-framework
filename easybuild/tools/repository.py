@@ -33,6 +33,7 @@ We have a plain filesystem, an svn and a git repository
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
 import getpass
@@ -350,7 +351,7 @@ class SvnRepository(FileRepository):
             raise pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
-                          "properly. Run 'python -c \"import pysvn\"' to test.")
+                               "properly. Run 'python -c \"import pysvn\"' to test.")
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -453,7 +454,13 @@ def init_repository(repository, repository_path):
     elif isinstance(repository, basestring):
         repo = avail_repositories().get(repository)
         try:
-            return repo(*repository_path)
+            if isinstance(repository_path, basestring):
+                return repo(repository_path)
+            elif isinstance(repository_path, (tuple, list)) and len(repository_path) == 2:
+                return repo(*repository_path)
+            else:
+                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
+                           (repository_path, type(repository_path)))
         except Exception, err:
             _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
                        (repository, repo.__name__, repository_path, err))

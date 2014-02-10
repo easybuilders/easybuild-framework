@@ -138,33 +138,46 @@ class ToyBuildTest(TestCase):
                ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
+            pass
+        except Exception, err:
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
 
     def test_toy_build_formatv2(self):
-        """Perform a toy build."""
+        """Perform a toy build (format v2)."""
+        # set $MODULEPATH such that modules for specified dependencies are found
+        modulepath = os.environ.get('MODULEPATH')
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
         args = [
-                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
-                '--sourcepath=%s' % self.sourcepath,
-                '--buildpath=%s' % self.buildpath,
-                '--installpath=%s' % self.installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
-                '--software-version=0.0',
-                '--toolchain=dummy,dummy',
-               ]
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
+            '--sourcepath=%s' % self.sourcepath,
+            '--buildpath=%s' % self.buildpath,
+            '--installpath=%s' % self.installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+            '--software-version=0.0',
+            '--toolchain=dummy,dummy',
+            '--experimental',
+        ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
-            print "err: %s" % err
+        except SystemExit:
+            pass
         outtxt = read_file(self.logfile)
 
         self.check_toy(self.installpath, outtxt)
+
+        # restore
+        if modulepath is not None:
+            os.environ['MODULEPATH'] = modulepath
+        else:
+            del os.environ['MODULEPATH']
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
@@ -188,7 +201,9 @@ class ToyBuildTest(TestCase):
                ]
         try:
             main((args, self.dummylogfn, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
+            pass
+        except Exception, err:
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 
