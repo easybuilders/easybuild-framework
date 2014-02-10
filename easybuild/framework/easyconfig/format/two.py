@@ -70,6 +70,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def validate(self):
         """Format validation"""
         self._check_docstring()
+        self._validate_pyheader()
 
     def _check_docstring(self):
         """
