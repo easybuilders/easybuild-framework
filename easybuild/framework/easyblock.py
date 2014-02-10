@@ -64,7 +64,8 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
-from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
+from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
+from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version

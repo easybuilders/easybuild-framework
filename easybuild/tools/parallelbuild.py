@@ -1,4 +1,4 @@
-##
+# #
 # Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-##
+# #
 """
 Module for doing parallel builds. This uses a PBS-like cluster. You should be able to submit jobs (which can have
 dependencies)
@@ -39,11 +39,12 @@ import sys
 from datetime import datetime
 
 import easybuild.tools.config as config
-from easybuild.framework.easyblock import build_easyconfigs, get_class, get_easyblock_instance
+from easybuild.framework.easyblock import build_easyconfigs, get_easyblock_instance
 from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
-from easybuild.tools.filetools import aggregate_xml_in_dirs, find_easyconfigs, read_file
+from easybuild.tools.filetools import find_easyconfigs
+from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
