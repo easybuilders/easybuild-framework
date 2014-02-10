@@ -97,8 +97,6 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Path(s) to search for easyconfigs for missing dependencies (colon-separated)" ,
                       None, 'store_or_None', default_robot_path, 'r', {'metavar': 'PATH'}),
-            'modules-footer': ("Path to file containing footer to be added to all generated module files",
-                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -192,6 +190,8 @@ class EasyBuildOptions(GeneralOption):
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                                None, 'extend', oldstyle_defaults['moduleclasses']),
+            'modules-footer': ("Path to file containing footer to be added to all generated module files",
+                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', oldstyle_defaults['modules_tool'],
                              sorted(avail_modules_tools().keys())),
