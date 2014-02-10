@@ -568,7 +568,7 @@ class Lmod(ModulesTool):
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
         super(Lmod, self).__init__(*args, **kwargs)
-        self.cmd = "lmod"
+        self.cmd = os.getenv("LMOD_CMD", "lmod")
         self.check_cmd_avail()
 
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
