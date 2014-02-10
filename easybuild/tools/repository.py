@@ -34,6 +34,7 @@ We have a plain filesystem, an svn and a git repository
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 import getpass
 import os
@@ -166,9 +167,9 @@ class FileRepository(Repository):
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add the eb-file for for software name and version to the repository.
-        stats should be a dict containing stats.
-        if previous is true -> append the stats to the file
+        Add the eb-file for software name and version to the repository.
+        stats should be a dict containing statistics.
+        if previous is true -> append the statistics to the file
         This will return the path to the created file (for use in subclasses)
         """
         # create directory for eb file
@@ -179,12 +180,12 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
-        txt = "# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
         # copy file
         txt += read_file(cfg)
 
-        # append a line to the eb file so we don't have git merge conflicts
+        # append a line to the eb file so that we don't have git merge conflicts
         if not previous:
             statsprefix = "\n# Build statistics\nbuildstats = ["
             statssuffix = "]\n"

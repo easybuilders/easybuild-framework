@@ -165,6 +165,7 @@ def main(testing_data=(None, None, None)):
         'experimental': options.experimental,
         'force': options.force,
         'ignore_dirs': options.ignore_dirs,
+        'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
         'regtest_online': options.regtest_online,
         'regtest_output_dir': options.regtest_output_dir,
