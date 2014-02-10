@@ -610,7 +610,6 @@ class Lmod(ModulesTool):
     # required and optimal version
     # we need at least Lmod v5.2 (and it can't be a release candidate)
     REQ_VERSION = '5.2'
-
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     def __init__(self, *args, **kwargs):
