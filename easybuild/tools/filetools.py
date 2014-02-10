@@ -936,3 +936,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """Legacy wrapper/placeholder for run.run_cmd_qa"""
     return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
                           simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+
+def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
+    """Legacy wrapper/placeholder for run.parse_log_for_error"""
+    return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
