@@ -148,17 +148,22 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, mod_name):
+    def load_module(self, mod_name, recursive_unload=False):
         """
         Generate load statements for module.
         """
-        return '\n'.join([
-            "",
-            "if { ![is-loaded %(mod_name)s] } {",
-            "    module load %(mod_name)s",
-            "}",
-            "",
-        ]) % {'mod_name': mod_name}
+        if recursive_unload:
+            # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
+            # when "module unload" is called on the module in which the depedency "module load" is present,
+            # it will get translated to "module unload"
+            load_statement = ["module load %(mod_name)s"]
+        else:
+            load_statement = [
+                "if { ![is-loaded %(mod_name)s] } {",
+                "    module load %(mod_name)s",
+                "}",
+            ]
+        return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """

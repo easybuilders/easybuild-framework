@@ -106,20 +106,32 @@ class ModuleGeneratorTest(TestCase):
 
     def test_load(self):
         """Test load part in generated module file."""
-        expected = """
-if { ![is-loaded mod_name] } {
-    module load mod_name
-}
-"""
-        self.assertEqual(expected, self.modgen.load_module("mod_name"))
+        expected = [
+            "",
+            "if { ![is-loaded mod_name] } {",
+            "    module load mod_name",
+            "}",
+            "",
+        ]
+        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+
+        # with recursive unloading: no if is-loaded guard
+        expected = [
+            "",
+            "module load mod_name",
+            "",
+        ]
+        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
 
     def test_unload(self):
         """Test unload part in generated module file."""
-        expected = """
-if { [is-loaded mod_name] } {
-    module unload mod_name
-}
-"""
+        expected = '\n'.join([
+            "",
+            "if { [is-loaded mod_name] } {",
+            "    module unload mod_name",
+            "}",
+            "",
+        ])
         self.assertEqual(expected, self.modgen.unload_module("mod_name"))
 
     def test_prepend_paths(self):

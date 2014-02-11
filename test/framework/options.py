@@ -793,6 +793,46 @@ class CommandLineOptionsTest(TestCase):
         shutil.rmtree(tmpdir)
         os.remove(modules_footer)
 
+    def test_recursive_module_unload(self):
+        """Test generating recursively unloading modules."""
+        # set MODULEPATH to included test modules
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+        # use temporary paths for build/install paths, make sure sources can be found
+        buildpath = tempfile.mkdtemp()
+        installpath = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-deps.eb')
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--debug',
+            '--force',
+            '--recursive-module-unload',
+        ]
+
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+
+        toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0-deps')
+        toy_module_txt = read_file(toy_module)
+        is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
+        self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
+
+        # cleanup
+        shutil.rmtree(buildpath)
+        shutil.rmtree(installpath)
+        shutil.rmtree(tmpdir)
+
     def test_tmpdir(self):
         """Test setting temporary directory to use by EasyBuild."""
 

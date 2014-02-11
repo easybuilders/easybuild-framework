@@ -95,8 +95,6 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Path(s) to search for easyconfigs for missing dependencies (colon-separated)" ,
                       None, 'store_or_None', default_robot_path, 'r', {'metavar': 'PATH'}),
-            'modules-footer': ("Path to file containing footer to be added to all generated module files",
-                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -146,18 +144,18 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
+                           None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+                             None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
+                                 None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
-            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
-                           None, 'store', None),
-            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
-                             None, 'store_true', False),
-            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
-                                 None, 'store_true', True),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -190,6 +188,8 @@ class EasyBuildOptions(GeneralOption):
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                                None, 'extend', oldstyle_defaults['moduleclasses']),
+            'modules-footer': ("Path to file containing footer to be added to all generated module files",
+                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', oldstyle_defaults['modules_tool'],
                              sorted(avail_modules_tools().keys())),
@@ -197,6 +197,8 @@ class EasyBuildOptions(GeneralOption):
                         "(repositorypath prefix is only relevant in case of FileRepository repository) "
                         "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
                         None, 'store', None),
+            'recursive-module-unload': ("Enable generating of modules that unload recursively.",
+                                        None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
                            'choice', 'store', oldstyle_defaults['repository'], sorted(avail_repositories().keys())),
             'repositorypath': (("Repository path, used by repository "
