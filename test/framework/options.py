@@ -64,8 +64,22 @@ class CommandLineOptionsTest(TestCase):
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
-        # keep track of original environment to restore
+        # keep track of original environment/Python search path to restore
         self.orig_environ = copy.deepcopy(os.environ)
+        self.orig_sys_path = sys.path[:]
+
+        # (re)import and reload easybuild modules
+        import easybuild
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        easybuild = reload(easybuild)
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+
+        # set MODULEPATH to included test modules
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
     def tearDown(self):
         """Post-test cleanup."""
@@ -73,6 +87,9 @@ class CommandLineOptionsTest(TestCase):
         os.chdir(self.pwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
+
+        # restore original Python search path
+        sys.path = self.orig_sys_path
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -201,9 +218,6 @@ class CommandLineOptionsTest(TestCase):
     def test_force(self):
         """Test forcing installation even if the module is already available."""
 
-        # set MODULEPATH to included modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'GCC-4.6.3.eb')
 
@@ -253,9 +267,6 @@ class CommandLineOptionsTest(TestCase):
         installpath = tempfile.mkdtemp()
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
-        # set MODULEPATH to included modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
 
@@ -287,6 +298,7 @@ class CommandLineOptionsTest(TestCase):
         modules_tool().purge()
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
         modify_env(os.environ, self.orig_environ)
+        os.environ['MODULEPATH'] = ''
         modules_tool()
         tempfile.tempdir = None
 
@@ -327,9 +339,6 @@ class CommandLineOptionsTest(TestCase):
 
     def test_job(self):
         """Test submitting build as a job."""
-
-        # set MODULEPATH to included modules
-        os.environ['MODULEPATH'] = os.path.join(os.path.dirname(__file__), 'modules')
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
@@ -461,24 +470,9 @@ class CommandLineOptionsTest(TestCase):
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
 
-        # also check whether available custom easyconfig parameters are listed
-        orig_sys_path = sys.path[:]
-
-        import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        easybuild = reload(easybuild)
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
-
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
         run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
-
-        # restore original Python search path
-        sys.path = orig_sys_path
 
     # double underscore to make sure it runs first, which is required to detect certain types of bugs,
     # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
@@ -554,7 +548,6 @@ class CommandLineOptionsTest(TestCase):
         os.close(fd)
 
         # adjust PYTHONPATH such that test easyblocks are found
-        orig_sys_path = sys.path[:]
 
         import easybuild
         sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
@@ -614,9 +607,6 @@ class CommandLineOptionsTest(TestCase):
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
-
-        # restore original Python search path
-        sys.path = orig_sys_path
 
     def test_search(self):
         """Test searching for easyconfigs."""
@@ -773,6 +763,7 @@ class CommandLineOptionsTest(TestCase):
             '--buildpath=%s' % buildpath,
             '--installpath=%s' % installpath,
             '--debug',
+            '--force',
             '--modules-footer=%s' % modules_footer,
         ]
 
@@ -795,8 +786,6 @@ class CommandLineOptionsTest(TestCase):
 
     def test_recursive_module_unload(self):
         """Test generating recursively unloading modules."""
-        # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use temporary paths for build/install paths, make sure sources can be found
         buildpath = tempfile.mkdtemp()
@@ -841,9 +830,6 @@ class CommandLineOptionsTest(TestCase):
         installpath = tempfile.mkdtemp()
         tmpdir = tempfile.mkdtemp()
         sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
-
-        # set MODULEPATH to included modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
