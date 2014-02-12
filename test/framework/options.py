@@ -877,7 +877,7 @@ class CommandLineOptionsTest(TestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name":"dummy", "version": "dummy"}',
-            'osdependencies = ["nosuchosdependency"]',
+            'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
         os.close(fd)
@@ -895,7 +895,9 @@ class CommandLineOptionsTest(TestCase):
         outtxt = read_file(self.logfile)
         regex = re.compile("Checking OS dependencies")
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
-        regex = re.compile("One or more OS dependencies were not found: \['nosuchosdependency'\]", re.M)
+        msg = "One or more OS dependencies were not found: "
+        msg += "\['nosuchosdependency', \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
+        regex = re.compile(r'%s' % msg, re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS dependencies are effectively ignored

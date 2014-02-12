@@ -39,7 +39,7 @@ import difflib
 import os
 import re
 from vsc import fancylogger
-from vsc.utils.missing import nub
+from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.filetools import run_cmd
@@ -309,8 +309,14 @@ class EasyConfig(object):
         """
         not_found = []
         for dep in self['osdependencies']:
-            if not self._os_dependency_check(dep):
-                not_found.append(dep)
+            if isinstance(dep, basestring):
+                if not self._os_dependency_check(dep):
+                    not_found.append(dep)
+            elif isinstance(dep, tuple):
+                if not any([self._os_dependency_check(cand_dep) for cand_dep in dep]):
+                    not_found.append(dep)
+            else:
+                self.log.error("Incorrect value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
 
         if not_found:
             self.log.error("One or more OS dependencies were not found: %s" % not_found)
