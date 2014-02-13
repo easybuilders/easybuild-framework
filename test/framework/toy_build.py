@@ -37,6 +37,7 @@ import sys
 import tempfile
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.main import main
 from easybuild.tools import config
@@ -56,9 +57,13 @@ class ToyBuildTest(TestCase):
         os.close(fd)
 
         # adjust PYTHONPATH such that test easyblocks are found
+        import easybuild
         self.orig_sys_path = sys.path[:]
+        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
+        if not eb_blocks_path in sys.path:
+            sys.path.append(eb_blocks_path)
+            easybuild = reload(easybuild)
 
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         reload(easybuild.tools.module_naming_scheme)
@@ -107,7 +112,8 @@ class ToyBuildTest(TestCase):
 
         # if the module exists, it should be fine
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
-        self.assertTrue(os.path.exists(toy_module), "module for toy build toy/%s found" % full_version)
+        msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
+        self.assertTrue(os.path.exists(toy_module), msg)
 
         # check for success
         success = re.compile("COMPLETED: Installation ended successfully")
@@ -218,9 +224,49 @@ class ToyBuildTest(TestCase):
         shutil.rmtree(tmpdir)
         sys.path = orig_sys_path
 
+    def test_toy_build_formatv2_sections(self):
+        """Perform a toy build (format v2, using sections)."""
+        versions = {
+            '0.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.1': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.5': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '1.6': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '2.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '3.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+        }
+
+        for version, specs in versions.items():
+            args = [
+                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy-with-sections.eb'),
+                '--sourcepath=%s' % self.sourcepath,
+                '--buildpath=%s' % self.buildpath,
+                '--installpath=%s' % self.installpath,
+                '--debug',
+                '--unittest-file=%s' % self.logfile,
+                '--force',
+                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+                '--software-version=%s' % version,
+                '--toolchain=dummy,dummy',
+                '--experimental',
+            ]
+            try:
+                main((args, self.dummylogfn, True))
+            except SystemExit:
+                pass
+            # except Exception, err:
+            #    print "err: %s" % err
+            outtxt = read_file(self.logfile)
+
+            specs['version'] = version
+            self.check_toy(self.installpath, outtxt, **specs)
+
+
 def suite():
     """ return all the tests in this file """
     return TestLoader().loadTestsFromTestCase(ToyBuildTest)
 
 if __name__ == '__main__':
+    logToScreen(enable=True)
+    setLogLevelDebug()
     unittestmain()

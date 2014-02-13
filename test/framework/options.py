@@ -557,8 +557,11 @@ class CommandLineOptionsTest(TestCase):
         orig_sys_path = sys.path[:]
 
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        easybuild = reload(easybuild)
+        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
+        if not eb_blocks_path in sys.path:
+            sys.path.append(eb_blocks_path)
+            easybuild = reload(easybuild)
+
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
