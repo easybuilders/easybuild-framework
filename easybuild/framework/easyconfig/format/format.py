@@ -63,6 +63,38 @@ def get_format_version(txt):
     return format_version
 
 
+class NestedDict(dict):
+    """A nested dict, with tracking of depth and parent"""
+    def __init__(self, parent, depth):
+        dict.__init__(self)
+        self.depth = depth
+        self.parent = parent
+
+    def get_nested_dict(self):
+        """Return an instance of NestedDict with this instance as parent"""
+        nd = NestedDict(parent=self.parent, depth=self.depth + 1)
+        return nd
+
+    def copy(self):
+        """Return a copy. Any relation between key and value are deepcopied away."""
+        nd = type(self)(parent=self.parent, depth=self.depth)
+        for k, v in self.items():
+            cp_k = copy.deepcopy(k)
+            if isinstance(v, NestedDict):
+                cp_v = v.copy()
+            else:
+                cp_v = copy.deepcopy(v)
+            nd[cp_k] = cp_v
+        return nd
+
+
+class TopNestedDict(NestedDict):
+    """The toplevel depth=0 NestedDict"""
+    def __init__(self, parent=None, depth=None):
+        # parent and depth are ignored; just to support same init for copier
+        NestedDict.__init__(self, self, 0)
+
+
 class EBConfigObj(object):
     """
     Enhanced ConfigObj, version/toolchain and other easyconfig specific aspects aware
@@ -116,7 +148,7 @@ class EBConfigObj(object):
         if configobj is not None:
             self.parse(configobj)
 
-    def parse_sections(self, configobj, toparse=None, parent=None, depth=0):
+    def parse_sections(self, configobj, toparse=None, parent=None):
         """
         Parse configobj instance; convert all supported sections, keys and values to their respective representations
 
@@ -130,10 +162,10 @@ class EBConfigObj(object):
         special_keys = self.VERSION_OPERATOR_VALUE_TYPES.keys()
         if parent is None:
             # no parent, so top sections
-            parsed = {}
+            parsed = TopNestedDict()
         else:
             # parent specified, so not a top section
-            parsed = Section(parent=parent, depth=depth + 1, main=configobj)
+            parsed = parent.get_nested_dict()
 
         # start with full configobj initially, and then process subsections recursively
         if toparse is None:
@@ -149,7 +181,7 @@ class EBConfigObj(object):
                 # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
                     # parse value as a section, recursively
-                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    new_value = self.parse_sections(configobj, toparse=value, parent=parsed)
                     self.log.debug('Converted %s section to new value %s' % (key, new_value))
                     parsed[key] = new_value
 
@@ -163,14 +195,15 @@ class EBConfigObj(object):
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             dep = Dependency(dep_val, name=dep_name)
                             if dep.name() is None or dep.version() is None:
-                                self.log.error("Failed to find name/version in parsed dependency: %s (dict: %s)" % (dep, dict(dep)))
+                                tmpl = "Failed to find name/version in parsed dependency: %s (dict: %s)"
+                                self.log.error(tmpl % (dep, dict(dep)))
                             new_value.append(dep)
 
                     self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
-                    if isinstance(parsed, Section):
-                        parsed.parent[new_key] = new_value
-                    else:
+                    if isinstance(parsed, TopNestedDict):
                         parsed[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
+                    else:
+                        parsed.parent[new_key] = new_value
                 else:
                     # try parsing key as toolchain version operator first
                     # try parsing as version operator if it's not a toolchain version operator
@@ -185,7 +218,7 @@ class EBConfigObj(object):
                         self.log.error("Unsupported section marker '%s'" % key)
 
                     # parse value as a section, recursively
-                    new_value = self.parse_sections(configobj, toparse=value, parent=value.parent, depth=value.depth)
+                    new_value = self.parse_sections(configobj, toparse=value, parent=parsed)
 
                     self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
                     parsed[new_key] = new_value
@@ -323,10 +356,6 @@ class EBConfigObj(object):
         """
         Return dictionary with specifications listed in sections applicable for specified info.
         """
-        if isinstance(self.default, Section):
-            cfg = self.default.dict()
-        else:
-            cfg = copy.deepcopy(self.default)
 
         # make sure that requested version/toolchain are supported by this easyconfig
         versions = [x.get_version_str() for x in self.supported['versions']]
@@ -358,7 +387,7 @@ class EBConfigObj(object):
         self.log.debug("self.versops: %s" % self.versops)
         self.log.debug("self.tcversops: %s" % self.tcversops)
 
-        return cfg
+        return self.default
 
 
 class EasyConfigFormat(object):
