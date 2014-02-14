@@ -64,7 +64,8 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
-from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum, write_to_xml
+from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
+from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -135,6 +136,9 @@ class EasyBlock(object):
         modules_footer_path = build_options.get('modules_footer', None)
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
+
+        # recursive unloading in modules
+        self.recursive_mod_unload = build_options.get('recursive_mod_unload', False)
 
         # easyconfig for this application
         all_stops = [x[0] for x in self.get_steps()]
@@ -746,7 +750,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name)
+                        load_txt += mod_gen.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -771,8 +775,9 @@ class EasyBlock(object):
 
         # Load toolchain
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            load += self.moduleGenerator.load_module(self.toolchain.det_module_name())
-            unload += self.moduleGenerator.unload_module(self.toolchain.det_module_name())
+            tc_mod_name = self.toolchain.det_module_name()
+            load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
+            unload += self.moduleGenerator.unload_module(tc_mod_name)
 
         # Load dependencies
         builddeps = self.cfg.builddependencies()
@@ -780,7 +785,7 @@ class EasyBlock(object):
             if not dep in builddeps:
                 dep_mod_name = det_full_module_name(dep)
                 self.log.debug("Adding %s as a module dependency" % dep_mod_name)
-                load += self.moduleGenerator.load_module(dep_mod_name)
+                load += self.moduleGenerator.load_module(dep_mod_name, recursive_unload=self.recursive_mod_unload)
                 unload += self.moduleGenerator.unload_module(dep_mod_name)
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
