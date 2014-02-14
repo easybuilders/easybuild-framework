@@ -64,7 +64,7 @@ def get_format_version(txt):
 
 
 class NestedDict(dict):
-    """A nested dict, with tracking of depth and parent"""
+    """A nested dictionary, with tracking of depth and parent"""
     def __init__(self, parent, depth):
         dict.__init__(self)
         self.depth = depth
@@ -77,19 +77,19 @@ class NestedDict(dict):
 
     def copy(self):
         """Return a copy. Any relation between key and value are deepcopied away."""
-        nd = type(self)(parent=self.parent, depth=self.depth)
-        for k, v in self.items():
-            cp_k = copy.deepcopy(k)
-            if isinstance(v, NestedDict):
-                cp_v = v.copy()
+        nd = self.__class__(parent=self.parent, depth=self.depth)
+        for key, val in self.items():
+            cp_key = copy.deepcopy(key)
+            if isinstance(val, NestedDict):
+                cp_val = val.copy()
             else:
-                cp_v = copy.deepcopy(v)
-            nd[cp_k] = cp_v
+                cp_val = copy.deepcopy(val)
+            nd[cp_key] = cp_val
         return nd
 
 
 class TopNestedDict(NestedDict):
-    """The toplevel depth=0 NestedDict"""
+    """The top level nested dictionary (depth 0, parent is itself)"""
     def __init__(self, parent=None, depth=None):
         # parent and depth are ignored; just to support same init for copier
         NestedDict.__init__(self, self, 0)
@@ -201,6 +201,7 @@ class EBConfigObj(object):
 
                     self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
                     if isinstance(parsed, TopNestedDict):
+                        # TODO add check and unittest to make sure this works in absence of a [DEFAULT] section
                         parsed[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                     else:
                         parsed.parent[new_key] = new_value
