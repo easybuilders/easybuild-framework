@@ -146,6 +146,14 @@ class EasyConfig(object):
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
         self.log.deprecated('_legacy_license does not have to be checked', '2.0')
+        if 'license' in extra_options:
+            if 'software_license' in extra_options:
+                self.log.error("Can't use deprecated 'license' and 'software_license' at the same time")
+            else:
+                self.log.deprecated("Use 'software_license' instead of 'license'.", '2.0')
+                extra_options['software_license'] = extra_options['license']
+        # this is not strictly deprecated, only the license usage.
+        # but lets keep it here for safety/convenience
         if 'software_license' in extra_options:
             lic = extra_options['software_license']
             if not isinstance(lic, License):
