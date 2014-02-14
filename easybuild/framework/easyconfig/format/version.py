@@ -29,14 +29,16 @@ This describes the easyconfig version class. To be used in EasyBuild for anythin
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import copy
 import operator as op
 import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
 
-from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
 from easybuild.tools.toolchain.utilities import search_toolchain
+
+
+# a cache for toolchain names. Don't init on import!
+TOOLCHAINS_NAMES = {}
 
 
 class EasyVersion(LooseVersion):
@@ -451,10 +453,20 @@ class ToolchainVersionOperator(VersionOperator):
         version_str = super(ToolchainVersionOperator, self).__str__()
         return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
+    def _get_all_toolchain_names(self, search_string=''):
+        """Initialise the list of found toolchains only once, save in module constant FOUND_TOOLCHAINS"""
+        global TOOLCHAINS_NAMES
+        if not search_string in TOOLCHAINS_NAMES:
+            _, all_tcs = search_toolchain(search_string)
+            self.log.debug('Found all toolchains for "%s" to %s' % (search_string, all_tcs))
+            TOOLCHAINS_NAMES[search_string] = [x.NAME for x in all_tcs]
+            self.log.debug('Set TOOLCHAINS_NAMES for "%s" to %s' % (search_string, TOOLCHAINS_NAMES[search_string]))
+
+        return TOOLCHAINS_NAMES[search_string]
+
     def is_valid(self):
         """Check if this is a valid ToolchainVersionOperator"""
-        _, all_tcs = search_toolchain('')
-        tc_names = [x.NAME for x in all_tcs]
+        tc_names = self._get_all_toolchain_names()
         known_tc_name = self.tc_name in tc_names
         return known_tc_name and super(ToolchainVersionOperator, self).is_valid()
 
@@ -477,8 +489,7 @@ class ToolchainVersionOperator(VersionOperator):
         Create the regular expression for toolchain support of format ^<toolchain> <versop_expr>$ ,
         with <toolchain> the name of one of the supported toolchains and <versop_expr> in '<operator> <version>' syntax
         """
-        _, all_tcs = search_toolchain('')
-        tc_names = [x.NAME for x in all_tcs]
+        tc_names = self._get_all_toolchain_names()
         self.log.debug("found toolchain names %s" % tc_names)
 
         versop_regex = super(ToolchainVersionOperator, self).versop_regex(begin_end=False)
