@@ -78,7 +78,7 @@ class TestEBConfigObj(TestCase):
         co = ConfigObj(configobj_txt)
         cov = EBConfigObj(co)
 
-        cov.default
+        print cov.default
         # FIXME: actually check something
 
 

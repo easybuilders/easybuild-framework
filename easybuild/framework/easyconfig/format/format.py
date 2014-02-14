@@ -345,8 +345,9 @@ class EBConfigObj(object):
             # first of list is special: it is the default
             self.default['toolchain'] = self.supported['toolchains'][0].as_dict()
 
-        tup = (self.default, self.supported, self.sections)
-        self.log.debug("(parse) default: %s; supported: %s, sections: %s" % tup)
+        self.log.debug("(parse) default: %s" % self.default)
+        self.log.debug("(parse) supported: %s" % self.supported)
+        self.log.debug("(parse) sections: %s" % self.sections)
 
     def get_specs_for(self, version=None, tcname=None, tcversion=None):
         """
