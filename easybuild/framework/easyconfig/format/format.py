@@ -139,7 +139,7 @@ class EBConfigObj(object):
 
         self.default = {}  # default section
         self.supported = {}  # supported section
-        self.sections = {}  # all other sections
+        self.sections = TopNestedDict()  # all other sections
         self.unfiltered_sections = {}  # unfiltered other sections
 
         self.versops = OrderedVersionOperators()
@@ -148,32 +148,27 @@ class EBConfigObj(object):
         if configobj is not None:
             self.parse(configobj)
 
-    def parse_sections(self, configobj, toparse=None, parent=None):
+    def parse_sections(self, toparse, current):
         """
-        Parse configobj instance; convert all supported sections, keys and values to their respective representations
+        Parse Section instance; convert all supported sections, keys and values to their respective representations
 
         Returns a dict of (nested) Sections
 
-        @param configobj: a ConfigObj instance, basically a dict of (unparsed) sections
+        @param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
+        @param current: a.k.a. the current level in the NestedDict 
         """
         # note: configobj already converts comma-separated strings in lists
         #
         # list of supported keywords, all else will fail
         special_keys = self.VERSION_OPERATOR_VALUE_TYPES.keys()
-        if parent is None:
-            # no parent, so top sections
-            parsed = TopNestedDict()
-        else:
-            # parent specified, so not a top section
-            parsed = parent.get_nested_dict()
 
-        # start with full configobj initially, and then process subsections recursively
-        if toparse is None:
-            toparse = configobj
+        self.log.debug('Processing current depth %s' % current.depth)
 
         for key, value in toparse.items():
             if isinstance(value, Section):
                 self.log.debug("Enter subsection key %s value %s" % (key, value))
+
+
                 # only supported types of section keys are:
                 # * DEFAULT
                 # * SUPPORTED
@@ -181,9 +176,9 @@ class EBConfigObj(object):
                 # * VersionOperator or ToolchainVersionOperator (e.g. [> 2.0], [goolf > 1])
                 if key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
                     # parse value as a section, recursively
-                    new_value = self.parse_sections(configobj, toparse=value, parent=parsed)
+                    new_value = self.parse_sections(value, current.get_nested_dict())
                     self.log.debug('Converted %s section to new value %s' % (key, new_value))
-                    parsed[key] = new_value
+                    current[key] = new_value
 
                 elif key == self.SECTION_MARKER_DEPENDENCIES:
                     new_key = 'dependencies'
@@ -199,12 +194,12 @@ class EBConfigObj(object):
                                 self.log.error(tmpl % (dep, dict(dep)))
                             new_value.append(dep)
 
-                    self.log.debug('Converted %s section to %s, passed it to parent section (or default)' % (key, new_value))
-                    if isinstance(parsed, TopNestedDict):
+                    self.log.debug('Converted dependency section %s to %s, passed it to parent section (or default)' % (key, new_value))
+                    if isinstance(current, TopNestedDict):
                         # TODO add check and unittest to make sure this works in absence of a [DEFAULT] section
-                        parsed[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
+                        current[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                     else:
-                        parsed.parent[new_key] = new_value
+                        current.parent[new_key] = new_value
                 else:
                     # try parsing key as toolchain version operator first
                     # try parsing as version operator if it's not a toolchain version operator
@@ -219,10 +214,10 @@ class EBConfigObj(object):
                         self.log.error("Unsupported section marker '%s'" % key)
 
                     # parse value as a section, recursively
-                    new_value = self.parse_sections(configobj, toparse=value, parent=parsed)
+                    new_value = self.parse_sections(value, current.get_nested_dict())
 
-                    self.log.debug('Converted key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
-                    parsed[new_key] = new_value
+                    self.log.debug('Converted section key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
+                    current[new_key] = new_value
 
             else:
                 # simply pass down any non-special key-value items
@@ -249,9 +244,9 @@ class EBConfigObj(object):
                     self.log.error('Bug: supported but unknown key %s with non-string value: %s, type %s' % tup)
 
                 self.log.debug("Converted value '%s' for key '%s' into new value '%s'" % (value, key, new_value))
-                parsed[key] = new_value
+                current[key] = new_value
 
-        return parsed
+        return current
 
     def validate_and_filter_by_toolchain(self, tcname, processed=None, filtered_sections=None, other_sections=None):
         """
@@ -324,7 +319,7 @@ class EBConfigObj(object):
         self.configobj = configobj
 
         # process the configobj instance
-        self.sections = self.parse_sections(self.configobj)
+        self.sections = self.parse_sections(self.configobj, self.sections)
 
         # handle default section
         # no nesting
