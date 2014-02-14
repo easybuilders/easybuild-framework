@@ -827,7 +827,7 @@ class EasyConfigTest(TestCase):
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), build_options=build_options, build_specs=specs)
 
             ec2_dict = ec2.asdict()
-            # reset mandatory attributes from fromat2 that are not in format 1
+            # reset mandatory attributes from format2 that are not in format 1
             for attr in ['docurls', 'software_license', 'software_license_urls']:
                 ec2_dict[attr] = None
 
