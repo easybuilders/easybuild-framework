@@ -71,6 +71,11 @@ class VeryRestrictive(License):
     pass
 
 
+class LicenseUnknown(VeryRestrictive):
+    """A (temporary) license, could be used as default in case nothing was specified"""
+    pass
+
+
 # inspiration
 # http://en.wikipedia.org/wiki/Category:Free_and_open-source_software_licenses
 
@@ -106,21 +111,40 @@ class LicenseGPLv3(LicenseGPLv2):
 
 
 class LicenseGCC(LicenseGPLv3):
-    """GPLv3 with GCC Runtime Library Exception"""
+    """GPLv3 with GCC Runtime Library Exception.
+        Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
+    """
     DESCRIPTION = ("The GNU General Public License is a free, "
                    "copyleft license for software and other kinds of works. "
                    "The GCC Runtime Library Exception is an additional permission "
                    "under section 7 of the GNU General Public License, version 3.")
 
 
+class LicenseGCCOld(LicenseGPLv2):
+    """GPLv2 with GCC Runtime Library Exception for older GCC versions.
+        Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
+    """
+    DESCRIPTION = LicenseGCC.DESCRIPTION
+
+
+class LicenseZlib(LicenseOpen):
+    """The zlib License is a permissive free software license 
+        http://www.zlib.net/zlib_license.html
+    """
+    DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
+                   " including commercial applications, and to alter it and redistribute it"
+                   " freely, subject to 3 restrictions;"
+                   " http://www.zlib.net/zlib_license.html for full license")
+
+
 class LicenseLibpng(LicenseOpen):
-    """Derived from zlib, 
+    """The PNG license is derived from the zlib license, 
         http://libpng.org/pub/png/src/libpng-LICENSE.txt
     """
     HIDDEN = False
     DESCRIPTION = ("Permission is granted to use, copy, modify, and distribute the "
                    "source code, or portions hereof, for any purpose, without fee, subject "
-                   "3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license")
+                   "to 3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license")
 
 
 def what_licenses():
@@ -133,7 +157,6 @@ def what_licenses():
         res[lic_instance.name] = lic_instance
 
     return res
-
 
 
 EASYCONFIG_LICENSES_DICT = what_licenses()
@@ -151,4 +174,3 @@ def license_documentation():
         doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
 
     return "\n".join(doc)
-
