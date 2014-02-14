@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,6 +31,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import os
@@ -194,7 +195,15 @@ class ConfigurationVariables(dict):
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
-    return os.path.join(os.path.expanduser('~'), ".easybuild")
+    oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
+    newpath = os.path.join(xdg_config_home, "easybuild")
+
+    if os.path.isdir(newpath):
+        return newpath
+    else:
+        _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
+        return oldpath
 
 
 def get_default_oldstyle_configfile():
@@ -615,5 +624,3 @@ def set_tmpdir(tmpdir=None):
 
 # config variables constant
 variables = ConfigurationVariables()
-
-

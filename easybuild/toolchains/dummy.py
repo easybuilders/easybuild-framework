@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,9 +28,9 @@ EasyBuild support for dummy compiler toolchain.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.dummy import Dummy
+from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
 
 
-class Dummy(Dummy):
+class Dummy(DummyCompiler):
     """Dummy toolchain."""
     NAME = 'dummy'

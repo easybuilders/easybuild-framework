@@ -10,6 +10,10 @@ name = "GCC"
 homepage = 'http://gcc.gnu.org/'
 description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
 as well as libraries for these languages (libstdc++, libgcj,...)."""
+docurls = [
+    "http://gcc.gnu.org/onlinedocs/gcc/", 
+    "http://gcc.gnu.org/onlinedocs/gfortran/"
+]
 
 sources = [
     SOURCELOWER_TAR_GZ,
@@ -29,11 +33,12 @@ languages = ['c', 'c++', 'fortran', 'lto']
 # building GCC sometimes fails if make parallelism is too high, so let's limit it
 maxparallel = 4
 
-license = GPLv3
+software_license = GCC
+software_license_urls = ['http://gcc.gnu.org/onlinedocs/gcc/Copying.html#Copying']
 
 moduleclass = 'compiler'
 
-[DEFAULT]
-versions = 4.6.2,4.6.3
-toolchains=dummy dummy
+[SUPPORTED]
+versions = 4.6.2, 4.6.3
+toolchains = dummy == dummy
 

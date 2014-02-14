@@ -1,0 +1,30 @@
+# EASYCONFIGFORMAT 2.0
+"""
+Example easyconfig with 'complex' dependencies
+@author: Kenneth Hoste (UGent)
+"""
+name = 'goolf'
+
+homepage = '(none)'
+description = 'GCC based compiler toolchain, including OpenMPI, OpenBLAS, FFTW and ScaLAPACK.'
+
+software_license = GPLv2
+software_license_urls = ['https://github.com/hpcugent/easybuild-framework/blob/master/easybuild/toolchains/goolf.py'] 
+docurls = ["https://github.com/hpcugent/easybuild/wiki/Compiler-toolchains"]
+
+[DEFAULT]
+easyblock = Toolchain
+
+
+moduleclass = toolchain
+
+[SUPPORTED]
+versions = 1.4.10
+toolchains = dummy == dummy
+
+[DEPENDENCIES]
+GCC = 4.7.2
+OpenMPI = 1.6.4; GCC == 4.7.2
+OpenBLAS = 0.2.6 suffix:-LAPACK-3.4.2; gompi == 1.4.10
+FFTW = 3.3.3; gompi == 1.4.10
+ScaLAPACK = 2.0.2 suffix:-OpenBLAS-0.2.6-LAPACK-3.4.2; gompi == 1.4.10

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -111,7 +111,7 @@ for root, subfolders, files in walk(options.path):
         file_ = read(file_)
         try:
 
-            ec = EasyConfig(file_, validate=False)
+            ec = EasyConfig(file_, build_options={'validate': False})
             log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
                 log.info("found new software package %s" % ec)

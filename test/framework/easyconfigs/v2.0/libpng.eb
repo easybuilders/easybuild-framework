@@ -1,0 +1,34 @@
+# EASYCONFIGFORMAT 2.0
+"""
+Example easyconfig with dependencies
+@author: Kenneth Hoste (UGent)
+"""
+name = 'libpng'
+
+homepage = 'http://www.libpng.org/pub/png/libpng.html'
+description = "libpng is the official PNG reference library"
+docurls = [
+    'http://www.libpng.org/pub/png/pngdocs.html',
+    'http://www.libpng.org/pub/png/pngintro.html',
+]
+
+software_license = Libpng
+software_license_urls = ['http://libpng.org/pub/png/src/libpng-LICENSE.txt']
+
+
+toolchainopts = {'optarch': True}
+
+configopts = "--with-pic"
+
+source_urls = [SOURCEFORGE_SOURCE]
+sources = [SOURCELOWER_TAR_GZ]
+
+[SUPPORTED]
+versions = 1.5.10, 1.5.11, 1.5.13, 1.5.14, 1.6.2, 1.6.3, 1.6.6
+toolchains = goolf == 1.4.10, ictce == 4.1.13, goalf == 1.1.0-no-OFED
+
+[DEFAULT]
+moduleclass = lib
+
+[DEPENDENCIES]
+zlib = 1.2.5

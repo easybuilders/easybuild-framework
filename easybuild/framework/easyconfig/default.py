@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,10 +60,14 @@ DEFAULT_CONFIG = {
     # MANDATORY easyconfig parameters
     'description': [None, 'A short description of the software', "MANDATORY"],
     'homepage': [None, 'The homepage of the software', "MANDATORY"],
-    'license': [None, 'Software license', "MANDATORY"],  # TODO not yet in MANDATORY_PARAMS, so not enforced
     'name': [None, "Name of software", "MANDATORY"],
     'toolchain': [None, 'Name and version of toolchain', "MANDATORY"],
     'version': [None, "Version of software", "MANDATORY"],
+    # TODO not yet in MANDATORY_PARAMS, so not enforced (only enforced in v2)
+    'software_license': [None, 'Software license', "MANDATORY"],
+    'software_license_urls': [None, 'List of software license locations', "MANDATORY"],
+    # TODO not yet in MANDATORY_PARAMS, so not enforced  (only enforced in v2)
+    'docurls': [None, 'List of urls with documentation of the software (not necessarily on homepage)', "MANDATORY"],
 
     # TOOLCHAIN easyconfig parameters
     'onlytcmod': [False, ('Boolean/string to indicate if the toolchain should only load '
