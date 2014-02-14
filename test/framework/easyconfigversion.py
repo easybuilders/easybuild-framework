@@ -196,30 +196,6 @@ class EasyConfigVersion(EnhancedTestCase):
                 self.assertEqual(tcv.tc_name, None)
                 self.assertEqual(tcv.tcversop_str, None)
 
-    def test_configobj(self):
-        """Test configobj sort"""
-        _, tcs = search_toolchain('')
-        tc_names = [x.NAME for x in tcs]
-        tcmax = min(len(tc_names), 3)
-        if len(tc_names) < tcmax:
-            tcmax = len(tc_names)
-        tc = tc_names[0]
-        configobj_txt = [
-            '[DEFAULT]',
-            'toolchains=%s >= 7.8.9' % ','.join(tc_names[:tcmax]),
-            'versions=1.2.3,2.3.4,3.4.5',
-            '[>= 2.3.4]',
-            'foo=bar',
-            '[== 3.4.5]',
-            'baz=biz',
-            '[!= %s 5.6.7]' % tc,
-            '[%s > 7.8.9]' % tc_names[tcmax - 1],
-        ]
-
-        co = ConfigObj(configobj_txt)
-        cov = EBConfigObj()
-        # FIXME: actually check something
-
 
 def suite():
     """ returns all the testcases in this module """
