@@ -309,14 +309,14 @@ class EasyConfig(object):
         """
         not_found = []
         for dep in self['osdependencies']:
+            # make sure we have a tuple
             if isinstance(dep, basestring):
-                if not self._os_dependency_check(dep):
-                    not_found.append(dep)
-            elif isinstance(dep, tuple):
-                if not any([self._os_dependency_check(cand_dep) for cand_dep in dep]):
-                    not_found.append(dep)
-            else:
-                self.log.error("Incorrect value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
+                dep = (dep,)
+            elif not isinstance(dep, tuple):
+                self.log.error("Non-tuple value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
+
+            if not any([self._os_dependency_check(cand_dep) for cand_dep in dep]):
+                not_found.append(dep)
 
         if not_found:
             self.log.error("One or more OS dependencies were not found: %s" % not_found)

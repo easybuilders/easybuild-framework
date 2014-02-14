@@ -896,7 +896,7 @@ class CommandLineOptionsTest(TestCase):
         regex = re.compile("Checking OS dependencies")
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
         msg = "One or more OS dependencies were not found: "
-        msg += "\['nosuchosdependency', \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
+        msg += "\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
         regex = re.compile(r'%s' % msg, re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are honored, outtxt: %s" % outtxt)
 
