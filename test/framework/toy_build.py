@@ -254,8 +254,8 @@ class ToyBuildTest(TestCase):
                 main((args, self.dummylogfn, True))
             except SystemExit:
                 pass
-            # except Exception, err:
-            #    print "err: %s" % err
+            except Exception, err:
+                print "err: %s" % err
             outtxt = read_file(self.logfile)
 
             specs['version'] = version
