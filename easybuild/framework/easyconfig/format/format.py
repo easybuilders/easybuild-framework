@@ -139,7 +139,7 @@ class EBConfigObj(object):
 
         self.default = {}  # default section
         self.supported = {}  # supported section
-        self.sections = TopNestedDict()  # all other sections
+        self.sections = None  # all other sections
         self.unfiltered_sections = {}  # unfiltered other sections
 
         self.versops = OrderedVersionOperators()
@@ -147,6 +147,12 @@ class EBConfigObj(object):
 
         if configobj is not None:
             self.parse(configobj)
+
+    def _init_sections(self):
+        """Initialise self.sections. Make sure default and supported exist"""
+        self.sections = TopNestedDict()
+        for key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
+            self.sections[key] = self.sections.get_nested_dict()
 
     def parse_sections(self, toparse, current):
         """
@@ -196,7 +202,6 @@ class EBConfigObj(object):
 
                     self.log.debug('Converted dependency section %s to %s, passed it to parent section (or default)' % (key, new_value))
                     if isinstance(current, TopNestedDict):
-                        # TODO add check and unittest to make sure this works in absence of a [DEFAULT] section
                         current[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                     else:
                         current.parent[new_key] = new_value
@@ -319,6 +324,7 @@ class EBConfigObj(object):
         self.configobj = configobj
 
         # process the configobj instance
+        self._init_sections()
         self.sections = self.parse_sections(self.configobj, self.sections)
 
         # handle default section
@@ -326,24 +332,29 @@ class EBConfigObj(object):
         #  - add DEFAULT key-value entries to the root of self.sections
         #  - key-value items from other sections will be deeper down
         #  - deepest level is best match and wins, so defaults are on top level
-        self.default = self.sections.pop(self.SECTION_MARKER_DEFAULT, {})
+        self.default = self.sections.pop(self.SECTION_MARKER_DEFAULT)
         for key, value in self.default.items():
             self.sections[key] = value
 
         # handle supported section
         # supported should only have 'versions' and 'toolchains' keys
-        self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED, {})
+        self.supported = self.sections.pop(self.SECTION_MARKER_SUPPORTED)
         for key, value in self.supported.items():
             if not key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.error('Unsupported key %s in %s section' % (key, self.SECTION_MARKER_SUPPORTED))
             self.sections['%s' % key] = value
 
-        if 'versions' in self.supported:
-            # first of list is special: it is the default
-            self.default['version'] = self.supported['versions'][0].get_version_str()
-        if 'toolchains' in self.supported:
-            # first of list is special: it is the default
-            self.default['toolchain'] = self.supported['toolchains'][0].as_dict()
+        for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
+                                   ('toolchain', 'toolchains', 'as_dict')]:
+            if supported_key in self.supported:
+                self.log.debug('%s in supported, trying to detemine default for %s' % (supported_key, key))
+                first = self.supported[supported_key][0]
+                f_val = getattr(first, fn_name)()
+                if f_val is None:
+                    self.log.warning("First %s %s can't be used as default (%s retuned None)" % (key, first, fn_name))
+                else:
+                    self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
+                    self.default[key] = f_val
 
         self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) supported: %s" % self.supported)
