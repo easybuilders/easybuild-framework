@@ -227,13 +227,13 @@ class ToyBuildTest(TestCase):
     def test_toy_build_formatv2_sections(self):
         """Perform a toy build (format v2, using sections)."""
         versions = {
-            '0.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '1.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '1.1': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '1.5': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '1.6': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '2.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
-            '3.0': {'version': '', 'versionprefix': '', 'versionsuffix': ''},
+            '0.0': {'versionprefix': '', 'versionsuffix': ''},
+            '1.0': {'versionprefix': '', 'versionsuffix': ''},
+            '1.1': {'versionprefix': 'stable-', 'versionsuffix': '-early'},
+            '1.5': {'versionprefix': 'stable-', 'versionsuffix': '-early'},
+            '1.6': {'versionprefix': 'stable-', 'versionsuffix': ''},
+            '2.0': {'versionprefix': 'stable-', 'versionsuffix': ''},
+            '3.0': {'versionprefix': 'stable-', 'versionsuffix': '-mature'},
         }
 
         for version, specs in versions.items():
@@ -259,6 +259,7 @@ class ToyBuildTest(TestCase):
             outtxt = read_file(self.logfile)
 
             specs['version'] = version
+
             self.check_toy(self.installpath, outtxt, **specs)
 
 
@@ -267,6 +268,6 @@ def suite():
     return TestLoader().loadTestsFromTestCase(ToyBuildTest)
 
 if __name__ == '__main__':
-    logToScreen(enable=True)
-    setLogLevelDebug()
+    # logToScreen(enable=True)
+    # setLogLevelDebug()
     unittestmain()

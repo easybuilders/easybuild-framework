@@ -25,7 +25,7 @@ sanity_check_paths = {
 moduleclass = 'tools'
 
 [SUPPORTED]
-versions = 1.0, 0.0, 1.5, 2.0, 3.0
+versions = 1.0, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0
 toolchains = goolf == 1.4.10, dummy == dummy
 
 [> 1.0]
