@@ -1,11 +1,46 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.11.0 (February 16th 2014)
+----------------------------
+
+feature + bugfix release
+- various enhancements, including:
+    - add checksum support for extensions (#807)
+    - make checksum functionality more memory efficient by reading in blocks (#836)
+    - rewrite of dependency solving for speed and better reporting of missing dependencies (#806, #818)
+    - refactoring of main.py (#815, #828)
+        - function/method signatures to pass down build options
+        - move functions from main.py into easybuild.framework.X or easybuild.tools
+    - provide better build statistics (#824)
+    - add --experimental, --deprecated and --oldstyleconfig command line options (#838)
+        - with --experimental, new but incomplete (or partially broken) features are enabled
+        - with --deprecated, removed of deprecated functionality can be tested (anything deprecated will fail hard)
+        - with --disable-oldstyleconfig, support for the old style configuration is disabled
+    - define $LIBRARY_PATH in generated module files (#832)
+    - more constants for source URLs (e.g. for downloads from bitbucket) (#831)
+    - prefer $XDG_CONFIG_HOME and ~/.config/easybuild over ~/.easybuild for configuration files (#820)
+    - add support for specifying footers to be appended to generated module files (#808)
+        - see --modules-footer command line option
+    - track version of modules tool + cleanup of modules.py (#839)
+    - move actual run_cmd and rum_cmd_qa implementations from tools.filetools into tools.run (#842, #843)
+    - add support for generating modules that support recursive unloading (#830)
+        - see --recursive-module-unload command line option
+    - add flexibility support for specifying OS dependencies (#846)
+        - alternatives can be specified, e.g. ('openssl-devel', 'libssl-dev')
+    - initial (incomplete) support for easyconfig files in new format (v2.0) (#810, #826, #827, #841)
+        - requires --experimental to be able to experiment with format v2 easyconfig files
+- various bug fixes, including:
+    - fix problems with use of new-style configuration file (#821)
+    - fix removal of old build directories, unless cleanupoldbuild easyconfig parameter is set (#809)
+    - fix support for different types of repository path specifications (#814)
+    - fix unit tests sensitive to $MODULEPATH and available easyblocks (#845)
+
 v1.10.0 (December 24th 2013)
 ----------------------------
 
 feature + bugfix release
-- various other enhancements, including:
+- various enhancements, including:
     - set unique default temporary directory, add --tmpdir command line option (#695)
     - add support for computing and verifying source/patch file checksums (#774, #777, #779, #801, #802)
         - cfr. 'checksums' easyconfig parameter
