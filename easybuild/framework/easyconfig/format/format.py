@@ -356,8 +356,8 @@ class EBConfigObj(object):
                     self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
                     self.default[key] = f_val
 
-        self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) supported: %s" % self.supported)
+        self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) sections: %s" % self.sections)
 
     def get_specs_for(self, version=None, tcname=None, tcversion=None):
@@ -418,6 +418,7 @@ class EasyConfigFormat(object):
 
     def set_specifications(self, specs):
         """Set specifications."""
+        self.log.debug('Set copy of specs %s' % specs)
         self.specs = copy.deepcopy(specs)
 
     def get_config_dict(self):
