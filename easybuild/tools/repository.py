@@ -456,7 +456,7 @@ def init_repository(repository, repository_path):
         try:
             if isinstance(repository_path, basestring):
                 return repo(repository_path)
-            elif isinstance(repository_path, (tuple, list)) and len(repository_path) == 2:
+            elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
                 return repo(*repository_path)
             else:
                 _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
