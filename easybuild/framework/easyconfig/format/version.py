@@ -136,7 +136,7 @@ class VersionOperator(object):
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
-            self.log.error('Not a valid VersionOperator. Not initialised yet?')
+            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
 
         if isinstance(test_version, basestring):
             test_version = self._convert(test_version)
@@ -520,6 +520,27 @@ class ToolchainVersionOperator(VersionOperator):
 
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
+
+    def test(self, test_name, test_version):
+        """
+        Check if a toolchain with name test_name and version test_version would fit 
+            in this ToolchainVersionOperator 
+        @param test_name: toolchain name
+        @param test_version: a version string or EasyVersion instance
+        """
+        # checks whether this VersionOperator instance is valid using __bool__ function
+        if not self:
+            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
+
+        tc_name_res = test_name == self.tc_name
+        if not tc_name_res:
+            self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, test_name))
+        version_res = super(ToolchainVersionOperator).test(test_version)
+        res = tc_name_res and version_res
+        tup = (tc_name_res, version_res, res)
+        self.log.debug("result of testing expression tc_name_res %s version_res %s: %s" % tup)
+
+        return res
 
     def as_dict(self):
         """
