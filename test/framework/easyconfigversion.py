@@ -196,6 +196,26 @@ class EasyConfigVersion(EnhancedTestCase):
                 self.assertEqual(tcv.tc_name, None)
                 self.assertEqual(tcv.tcversop_str, None)
 
+    def test_toolchain_versop_test(self):
+        """Test the ToolchainVersionOperator test"""
+        top = ToolchainVersionOperator()
+        _, tcs = search_toolchain('')
+        tc_names = [x.NAME for x in tcs]
+        for tc in tc_names:  # test all known toolchain names
+            # test version expressions with optional version operator
+            tests = [
+                ("%s >= 1.2.3" % tc, (
+                    (tc, '1.2.3', True),  # version ok, name ok
+                    (tc, '1.2.4', True),  # version ok, name ok
+                    (tc, '1.2.2', False),  # version not ok, name ok
+                    ('x' + tc, '1.2.3', False),  # version ok, name not ok
+                    ('x' + tc, '1.2.2', False),  # version not ok, name not ok
+                    )),
+            ]
+            for txt, subtests in tests:
+                for name, version, res in subtests:
+                    tcversop = ToolchainVersionOperator(txt)
+                    self.assertEqual(tcversop.test(name, version), res)
 
 def suite():
     """ returns all the testcases in this module """

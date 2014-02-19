@@ -535,7 +535,7 @@ class ToolchainVersionOperator(VersionOperator):
         tc_name_res = test_name == self.tc_name
         if not tc_name_res:
             self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, test_name))
-        version_res = super(ToolchainVersionOperator).test(test_version)
+        version_res = super(ToolchainVersionOperator, self).test(test_version)
         res = tc_name_res and version_res
         tup = (tc_name_res, version_res, res)
         self.log.debug("result of testing expression tc_name_res %s version_res %s: %s" % tup)
