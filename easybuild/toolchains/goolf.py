@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,8 +38,3 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 class Goolf(Gcc, OpenMPI, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'goolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []

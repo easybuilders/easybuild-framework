@@ -1,5 +1,8 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2013-2014 Ghent University
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,24 +26,19 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Generic EasyBuild support for building and installing bar, implemented as an easyblock
+EasyBuild support for gmpolf compiler toolchain (includes GCC, MPICH2, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
 
-@author: Kenneth Hoste (Ghent University)
+@author: Dmitri Gribenko (National Technical University of Ukraine "KPI") (copy from...)
+@author: Bart Verleye (University of Auckland)
 """
 
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.fft.fftw import Fftw
+from easybuild.toolchains.linalg.openblas import OpenBLAS
+from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.mpi.mpich2 import Mpich2
 
 
-class bar(EasyBlock):
-    """Generic support for building/installing bar."""
-
-    @staticmethod
-    def extra_options():
-        """Custom easyconfig parameters for bar."""
-
-        extra_vars = [
-                      ('bar_extra1', [None, "first bar-specific easyconfig parameter (mandatory)", MANDATORY]),
-                      ('bar_extra2', ['BAR', "second bar-specific easyconfig parameter", CUSTOM]),
-                     ]
-        return EasyBlock.extra_options(extra_vars)
+class Gmpolf(Gcc, Mpich2, OpenBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, MPICH2, OpenBLAS, ScaLAPACK and FFTW."""
+    NAME = 'gmpolf'

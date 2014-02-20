@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,8 @@ We have a plain filesystem, an svn and a git repository
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (University of Luxembourg)
 """
 import getpass
 import os
@@ -130,9 +132,9 @@ class Repository(object):
         """
         pass
 
-    def get_buildstats(self, name, version):
+    def get_buildstats(self, name, ec_version):
         """
-        Get the build statististics for module with name and version
+        Get the build statististics for software with name and easyconfig version
         """
         pass
 
@@ -165,9 +167,9 @@ class FileRepository(Repository):
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
-        Add the eb-file for for software name and version to the repository.
-        stats should be a dict containing stats.
-        if previous is true -> append the stats to the file
+        Add the eb-file for software name and version to the repository.
+        stats should be a dict containing statistics.
+        if previous is true -> append the statistics to the file
         This will return the path to the created file (for use in subclasses)
         """
         # create directory for eb file
@@ -178,12 +180,12 @@ class FileRepository(Repository):
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
 
-        txt = "# Built with %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
+        txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 
         # copy file
         txt += read_file(cfg)
 
-        # append a line to the eb file so we don't have git merge conflicts
+        # append a line to the eb file so that we don't have git merge conflicts
         if not previous:
             statsprefix = "\n# Build statistics\nbuildstats = ["
             statssuffix = "]\n"
@@ -197,7 +199,7 @@ class FileRepository(Repository):
 
         return dest
 
-    def get_buildstats(self, name, version):
+    def get_buildstats(self, name, ec_version):
         """
         return the build statistics
         """
@@ -206,12 +208,12 @@ class FileRepository(Repository):
             self.log.debug("module (%s) has not been found in the repo" % name)
             return []
 
-        dest = os.path.join(full_path, "%s.eb" % version)
+        dest = os.path.join(full_path, "%s.eb" % ec_version)
         if not os.path.isfile(dest):
-            self.log.debug("version (%s) of module (%s) has not been found in the repo" % (version, name))
+            self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
-        eb = EasyConfig(dest, validate=False)
+        eb = EasyConfig(dest, build_options={'validate': False})
         return eb['buildstats']
 
 
@@ -317,6 +319,7 @@ class GitRepository(FileRepository):
         Clean up git working copy.
         """
         try:
+            self.wc = os.path.dirname(self.wc)
             rmtree2(self.wc)
         except IOError, err:
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
@@ -348,7 +351,7 @@ class SvnRepository(FileRepository):
             raise pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
-                          "properly. Run 'python -c \"import pysvn\"' to test.")
+                               "properly. Run 'python -c \"import pysvn\"' to test.")
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -431,14 +434,35 @@ class SvnRepository(FileRepository):
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
 
-def get_repositories(check_usable=True):
+def avail_repositories(check_useable=True):
     """
-    Return all repositories.
-        check_usable: boolean, if True, only return usable repositories
+    Return all available repositories.
+        check_useable: boolean, if True, only return usable repositories
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_usable])
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
     if not 'FileRepository' in class_dict:
-        _log.error('get_repositories: FileRepository missing from list of repositories')
+        _log.error('avail_repositories: FileRepository missing from list of repositories')
 
     return class_dict
+
+
+def init_repository(repository, repository_path):
+    """Return an instance of the selected repository class."""
+    if isinstance(repository, Repository):
+        return repository
+    elif isinstance(repository, basestring):
+        repo = avail_repositories().get(repository)
+        try:
+            if isinstance(repository_path, basestring):
+                return repo(repository_path)
+            elif isinstance(repository_path, (tuple, list)) and len(repository_path) == 2:
+                return repo(*repository_path)
+            else:
+                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
+                           (repository_path, type(repository_path)))
+        except Exception, err:
+            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
+                       (repository, repo.__name__, repository_path, err))
+    else:
+        _log.error('Unknown typo of repository spec: %s (type %s)' % (repo, type(repo)))

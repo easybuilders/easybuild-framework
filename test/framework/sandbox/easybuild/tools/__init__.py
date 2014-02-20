@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,24 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for building and installing foofoo, implemented as an easyblock
+This declares the namespace for the tools submodule of EasyBuild,
+which contains support utilities.
 
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
+from pkgutil import extend_path
 
-from easybuild.easyblocks.foo import EB_foo
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-
-
-class EB_foofoo(EB_foo):
-    """Support for building/installing foofoo."""
-
-    @staticmethod
-    def extra_options():
-        """Custom easyconfig parameters for foofoo."""
-
-        extra_vars = [
-                      ('foofoo_extra1', [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY]),
-                      ('foofoo_extra2', ['FOOFOO', "second foofoo-specific easyconfig parameter", CUSTOM]),
-                     ]
-        return EB_foo.extra_options(extra_vars)
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

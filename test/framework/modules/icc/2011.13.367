@@ -1,0 +1,29 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   C and C++ compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/
+    }
+}
+
+module-whatis {C and C++ compiler from Intel - Homepage: http://software.intel.com/en-us/intel-compilers/}
+
+set root    /tmp/icc/2011.13.367
+
+conflict    icc
+
+prepend-path	IDB_HOME		$root/bin/intel64
+prepend-path	LD_LIBRARY_PATH		$root/compiler/lib
+prepend-path	LD_LIBRARY_PATH		$root/compiler/lib/intel64
+prepend-path	MANPATH		$root/man
+prepend-path	MANPATH		$root/man/en_US
+prepend-path	PATH		$root/bin
+prepend-path	PATH		$root/bin/intel64
+
+setenv	EBROOTICC		"$root"
+setenv	EBVERSIONICC		"2011.13.367"
+setenv	EBDEVELICC		"$root/easybuild/icc-2011.13.367-easybuild-devel"
+
+prepend-path	INTEL_LICENSE_FILE		/tmp/license.lic
+prepend-path	NLSPATH		$root/idb/intel64/locale/%l_%t/%N
+
+# built with EasyBuild version 1.9.0dev

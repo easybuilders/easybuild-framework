@@ -1,0 +1,33 @@
+# EASYCONFIGFORMAT 2.0
+# this is a version test
+"""
+docstring test
+@author: Stijn De Weirdt (UGent)
+@maintainer: Kenneth Hoste (UGent)
+"""
+name = "toy"
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+
+sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
+checksums = ['f09dca47638869866e28c9f44aadc111']  # (MD5) source checksum
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy')],
+    'dirs': ['bin'],
+}
+
+moduleclass = 'tools'
+
+[SUPPORTED]
+versions = 1.0, 0.0
+toolchains = goolf == 1.4.10, dummy == dummy
+
+[DEFAULT]
+
+[DEPENDENCIES]
+# various types of (meaningless) dependencies: simply, with toolchain/suffix
+GCC = 4.6.4
+OpenMPI = 1.6.4; GCC == 4.6.4
+OpenBLAS = 0.2.6 suffix:-LAPACK-3.4.2; gompi == 1.3.12

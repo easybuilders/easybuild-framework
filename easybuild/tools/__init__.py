@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,3 +32,7 @@ which contains support utilities.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
+from pkgutil import extend_path
+
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

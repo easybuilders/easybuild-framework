@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,22 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for dummy compiler.
+Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 
-@author: Stijn De Weirdt (Ghent University)
+@author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+from pkgutil import extend_path
 
-import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.compiler import Compiler
-
-
-class Dummy(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
-    COMPILER_MODULE_NAME = []
-
-    COMPILER_CC = 'DUMMYCC'
-    COMPILER_CXX = 'DUMMYCXX'
-
-    COMPILER_F77 = 'DUMMYF77'
-    COMPILER_F90 = 'DUMMYF90'
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

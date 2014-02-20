@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,11 +39,11 @@ GITHUB_USER = "hpcugent"
 # the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
 # Github username (optional)
-GITHUB_LOGIN = None
+GITHUB_LOGIN = os.environ.get('EASYBUILD_GITHUB_LOGIN', None)
 # Github password (optional)
 GITHUB_PASSWORD = None
 # github auth token to use (optional)
-GITHUB_TOKEN = None
+GITHUB_TOKEN = os.environ.get('EASYBUILD_GITHUB_TOKEN', None)
 # branch to test
 GITHUB_BRANCH = 'master'
 
@@ -78,9 +78,10 @@ class GithubTest(TestCase):
     def test_read(self):
         """Test the githubfs read function without using the api"""
         try:
-            self.assertEquals(open(self.ghfs.read("a_directory/a_file.txt", api=False), 'r').read(),
-                 "this is a line of text\n")
-        except IOError:
+            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            self.assertEquals(open(fp, 'r').read(), "this is a line of text\n")
+            os.remove(fp)
+        except (IOError, OSError):
             pass
 
     def tearDown(self):

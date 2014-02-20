@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -74,26 +74,21 @@ class FileToolsTest(TestCase):
 
     def test_extract_cmd(self):
         """Test various extract commands."""
-        cmd = ft.extract_cmd("test.zip")
-        self.assertEqual("unzip -qq test.zip", cmd)
-
-        cmd = ft.extract_cmd("/some/path/test.tar")
-        self.assertEqual("tar xf /some/path/test.tar", cmd)
-
-        cmd = ft.extract_cmd("test.tar.gz")
-        self.assertEqual("tar xzf test.tar.gz", cmd)
-
-        cmd = ft.extract_cmd("test.tgz")
-        self.assertEqual("tar xzf test.tgz", cmd)
-
-        cmd = ft.extract_cmd("test.bz2")
-        self.assertEqual("bunzip2 test.bz2", cmd)
-
-        cmd = ft.extract_cmd("test.tbz")
-        self.assertEqual("tar xjf test.tbz", cmd)
-
-        cmd = ft.extract_cmd("test.tar.bz2")
-        self.assertEqual("tar xjf test.tar.bz2", cmd)
+        tests = [
+            ('test.zip', "unzip -qq test.zip"),
+            ('/some/path/test.tar', "tar xf /some/path/test.tar"),
+            ('test.tar.gz', "tar xzf test.tar.gz"),
+            ('test.tgz', "tar xzf test.tgz"),
+            ('test.gtgz', "tar xzf test.gtgz"),
+            ('test.bz2', "bunzip2 test.bz2"),
+            ('test.tbz', "tar xjf test.tbz"),
+            ('test.tbz2', "tar xjf test.tbz2"),
+            ('test.tb2', "tar xjf test.tb2"),
+            ('test.tar.bz2', "tar xjf test.tar.bz2"),
+        ]
+        for (fn, expected_cmd) in tests:
+            cmd = ft.extract_cmd(fn)
+            self.assertEqual(expected_cmd, cmd)
 
     def test_run_cmd(self):
         """Basic test for run_cmd function."""
@@ -129,37 +124,10 @@ class FileToolsTest(TestCase):
         name = ft.convert_name("test+test-test", True)
         self.assertEqual(name, "TESTPLUSTESTMINTEST")
 
-    def test_parse_log_error(self):
-        """Test basic parse_log_for_error functionality."""
-        errors = ft.parse_log_for_error("error failed", True)
-        self.assertEqual(len(errors), 1)
-
-        # I expect tests to be run from the base easybuild directory
+    def test_cwd(self):
+        """tests should be run from the base easybuild directory"""
+        # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
-
-    def test_run_cmd_suse(self):
-        """Test run_cmd on SuSE systems, which have $PROFILEREAD set."""
-        # avoid warning messages
-        ft_log_level = ft._log.getEffectiveLevel()
-        ft._log.setLevel('ERROR')
-
-        # run_cmd should also work if $PROFILEREAD is set (very relevant for SuSE systems)
-        profileread = os.environ.get('PROFILEREAD', None)
-        os.environ['PROFILEREAD'] = 'profilereadxxx'
-        try:
-            (out, ec) = ft.run_cmd("echo hello")
-        except Exception, err:
-            out, ec = "ERROR: %s" % err, 1
-
-        # make sure it's restored again before we can fail the test
-        if profileread is not None:
-            os.environ['PROFILEREAD'] = profileread
-        else:
-            del os.environ['PROFILEREAD']
-
-        self.assertEqual(out, "hello\n")
-        self.assertEqual(ec, 0)
-        ft._log.setLevel(ft_log_level)
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -193,6 +161,60 @@ class FileToolsTest(TestCase):
         self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
             self.assertTrue(line in txt)
+        os.remove(fp)
+        os.remove("%s.eb.orig" % fp)
+
+    def test_which(self):
+        """Test which function for locating commands."""
+        python = ft.which('python')
+        self.assertTrue(python and os.path.exists(python) and os.path.isabs(python))
+
+        path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
+        self.assertTrue(path is None)
+
+
+    def test_checksums(self):
+        """Test checksum functionality."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, "easybuild\n")
+        known_checksums = {
+            'adler32': '0x379257805',
+            'crc32': '0x1457143216',
+            'md5': '7167b64b1ca062b9674ffef46f9325db',
+            'sha1': 'db05b79e09a4cc67e9dd30b313b5488813db3190',
+        }
+
+        # make sure checksums computation/verification is correct
+        for checksum_type, checksum in known_checksums.items():
+            self.assertEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
+            self.assertTrue(ft.verify_checksum(fp, (checksum_type, checksum)))
+        # md5 is default
+        self.assertEqual(ft.compute_checksum(fp), known_checksums['md5'])
+        self.assertTrue(ft.verify_checksum(fp, known_checksums['md5']))
+
+        # make sure faulty checksums are reported
+        broken_checksums = dict([(typ, val + 'foo') for (typ, val) in known_checksums.items()])
+        for checksum_type, checksum in broken_checksums.items():
+            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
+        # md5 is default
+        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['md5'])
+        self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
+
+        # cleanup
+        os.remove(fp)
+
+    def test_common_path_prefix(self):
+        """Test get common path prefix for a list of paths."""
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/foo', '/foo/bar/baz', '/foo/bar/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/', '/foo/bar/baz', '/foo/bar']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/foo']), '/foo')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/']), '/foo/bar')
+        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/bar', '/foo']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
+        self.assertEqual(ft.det_common_path_prefix(['foo']), None)
+        self.assertEqual(ft.det_common_path_prefix([]), None)
 
     def test_extract_tar(self):
         """Test the extraction of a tar file"""

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,11 +29,20 @@ Support for ScaLAPACK as toolchain linear algebra library.
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.toolchain.linalg import LinAlg
+from distutils.version import LooseVersion
+
+from easybuild.toolchains.linalg.blacs import Blacs
 
 
-class ScaLAPACK(LinAlg):
-    """Trivial class, provides ScaLAPACK support."""
+class ScaLAPACK(Blacs):
+    """Trivial class, provides ScaLAPACK support (on top of BLACS)."""
     SCALAPACK_MODULE_NAME = ['ScaLAPACK']
     SCALAPACK_LIB = ['scalapack']
 
+    def is_required(self, name):
+        """Determine whether BLACS is a required toolchain element, based on ScaLAPACK version."""
+        if name == "BLACS":
+            # BLACS is no longer required for ScaLAPACK >= 2.0
+            return LooseVersion(self.get_software_version(self.SCALAPACK_MODULE_NAME)[0]) < LooseVersion("2.0")
+        else:
+            return super(ScaLAPACK, self).is_required(name)

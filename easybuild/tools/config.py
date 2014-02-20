@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,16 +31,21 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import os
+import random
+import string
 import tempfile
 import time
 from vsc import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.repository import Repository, get_repositories
-from easybuild.tools.utilities import read_environment as _read_environment
+import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
+import easybuild.tools.environment as env
+from easybuild.tools.environment import read_environment as _read_environment
+from easybuild.tools.filetools import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -190,7 +195,15 @@ class ConfigurationVariables(dict):
 
 def get_user_easybuild_dir():
     """Return the per-user easybuild dir (e.g. to store config files)"""
-    return os.path.join(os.path.expanduser('~'), ".easybuild")
+    oldpath = os.path.join(os.path.expanduser('~'), ".easybuild")
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
+    newpath = os.path.join(xdg_config_home, "easybuild")
+
+    if os.path.isdir(newpath):
+        return newpath
+    else:
+        _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
+        return oldpath
 
 
 def get_default_oldstyle_configfile():
@@ -249,6 +262,8 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
+        'modules_tool': 'EnvironmentModulesC',
+        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
     }
 
     # sanity check
@@ -302,19 +317,6 @@ def init(options, config_options_dict):
 
     _log.debug("Config variables: %s" % variables)
 
-    # Create an instance of the repository class
-    if 'repository' in variables and not isinstance(variables['repository'], Repository):
-        repo = get_repositories().get(options.repository)
-        repoargs = options.repositorypath
-
-        try:
-            repository = repo(*repoargs)
-        except Exception, err:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (options.repository, repo.__name__, repoargs, err))
-
-        variables['repository'] = repository
-
     def create_dir(dirtype, dirname):
         _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
         try:
@@ -327,21 +329,15 @@ def init(options, config_options_dict):
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
-                value = [value]
+                if isinstance(value, basestring):
+                    # only retain first path, others are considered 'read-only' and trying to create them may fail
+                    value = [value.split(os.pathsep)[0]]
+                else:
+                    value = [value]
             for directory in value:
                 if not os.path.isdir(directory):
                     _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
                     create_dir(key, directory)
-
-    # update MODULEPATH if required
-    ebmodpath = os.path.join(install_path(typ='modules'), 'all')
-    # modulepath without ebmodpath
-    # ebmodpath is then always inserted in 1st place
-    modulepath = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0 and not x == ebmodpath]
-    _log.info("Prepend MODULEPATH %s with module install path used by EasyBuild %s" % (modulepath, ebmodpath))
-    modulepath.insert(0, ebmodpath)
-
-    os.environ['MODULEPATH'] = ':'.join(modulepath)
 
 
 def build_path():
@@ -351,11 +347,25 @@ def build_path():
     return variables['buildpath']
 
 
+def source_paths():
+    """
+    Return the list of source paths
+    """
+    if isinstance(variables['sourcepath'], basestring):
+        return variables['sourcepath'].split(':')
+    elif isinstance(variables['sourcepath'], (tuple, list)):
+        return variables['sourcepath']
+    else:
+        typ = type(variables['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+
+
 def source_path():
     """
-    Return the source path
+    Return the source path (deprecated)
     """
-    return variables['sourcepath']
+    _log.deprecated("Use of source_path() is deprecated, use source_paths() instead.", '2.0')
+    return source_paths()
 
 
 def install_path(typ=None):
@@ -389,6 +399,28 @@ def get_repository():
     Return the repository (git, svn or file)
     """
     return variables['repository']
+
+
+def get_repositorypath():
+    """
+    Return the repository path
+    """
+    return variables['repositorypath']
+
+
+def get_modules_tool():
+    """
+    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    """
+    # 'modules_tool' key will only be present if EasyBuild config is initialized
+    return variables.get('modules_tool', None)
+
+
+def get_module_naming_scheme():
+    """
+    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    """
+    return variables['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):
@@ -433,28 +465,34 @@ def get_build_log_path():
         return defaults['tmp_logdir']
 
 
-def get_log_filename(name, version):
+def get_log_filename(name, version, add_salt=False):
     """
     Generate a filename to be used for logging
     """
-    # this can't be imported at the top, otherwise we'd have a cyclic dependency
     date = time.strftime("%Y%m%d")
     timeStamp = time.strftime("%H%M%S")
 
-    filename = os.path.join(get_build_log_path(), log_file_format() % {
-                                                                       'name': name,
-                                                                       'version': version,
-                                                                       'date': date,
-                                                                       'time': timeStamp
-                                                                       })
+    filename = log_file_format() % {
+        'name': name,
+        'version': version,
+        'date': date,
+        'time': timeStamp,
+    }
+
+    if add_salt:
+        salt = ''.join(random.choice(string.letters) for i in range(5))
+        filename_parts = filename.split('.')
+        filename = '.'.join(filename_parts[:-1] + [salt, filename_parts[-1]])
+
+    filepath = os.path.join(get_build_log_path(), filename)
 
     # Append numbers if the log file already exist
     counter = 1
-    while os.path.isfile(filename):
+    while os.path.isfile(filepath):
         counter += 1
-        filename = "%s.%d" % (filename, counter)
+        filepath = "%s.%d" % (filepath, counter)
 
-    return filename
+    return filepath
 
 
 def read_only_installdir():
@@ -481,8 +519,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.utilities"""
-    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.utilities", '2.0')
+    """Depreacted location for read_environment, use easybuild.tools.environment"""
+    _log.deprecated("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
     return _read_environment(env_vars, strict)
 
 
@@ -509,7 +547,10 @@ def oldstyle_read_configuration(filename):
     """
     _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
 
-    file_variables = get_repositories(check_usable=False)
+    # import avail_repositories here to avoid cyclic dependencies
+    # this block of code is going to be removed in EB v2.0
+    from easybuild.tools.repository import avail_repositories
+    file_variables = avail_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)
     except (IOError, SyntaxError), err:
@@ -541,7 +582,45 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     return result
 
 
+def set_tmpdir(tmpdir=None):
+    """Set temporary directory to be used by tempfile and others."""
+    try:
+        if tmpdir is not None:
+            if not os.path.exists(tmpdir):
+                os.makedirs(tmpdir)
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=tmpdir)
+        else:
+            # use tempfile default parent dir
+            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+    except OSError, err:
+        _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
+
+    _log.info("Temporary directory used in this EasyBuild run: %s" % current_tmpdir)
+
+    for var in ['TMPDIR', 'TEMP', 'TMP']:
+        env.setvar(var, current_tmpdir)
+
+    # reset to make sure tempfile picks up new temporary directory to use
+    tempfile.tempdir = None
+
+    # test if temporary directory allows to execute files, warn if it doesn't
+    try:
+        fd, tmptest_file = tempfile.mkstemp()
+        os.close(fd)
+        os.chmod(tmptest_file, 0700)
+        if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
+            msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
+            msg += "This can cause problems in the build process, consider using --tmpdir."
+            _log.warning(msg)
+        else:
+            _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+        os.remove(tmptest_file)
+
+    except OSError, err:
+        _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
+
+    return current_tmpdir
+
+
 # config variables constant
 variables = ConfigurationVariables()
-
-

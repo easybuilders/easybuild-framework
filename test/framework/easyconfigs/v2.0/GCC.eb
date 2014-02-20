@@ -1,0 +1,39 @@
+# EASYCONFIGFORMAT 2.0
+# this is a version test
+"""
+docstring test
+@author: Stijn De Weirdt (UGent)
+@maintainer: Kenneth Hoste (UGent)
+"""
+name = "GCC"
+
+homepage = 'http://gcc.gnu.org/'
+description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+as well as libraries for these languages (libstdc++, libgcj,...)."""
+
+sources = [
+    SOURCELOWER_TAR_GZ,
+    'gmp-5.0.4.tar.bz2',
+    'mpfr-3.0.1.tar.gz',
+    'mpc-0.9.tar.gz',
+]
+source_urls = [
+    'http://ftpmirror.gnu.org/%(namelower)s/%(namelower)s-%(version)s',  # GCC auto-resolving HTTP mirror
+    'http://ftpmirror.gnu.org/gmp',  # idem for GMP
+    'http://ftpmirror.gnu.org/mpfr',  # idem for MPFR
+    'http://www.multiprecision.org/mpc/download',  # MPC official
+]
+
+languages = ['c', 'c++', 'fortran', 'lto']
+
+# building GCC sometimes fails if make parallelism is too high, so let's limit it
+maxparallel = 4
+
+license = GPLv3
+
+moduleclass = 'compiler'
+
+[SUPPORTED]
+versions = 4.6.2, 4.6.3
+toolchains = dummy == dummy
+

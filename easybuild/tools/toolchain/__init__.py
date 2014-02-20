@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,3 +50,8 @@ which contains toolchain related modules.
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+
+# name/version for dummy toolchain
+# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
+DUMMY_TOOLCHAIN_NAME = 'dummy'
+DUMMY_TOOLCHAIN_VERSION = 'dummy'

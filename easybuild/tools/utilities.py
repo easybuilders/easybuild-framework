@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,11 +27,14 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+import glob
 import os
 import string
+import sys
 from vsc import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
+import easybuild.tools.environment as env
 
 _log = fancylogger.getLogger('tools.utilities')
 
@@ -60,17 +63,8 @@ def read_environment(env_vars, strict=False):
         @param: env_vars: a dict with key a name, value a environment variable name
         @param: strict, boolean, if True enforces that all specified environment variables are found
     """
-    result = dict([(k, os.environ.get(v)) for k, v in env_vars.items() if v in os.environ])
-
-    if not len(env_vars) == len(result):
-        missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
-        msg = 'Following name/variable not found in environment: %s' % missing
-        if strict:
-            _log.error(msg)
-        else:
-            _log.debug(msg)
-
-    return result
+    _log.deprecated("moved read_environment to tools.environment", "2.0")
+    return env.read_environment(env_vars, strict)
 
 
 def flatten(lst):
@@ -111,14 +105,18 @@ def remove_unwanted_chars(inputstring):
     return inputstring.translate(ASCII_CHARS, UNWANTED_CHARS)
 
 
-def get_subsubclasses_for(cls):
-    """returns all subclasses for a class, and recursively it's all those subclasses"""
-    subclasses = []
+def import_available_modules(namespace):
+    """
+    Import all available module in the specified namespace.
 
-    for _cls in cls.__subclasses__():
-        subclasses.append(_cls)
-
-        if len(_cls.__subclasses__()) > 0:
-            subclasses.extend(get_subsubclasses_for(_cls))
-
-    return subclasses
+    @param namespace: The namespace to import modules from.
+    """
+    modules = []
+    for path in sys.path:
+        for module in glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py'])):
+            if not module.endswith('__init__.py'):
+                mod_name = module.split(os.path.sep)[-1].split('.')[0]
+                modpath = '.'.join([namespace, mod_name])
+                _log.debug("importing module %s" % modpath)
+                modules.append(__import__(modpath, globals(), locals(), ['']))
+    return modules

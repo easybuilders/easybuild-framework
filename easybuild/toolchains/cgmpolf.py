@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -40,8 +40,3 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 class Cgmpolf(Cgmpich, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with Clang, GFortran, MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'cgmpolf'
-
-    # no BLACS
-    BLACS_MODULE_NAME = []
-    BLACS_LIB = []
-    BLACS_LIB_MT = []
