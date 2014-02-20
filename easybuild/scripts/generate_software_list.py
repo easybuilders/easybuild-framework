@@ -124,7 +124,7 @@ for root, subfolders, files in walk(options.path):
                 configs.append(ec)
                 names.append(ec.name)
         except Exception, e:
-            log.warning("faulty easyconfig %s" % file)
+            log.warning("faulty easyconfig %s" % file_)
             log.debug(e)
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
