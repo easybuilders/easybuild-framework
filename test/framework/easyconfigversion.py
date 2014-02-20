@@ -217,6 +217,33 @@ class EasyConfigVersion(EnhancedTestCase):
                     tcversop = ToolchainVersionOperator(txt)
                     self.assertEqual(tcversop.test(name, version), res)
 
+    def test_ordered_versop_add_data(self):
+        """Test the add and data handling"""
+        ovop = OrderedVersionOperators()
+        tests = [
+            ('> 1', '5'),
+            ('> 2', {'x':3}),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            ovop.add(versop)
+            # no data was added, this is a new entry, mapper is initialised with None
+            self.assertEqual(ovop.datamap[versop], None)
+            ovop.add(versop, data)
+            # test data
+            self.assertEqual(ovop.datamap[versop], data)
+
+        # update
+        tests = [
+            ('> 1', '6'),
+            ('> 2', {'x':4}),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            ovop.add(versop, data)
+            # test updated data
+            self.assertEqual(ovop.datamap[versop], data)
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigVersion)

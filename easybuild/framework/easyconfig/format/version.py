@@ -589,6 +589,8 @@ class OrderedVersionOperators(object):
         """
         Try to add argument as VersionOperator instance to current list of version operators.
         Make sure there is no conflict with existing versops, and that the ordering is maintained.
+        After add, versopn_new is in the OrderedVersionOperators. If the same versopn_new was already in it,
+        it will update the data (if not None) (and not raise an error)
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
         @param data: additional data for supplied version operator to be stored
@@ -601,7 +603,7 @@ class OrderedVersionOperators(object):
 
         if versop_new in self.versops:
             # adding the same version operator twice is considered a failure
-            self.log.error("Versop %s already added." % versop_new)
+            self.log.debug("Versop %s already added." % versop_new)
         else:
             # no need for equality testing, we consider it an error
             gt_test = [versop_new > versop for versop in self.versops]
@@ -621,5 +623,10 @@ class OrderedVersionOperators(object):
                     self.versops.append(versop_new)
                 self.log.debug("add: new ordered list of version operators: %s" % self.versops)
 
-                self.log.debug("Keeping track of data for %s: %s" % (versop_new, data))
-                self.datamap[versop_new] = data
+        # keep track of the data
+        if not versop_new in self.datamap:
+            self.datamap[versop_new] = None
+
+        if data is not None:
+            self.log.debug("Keeping track of data for %s: %s" % (versop_new, data))
+            self.datamap[versop_new] = data
