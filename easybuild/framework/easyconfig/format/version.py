@@ -598,8 +598,8 @@ class OrderedVersionOperators(object):
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            arg = (versop_new, type(versop_new))
-            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % arg)
+            tup = (versop_new, type(versop_new))
+            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % tup)
 
         if versop_new in self.versops:
             # adding the same version operator twice is considered a failure
@@ -641,6 +641,10 @@ class OrderedVersionOperators(object):
 
     def get_data(self, versop):
         """Return the data for versop from datamap"""
+        if not isinstance(versop, VersionOperator):
+            tup = (versop, type(versop))
+            self.log.error(("get_data: argument must be a VersionOperator instance: %s; type %s") % tup)
+
         versop_str = str(versop)
         if versop_str in self.datamap:
             return self.datamap[versop_str]

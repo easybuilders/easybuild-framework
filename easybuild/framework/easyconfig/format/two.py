@@ -139,16 +139,18 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             if toolchain_version is None:
                 self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
 
+        # TODO use squash
         # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
         # this also performs some validation, and checks for conflicts between section markers
-        self.log.debug("sections for full parsed configobj: %s" % co.sections)
-        co.validate_and_filter_by_toolchain(toolchain_name)
-        self.log.debug("sections for filtered parsed configobj: %s" % co.sections)
+        # self.log.debug("sections for full parsed configobj: %s" % co.sections)
+        # co.validate_and_filter_by_toolchain(toolchain_name)
+        # self.log.debug("sections for filtered parsed configobj: %s" % co.sections)
 
         section_specs = co.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
         cfg.update(section_specs)
         self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
-        # FIXME what about updating dict values/appending to list values? how do we allow both redefining and updating? = and +=?
+        # FIXME what about updating dict values/appending to list values?
+        # FIXME how do we allow both redefining and updating? = and +=?
 
         # update config with correct version/toolchain (to avoid using values specified in default section)
         cfg.update({

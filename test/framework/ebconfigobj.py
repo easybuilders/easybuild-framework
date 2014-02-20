@@ -55,24 +55,208 @@ class TestEBConfigObj(TestCase):
                 print "err: %s" % err
             self.assertTrue(res)
 
-    def test_configobj(self):
-        """Test configobj sort"""
+    def setUp(self):
+        """Set some convenience attributes"""
         _, tcs = search_toolchain('')
-        tc_names = [x.NAME for x in tcs]
-        tcmax = min(len(tc_names), 3)
-        if len(tc_names) < tcmax:
-            tcmax = len(tc_names)
-        tc = tc_names[0]
+        self.tc_names = [x.NAME for x in tcs]
+        self.tcmax = min(len(self.tc_names), 3)
+        if len(self.tc_names) < self.tcmax:
+            self.tcmax = len(self.tc_names)
+        self.tc_namesmax = self.tc_names[:self.tcmax]
+
+        self.tc_first = self.tc_names[0]
+        self.tc_last = self.tc_names[-1]
+        self.tc_lastmax = self.tc_namesmax[-1]
+
+    def xtest_ebconfigobj_default(self):
+        """Tests wrt ebconfigobj default parsing"""
+        data = [
+            ('versions=1',
+             {'version': '1'}),
+            ('toolchains=%s' % self.tc_first,
+             {}),  # default operator > and/or version 0.0.0 are not usable for default
+            ('toolchains=%s > 1' % self.tc_first,
+             {}),  # > not usable for default
+            ('toolchains=%s == 1' % self.tc_first,
+             {'toolchain':{'name': self.tc_first, 'version': '1'}}),  # == is usable
+        ]
+
+        for val, res in  data:
+            configobj_txt = ['[SUPPORTED]', val]
+            co = ConfigObj(configobj_txt)
+            cov = EBConfigObj(co)
+
+            self.assertEqual(cov.default, res)
+
+    def xtest_squash_simple(self):
+        """Test toolchain filter"""
+        tc_first = {'version': '10', 'name': self.tc_first}
+        tc_last = {'version': '100', 'name': self.tc_last}
+
+        tc_tmpl = '%(name)s == %(version)s'
+
+        default_version = '1.0'
+        all_versions = [default_version, '0.0', '1.0']
+        txt = [
+            '[SUPPORTED]',
+            'versions = %s' % ', '.join(all_versions),
+            'toolchains = %s,%s' % (tc_tmpl % tc_first, tc_tmpl % tc_last),
+        ]
+        co = ConfigObj(txt)
+        cov = EBConfigObj(co)
+        found_tcs = [tmptc.as_dict() for tmptc in cov.sections['toolchains']]
+
+        self.assertEqual(found_tcs, [tc_first, tc_last])
+
+        for tc in [tc_first, tc_last]:
+            for version in all_versions:
+                co = ConfigObj(txt)
+                cov = EBConfigObj(co)
+                res = cov.squash(tc['name'], tc['version'], version)
+                self.assertEqual(res, {})  # very simple
+
+    def xtest_squash_invalid(self):
+        """Try to squash invalid files. Should trigger error"""
+        tc_first = {'version': '10', 'name': self.tc_first}
+        tc_last = {'version': '100', 'name': self.tc_last}
+
+        tc_tmpl = '%(name)s == %(version)s'
+
+        default_version = '1.0'
+        all_wrong_versions = [default_version, '>= 0.0', '< 1.0']
+
+        # all txt should have default version and first toolchain unmodified
+
+        txt_wrong_versions = [
+            '[SUPPORTED]',
+            'versions = %s' % ', '.join(all_wrong_versions),  # there's a conflict in the versions list
+            'toolchains = %s,%s' % (tc_tmpl % tc_first, tc_tmpl % tc_last),
+        ]
+        txt_conflict_nested_versions = [
+            '[SUPPORTED]',
+            'versions = %s' % default_version,
+            'toolchains = %s,%s' % (tc_tmpl % tc_first, tc_tmpl % tc_last),
+            '[> 1]',
+            '[[< 2]]',  # although this makes sense, it's considered a conflict
+        ]
+        for txt in [
+            txt_wrong_versions,
+            txt_conflict_nested_versions,
+            ]:
+            co = ConfigObj(txt)
+            cov = EBConfigObj(co)
+            self.assertErrorRegex(EasyBuildError, r'conflict', cov.squash,
+                                  tc_first['name'], tc_first['version'], default_version)
+
+    def xtest_toolchain_squash_nested(self):
+        """Test toolchain filter on nested sections"""
+        tc_first = {'version': '10', 'name': self.tc_first}
+        tc_last = {'version': '100', 'name': self.tc_last}
+
+        tc_tmpl = '%(name)s == %(version)s'
+        tc_section_first = tc_tmpl % tc_first
+        tc_section_last = tc_tmpl % tc_last
+
+        txt = [
+            '[SUPPORTED]',
+            'versions = 1.0, 0.0, 1.1, 1.6, 2.1',
+            'toolchains = %s,%s' % (tc_section_first, tc_tmpl % tc_last),
+            '[DEFAULT]',
+            'y=a',
+            '[> 1.0]',
+            'y=b',
+            'x = 1',
+            '[[>= 1.5]]',
+            'x = 2',
+            'y=c',
+            '[[[%s]]]' % tc_section_first,
+            'y=z2',
+            '[> 2.0]',
+            'x = 3',
+            'y=d',
+            '[%s]' % tc_section_first,
+            'y=z1',
+        ]
+
+        # tests
+        tests = [
+            (tc_last, '1.0', {'y':'a'}),
+            (tc_last, '1.1', {'y':'b', 'x':'1'}),
+            (tc_last, '1.5', {}),  # not a supported version
+            (tc_last, '1.6', {'y':'c', 'x':'2'}),  # nested
+            (tc_last, '2.1', {'y':'d', 'x':'3'}),  # values from most precise versop
+
+            (tc_first, '1.0', {'y':'z1'}),  # toolchain section, not default
+            (tc_first, '1.1', {'y':'b', 'x':'1'}),  # the version section precedes the toolchain section
+            (tc_first, '1.5', {}),  # not a supported version
+            (tc_first, '1.6', {'y':'z2', 'x':'2'}),  # nested
+            (tc_first, '2.1', {'y':'d', 'x':'3'}),  # values from most precise versop
+        ]
+        for tc, version, res in tests:
+            co = ConfigObj(txt)
+            cov = EBConfigObj(co)
+            squashed = cov.squash(tc['name'], tc['version'], version)
+            self.assertEqual(squashed, res)
+
+    def test_nested_version(self):
+        """Test nested config"""
+        tc = {'version': '10', 'name': self.tc_first}
+        default_version = '1.0'
+        txt = [
+            '[SUPPORTED]',
+            'versions = %s, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0' % default_version,
+            'toolchains = %(name)s == %(version)s' % tc,  # set tc, don't use it
+            '[> 1.0]',
+            'versionprefix = stable-',
+            '[[>= 1.5]]',
+            'versionsuffix = -early',
+            '[> 2.0]',
+            'versionsuffix = -mature',
+        ]
+
+        # version string, attributes without version and toolchain
+        data = [
+            (None, {}),
+            (default_version, {}),
+            ('0.0', {}),
+            ('1.1', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
+            ('1.5', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
+            ('1.6', {'versionprefix': 'stable-'}),
+            ('2.0', {'versionprefix': 'stable-'}),
+            ('3.0', {'versionprefix': 'stable-', 'versionsuffix': '-mature'}),
+        ]
+
+        for version, res in  data:
+            # yes, redo this for each test, even if it's static text
+            # some of the data is modified in place
+            co = ConfigObj(txt)
+            cov = EBConfigObj(co)
+            specs = cov.get_specs_for(version=version)
+
+            # fixed name/version, just sanity check
+            specs_tc = specs.pop('toolchain')
+            self.assertEqual(specs_tc, tc)
+
+            specs_version = specs.pop('version')
+            # do this after parsing
+            if version is None:
+                version = default_version
+            self.assertEqual(specs_version, version)
+
+            self.assertEqual(specs, res)
+
+    def xtest_ebconfigobj(self):
+        """Test configobj sort"""
         configobj_txt = [
             '[SUPPORTED]',
-            'toolchains=%s >= 7.8.9' % ','.join(tc_names[:tcmax]),
+            'toolchains=%s >= 7.8.9' % ','.join(self.tc_namesmax),
             'versions=1.2.3,2.3.4,3.4.5',
             '[>= 2.3.4]',
             'foo=bar',
             '[== 3.4.5]',
             'baz=biz',
-            '[%s == 5.6.7]' % tc,
-            '[%s > 7.8.9]' % tc_names[tcmax - 1],
+            '[%s == 5.6.7]' % self.tc_first,
+            '[%s > 7.8.9]' % self.tc_lastmax,
         ]
 
         co = ConfigObj(configobj_txt)

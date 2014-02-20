@@ -142,9 +142,6 @@ class EBConfigObj(object):
         self.sections = None  # all other sections
         self.unfiltered_sections = {}  # unfiltered other sections
 
-        self.versops = OrderedVersionOperators()
-        self.tcversops = OrderedVersionOperators()
-
         if configobj is not None:
             self.parse(configobj)
 
@@ -253,70 +250,10 @@ class EBConfigObj(object):
 
         return current
 
-    def validate_and_filter_by_toolchain(self, tcname, processed=None, filtered_sections=None, other_sections=None):
-        """
-        Build the ordered version operator and toolchain version operator, ignoring all other toolchains
-        @param tcname: toolchain name to keep
-        @param processed: a processed dict of sections to filter
-        @param path: list of keys to identify the path in the dict
-        """
-        top_call = False
-        if processed is None:
-            processed = self.sections
-            top_call = True
-        if filtered_sections is None:
-            filtered_sections = {}
-        if other_sections is None:
-            other_sections = {}
-
-        # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
-        # add section markers relevant to specified toolchain to self.tcversops
-        for key, value in processed.items():
-            if isinstance(value, Section):
-                if isinstance(key, ToolchainVersionOperator):
-                    if not key.tc_name == tcname:
-                        self.log.debug("Found marker for other toolchain '%s'" % key.tc_name)
-                        # also perform sanity check for other toolchains, make add check for conflicts
-                        tc_overops = other_sections.setdefault(key.tc_name, OrderedVersionOperators())
-                        tc_overops.add(key)
-                        # nothing more to do here, just continue with other sections
-                        continue
-                    else:
-                        self.log.debug("Found marker for specified toolchain '%s': %s" % (tcname, key))
-                        # add marker to self.tcversops (which triggers a conflict check)
-                        self.tcversops.add(key, value)
-                        filtered_sections[key] = value
-                elif isinstance(key, VersionOperator):
-                    self.log.debug("Found marker for version '%s'" % key)
-                    # keep track of all version operators, and enforce conflict check
-                    self.versops.add(key, value)
-                    filtered_sections[key] = value
-                else:
-                    self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
-
-                # recursively go deeper for (relevant) sections
-                self.validate_and_filter_by_toolchain(tcname, processed=value, filtered_sections=filtered_sections,
-                                                      other_sections=other_sections)
-
-            elif key in self.VERSION_OPERATOR_VALUE_TYPES:
-                self.log.debug("Found version operator key-value entry (%s)" % key)
-                if key == 'toolchains':
-                    # remove any other toolchain from list
-                    filtered_sections[key] = [tcversop for tcversop in value if tcversop.tc_name == tcname]
-                else:
-                    # retain all other values
-                    filtered_sections[key] = value
-            else:
-                self.log.debug("Found non-special key-value entry (key %s), skipping it" % key)
-
-        if top_call:
-            self.unfiltered_sections = self.sections
-            self.sections = filtered_sections
-
     def parse(self, configobj):
         """
-        First parse the configobj instance
-        Then build the structure to support the versionoperators and all other parts of the structure
+        Parse configobj using using recursive parse_sections. 
+        Then split off the default and supported sections. 
 
         @param configobj: ConfigObj instance
         """
@@ -345,7 +282,7 @@ class EBConfigObj(object):
             self.sections['%s' % key] = value
 
         for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
-                                   ('toolchain', 'toolchains', 'as_dict')]:
+                                            ('toolchain', 'toolchains', 'as_dict')]:
             if supported_key in self.supported:
                 self.log.debug('%s in supported, trying to detemine default for %s' % (supported_key, key))
                 first = self.supported[supported_key][0]
@@ -359,6 +296,137 @@ class EBConfigObj(object):
         self.log.debug("(parse) supported: %s" % self.supported)
         self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) sections: %s" % self.sections)
+
+    def squash(self, tcname, tcversion, version):
+        """
+        Project the multidimensional easyconfig to single easyconfig
+        It (tries to) detect conflicts in the easyconfig.
+
+        @param version: version to keep
+        @param tcname: toolchain name to keep
+        @param tcversion: toolchain version to keep
+        """
+        self.log.debug('Start squash with sections %s' % self.sections)
+
+        # dictionary to keep track of all sections, to detect conflicts in the easyconfig
+        sanity = {
+            'versops': OrderedVersionOperators(),
+            'toolchains': {},
+        }
+
+        oversops, res = self._squash(tcname, tcversion, version, self.sections, sanity)
+        self.log.debug('Temp result versions %s result %s' % (oversops, res))
+        self.log.debug('Temp result versions data %s' % (oversops.datamap))
+        # update res, most strict matching versionoperator should be first
+        # so update in reversed order
+        for versop in oversops.versops[::-1]:
+            res.update(oversops.get_data(versop))
+
+        self.log.debug('End squash with result %s' % res)
+        return res
+
+    def _squash(self, tcname, tcversion, version, processed, sanity):
+        """
+        Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
+        Returns dictionary res with squashed data for the processed block.
+
+        @param version: version to keep
+        @param tcname: toolchain name to keep
+        @param tcversion: toolchain version to keep
+        @param processed: easyconfig (Top)NestedDict
+        @param sanity: dictionary to keep track of section markers and detect conflicts 
+        """
+        res = {}
+
+        res_sections = {}
+
+        # a OrderedVersionOperators instance to keep track of the data of the matching version sections
+        oversops = OrderedVersionOperators()
+
+        self.log.debug('Start processed %s' % (processed))
+        # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
+        for key, value in processed.items():
+            if isinstance(value, NestedDict):
+                if isinstance(key, ToolchainVersionOperator):
+                    # perform sanity check for all toolchains, use .add to check for conflicts
+                    tc_overops = sanity['toolchains'].setdefault(key.tc_name, OrderedVersionOperators())
+                    tc_overops.add(key)
+
+                    if key.test(tcname, tcversion):
+                        tup = (tcname, tcversion, key)
+                        self.log.debug("Found matching marker for specified toolchain '%s, %s': %s" % tup)
+                        tmp_res_oversops, tmp_res_version = self._squash(tcname, tcversion, version, value, sanity)
+                        res_sections.update(tmp_res_version)
+                        for versop in tmp_res_oversops.versops:
+                            oversops.add(versop, tmp_res_oversops.get_data(versop), update=True)
+                    else:
+                        self.log.debug("Found marker for other toolchain or other version '%s', ignoring it." % key)
+                elif isinstance(key, VersionOperator):
+                    # keep track of all version operators, and enforce conflict check
+                    sanity['versops'].add(key)
+                    if key.test(version):
+                        self.log.debug('Found matching version marker %s' % key)
+                        tmp_res_oversops, tmp_res_version = self._squash(tcname, tcversion, version, value, sanity)
+                        # don't update res_sections
+                        # add this to a orderedversop that has matching versops.
+                        # data in this matching orderedversop must be updated to the res at the end
+                        for versop in tmp_res_oversops.versops:
+                            oversops.add(versop, tmp_res_oversops.get_data(versop), update=True)
+                        oversops.add(key, tmp_res_version, update=True)
+                    else:
+                        self.log.debug('Found non-matching version marker %s. Ignoring it.' % key)
+                else:
+                    self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
+
+            elif key in self.VERSION_OPERATOR_VALUE_TYPES:
+                self.log.debug("Found VERSION_OPERATOR_VALUE_TYPES entry (%s)" % key)
+                if key == 'toolchains':
+                    # remove any other toolchain from list
+                    self.log.debug("Filtering 'toolchains' key")
+
+                    matching_toolchains = []
+                    for tcversop in value:
+                        tc_overops = sanity['toolchains'].setdefault(tcversop.tc_name, OrderedVersionOperators())
+                        tc_overops.add(tcversop)
+                        if tcversop.test(tcname, tcversion):
+                            matching_toolchains.append(tcversop)
+
+                    if matching_toolchains:
+                        # does this have any use?
+                        self.log.debug('Matching toolchains %s found (but data not needed)' % matching_toolchains)
+                    else:
+                        self.log.debug('No matching toolchains, removing the whole current key %s' % key)
+                        return OrderedVersionOperators(), {}
+
+                elif key == 'versions':
+                    self.log.debug("Adding all versions %s from versions key" % (value))
+                    matching_versions = []
+                    for versop in value:
+                        sanity['versops'].add(versop)
+                        if versop.test(version):
+                            matching_versions.append(versop)
+                    if matching_versions:
+                        # does this have any use?
+                        self.log.debug('Matching versions %s found (but data not needed)' % matching_versions)
+                    else:
+                        self.log.debug('No matching versions, removing the whole current key %s' % key)
+                        return OrderedVersionOperators(), {}
+                else:
+                    self.log.debug('Adding regular VERSION_OPERATOR_VALUE_TYPES key %s value %s' % (key, value))
+                    res[key] = value
+            else:
+                    self.log.debug('Adding key %s value %s' % (key, value))
+                    res[key] = value
+
+        # merge the current attributes with higher level ones, higher level ones win
+        # TODO figure out ordered processing of sections?
+        self.log.debug('Current level result %s' % (res))
+        self.log.debug('Higher level sections result %s' % (res_sections))
+
+        res.update(res_sections)
+
+        self.log.debug('End processed %s ordered versions %s result %s' % (processed, oversops, res))
+        return oversops, res
 
     def get_specs_for(self, version=None, tcname=None, tcversion=None):
         """
@@ -391,9 +459,6 @@ class EBConfigObj(object):
             self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
 
         # TODO: determine 'path' to take in sections based on version and toolchain version
-        # SDW: ask the versionoperator
-        self.log.debug("self.versops: %s" % self.versops)
-        self.log.debug("self.tcversops: %s" % self.tcversops)
 
         return self.default
 
