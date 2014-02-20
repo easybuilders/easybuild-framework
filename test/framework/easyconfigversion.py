@@ -259,6 +259,14 @@ class EasyConfigVersion(EnhancedTestCase):
             # test updated data
             self.assertEqual(ovop.get_data(versop), prevdata)
 
+        # use update=True on new element
+        versop = VersionOperator('> 10000')
+        new_data = {'new':5}
+        ovop.add(versop, new_data, update=True)
+        # test updated data
+        self.assertEqual(ovop.get_data(versop), new_data)
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigVersion)

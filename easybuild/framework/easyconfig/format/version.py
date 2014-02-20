@@ -629,20 +629,15 @@ class OrderedVersionOperators(object):
         """Add the data to the datamap, use the string representation of the operator as key"""
         versop_new_str = str(versop_new)
 
-        # keep track of the data
-        if not versop_new_str in self.datamap:
-            self.datamap[versop_new_str] = None
-
-        if data is not None:
-            if update:
-                self.log.debug("Keeping track of data for %s UPDATE: %s" % (versop_new_str, data))
-                if not hasattr(self.datamap[versop_new_str], 'update'):
-                    tup = (versop_new_str, type(self.datamap[versop_new_str]))
-                    self.log.error("Can't update on datamap key %s type %s" % tup)
-                self.datamap[versop_new_str].update(data)
-            else:
-                self.log.debug("Keeping track of data for %s SET: %s" % (versop_new_str, data))
-                self.datamap[versop_new_str] = data
+        if update and versop_new_str in self.datamap:
+            self.log.debug("Keeping track of data for %s UPDATE: %s" % (versop_new_str, data))
+            if not hasattr(self.datamap[versop_new_str], 'update'):
+                tup = (versop_new_str, type(self.datamap[versop_new_str]))
+                self.log.error("Can't update on datamap key %s type %s" % tup)
+            self.datamap[versop_new_str].update(data)
+        else:
+            self.log.debug("Keeping track of data for %s SET: %s" % (versop_new_str, data))
+            self.datamap[versop_new_str] = data
 
     def get_data(self, versop):
         """Return the data for versop from datamap"""
