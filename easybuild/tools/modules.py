@@ -649,7 +649,9 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        cmd = ['spider', '-o', 'moduleT', os.environ['MODULEPATH']]
+        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+        self.log.debug("Running command '%s'..." % ' '.join(cmd))
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
 
