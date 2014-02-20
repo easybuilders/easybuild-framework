@@ -27,15 +27,15 @@ Unit tests for easyconfig/format/version.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import copy
+
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
@@ -228,12 +228,12 @@ class EasyConfigVersion(EnhancedTestCase):
             versop = VersionOperator(versop_txt)
             ovop.add(versop)
             # no data was added, this is a new entry, mapper is initialised with None
-            self.assertEqual(ovop.datamap[versop], None)
+            self.assertEqual(ovop.get_data(versop), None)
             ovop.add(versop, data)
             # test data
-            self.assertEqual(ovop.datamap[versop], data)
+            self.assertEqual(ovop.get_data(versop), data)
 
-        # update
+        # new values for same versops
         tests = [
             ('> 1', '6'),
             ('> 2', {'x':4}),
@@ -242,7 +242,22 @@ class EasyConfigVersion(EnhancedTestCase):
             versop = VersionOperator(versop_txt)
             ovop.add(versop, data)
             # test updated data
-            self.assertEqual(ovop.datamap[versop], data)
+            self.assertEqual(ovop.get_data(versop), data)
+
+        # 'update' a value
+        # the data for '> 1' has no .update()
+        extra_data = {'y':4}
+        tests = [
+            ('> 2', extra_data),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            prevdata = copy.deepcopy(ovop.get_data(versop))
+            prevdata.update(extra_data)
+
+            ovop.add(versop, data, update=True)
+            # test updated data
+            self.assertEqual(ovop.get_data(versop), prevdata)
 
 def suite():
     """ returns all the testcases in this module """

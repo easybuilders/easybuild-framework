@@ -585,7 +585,7 @@ class OrderedVersionOperators(object):
         """Print the list and map"""
         return "ordered version operators: %s; data map: %s" % (self.versops, self.datamap)
 
-    def add(self, versop_new, data=None):
+    def add(self, versop_new, data=None, update=None):
         """
         Try to add argument as VersionOperator instance to current list of version operators.
         Make sure there is no conflict with existing versops, and that the ordering is maintained.
@@ -623,10 +623,31 @@ class OrderedVersionOperators(object):
                     self.versops.append(versop_new)
                 self.log.debug("add: new ordered list of version operators: %s" % self.versops)
 
+        self.add_data(versop_new, data, update)
+
+    def add_data(self, versop_new, data, update):
+        """Add the data to the datamap, use the string representation of the operator as key"""
+        versop_new_str = str(versop_new)
+
         # keep track of the data
-        if not versop_new in self.datamap:
-            self.datamap[versop_new] = None
+        if not versop_new_str in self.datamap:
+            self.datamap[versop_new_str] = None
 
         if data is not None:
-            self.log.debug("Keeping track of data for %s: %s" % (versop_new, data))
-            self.datamap[versop_new] = data
+            if update:
+                self.log.debug("Keeping track of data for %s UPDATE: %s" % (versop_new_str, data))
+                if not hasattr(self.datamap[versop_new_str], 'update'):
+                    tup = (versop_new_str, type(self.datamap[versop_new_str]))
+                    self.log.error("Can't update on datamap key %s type %s" % tup)
+                self.datamap[versop_new_str].update(data)
+            else:
+                self.log.debug("Keeping track of data for %s SET: %s" % (versop_new_str, data))
+                self.datamap[versop_new_str] = data
+
+    def get_data(self, versop):
+        """Return the data for versop from datamap"""
+        versop_str = str(versop)
+        if versop_str in self.datamap:
+            return self.datamap[versop_str]
+        else:
+            self.log.error('No data in datamap for versop %s' % versop)
