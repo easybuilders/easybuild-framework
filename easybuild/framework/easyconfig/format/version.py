@@ -281,6 +281,14 @@ class VersionOperator(object):
 
         return versop_dict
 
+    def _boundary_check(self, other):
+        """Return the boundary checks via testing: is self in other, and is other in self
+        @param other: a VersionOperator instance
+        """
+        boundary_self_in_other = other.test(self.version)
+        boundary_other_in_self = self.test(other.version)
+        return boundary_self_in_other, boundary_other_in_self
+
     def test_overlap_and_conflict(self, versop_other):
         """
         Test if there is any overlap between this instance and versop_other, and if so, if there is a conflict or not.
@@ -302,14 +310,16 @@ class VersionOperator(object):
         """
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
+        if not isinstance(versop_other, self.__class__):
+            self.log.error('boundary check needs instance of self (got type %s)' % (type(versop_other)))
+
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
             return True, False
-        # from here on, this versop and versop_other are not equal
 
+        # from here on, this versop and versop_other are not equal
         same_boundary = self.version == versop_other.version
-        boundary_self_in_other = versop_other.test(self.version)
-        boundary_other_in_self = self.test(versop_other.version)
+        boundary_self_in_other, boundary_other_in_self = self._boundary_check(versop_other)
 
         suffix_allowed = self.suffix == versop_other.suffix
 
@@ -520,6 +530,14 @@ class ToolchainVersionOperator(VersionOperator):
 
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
+
+    def _boundary_check(self, other):
+        """Return the boundary checks via testing: is self in other, and is other in self
+        @param other: a ToolchainVersionOperator instance
+        """
+        boundary_self_in_other = other.test(self.tc_name, self.version)
+        boundary_other_in_self = self.test(other.tc_name, other.version)
+        return boundary_self_in_other, boundary_other_in_self
 
     def test(self, test_name, test_version):
         """

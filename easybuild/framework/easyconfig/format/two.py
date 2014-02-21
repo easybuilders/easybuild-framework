@@ -106,48 +106,19 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
         co = EBConfigObj(self.configobj)
 
-        # we only need to find one version / toolchain combo
-        # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
         version = self.specs.get('version', None)
-        if version is None:
-            # check for default version
-            if 'version' in co.default:
-                version = co.default['version']
-                self.log.info("no software version specified, using default version '%s'" % version)
-            else:
-                self.log.error("no software version specified, no default version found")
-        else:
-            self.log.debug("Using specified software version %s" % version)
-
         tc_spec = self.specs.get('toolchain', {})
         toolchain_name = tc_spec.get('name', None)
-        if toolchain_name is None:
-            # check for default toolchain
-            if 'toolchain' in co.default:
-                toolchain = co.default['toolchain']
-                toolchain_name = toolchain['name']
-                self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
-                toolchain_version = tc_spec.get('version', None)
-                if toolchain_version is None:
-                    toolchain_version = toolchain['version']
-                    self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
-            else:
-                self.log.error("no toolchain name specified, no default toolchain found")
-        else:
-            self.log.debug("Using specified toolchain name %s" % toolchain_name)
-            toolchain_version = tc_spec.get('version', None)
-            if toolchain_version is None:
-                self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
+        toolchain_version = tc_spec.get('version', None)
 
-        # TODO use squash
-        # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
-        # this also performs some validation, and checks for conflicts between section markers
-        # self.log.debug("sections for full parsed configobj: %s" % co.sections)
-        # co.validate_and_filter_by_toolchain(toolchain_name)
-        # self.log.debug("sections for filtered parsed configobj: %s" % co.sections)
+        # parse and interpret, dealing with defaults etc
+        version, tcname, tcversion = co.get_version_toolchain(version, toolchain_name, toolchain_version)
 
-        section_specs = co.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
-        cfg.update(section_specs)
+        # format 2.0 will squash
+        self.log.debug('Squashing with toolchain %s and version %s' % ((tcname, tcversion), version))
+        res = co.squash(tcname, tcversion, version)
+
+        cfg.update(res)
         self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
         # FIXME what about updating dict values/appending to list values?
         # FIXME how do we allow both redefining and updating? = and +=?
@@ -155,7 +126,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         # update config with correct version/toolchain (to avoid using values specified in default section)
         cfg.update({
             'version': version,
-            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+            'toolchain': {'name': tcname, 'version': tcversion},
         })
 
         self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)

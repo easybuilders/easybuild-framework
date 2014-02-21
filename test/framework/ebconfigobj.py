@@ -68,7 +68,7 @@ class TestEBConfigObj(TestCase):
         self.tc_last = self.tc_names[-1]
         self.tc_lastmax = self.tc_namesmax[-1]
 
-    def xtest_ebconfigobj_default(self):
+    def test_ebconfigobj_default(self):
         """Tests wrt ebconfigobj default parsing"""
         data = [
             ('versions=1',
@@ -88,7 +88,7 @@ class TestEBConfigObj(TestCase):
 
             self.assertEqual(cov.default, res)
 
-    def xtest_squash_simple(self):
+    def test_squash_simple(self):
         """Test toolchain filter"""
         tc_first = {'version': '10', 'name': self.tc_first}
         tc_last = {'version': '100', 'name': self.tc_last}
@@ -115,7 +115,7 @@ class TestEBConfigObj(TestCase):
                 res = cov.squash(tc['name'], tc['version'], version)
                 self.assertEqual(res, {})  # very simple
 
-    def xtest_squash_invalid(self):
+    def test_squash_invalid(self):
         """Try to squash invalid files. Should trigger error"""
         tc_first = {'version': '10', 'name': self.tc_first}
         tc_last = {'version': '100', 'name': self.tc_last}
@@ -148,7 +148,7 @@ class TestEBConfigObj(TestCase):
             self.assertErrorRegex(EasyBuildError, r'conflict', cov.squash,
                                   tc_first['name'], tc_first['version'], default_version)
 
-    def xtest_toolchain_squash_nested(self):
+    def test_toolchain_squash_nested(self):
         """Test toolchain filter on nested sections"""
         tc_first = {'version': '10', 'name': self.tc_first}
         tc_last = {'version': '100', 'name': self.tc_last}
@@ -171,6 +171,8 @@ class TestEBConfigObj(TestCase):
             'y=c',
             '[[[%s]]]' % tc_section_first,
             'y=z2',
+            '[[>= 1.6]]',
+            'z=3',
             '[> 2.0]',
             'x = 3',
             'y=d',
@@ -183,14 +185,14 @@ class TestEBConfigObj(TestCase):
             (tc_last, '1.0', {'y':'a'}),
             (tc_last, '1.1', {'y':'b', 'x':'1'}),
             (tc_last, '1.5', {}),  # not a supported version
-            (tc_last, '1.6', {'y':'c', 'x':'2'}),  # nested
-            (tc_last, '2.1', {'y':'d', 'x':'3'}),  # values from most precise versop
+            (tc_last, '1.6', {'y':'c', 'x':'2', 'z':'3'}),  # nested
+            (tc_last, '2.1', {'y':'d', 'x':'3', 'z':'3'}),  # values from most precise versop
 
             (tc_first, '1.0', {'y':'z1'}),  # toolchain section, not default
             (tc_first, '1.1', {'y':'b', 'x':'1'}),  # the version section precedes the toolchain section
             (tc_first, '1.5', {}),  # not a supported version
-            (tc_first, '1.6', {'y':'z2', 'x':'2'}),  # nested
-            (tc_first, '2.1', {'y':'d', 'x':'3'}),  # values from most precise versop
+            (tc_first, '1.6', {'y':'z2', 'x':'2', 'z':'3'}),  # nested
+            (tc_first, '2.1', {'y':'d', 'x':'3', 'z':'3'}),  # values from most precise versop
         ]
         for tc, version, res in tests:
             co = ConfigObj(txt)
@@ -219,10 +221,10 @@ class TestEBConfigObj(TestCase):
             (None, {}),
             (default_version, {}),
             ('0.0', {}),
-            ('1.1', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
+            ('1.1', {'versionprefix': 'stable-'}),
             ('1.5', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
-            ('1.6', {'versionprefix': 'stable-'}),
-            ('2.0', {'versionprefix': 'stable-'}),
+            ('1.6', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
+            ('2.0', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
             ('3.0', {'versionprefix': 'stable-', 'versionsuffix': '-mature'}),
         ]
 
@@ -233,19 +235,9 @@ class TestEBConfigObj(TestCase):
             cov = EBConfigObj(co)
             specs = cov.get_specs_for(version=version)
 
-            # fixed name/version, just sanity check
-            specs_tc = specs.pop('toolchain')
-            self.assertEqual(specs_tc, tc)
-
-            specs_version = specs.pop('version')
-            # do this after parsing
-            if version is None:
-                version = default_version
-            self.assertEqual(specs_version, version)
-
             self.assertEqual(specs, res)
 
-    def xtest_ebconfigobj(self):
+    def test_ebconfigobj(self):
         """Test configobj sort"""
         configobj_txt = [
             '[SUPPORTED]',
@@ -262,8 +254,10 @@ class TestEBConfigObj(TestCase):
         co = ConfigObj(configobj_txt)
         cov = EBConfigObj(co)
 
-        print cov.default
-        # FIXME: actually check something
+        # default tc is cgoolf -> cgoolf > 0.0.0
+        res = cov.get_specs_for(version='2.3.4', tcname=self.tc_first, tcversion='1.0.0')
+        # TODO extend
+        self.assertEqual(res, {'foo':'bar'})
 
 
 def suite():

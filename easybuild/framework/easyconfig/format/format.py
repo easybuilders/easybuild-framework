@@ -293,6 +293,8 @@ class EBConfigObj(object):
                     self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
                     self.default[key] = f_val
 
+        # TODO is it verified somewhere that the defaults are supported?
+
         self.log.debug("(parse) supported: %s" % self.supported)
         self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) sections: %s" % self.sections)
@@ -385,9 +387,11 @@ class EBConfigObj(object):
                     self.log.debug("Filtering 'toolchains' key")
 
                     matching_toolchains = []
+                    tmp_tc_oversops = {}
                     for tcversop in value:
-                        tc_overops = sanity['toolchains'].setdefault(tcversop.tc_name, OrderedVersionOperators())
-                        tc_overops.add(tcversop)
+                        tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
+                        self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % (tcversop, tc_overops, tcname, tcversion))
+                        tc_overops.add(tcversop)  # test non-conflicting list
                         if tcversop.test(tcname, tcversion):
                             matching_toolchains.append(tcversop)
 
@@ -401,8 +405,9 @@ class EBConfigObj(object):
                 elif key == 'versions':
                     self.log.debug("Adding all versions %s from versions key" % (value))
                     matching_versions = []
+                    tmp_versops = OrderedVersionOperators()
                     for versop in value:
-                        sanity['versops'].add(versop)
+                        tmp_versops.add(versop)  # test non-conlficting list
                         if versop.test(version):
                             matching_versions.append(versop)
                     if matching_versions:
@@ -428,15 +433,16 @@ class EBConfigObj(object):
         self.log.debug('End processed %s ordered versions %s result %s' % (processed, oversops, res))
         return oversops, res
 
-    def get_specs_for(self, version=None, tcname=None, tcversion=None):
-        """
-        Return dictionary with specifications listed in sections applicable for specified info.
-        """
-
+    def get_version_toolchain(self, version=None, tcname=None, tcversion=None):
+        """Return tuple of version, toolchainname and toolchainversion (possibly using defaults"""
         # make sure that requested version/toolchain are supported by this easyconfig
         versions = [x.get_version_str() for x in self.supported['versions']]
         if version is None:
-            self.log.debug("No version specified")
+            if 'version' in self.default:
+                version = self.default['version']
+                self.log.debug("No version specified, using default %s" % version)
+            else:
+                self.log.error("No version specified, no default found.")
         elif version in versions:
             self.log.debug("Version '%s' is supported in easyconfig." % version)
         else:
@@ -444,23 +450,44 @@ class EBConfigObj(object):
 
         tcnames = [tc.tc_name for tc in self.supported['toolchains']]
         if tcname is None:
-            self.log.debug("Toolchain name not specified.")
+            if 'toolchain' in self.default and 'name' in self.default['toolchain']:
+                tcname = self.default['toolchain']['name']
+                self.log.debug("No toolchain name specified, using default %s" % tcname)
+            else:
+                self.log.error("No toolchain name specified, no default found.")
         elif tcname in tcnames:
             self.log.debug("Toolchain '%s' is supported in easyconfig." % tcname)
-            tcversions = [tc.get_version_str() for tc in self.supported['toolchains'] if tc.tc_name == tcname]
-            if tcversion is None:
-                self.log.debug("Toolchain version not specified.")
-            elif tcversion in tcversions:
-                self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
-            else:
-                tup = (tcname, tcversion, tcversions)
-                self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
         else:
             self.log.error("Toolchain '%s' not supported in easyconfig (only %s)" % (tcname, tcnames))
 
-        # TODO: determine 'path' to take in sections based on version and toolchain version
+        tcs = [tc for tc in self.supported['toolchains'] if tc.tc_name == tcname]
+        if tcversion is None:
+            if 'toolchain' in self.default and 'version' in self.default['toolchain']:
+                tcversion = self.default['toolchain']['version']
+                self.log.debug("No toolchain version specified, using default %s" % tcversion)
+            else:
+                self.log.error("No toolchain version specified, no default found.")
+        elif True in [tc.test(tcname, tcversion) for tc in tcs]:
+            self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
+        else:
+            tup = (tcname, tcversion, tcs)
+            self.log.error("Toolchain '%s' version '%s' not supported in easyconfig (only %s)" % tup)
 
-        return self.default
+        tup = (version, tcname, tcversion)
+        self.log.debug('version %s, tcversion %s, tcname %s' % tup)
+
+        return tup
+
+    def get_specs_for(self, version=None, tcname=None, tcversion=None):
+        """
+        Return dictionary with specifications listed in sections applicable for specified info.
+        """
+
+        version, tcname, tcversion = self.get_version_toolchain(version, tcname, tcversion)
+        self.log.debug('Squashing with toolchain %s and version %s' % ((tcname, tcversion), version))
+        res = self.squash(tcname, tcversion, version)
+
+        return res
 
 
 class EasyConfigFormat(object):
