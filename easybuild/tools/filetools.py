@@ -934,10 +934,6 @@ def decode_class_name(name):
         return decode_string(name)
 
 
-class BadArchiveException(Exception):
-    """Thrown when an unsupported archive file was detected when trying to extract it"""
-
-
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """Legacy wrapper/placeholder for run.run_cmd"""
     return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
