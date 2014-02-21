@@ -39,7 +39,6 @@ from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.extension import Extension
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -64,7 +63,7 @@ class EasyBlockTest(TestCase):
         config.variables['tmp_logdir'] = tempfile.mkdtemp()
         config.variables['installpath'] = tempfile.mkdtemp()
         config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['logfile_format'] = ("temp","temp")
+        config.variables['logfile_format'] = ("temp", "temp")
         self.cwd = os.getcwd()
 
     def test_empty(self):
@@ -76,7 +75,7 @@ class EasyBlockTest(TestCase):
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
-        self.contents =  """
+        self.contents = """
 name = "pi"
 version = "3.14"
 homepage = "http://example.com"
@@ -148,7 +147,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
-
 
     def test_extensions_step(self):
         """Test the extensions_step"""
@@ -263,7 +261,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
-        self.contents =  '\n'.join([
+        self.contents = '\n'.join([
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -298,7 +296,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # make sure build dir is unique
         eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
-        for i in range(0,3):
+        for i in range(3):
             eb.gen_builddir()
             self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
             eb.make_builddir()
@@ -326,6 +324,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
             if not res:
                 print "err: %s" % err
             self.assertTrue(res)
+
 
 def suite():
     """ return all the tests in this file """
