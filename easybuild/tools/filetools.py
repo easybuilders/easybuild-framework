@@ -1,4 +1,4 @@
-# #
+##
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 Set of file tools.
 
@@ -36,12 +36,12 @@ Set of file tools.
 import errno
 import os
 import re
-import shutil
 import stat
 import time
 import urllib
+import shutil
 import zlib
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
@@ -97,7 +97,8 @@ try:
     md5_class = hashlib.md5
     sha1_class = hashlib.sha1
 except ImportError:
-    import md5, sha
+    import md5
+    import sha
     md5_class = md5.md5
     sha1_class = sha.sha
 
@@ -172,6 +173,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
     """
+    _log.deprecated("extract_file is deprecated, use easybuild.tools.extract.extract_archive instead", "2.0")
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
@@ -197,6 +199,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     else:
         # complete command template with filename
         cmd = cmd % fn
+
     if not cmd:
         _log.error("Can't extract file %s with unknown filetype" % fn)
 
@@ -243,8 +246,10 @@ def det_common_path_prefix(paths):
 
 
 def download_file(filename, url, path):
-    """Download a file from the given URL, to the specified path."""
-
+    """
+    Download a file from the given URL, to the specified path.
+    return the path of the downloaded file if succesful, None otherwise
+    """
     _log.debug("Downloading %s from %s to %s" % (filename, url, path))
 
     # make sure directory exists
@@ -258,6 +263,7 @@ def download_file(filename, url, path):
     # try downloading three times max.
     while not downloaded and attempt_cnt < 3:
 
+        #TODO: allow for a reporthook to show a progress bar
         (_, httpmsg) = urllib.urlretrieve(url, path)
 
         if httpmsg.type == "text/html" and not filename.endswith('.html'):
@@ -266,7 +272,7 @@ def download_file(filename, url, path):
             try:
                 os.remove(path)
             except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
+                _log.error("Failed to remove downloaded file:%s", err)
         else:
             _log.info("Downloading file %s from url %s: done" % (filename, url))
             downloaded = True
@@ -480,6 +486,7 @@ def extract_cmd(fn, overwrite=False):
     - based on file suffix
     - better to use Python magic?
     """
+    _log.deprecated("extract_cmd is deprecated, use extract_archive instead please", "2.0")
     ff = [x.lower() for x in fn.split('.')]
     ftype = None
 
@@ -542,6 +549,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.error("Can't patch directory %s: no such directory" % dest)
         return
 
+    # TODO: we might need to extract the patch first
     # copy missing files
     if copy:
         try:
@@ -720,7 +728,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
         _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
-                  (100 * fail_ratio, 100 * max_fail_ratio))
+                   (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
         _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
@@ -777,7 +785,7 @@ def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
     ok = False
-    for i in range(0, n):
+    for i in range(n):
         try:
             shutil.rmtree(path)
             ok = True
@@ -936,6 +944,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """Legacy wrapper/placeholder for run.run_cmd_qa"""
     return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
                           simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """Legacy wrapper/placeholder for run.parse_log_for_error"""

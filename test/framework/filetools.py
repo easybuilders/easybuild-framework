@@ -32,17 +32,17 @@ Unit tests for filetools.py
 import os
 import tempfile
 from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
+from vsc.utils import fancylogger
 
 
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
 
-    class_names = [
+    CLASS_NAMES = [
         ('GCC', 'EB_GCC'),
         ('7zip', 'EB_7zip'),
         ('Charm++', 'EB_Charm_plus__plus_'),
@@ -51,8 +51,14 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        self.log = fancylogger.getLogger()
         self.legacySetUp()
+
+        # go to the data subdir to find all archives
+        abspath = os.path.abspath(__file__)
+        dname = os.path.dirname(abspath)
+        dname = os.path.join(dname, 'data')
+        os.chdir(dname)
 
     def legacySetUp(self):
         self.log.deprecated("legacySetUp", "2.0")
@@ -99,13 +105,13 @@ class FileToolsTest(TestCase):
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
-        for (class_name, encoded_class_name) in self.class_names:
+        for (class_name, encoded_class_name) in self.CLASS_NAMES:
             self.assertEqual(ft.encode_class_name(class_name), encoded_class_name)
             self.assertEqual(ft.encode_class_name(ft.decode_class_name(encoded_class_name)), encoded_class_name)
 
     def test_decode_class_name(self):
         """Test decoding of class names."""
-        for (class_name, encoded_class_name) in self.class_names:
+        for (class_name, encoded_class_name) in self.CLASS_NAMES:
             self.assertEqual(ft.decode_class_name(encoded_class_name), class_name)
             self.assertEqual(ft.decode_class_name(ft.encode_class_name(class_name)), class_name)
 
@@ -139,7 +145,6 @@ class FileToolsTest(TestCase):
 
         path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
         self.assertTrue(path is None)
-
 
     def test_checksums(self):
         """Test checksum functionality."""
@@ -183,6 +188,7 @@ class FileToolsTest(TestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
+
 
 def suite():
     """ returns all the testcases in this module """

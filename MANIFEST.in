@@ -3,6 +3,7 @@ include minimal_bash_completion.bash
 include optcomplete.bash
 recursive-include easybuild *py
 recursive-include test *py *eb
+recursive-include test/framework/data test*
 recursive-include test/framework/modules *
 recursive-include test/framework/sandbox/sources *
 include CONTRIBUTING.md
