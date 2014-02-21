@@ -196,7 +196,6 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb.close_log()
         os.remove(eb.logfile)
 
-
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
@@ -302,7 +301,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
-        self.contents =  '\n'.join([
+        self.contents = '\n'.join([
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -337,7 +336,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         # make sure build dir is unique
         eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
-        for i in range(0,3):
+        for i in range(3):
             eb.gen_builddir()
             self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
             eb.make_builddir()
@@ -372,6 +371,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
         os.remove(self.eb_file)
         if self.orig_tmp_logdir is not None:
             os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
+
 
 def suite():
     """ return all the tests in this file """
