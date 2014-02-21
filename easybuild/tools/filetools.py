@@ -49,9 +49,9 @@ import zipfile
 import zlib
 from vsc import fancylogger
 from vsc.utils.missing import all
+from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.environment as env
-from easybuild.tools.utilities import get_subsubclasses_for
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
 from easybuild.tools import run
 
@@ -60,6 +60,7 @@ _log = fancylogger.getLogger('filetools', fname=False)
 
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
+BUFFERSIZE = 10240
 
 # character map for encoding strings
 STRING_ENCODING_CHARMAP = {
@@ -140,25 +141,41 @@ class ZlibChecksum(object):
         """Return hex string of the checksum"""
         return '0x%s' % (self.checksum & 0xffffffff)
 
+def get_extractor(filename):
+    """Returns the extractor if the file is an archive, or None otherwise
+    """
+    if not filename:
+        return None
+    for cls in get_subclasses(Extractor):
+        if cls.can_handle(filename):
+            return cls
+    return None
+
 
 def extract_archive(filename, destination_dir):
     """Extracts a given archive to the destination directory"""
     if not os.path.isfile(filename):
-        _log.error("Can't extract file %s: no such file" % filename)
+        _log.warning("Can't extract file %s: no such file" % filename)
+        return None
 
     if not os.path.isdir(destination_dir):
         try:
             os.makedirs(destination_dir)
         except OSError, err:
-            _log.exception("Can't extract file %s: directory %s can't be created: %err ",
-                           filename, destination_dir, err)
+            _log.warning("Can't extract file %s: directory %s can't be created: %err ", filename, destination_dir, err)
+            return None
 
     destination_dir = os.path.abspath(destination_dir)
-    # output_file = os.path.splitext(os.path.split(fn)[1])[0]
-    for cls in get_subsubclasses_for(Extractor):
-        if cls.can_handle(filename):
-            return cls.extract(filename, destination_dir)
-    raise BadArchiveException
+
+    # recursive extracting please
+    # if we get a .tar.gz we should return the output dir
+    cls = get_extractor(filename)
+    if cls:
+        out = cls.extract(filename, destination_dir)
+        out2 = extract_archive(out, destination_dir)
+        return out2 or out
+    # not an archive
+    return None
 
 
 class Extractor(object):
@@ -186,8 +203,15 @@ class Extractor(object):
 
     @classmethod
     def extract(cls, filename, destination):
-        """Do the actual extraction"""
-        pass
+        """
+        Do the actual extraction
+        This is an abstract method, it will return the result of _extract
+        which has to be implemented in a class extending Extractor
+        """
+        outfile = os.path.join(destination, filename)
+        if filename.endswith(cls.extention):
+            outfile = outfile[:(0 - len(cls.extention))]
+        return cls._extract(filename, outfile)
 
 
 def read_file(path, log_error=True):
@@ -280,56 +304,70 @@ class UnTAR(Extractor):
 
 
 class UnBZIP2(Extractor):
-    """Implementation of the Extractor class for extracting BZIP2 compressed files"""
+    """
+    Implementation of the Extractor class for extracting BZIP2 compressed files
+    bzip2 unpacking always returns a single file
+    """
     magic = "\x42\x5A\x68"
+    extention = ".bz2"
 
     @classmethod
-    def extract(cls, filename, destination):
+    def _extract(cls, filename, destination):
         """Do the actuall extracting using bzip2 library"""
-        outfile = os.path.join(destination, filename)
-        if filename.endswith('.bz2'):
-            outfile = outfile[:-4]
-        open(outfile, 'w').write(bz2.decompress(open(filename).read()))
+        infile = bz2.BZ2File(filename)
+        block = infile.read(BUFFERSIZE)
+        outfile = open(destination, 'w')
+        while block:
+            outfile.write(block)
+            block = infile.read(BUFFERSIZE)
+        outfile.close()
         return destination
 
 
 class UnGZIP(Extractor):
-    """Implementation of the Extractor class for extracting GZIP compressed files"""
+    """
+    Implementation of the Extractor class for extracting GZIP compressed files
+
+    UnGZIP always returns a single file
+    """
     magic = "\x1f\x8b\x08"
+    extention = ".gz"
 
     @classmethod
-    def extract(cls, filename, destination):
-        """Do the actuall extracting using bzip2 library"""
-        outfile = os.path.join(destination, filename)
-        if filename.endswith('.gz'):
-            outfile = outfile[:-3]
-        #TODO: do a buffered read, so we don't try to read 4G into memory ?
-        open(outfile, 'w').write(gzip.open(filename).read())
+    def _extract(cls, filename, destination):
+        """
+        Do the actuall extracting using bzip2 library
+        """
+        infile = gzip.open(filename)
+        block = infile.read(BUFFERSIZE)
+        outfile = open(destination, 'w')
+        while block:
+            outfile.write(block)
+            block = infile.read(BUFFERSIZE)
+        outfile.close()
         return destination
 
 
 class SystemExtractor(Extractor):
-    """Abstract Extractor implementation,
+    """
+    Abstract Extractor implementation,
     this uses a subprocess to run the extraction command,
     this is usefull for extracting files that have no simple python extraction libraries yet
     """
     extract_command = None
 
     @classmethod
-    def extract(cls, filename, destination):
+    def _extract(cls, filename, destination):
         """Extract the given file to destination using a shell command"""
-        #TODO: move all these lines to Extractor, and have _extract function
-        outfile = os.path.join(destination, filename)
-        if filename.endswith(cls.extention):
-            outfile = outfile[:(0 - len(cls.extention))]
         #TODO: error checking
-        return run_cmd(cls.extract_command % {'filename': filename, 'destination': outfile})[0]
+        run_cmd(cls.extract_command % {'filename': filename, 'destination': destination})[0]
+        return destination
 
 
 class UnXZ(SystemExtractor):
     """Use system tools to extract XZ files, since this is not easily done in python yet"""
     magic = "\xFD7zXZ"
-    extract_command = "unxz %(filename)s > %(destination)s"
+    extract_command = "unxz --to-stdout %(filename)s > %(destination)s"
     extention = ".xz"
 
 #TODO: extract .iso, .deb and .rpm

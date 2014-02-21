@@ -31,12 +31,14 @@ Unit tests for filetools.py
 """
 import os
 import tempfile
+import shutil
 from unittest import TestCase, TestLoader, main
 
 from easybuild.tools import build_log
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
+
 
 class FileToolsTest(TestCase):
     """ Testcase for filetools module """
@@ -52,6 +54,7 @@ class FileToolsTest(TestCase):
     def setUp(self):
         self.log = build_log.get_log()
         self.legacySetUp()
+        self.tmpdir = tempfile.mkdtemp()
 
         # go to the data subdir to find all archives
         abspath = os.path.abspath(__file__)
@@ -70,6 +73,7 @@ class FileToolsTest(TestCase):
 
     def tearDown(self):
         """cleanup"""
+        shutil.rmtree(self.tmpdir)
         os.chdir(self.cwd)
 
     def test_extract_cmd(self):
@@ -218,67 +222,60 @@ class FileToolsTest(TestCase):
 
     def test_extract_tar(self):
         """Test the extraction of a tar file"""
-        out = ft.extract_archive('test.tar', '.')
+        out = ft.extract_archive('test.tar', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_gziped_tar(self):
         """Test the extraction of a gzipped tar file"""
-        out = ft.extract_archive('test.tar.gz', '.')
+        out = ft.extract_archive('test.tar.gz', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
-        out = ft.extract_archive('test.tgz', '.')
+        out = ft.extract_archive('test.tgz', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extracted_bzipped_tar(self):
         """Test the extraction of a bzipped tar file"""
-        out = ft.extract_archive('test.tar.bz2', '.')
+        out = ft.extract_archive('test.tar.bz2', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
         os.remove(out_file)
-        out = ft.extract_archive('test.tbz', '.')
+        out = ft.extract_archive('test.tbz', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_zip(self):
         """Test the extraction of a zip file"""
-        out = ft.extract_archive('test.zip', '.')
+        out = ft.extract_archive('test.zip', self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_bzip2(self):
         """Test the extraction of a bzip2 file"""
-        out = ft.extract_archive('test.txt.bz2', '.')
-        out_file = os.path.join(out, 'test.txt')
+        out_file = ft.extract_archive('test.txt.bz2', self.tmpdir)
+        self.assertEqual(out_file, os.path.join(self.tmpdir, 'test.txt'))
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_gzip(self):
         """Test the extraction of a gzip file"""
-        out = ft.extract_archive('test.txt.gz', '.')
-        out_file = os.path.join(out, 'test.txt')
+        out_file = ft.extract_archive('test.txt.gz', self.tmpdir)
+        self.assertEqual(out_file, os.path.join(self.tmpdir, 'test.txt'))
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_xzed_tar(self):
         """Test the extraction of a xz'ed tarfile"""
-        out = ft.extract_archive('test.tar.xz', '.')
+        out = ft.extract_archive('test.tar.xz', self.tmpdir)
+        self.assertEqual(out, self.tmpdir)
         out_file = os.path.join(out, 'test.txt')
         self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
 
     def test_extract_xz(self):
         """Test the extraction of a xz'ed file"""
-        out = ft.extract_archive('test.txt.xz', '.')
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
+        out = ft.extract_archive('test.txt.xz', self.tmpdir)
+        self.assertEqual(out, os.path.join(self.tmpdir, 'test.txt'))
+        self.assertEqual(open(out).read(), 'test ok\n')
 
 #TODO: deb, rpm, iso
 
