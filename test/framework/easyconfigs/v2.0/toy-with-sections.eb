@@ -31,7 +31,7 @@ toolchains = goolf == 1.4.10, dummy == dummy
 [> 1.0]
 # all 1.x versions and more recent are 'stable'
 versionprefix = stable-
-[[<= 1.5]]
+[[>= 1.5]]
 # custom suffix for 'early' 1.x releases
 versionsuffix = -early
 
