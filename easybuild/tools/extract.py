@@ -93,7 +93,7 @@ class Extractor(object):
     # e.g.,
     # LZW: "\x1F\x9D",
     # LZH: "\x1F\xA0",
-    magic = "This is not a magic numbers string"
+    MAGIC = "This is not a magic numbers string"
     # MAGIC starts at offset
     OFFSET = 0
 
@@ -115,8 +115,8 @@ class Extractor(object):
         which has to be implemented in a class extending Extractor
         """
         outfile = os.path.join(destination, filename)
-        if filename.endswith(cls.extention):
-            outfile = outfile[len(filename) - len(cls.extention):]
+        if filename.endswith(cls.EXTENTION):
+            outfile = outfile[:len(outfile)-len(cls.EXTENTION)]
         return cls._extract(filename, outfile)
 
 
@@ -147,6 +147,7 @@ class UnZIP(Extractor):
 class UnTAR(Extractor):
     """Implementation of the Extractor class for extracting (possibly compressed) tarballs"""
     MAGIC = None
+    EXTENTION = ".tar"
 
     @classmethod
     def can_handle(cls, filename):
@@ -183,7 +184,7 @@ class UnBZIP2(Extractor):
     bzip2 unpacking always returns a single file
     """
     MAGIC = "\x42\x5A\x68"
-    extention = ".bz2"
+    EXTENTION = ".bz2"
 
     @classmethod
     def _extract(cls, filename, destination):
@@ -205,12 +206,12 @@ class UnGZIP(Extractor):
     UnGZIP always returns a single file
     """
     MAGIC = "\x1f\x8b\x08"
-    extention = ".gz"
+    EXTENTION = ".gz"
 
     @classmethod
     def _extract(cls, filename, destination):
         """
-        Do the actuall extracting using bzip2 library
+        Do the actuall extracting using gzip library
         """
         infile = gzip.open(filename)
         block = infile.read(BUFFERSIZE)
@@ -228,20 +229,20 @@ class SystemExtractor(Extractor):
     this uses a subprocess to run the extraction command,
     this is usefull for extracting files that have no simple python extraction libraries yet
     """
-    extract_command = None
+    EXTRACT_COMMAND = None
 
     @classmethod
     def _extract(cls, filename, destination):
         """Extract the given file to destination using a shell command"""
         #TODO: error checking
-        run(cls.extract_command % {'filename': filename, 'destination': destination})[0]
+        run.run_cmd(cls.EXTRACT_COMMAND % {'filename': filename, 'destination': destination})[0]
         return destination
 
 
 class UnXZ(SystemExtractor):
     """Use system tools to extract XZ files, since this is not easily done in python yet"""
     MAGIC = "\xFD7zXZ"
-    extract_command = "unxz --to-stdout %(filename)s > %(destination)s"
-    extention = ".xz"
+    EXTRACT_COMMAND = "unxz --to-stdout %(filename)s > %(destination)s"
+    EXTENTION = ".xz"
 
 #TODO: extract .iso, .deb and .rpm

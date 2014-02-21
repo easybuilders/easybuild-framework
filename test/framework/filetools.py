@@ -31,7 +31,6 @@ Unit tests for filetools.py
 """
 import os
 import tempfile
-import shutil
 from unittest import TestCase, TestLoader, main
 
 from easybuild.tools import build_log
@@ -54,7 +53,6 @@ class FileToolsTest(TestCase):
     def setUp(self):
         self.log = build_log.get_log()
         self.legacySetUp()
-        self.tmpdir = tempfile.mkdtemp()
 
         # go to the data subdir to find all archives
         abspath = os.path.abspath(__file__)
@@ -73,7 +71,6 @@ class FileToolsTest(TestCase):
 
     def tearDown(self):
         """cleanup"""
-        shutil.rmtree(self.tmpdir)
         os.chdir(self.cwd)
 
     def test_extract_cmd(self):
@@ -93,33 +90,6 @@ class FileToolsTest(TestCase):
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
-
-    def test_run_cmd(self):
-        """Basic test for run_cmd function."""
-        (out, ec) = ft.run_cmd("echo hello")
-        self.assertEqual(out, "hello\n")
-        # no reason echo hello could fail
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_bis(self):
-        """More 'complex' test for run_cmd function."""
-        # a more 'complex' command to run, make sure all required output is there
-        (out, ec) = ft.run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
-        self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n" * 300))
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_qa(self):
-        """Basic test for run_cmd_qa function."""
-        (out, ec) = ft.run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
-        self.assertEqual(out, "question\nanswer\n")
-        # no reason echo hello could fail
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_simple(self):
-        """Test return value for run_cmd in 'simple' mode."""
-        self.assertEqual(True, ft.run_cmd("echo hello", simple=True))
-        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
     def test_convert_name(self):
         """Test convert_name function."""
@@ -176,7 +146,6 @@ class FileToolsTest(TestCase):
         path = ft.which('i_really_do_not_expect_a_command_with_a_name_like_this_to_be_available')
         self.assertTrue(path is None)
 
-
     def test_checksums(self):
         """Test checksum functionality."""
         fh, fp = tempfile.mkstemp()
@@ -219,65 +188,6 @@ class FileToolsTest(TestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
-
-    def test_extract_tar(self):
-        """Test the extraction of a tar file"""
-        out = ft.extract_archive('test.tar', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_gziped_tar(self):
-        """Test the extraction of a gzipped tar file"""
-        out = ft.extract_archive('test.tar.gz', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
-        out = ft.extract_archive('test.tgz', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extracted_bzipped_tar(self):
-        """Test the extraction of a bzipped tar file"""
-        out = ft.extract_archive('test.tar.bz2', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-        os.remove(out_file)
-        out = ft.extract_archive('test.tbz', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_zip(self):
-        """Test the extraction of a zip file"""
-        out = ft.extract_archive('test.zip', self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_bzip2(self):
-        """Test the extraction of a bzip2 file"""
-        out_file = ft.extract_archive('test.txt.bz2', self.tmpdir)
-        self.assertEqual(out_file, os.path.join(self.tmpdir, 'test.txt'))
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_gzip(self):
-        """Test the extraction of a gzip file"""
-        out_file = ft.extract_archive('test.txt.gz', self.tmpdir)
-        self.assertEqual(out_file, os.path.join(self.tmpdir, 'test.txt'))
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_xzed_tar(self):
-        """Test the extraction of a xz'ed tarfile"""
-        out = ft.extract_archive('test.tar.xz', self.tmpdir)
-        self.assertEqual(out, self.tmpdir)
-        out_file = os.path.join(out, 'test.txt')
-        self.assertEqual(open(out_file).read(), 'test ok\n')
-
-    def test_extract_xz(self):
-        """Test the extraction of a xz'ed file"""
-        out = ft.extract_archive('test.txt.xz', self.tmpdir)
-        self.assertEqual(out, os.path.join(self.tmpdir, 'test.txt'))
-        self.assertEqual(open(out).read(), 'test ok\n')
-
-#TODO: deb, rpm, iso
 
 
 def suite():
