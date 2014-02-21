@@ -141,6 +141,7 @@ class ZlibChecksum(object):
         """Return hex string of the checksum"""
         return '0x%s' % (self.checksum & 0xffffffff)
 
+
 def get_extractor(filename):
     """Returns the extractor if the file is an archive, or None otherwise
     """
@@ -373,7 +374,7 @@ class UnXZ(SystemExtractor):
 #TODO: extract .iso, .deb and .rpm
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None):
+def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
     Given filename fn, try to extract in directory dest
     - returns the directory name in case of success
@@ -400,18 +401,18 @@ def extract_file(fn, dest, cmd=None, extra_options=None):
         _log.error("Can't change to directory %s: %s" % (absDest, err))
 
     if not cmd:
-        while not os.path.isdir(fn) and os.path.exists(fn):
-            # recursively extract archives
-            cmd = extract_cmd(fn, return_dict=True)
-            run_cmd(cmd['cmd'] % cmd, simple=True)
-            fn = cmd['filename_no_ext']
+        cmd = extract_cmd(fn, overwrite=overwrite)
     else:
         # complete command template with filename
         cmd = cmd % fn
 
-        if extra_options:
-            cmd = "%s %s" % (cmd, extra_options)
-        run_cmd(cmd, simple=True)
+    if not cmd:
+        _log.error("Can't extract file %s with unknown filetype" % fn)
+
+    if extra_options:
+        cmd = "%s %s" % (cmd, extra_options)
+
+    run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
@@ -1089,7 +1090,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
         else:
             errors.extend((src, dst, str(why)))
     if errors:
-        raise Error(errors)
+        raise Error, errors
 
 
 def encode_string(name):
@@ -1111,44 +1112,8 @@ def encode_string(name):
 
     """
 
-    charmap = {
-        ' ': "_space_",
-        '!': "_exclamation_",
-        '"': "_quotation_",
-        '#': "_hash_",
-        '$': "_dollar_",
-        '%': "_percent_",
-        '&': "_ampersand_",
-        '(': "_leftparen_",
-        ')': "_rightparen_",
-        '*': "_asterisk_",
-        '+': "_plus_",
-        ',': "_comma_",
-        '-': "_minus_",
-        '.': "_period_",
-        '/': "_slash_",
-        ':': "_colon_",
-        ';': "_semicolon_",
-        '<': "_lessthan_",
-        '=': "_equals_",
-        '>': "_greaterthan_",
-        '?': "_question_",
-        '@': "_atsign_",
-        '[': "_leftbracket_",
-        '\'': "_apostrophe_",
-        '\\': "_backslash_",
-        ']': "_rightbracket_",
-        '^': "_circumflex_",
-        '_': "_underscore_",
-        '`': "_backquote_",
-        '{': "_leftcurly_",
-        '|': "_verticalbar_",
-        '}': "_rightcurly_",
-        '~': "_tilde_"
-    }
-
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: charmap.get(x, x), name))
+    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
     return result
 
 
@@ -1162,7 +1127,7 @@ def decode_string(name):
 
 def encode_class_name(name):
     """return encoded version of class name"""
-    return "EB_" + encode_string(name)
+    return EASYBLOCK_CLASS_PREFIX + encode_string(name)
 
 
 def decode_class_name(name):
