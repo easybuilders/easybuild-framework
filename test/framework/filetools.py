@@ -33,10 +33,10 @@ import os
 import tempfile
 from unittest import TestCase, TestLoader, main
 
-from easybuild.tools import build_log
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
+from vsc.utils import fancylogger
 
 
 class FileToolsTest(TestCase):
@@ -51,7 +51,7 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = build_log.get_log()
+        self.log = fancylogger.getLogger()
         self.legacySetUp()
 
         # go to the data subdir to find all archives
