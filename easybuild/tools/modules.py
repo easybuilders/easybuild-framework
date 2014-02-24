@@ -72,7 +72,7 @@ output_matchers = {
     # regex below matches modules like 'ictce/3.2.1.015.u4', 'OpenMPI/1.6.4-no-OFED', ...
     #
     # Module lines notes:
-    # * module name may have '(default)' appeneded [modulecmd]
+    # * module name may have '(default)' appended [modulecmd]
     # ignored lines:
     # * module paths lines may start with a (empty) set of '-'s, which will be followed by a space [modulecmd.tcl]
     # * module paths may end with a ':' [modulecmd, lmod]
