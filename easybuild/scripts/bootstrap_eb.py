@@ -136,7 +136,7 @@ def check_module_command(tmpdir):
         'modulecmd.tcl': 'EnvironmentModulesTcl',
     }
     out = os.path.join(tmpdir, 'module_command.out')
-    modcmd_found = False
+    modtool = None
     for modcmd in known_module_commands:
         cmd = "%s python help" % modcmd
         os.system("%s > %s 2>&1" % (cmd, out))
@@ -144,13 +144,12 @@ def check_module_command(tmpdir):
         txt = open(out, "r").read()
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
-            modcmd_found = True
             modtool = known_module_commands[modcmd]
             os.environ['EASYBUILD_MODULES_TOOL'] = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
 
-    if not modcmd_found:
+    if modtool is None:
         msg = [
             "Could not find any module command, make sure one available in your $PATH.",
             "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
@@ -158,6 +157,7 @@ def check_module_command(tmpdir):
         ]
         error('\n'.join(msg))
 
+    return modtool
 
 #
 # Stage functions
@@ -361,7 +361,7 @@ def main():
     os.chdir(tmpdir)
 
     # check whether a module command is available, we need that
-    check_module_command(tmpdir)
+    modtool = check_module_command(tmpdir)
 
     # clean sys.path, remove paths that may contain EasyBuild packages or stuff installed with easy_install
     orig_sys_path = sys.path[:]
@@ -399,6 +399,7 @@ def main():
 
     info('Done!')
 
+    info('')
     if install_path is not None:
         info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' % \
              (versions['version'], install_path, os.path.join(install_path, 'modules', 'all')))
@@ -407,7 +408,10 @@ def main():
              versions['version'])
         info('(default config => add "$HOME/.local/easybuild/modules/all" in $MODULEPATH)')
 
+    info('')
     info("Run 'module load EasyBuild', and run 'eb --help' to get help on using EasyBuild.")
+    info("Set $EASYBUILD_MODULES_TOOL to '%s' to use the same modules tool as was used now." % modtool)
+    info('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
     info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
     info("See https://github.com/hpcugent/easybuild/wiki/Configuration for details on configuring EasyBuild.")
