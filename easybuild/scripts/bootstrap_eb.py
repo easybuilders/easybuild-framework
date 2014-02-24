@@ -31,12 +31,14 @@ Installs distribute with included (patched) distribute_setup.py script to obtain
 and then performs a staged install of EasyBuild:
  * stage 1: install EasyBuild with easy_install to a temporary directory
  * stage 2: install EasyBuild with EasyBuild from stage 1 to a temporary directory
- * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory (default or $EASYBUILDINSTALLPATH)
+ * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory
+   (default or $EASYBUILDINSTALLPATH)
 
 Authors: Kenneth Hoste (UGent), Stijn Deweirdt (UGent)
 License: GPLv2
 
-inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py (via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
+inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py
+(via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
 """
 
 import copy
@@ -124,6 +126,37 @@ def prep(path):
         # PYTHONPATH needs to be set as well, otherwise setuptools will fail
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
+
+def check_module_command(tmpdir):
+    """Check which module command is available, and prepare for using it."""
+
+    known_module_commands = {
+        'modulecmd': 'EnvironmentModulesC',
+        'lmod': 'Lmod',
+        'modulecmd.tcl': 'EnvironmentModulesTcl',
+    }
+    out = os.path.join(tmpdir, 'module_command.out')
+    modcmd_found = False
+    for modcmd in known_module_commands:
+        cmd = "%s python help" % modcmd
+        os.system("%s > %s 2>&1" % (cmd, out))
+        modcmd_re = re.compile('Usage: module')
+        txt = open(out, "r").read()
+        debug("Output from %s: %s" % (cmd, txt))
+        if modcmd_re.search(txt):
+            modcmd_found = True
+            modtool = known_module_commands[modcmd]
+            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
+
+    if not modcmd_found:
+        msg = [
+            "Could not find any module command, make sure one available in your $PATH.",
+            "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
+            "Check the output of 'type module' to determine the location of the module command you are using.",
+        ]
+        error('\n'.join(msg))
+
 
 #
 # Stage functions
@@ -323,15 +356,8 @@ def main():
     debug("Going to use %s as temporary directory" % tmpdir)
     os.chdir(tmpdir)
 
-    # check whether 'modulecmd' is available, we need that
-    out = os.path.join(tmpdir, 'modulecmd.out')
-    cmd = "modulecmd python help"
-    os.system("%s > %s 2>&1" % (cmd, out))
-    modcmd_re = re.compile('Usage: module')
-    txt = open(out, "r").read()
-    if not modcmd_re.search(txt):
-        error("Could not find 'modulecmd', make sure it's available in your PATH. \
-               Output from %s: %s" % (cmd, txt))
+    # check whether a module command is available, we need that
+    check_module_command(tmpdir)
 
     # clean sys.path, remove paths that may contain EasyBuild packages or stuff installed with easy_install
     orig_sys_path = sys.path[:]
