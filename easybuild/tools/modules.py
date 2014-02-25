@@ -232,10 +232,11 @@ class ModulesTool(object):
                 msg = "Module command %s used by EasyBuild not found in defined 'module' function, " % mod_details
                 msg += "specify the correct modules tool to avoid weird problems due to this mismatch; "
                 msg += "see the --modules-tool and --avail-modules-tools command line options."
-                self.log.warning(msg, print_to_screen=True)
+                msg += "Or, alternatively, use --allow-modules-tool-mismatch to ignore this and continue."
+                self.log.error(msg)
         else:
             # module function may not be defined (weird, but fine)
-            self.log.warning("The 'module' function is not defined, can't verify whether selected module tool matches it.")
+            self.log.warning("The 'module' function not defined, can't verify whether modules tool matches it.")
 
     def check_module_path(self):
         """
