@@ -144,6 +144,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
+                                            None, 'store_true', False),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
