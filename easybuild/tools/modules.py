@@ -230,7 +230,7 @@ class ModulesTool(object):
             cmd = os.path.basename(self.cmd)
             mod_cmd_re = re.compile(r".*%s " % cmd, re.M)
             if mod_cmd_re.search(out):
-                self.log.info("Found command '%s' in defined 'module' function, excellent!" % cmd)
+                self.log.debug("Found command '%s' in defined 'module' function." % cmd)
             else:
                 mod_details = "'%s' (%s)" % (cmd, self.__class__.__name__)
                 msg = "Module command %s used by EasyBuild not found in defined 'module' function.\n" % mod_details
