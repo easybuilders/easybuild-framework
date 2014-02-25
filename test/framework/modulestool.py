@@ -79,7 +79,7 @@ class ModulesToolTest(TestCase):
         fancylogger.logToFile(self.log_fn)
 
         # keep track of original 'module' function definition so we can restore it
-        self.orig_module = os.environ['module']
+        self.orig_module = os.environ.get('module', None)
 
     def tearDown(self):
         """Testcase cleanup."""
@@ -87,7 +87,10 @@ class ModulesToolTest(TestCase):
         os.remove(self.log_fn)
 
         # restore
-        os.environ['module'] = self.orig_module
+        if self.orig_module is not None:
+            os.environ['module'] = self.orig_module
+        else:
+            del os.environ['module']
 
     def test_mock(self):
         """Test the mock module"""

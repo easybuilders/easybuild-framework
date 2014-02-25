@@ -70,7 +70,7 @@ class RobotTest(TestCase):
         # keep track of things that need to be restored later
         self.orig_modules_tool = modules.modules_tool
         self.orig_main_modules_tool = ectools.modules_tool
-        self.orig_module_function = os.environ['module']
+        self.orig_module_function = os.environ.get('module', None)
 
         # initialize configuration so config.get_modules_tool function works
         eb_go = eboptions.parse_options()
@@ -251,7 +251,10 @@ class RobotTest(TestCase):
         """ reset the Modules back to its original """
         config.modules_tool = self.orig_modules_tool
         ectools.modules_tool = self.orig_main_modules_tool
-        os.environ['module'] = self.orig_module_function
+        if self.orig_module_function is not None:
+            os.environ['module'] = self.orig_module_function
+        else:
+            del os.environ['module']
         config.variables['modules_tool'] = self.orig_modules_tool
         os.chdir(self.cwd)
 

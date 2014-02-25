@@ -1055,7 +1055,7 @@ class CommandLineOptionsTest(TestCase):
         from test.framework.modulestool import MockModulesTool
 
         # keep track of original module definition so we can restore it
-        orig_module = os.environ['module']
+        orig_module = os.environ.get('module', None)
         orig_modules_tool = config.variables['modules_tool']
 
         # check whether mismatch between 'module' function and selected modules tool is detected
@@ -1105,7 +1105,10 @@ class CommandLineOptionsTest(TestCase):
         config.variables['modules_tool'] = orig_modules_tool
 
         # restore
-        os.environ['module'] = orig_module
+        if self.orig_module is not None:
+            os.environ['module'] = self.orig_module
+        else:
+            del os.environ['module']
 
 
 def suite():
