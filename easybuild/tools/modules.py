@@ -133,12 +133,15 @@ class ModulesTool(object):
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
 
-    def __init__(self, mod_paths=None):
+    def __init__(self, mod_paths=None, build_options=None):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+        if build_options is None:
+            build_options = {}
+
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if mod_paths is None:
@@ -167,7 +170,7 @@ class ModulesTool(object):
 
         # some initialisation/verification
         self.check_cmd_avail()
-        self.check_module_function()
+        self.check_module_function(allow_mismatch=build_options.get('allow_modules_tool_mismatch', False))
         self.set_and_check_version()
         self.use_module_paths()
 
@@ -220,23 +223,28 @@ class ModulesTool(object):
             mod_tool = self.__class__.__name__
             self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
 
-    def check_module_function(self):
+    def check_module_function(self, allow_mismatch=False):
         """Check whether selected module tool matches 'module' function definition."""
         out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
         if ec == 0:
-            mod_cmd_re = re.compile(".*/%s " % self.COMMAND, re.M)
+            cmd = os.path.basename(self.cmd)
+            mod_cmd_re = re.compile(r".*%s " % cmd, re.M)
             if mod_cmd_re.search(out):
-                self.log.info("Found command '%s' in defined 'module' function, excellent!" % self.COMMAND)
+                self.log.info("Found command '%s' in defined 'module' function, excellent!" % cmd)
             else:
-                mod_details = "'%s' (%s)" % (self.COMMAND, self.__class__.__name__)
-                msg = "Module command %s used by EasyBuild not found in defined 'module' function, " % mod_details
-                msg += "specify the correct modules tool to avoid weird problems due to this mismatch; "
-                msg += "see the --modules-tool and --avail-modules-tools command line options."
-                msg += "Or, alternatively, use --allow-modules-tool-mismatch to ignore this and continue."
-                self.log.error(msg)
+                mod_details = "'%s' (%s)" % (cmd, self.__class__.__name__)
+                msg = "Module command %s used by EasyBuild not found in defined 'module' function.\n" % mod_details
+                msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
+                msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
+                msg += "Or, alternatively, use --allow-modules-tool-mismatch to ignore this issue. "
+                msg += "Obtained definition of 'module' function: %s" % out
+                if allow_mismatch:
+                    self.log.warning(msg)
+                else:
+                    self.log.error(msg)
         else:
             # module function may not be defined (weird, but fine)
-            self.log.warning("The 'module' function not defined, can't verify whether modules tool matches it.")
+            self.log.warning("'module' function not defined, can't verify whether modules tool matches it.")
 
     def check_module_path(self):
         """
@@ -806,7 +814,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None):
+def modules_tool(mod_paths=None, build_options=None):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -814,7 +822,7 @@ def modules_tool(mod_paths=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths)
+        return modules_tool_class(mod_paths=mod_paths, build_options=build_options)
     else:
         return None
 

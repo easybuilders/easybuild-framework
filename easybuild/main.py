@@ -152,6 +152,7 @@ def main(testing_data=(None, None, None)):
 
     build_options = {
         'aggregate_regtest': options.aggregate_regtest,
+        'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
         'command_line': eb_command_line,
         'debug': options.debug,
@@ -283,7 +284,7 @@ def main(testing_data=(None, None, None)):
 
     # skip modules that are already installed unless forced
     if not options.force:
-        easyconfigs = skip_available(easyconfigs, testing=testing)
+        easyconfigs = skip_available(easyconfigs, testing=testing, build_options=build_options)
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:

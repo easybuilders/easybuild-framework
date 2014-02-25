@@ -82,6 +82,7 @@ class EasyConfig(object):
         """
         if build_options is None:
             build_options = {}
+        self.build_options = copy.deepcopy(build_options)
 
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -391,7 +392,7 @@ class EasyConfig(object):
         if not tc:
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
-        tc = tc(version=self['toolchain']['version'])
+        tc = tc(version=self['toolchain']['version'], build_options=self.build_options)
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options

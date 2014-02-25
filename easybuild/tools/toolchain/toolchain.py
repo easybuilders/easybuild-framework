@@ -66,7 +66,11 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None):
+    def __init__(self, name=None, version=None, build_options=None):
+        """Toolchain constructor."""
+        if build_options is None:
+            build_options = {}
+
         self.base_init()
 
         self.dependencies = []
@@ -86,7 +90,7 @@ class Toolchain(object):
 
         self.vars = None
 
-        self.modules_tool = modules_tool()
+        self.modules_tool = modules_tool(build_options=build_options)
 
     def base_init(self):
         if not hasattr(self, 'log'):

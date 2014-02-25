@@ -109,6 +109,7 @@ class EasyBlock(object):
         """
         if build_options is None:
             build_options = {}
+        self.build_options = copy.deepcopy(build_options)
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -127,7 +128,7 @@ class EasyBlock(object):
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
         # modules interface with default MODULEPATH
-        self.modules_tool = modules_tool()
+        self.modules_tool = modules_tool(build_options=self.build_options)
         # module generator
         self.moduleGenerator = None
 
@@ -893,7 +894,7 @@ class EasyBlock(object):
         """
         # self.mod_name might not be set (e.g. during unit tests)
         if self.mod_name is not None:
-            m = modules_tool(mod_paths)
+            m = modules_tool(mod_paths=mod_paths, build_options=self.build_options)
             # purge all loaded modules if desired
             if purge:
                 m.purge()
@@ -936,7 +937,7 @@ class EasyBlock(object):
             try:
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
-                m = modules_tool(mod_paths)
+                m = modules_tool(mod_paths=mod_paths, build_options=self.build_options)
                 # self.mod_name might not be set (e.g. during unit tests)
                 if self.mod_name is not None:
                     m.unload([self.mod_name])

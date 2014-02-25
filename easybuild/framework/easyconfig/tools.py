@@ -298,9 +298,9 @@ def process_easyconfig(path, build_options=None, build_specs=None):
     return easyconfigs
 
 
-def skip_available(easyconfigs, testing=False):
+def skip_available(easyconfigs, testing=False, build_options=None):
     """Skip building easyconfigs for which a module is already available."""
-    avail_modules = modules_tool().available()
+    avail_modules = modules_tool(build_options=build_options).available()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
         module = ec['module']
@@ -371,7 +371,7 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool().available()
+        avail_modules = modules_tool(build_options=build_options).available()
 
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -479,7 +479,7 @@ def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None
         })
         all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
 
-    unbuilt_specs = skip_available(all_specs, testing=True)
+    unbuilt_specs = skip_available(all_specs, testing=True, build_options=build_options)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
     var_name = 'CFGS'
