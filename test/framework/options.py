@@ -814,9 +814,6 @@ class CommandLineOptionsTest(TestCase):
         except Exception, err:
             function_name = sys._getframe().f_code.co_name
             print "ERROR in %s: %s" % (function_name, err)
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
         toy_module_txt = read_file(toy_module)
@@ -1092,21 +1089,22 @@ class CommandLineOptionsTest(TestCase):
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
             '--modules-tool=MockModulesTool',
+            '--debug',
         ]
         try:
             main((args, self.logfile, True))
         except (SystemExit, Exception):
             pass
         outtxt = read_file(self.logfile)
-        found_regex = re.compile("INFO Found command .* in defined 'module' function")
-        self.assertTrue(found_regex.search(outtxt), "Found info message w.r.t. module function: %s" % outtxt[-600:])
+        found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
+        self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
 
-        # reset default modules tool by reinitializing config
+        # reset default modules tool
         config.variables['modules_tool'] = orig_modules_tool
 
         # restore
-        if self.orig_module is not None:
-            os.environ['module'] = self.orig_module
+        if orig_module is not None:
+            os.environ['module'] = orig_module
         else:
             del os.environ['module']
 
