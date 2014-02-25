@@ -41,9 +41,6 @@ from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules_tool = modules.modules_tool
-orig_main_modules_tool = ectools.modules_tool
-
 
 class MockModule(modules.ModulesTool):
     """ MockModule class, allows for controlling what modules_tool() will return """
@@ -59,9 +56,9 @@ class MockModule(modules.ModulesTool):
         """ no module should be available """
         return self.avail_modules
 
-def mock_module(mod_paths=None):
+def mock_module(mod_paths=None, build_options=None):
     """Get mock module instance."""
-    return MockModule(mod_paths=mod_paths)
+    return MockModule(mod_paths=mod_paths, build_options=build_options)
 
 
 class RobotTest(TestCase):
@@ -69,13 +66,24 @@ class RobotTest(TestCase):
 
     def setUp(self):
         """Set up everything for a unit test."""
+
+        # keep track of things that need to be restored later
+        self.orig_modules_tool = modules.modules_tool
+        self.orig_main_modules_tool = ectools.modules_tool
+        self.orig_module_function = os.environ['module']
+
         # initialize configuration so config.get_modules_tool function works
         eb_go = eboptions.parse_options()
         config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+        # take control over modules tool being used
+        self.orig_modules_tool = config.variables['modules_tool']
+        config.variables['modules_tool'] = 'MockModule'
+
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         self.log = fancylogger.getLogger("RobotTest", fname=False)
 
@@ -241,8 +249,10 @@ class RobotTest(TestCase):
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        config.modules_tool = orig_modules_tool
-        ectools.modules_tool = orig_main_modules_tool
+        config.modules_tool = self.orig_modules_tool
+        ectools.modules_tool = self.orig_main_modules_tool
+        os.environ['module'] = self.orig_module_function
+        config.variables['modules_tool'] = self.orig_modules_tool
         os.chdir(self.cwd)
 
 
