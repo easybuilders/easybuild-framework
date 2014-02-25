@@ -90,7 +90,8 @@ class ModulesToolTest(TestCase):
         if self.orig_module is not None:
             os.environ['module'] = self.orig_module
         else:
-            del os.environ['module']
+            if 'module' in os.environ:
+                del os.environ['module']
 
     def test_mock(self):
         """Test the mock module"""
