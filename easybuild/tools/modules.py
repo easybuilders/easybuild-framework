@@ -48,6 +48,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_modules_tool, install_path
 from easybuild.tools.filetools import convert_name, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
@@ -166,6 +167,7 @@ class ModulesTool(object):
 
         # some initialisation/verification
         self.check_cmd_avail()
+        self.check_module_function()
         self.set_and_check_version()
         self.use_module_paths()
 
@@ -217,6 +219,23 @@ class ModulesTool(object):
         else:
             mod_tool = self.__class__.__name__
             self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
+
+    def check_module_function(self):
+        """Check whether selected module tool matches 'module' function definition."""
+        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if ec == 0:
+            mod_cmd_re = re.compile(".*/%s " % self.COMMAND, re.M)
+            if mod_cmd_re.search(out):
+                self.log.info("Found command '%s' in defined 'module' function, excellent!" % self.COMMAND)
+            else:
+                mod_details = "'%s' (%s)" % (self.COMMAND, self.__class__.__name__)
+                msg = "Module command %s used by EasyBuild not found in defined 'module' function, " % mod_details
+                msg += "specify the correct modules tool to avoid weird problems due to this mismatch; "
+                msg += "see the --modules-tool and --avail-modules-tools command line options."
+                self.log.warning(msg, print_to_screen=True)
+        else:
+            # module function may not be defined (weird, but fine)
+            self.log.warning("The 'module' function is not defined, can't verify whether selected module tool matches it.")
 
     def check_module_path(self):
         """
@@ -310,7 +329,7 @@ class ModulesTool(object):
                 if len(mods) == 0:
                     self.log.warning('No module %s available' % str(mod))
                 else:
-                    self.log.warning('More then one module found for %s: %s' % (mod, mods))
+                    self.log.warning('More than one module found for %s: %s' % (mod, mods))
                 continue
 
     def remove_module(self, modules):
