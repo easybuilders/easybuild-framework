@@ -83,15 +83,6 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 break
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
-    def experimental(self, msg, *args, **kwargs):
-        """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
-        if EXPERIMENTAL:
-            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
-            self.warning(msg, *args, **kwargs)
-        else:
-            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
-            self.error(msg, *args)
-
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
         fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
@@ -113,6 +104,22 @@ class EasyBuildLog(fancylogger.FancyLogger):
         self.raiseError = True
 
         raise EasyBuildError(newMsg)
+
+    def experimental(self, msg, *args, **kwargs):
+        """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        if EXPERIMENTAL:
+            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
+            self.warning(msg, *args, **kwargs)
+        else:
+            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            self.error(msg, *args)
+
+    def warning(self, msg, *args, **kwargs):
+        """Print warning message, and continue."""
+        print_to_screen = kwargs.pop('print_to_screen', False)
+        if print_to_screen:
+            print("WARNING: %s" % msg)
+        fancylogger.FancyLogger.warning(self, msg, *args, **kwargs)
 
 
 # set format for logger
