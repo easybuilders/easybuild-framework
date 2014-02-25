@@ -135,7 +135,7 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main(([], self.logfile, False))
-        except (SystemExit, Exception), err:
+        except (SystemExit, Exception):
             pass
         outtxt = read_file(self.logfile)
 
@@ -153,8 +153,8 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, self.logfile, False))
-            except (SystemExit, Exception), err:
-                myerr = err
+            except (SystemExit, Exception):
+                pass
             outtxt = read_file(self.logfile)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
@@ -200,7 +200,7 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, self.logfile, False))
-            except (SystemExit, Exception), err:
+            except (SystemExit, Exception):
                 pass
             outtxt = read_file(self.logfile)
 
@@ -253,8 +253,11 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, self.logfile, False))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = read_file(self.logfile)
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
@@ -283,9 +286,8 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except (SystemExit, Exception):
             pass
-
         outtxt = read_file(self.logfile)
 
         found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
@@ -316,7 +318,7 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except (SystemExit, Exception):
             pass
         outtxt = read_file(self.logfile)
 
@@ -358,8 +360,11 @@ class CommandLineOptionsTest(TestCase):
                    ] + job_args
             try:
                 main((args, self.logfile, False))
-            except (SystemExit, Exception), err:
+            except SystemExit:
                 pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
             outtxt = read_file(self.logfile)
 
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
@@ -381,7 +386,6 @@ class CommandLineOptionsTest(TestCase):
 
             _stdout = sys.stdout
 
-            myerr = None
             fd, fn = tempfile.mkstemp()
             fh = os.fdopen(fd, 'w')
             sys.stdout = fh
@@ -394,8 +398,11 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, dummylogfn, False))
-            except (SystemExit, Exception), err:
-                myerr = err
+            except SystemExit:
+                pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
 
             # make sure we restore
             sys.stdout.flush()
@@ -441,8 +448,11 @@ class CommandLineOptionsTest(TestCase):
 
                 try:
                     main((args, dummylogfn, False))
-                except (SystemExit, Exception), err:
+                except SystemExit:
                     pass
+                except Exception, err:
+                    function_name = sys._getframe().f_code.co_name
+                    print "ERROR in %s: %s" % (function_name, err)
                 outtxt = read_file(self.logfile)
 
                 # check whether all parameter types are listed
@@ -488,8 +498,11 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, dummylogfn, False))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = read_file(self.logfile)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
@@ -521,8 +534,11 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, dummylogfn, False))
-            except (SystemExit, Exception), err:
+            except SystemExit:
                 pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
             outtxt = read_file(self.logfile)
 
             words = name.replace('-', ' ')
@@ -568,8 +584,11 @@ class CommandLineOptionsTest(TestCase):
                    ]
             try:
                 main((args, dummylogfn, False))
-            except (SystemExit, Exception), err:
+            except SystemExit:
                 pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
             outtxt = read_file(self.logfile)
 
             for pat in [
@@ -593,8 +612,11 @@ class CommandLineOptionsTest(TestCase):
                ]
         try:
             main((args, dummylogfn, False))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = read_file(self.logfile)
 
         for pat in [
@@ -621,8 +643,11 @@ class CommandLineOptionsTest(TestCase):
         ]
         try:
             main((args, dummylogfn, False))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
@@ -643,8 +668,14 @@ class CommandLineOptionsTest(TestCase):
             ]
             try:
                 main((args, dummylogfn, False))
-            except (SystemExit, Exception), err:
+            except SystemExit:
                 pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
             outtxt = open(self.logfile, 'r').read()
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
@@ -670,8 +701,14 @@ class CommandLineOptionsTest(TestCase):
         ]
         try:
             main((args, dummylogfn, False))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
@@ -694,8 +731,11 @@ class CommandLineOptionsTest(TestCase):
             ]
             try:
                 main((args, dummylogfn, False))
-            except (SystemExit, Exception), err:
+            except SystemExit:
                 pass
+            except Exception, err:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
             outtxt = open(self.logfile, 'r').read()
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
@@ -769,8 +809,14 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
         toy_module_txt = read_file(toy_module)
@@ -809,8 +855,11 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0-deps')
         toy_module_txt = read_file(toy_module)
@@ -846,8 +895,11 @@ class CommandLineOptionsTest(TestCase):
 
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
 
         outtxt = read_file(self.logfile)
 
@@ -890,7 +942,7 @@ class CommandLineOptionsTest(TestCase):
         ]
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except (SystemExit, Exception):
             pass
         outtxt = read_file(self.logfile)
         regex = re.compile("Checking OS dependencies")
@@ -908,8 +960,11 @@ class CommandLineOptionsTest(TestCase):
         ]
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except SystemExit:
             pass
+        except Exception, err:
+            function_name = sys._getframe().f_code.co_name
+            print "ERROR in %s: %s" % (function_name, err)
         outtxt = read_file(self.logfile)
         regex = re.compile("Not checking OS dependencies", re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
@@ -923,7 +978,7 @@ class CommandLineOptionsTest(TestCase):
         ]
         try:
             main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
+        except (SystemExit, Exception):
             pass
         outtxt = read_file(self.logfile)
         regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
@@ -993,6 +1048,64 @@ class CommandLineOptionsTest(TestCase):
 
         # set it back
         easybuild.tools.build_log.CURRENT_VERSION = orig_value
+
+    def test_allow_modules_tool_mismatch(self):
+        """Test allowing mismatch of modules tool with 'module' function."""
+        # make sure MockModulesTool is available
+        from test.framework.modulestool import MockModulesTool
+
+        # keep track of original module definition so we can restore it
+        orig_module = os.environ['module']
+        orig_modules_tool = config.variables['modules_tool']
+
+        # check whether mismatch between 'module' function and selected modules tool is detected
+        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception), err:
+            pass
+        outtxt = read_file(self.logfile)
+        error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
+        self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
+
+        # check that --allow-modules-tool-mispatch transforms this error into a warning
+        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+            '--allow-modules-tool-mismatch',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception):
+            pass
+        outtxt = read_file(self.logfile)
+        warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
+
+        # check whether match between 'module' function and selected modules tool is detected
+        os.environ['module'] = "() {  eval ` /bin/echo $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+        ]
+        try:
+            main((args, self.logfile, True))
+        except (SystemExit, Exception):
+            pass
+        outtxt = read_file(self.logfile)
+        found_regex = re.compile("INFO Found command .* in defined 'module' function")
+        self.assertTrue(found_regex.search(outtxt), "Found info message w.r.t. module function: %s" % outtxt[-600:])
+
+        # reset default modules tool by reinitializing config
+        config.variables['modules_tool'] = orig_modules_tool
+
+        # restore
+        os.environ['module'] = orig_module
 
 
 def suite():
