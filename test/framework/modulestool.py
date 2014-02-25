@@ -132,6 +132,17 @@ class ModulesToolTest(TestCase):
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         self.assertErrorRegex(EasyBuildError, ".*command .* not found in defined 'module' function", MockModulesTool)
 
+        # check whether escaping error by allowing mismatch via build options works
+        build_options = {
+            'allow_modules_tool_mismatch': True,
+        }
+        mt = MockModulesTool(build_options=build_options)
+        f = open(self.log_fn, 'r')
+        logtxt = f.read()
+        f.close()
+        warning_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        self.assertTrue(warning_regex.search(logtxt))
+
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
         mt = MockModulesTool()
