@@ -319,7 +319,7 @@ class EasyConfigTest(TestCase):
 
     def test_tweaking(self):
         """test tweaking ability of easyconfigs"""
-    
+
         fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
         os.close(fd)
         patches = ["t1.patch", ("t2.patch", 1), ("t3.patch", "test"), ("t4.h", "include")]
@@ -409,7 +409,7 @@ class EasyConfigTest(TestCase):
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff))
 
-        correct_installver =  "%s%s%s" % (verpref, ver, versuff)
+        correct_installver = "%s%s%s" % (verpref, ver, versuff)
         cfg = {
             'version': ver,
             'toolchain': {'name': dummy, 'version': tcver},
@@ -433,7 +433,7 @@ class EasyConfigTest(TestCase):
         installver = det_installversion(ver, tcname, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
-        correct_installver =  "%s%s%s" % (verpref, ver, versuff)
+        correct_installver = "%s%s%s" % (verpref, ver, versuff)
         installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
@@ -695,7 +695,7 @@ class EasyConfigTest(TestCase):
                  easyconfig.templates.TEMPLATE_CONSTANTS,
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
-    
+
     def test_constant_doc(self):
         """test constant documentation"""
         doc = easyconfig.constants.constant_documentation()
@@ -735,8 +735,8 @@ class EasyConfigTest(TestCase):
         self.assertEqual(eb['configopts'][1], configopts[1])
 
         # also makeopts and installopts as lists
-        makeopts = ['CC=foo' ,'CC=bar']
-        installopts = ['FOO=foo' ,'BAR=bar']
+        makeopts = ['CC=foo' , 'CC=bar']
+        installopts = ['FOO=foo' , 'BAR=bar']
         self.contents = orig_contents + '\n' + '\n'.join([
             "configopts = %s" % str(configopts),
             "makeopts = %s" % str(makeopts),
@@ -825,7 +825,13 @@ class EasyConfigTest(TestCase):
         ]:
             ec1 = EasyConfig(os.path.join(easyconfigs_path, 'v1.0', eb_file1), build_options=build_options)
             ec2 = EasyConfig(os.path.join(easyconfigs_path, 'v2.0', eb_file2), build_options=build_options, build_specs=specs)
-            self.assertEqual(ec1.asdict(), ec2.asdict())
+
+            ec2_dict = ec2.asdict()
+            # reset mandatory attributes from format2 that are not in format 1
+            for attr in ['docurls', 'software_license', 'software_license_urls']:
+                ec2_dict[attr] = None
+
+            self.assertEqual(ec1.asdict(), ec2_dict)
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental

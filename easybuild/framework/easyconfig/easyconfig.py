@@ -147,7 +147,15 @@ class EasyConfig(object):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
         self.log.deprecated('_legacy_license does not have to be checked', '2.0')
         if 'license' in extra_options:
-            lic = extra_options['license']
+            if 'software_license' in extra_options:
+                self.log.error("Can't use deprecated 'license' and 'software_license' at the same time")
+            else:
+                self.log.deprecated("Use 'software_license' instead of 'license'.", '2.0')
+                extra_options['software_license'] = extra_options['license']
+        # this is not strictly deprecated, only the license usage.
+        # but lets keep it here for safety/convenience
+        if 'software_license' in extra_options:
+            lic = extra_options['software_license']
             if not isinstance(lic, License):
                 self.log.deprecated('license type has to be License subclass', '2.0')
                 typ_lic = type(lic)
@@ -164,7 +172,7 @@ class EasyConfig(object):
                         License.__init__(self)
                 lic = LicenseLegacy(lic)
                 EASYCONFIG_LICENSES_DICT[lic.name] = lic
-                extra_options['license'] = lic
+                extra_options['software_license'] = lic
 
     def copy(self):
         """
@@ -285,11 +293,11 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        lic = self._config['license'][0]
+        lic = self._config['software_license'][0]
         if lic is None:
             self.log.deprecated('Mandatory license not enforced', '2.0')
             # when mandatory, remove this possibility
-            if 'license' in self.mandatory:
+            if 'software_license' in self.mandatory:
                 self.log.error('License is mandatory')
         elif not isinstance(lic, License):
             self.log.error('License %s has to be a License subclass instance, found classname %s.' %

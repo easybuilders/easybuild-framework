@@ -25,13 +25,16 @@ sanity_check_paths = {
 moduleclass = 'tools'
 
 [SUPPORTED]
-versions = 1.0, 0.0
+versions = 1.0, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0
 toolchains = goolf == 1.4.10, dummy == dummy
 
-[DEFAULT]
+[> 1.0]
+# all 1.x versions and more recent are 'stable'
+versionprefix = 'stable-'
+[[<= 1.5]]
+# custom suffix for 'early' 1.x releases
+versionsuffix = '-early'
 
-[DEPENDENCIES]
-# various types of (meaningless) dependencies: simply, with toolchain/suffix
-GCC = 4.6.4
-OpenMPI = 1.6.4; GCC == 4.6.4
-OpenBLAS = 0.2.6 suffix:-LAPACK-3.4.2; gompi == 1.3.12
+[> 2.0]
+# v2.x and up is considered stable mature
+versionsuffix = '-mature'
