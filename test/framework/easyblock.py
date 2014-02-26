@@ -39,7 +39,6 @@ from unittest import TestCase, TestLoader, main
 
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.extension import Extension
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -64,7 +63,7 @@ class EasyBlockTest(TestCase):
         config.variables['tmp_logdir'] = tempfile.mkdtemp()
         config.variables['installpath'] = tempfile.mkdtemp()
         config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['logfile_format'] = ("temp","temp")
+        config.variables['logfile_format'] = ("temp", "temp")
         self.cwd = os.getcwd()
 
     def test_empty(self):
@@ -76,7 +75,7 @@ class EasyBlockTest(TestCase):
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
-        self.contents =  """
+        self.contents = """
 name = "pi"
 version = "3.14"
 homepage = "http://example.com"
@@ -110,6 +109,40 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb.installdir = config.variables['installpath']
         fake_mod_data = eb.load_fake_module()
         eb.clean_up_fake_module(fake_mod_data)
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_make_module_req(self):
+        """Testcase for make_module_req"""
+        self.contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://example.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+"""
+        self.writeEC()
+        eb = EasyBlock(self.eb_file)
+        eb.installdir = config.variables['installpath']
+
+        #create fake directories and files that should be guessed
+        open(os.path.join(eb.installdir, 'foo.jar'), 'a').close()
+        open(os.path.join(eb.installdir, 'bla.jar'), 'a').close()
+        os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'share'))
+        os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
+        #this is not a path that should be picked up
+        os.mkdir(os.path.join(eb.installdir, 'CPATH'))
+
+        guess = eb.make_module_req()
+
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+        self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
 
         # cleanup
         eb.close_log()
@@ -205,6 +238,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = os.path.join(config.variables['installpath'], config.variables['subdir_software'], 'pi', '3.14')
+
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
 
@@ -227,7 +261,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
-        self.contents =  '\n'.join([
+        self.contents = '\n'.join([
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -262,7 +296,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # make sure build dir is unique
         eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
-        for i in range(0,3):
+        for i in range(3):
             eb.gen_builddir()
             self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
             eb.make_builddir()
@@ -290,6 +324,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
             if not res:
                 print "err: %s" % err
             self.assertTrue(res)
+
 
 def suite():
     """ return all the tests in this file """
