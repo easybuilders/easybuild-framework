@@ -130,7 +130,9 @@ def prep(path):
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
 
-    known_module_commands = {
+    # order matters, so we can't use the keys from modules_tools which are unordered
+    known_module_commands = ['modulecmd', 'lmod', 'modulecmd.tcl']
+    modules_tools = {
         'modulecmd': 'EnvironmentModulesC',
         'lmod': 'Lmod',
         'modulecmd.tcl': 'EnvironmentModulesTcl',
@@ -144,7 +146,7 @@ def check_module_command(tmpdir):
         txt = open(out, "r").read()
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
-            modtool = known_module_commands[modcmd]
+            modtool = modules_tools[modcmd]
             os.environ['EASYBUILD_MODULES_TOOL'] = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
