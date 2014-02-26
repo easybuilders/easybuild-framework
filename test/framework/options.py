@@ -91,6 +91,22 @@ class CommandLineOptionsTest(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
+    def safe_main(self, args, logfile=None, do_build=False, print_errors=True):
+        """Wrapper function that runs main in a try-except block."""
+        if logfile is None:
+            logfile = self.logfile
+
+        try:
+            main((args, logfile, do_build))
+        except SystemExit:
+            pass
+        except Exception, err:
+            if print_errors:
+                function_name = sys._getframe().f_code.co_name
+                print "ERROR in %s: %s" % (function_name, err)
+            else:
+                pass
+
     def test_help_short(self, txt=None):
         """Test short help message."""
 
@@ -133,10 +149,7 @@ class CommandLineOptionsTest(TestCase):
     def test_no_args(self):
         """Test using no arguments."""
 
-        try:
-            main(([], self.logfile, False))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main([], print_errors=False)
         outtxt = read_file(self.logfile)
 
         error_msg = "ERROR .* Please provide one or multiple easyconfig files,"
@@ -151,10 +164,7 @@ class CommandLineOptionsTest(TestCase):
                     '--software-name=somethingrandom',
                     debug_arg,
                    ]
-            try:
-                main((args, self.logfile, False))
-            except (SystemExit, Exception):
-                pass
+            self.safe_main(args, print_errors=False)
             outtxt = read_file(self.logfile)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
@@ -172,16 +182,12 @@ class CommandLineOptionsTest(TestCase):
                     '--software-name=somethingrandom',
                     info_arg,
                    ]
-            myerr = None
-            try:
-                main((args, self.logfile, False))
-            except (SystemExit, Exception), err:
-                myerr = err
+            self.safe_main(args, print_errors=False)
             outtxt = read_file(self.logfile)
 
             for log_msg_type in ['INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s (err: %s, out: %s)" % (log_msg_type, info_arg, myerr, outtxt))
+                self.assertTrue(res, "%s log messages are included when using %s ( out: %s)" % (log_msg_type, info_arg, outtxt))
 
             for log_msg_type in ['DEBUG']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -198,10 +204,7 @@ class CommandLineOptionsTest(TestCase):
                     '--software-name=somethingrandom',
                     quiet_arg,
                    ]
-            try:
-                main((args, self.logfile, False))
-            except (SystemExit, Exception):
-                pass
+            self.safe_main(args, print_errors=False)
             outtxt = read_file(self.logfile)
 
             for log_msg_type in ['ERROR']:
@@ -251,13 +254,7 @@ class CommandLineOptionsTest(TestCase):
                 '--force',
                 '--debug',
                ]
-        try:
-            main((args, self.logfile, False))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args)
         outtxt = read_file(self.logfile)
 
         self.assertTrue(not re.search(already_msg, outtxt), "Already installed message not there with --force")
@@ -283,11 +280,7 @@ class CommandLineOptionsTest(TestCase):
                 '--skip',
                 '--debug',
                ]
-
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
 
         found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
@@ -316,10 +309,7 @@ class CommandLineOptionsTest(TestCase):
                 '--skip',
                 '--debug',
                ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
 
         found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
@@ -358,13 +348,7 @@ class CommandLineOptionsTest(TestCase):
                     eb_file,
                     '--job',
                    ] + job_args
-            try:
-                main((args, self.logfile, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args)
             outtxt = read_file(self.logfile)
 
             job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
@@ -396,13 +380,7 @@ class CommandLineOptionsTest(TestCase):
                     '--debug',
                     stdout_arg,
                    ]
-            try:
-                main((args, dummylogfn, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args, logfile=dummylogfn, print_errors=False)
 
             # make sure we restore
             sys.stdout.flush()
@@ -446,13 +424,7 @@ class CommandLineOptionsTest(TestCase):
                 if custom is not None:
                     args.extend(['-e', custom])
 
-                try:
-                    main((args, dummylogfn, False))
-                except SystemExit:
-                    pass
-                except Exception, err:
-                    function_name = sys._getframe().f_code.co_name
-                    print "ERROR in %s: %s" % (function_name, err)
+                self.safe_main(args, logfile=dummylogfn)
                 outtxt = read_file(self.logfile)
 
                 # check whether all parameter types are listed
@@ -496,13 +468,7 @@ class CommandLineOptionsTest(TestCase):
                 '--list-toolchains',
                 '--unittest-file=%s' % self.logfile,
                ]
-        try:
-            main((args, dummylogfn, False))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, logfile=dummylogfn)
         outtxt = read_file(self.logfile)
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
@@ -532,13 +498,7 @@ class CommandLineOptionsTest(TestCase):
                     '--avail-%s' % name,
                     '--unittest-file=%s' % self.logfile,
                    ]
-            try:
-                main((args, dummylogfn, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args, logfile=dummylogfn)
             outtxt = read_file(self.logfile)
 
             words = name.replace('-', ' ')
@@ -582,13 +542,7 @@ class CommandLineOptionsTest(TestCase):
                     list_arg,
                     '--unittest-file=%s' % self.logfile,
                    ]
-            try:
-                main((args, dummylogfn, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args, logfile=dummylogfn)
             outtxt = read_file(self.logfile)
 
             for pat in [
@@ -610,13 +564,7 @@ class CommandLineOptionsTest(TestCase):
                 '--list-easyblocks=detailed',
                 '--unittest-file=%s' % self.logfile,
                ]
-        try:
-            main((args, dummylogfn, False))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, logfile=dummylogfn)
         outtxt = read_file(self.logfile)
 
         for pat in [
@@ -641,13 +589,7 @@ class CommandLineOptionsTest(TestCase):
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
         ]
-        try:
-            main((args, dummylogfn, False))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, logfile=dummylogfn)
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Searching \(case-insensitive\) for 'gzip' in"
@@ -666,16 +608,7 @@ class CommandLineOptionsTest(TestCase):
                 '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
             ]
-            try:
-                main((args, dummylogfn, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args, logfile=dummylogfn)
             outtxt = open(self.logfile, 'r').read()
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
@@ -699,16 +632,7 @@ class CommandLineOptionsTest(TestCase):
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
         ]
-        try:
-            main((args, dummylogfn, False))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, logfile=dummylogfn)
         outtxt = open(self.logfile, 'r').read()
 
         info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
@@ -729,13 +653,7 @@ class CommandLineOptionsTest(TestCase):
                 '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
             ]
-            try:
-                main((args, dummylogfn, False))
-            except SystemExit:
-                pass
-            except Exception, err:
-                function_name = sys._getframe().f_code.co_name
-                print "ERROR in %s: %s" % (function_name, err)
+            self.safe_main(args, logfile=dummylogfn)
             outtxt = open(self.logfile, 'r').read()
 
             info_msg = r"Dry run: printing build status of easyconfigs and dependencies"
@@ -760,18 +678,14 @@ class CommandLineOptionsTest(TestCase):
                 '--robot=.',
                 '--debug',
                ]
-        myerr = None
-        try:
-            main((args, self.logfile, False))
-        except (SystemExit, Exception), err:
-            myerr = err
+        self.safe_main(args, print_errors=False)
         outtxt = read_file(self.logfile)
 
         # error message when template is not found
         error_msg1 = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
         # error message when template is found
         error_msg2 = "ERROR .* Unable to find an easyconfig for the given specifications"
-        msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
+        msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
     def test_footer(self):
@@ -806,14 +720,7 @@ class CommandLineOptionsTest(TestCase):
             '--force',
             '--modules-footer=%s' % modules_footer,
         ]
-
-        try:
-            main((args, self.logfile, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, do_build=True)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0')
         toy_module_txt = read_file(toy_module)
@@ -849,14 +756,7 @@ class CommandLineOptionsTest(TestCase):
             '--force',
             '--recursive-module-unload',
         ]
-
-        try:
-            main((args, self.logfile, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, do_build=True)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0-deps')
         toy_module_txt = read_file(toy_module)
@@ -889,15 +789,7 @@ class CommandLineOptionsTest(TestCase):
             '--debug',
             '--tmpdir=%s' % tmpdir,
         ]
-
-        try:
-            main((args, self.logfile, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
-
+        self.safe_main(args, do_build=True)
         outtxt = read_file(self.logfile)
 
         tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
@@ -937,10 +829,7 @@ class CommandLineOptionsTest(TestCase):
             eb_file,
             '--dry-run',
         ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
         regex = re.compile("Checking OS dependencies")
         self.assertTrue(regex.search(outtxt), "OS dependencies are checked, outtxt: %s" % outtxt)
@@ -955,14 +844,9 @@ class CommandLineOptionsTest(TestCase):
             '--ignore-osdeps',
             '--dry-run',
         ]
-        try:
-            main((args, self.logfile, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            function_name = sys._getframe().f_code.co_name
-            print "ERROR in %s: %s" % (function_name, err)
+        self.safe_main(args, do_build=True)
         outtxt = read_file(self.logfile)
+
         regex = re.compile("Not checking OS dependencies", re.M)
         self.assertTrue(regex.search(outtxt), "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
 
@@ -973,10 +857,7 @@ class CommandLineOptionsTest(TestCase):
             '--ignore-osdeps',
             '--dry-run',
         ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
         regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
         self.assertTrue(regex.search(outtxt), "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
@@ -1061,10 +942,7 @@ class CommandLineOptionsTest(TestCase):
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
             '--modules-tool=MockModulesTool',
         ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception), err:
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
         error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
         self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
@@ -1076,10 +954,7 @@ class CommandLineOptionsTest(TestCase):
             '--modules-tool=MockModulesTool',
             '--allow-modules-tool-mismatch',
         ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
         warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
@@ -1091,10 +966,7 @@ class CommandLineOptionsTest(TestCase):
             '--modules-tool=MockModulesTool',
             '--debug',
         ]
-        try:
-            main((args, self.logfile, True))
-        except (SystemExit, Exception):
-            pass
+        self.safe_main(args, do_build=True, print_errors=False)
         outtxt = read_file(self.logfile)
         found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
         self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
