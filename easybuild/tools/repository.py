@@ -222,8 +222,8 @@ class GitRepository(FileRepository):
     Class for git repositories.
     """
     DESCRIPTION = ("A non-empty bare git repository (created with 'git init --bare' or 'git clone --bare'). "
-                   "The 1st argumentcontains the git repository location, which can be a directory or an URL. "
-                   "The second arhument  is a path inside the repository where to save the files.")
+                   "The 1st argument contains the git repository location, which can be a directory or an URL. "
+                   "The 2nd argument is a path inside the repository where to save the files.")
 
     USABLE = HAVE_GIT
 
@@ -330,8 +330,9 @@ class SvnRepository(FileRepository):
     Class for svn repositories
     """
 
-    DESCRIPTION = ("A SVN repository. The 1st argument contains the "
-                   "subversion repository location, this can be a directory or an URL.")
+    DESCRIPTION = ("An SVN repository. The 1st argument contains the "
+                   "subversion repository location, this can be a directory or an URL. "
+                   "The 2nd argument is a path inside the repository where to save the files.")
 
     USABLE = HAVE_PYSVN
 
