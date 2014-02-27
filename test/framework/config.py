@@ -30,6 +30,7 @@ Unit tests for EasyBuild configuration.
 """
 import copy
 import os
+import re
 import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
@@ -39,8 +40,9 @@ from unittest import main as unittestmain
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.main import main
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
-from easybuild.tools.config import log_file_format, set_tmpdir
+from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions
 from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
@@ -51,6 +53,15 @@ class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
 
     tmpdir = None
+
+    def assertErrorRegex(self, error, regex, call, *args):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args)
+            str_args = ', '.join(map(str, args))
+            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
+        except error, err:
+            self.assertTrue(re.search(regex, err.msg))
 
     def cleanup(self):
         """Cleanup enviroment"""
@@ -485,6 +496,36 @@ modules_install_suffix = '%(modsuffix)s'
             shutil.rmtree(mytmpdir)
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+    def test_build_options(self):
+        """Test usage of BuildOptions."""
+        bo = BuildOptions()
+
+        # all values are initialized to None
+        for key in bo:
+            self.assertTrue(bo[key] is None)
+
+        # setting values works fine
+        bo['force'] = True
+        self.assertTrue(bo['force'])
+
+        # define method can be used, is_defined class variable is set to True
+        bo.define({
+            'debug': False,
+            'skip': True,
+        })
+        self.assertTrue(bo.is_defined)
+
+        # further updates are prohibited after a call to the is_defined method
+        msg = "Updates to a BuildOptions instance are prohibited after the define method was used"
+        self.assertErrorRegex(EasyBuildError, msg, bo.define, {'debug': True})
+        self.assertErrorRegex(EasyBuildError, msg, bo.update, {'debug': True})
+        self.assertErrorRegex(EasyBuildError, msg, bo.__setitem__, 'debug', True)
+
+        # only valid keys can be set
+        bo = BuildOptions()
+        msg = "Specified key 'thisisclearlynotavalidbuildoption' is not a valid build option."
+        self.assertErrorRegex(EasyBuildError, msg, bo.define, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

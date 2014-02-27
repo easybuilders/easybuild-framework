@@ -107,7 +107,39 @@ oldstyle_environment_variables = {
 }
 
 
-class ConfigurationVariables(dict):
+class DictObject(dict):
+    """Abstract class for objects that resemble a value of type dict."""
+
+    def __init__(self, *args, **kwargs):
+        """Custom constructor for DictObject: initialize logger."""
+        super(DictObject, self).__init__(*args, **kwargs)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+    def update(self, *args, **kwargs):
+        """
+        It seems that dict.update doesn't use __setitem__.
+        This function now does what the dict.update doctstring describes i.e.
+
+        D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.
+            If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
+            If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
+            In either case, this is followed by: for k in F: D[k] = F[k]
+        """
+        if args:
+            if len(args) > 1:
+                self.log.error('Only one argument supported')
+            arg = args[0]
+            if hasattr(arg, 'keys'):
+                for k in arg.keys():
+                    self[k] = arg[k]
+            else:
+                for (k, v) in arg:
+                    self[k] = v
+        for k in kwargs.keys():
+            self[k] = kwargs[k]
+
+
+class ConfigurationVariables(DictObject):
     """This is a dict that supports legacy config names transparently."""
     REQUIRED = [
         'buildpath',
@@ -139,9 +171,9 @@ class ConfigurationVariables(dict):
         if len(missing) > 0:
             msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
             if no_missing:
-                _log.error(msg)
+                self.log.error(msg)
             else:
-                _log.debug(msg)
+                self.log.debug(msg)
 
         return self.items()
 
@@ -149,7 +181,7 @@ class ConfigurationVariables(dict):
         """Check for oldstyle key usage, return newstyle key."""
         if key in self.OLDSTYLE_NEWSTYLEMAP:
             newkey = self.OLDSTYLE_NEWSTYLEMAP.get(key)
-            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
+            self.log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
             key = newkey
         return key
 
@@ -169,28 +201,62 @@ class ConfigurationVariables(dict):
         """__contains___ to deal with oldstyle key"""
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
-    def update(self, *args, **kwargs):
-        """
-        It seems that dict.update doesn't use __setitem__.
-        This function now does what the dict.update doctstring describes i.e.
 
-        D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.
-            If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
-            If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
-            In either case, this is followed by: for k in F: D[k] = F[k]
-        """
-        if args:
-            if len(args) > 1:
-                _log.error('Only one argument supported')
-            arg = args[0]
-            if hasattr(arg, 'keys'):
-                for k in arg.keys():
-                    self[k] = arg[k]
+class BuildOptions(DictObject):
+    """Representation of a set of build options, acts like a dictionary."""
+
+    def __init__(self, *args, **kwargs):
+        """Custom constructor for BuildOptions: initialize keys with None values."""
+        super(BuildOptions, self).__init__(*args, **kwargs)
+
+        # indicates whether this instance was set already
+        self.is_defined = False
+
+        # initialize this instance with keys and None values
+        self.build_options = [
+            'aggregate_regtest',
+            'check_osdeps',
+            'command_line',
+            'debug',
+            'dry_run',
+            'easyblock',
+            'experimental',
+            'force',
+            'ignore_dirs',
+            'modules_footer',
+            'only_blocks',
+            'recursive_mod_unload',
+            'regtest_online',
+            'regtest_output_dir',
+            'retain_all_deps',
+            'robot_path',
+            'sequential',
+            'silent',
+            'skip',
+            'skip_test_cases',
+            'stop',
+            'valid_module_classes',
+            'valid_stops',
+            'validate'
+        ]
+        for key in self.build_options:
+            self[key] = None
+
+    def define(self, build_options):
+        """Define the build options, and then disable any updates to this instance."""
+        self.update(build_options)
+        self.log.debug("Updated this BuildOptions instance with %s, disabling all further updates." % build_options)
+        self.is_defined = True
+
+    def __setitem__(self, key, value, **kwargs):
+        """Redefine __setitem__ to only allow it when self.is_defined is still False."""
+        if self.is_defined:
+            self.log.error("Updates to a BuildOptions instance are prohibited after the define method was used.")
+        else:
+            if key in self.build_options:
+                super(BuildOptions, self).__setitem__(key, value, **kwargs)
             else:
-                for (k, v) in arg:
-                    self[k] = v
-        for k in kwargs.keys():
-            self[k] = kwargs[k]
+                self.log.error("Specified key '%s' is not a valid build option." % key)
 
 
 def get_user_easybuild_dir():
