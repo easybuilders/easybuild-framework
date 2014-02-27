@@ -29,6 +29,7 @@ Unit tests for robot (dependency resolution).
 """
 
 import os
+import re
 from copy import deepcopy
 from unittest import TestCase, TestLoader
 from unittest import main as unittestmain
@@ -66,6 +67,16 @@ def mock_module(mod_paths=None):
 
 class RobotTest(TestCase):
     """ Testcase for the robot dependency resolution """
+
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
+        """ convenience method to match regex with the error message """
+        try:
+            call(*args, **kwargs)
+            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
+            str_args = ', '.join(map(str, args) + [str_kwargs])
+            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
+        except error, err:
+            self.assertTrue(re.search(regex, err.msg), "Pattern '%s' is found in '%s'" % (regex, err.msg))
 
     def setUp(self):
         """Set up everything for a unit test."""
@@ -133,9 +144,10 @@ class RobotTest(TestCase):
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
-        # this should not resolve (cannot find gzip-1.4.eb)
+        # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
-        self.assertRaises(EasyBuildError, resolve_dependencies, ecs, build_options=build_options)
+        msg = "Irresolvable dependencies encountered"
+        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, build_options=build_options)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
