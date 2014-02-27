@@ -73,8 +73,6 @@ class ModulesToolTest(TestCase):
         # keep track of original $MODULEPATH, so we can restore it
         self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
 
-        self.testmods = None
-
         # purge with original $MODULEPATH before running each test
         # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
         modules_tool().purge()
