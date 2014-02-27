@@ -236,11 +236,12 @@ class ModulesTool(object):
                 msg = "Module command %s used by EasyBuild not found in defined 'module' function.\n" % mod_details
                 msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
                 msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
-                msg += "Or, alternatively, use --allow-modules-tool-mismatch to ignore this issue. "
-                msg += "Obtained definition of 'module' function: %s" % out
                 if allow_mismatch:
+                    msg += "Obtained definition of 'module' function: %s" % out
                     self.log.warning(msg)
                 else:
+                    msg += "Or alternatively, use --allow-modules-tool-mismatch to stop treating this as an error. "
+                    msg += "Obtained definition of 'module' function: %s" % out
                     self.log.error(msg)
         else:
             # module function may not be defined (weird, but fine)
