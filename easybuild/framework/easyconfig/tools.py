@@ -450,6 +450,11 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
             # add additional (new) easyconfigs to list of stuff to process
             unprocessed.extend(additional)
 
+        elif not robot:
+            # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
+            irresolvable = [dep for x in unprocessed for dep in x['dependencies']]
+            break
+
     if irresolvable:
         irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
         _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
