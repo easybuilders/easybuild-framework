@@ -133,12 +133,13 @@ class ModulesToolTest(TestCase):
             # initialize Lmod modules tool, pass full path to 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
             lmod = Lmod()
+            lmod.testing = True
 
             # obtain list of availabe modules, should be non-empty
             self.assertTrue(lmod.available(), "List of available modules obtained using Lmod is non-empty")
 
             # test updating local spider cache (but don't actually update the local cache file!)
-            self.assertTrue(lmod.update(fake=True), "Updated local Lmod spider cache is non-empty")
+            self.assertTrue(lmod.update(), "Updated local Lmod spider cache is non-empty")
 
     def tearDown(self):
         """cleanup"""

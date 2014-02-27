@@ -169,6 +169,9 @@ class ModulesTool(object):
         self.set_and_check_version()
         self.use_module_paths()
 
+        # this can/should be set to True during testing
+        self.testing = False
+
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
@@ -526,7 +529,7 @@ class ModulesTool(object):
 
         return mods
 
-    def update(self, fake=False):
+    def update(self):
         """Update after new modules were added."""
         raise NotImplementedError
 
@@ -542,7 +545,7 @@ class EnvironmentModulesC(ModulesTool):
         name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
         return self.get_value_from_modulefile(mod_name, name_re)
 
-    def update(self, fake=False):
+    def update(self):
         """Update after new modules were added."""
         pass
 
@@ -647,7 +650,7 @@ class Lmod(ModulesTool):
 
         return correct_real_mods
 
-    def update(self, fake=False):
+    def update(self):
         """Update after new modules were added."""
         spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
         cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
@@ -658,7 +661,7 @@ class Lmod(ModulesTool):
         if stderr:
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        if fake:
+        if self.testing:
             # don't actually update local cache when testing, just return the cache contents
             return stdout
         else:
