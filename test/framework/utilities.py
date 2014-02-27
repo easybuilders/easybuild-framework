@@ -29,7 +29,29 @@ Various test utility functions.
 """
 
 import os
+import re
 import sys
+from unittest import TestCase, TestLoader, main
+
+
+class EnhancedTestCase(TestCase):
+    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+
+    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
+        """Convenience method to match regex with the expected error message"""
+        try:
+            call(*args, **kwargs)
+            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
+            str_args = ', '.join(map(str, args) + [str_kwargs])
+            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
+        except error, err:
+            if hasattr(err, 'msg'):
+                msg = err.msg
+            elif hasattr(err, 'message'):
+                msg = err.message
+            else:
+                msg = str(err)
+            self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
 
 
 def find_full_path(base_path, trim=(lambda x: x)):
