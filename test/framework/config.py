@@ -32,7 +32,8 @@ import copy
 import os
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.tools.config as config
@@ -46,7 +47,7 @@ from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
 
 
-class EasyBuildConfigTest(TestCase):
+class EasyBuildConfigTest(EnhancedTestCase):
     """Test cases for EasyBuild configuration."""
 
     tmpdir = None

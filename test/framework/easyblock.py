@@ -35,7 +35,8 @@ import re
 import shutil
 import tempfile
 import sys
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
@@ -46,7 +47,7 @@ from easybuild.tools.filetools import write_file
 from easybuild.tools.module_generator import det_full_module_name
 
 
-class EasyBlockTest(TestCase):
+class EasyBlockTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
 
     # initialize configuration so modules_tool() function works
@@ -279,17 +280,6 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         shutil.rmtree(config.variables['installpath'])
         shutil.rmtree(config.variables['buildpath'])
         os.chdir(self.cwd)
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
 def suite():
     """ return all the tests in this file """

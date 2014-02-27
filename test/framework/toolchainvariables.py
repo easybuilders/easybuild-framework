@@ -30,23 +30,17 @@ Unit tests for tools/toolchain/variables.py.
 """
 
 import re
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-from unittest import TestCase, TestSuite, main
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 from easybuild.tools.toolchain.variables import CommandFlagList
 
 
-class ToolchainVariablesTest(TestCase):
+class ToolchainVariablesTest(EnhancedTestCase):
     """ Baseclass for toolchain variables testcases """
 
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
-
-    def runTest(self):
+    def test_toolchainvariables(self):
         # DEFAULTCLASS is FlagList
         class TCV(ToolchainVariables):
             LINKER_TOGGLE_START_STOP_GROUP = {
@@ -171,7 +165,7 @@ class ToolchainVariablesTest(TestCase):
 
 def suite():
     """ return all the tests"""
-    return TestSuite([ToolchainVariablesTest()])
+    return TestLoader().loadTestsFromTestCase(ToolchainVariablesTest)
 
 if __name__ == '__main__':
     main()

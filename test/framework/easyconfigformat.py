@@ -31,12 +31,13 @@ import os
 
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class EasyConfigFormatTest(TestCase):
+class EasyConfigFormatTest(EnhancedTestCase):
     """Test the parser"""
 
     def test_parser_version_regex(self):

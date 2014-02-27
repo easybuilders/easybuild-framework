@@ -29,6 +29,9 @@ Unit tests for easyconfig/format/version.py
 """
 import os
 import re
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
@@ -36,24 +39,10 @@ from easybuild.framework.easyconfig.format.version import OrderedVersionOperator
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestLoader, main
-
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class EasyConfigVersion(TestCase):
+class EasyConfigVersion(EnhancedTestCase):
     """Unit tests for format.version module."""
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def test_parser_regex(self):
         """Test the version parser"""

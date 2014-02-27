@@ -35,28 +35,22 @@ import os
 import re
 import tempfile
 import shutil
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 import easybuild.tools.options as eboptions
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
-from unittest import TestCase, TestLoader, main
 
 
 # number of modules included for testing purposes
 TEST_MODULES_COUNT = 34
 
 
-class ModulesTest(TestCase):
+class ModulesTest(EnhancedTestCase):
     """Test cases for modules."""
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """set up everything for a unit test."""

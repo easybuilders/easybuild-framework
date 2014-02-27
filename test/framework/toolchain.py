@@ -32,7 +32,8 @@ import os
 import re
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 import easybuild.tools.config as config
 import easybuild.tools.modules as modules
@@ -41,15 +42,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
-class ToolchainTest(TestCase):
+class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """Set up everything for a unit test."""

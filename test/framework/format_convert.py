@@ -28,41 +28,22 @@ Unit tests for easyconfig/format/convert.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import re
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.convert import get_convert_class, ListOfStrings
 from easybuild.tools.convert import DictOfStrings, ListOfStringsAndDictOfStrings
 from easybuild.framework.easyconfig.format.convert import Dependency, Patch, Patches
-
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 
-from unittest import TestCase, TestLoader, main
 
-
-class ConvertTest(TestCase):
+class ConvertTest(EnhancedTestCase):
     """Test the license"""
 
     def test_subclasses(self):
         """Check if a number of common convert classes can be found"""
         for convert_class in ListOfStrings, DictOfStrings, ListOfStringsAndDictOfStrings:
             self.assertEqual(get_convert_class(convert_class.__name__), convert_class)
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            if hasattr(err, 'msg'):
-                msg = getattr(err, 'msg')
-            elif hasattr(err, 'message'):
-                msg = getattr(err, 'message')
-            else:
-                msg = str(err)
-
-            res = re.search(regex, msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def test_listofstrings(self):
         """Test list of strings"""

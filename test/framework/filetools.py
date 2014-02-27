@@ -31,7 +31,8 @@ Unit tests for filetools.py
 """
 import os
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 from vsc import fancylogger
 
 import easybuild.tools.config as config
@@ -39,7 +40,7 @@ import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
 
 
-class FileToolsTest(TestCase):
+class FileToolsTest(EnhancedTestCase):
     """ Testcase for filetools module """
 
     class_names = [
