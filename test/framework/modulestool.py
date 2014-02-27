@@ -27,15 +27,20 @@ Unit tests for ModulesTool class.
 
 @author: Stijn De Weirdt (Ghent University)
 """
+import copy
 import os
 
 from unittest import main as unittestmain
 from unittest import TestCase, TestLoader
 from distutils.version import StrictVersion
 
+import easybuild.tools.options as eboptions
+from easybuild.tools import config
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import which
+from easybuild.tools.modules import modules_tool, Lmod
 
 
 class MockModulesTool(modules.ModulesTool):
@@ -55,6 +60,24 @@ class BrokenMockModulesTool(MockModulesTool):
 
 class ModulesToolTest(TestCase):
     """ Testcase for ModulesTool """
+
+    def setUp(self):
+        """set up everything for a unit test."""
+        # keep track of original environment, so we can restore it
+        self.orig_environ = copy.deepcopy(os.environ)
+
+        # initialize configuration so config.get_modules_tool function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
+        # keep track of original $MODULEPATH, so we can restore it
+        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
+
+        self.testmods = None
+
+        # purge with original $MODULEPATH before running each test
+        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
+        modules_tool().purge()
 
     def test_mock(self):
         """Test the mock module"""
@@ -88,6 +111,43 @@ class ModulesToolTest(TestCase):
 
         # clean it up
         del os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT]
+
+    def test_lmod_specific(self):
+        """Lmod-specific test (skipped unless Lmod is used as modules tool)."""
+        lmod_abspath = which(Lmod.COMMAND)
+        # only run this test if 'lmod' is available in $PATH
+        if lmod_abspath is not None:
+            # drop any location where 'lmod' or 'spider' can be found from $PATH
+            paths = os.environ.get('PATH', '').split(os.pathsep)
+            new_paths = []
+            for path in paths:
+                lmod_cand_path = os.path.join(path, Lmod.COMMAND)
+                spider_cand_path = os.path.join(path, 'spider')
+                if not os.path.isfile(lmod_cand_path) and not os.path.isfile(spider_cand_path):
+                    new_paths.append(path)
+            os.environ['PATH'] = os.pathsep.join(new_paths)
+
+            # make sure $MODULEPATH contains path that provides some modules
+            os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
+            # initialize Lmod modules tool, pass full path to 'lmod' via $LMOD_CMD
+            os.environ['LMOD_CMD'] = lmod_abspath
+            lmod = Lmod()
+
+            # obtain list of availabe modules, should be non-empty
+            self.assertTrue(lmod.available(), "List of available modules obtained using Lmod is non-empty")
+
+            # test updating local spider cache (but don't actually update the local cache file!)
+            self.assertTrue(lmod.update(fake=True), "Updated local Lmod spider cache is non-empty")
+
+    def tearDown(self):
+        """cleanup"""
+        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
+        # reinitialize a modules tool, to trigger 'module use' on module paths
+        modules_tool()
+
+        # restore (full) original environment
+        modify_env(os.environ, self.orig_environ)
 
 
 def suite():
