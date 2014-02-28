@@ -509,13 +509,13 @@ modules_install_suffix = '%(modsuffix)s'
 
         # further updates are prohibited after a call to the is_defined method
         msg = "Modifying key '.*' is prohibited after set_defined\(\)"
-        self.assertErrorRegex(EasyBuildError, msg, bo.update, {'debug': True})
-        self.assertErrorRegex(EasyBuildError, msg, bo.__setitem__, 'debug', True)
+        self.assertErrorRegex(Exception, msg, bo.update, {'debug': True})
+        self.assertErrorRegex(Exception, msg, bo.__setitem__, 'debug', True)
 
         # only valid keys can be set
         bo = BuildOptions()
         msg = "Key 'thisisclearlynotavalidbuildoption' \(value: 'FAIL'\) is not valid \(valid keys: .*\)"
-        self.assertErrorRegex(EasyBuildError, msg, bo.update, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertErrorRegex(Exception, msg, bo.update, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

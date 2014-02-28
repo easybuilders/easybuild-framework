@@ -40,7 +40,7 @@ import string
 import tempfile
 import time
 from vsc import fancylogger
-from vsc.utils.missing import nub
+from vsc.utils.missing import nub, ConstantDict
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
@@ -109,83 +109,7 @@ oldstyle_environment_variables = {
 }
 
 
-class DictObject(dict):
-    """Abstract class for objects that resemble a value of type dict."""
-
-    # list of known keys
-    KNOWN_KEYS = []
-
-    def __init__(self, *args, **kwargs):
-        """Custom constructor for DictObject: initialize logger."""
-        super(DictObject, self).__init__(*args, **kwargs)
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.is_defined = False
-        self.skip_unknown = False
-
-    def update(self, *args, **kwargs):
-        """
-        It seems that dict.update doesn't use __setitem__.
-        This function now does what the dict.update doctstring describes i.e.
-
-        D.update([E, ]**F) -> None.  Update D from dict/iterable E and F.
-            If E present and has a .keys() method, does:     for k in E: D[k] = E[k]
-            If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
-            In either case, this is followed by: for k in F: D[k] = F[k]
-        """
-        self.log.debug("DictObject.update: %s, %s" % (args, kwargs))
-        if args:
-            if len(args) > 1:
-                self.log.error('Only one argument supported')
-            arg = args[0]
-            if hasattr(arg, 'keys'):
-                for k in arg.keys():
-                    self[k] = arg[k]
-            else:
-                for (k, v) in arg:
-                    self[k] = v
-        for k in kwargs.keys():
-            self[k] = kwargs[k]
-
-    def update_skip_unknown(self, *args, **kwargs):
-        """Update, but skip unknown keys."""
-        self.skip_unknown = True
-        self.update(*args, **kwargs)
-        self.skip_unknown = False
-
-    def set_defined(self):
-        """Set as defined, disallow any further updates."""
-        self.is_defined = True
-
-    def unknown_key(self, msg):
-        """Action taken when an unknown key is encountered: raise error."""
-        if self.skip_unknown:
-            self.log.debug(msg)
-        else:
-            self.log.error(msg)
-
-    def __setitem__(self, key, value, **kwargs):
-        """Redefine __setitem__ to only allow it when self.is_defined is still False and validate keys."""
-        if self.is_defined:
-            class_name = self.__class__.__name__
-            self.log.error("Modifying key '%s' is prohibited after set_defined()." % key)
-        else:
-            if key in self.KNOWN_KEYS:
-                super(DictObject, self).__setitem__(key, value, **kwargs)
-            else:
-                self.unknown_key("Key '%s' (value: '%s') is not valid (valid keys: %s)" % (key, value, self.KNOWN_KEYS))
-
-    def __getitem__(self, key, *args, **kwargs):
-        """Redefine __getitem__ to provide a better KeyError message."""
-        try:
-            return super(DictObject, self).__getitem__(key, *args, **kwargs)
-        except KeyError, err:
-            if key in self.KNOWN_KEYS:
-                raise KeyError(err)
-            else:
-                raise KeyError("unknown key '%s', known keys: %s" % (key, self.KNOWN_KEYS))
-
-
-class ConfigurationVariables(DictObject):
+class ConfigurationVariables(ConstantDict):
     """This is a dict that supports legacy config names transparently."""
 
     REQUIRED = [
@@ -261,7 +185,7 @@ class ConfigurationVariables(DictObject):
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
 
-class BuildOptions(DictObject):
+class BuildOptions(ConstantDict):
     """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [
