@@ -50,6 +50,8 @@ from easybuild.tools.filetools import run_cmd
 
 _log = fancylogger.getLogger('config', fname=False)
 
+# configuration variables as a global constant
+VARIABLES = None
 
 # class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
 SUPPORT_OLDSTYLE = True
@@ -110,10 +112,15 @@ oldstyle_environment_variables = {
 class DictObject(dict):
     """Abstract class for objects that resemble a value of type dict."""
 
+    # list of known keys
+    KNOWN_KEYS = []
+
     def __init__(self, *args, **kwargs):
         """Custom constructor for DictObject: initialize logger."""
         super(DictObject, self).__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        self.is_defined = False
+        self.skip_unknown = False
 
     def update(self, *args, **kwargs):
         """
@@ -125,6 +132,7 @@ class DictObject(dict):
             If E present and lacks .keys() method, does:     for (k, v) in E: D[k] = v
             In either case, this is followed by: for k in F: D[k] = F[k]
         """
+        self.log.debug("DictObject.update: %s, %s" % (args, kwargs))
         if args:
             if len(args) > 1:
                 self.log.error('Only one argument supported')
@@ -138,16 +146,65 @@ class DictObject(dict):
         for k in kwargs.keys():
             self[k] = kwargs[k]
 
+    def update_skip_unknown(self, *args, **kwargs):
+        """Update, but skip unknown keys."""
+        self.skip_unknown = True
+        self.update(*args, **kwargs)
+        self.skip_unknown = False
+
+    def set_defined(self):
+        """Set as defined, disallow any further updates."""
+        self.is_defined = True
+
+    def unknown_key(self, msg):
+        """Action taken when an unknown key is encountered: raise error."""
+        if self.skip_unknown:
+            self.log.debug(msg)
+        else:
+            self.log.error(msg)
+
+    def __setitem__(self, key, value, **kwargs):
+        """Redefine __setitem__ to only allow it when self.is_defined is still False and validate keys."""
+        if self.is_defined:
+            class_name = self.__class__.__name__
+            self.log.error("Modifying key '%s' is prohibited after set_defined()." % key)
+        else:
+            if key in self.KNOWN_KEYS:
+                super(DictObject, self).__setitem__(key, value, **kwargs)
+            else:
+                self.unknown_key("Key '%s' (value: '%s') is not valid (valid keys: %s)" % (key, value, self.KNOWN_KEYS))
+
+    def __getitem__(self, key, *args, **kwargs):
+        """Redefine __getitem__ to provide a better KeyError message."""
+        try:
+            return super(DictObject, self).__getitem__(key, *args, **kwargs)
+        except KeyError, err:
+            if key in self.KNOWN_KEYS:
+                raise KeyError(err)
+            else:
+                raise KeyError("unknown key '%s', known keys: %s" % (key, self.KNOWN_KEYS))
+
 
 class ConfigurationVariables(DictObject):
     """This is a dict that supports legacy config names transparently."""
+
     REQUIRED = [
+        'config',
+        'prefix',
         'buildpath',
         'installpath',
         'sourcepath',
-        'logfile_format',
         'repository',
+        'repositorypath',
+        'logfile_format',
+        'tmp_logdir',
+        'moduleclasses',
+        'subdir_modules',
+        'subdir_software',
+        'modules_tool',
+        'module_naming_scheme',
     ]
+
     OLDSTYLE_NEWSTYLEMAP = {
         'build_path': 'buildpath',
         'install_path': 'installpath',
@@ -161,6 +218,8 @@ class ConfigurationVariables(DictObject):
         'modules_install_suffix': 'subdir_modules',
         'software_install_suffix': 'subdir_software',
     }
+
+    KNOWN_KEYS = nub(OLDSTYLE_NEWSTYLEMAP.values() + REQUIRED)
 
     def get_items_check_required(self, no_missing=True):
         """
@@ -205,58 +264,32 @@ class ConfigurationVariables(DictObject):
 class BuildOptions(DictObject):
     """Representation of a set of build options, acts like a dictionary."""
 
-    def __init__(self, *args, **kwargs):
-        """Custom constructor for BuildOptions: initialize keys with None values."""
-        super(BuildOptions, self).__init__(*args, **kwargs)
-
-        # indicates whether this instance was set already
-        self.is_defined = False
-
-        # initialize this instance with keys and None values
-        self.build_options = [
-            'aggregate_regtest',
-            'check_osdeps',
-            'command_line',
-            'debug',
-            'dry_run',
-            'easyblock',
-            'experimental',
-            'force',
-            'ignore_dirs',
-            'modules_footer',
-            'only_blocks',
-            'recursive_mod_unload',
-            'regtest_online',
-            'regtest_output_dir',
-            'retain_all_deps',
-            'robot_path',
-            'sequential',
-            'silent',
-            'skip',
-            'skip_test_cases',
-            'stop',
-            'valid_module_classes',
-            'valid_stops',
-            'validate'
-        ]
-        for key in self.build_options:
-            self[key] = None
-
-    def define(self, build_options):
-        """Define the build options, and then disable any updates to this instance."""
-        self.update(build_options)
-        self.log.debug("Updated this BuildOptions instance with %s, disabling all further updates." % build_options)
-        self.is_defined = True
-
-    def __setitem__(self, key, value, **kwargs):
-        """Redefine __setitem__ to only allow it when self.is_defined is still False."""
-        if self.is_defined:
-            self.log.error("Updates to a BuildOptions instance are prohibited after the define method was used.")
-        else:
-            if key in self.build_options:
-                super(BuildOptions, self).__setitem__(key, value, **kwargs)
-            else:
-                self.log.error("Specified key '%s' is not a valid build option." % key)
+    KNOWN_KEYS = [
+        'aggregate_regtest',
+        'check_osdeps',
+        'command_line',
+        'debug',
+        'dry_run',
+        'easyblock',
+        'experimental',
+        'force',
+        'ignore_dirs',
+        'modules_footer',
+        'only_blocks',
+        'recursive_mod_unload',
+        'regtest_online',
+        'regtest_output_dir',
+        'retain_all_deps',
+        'robot_path',
+        'sequential',
+        'silent',
+        'skip',
+        'skip_test_cases',
+        'stop',
+        'valid_module_classes',
+        'valid_stops',
+        'validate'
+    ]
 
 
 def get_user_easybuild_dir():
@@ -356,12 +389,15 @@ def init(options, config_options_dict):
     Gather all variables and check if they're valid
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
+    # initialize (global) variables
+    init_variables()
+
     if SUPPORT_OLDSTYLE:
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         oldstyle_init(options.config)
 
         # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
-        variables['moduleclasses'] = nub(list(variables.get('moduleclasses', [])) +
+        VARIABLES['moduleclasses'] = nub(list(VARIABLES.get('moduleclasses', [])) +
                                          [x[0] for x in DEFAULT_MODULECLASSES])
 
         # all defaults are now set in generaloption
@@ -373,15 +409,16 @@ def init(options, config_options_dict):
                     continue
                 # remove the default options if they are set in variables
                 # this way, all defaults are set
-                if dest in variables:
+                if dest in VARIABLES:
                     _log.debug("Oldstyle support: no action for dest %s." % dest)
                     del config_options_dict[dest]
 
     # update the variables with the generaloption values
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
-    variables.update(config_options_dict)
+    VARIABLES.update_skip_unknown(config_options_dict)
+    VARIABLES.set_defined()
 
-    _log.debug("Config variables: %s" % variables)
+    _log.debug("Config variables: %s" % VARIABLES)
 
     def create_dir(dirtype, dirname):
         _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
@@ -391,7 +428,7 @@ def init(options, config_options_dict):
             _log.error("Failed to create directory %s: %s" % (dirname, err))
         _log.debug("%s directory %s created" % (dirtype, dirname))
 
-    for key, value in variables.get_items_check_required():
+    for key, value in VARIABLES.get_items_check_required():
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
@@ -410,20 +447,20 @@ def build_path():
     """
     Return the build path
     """
-    return variables['buildpath']
+    return VARIABLES['buildpath']
 
 
 def source_paths():
     """
     Return the list of source paths
     """
-    if isinstance(variables['sourcepath'], basestring):
-        return variables['sourcepath'].split(':')
-    elif isinstance(variables['sourcepath'], (tuple, list)):
-        return variables['sourcepath']
+    if isinstance(VARIABLES['sourcepath'], basestring):
+        return VARIABLES['sourcepath'].split(':')
+    elif isinstance(VARIABLES['sourcepath'], (tuple, list)):
+        return VARIABLES['sourcepath']
     else:
-        typ = type(variables['sourcepath'])
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+        typ = type(VARIABLES['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, VARIABLES['sourcepath']))
 
 
 def source_path():
@@ -446,8 +483,8 @@ def install_path(typ=None):
         typ = 'modules'
 
     key = "subdir_%s" % typ
-    if key in variables:
-        suffix = variables[key]
+    if key in VARIABLES:
+        suffix = VARIABLES[key]
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('%s not set in config, returning default' % key, "2.0")
@@ -457,21 +494,21 @@ def install_path(typ=None):
         except:
             _log.error('install_path trying to get unknown suffix %s' % key)
 
-    return os.path.join(variables['installpath'], suffix)
+    return os.path.join(VARIABLES['installpath'], suffix)
 
 
 def get_repository():
     """
     Return the repository (git, svn or file)
     """
-    return variables['repository']
+    return VARIABLES['repository']
 
 
 def get_repositorypath():
     """
     Return the repository path
     """
-    return variables['repositorypath']
+    return VARIABLES['repositorypath']
 
 
 def get_modules_tool():
@@ -479,22 +516,22 @@ def get_modules_tool():
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
-    return variables.get('modules_tool', None)
+    return VARIABLES.get('modules_tool', None)
 
 
 def get_module_naming_scheme():
     """
     Return module naming scheme (EasyBuildModuleNamingScheme, ...)
     """
-    return variables['module_naming_scheme']
+    return VARIABLES['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):
     """Return the format for the logfile or the directory"""
     idx = int(not return_directory)
 
-    if 'logfile_format' in variables:
-        res = variables['logfile_format'][idx]
+    if 'logfile_format' in VARIABLES:
+        res = VARIABLES['logfile_format'][idx]
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('logfile_format not set in config, returning default', "2.0")
@@ -522,8 +559,8 @@ def get_build_log_path():
     """
     return temporary log directory
     """
-    if 'tmp_logdir' in variables:
-        return variables['tmp_logdir']
+    if 'tmp_logdir' in VARIABLES:
+        return VARIABLES['tmp_logdir']
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('tmp_logdir not set in config, returning default', "2.0")
@@ -575,8 +612,8 @@ def module_classes():
     """
     Return list of module classes specified in config file.
     """
-    if 'moduleclasses' in variables:
-        return variables['moduleclasses']
+    if 'moduleclasses' in VARIABLES:
+        return VARIABLES['moduleclasses']
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('moduleclasses not set in config, returning default', "2.0")
@@ -597,14 +634,14 @@ def oldstyle_init(filename, **kwargs):
     """
     _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
 
-    _log.debug('variables before oldstyle_init %s' % variables)
-    variables.update(oldstyle_read_configuration(filename))  # config file
-    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, variables))
-    variables.update(oldstyle_read_environment())  # environment
-    _log.debug('variables after oldstyle_init read_environment %s' % variables)
+    _log.debug('variables before oldstyle_init %s' % VARIABLES)
+    VARIABLES.update_skip_unknown(oldstyle_read_configuration(filename))  # config file
+    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, VARIABLES))
+    VARIABLES.update(oldstyle_read_environment())  # environment
+    _log.debug('variables after oldstyle_init read_environment %s' % VARIABLES)
     if kwargs:
-        variables.update(kwargs)  # CLI options
-        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, variables))
+        VARIABLES.update(kwargs)  # CLI options
+        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, VARIABLES))
 
 
 def oldstyle_read_configuration(filename):
@@ -688,5 +725,8 @@ def set_tmpdir(tmpdir=None):
     return current_tmpdir
 
 
-# config variables constant
-variables = ConfigurationVariables()
+def init_variables():
+    """Initialize variables."""
+    # config variables 'constant'
+    global VARIABLES
+    VARIABLES = ConfigurationVariables()
