@@ -34,7 +34,8 @@ import os
 import re
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 from vsc import fancylogger
 
 import easybuild.tools.build_log
@@ -52,7 +53,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
 
-class EasyConfigTest(TestCase):
+class EasyConfigTest(EnhancedTestCase):
     """ easyconfig tests """
     contents = None
     eb_file = ''
@@ -86,17 +87,6 @@ class EasyConfigTest(TestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
         os.chdir(self.cwd)
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def test_empty(self):
         """ empty files should not parse! """

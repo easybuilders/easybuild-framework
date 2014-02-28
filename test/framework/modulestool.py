@@ -29,9 +29,9 @@ Unit tests for ModulesTool class.
 """
 import copy
 import os
-
+from test.framework.utilities import EnhancedTestCase
 from unittest import main as unittestmain
-from unittest import TestCase, TestLoader
+from unittest import TestLoader
 from distutils.version import StrictVersion
 
 import easybuild.tools.options as eboptions
@@ -58,7 +58,7 @@ class BrokenMockModulesTool(MockModulesTool):
     COMMAND_ENVIRONMENT = 'BMMT_CMD'
 
 
-class ModulesToolTest(TestCase):
+class ModulesToolTest(EnhancedTestCase):
     """ Testcase for ModulesTool """
 
     def setUp(self):

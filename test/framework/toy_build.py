@@ -35,7 +35,8 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase, TestLoader
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
@@ -45,7 +46,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 
 
-class ToyBuildTest(TestCase):
+class ToyBuildTest(EnhancedTestCase):
     """Toy build unit test."""
 
     def setUp(self):
@@ -93,17 +94,6 @@ class ToyBuildTest(TestCase):
 
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """Convenience method to match regex with the error message."""
-        try:
-            call(*args)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix=''):
         """Check whether toy build succeeded."""

@@ -30,13 +30,14 @@ Unit tests for asyncprocess.py.
 
 import os
 import time
-from unittest import TestCase, TestSuite, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestSuite, main
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
 
 
-class AsyncProcessTest(TestCase):
+class AsyncProcessTest(EnhancedTestCase):
     """ Testcase for asyncprocess """
 
     def setUp(self):

@@ -28,12 +28,13 @@ Unit tests for easyconfig/licenses.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.framework.easyconfig.licenses import License, VeryRestrictive, what_licenses
-from unittest import TestCase, TestLoader, main
 
 
-class LicenseTest(TestCase):
+class LicenseTest(EnhancedTestCase):
     """Test the license"""
 
     def test_common_ones(self):

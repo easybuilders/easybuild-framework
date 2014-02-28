@@ -30,14 +30,14 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
-from unittest import TestCase, TestLoader, main
 
-
-class RunTest(TestCase):
+class RunTest(EnhancedTestCase):
     """ Testcase for run module """
 
     def test_run_cmd(self):

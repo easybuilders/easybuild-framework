@@ -34,7 +34,8 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.options as eboptions
@@ -47,20 +48,13 @@ from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
 
-class ModuleGeneratorTest(TestCase):
+class ModuleGeneratorTest(EnhancedTestCase):
     """ testcase for ModuleGenerator """
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options()
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
     del eb_go
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
@@ -231,10 +225,6 @@ class ModuleGeneratorTest(TestCase):
             ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
             if ec_name in ec2mod_map:
                 self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
-
-        # generating module name from non-parsed easyconfig does not work (and shouldn't)
-        error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."
-        self.assertErrorRegex(EasyBuildError, error_msg, det_full_module_name, non_parsed)
 
         # restore default module naming scheme, and retest
         config.variables['module_naming_scheme'] = orig_module_naming_scheme

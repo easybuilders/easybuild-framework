@@ -31,12 +31,13 @@ Unit tests for repository.py.
 import os
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.repository import FileRepository, init_repository
 
 
-class RepositoryTest(TestCase):
+class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def setUp(self):

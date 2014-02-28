@@ -31,7 +31,8 @@ Unit tests for robot (dependency resolution).
 import os
 import re
 from copy import deepcopy
-from unittest import TestCase, TestLoader
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc import fancylogger
 
@@ -65,18 +66,8 @@ def mock_module(mod_paths=None):
     return MockModule(mod_paths=mod_paths)
 
 
-class RobotTest(TestCase):
+class RobotTest(EnhancedTestCase):
     """ Testcase for the robot dependency resolution """
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
-            str_args = ', '.join(map(str, args) + [str_kwargs])
-            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg), "Pattern '%s' is found in '%s'" % (regex, err.msg))
 
     def setUp(self):
         """Set up everything for a unit test."""

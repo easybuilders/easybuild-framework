@@ -34,7 +34,8 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase, TestLoader
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.tools.build_log
@@ -50,7 +51,7 @@ from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.version import VERSION
 from vsc import fancylogger
 
-class CommandLineOptionsTest(TestCase):
+class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
 
     logfile = None
