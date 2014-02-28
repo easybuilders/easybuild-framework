@@ -1,6 +1,15 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.11.1 (February 28th 2014)
+----------------------------
+
+bugfix release
+- various bug fixes, including:
+    - fix hard crash when $LMOD_CMD specified full path to lmod binary, but spider binary is not in $PATH (#861, #873)
+    - fix bug in initialisation of repositories, causing problems when a repository subdirectory is specified (#852)
+    - avoid long wait when dependency resolution fails if --robot is not specified (#875)
+
 v1.11.0 (February 16th 2014)
 ----------------------------
 

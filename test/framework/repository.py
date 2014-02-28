@@ -31,33 +31,52 @@ Unit tests for repository.py.
 import os
 import shutil
 import tempfile
-from unittest import TestCase, TestSuite, main
+from unittest import TestCase, TestLoader, main
 
-from easybuild.tools.repository import FileRepository
+from easybuild.tools.repository import FileRepository, init_repository
 
 
 class RepositoryTest(TestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def setUp(self):
-        """ make sure temporary path does not exist """
+        """Set up test."""
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
         self.cwd = os.getcwd()
 
-    def runTest(self):
-        """ after initialization it should be the working copy """
+    def test_filerepository(self):
+        """Test creating instance of FileRepository."""
         repo = FileRepository(self.path)
         self.assertEqual(repo.wc, self.path)
 
+        subdir = 'sub/dir'
+        repo = FileRepository(self.path, subdir)
+        self.assertEqual(repo.wc, self.path)
+        self.assertEqual(repo.subdir, subdir)
+
+    def test_init_repository(self):
+        """Test use of init_repository function."""
+        repo = init_repository('FileRepository', self.path)
+        self.assertEqual(repo.wc, self.path)
+
+        repo = init_repository('FileRepository', [self.path])
+        self.assertEqual(repo.wc, self.path)
+
+        subdir = 'sub/dir'
+        repo = init_repository('FileRepository', [self.path, subdir])
+        self.assertEqual(repo.wc, self.path)
+        self.assertEqual(repo.subdir, subdir)
+
     def tearDown(self):
-        """ clean up after myself """
+        """Clean up after test."""
         shutil.rmtree(self.path, True)
         os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([RepositoryTest()])
+    return TestLoader().loadTestsFromTestCase(RepositoryTest)
+
 
 if __name__ == '__main__':
     main()

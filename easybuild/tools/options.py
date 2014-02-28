@@ -538,20 +538,20 @@ class EasyBuildOptions(GeneralOption):
         usable_repos = avail_repositories(check_useable=True).keys()
 
         indent = ' ' * 2
-        txt = ['All avaialble repository types']
+        txt = ['All avaliable repository types']
         repos = sorted(all_repos.keys())
         for repo in repos:
             if repo in usable_repos:
                 missing = ''
             else:
-                missing = ' (*Not usable*, something is missing (eg a specific module))'
+                missing = ' (*not usable*, something is missing (e.g. a required Python module))'
             if repo in repopath_defaults:
-                default = ' (Default arguments: %s)' % (repopath_defaults[repo])
+                default = ' (default arguments: %s)' % ', '.join(repopath_defaults[repo])
             else:
-                default = ' (No default arguments)'
+                default = ' (no default arguments)'
 
-            txt.append("%s%s%s%s" % (indent, repo, default, missing))
-            txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
+            txt.append("%s* %s%s%s" % (indent, repo, default, missing))
+            txt.append("%s%s" % (indent * 3, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
 
