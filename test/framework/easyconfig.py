@@ -70,7 +70,9 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-        config.variables['source_path'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        config.VARIABLES.is_defined = False
+        config.VARIABLES['source_path'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        config.VARIABLES.is_defined = True
 
     def prep(self):
         """Prepare for test."""
@@ -766,8 +768,10 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_buildininstalldir(self):
         """Test specifying build in install dir."""
-        config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['installpath'] = tempfile.mkdtemp()
+        config.VARIABLES.is_defined = False
+        config.VARIABLES['buildpath'] = tempfile.mkdtemp()
+        config.VARIABLES['installpath'] = tempfile.mkdtemp()
+        config.VARIABLES.is_defined = True
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
@@ -787,8 +791,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(os.path.isdir(eb.builddir))
 
         # cleanup
-        shutil.rmtree(config.variables['buildpath'])
-        shutil.rmtree(config.variables['installpath'])
+        shutil.rmtree(config.VARIABLES['buildpath'])
+        shutil.rmtree(config.VARIABLES['installpath'])
 
     def test_format_equivalence_basic(self):
         """Test whether easyconfigs in different formats are equivalent."""

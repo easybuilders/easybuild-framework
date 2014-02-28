@@ -37,6 +37,7 @@ from vsc import fancylogger
 
 import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
+import easybuild.tools.options as eboptions
 from test.framework.utilities import find_full_path
 
 
@@ -61,7 +62,10 @@ class FileToolsTest(EnhancedTestCase):
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
 
-        config.oldstyle_init(cfg_full_path)
+        # initialize configuration so modules_tool() function works
+        eb_go = eboptions.parse_options()
+        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
         self.cwd = os.getcwd()
 
     def tearDown(self):
