@@ -146,7 +146,7 @@ class EBConfigObj(object):
             self.parse(configobj)
 
     def _init_sections(self):
-        """Initialise self.sections. Make sure default and supported exist"""
+        """Initialise self.sections. Make sure 'default' and 'supported' sections exist."""
         self.sections = TopNestedDict()
         for key in [self.SECTION_MARKER_DEFAULT, self.SECTION_MARKER_SUPPORTED]:
             self.sections[key] = self.sections.get_nested_dict()
@@ -158,7 +158,7 @@ class EBConfigObj(object):
         Returns a dict of (nested) Sections
 
         @param toparse: a Section (or ConfigObj) instance, basically a dict of (unparsed) sections
-        @param current: a.k.a. the current level in the NestedDict 
+        @param current: the current NestedDict 
         """
         # note: configobj already converts comma-separated strings in lists
         #
@@ -170,7 +170,6 @@ class EBConfigObj(object):
         for key, value in toparse.items():
             if isinstance(value, Section):
                 self.log.debug("Enter subsection key %s value %s" % (key, value))
-
 
                 # only supported types of section keys are:
                 # * DEFAULT
@@ -197,7 +196,8 @@ class EBConfigObj(object):
                                 self.log.error(tmpl % (dep, dict(dep)))
                             new_value.append(dep)
 
-                    self.log.debug('Converted dependency section %s to %s, passed it to parent section (or default)' % (key, new_value))
+                    tmpl = 'Converted dependency section %s to %s, passed it to parent section (or default)'
+                    self.log.debug(tmpl % (key, new_value))
                     if isinstance(current, TopNestedDict):
                         current[self.SECTION_MARKER_DEFAULT].update({new_key: new_value})
                     else:
@@ -288,7 +288,7 @@ class EBConfigObj(object):
                 first = self.supported[supported_key][0]
                 f_val = getattr(first, fn_name)()
                 if f_val is None:
-                    self.log.warning("First %s %s can't be used as default (%s retuned None)" % (key, first, fn_name))
+                    self.log.error("First %s %s can't be used as default (%s retuned None)" % (key, first, fn_name))
                 else:
                     self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
                     self.default[key] = f_val
@@ -319,7 +319,7 @@ class EBConfigObj(object):
         oversops, res = self._squash(tcname, tcversion, version, self.sections, sanity)
         self.log.debug('Temp result versions %s result %s' % (oversops, res))
         self.log.debug('Temp result versions data %s' % (oversops.datamap))
-        # update res, most strict matching versionoperator should be first
+        # update res, most strict matching versionoperator should be first element
         # so update in reversed order
         for versop in oversops.versops[::-1]:
             res.update(oversops.get_data(versop))
@@ -345,7 +345,7 @@ class EBConfigObj(object):
         # a OrderedVersionOperators instance to keep track of the data of the matching version sections
         oversops = OrderedVersionOperators()
 
-        self.log.debug('Start processed %s' % (processed))
+        self.log.debug('Start processed %s' % processed)
         # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
         for key, value in processed.items():
             if isinstance(value, NestedDict):
@@ -362,7 +362,8 @@ class EBConfigObj(object):
                         for versop in tmp_res_oversops.versops:
                             oversops.add(versop, tmp_res_oversops.get_data(versop), update=True)
                     else:
-                        self.log.debug("Found marker for other toolchain or other version '%s', ignoring it." % key)
+                        tmpl = "Found marker for other toolchain or version '%s', ignoring this (nested) section."
+                        self.log.debug(tmpl % key)
                 elif isinstance(key, VersionOperator):
                     # keep track of all version operators, and enforce conflict check
                     sanity['versops'].add(key)
@@ -376,7 +377,7 @@ class EBConfigObj(object):
                             oversops.add(versop, tmp_res_oversops.get_data(versop), update=True)
                         oversops.add(key, tmp_res_version, update=True)
                     else:
-                        self.log.debug('Found non-matching version marker %s. Ignoring it.' % key)
+                        self.log.debug('Found non-matching version marker %s. Ignoring this (nested) section.' % key)
                 else:
                     self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
 
@@ -390,7 +391,8 @@ class EBConfigObj(object):
                     tmp_tc_oversops = {}
                     for tcversop in value:
                         tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
-                        self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % (tcversop, tc_overops, tcname, tcversion))
+                        tup = (tcversop, tc_overops, tcname, tcversion)
+                        self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % tup)
                         tc_overops.add(tcversop)  # test non-conflicting list
                         if tcversop.test(tcname, tcversion):
                             matching_toolchains.append(tcversop)
@@ -403,7 +405,7 @@ class EBConfigObj(object):
                         return OrderedVersionOperators(), {}
 
                 elif key == 'versions':
-                    self.log.debug("Adding all versions %s from versions key" % (value))
+                    self.log.debug("Adding all versions %s from versions key" % value)
                     matching_versions = []
                     tmp_versops = OrderedVersionOperators()
                     for versop in value:
@@ -434,7 +436,7 @@ class EBConfigObj(object):
         return oversops, res
 
     def get_version_toolchain(self, version=None, tcname=None, tcversion=None):
-        """Return tuple of version, toolchainname and toolchainversion (possibly using defaults"""
+        """Return tuple of version, toolchainname and toolchainversion (possibly using defaults)."""
         # make sure that requested version/toolchain are supported by this easyconfig
         versions = [x.get_version_str() for x in self.supported['versions']]
         if version is None:
