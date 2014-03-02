@@ -213,8 +213,8 @@ class EasyConfigVersion(EnhancedTestCase):
                     )),
             ]
             for txt, subtests in tests:
+                tcversop = ToolchainVersionOperator(txt)
                 for name, version, res in subtests:
-                    tcversop = ToolchainVersionOperator(txt)
                     self.assertEqual(tcversop.test(name, version), res)
 
     def test_ordered_versop_add_data(self):
@@ -222,7 +222,7 @@ class EasyConfigVersion(EnhancedTestCase):
         ovop = OrderedVersionOperators()
         tests = [
             ('> 1', '5'),
-            ('> 2', {'x':3}),
+            ('> 2', {'x': 3}),
         ]
         for versop_txt, data in tests:
             versop = VersionOperator(versop_txt)
@@ -233,10 +233,10 @@ class EasyConfigVersion(EnhancedTestCase):
             # test data
             self.assertEqual(ovop.get_data(versop), data)
 
-        # new values for same versops
+        # new data for same versops
         tests = [
             ('> 1', '6'),
-            ('> 2', {'x':4}),
+            ('> 2', {'x': 4}),
         ]
         for versop_txt, data in tests:
             versop = VersionOperator(versop_txt)
@@ -246,7 +246,7 @@ class EasyConfigVersion(EnhancedTestCase):
 
         # 'update' a value
         # the data for '> 1' has no .update()
-        extra_data = {'y':4}
+        extra_data = {'y': 4}
         tests = [
             ('> 2', extra_data),
         ]
@@ -261,7 +261,7 @@ class EasyConfigVersion(EnhancedTestCase):
 
         # use update=True on new element
         versop = VersionOperator('> 10000')
-        new_data = {'new':5}
+        new_data = {'new': 5}
         ovop.add(versop, new_data, update=True)
         # test updated data
         self.assertEqual(ovop.get_data(versop), new_data)

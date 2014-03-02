@@ -101,7 +101,7 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def xtest_toy_build(self):
+    def test_toy_build(self):
         """Perform a toy build."""
         args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
@@ -117,7 +117,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.check_toy(self.test_installpath, outtxt)
 
-    def xtest_toy_build_formatv2(self):
+    def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found
         modulepath = os.environ.get('MODULEPATH')
@@ -146,7 +146,7 @@ class ToyBuildTest(EnhancedTestCase):
         else:
             del os.environ['MODULEPATH']
 
-    def xtest_toy_build_with_blocks(self):
+    def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
         orig_sys_path = sys.path[:]
         # add directory in which easyconfig file can be found to Python search path, since we're not specifying it full path below
@@ -154,7 +154,6 @@ class ToyBuildTest(EnhancedTestCase):
         # note get_paths_for expects easybuild/easyconfigs subdir
         ecs_path = os.path.join(tmpdir, "easybuild", "easyconfigs")
         os.makedirs(ecs_path)
-        shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0-multiple.eb'), ecs_path)
         sys.path.append(tmpdir)
 
         args = [

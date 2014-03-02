@@ -71,14 +71,13 @@ class TestEBConfigObj(TestCase):
     def test_ebconfigobj_default(self):
         """Tests wrt ebconfigobj default parsing"""
         data = [
-            ('versions=1',
-             {'version': '1'}),
-            ('toolchains=%s' % self.tc_first,
-             {}),  # default operator > and/or version 0.0.0 are not usable for default
-            ('toolchains=%s > 1' % self.tc_first,
-             {}),  # > not usable for default
-            ('toolchains=%s == 1' % self.tc_first,
-             {'toolchain':{'name': self.tc_first, 'version': '1'}}),  # == is usable
+            ('versions=1', {'version': '1'}),
+            # default operator > and/or version 0.0.0 are not usable for default
+            ('toolchains=%s' % self.tc_first, {}),
+            # > not usable for default
+            ('toolchains=%s > 1' % self.tc_first, {}),
+            # == is usable
+            ('toolchains=%s == 1' % self.tc_first, {'toolchain':{'name': self.tc_first, 'version': '1'}}),
         ]
 
         for val, res in  data:
@@ -256,7 +255,6 @@ class TestEBConfigObj(TestCase):
 
         # default tc is cgoolf -> cgoolf > 0.0.0
         res = cov.get_specs_for(version='2.3.4', tcname=self.tc_first, tcversion='1.0.0')
-        # TODO extend
         self.assertEqual(res, {'foo':'bar'})
 
 
@@ -266,6 +264,6 @@ def suite():
 
 
 if __name__ == '__main__':
-    logToScreen(enable=True)
-    setLogLevelDebug()
+    # logToScreen(enable=True)
+    # setLogLevelDebug()
     main()
