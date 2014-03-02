@@ -37,8 +37,8 @@ from vsc import fancylogger
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
-# a cache for toolchain names. Don't init on import!
-TOOLCHAINS_NAMES = {}
+# a cache for toolchain names lookups. Don't init on import!
+TOOLCHAIN_NAMES = {}
 
 
 class EasyVersion(LooseVersion):
@@ -311,7 +311,7 @@ class VersionOperator(object):
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
         if not isinstance(versop_other, self.__class__):
-            self.log.error('boundary check needs instance of self (got type %s)' % (type(versop_other)))
+            self.log.error('overlap/conflict check needs instance of self (got type %s)' % (type(versop_other)))
 
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
@@ -464,15 +464,18 @@ class ToolchainVersionOperator(VersionOperator):
         return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
     def _get_all_toolchain_names(self, search_string=''):
-        """Initialise the list of found toolchains only once, save in module constant FOUND_TOOLCHAINS"""
-        global TOOLCHAINS_NAMES
-        if not search_string in TOOLCHAINS_NAMES:
+        """
+        Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
+        @param search_string: passed to search_toolchain function.
+        """
+        global TOOLCHAIN_NAMES
+        if not search_string in TOOLCHAIN_NAMES:
             _, all_tcs = search_toolchain(search_string)
             self.log.debug('Found all toolchains for "%s" to %s' % (search_string, all_tcs))
-            TOOLCHAINS_NAMES[search_string] = [x.NAME for x in all_tcs]
-            self.log.debug('Set TOOLCHAINS_NAMES for "%s" to %s' % (search_string, TOOLCHAINS_NAMES[search_string]))
+            TOOLCHAIN_NAMES[search_string] = [x.NAME for x in all_tcs]
+            self.log.debug('Set TOOLCHAIN_NAMES for "%s" to %s' % (search_string, TOOLCHAIN_NAMES[search_string]))
 
-        return TOOLCHAINS_NAMES[search_string]
+        return TOOLCHAIN_NAMES[search_string]
 
     def is_valid(self):
         """Check if this is a valid ToolchainVersionOperator"""
@@ -546,7 +549,7 @@ class ToolchainVersionOperator(VersionOperator):
         @param test_name: toolchain name
         @param test_version: a version string or EasyVersion instance
         """
-        # checks whether this VersionOperator instance is valid using __bool__ function
+        # checks whether this ToolchainVersionOperator instance is valid using __bool__ function
         if not self:
             self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
 
@@ -607,7 +610,7 @@ class OrderedVersionOperators(object):
         """
         Try to add argument as VersionOperator instance to current list of version operators.
         Make sure there is no conflict with existing versops, and that the ordering is maintained.
-        After add, versopn_new is in the OrderedVersionOperators. If the same versopn_new was already in it,
+        After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
         it will update the data (if not None) (and not raise an error)
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
