@@ -491,10 +491,6 @@ modules_install_suffix = '%(modsuffix)s'
         """Test usage of BuildOptions."""
         bo = BuildOptions()
 
-        # all values are initialized to None
-        for key in bo:
-            self.assertTrue(bo[key] is None)
-
         # setting values works fine
         bo['force'] = True
         self.assertTrue(bo['force'])
