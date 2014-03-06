@@ -248,8 +248,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.4-GCC-4.6.3.eb': 'gzip/15b0fbeb494c9c97656f1441ed6132c79e4397ed',
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/3d19976f814e38f50bd944a1b5448372261ea3ad',
             'gzip-1.5-ictce-4.1.13.eb': 'gzip/5d240d33e497d26fe447bfcfddfc8e86653671ff',
-            'toy-0.0.eb': 'toy/3c90e1e04ba6c2b1fc32051170d260e9a7a274cb',
-            'toy-0.0-multiple.eb': 'toy/9b83955361d16d740769f574171660544d4af3c0',
+            'toy-0.0.eb': 'toy/15dff40edc9cdd6dbb9eaa5c59931b64c9a93562',
+            'toy-0.0-multiple.eb': 'toy/ea20e007c1a540f37bcd42bffc93f4db887afaaa',
         }
         test_mns()
 
