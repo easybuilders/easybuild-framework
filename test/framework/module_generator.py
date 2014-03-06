@@ -64,6 +64,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(ec)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
+        
+        self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def tearDown(self):
         """cleanup"""
@@ -210,7 +212,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
-        orig_module_naming_scheme = config.get_module_naming_scheme()
 
         # make sure test module naming schemes are available
         for test_mns_mod in ['test_module_naming_scheme', 'test_module_naming_scheme_all']:
@@ -244,9 +245,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/78fd6227e5446b043e9055ba911c7df41b6deaff',
             'gzip-1.4.eb': 'gzip/04d858d9403e3360aeb0745c2efb5e08f461a112',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/dcf7b9181a156888d3eb1bddc50f364c398e750e',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/75e5851a17b69b9c3c0a47d2ef1cd8373affad81',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/d03799f14a8868471575bf63e2644a5abb3ceb6a',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/15b0fbeb494c9c97656f1441ed6132c79e4397ed',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/3d19976f814e38f50bd944a1b5448372261ea3ad',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/5d240d33e497d26fe447bfcfddfc8e86653671ff',
             'toy-0.0.eb': 'toy/3c90e1e04ba6c2b1fc32051170d260e9a7a274cb',
             'toy-0.0-multiple.eb': 'toy/9b83955361d16d740769f574171660544d4af3c0',
         }
@@ -278,7 +279,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # restore default module naming scheme, and retest
         build_options = {
-            'module_naming_scheme': orig_module_naming_scheme,
+            'module_naming_scheme': self.orig_module_naming_scheme,
         }
         init_config(build_options=build_options)
         ec2mod_map = default_ec2mod_map

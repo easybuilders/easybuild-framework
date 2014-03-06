@@ -272,7 +272,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "fabc86ede36eda36e0eafd0a29d2b903",',  # checksum for source (gzip-1.4.eb)
+            '           "504c7036558938f997c1c269a01d7458",',  # checksum for source (gzip-1.4.eb)
             '           "bd2075fc6b26a7371e4f5c1687a75d0a",',  # checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
