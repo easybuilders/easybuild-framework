@@ -286,16 +286,7 @@ def det_full_module_name(ec, eb_ns=False):
         # return module name under EasyBuild module naming scheme
         mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
     else:
-        try:
-            mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
-        except KeyError, err:
-            # easyconfig keys available for generating module name are limited to name/version/versionsuffix/toolchain
-            # because dependency specifications only provide these keys
-            # to support more involved module naming scheme, a parsed easyconfig file is always required
-            # see https://github.com/hpcugent/easybuild-framework/issues/687
-            error_msg = "An error occured when determining module name for %s, " % ec
-            error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
-            _log.error(error_msg)
+        mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
 
     if not is_valid_module_name(mod_name):
         _log.error("%s is not a valid module name" % str(mod_name))

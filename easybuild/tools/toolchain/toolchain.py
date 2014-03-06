@@ -35,7 +35,6 @@ import os
 from vsc import fancylogger
 
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -206,6 +205,8 @@ class Toolchain(object):
 
     def det_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
+        # FIXME: fix inline import
+        from easybuild.framework.easyconfig.tools import det_full_module_name
         return det_full_module_name(self.as_dict(name, version))
 
     def _toolchain_exists(self, name=None, version=None):
@@ -272,6 +273,8 @@ class Toolchain(object):
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
+        # FIXME: fix inline import
+        from easybuild.framework.easyconfig.tools import det_full_module_name
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
             mod_name = det_full_module_name(dep)
@@ -296,6 +299,8 @@ class Toolchain(object):
         with module (True) or also set all other variables (False) like compiler CC etc
         (If string: comma separated list of variables that will be ignored).
         """
+        # FIXME: fix inline import
+        from easybuild.framework.easyconfig.tools import det_full_module_name
         if self.modules_tool is None:
             self.log.raiseException("No modules tool defined.")
 

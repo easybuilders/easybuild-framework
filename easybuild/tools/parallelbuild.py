@@ -40,12 +40,12 @@ from datetime import datetime
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs, get_easyblock_instance
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available
+from easybuild.framework.easyconfig.tools import det_full_module_name, process_easyconfig, resolve_dependencies
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
 from easybuild.tools.filetools import find_easyconfigs
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
-from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.repository import init_repository
