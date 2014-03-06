@@ -15,7 +15,7 @@ software_license = GPLv2
 software_license_urls = ['https://github.com/hpcugent/easybuild/wiki/License']
 
 sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
-checksums = ['f09dca47638869866e28c9f44aadc111']  # (MD5) source checksum
+checksums = ['be662daa971a640e40be5c804d9d7d10']  # (MD5) source checksum
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],
