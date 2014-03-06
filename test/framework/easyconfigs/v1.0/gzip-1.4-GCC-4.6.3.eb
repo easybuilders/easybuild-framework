@@ -22,4 +22,3 @@ sanity_check_paths = {
 # run 'gzip -h' and 'gzip --version' after installation
 sanity_check_commands = [True, ('gzip', '--version')]
 
-moduleclass = 'tools'
