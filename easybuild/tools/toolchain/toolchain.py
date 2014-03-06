@@ -35,6 +35,7 @@ import os
 from vsc import fancylogger
 
 from easybuild.tools.environment import setvar
+from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -205,8 +206,6 @@ class Toolchain(object):
 
     def det_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
-        # FIXME: fix inline import
-        from easybuild.framework.easyconfig.tools import det_full_module_name
         return det_full_module_name(self.as_dict(name, version))
 
     def _toolchain_exists(self, name=None, version=None):
@@ -273,16 +272,13 @@ class Toolchain(object):
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
-        # FIXME: fix inline import
-        from easybuild.framework.easyconfig.tools import det_full_module_name
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
-        for dep in dependencies:
-            mod_name = det_full_module_name(dep)
+        for (dep, mod_name) in dependencies:
             if not self.modules_tool.exists(mod_name):
-                self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
+                self.log.error('add_dependencies: no module %s found for dependency %s' % (mod_name, dep))
             else:
-                self.dependencies.append(dep)
-                self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
+                self.dependencies.append((dep, mod_name))
+                self.log.debug('add_dependencies: added toolchain dependency %s (module %s)' % (dep, mod_name))
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -299,8 +295,6 @@ class Toolchain(object):
         with module (True) or also set all other variables (False) like compiler CC etc
         (If string: comma separated list of variables that will be ignored).
         """
-        # FIXME: fix inline import
-        from easybuild.framework.easyconfig.tools import det_full_module_name
         if self.modules_tool is None:
             self.log.raiseException("No modules tool defined.")
 
@@ -312,13 +306,13 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
+                self.modules_tool.load([mod_name for (_, mod_name) in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
         self.log.debug("Loading toolchain module and dependencies...")
         self.modules_tool.load([self.det_module_name()])
-        self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
+        self.modules_tool.load([mod_name for (_, mod_name) in self.dependencies])
 
         # determine direct toolchain dependencies
         mod_name = self.det_module_name()
@@ -382,7 +376,7 @@ class Toolchain(object):
                     ld_paths.append(p)
 
         if not names:
-            deps = self.dependencies
+            deps = [dep for (dep, _) in self.dependencies]
         else:
             deps = [{'name':name} for name in names if name is not None]
 

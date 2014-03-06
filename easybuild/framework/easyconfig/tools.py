@@ -260,7 +260,7 @@ def det_full_module_name(ec, eb_ns=False, build_options=None):
         robot = build_options['robot_path']
         eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
         if eb_file is not None:
-            parsed_ec = process_easyconfig(eb_file)
+            parsed_ec = process_easyconfig(eb_file, build_options=build_options)
             if len(parsed_ec) > 1:
                 _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
             try:
