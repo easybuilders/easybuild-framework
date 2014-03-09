@@ -36,24 +36,14 @@ from easybuild.framework.easyconfig.format.version import OrderedVersionOperator
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class TestEBConfigObj(TestCase):
+class TestEBConfigObj(EnhancedTestCase):
     """Unit tests for EBConfigObj from format.format module."""
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def setUp(self):
         """Set some convenience attributes"""
@@ -72,10 +62,6 @@ class TestEBConfigObj(TestCase):
         """Tests wrt ebconfigobj default parsing"""
         data = [
             ('versions=1', {'version': '1'}),
-            # default operator > and/or version 0.0.0 are not usable for default
-            ('toolchains=%s' % self.tc_first, {}),
-            # > not usable for default
-            ('toolchains=%s > 1' % self.tc_first, {}),
             # == is usable
             ('toolchains=%s == 1' % self.tc_first, {'toolchain':{'name': self.tc_first, 'version': '1'}}),
         ]
@@ -86,6 +72,25 @@ class TestEBConfigObj(TestCase):
             cov = EBConfigObj(co)
 
             self.assertEqual(cov.default, res)
+
+    def test_ebconfigobj_unusable_default(self):
+        """Tests wrt ebconfigobj handling of unusable defaults"""
+        # TODO implement proper default as per JSC meeting, remove this test
+        # these will not raise error forever
+        # the defaults will be interpreted with dedicated default_version and default_toochain
+        data = [
+            # default operator > and/or version 0.0.0 are not usable for default
+            ('toolchains=%s' % self.tc_first, {}),
+            # > not usable for default
+            ('toolchains=%s > 1' % self.tc_first, {}),
+        ]
+
+        for val, res in  data:
+            configobj_txt = ['[SUPPORTED]', val]
+            co = ConfigObj(configobj_txt)
+            self.assertErrorRegex(EasyBuildError,
+                                  r'First\s+(toolchain|version)\s.*?\scan\'t\s+be\s+used\s+as\s+default',
+                                  EBConfigObj, co)
 
     def test_squash_simple(self):
         """Test toolchain filter"""
@@ -238,9 +243,13 @@ class TestEBConfigObj(TestCase):
 
     def test_ebconfigobj(self):
         """Test configobj sort"""
+        # the as_dict method is crap
+        # tc >= 0.0.0 returns empty as_dict, although the boundary can be used
+        # anyway, will go away with proper defaults
+        tcfirst = ",".join(['%s == 0.0.0' % self.tc_namesmax[0], '%s > 0.0.0' % self.tc_namesmax[0]])
         configobj_txt = [
             '[SUPPORTED]',
-            'toolchains=%s >= 7.8.9' % ','.join(self.tc_namesmax),
+            'toolchains=%s,%s >= 7.8.9' % (tcfirst, ','.join(self.tc_namesmax[1:])),
             'versions=1.2.3,2.3.4,3.4.5',
             '[>= 2.3.4]',
             'foo=bar',
