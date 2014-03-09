@@ -299,7 +299,7 @@ class EBConfigObj(object):
         self.log.debug("(parse) default: %s" % self.default)
         self.log.debug("(parse) sections: %s" % self.sections)
 
-    def squash(self, tcname, tcversion, version):
+    def squash(self, version, tcname, tcversion):
         """
         Project the multidimensional easyconfig to single easyconfig
         It (tries to) detect conflicts in the easyconfig.
@@ -316,7 +316,7 @@ class EBConfigObj(object):
             'toolchains': {},
         }
 
-        oversops, res = self._squash(tcname, tcversion, version, self.sections, sanity)
+        oversops, res = self._squash(version, tcname, tcversion, self.sections, sanity)
         self.log.debug('Temp result versions %s result %s' % (oversops, res))
         self.log.debug('Temp result versions data %s' % (oversops.datamap))
         # update res, most strict matching versionoperator should be first element
@@ -327,7 +327,7 @@ class EBConfigObj(object):
         self.log.debug('End squash with result %s' % res)
         return res
 
-    def _squash(self, tcname, tcversion, version, processed, sanity):
+    def _squash(self, version, tcname, tcversion, processed, sanity):
         """
         Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
         Returns dictionary res with squashed data for the processed block.
@@ -357,7 +357,7 @@ class EBConfigObj(object):
                     if key.test(tcname, tcversion):
                         tup = (tcname, tcversion, key)
                         self.log.debug("Found matching marker for specified toolchain '%s, %s': %s" % tup)
-                        tmp_res_oversops, tmp_res_version = self._squash(tcname, tcversion, version, value, sanity)
+                        tmp_res_oversops, tmp_res_version = self._squash(version, tcname, tcversion, value, sanity)
                         res_sections.update(tmp_res_version)
                         for versop in tmp_res_oversops.versops:
                             oversops.add(versop, tmp_res_oversops.get_data(versop), update=True)
@@ -369,7 +369,7 @@ class EBConfigObj(object):
                     sanity['versops'].add(key)
                     if key.test(version):
                         self.log.debug('Found matching version marker %s' % key)
-                        tmp_res_oversops, tmp_res_version = self._squash(tcname, tcversion, version, value, sanity)
+                        tmp_res_oversops, tmp_res_version = self._squash(version, tcname, tcversion, value, sanity)
                         # don't update res_sections
                         # add this to a orderedversop that has matching versops.
                         # data in this matching orderedversop must be updated to the res at the end
@@ -486,8 +486,8 @@ class EBConfigObj(object):
         """
 
         version, tcname, tcversion = self.get_version_toolchain(version, tcname, tcversion)
-        self.log.debug('Squashing with toolchain %s and version %s' % ((tcname, tcversion), version))
-        res = self.squash(tcname, tcversion, version)
+        self.log.debug('Squashing with version %s and toolchain %s' % (version, (tcname, tcversion)))
+        res = self.squash(version, tcname, tcversion)
 
         return res
 

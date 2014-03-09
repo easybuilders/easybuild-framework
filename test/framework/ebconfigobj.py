@@ -116,7 +116,7 @@ class TestEBConfigObj(EnhancedTestCase):
             for version in all_versions:
                 co = ConfigObj(txt)
                 cov = EBConfigObj(co)
-                res = cov.squash(tc['name'], tc['version'], version)
+                res = cov.squash(version, tc['name'], tc['version'])
                 self.assertEqual(res, {})  # very simple
 
     def test_squash_invalid(self):
@@ -150,7 +150,7 @@ class TestEBConfigObj(EnhancedTestCase):
             co = ConfigObj(txt)
             cov = EBConfigObj(co)
             self.assertErrorRegex(EasyBuildError, r'conflict', cov.squash,
-                                  tc_first['name'], tc_first['version'], default_version)
+                                  default_version, tc_first['name'], tc_first['version'])
 
     def test_toolchain_squash_nested(self):
         """Test toolchain filter on nested sections"""
@@ -201,7 +201,7 @@ class TestEBConfigObj(EnhancedTestCase):
         for tc, version, res in tests:
             co = ConfigObj(txt)
             cov = EBConfigObj(co)
-            squashed = cov.squash(tc['name'], tc['version'], version)
+            squashed = cov.squash(version, tc['name'], tc['version'])
             self.assertEqual(squashed, res)
 
     def test_nested_version(self):

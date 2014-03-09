@@ -115,8 +115,8 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
         version, tcname, tcversion = co.get_version_toolchain(version, toolchain_name, toolchain_version)
 
         # format 2.0 will squash
-        self.log.debug('Squashing with toolchain %s and version %s' % ((tcname, tcversion), version))
-        res = co.squash(tcname, tcversion, version)
+        self.log.debug('Squashing with version %s and toolchain %s' % (version, (tcname, tcversion)))
+        res = co.squash(version, tcname, tcversion)
 
         cfg.update(res)
         self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
