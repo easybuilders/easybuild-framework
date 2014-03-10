@@ -202,7 +202,7 @@ class TestEBConfigObj(EnhancedTestCase):
             co = ConfigObj(txt)
             cov = EBConfigObj(co)
             squashed = cov.squash(version, tc['name'], tc['version'])
-            self.assertEqual(squashed, res)
+            self.assertEqual(squashed, res, 'Test for tc %s version %s' % (tc, version))
 
     def test_nested_version(self):
         """Test nested config"""
