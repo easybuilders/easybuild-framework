@@ -373,7 +373,7 @@ class ToolchainTest(EnhancedTestCase):
         nvcc_flags = r' '.join([
             r'-Xcompiler="-O2 -march=native"',
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
-            r'-Xlinker=".* -lm -lcudart -lpthread"',
+            r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
         ])
 
@@ -389,7 +389,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
 
         # check CUDA runtime lib
-        self.assertTrue("-lcudart" in tc.get_variable('LIBS'))
+        self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
     def test_ictce_toolchain(self):
         """Test for ictce toolchain."""
