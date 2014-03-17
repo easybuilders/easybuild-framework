@@ -36,7 +36,6 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
-from vsc import fancylogger
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
