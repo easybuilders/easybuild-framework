@@ -48,16 +48,19 @@ from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
 
+def init_config():
+    """(re)initialize configuration"""
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
+
 class ModuleGeneratorTest(EnhancedTestCase):
     """ testcase for ModuleGenerator """
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
-        del eb_go
+        init_config()
 
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
@@ -195,15 +198,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
-        orig_module_naming_scheme = config.get_module_naming_scheme()
-        config.VARIABLES.is_defined = False
-        config.VARIABLES['module_naming_scheme'] = 'TestModuleNamingScheme'
-        config.VARIABLES.is_defined = True
+        orig_module_naming_scheme = os.environ.get('EASYBUILD_MODULE_NAMING_SCHEME', None)
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
         mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
         mns_mod = __import__(mns_path, globals(), locals(), [''])
         test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
         easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
-
+        init_config()
 
         ec2mod_map = {
             'GCC-4.6.3': 'GCC/4.6.3',
@@ -230,9 +231,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # restore default module naming scheme, and retest
-        config.VARIABLES.is_defined = False
-        config.VARIABLES['module_naming_scheme'] = orig_module_naming_scheme
-        config.VARIABLES.is_defined = True
+        if orig_module_naming_scheme is not None:
+            os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = orig_module_naming_scheme
+        else:
+            del os.environ['EASYBUILD_MODULE_NAMING_SCHEME']
+        init_config()
         test_default()
 
     def test_mod_name_validation(self):
