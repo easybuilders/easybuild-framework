@@ -489,29 +489,20 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_build_options(self):
         """Test usage of BuildOptions."""
-        bo = BuildOptions()
-
-        # setting values works fine
-        bo['force'] = True
+        bo = BuildOptions({
+            'debug': False,
+            'force': True
+        })
+        self.assertTrue(not bo['debug'])
         self.assertTrue(bo['force'])
 
-        # updated method can be used, is_defined class variable is set to True
-        bo.update({
-            'debug': False,
-            'skip': True,
-        })
-        bo.set_defined()
-        self.assertTrue(bo.is_defined)
-
-        # further updates are prohibited after a call to the is_defined method
-        msg = "Modifying key '.*' is prohibited after set_defined\(\)"
-        self.assertErrorRegex(Exception, msg, bo.update, {'debug': True})
-        self.assertErrorRegex(Exception, msg, bo.__setitem__, 'debug', True)
+        # updating is impossible (methods are not even available)
+        self.assertErrorRegex(TypeError, '.*item assignment.*', lambda x: bo.update(x), {'debug': True})
+        self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
-        bo = BuildOptions()
-        msg = "Key 'thisisclearlynotavalidbuildoption' \(value: 'FAIL'\) is not valid \(valid keys: .*\)"
-        self.assertErrorRegex(Exception, msg, bo.update, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        msg = "Encountered unknown keys .* \(known keys: .*"
+        self.assertErrorRegex(Exception, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

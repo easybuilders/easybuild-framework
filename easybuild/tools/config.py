@@ -40,7 +40,7 @@ import string
 import tempfile
 import time
 from vsc import fancylogger
-from vsc.utils.missing import nub, ConstantDict
+from vsc.utils.missing import nub, FrozenDictKnownKeys
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
@@ -109,7 +109,7 @@ oldstyle_environment_variables = {
 }
 
 
-class ConfigurationVariables(ConstantDict):
+class ConfigurationVariables(FrozenDictKnownKeys):
     """This is a dict that supports legacy config names transparently."""
 
     REQUIRED = [
@@ -145,6 +145,15 @@ class ConfigurationVariables(ConstantDict):
 
     KNOWN_KEYS = nub(OLDSTYLE_NEWSTYLEMAP.values() + REQUIRED)
 
+    def __init__(self, *args, **kwargs):
+        """Custom constructor for the ConfigurationVariables class, with oldstyle support."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        if args:
+            newdict = self.map_to_newstyle(args[0])
+            args[0].clear()
+            args[0].update(newdict)
+        super(ConfigurationVariables, self).__init__(*args, **kwargs)
+
     def get_items_check_required(self, no_missing=True):
         """
         For all REQUIRED, check if exists and return all key,value pairs.
@@ -160,13 +169,23 @@ class ConfigurationVariables(ConstantDict):
 
         return self.items()
 
-    def _check_oldstyle(self, key):
+    @staticmethod
+    def _check_oldstyle(key):
         """Check for oldstyle key usage, return newstyle key."""
-        if key in self.OLDSTYLE_NEWSTYLEMAP:
-            newkey = self.OLDSTYLE_NEWSTYLEMAP.get(key)
-            self.log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
+        log = fancylogger.getLogger('ConfigurationVariables._check_oldstyle', fname=False)
+        if key in ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP:
+            newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key)
+            log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
             key = newkey
         return key
+
+    @staticmethod
+    def map_to_newstyle(adict):
+        """Map a dictionary with oldstyle keys to the new style."""
+        res = {}
+        for key, val in adict.items():
+            res[ConfigurationVariables._check_oldstyle(key)] = val
+        return res
 
     def __getitem__(self, key):
         """__getitem___ to deal with oldstyle key"""
@@ -185,7 +204,7 @@ class ConfigurationVariables(ConstantDict):
         return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
 
-class BuildOptions(ConstantDict):
+class BuildOptions(FrozenDictKnownKeys):
     """Representation of a set of build options, acts like a dictionary."""
 
     KNOWN_KEYS = [
@@ -313,16 +332,18 @@ def init(options, config_options_dict):
     Gather all variables and check if they're valid
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
-    # initialize (global) variables
-    init_variables()
+    tmpdict = {}
 
     if SUPPORT_OLDSTYLE:
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
-        oldstyle_init(options.config)
+        tmpdict.update(oldstyle_init(options.config))
 
         # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
-        VARIABLES['moduleclasses'] = nub(list(VARIABLES.get('moduleclasses', [])) +
+        tmpdict['moduleclasses'] = nub(list(tmpdict.get('moduleclasses', [])) +
                                          [x[0] for x in DEFAULT_MODULECLASSES])
+
+        # make sure we have new-style keys
+        tmpdict = ConfigurationVariables.map_to_newstyle(tmpdict)
 
         # all defaults are now set in generaloption
         # distinguish between default generaloption values and values actually passed by generaloption
@@ -333,14 +354,17 @@ def init(options, config_options_dict):
                     continue
                 # remove the default options if they are set in variables
                 # this way, all defaults are set
-                if dest in VARIABLES:
+                if dest in tmpdict:
                     _log.debug("Oldstyle support: no action for dest %s." % dest)
                     del config_options_dict[dest]
 
     # update the variables with the generaloption values
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
-    VARIABLES.update_skip_unknown(config_options_dict)
-    VARIABLES.set_defined()
+    tmpdict.update(config_options_dict)
+
+    # initialize (global) variables
+    global VARIABLES
+    VARIABLES = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
 
     _log.debug("Config variables: %s" % VARIABLES)
 
@@ -556,16 +580,19 @@ def oldstyle_init(filename, **kwargs):
     Gather all variables and check if they're valid
     Variables are read in this order of preference: CLI option > environment > config file
     """
+    res = {}
     _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
 
-    _log.debug('variables before oldstyle_init %s' % VARIABLES)
-    VARIABLES.update_skip_unknown(oldstyle_read_configuration(filename))  # config file
-    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, VARIABLES))
-    VARIABLES.update(oldstyle_read_environment())  # environment
-    _log.debug('variables after oldstyle_init read_environment %s' % VARIABLES)
+    _log.debug('variables before oldstyle_init %s' % res)
+    res.update(oldstyle_read_configuration(filename))  # config file
+    _log.debug('variables after oldstyle_init read_configuration (%s) %s' % (filename, res))
+    res.update(oldstyle_read_environment())  # environment
+    _log.debug('variables after oldstyle_init read_environment %s' % res)
     if kwargs:
-        VARIABLES.update(kwargs)  # CLI options
-        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, VARIABLES))
+        res.update(kwargs)  # CLI options
+        _log.debug('variables after oldstyle_init kwargs (passed %s) %s' % (kwargs, res))
+
+    return res
 
 
 def oldstyle_read_configuration(filename):
@@ -647,10 +674,3 @@ def set_tmpdir(tmpdir=None):
         _log.error("Failed to test whether temporary directory allows to execute files: %s" % err)
 
     return current_tmpdir
-
-
-def init_variables():
-    """Initialize variables."""
-    # config variables 'constant'
-    global VARIABLES
-    VARIABLES = ConfigurationVariables()
