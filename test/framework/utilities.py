@@ -31,7 +31,12 @@ Various test utility functions.
 import os
 import re
 import sys
+import tempfile
 from unittest import TestCase, TestLoader, main
+from vsc import fancylogger
+
+import easybuild.tools.options as eboptions
+from easybuild.tools import config
 
 
 class EnhancedTestCase(TestCase):
@@ -54,6 +59,38 @@ class EnhancedTestCase(TestCase):
             else:
                 msg = str(err)
             self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
+
+    def setUp(self):
+        """Set up testcase."""
+        self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
+        self.cwd = os.getcwd()
+
+        self.orig_paths = {}
+        for path in ['buildpath', 'installpath', 'sourcepath']:
+            self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
+
+        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        os.environ['EASYBUILD_BUILDPATH'] = tempfile.mkdtemp()
+        os.environ['EASYBUILD_INSTALLPATH'] = tempfile.mkdtemp()
+        init_config()
+
+    def tearDown(self):
+        """Clean up after running testcase."""
+        os.chdir(self.cwd)
+
+        for path in ['buildpath', 'installpath', 'sourcepath']:
+            if self.orig_paths[path] is not None:
+                os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
+            else:
+                del os.environ['EASYBUILD_%s' % path.upper()]
+        init_config()
+
+
+def init_config():
+    """(re)initialize configuration"""
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options()
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
 
 def find_full_path(base_path, trim=(lambda x: x)):
