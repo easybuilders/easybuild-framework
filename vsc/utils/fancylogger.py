@@ -51,7 +51,7 @@ usage:
 >>> fancylogger.getLogger(fname=True)
 >>> # you can use the handler to set a different formatter by using
 >>> handler = fancylogger.logToFile('dir/filename')
->>> formatstring = '%(asctime)-15s %(levelname)-10s %(mpirank)-5s %(funcname)-15s %(threadname)-10s %(message)s'
+>>> formatstring = '%(asctime)-15s %(levelname)-10s %(mpirank)-5s %(funcname)-15s %(threadName)-10s %(message)s'
 >>> handler.setFormatter(logging.Formatter(formatstring))
 >>> # setting a global loglevel will impact all logers:
 >>> from vsc.utils import fancylogger
@@ -83,11 +83,11 @@ import weakref
 from distutils.version import LooseVersion
 
 # constants
-TEST_LOGGING_FORMAT = '%(levelname)-10s %(name)-15s %(threadname)-10s  %(message)s'
+TEST_LOGGING_FORMAT = '%(levelname)-10s %(name)-15s %(threadName)-10s  %(message)s'
 DEFAULT_LOGGING_FORMAT = '%(asctime)-15s ' + TEST_LOGGING_FORMAT
 FANCYLOG_LOGGING_FORMAT = None
 
-# DEFAULT_LOGGING_FORMAT= '%(asctime)-15s %(levelname)-10s %(module)-15s %(threadname)-10s %(message)s'
+# DEFAULT_LOGGING_FORMAT= '%(asctime)-15s %(levelname)-10s %(module)-15s %(threadName)-10s %(message)s'
 MAX_BYTES = 100 * 1024 * 1024  # max bytes in a file with rotating file handler
 BACKUPCOUNT = 10  # number of rotating log files to save
 
@@ -107,7 +107,7 @@ try:
     if MPI.COMM_WORLD.Get_size() > 1:
         # enable mpi rank when mpi is used
         DEFAULT_LOGGING_FORMAT = '%(asctime)-15s %(levelname)-10s %(name)-15s' \
-                                 " mpi: %(mpirank)s %(threadname)-10s  %(message)s"
+                                 " mpi: %(mpirank)s %(threadName)-10s  %(message)s"
 except ImportError:
     _MPIRANK = "N/A"
 
@@ -138,9 +138,9 @@ class FancyStreamHandler(logging.StreamHandler):
         logging.StreamHandler.__init__(self)
         if stream is not None:
             pass
-        elif stdout == False or stdout is None:
+        elif stdout is False or stdout is None:
             stream = sys.stderr
-        elif stdout == True:
+        elif stdout is True:
             stream = sys.stdout
 
         self.stream = stream
@@ -154,7 +154,12 @@ class FancyLogRecord(logging.LogRecord):
     def __init__(self, *args, **kwargs):
         logging.LogRecord.__init__(self, *args, **kwargs)
         # modify custom specifiers here
-        self.threadname = thread_name()  # actually threadName already exists?
+        # we won't do this when running with -O, becuase this might be a heavy operation
+        # the __debug__ operation is actually recognised by the python compiler and it won't even do a single comparison
+        if __debug__:
+            self.className = _getCallingClassName(depth=5)
+        else:
+            self.className = 'N/A'
         self.mpirank = _MPIRANK
 
 
@@ -301,7 +306,7 @@ class FancyLogger(logging.getLoggerClass()):
 
     def __copy__(self):
         """Return shallow copy, in this case reference to current logger"""
-        return getLogger(self.name, fname=False)
+        return getLogger(self.name, fname=False, clsname=False)
 
     def __deepcopy__(self, memo):
         """This behaviour is undefined, fancylogger will return shallow copy, instead just crashing."""
@@ -315,15 +320,17 @@ def thread_name():
     return threading.currentThread().getName()
 
 
-def getLogger(name=None, fname=True):
+def getLogger(name=None, fname=True, clsname=False):
     """
     returns a fancylogger
-    if fname is True, the loggers name will be 'name.functionname'
-    where functionname is the name of the function calling this function
+    if fname is True, the loggers name will be 'name[.classname].functionname'
+    if clsname is True the loggers name will be 'name.classname[.functionname]'
     """
     nameparts = [getRootLoggerName()]
     if name:
         nameparts.append(name)
+    if clsname:
+        nameparts.append(_getCallingClassName())
     if fname:
         nameparts.append(_getCallingFunctionName())
     fullname = ".".join(nameparts)
@@ -349,6 +356,18 @@ def _getCallingFunctionName():
         return "?"
 
 
+def _getCallingClassName(depth=2):
+    """
+    returns the name of the class calling the function calling this function
+    (for internal use only)
+    """
+    try:
+        return inspect.stack()[depth][0].f_locals['self'].__class__.__name__
+
+    except Exception:
+        return "?"
+
+
 def getRootLoggerName():
     """
     returns the name of the root module
@@ -370,10 +389,10 @@ def logToScreen(enable=True, handler=None, name=None, stdout=False):
     you can also pass the name of the logger for which to log to the screen
     otherwise you'll get all logs on the screen
 
-    by default, logToScreen will log to stderr; logging to stderr instead can be done
+    by default, logToScreen will log to stderr; logging to stdout instead can be done
     by setting the 'stdout' parameter to True
     """
-    handleropts = {'stdout':stdout}
+    handleropts = {'stdout': stdout}
 
     return _logToSomething(FancyStreamHandler,
                            handleropts,
@@ -439,7 +458,7 @@ def _logToSomething(handlerclass, handleropts, loggeroption, enable=True, name=N
 
     if you want to disable logging to the handler, pass the earlier obtained handler
     """
-    logger = getLogger(name, fname=False)
+    logger = getLogger(name, fname=False, clsname=False)
 
     if not hasattr(logger, loggeroption):
         # not set.
@@ -517,7 +536,7 @@ def setLogLevel(level):
     """
     if isinstance(level, basestring):
         level = getLevelInt(level)
-    logger = getLogger(fname=False)
+    logger = getLogger(fname=False, clsname=False)
     logger.setLevel(level)
     if os.environ.get('FANCYLOGGER_LOGLEVEL_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
         print "FANCYLOGGER_LOGLEVEL_DEBUG", level, logging.getLevelName(level)
