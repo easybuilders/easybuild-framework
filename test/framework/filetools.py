@@ -53,7 +53,8 @@ class FileToolsTest(EnhancedTestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        """Set up testcase."""
+        super(FileToolsTest, self).setUp()
         self.legacySetUp()
 
     def legacySetUp(self):
@@ -61,16 +62,6 @@ class FileToolsTest(EnhancedTestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-
-        # initialize configuration so modules_tool() function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
-
-        self.cwd = os.getcwd()
-
-    def tearDown(self):
-        """cleanup"""
-        os.chdir(self.cwd)
 
     def test_extract_cmd(self):
         """Test various extract commands."""
