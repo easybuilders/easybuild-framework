@@ -116,6 +116,41 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_req(self):
+        """Testcase for make_module_req"""
+        self.contents = """
+name = "pi"
+version = "3.14"
+homepage = "http://example.com"
+description = "test easyconfig"
+toolchain = {"name":"dummy", "version": "dummy"}
+"""
+        self.writeEC()
+        eb = EasyBlock(self.eb_file)
+        eb.installdir = config.variables['installpath']
+
+        #create fake directories and files that should be guessed
+        open(os.path.join(eb.installdir, 'foo.jar'), 'a').close()
+        open(os.path.join(eb.installdir, 'bla.jar'), 'a').close()
+        os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'share'))
+        os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
+        #this is not a path that should be picked up
+        os.mkdir(os.path.join(eb.installdir, 'CPATH'))
+
+        guess = eb.make_module_req()
+
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+        self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = """
@@ -206,6 +241,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = os.path.join(config.variables['installpath'], config.variables['subdir_software'], 'pi', '3.14')
+
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
 

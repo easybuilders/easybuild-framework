@@ -45,6 +45,7 @@ import stat
 import sys
 import time
 import traceback
+import glob
 import urllib
 from distutils.version import LooseVersion
 from vsc import fancylogger
@@ -129,7 +130,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.moduleGenerator = None
+        self.moduleGenerator = ModuleGenerator(self, fake=True)
 
         # modules footer
         self.modules_footer = None
@@ -866,11 +867,19 @@ class EasyBlock(object):
         """
         requirements = self.make_module_req_guess()
 
+        cwd = os.getcwd()
+        try:
+            os.chdir(self.installdir)
+        except OSError:
+            # The installdir does not exist, so there is nothing to guess
+            return ""
         txt = "\n"
         for key in sorted(requirements):
             for path in requirements[key]:
-                if os.path.exists(os.path.join(self.installdir, path)):
-                    txt += self.moduleGenerator.prepend_paths(key, [path])
+                paths = glob.glob(path)
+                if paths:
+                    txt += self.moduleGenerator.prepend_paths(key, paths)
+        os.chdir(cwd)
         return txt
 
     def make_module_req_guess(self):
@@ -885,6 +894,7 @@ class EasyBlock(object):
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
             'ACLOCAL_PATH' : ['share/aclocal'],
+            'CLASSPATH' : ['*.jar'],
         }
 
     def load_module(self, mod_paths=None, purge=True):
@@ -1693,7 +1703,7 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.moduleGenerator = ModuleGenerator(self, fake)
+        self.moduleGenerator.fake = fake
         modpath = self.moduleGenerator.create_files()
 
         txt = ''
