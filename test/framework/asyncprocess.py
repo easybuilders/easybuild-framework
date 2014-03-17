@@ -42,8 +42,8 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup a basic shell """
+        super(AsyncProcessTest, self).setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
-        self.cwd = os.getcwd()
 
     def runTest(self):
         """ try echoing some text and see if it comes back out """
@@ -62,7 +62,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def tearDown(self):
         """cleanup"""
-        os.chdir(self.cwd)
+        super(AsyncProcessTest, self).tearDown()
 
 def suite():
     """ returns all the testcases in this module """

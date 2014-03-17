@@ -27,7 +27,7 @@ Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import re
 import sys
@@ -37,6 +37,7 @@ from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
 from easybuild.tools import config
+from easybuild.tools.environment import modify_env
 
 
 class EnhancedTestCase(TestCase):
@@ -62,8 +63,11 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.cwd = os.getcwd()
+
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
 
         self.orig_paths = {}
         for path in ['buildpath', 'installpath', 'sourcepath']:
@@ -77,12 +81,14 @@ class EnhancedTestCase(TestCase):
     def tearDown(self):
         """Clean up after running testcase."""
         os.chdir(self.cwd)
+        modify_env(os.environ, self.orig_environ)
 
         for path in ['buildpath', 'installpath', 'sourcepath']:
             if self.orig_paths[path] is not None:
                 os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
             else:
-                del os.environ['EASYBUILD_%s' % path.upper()]
+                if 'EASYBUILD_%s' % path.upper() in os.environ:
+                    del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
 

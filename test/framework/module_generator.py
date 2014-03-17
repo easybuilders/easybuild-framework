@@ -60,8 +60,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-        init_config()
-
+        super(ModuleGeneratorTest, self).setUp()
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
@@ -70,12 +69,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        self.cwd = os.getcwd()
 
     def tearDown(self):
         """cleanup"""
+        super(ModuleGeneratorTest, self).tearDown()
         os.remove(self.eb.logfile)
-        os.chdir(self.cwd)
         shutil.rmtree(self.modgen.app.installdir)
 
     def test_descr(self):

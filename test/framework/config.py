@@ -63,6 +63,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Prepare for running a config test."""
+        super(EasyBuildConfigTest, self).setUp()
+
         self.tmpdir = tempfile.mkdtemp()
         self.cleanup()
         # keep track of original environment to restore
@@ -77,12 +79,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up after a config test."""
+        super(EasyBuildConfigTest, self).tearDown()
+
         self.cleanup()
         try:
             shutil.rmtree(self.tmpdir)
         except OSError:
             pass
-        modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
 
     def configure_options(self, args=None):
