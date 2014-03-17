@@ -30,6 +30,7 @@ Various test utility functions.
 import copy
 import os
 import re
+import shutil
 import sys
 import tempfile
 from unittest import TestCase, TestLoader, main
@@ -74,14 +75,22 @@ class EnhancedTestCase(TestCase):
             self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
         os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
-        os.environ['EASYBUILD_BUILDPATH'] = tempfile.mkdtemp()
-        os.environ['EASYBUILD_INSTALLPATH'] = tempfile.mkdtemp()
+        self.test_buildpath = tempfile.mkdtemp()
+        os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
+        self.test_installpath = tempfile.mkdtemp()
+        os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
         init_config()
 
     def tearDown(self):
         """Clean up after running testcase."""
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
+
+        for path in [self.test_buildpath, self.test_installpath]:
+            try:
+                shutil.rmtree(path)
+            except OSError, err:
+                pass
 
         for path in ['buildpath', 'installpath', 'sourcepath']:
             if self.orig_paths[path] is not None:
