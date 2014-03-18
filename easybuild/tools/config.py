@@ -41,6 +41,7 @@ import tempfile
 import time
 from vsc import fancylogger
 from vsc.utils.missing import nub, FrozenDictKnownKeys
+from vsc.utils.patterns import Singleton
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
@@ -49,9 +50,6 @@ from easybuild.tools.filetools import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
-
-# configuration variables as a global constant
-VARIABLES = None
 
 # class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
 SUPPORT_OLDSTYLE = True
@@ -140,6 +138,9 @@ def map_to_newstyle(adict):
 class ConfigurationVariables(FrozenDictKnownKeys):
     """This is a dict that supports legacy config names transparently."""
 
+    # singleton class: only one instance is created
+    __metaclass__ = Singleton
+
     REQUIRED = [
         'config',
         'prefix',
@@ -177,6 +178,9 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 
 class BuildOptions(FrozenDictKnownKeys):
     """Representation of a set of build options, acts like a dictionary."""
+
+    # singleton class: only one instance is created
+    __metaclass__ = Singleton
 
     KNOWN_KEYS = [
         'aggregate_regtest',
@@ -333,11 +337,10 @@ def init(options, config_options_dict):
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
     tmpdict.update(config_options_dict)
 
-    # initialize (global) variables
-    global VARIABLES
-    VARIABLES = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
+    # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
+    variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
 
-    _log.debug("Config variables: %s" % VARIABLES)
+    _log.debug("Config variables: %s" % variables)
 
     def create_dir(dirtype, dirname):
         _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
@@ -347,7 +350,7 @@ def init(options, config_options_dict):
             _log.error("Failed to create directory %s: %s" % (dirname, err))
         _log.debug("%s directory %s created" % (dirtype, dirname))
 
-    for key, value in VARIABLES.get_items_check_required():
+    for key, value in variables.get_items_check_required():
         # verify directories, try and create them if they don't exist
         if key in ['buildpath', 'installpath', 'sourcepath']:
             if not isinstance(value, (list, tuple,)):
@@ -366,20 +369,21 @@ def build_path():
     """
     Return the build path
     """
-    return VARIABLES['buildpath']
+    return ConfigurationVariables()['buildpath']
 
 
 def source_paths():
     """
     Return the list of source paths
     """
-    if isinstance(VARIABLES['sourcepath'], basestring):
-        return VARIABLES['sourcepath'].split(':')
-    elif isinstance(VARIABLES['sourcepath'], (tuple, list)):
-        return VARIABLES['sourcepath']
+    variables = ConfigurationVariables()
+    if isinstance(variables['sourcepath'], basestring):
+        return variables['sourcepath'].split(':')
+    elif isinstance(variables['sourcepath'], (tuple, list)):
+        return variables['sourcepath']
     else:
-        typ = type(VARIABLES['sourcepath'])
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, VARIABLES['sourcepath']))
+        typ = type(variables['sourcepath'])
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
 
 
 def source_path():
@@ -396,14 +400,16 @@ def install_path(typ=None):
     - subdir 'software' for actual installation (default)
     - subdir 'modules' for environment modules (typ='mod')
     """
+    variables = ConfigurationVariables()
+
     if typ is None:
         typ = 'software'
     if typ == 'mod':
         typ = 'modules'
 
     key = "subdir_%s" % typ
-    if key in VARIABLES:
-        suffix = VARIABLES[key]
+    if key in variables:
+        suffix = variables[key]
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('%s not set in config, returning default' % key, "2.0")
@@ -413,21 +419,21 @@ def install_path(typ=None):
         except:
             _log.error('install_path trying to get unknown suffix %s' % key)
 
-    return os.path.join(VARIABLES['installpath'], suffix)
+    return os.path.join(variables['installpath'], suffix)
 
 
 def get_repository():
     """
     Return the repository (git, svn or file)
     """
-    return VARIABLES['repository']
+    return ConfigurationVariables()['repository']
 
 
 def get_repositorypath():
     """
     Return the repository path
     """
-    return VARIABLES['repositorypath']
+    return ConfigurationVariables()['repositorypath']
 
 
 def get_modules_tool():
@@ -435,22 +441,23 @@ def get_modules_tool():
     Return modules tool (EnvironmentModulesC, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
-    return VARIABLES.get('modules_tool', None)
+    return ConfigurationVariables().get('modules_tool', None)
 
 
 def get_module_naming_scheme():
     """
     Return module naming scheme (EasyBuildModuleNamingScheme, ...)
     """
-    return VARIABLES['module_naming_scheme']
+    return ConfigurationVariables()['module_naming_scheme']
 
 
 def log_file_format(return_directory=False):
     """Return the format for the logfile or the directory"""
     idx = int(not return_directory)
 
-    if 'logfile_format' in VARIABLES:
-        res = VARIABLES['logfile_format'][idx]
+    variables = ConfigurationVariables()
+    if 'logfile_format' in variables:
+        res = variables['logfile_format'][idx]
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('logfile_format not set in config, returning default', "2.0")
@@ -478,8 +485,9 @@ def get_build_log_path():
     """
     return temporary log directory
     """
-    if 'tmp_logdir' in VARIABLES:
-        return VARIABLES['tmp_logdir']
+    variables = ConfigurationVariables()
+    if 'tmp_logdir' in variables:
+        return variables['tmp_logdir']
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('tmp_logdir not set in config, returning default', "2.0")
@@ -531,8 +539,9 @@ def module_classes():
     """
     Return list of module classes specified in config file.
     """
-    if 'moduleclasses' in VARIABLES:
-        return VARIABLES['moduleclasses']
+    variables = ConfigurationVariables()
+    if 'moduleclasses' in variables:
+        return variables['moduleclasses']
     else:
         # TODO remove default setting. it should have been set through options
         _log.deprecated('moduleclasses not set in config, returning default', "2.0")

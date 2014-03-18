@@ -39,8 +39,7 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.main import main
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import write_file
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -49,9 +48,6 @@ class ToyBuildTest(EnhancedTestCase):
     def setUp(self):
         """Test setup."""
         super(ToyBuildTest, self).setUp()
-
-        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
-        os.close(fd)
 
         fd, self.dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -77,7 +73,6 @@ class ToyBuildTest(EnhancedTestCase):
     def tearDown(self):
         """Cleanup."""
         # remove logs
-        os.remove(self.logfile)
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
@@ -118,13 +113,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--force',
                 '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                ]
-        try:
-            main((args, self.dummylogfn, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            print "err: %s" % err
-        outtxt = read_file(self.logfile)
+        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
 
@@ -147,11 +136,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--toolchain=dummy,dummy',
             '--experimental',
         ]
-        try:
-            main((args, self.dummylogfn, True))
-        except SystemExit:
-            pass
-        outtxt = read_file(self.logfile)
+        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
 
@@ -181,13 +166,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--unittest-file=%s' % self.logfile,
                 '--force',
                ]
-        try:
-            main((args, self.dummylogfn, True))
-        except SystemExit:
-            pass
-        except Exception, err:
-            print "err: %s" % err
-        outtxt = read_file(self.logfile)
+        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         for toy_prefix, toy_version, toy_suffix in [
             ('', '0.0', '-somesuffix'),
@@ -227,13 +206,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--toolchain=dummy,dummy',
                 '--experimental',
             ]
-            try:
-                main((args, self.dummylogfn, True))
-            except SystemExit:
-                pass
-            # except Exception, err:
-            #    print "err: %s" % err
-            outtxt = read_file(self.logfile)
+            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
             specs['version'] = version
 

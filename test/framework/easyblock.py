@@ -101,7 +101,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
 """
         self.writeEC()
         eb = EasyBlock(self.eb_file)
-        eb.installdir = config.VARIABLES['installpath']
+        eb.installdir = config.build_path()
         fake_mod_data = eb.load_fake_module()
         eb.clean_up_fake_module(fake_mod_data)
 
@@ -123,7 +123,7 @@ exts_list = ['ext1']
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(self.eb_file)
-        eb.installdir = config.VARIABLES['installpath']
+        eb.installdir = config.install_path()
         self.assertRaises(EasyBuildError, eb.extensions_step)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
 
@@ -131,8 +131,8 @@ exts_list = ['ext1']
         self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
         self.writeEC()
         eb = EasyBlock(self.eb_file)
-        eb.builddir = config.VARIABLES['buildpath']
-        eb.installdir = config.VARIABLES['installpath']
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.extensions_step()
 
         # test for proper error message when skip is set, but no exts_filter is set
@@ -159,8 +159,8 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
-        eb.builddir = config.VARIABLES['buildpath']
-        eb.installdir = config.VARIABLES['installpath']
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.skip = True
         eb.extensions_step()
         # 'ext1' should be in eb.exts

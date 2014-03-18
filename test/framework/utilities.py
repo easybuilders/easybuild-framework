@@ -37,8 +37,10 @@ from unittest import TestCase
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
+from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import read_file
 
 
 class EnhancedTestCase(TestCase):
@@ -65,6 +67,8 @@ class EnhancedTestCase(TestCase):
     def setUp(self):
         """Set up testcase."""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
         self.cwd = os.getcwd()
 
         # keep track of original environment to restore
@@ -87,6 +91,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
+        os.remove(self.logfile)
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
@@ -108,13 +113,39 @@ class EnhancedTestCase(TestCase):
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
+        """Helper method to call EasyBuild main function."""
+        # clear instances of ConfigurationVariables to ensure configuration is reinitialized
+        config.ConfigurationVariables.__metaclass__._instances.clear()
+        myerr = False
+        if logfile is None:
+            logfile = self.logfile
+        try:
+            main((args, logfile, do_build))
+        except SystemExit:
+            pass
+        except Exception, err:
+            myerr = err
+            if verbose:
+                print "err: %s" % err
 
-def init_config():
+        if return_error:
+            return read_file(self.logfile), myerr
+        else:
+            return read_file(self.logfile)
+
+
+def init_config(args=None):
     """(re)initialize configuration"""
+
+    # clean up any instances of ConfigurationVariables before reinitializing configuration
+    config.ConfigurationVariables.__metaclass__._instances.clear()
+
     # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
+    eb_go = eboptions.parse_options(args=args)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+    return eb_go.options
 
 def find_full_path(base_path, trim=(lambda x: x)):
     """
