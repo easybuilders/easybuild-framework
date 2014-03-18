@@ -150,7 +150,7 @@ def main(testing_data=(None, None, None)):
         options.force = True
         retain_all_deps = True
 
-    build_options = {
+    config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'check_osdeps': not options.ignore_osdeps,
         'command_line': eb_command_line,
@@ -175,7 +175,7 @@ def main(testing_data=(None, None, None)):
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         'validate': not options.force,
-    }
+    })
 
     # search for easyconfigs
     if options.search or options.search_short:

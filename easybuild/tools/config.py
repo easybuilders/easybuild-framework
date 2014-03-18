@@ -372,6 +372,21 @@ def init(options, config_options_dict):
                     create_dir(key, directory)
 
 
+def init_build_options(build_options):
+    """Initialize build options."""
+    # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
+    return BuildOptions(build_options)
+
+
+def build_option(key):
+    """Obtain value specified build option."""
+    build_options = BuildOptions()
+    if key in build_options:
+        return build_options[key]
+    else:
+        _log.error("No such build option '%s' defined (only: %s)" % (key, build_options.keys()))
+
+
 def build_path():
     """
     Return the build path

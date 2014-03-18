@@ -40,7 +40,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.options as eboptions
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
 from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions, ConfigurationVariables
-from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
@@ -499,6 +499,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertTrue(bo1 is bo2)
         self.assertTrue(bo1 is bo3)
 
+        # test basic functionality
         BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
         bo = BuildOptions({
             'debug': False,
@@ -514,7 +515,20 @@ modules_install_suffix = '%(modsuffix)s'
         # only valid keys can be set
         BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
         msg = "Encountered unknown keys .* \(known keys: .*"
-        self.assertErrorRegex(Exception, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+
+        # test init_build_options and build_option functions
+        self.assertErrorRegex(KeyError, msg, init_build_options, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        bo = init_build_options({
+            'robot_path': '/some/robot/path',
+            'stop': 'configure',
+        })
+        bo2 = BuildOptions()
+        self.assertTrue(bo is bo2)
+        self.assertEqual(bo['robot_path'], '/some/robot/path')
+        self.assertEqual(bo['stop'], 'configure')
+        self.assertTrue(not 'debug' in bo)
+
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
