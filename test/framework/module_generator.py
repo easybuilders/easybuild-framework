@@ -30,29 +30,19 @@ Unit tests for module_generator.py.
 """
 
 import os
-import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.missing import get_subclasses
 
-import easybuild.tools.options as eboptions
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
-
-
-def init_config():
-    """(re)initialize configuration"""
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
 
 class ModuleGeneratorTest(EnhancedTestCase):

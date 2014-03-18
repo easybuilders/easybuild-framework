@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase, TestLoader, main
+from unittest import TestCase
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
@@ -48,7 +48,7 @@ class EnhancedTestCase(TestCase):
         """Convenience method to match regex with the expected error message"""
         try:
             call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
+            str_kwargs = ', '.join(['='.join([k, str(v)]) for (k, v) in kwargs.items()])
             str_args = ', '.join(map(str, args) + [str_kwargs])
             self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error, err:
@@ -70,11 +70,15 @@ class EnhancedTestCase(TestCase):
         # keep track of original environment to restore
         self.orig_environ = copy.deepcopy(os.environ)
 
+        # keep track of original environment/Python search path to restore
+        self.orig_sys_path = sys.path[:]
+
         self.orig_paths = {}
         for path in ['buildpath', 'installpath', 'sourcepath']:
             self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
-        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        self.test_sourcepath = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
@@ -85,6 +89,10 @@ class EnhancedTestCase(TestCase):
         """Clean up after running testcase."""
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
+
+        # restore original Python search path
+        sys.path = self.orig_sys_path
 
         for path in [self.test_buildpath, self.test_installpath]:
             try:

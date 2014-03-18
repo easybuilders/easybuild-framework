@@ -35,9 +35,7 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-import easybuild.tools.config as config
 import easybuild.tools.modules as modules
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
@@ -47,9 +45,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up everything for a unit test."""
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        super(ToolchainTest, self).setUp()
 
         # start with a clean slate
         modules.modules_tool().purge()
@@ -464,8 +460,11 @@ class ToolchainTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
-        # purge any loaded modules, restore $MODULEPATH
+        # purge any loaded modules before restoring $MODULEPATH
         modules.modules_tool().purge()
+
+        super(ToolchainTest, self).tearDown()
+
         os.environ['MODULEPATH'] = self.orig_modpath
         # reinitialize modules tool after touching $MODULEPATH
         modules.modules_tool()

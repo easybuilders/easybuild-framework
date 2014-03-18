@@ -30,7 +30,6 @@ Unit tests for modules.py.
 @author: Stijn De Weirdt (Ghent University)
 """
 
-import copy
 import os
 import re
 import tempfile
@@ -38,10 +37,7 @@ import shutil
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-import easybuild.tools.options as eboptions
-from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env
 from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
@@ -54,16 +50,9 @@ class ModulesTest(EnhancedTestCase):
 
     def setUp(self):
         """set up everything for a unit test."""
-        # keep track of original environment, so we can restore it
-        self.orig_environ = copy.deepcopy(os.environ)
+        super(ModulesTest, self).setUp()
 
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
-
-        self.cwd = os.getcwd()
         self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-
         self.testmods = None
 
         # purge with original $MODULEPATH before running each test
@@ -239,11 +228,11 @@ class ModulesTest(EnhancedTestCase):
 
     def tearDown(self):
         """cleanup"""
-        os.chdir(self.cwd)
+        super(ModulesTest, self).tearDown()
+
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
         # reinitialize a modules tool, to trigger 'module use' on module paths
         modules_tool()
-        modify_env(os.environ, self.orig_environ)
 
 def suite():
     """ returns all the testcases in this module """

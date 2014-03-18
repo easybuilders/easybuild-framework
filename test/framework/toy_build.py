@@ -28,7 +28,6 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 """
 
-import copy
 import glob
 import os
 import re
@@ -41,8 +40,6 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.main import main
-from easybuild.tools import config
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -51,6 +48,8 @@ class ToyBuildTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
+        super(ToyBuildTest, self).setUp()
+
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
 
@@ -59,7 +58,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         # adjust PYTHONPATH such that test easyblocks are found
         import easybuild
-        self.orig_sys_path = sys.path[:]
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
         if not eb_blocks_path in sys.path:
             sys.path.append(eb_blocks_path)
@@ -72,28 +70,16 @@ class ToyBuildTest(EnhancedTestCase):
         # clear log
         write_file(self.logfile, '')
 
-        self.buildpath = tempfile.mkdtemp()
-        self.installpath = tempfile.mkdtemp()
-        self.sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
-
-        # keep track of original environment to restore
-        self.orig_environ = copy.deepcopy(os.environ)
+        self.test_buildpath = tempfile.mkdtemp()
+        self.test_installpath = tempfile.mkdtemp()
+        self.test_sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
     def tearDown(self):
         """Cleanup."""
         # remove logs
         os.remove(self.logfile)
-
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
-        shutil.rmtree(self.buildpath)
-        shutil.rmtree(self.installpath)
-
-        # restore original Python search path
-        sys.path = self.orig_sys_path
-
-        modify_env(os.environ, self.orig_environ)
-        tempfile.tempdir = None
 
     def check_toy(self, installpath, outtxt, version='0.0', versionprefix='', versionsuffix=''):
         """Check whether toy build succeeded."""
@@ -124,13 +110,13 @@ class ToyBuildTest(EnhancedTestCase):
         """Perform a toy build."""
         args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
-                '--sourcepath=%s' % self.sourcepath,
-                '--buildpath=%s' % self.buildpath,
-                '--installpath=%s' % self.installpath,
+                '--sourcepath=%s' % self.test_sourcepath,
+                '--buildpath=%s' % self.test_buildpath,
+                '--installpath=%s' % self.test_installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
-                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+                '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                ]
         try:
             main((args, self.dummylogfn, True))
@@ -140,7 +126,7 @@ class ToyBuildTest(EnhancedTestCase):
             print "err: %s" % err
         outtxt = read_file(self.logfile)
 
-        self.check_toy(self.installpath, outtxt)
+        self.check_toy(self.test_installpath, outtxt)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
@@ -150,13 +136,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy.eb'),
-            '--sourcepath=%s' % self.sourcepath,
-            '--buildpath=%s' % self.buildpath,
-            '--installpath=%s' % self.installpath,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
-            '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+            '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
             '--software-version=0.0',
             '--toolchain=dummy,dummy',
             '--experimental',
@@ -167,7 +153,7 @@ class ToyBuildTest(EnhancedTestCase):
             pass
         outtxt = read_file(self.logfile)
 
-        self.check_toy(self.installpath, outtxt)
+        self.check_toy(self.test_installpath, outtxt)
 
         # restore
         if modulepath is not None:
@@ -188,9 +174,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         args = [
                 'toy-0.0-multiple.eb',
-                '--sourcepath=%s' % self.sourcepath,
-                '--buildpath=%s' % self.buildpath,
-                '--installpath=%s' % self.installpath,
+                '--sourcepath=%s' % self.test_sourcepath,
+                '--buildpath=%s' % self.test_buildpath,
+                '--installpath=%s' % self.test_installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
@@ -207,7 +193,7 @@ class ToyBuildTest(EnhancedTestCase):
             ('', '0.0', '-somesuffix'),
             ('someprefix-', '0.0', '-somesuffix')
         ]:
-            self.check_toy(self.installpath, outtxt, version=toy_version,
+            self.check_toy(self.test_installpath, outtxt, version=toy_version,
                            versionprefix=toy_prefix, versionsuffix=toy_suffix)
 
         # cleanup
@@ -230,13 +216,13 @@ class ToyBuildTest(EnhancedTestCase):
         for version, specs in versions.items():
             args = [
                 os.path.join(os.path.dirname(__file__), 'easyconfigs', 'v2.0', 'toy-with-sections.eb'),
-                '--sourcepath=%s' % self.sourcepath,
-                '--buildpath=%s' % self.buildpath,
-                '--installpath=%s' % self.installpath,
+                '--sourcepath=%s' % self.test_sourcepath,
+                '--buildpath=%s' % self.test_buildpath,
+                '--installpath=%s' % self.test_installpath,
                 '--debug',
                 '--unittest-file=%s' % self.logfile,
                 '--force',
-                '--robot=%s' % os.pathsep.join([self.buildpath, os.path.dirname(__file__)]),
+                '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                 '--software-version=%s' % version,
                 '--toolchain=dummy,dummy',
                 '--experimental',
@@ -251,7 +237,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             specs['version'] = version
 
-            self.check_toy(self.installpath, outtxt, **specs)
+            self.check_toy(self.test_installpath, outtxt, **specs)
 
 
 def suite():

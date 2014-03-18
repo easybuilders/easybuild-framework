@@ -27,10 +27,7 @@ Unit tests for easyconfig/format/format.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
-
 from easybuild.framework.easyconfig.format.format import FORMAT_VERSION_HEADER_TEMPLATE, FORMAT_VERSION_REGEXP
-from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 

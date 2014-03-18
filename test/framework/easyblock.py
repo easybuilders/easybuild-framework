@@ -29,18 +29,14 @@ Unit tests for easyblock.py
 @author: Kenneth Hoste (Ghent University)
 """
 
-#TODO: implement testcases for each step method
 import os
 import re
-import shutil
 import tempfile
 import sys
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.extension import Extension
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -60,10 +56,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)
-
-        # initialize configuration so modules_tool() function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
         self.orig_tmp_logdir = os.environ.get('EASYBUILD_TMP_LOGDIR', None)
         self.test_tmp_logdir = tempfile.mkdtemp()

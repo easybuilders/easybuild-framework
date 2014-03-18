@@ -28,7 +28,6 @@ Unit tests for eb command line options.
 @author: Kenneth Hoste (Ghent University)
 """
 
-import copy
 import os
 import re
 import shutil
@@ -39,11 +38,9 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.tools.build_log
-import easybuild.tools.options as eboptions
 from easybuild.main import main
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
-from easybuild.tools import config
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
@@ -55,19 +52,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
 
     logfile = None
-    # initialize configuration so modules_tool() function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     def setUp(self):
         """Prepare for running unit tests."""
-        self.pwd = os.getcwd()
+        super(CommandLineOptionsTest, self).setUp()
+
         # create log file
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-options-test-')
         os.close(fd)
-        # keep track of original environment/Python search path to restore
-        self.orig_environ = copy.deepcopy(os.environ)
-        self.orig_sys_path = sys.path[:]
 
         # (re)import and reload easybuild modules
         import easybuild
@@ -84,13 +76,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Post-test cleanup."""
-        os.remove(self.logfile)
-        os.chdir(self.pwd)
-        modify_env(os.environ, self.orig_environ)
-        tempfile.tempdir = None
+        super(CommandLineOptionsTest, self).tearDown()
 
-        # restore original Python search path
-        sys.path = self.orig_sys_path
+        os.remove(self.logfile)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -295,7 +283,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # cleanup for next test
         write_file(self.logfile, '')
-        os.chdir(self.pwd)
+        os.chdir(self.cwd)
         modules_tool().purge()
         # reinitialize modules tool with original $MODULEPATH, to avoid problems with future tests
         modify_env(os.environ, self.orig_environ)
@@ -363,7 +351,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 pass
             outtxt = read_file(self.logfile)
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s %s.*\n" % ' .*'.join(job_args)
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(job_args)
             assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 

@@ -33,11 +33,8 @@ import os
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
-from vsc import fancylogger
 
-import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
-import easybuild.tools.options as eboptions
 from test.framework.utilities import find_full_path
 
 

@@ -30,7 +30,6 @@ Unit tests for EasyBuild configuration.
 """
 import copy
 import os
-import re
 import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
@@ -40,11 +39,9 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
-from easybuild.main import main
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
 from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions
-from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
