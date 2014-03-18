@@ -45,7 +45,7 @@ import subprocess
 import time
 
 from vsc.utils import fancylogger
-from vsc.utils.frozendict import frozendict
+from vsc.utils.frozendict import FrozenDict
 
 
 def any(ls):
@@ -219,7 +219,7 @@ class RUDict(dict):
             self[key] = other_dict[key]
 
 
-class FrozenDictKnownKeys(frozendict):
+class FrozenDictKnownKeys(FrozenDict):
     """A frozen dictionary only allowing known keys."""
 
     # list of known keys
