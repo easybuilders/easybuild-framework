@@ -376,14 +376,13 @@ def source_paths():
     """
     Return the list of source paths
     """
-    variables = ConfigurationVariables()
-    if isinstance(variables['sourcepath'], basestring):
-        return variables['sourcepath'].split(':')
-    elif isinstance(variables['sourcepath'], (tuple, list)):
-        return variables['sourcepath']
+    sourcepath = ConfigurationVariables()['sourcepath']
+    if isinstance(sourcepath, basestring):
+        return sourcepath.split(':')
+    elif isinstance(sourcepath, (tuple, list)):
+        return sourcepath
     else:
-        typ = type(variables['sourcepath'])
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (typ, variables['sourcepath']))
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (type(sourcepath), sourcepath))
 
 
 def source_path():
