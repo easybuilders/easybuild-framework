@@ -197,9 +197,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
-        # also check old style vs new style
-        self.assertEqual(config.VARIABLES['build_path'], config.VARIABLES['buildpath'])
-        self.assertEqual(config.VARIABLES['install_path'], config.VARIABLES['installpath'])
         del os.environ['EASYBUILDBUILDPATH']
 
         self.configure_options()

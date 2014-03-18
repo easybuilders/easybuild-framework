@@ -98,7 +98,7 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-oldstyle_environment_variables = {
+OLDSTYLE_ENVIRONMENT_VARIABLES = {
     'build_path': 'EASYBUILDBUILDPATH',
     'config_file': 'EASYBUILDCONFIG',
     'install_path': 'EASYBUILDINSTALLPATH',
@@ -107,6 +107,34 @@ oldstyle_environment_variables = {
     'source_path': 'EASYBUILDSOURCEPATH',
     'test_output_path': 'EASYBUILDTESTOUTPUT',
 }
+
+
+OLDSTYLE_NEWSTYLE_MAP = {
+    'build_path': 'buildpath',
+    'install_path': 'installpath',
+    'log_dir': 'tmp_logdir',
+    'config_file': 'config',
+    'source_path': 'sourcepath',
+    'log_format': 'logfile_format',
+    'test_output_path': 'testoutput',
+    'module_classes': 'moduleclasses',
+    'repository_path': 'repositorypath',
+    'modules_install_suffix': 'subdir_modules',
+    'software_install_suffix': 'subdir_software',
+}
+
+
+def map_to_newstyle(adict):
+    """Map a dictionary with oldstyle keys to the new style."""
+    log = fancylogger.getLogger('config.map_to_newstyle', fname=False)
+    res = {}
+    for key, val in adict.items():
+        if key in OLDSTYLE_NEWSTYLE_MAP:
+            newkey = OLDSTYLE_NEWSTYLE_MAP.get(key)
+            log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
+            key = newkey
+        res[key] = val
+    return res
 
 
 class ConfigurationVariables(FrozenDictKnownKeys):
@@ -129,30 +157,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'module_naming_scheme',
     ]
 
-    OLDSTYLE_NEWSTYLEMAP = {
-        'build_path': 'buildpath',
-        'install_path': 'installpath',
-        'log_dir': 'tmp_logdir',
-        'config_file': 'config',
-        'source_path': 'sourcepath',
-        'log_format': 'logfile_format',
-        'test_output_path': 'testoutput',
-        'module_classes': 'moduleclasses',
-        'repository_path': 'repositorypath',
-        'modules_install_suffix': 'subdir_modules',
-        'software_install_suffix': 'subdir_software',
-    }
-
-    KNOWN_KEYS = nub(OLDSTYLE_NEWSTYLEMAP.values() + REQUIRED)
-
-    def __init__(self, *args, **kwargs):
-        """Custom constructor for the ConfigurationVariables class, with oldstyle support."""
-        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        if args:
-            newdict = self.map_to_newstyle(args[0])
-            args[0].clear()
-            args[0].update(newdict)
-        super(ConfigurationVariables, self).__init__(*args, **kwargs)
+    KNOWN_KEYS = nub(OLDSTYLE_NEWSTYLE_MAP.values() + REQUIRED)
 
     def get_items_check_required(self, no_missing=True):
         """
@@ -168,40 +173,6 @@ class ConfigurationVariables(FrozenDictKnownKeys):
                 self.log.debug(msg)
 
         return self.items()
-
-    @staticmethod
-    def _check_oldstyle(key):
-        """Check for oldstyle key usage, return newstyle key."""
-        log = fancylogger.getLogger('ConfigurationVariables._check_oldstyle', fname=False)
-        if key in ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP:
-            newkey = ConfigurationVariables.OLDSTYLE_NEWSTYLEMAP.get(key)
-            log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
-            key = newkey
-        return key
-
-    @staticmethod
-    def map_to_newstyle(adict):
-        """Map a dictionary with oldstyle keys to the new style."""
-        res = {}
-        for key, val in adict.items():
-            res[ConfigurationVariables._check_oldstyle(key)] = val
-        return res
-
-    def __getitem__(self, key):
-        """__getitem___ to deal with oldstyle key"""
-        return super(ConfigurationVariables, self).__getitem__(self._check_oldstyle(key))
-
-    def __setitem__(self, key, value):
-        """__setitem___ to deal with oldstyle key"""
-        return super(ConfigurationVariables, self).__setitem__(self._check_oldstyle(key), value)
-
-    def __delitem__(self, key):
-        """__delitem___ to deal with oldstyle key"""
-        super(ConfigurationVariables, self).__delitem__(self._check_oldstyle(key))
-
-    def __contains__(self, key):
-        """__contains___ to deal with oldstyle key"""
-        return super(ConfigurationVariables, self).__contains__(self._check_oldstyle(key))
 
 
 class BuildOptions(FrozenDictKnownKeys):
@@ -254,7 +225,7 @@ def get_default_oldstyle_configfile():
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
-    config_env_var = oldstyle_environment_variables['config_file']
+    config_env_var = OLDSTYLE_ENVIRONMENT_VARIABLES['config_file']
     home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
     if os.getenv(config_env_var):
         _log.debug("Environment variable %s, so using that as config file." % config_env_var)
@@ -343,7 +314,7 @@ def init(options, config_options_dict):
                                          [x[0] for x in DEFAULT_MODULECLASSES])
 
         # make sure we have new-style keys
-        tmpdict = ConfigurationVariables.map_to_newstyle(tmpdict)
+        tmpdict = map_to_newstyle(tmpdict)
 
         # all defaults are now set in generaloption
         # distinguish between default generaloption values and values actually passed by generaloption
@@ -621,7 +592,7 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
                      'and do not use oldstyle environment variables'), '2.0')
     if env_vars is None:
-        env_vars = oldstyle_environment_variables
+        env_vars = OLDSTYLE_ENVIRONMENT_VARIABLES
     result = {}
     for key in env_vars.keys():
         env_var = env_vars[key]
