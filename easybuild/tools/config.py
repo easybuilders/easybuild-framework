@@ -378,13 +378,13 @@ def init_build_options(build_options):
     return BuildOptions(build_options)
 
 
-def build_option(key):
+def build_option(key, default=None):
     """Obtain value specified build option."""
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
     else:
-        _log.error("No such build option '%s' defined (only: %s)" % (key, build_options.keys()))
+        return default
 
 
 def build_path():

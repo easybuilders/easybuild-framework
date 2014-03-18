@@ -57,7 +57,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
-        ec = EasyConfig(ec_file, build_options={'validate': False})
+        ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
 

@@ -115,8 +115,9 @@ class EnhancedTestCase(TestCase):
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
         """Helper method to call EasyBuild main function."""
-        # clear instance of ConfigurationVariables to ensure configuration is reinitialized
+        # clear instance of BuildOptions and ConfigurationVariables to ensure configuration is reinitialized
         config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
+        config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
         myerr = False
         if logfile is None:
             logfile = self.logfile
@@ -135,15 +136,19 @@ class EnhancedTestCase(TestCase):
             return read_file(self.logfile)
 
 
-def init_config(args=None):
+def init_config(args=None, build_options=None):
     """(re)initialize configuration"""
 
-    # clean up any instances of ConfigurationVariables before reinitializing configuration
+    # clean up any instances of BuildOptions and ConfigurationVariables before reinitializing configuration
     config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
+    config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
+    if build_options is not None:
+        config.init_build_options(build_options)
 
     return eb_go.options
 
