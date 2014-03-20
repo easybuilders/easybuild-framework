@@ -200,15 +200,15 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         elif not isinstance(answers, list):
             msg = "Invalid type for answer on %s, no string or list: %s (%s)" % (question, type(answers), answers)
             _log.error(msg)
-        return answers
+        # list is manipulated when answering matching question, so return a copy
+        return answers[:]
 
     newQA = {}
     _log.debug("newQA: ")
     for question, answers in qa.items():
         answers = check_answers_list(answers)
         (answers, regQ) = process_QA(question, answers)
-        # list is manipulated when answering matching question, so take a copy
-        newQA[regQ] = answers[:]
+        newQA[regQ] = answers
         _log.debug("newqa[%s]: %s" % (regQ.pattern, newQA[regQ]))
 
     newstdQA = {}
@@ -218,8 +218,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             answers = check_answers_list(answers)
             for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
                 answers[i] += '\n'
-            # list is manipulated when answering matching question, so take a copy
-            newstdQA[regQ] = answers[:]
+            newstdQA[regQ] = answers
             _log.debug("newstdQA[%s]: %s" % (regQ.pattern, newstdQA[regQ]))
 
     new_no_qa = []
