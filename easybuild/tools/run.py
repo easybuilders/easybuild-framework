@@ -184,40 +184,41 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         splitq = [escape_special(x) for x in regSplit.split(q)]
         regQtxt = split.join(splitq) + split.rstrip('+') + "*$"
         # add optional split at the end
-        for i in range(0, len(a_s)):
-            if not a_s[i].endswith('\n'):
-                a_s[i] += '\n'
+        for i in [idx for idx, a in enumerate(a_s) if not a.endswith('\n')]:
+            a_s[i] += '\n'
         regQ = re.compile(r"" + regQtxt)
         if regQ.search(q):
             return (a_s, regQ)
         else:
             _log.error("runqanda: Question %s converted in %s does not match itself" % (q, regQtxt))
 
+    def check_answers_list(answers):
+        """Make sure we have a list of answers (as strings)."""
+        if isinstance(answers, basestring):
+            answers = [answers]
+        elif not isinstance(answers, list):
+            msg = "Invalid type for answer on %s, no string or list: %s (%s)" % (question, type(answers), answers)
+            _log.error(msg)
+        return answers
+
     newQA = {}
     _log.debug("newQA: ")
     for question, answers in qa.items():
-        if not isinstance(answers, list):
-            answers = [answers]
-        else:
-            # list may be manipulated (elements removed), so take a copy
-            answers = answers[:]
+        answers = check_answers_list(answers)
         (answers, regQ) = process_QA(question, answers)
-        newQA[regQ] = answers
+        # list is manipulated when answering matching question, so take a copy
+        newQA[regQ] = answers[:]
         _log.debug("newqa[%s]: %s" % (regQ.pattern, newQA[regQ]))
 
     newstdQA = {}
     if std_qa:
         for question, answers in std_qa.items():
             regQ = re.compile(r"" + question + r"[\s\n]*$")
-            if not isinstance(answers, list):
-                answers = [answers]
-            else:
-            # list may be manipulated (elements removed), so take a copy
-                answers = answers[:]
-            for i in range(0, len(answers)):
-                if not answers[i].endswith('\n'):
-                    answers[i] += '\n'
-            newstdQA[regQ] = answers
+            answers = check_answers_list(answers)
+            for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
+                answers[i] += '\n'
+            # list is manipulated when answering matching question, so take a copy
+            newstdQA[regQ] = answers[:]
             _log.debug("newstdQA[%s]: %s" % (regQ.pattern, newstdQA[regQ]))
 
     new_no_qa = []

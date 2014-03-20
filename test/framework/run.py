@@ -34,6 +34,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
@@ -75,6 +76,8 @@ class RunTest(EnhancedTestCase):
         (out, ec) = run_cmd_qa(cmd, {}, std_qa=qa)
         self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n")
         self.assertEqual(ec, 0)
+
+        self.assertErrorRegex(EasyBuildError, "Invalid type for answer", run_cmd_qa, cmd, {'q': 1})
 
     def test_run_cmd_simple(self):
         """Test return value for run_cmd in 'simple' mode."""
