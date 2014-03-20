@@ -523,11 +523,18 @@ modules_install_suffix = '%(modsuffix)s'
             'robot_path': '/some/robot/path',
             'stop': 'configure',
         })
-        bo2 = BuildOptions()
-        self.assertTrue(bo is bo2)
+
+        # specific build options should be set
         self.assertEqual(bo['robot_path'], '/some/robot/path')
         self.assertEqual(bo['stop'], 'configure')
-        self.assertTrue(not 'debug' in bo)
+
+        # all possible build options should be set (defaults are used where needed)
+        self.assertEqual(sorted(bo.keys()), sorted(BuildOptions.KNOWN_KEYS))
+
+        # there should be only one BuildOptions instance
+        bo2 = BuildOptions()
+        self.assertTrue(bo is bo2)
+
 
 
 def suite():

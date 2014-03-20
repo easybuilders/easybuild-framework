@@ -459,6 +459,8 @@ class EasyConfig(object):
         validation helper method. attr is the attribute it will check, values are the possible values.
         if the value of the attribute is not in the is array, it will report an error
         """
+        if values is None:
+            values = []
         if self[attr] and self[attr] not in values:
             self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
 

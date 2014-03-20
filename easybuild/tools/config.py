@@ -33,7 +33,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-
+import copy
 import os
 import random
 import string
@@ -65,6 +65,34 @@ DEFAULT_PATH_SUBDIRS = {
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
+}
+
+
+DEFAULT_BUILD_OPTIONS = {
+    'aggregate_regtest': None,
+    'check_osdeps': True,
+    'command_line': None,
+    'debug': False,
+    'dry_run': False,
+    'easyblock': None,
+    'experimental': False,
+    'force': False,
+    'ignore_dirs': None,
+    'modules_footer': None,
+    'only_blocks': None,
+    'recursive_mod_unload': False,
+    'regtest_online': False,
+    'regtest_output_dir': None,
+    'retain_all_deps': False,
+    'robot_path': None,
+    'sequential': False,
+    'silent': False,
+    'skip': None,
+    'skip_test_cases': False,
+    'stop': None,
+    'valid_module_classes': None,
+    'valid_stops': None,
+    'validate': True,
 }
 
 
@@ -375,16 +403,14 @@ def init(options, config_options_dict):
 def init_build_options(build_options):
     """Initialize build options."""
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
-    return BuildOptions(build_options)
+    bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
+    bo.update(build_options)
+    return BuildOptions(bo)
 
 
 def build_option(key, default=None):
     """Obtain value specified build option."""
-    build_options = BuildOptions()
-    if key in build_options:
-        return build_options[key]
-    else:
-        return default
+    return BuildOptions().get(key, default)
 
 
 def build_path():
