@@ -29,7 +29,6 @@ Unit tests for tools/toolchain/variables.py.
 @author: Kenneth Hoste (Ghent University)
 """
 
-import re
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 

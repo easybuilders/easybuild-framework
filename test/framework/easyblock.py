@@ -29,18 +29,14 @@ Unit tests for easyblock.py
 @author: Kenneth Hoste (Ghent University)
 """
 
-#TODO: implement testcases for each step method
 import os
 import re
-import shutil
 import tempfile
 import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.extension import Extension
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -50,23 +46,20 @@ from easybuild.tools.module_generator import det_full_module_name
 class EasyBlockTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
 
-    # initialize configuration so modules_tool() function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-
     def writeEC(self):
         """ create temporary easyconfig file """
         write_file(self.eb_file, self.contents)
 
     def setUp(self):
         """ setup """
+        super(EasyBlockTest, self).setUp()
+
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)
-        config.variables['tmp_logdir'] = tempfile.mkdtemp()
-        config.variables['installpath'] = tempfile.mkdtemp()
-        config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['logfile_format'] = ("temp","temp")
-        self.cwd = os.getcwd()
+
+        self.orig_tmp_logdir = os.environ.get('EASYBUILD_TMP_LOGDIR', None)
+        self.test_tmp_logdir = tempfile.mkdtemp()
+        os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
     def test_empty(self):
         self.contents = "# empty"
@@ -108,7 +101,7 @@ toolchain = {"name":"dummy", "version": "dummy"}
 """
         self.writeEC()
         eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['installpath']
+        eb.installdir = config.build_path()
         fake_mod_data = eb.load_fake_module()
         eb.clean_up_fake_module(fake_mod_data)
 
@@ -130,7 +123,7 @@ exts_list = ['ext1']
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['installpath']
+        eb.installdir = config.install_path()
         self.assertRaises(EasyBuildError, eb.extensions_step)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
 
@@ -138,8 +131,8 @@ exts_list = ['ext1']
         self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
         self.writeEC()
         eb = EasyBlock(self.eb_file)
-        eb.builddir = config.variables['buildpath']
-        eb.installdir = config.variables['installpath']
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.extensions_step()
 
         # test for proper error message when skip is set, but no exts_filter is set
@@ -166,8 +159,8 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
-        eb.builddir = config.variables['buildpath']
-        eb.installdir = config.variables['installpath']
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.skip = True
         eb.extensions_step()
         # 'ext1' should be in eb.exts
@@ -197,15 +190,10 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
             "modextrapaths = %s" % str(modextrapaths),
         ])
 
-        # overwrite installpath config setting
-        orig_installpath = config.variables['installpath']
-        installpath = tempfile.mkdtemp()
-        config.variables['installpath'] = installpath
-
         # test if module is generated correctly
         self.writeEC()
         eb = EasyBlock(self.eb_file)
-        eb.installdir = os.path.join(config.variables['installpath'], config.variables['subdir_software'], 'pi', '3.14')
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
 
@@ -222,9 +210,6 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
             self.assertTrue(re.search('^setenv\s+%s\s+"%s"$' % (key, val), txt, re.M))
         for (key, val) in modextrapaths.items():
             self.assertTrue(re.search('^prepend-path\s+%s\s+\$root/%s$' % (key, val), txt, re.M))
-
-        # restore original settings
-        config.variables['installpath'] = orig_installpath
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
@@ -275,11 +260,11 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
 
     def tearDown(self):
         """ make sure to remove the temporary file """
+        super(EasyBlockTest, self).tearDown()
+
         os.remove(self.eb_file)
-        shutil.rmtree(config.variables['tmp_logdir'])
-        shutil.rmtree(config.variables['installpath'])
-        shutil.rmtree(config.variables['buildpath'])
-        os.chdir(self.cwd)
+        if self.orig_tmp_logdir is not None:
+            os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
 
 def suite():
     """ return all the tests in this file """

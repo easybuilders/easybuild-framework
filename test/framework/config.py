@@ -32,16 +32,15 @@ import copy
 import os
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
-from easybuild.main import main
 from easybuild.tools.config import build_path, source_paths, install_path, get_repository, get_repositorypath
-from easybuild.tools.config import log_file_format, set_tmpdir
-from easybuild.tools.config import get_build_log_path, ConfigurationVariables, DEFAULT_PATH_SUBDIRS
+from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions, ConfigurationVariables
+from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
 from easybuild.tools.repository import FileRepository, init_repository
@@ -60,8 +59,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Prepare for running a config test."""
+        super(EasyBuildConfigTest, self).setUp()
 
-        config.variables = ConfigurationVariables()
         self.tmpdir = tempfile.mkdtemp()
         self.cleanup()
         # keep track of original environment to restore
@@ -76,25 +75,18 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up after a config test."""
+        super(EasyBuildConfigTest, self).tearDown()
+
         self.cleanup()
         try:
             shutil.rmtree(self.tmpdir)
         except OSError:
             pass
-        modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
-
-    def configure_options(self, args=None):
-        """(re)Configure."""
-        eb_go = eboptions.parse_options(args=args)
-        options = eb_go.options
-        config_options = eb_go.get_options_by_section('config')
-        config.init(options, config_options)
-        return eb_go.options
 
     def configure(self, args=None):
         """(re)Configure and return configfile"""
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
         return options.config
 
     def test_default_config(self):
@@ -148,7 +140,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             ]),
         ]
         for test_sourcepath in test_sourcepaths:
-            config.variables = ConfigurationVariables()
+            init_config()
             os.environ['EASYBUILDSOURCEPATH'] = test_sourcepath
             self.configure(args=[])
             self.assertEqual(build_path(), os.path.join(os.path.expanduser('~'), '.local', 'easybuild',
@@ -159,7 +151,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         test_sourcepath = os.path.join(self.tmpdir, 'source', 'path')
 
         # install path
-        config.variables = ConfigurationVariables()
+        init_config()
         test_installpath = os.path.join(self.tmpdir, 'install', 'path')
         os.environ['EASYBUILDINSTALLPATH'] = test_installpath
         self.configure(args=[])
@@ -171,7 +163,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         del os.environ['EASYBUILDINSTALLPATH']
 
         # prefix: should change build/install/source/repo paths
-        config.variables = ConfigurationVariables()
+        init_config()
         test_prefixpath = os.path.join(self.tmpdir, 'prefix', 'path')
         os.environ['EASYBUILDPREFIX'] = test_prefixpath
         self.configure(args=[])
@@ -185,7 +177,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
 
         # build/source/install path overrides prefix
-        config.variables = ConfigurationVariables()
+        init_config()
         os.environ['EASYBUILDBUILDPATH'] = test_buildpath
         self.configure(args=[])
         self.assertEqual(build_path(), test_buildpath)
@@ -196,12 +188,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
-        # also check old style vs new style
-        self.assertEqual(config.variables['build_path'], config.variables['buildpath'])
-        self.assertEqual(config.variables['install_path'], config.variables['installpath'])
         del os.environ['EASYBUILDBUILDPATH']
 
-        config.variables = ConfigurationVariables()
+        init_config()
         os.environ['EASYBUILDSOURCEPATH'] = test_sourcepath
         self.configure(args=[])
         self.assertEqual(build_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['buildpath']))
@@ -214,7 +203,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
         del os.environ['EASYBUILDSOURCEPATH']
 
-        config.variables = ConfigurationVariables()
+        init_config()
         os.environ['EASYBUILDINSTALLPATH'] = test_installpath
         self.configure(args=[])
         self.assertEqual(build_path(), os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['buildpath']))
@@ -276,7 +265,7 @@ modules_install_suffix = '%(modsuffix)s'
         # redefine home so we can test user config file on default location
         home = os.environ.get('HOME', None)
         os.environ['HOME'] = self.tmpdir
-        config.variables = ConfigurationVariables()
+        init_config()
         cfg_fn = self.configure(args=[])
         if home is not None:
             os.environ['HOME'] = home
@@ -324,7 +313,7 @@ modules_install_suffix = '%(modsuffix)s'
         os.environ['EASYBUILDCONFIG'] = mycustomconfigfile
 
         # reconfigure
-        config.variables = ConfigurationVariables()
+        init_config()
         cfg_fn = self.configure(args=[])
 
         # verify configuration
@@ -349,7 +338,7 @@ modules_install_suffix = '%(modsuffix)s'
         buildpath_env_var = os.path.join(self.tmpdir, 'envvar', 'build', 'path')
         os.environ['EASYBUILD_PREFIX'] = prefix
         os.environ['EASYBUILD_BUILDPATH'] = buildpath_env_var
-        options = self.configure_options(args=[])
+        options = init_config(args=[])
         self.assertEqual(build_path(), buildpath_env_var)
         self.assertEqual(install_path(), os.path.join(prefix, 'software'))
         del os.environ['EASYBUILD_PREFIX']
@@ -370,7 +359,7 @@ modules_install_suffix = '%(modsuffix)s'
             '--repositorypath', repopath,
         ]
 
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, 'software'))
@@ -391,7 +380,7 @@ modules_install_suffix = '%(modsuffix)s'
         os.environ['EASYBUILD_PREFIX'] = prefix
         os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = subdir_software
 
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
 
         self.assertEqual(build_path(), os.path.join(prefix, 'build'))
         self.assertEqual(install_path(), os.path.join(install, subdir_software))
@@ -423,7 +412,7 @@ modules_install_suffix = '%(modsuffix)s'
             '--debug',
             '--buildpath', testpath1,
         ]
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
 
         self.assertEqual(build_path(), testpath1)  # via command line
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
@@ -441,7 +430,7 @@ modules_install_suffix = '%(modsuffix)s'
             '--debug',
             '--sourcepath', testpath2,
         ]
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
 
         self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
         self.assertEqual(source_paths(), [testpath2])  # via command line
@@ -453,7 +442,7 @@ modules_install_suffix = '%(modsuffix)s'
             '--debug',
             '--installpath', testpath3,
         ]
-        options = self.configure_options(args=args)
+        options = init_config(args=args)
 
         self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
         self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
@@ -486,8 +475,51 @@ modules_install_suffix = '%(modsuffix)s'
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
 
+    def test_configuration_variables(self):
+        """Test usage of ConfigurationVariables."""
+        # delete instance of ConfigurationVariables
+        ConfigurationVariables.__metaclass__._instances.pop(ConfigurationVariables, None)
+
+        # make sure ConfigurationVariables is a singleton class (only one available instance)
+        cv1 = ConfigurationVariables()
+        cv2 = ConfigurationVariables()
+        cv3 = ConfigurationVariables({'foo': 'bar'})  # note: argument is ignored, an instance is already available
+        self.assertTrue(cv1 is cv2)
+        self.assertTrue(cv1 is cv3)
+
+    def test_build_options(self):
+        """Test usage of BuildOptions."""
+        # delete instance of BuildOptions
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+
+        # make sure BuildOptions is a singleton class
+        bo1 = BuildOptions()
+        bo2 = BuildOptions()
+        bo3 = BuildOptions({'foo': 'bar'})  # note: argument is ignored, an instance is already available
+        self.assertTrue(bo1 is bo2)
+        self.assertTrue(bo1 is bo3)
+
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+        bo = BuildOptions({
+            'debug': False,
+            'force': True
+        })
+        self.assertTrue(not bo['debug'])
+        self.assertTrue(bo['force'])
+
+        # updating is impossible (methods are not even available)
+        self.assertErrorRegex(TypeError, '.*item assignment.*', lambda x: bo.update(x), {'debug': True})
+        self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
+
+        # only valid keys can be set
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
+        msg = "Encountered unknown keys .* \(known keys: .*"
+        self.assertErrorRegex(Exception, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
 
 if __name__ == '__main__':
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     unittestmain()

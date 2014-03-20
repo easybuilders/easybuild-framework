@@ -29,22 +29,19 @@ Unit tests for robot (dependency resolution).
 """
 
 import os
-import re
 from copy import deepcopy
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader
 from unittest import main as unittestmain
-from vsc import fancylogger
 
-import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig.tools as ectools
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules_tool = modules.modules_tool
-orig_main_modules_tool = ectools.modules_tool
+ORIG_MODULES_TOOL = modules.modules_tool
+ORIG_MAIN_MODULES_TOOL = ectools.modules_tool
 
 
 class MockModule(modules.ModulesTool):
@@ -71,17 +68,11 @@ class RobotTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up everything for a unit test."""
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        super(RobotTest, self).setUp()
 
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
-
-        self.log = fancylogger.getLogger("RobotTest", fname=False)
-
-        self.cwd = os.getcwd()
 
         self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(self.base_easyconfig_dir)
@@ -244,9 +235,10 @@ class RobotTest(EnhancedTestCase):
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        config.modules_tool = orig_modules_tool
-        ectools.modules_tool = orig_main_modules_tool
-        os.chdir(self.cwd)
+        super(RobotTest, self).tearDown()
+
+        config.modules_tool = ORIG_MODULES_TOOL
+        ectools.modules_tool = ORIG_MAIN_MODULES_TOOL
 
 
 def suite():

@@ -27,7 +27,6 @@ Unit tests for easyconfig/format/convert.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import re
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 

@@ -34,7 +34,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
-from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 
 

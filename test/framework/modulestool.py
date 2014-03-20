@@ -27,18 +27,14 @@ Unit tests for ModulesTool class.
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import copy
 import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import main as unittestmain
 from unittest import TestLoader
 from distutils.version import StrictVersion
 
-import easybuild.tools.options as eboptions
-from easybuild.tools import config
 from easybuild.tools import modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import which
 from easybuild.tools.modules import modules_tool, Lmod
 
@@ -63,12 +59,7 @@ class ModulesToolTest(EnhancedTestCase):
 
     def setUp(self):
         """set up everything for a unit test."""
-        # keep track of original environment, so we can restore it
-        self.orig_environ = copy.deepcopy(os.environ)
-
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        super(ModulesToolTest, self).setUp()
 
         # keep track of original $MODULEPATH, so we can restore it
         self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
@@ -141,12 +132,11 @@ class ModulesToolTest(EnhancedTestCase):
 
     def tearDown(self):
         """cleanup"""
+        super(ModulesToolTest, self).tearDown()
+
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
         # reinitialize a modules tool, to trigger 'module use' on module paths
         modules_tool()
-
-        # restore (full) original environment
-        modify_env(os.environ, self.orig_environ)
 
 
 def suite():

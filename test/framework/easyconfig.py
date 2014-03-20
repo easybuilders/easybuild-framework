@@ -36,22 +36,20 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
-from vsc import fancylogger
 
 import easybuild.tools.build_log
-import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import det_installversion
 from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
-from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from test.framework.utilities import find_full_path
+
 
 class EasyConfigTest(EnhancedTestCase):
     """ easyconfig tests """
@@ -60,17 +58,10 @@ class EasyConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up everything for running a unit test."""
-
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
-
-        self.log = fancylogger.getLogger("EasyConfigTest", fname=False)
-        self.cwd = os.getcwd()
+        super(EasyConfigTest, self).setUp()
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-        config.variables['source_path'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
     def prep(self):
         """Prepare for test."""
@@ -84,9 +75,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
+        super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-        os.chdir(self.cwd)
 
     def test_empty(self):
         """ empty files should not parse! """
@@ -766,8 +757,6 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_buildininstalldir(self):
         """Test specifying build in install dir."""
-        config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['installpath'] = tempfile.mkdtemp()
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',
@@ -785,10 +774,6 @@ class EasyConfigTest(EnhancedTestCase):
         eb.make_installdir()
         self.assertEqual(eb.builddir, eb.installdir)
         self.assertTrue(os.path.isdir(eb.builddir))
-
-        # cleanup
-        shutil.rmtree(config.variables['buildpath'])
-        shutil.rmtree(config.variables['installpath'])
 
     def test_format_equivalence_basic(self):
         """Test whether easyconfigs in different formats are equivalent."""

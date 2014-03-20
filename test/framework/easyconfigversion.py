@@ -27,8 +27,6 @@ Unit tests for easyconfig/format/version.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
-import re
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen

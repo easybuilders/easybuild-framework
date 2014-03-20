@@ -30,18 +30,15 @@ Unit tests for module_generator.py.
 """
 
 import os
-import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.missing import get_subclasses
 
-import easybuild.tools.options as eboptions
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
@@ -51,14 +48,9 @@ from test.framework.utilities import find_full_path
 class ModuleGeneratorTest(EnhancedTestCase):
     """ testcase for ModuleGenerator """
 
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-
+        super(ModuleGeneratorTest, self).setUp()
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
@@ -67,12 +59,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.eb = EasyBlock(eb_full_path)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        self.cwd = os.getcwd()
 
     def tearDown(self):
         """cleanup"""
+        super(ModuleGeneratorTest, self).tearDown()
         os.remove(self.eb.logfile)
-        os.chdir(self.cwd)
         shutil.rmtree(self.modgen.app.installdir)
 
     def test_descr(self):
@@ -172,7 +163,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
                 mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
-                self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
+                full_mod_name = det_full_module_name(ec)
+                self.assertEqual(os.path.join(mod_name, mod_version), full_mod_name)
 
         test_default()
 
@@ -194,13 +186,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
-        orig_module_naming_scheme = config.get_module_naming_scheme()
-        config.variables['module_naming_scheme'] = 'TestModuleNamingScheme'
+        orig_module_naming_scheme = os.environ.get('EASYBUILD_MODULE_NAMING_SCHEME', None)
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
         mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
         mns_mod = __import__(mns_path, globals(), locals(), [''])
         test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
         easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
-
+        init_config()
 
         ec2mod_map = {
             'GCC-4.6.3': 'GCC/4.6.3',
@@ -227,7 +219,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
 
         # restore default module naming scheme, and retest
-        config.variables['module_naming_scheme'] = orig_module_naming_scheme
+        if orig_module_naming_scheme is not None:
+            os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = orig_module_naming_scheme
+        else:
+            del os.environ['EASYBUILD_MODULE_NAMING_SCHEME']
+        init_config()
         test_default()
 
     def test_mod_name_validation(self):

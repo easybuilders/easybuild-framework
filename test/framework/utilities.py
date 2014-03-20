@@ -27,11 +27,20 @@ Various test utility functions.
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import re
+import shutil
 import sys
-from unittest import TestCase, TestLoader, main
+import tempfile
+from unittest import TestCase
+from vsc import fancylogger
+
+import easybuild.tools.options as eboptions
+from easybuild.main import main
+from easybuild.tools import config
+from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import read_file
 
 
 class EnhancedTestCase(TestCase):
@@ -41,7 +50,7 @@ class EnhancedTestCase(TestCase):
         """Convenience method to match regex with the expected error message"""
         try:
             call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
+            str_kwargs = ', '.join(['='.join([k, str(v)]) for (k, v) in kwargs.items()])
             str_args = ', '.join(map(str, args) + [str_kwargs])
             self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error, err:
@@ -55,6 +64,88 @@ class EnhancedTestCase(TestCase):
                 msg = str(err)
             self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
 
+    def setUp(self):
+        """Set up testcase."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+        fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+        self.cwd = os.getcwd()
+
+        # keep track of original environment to restore
+        self.orig_environ = copy.deepcopy(os.environ)
+
+        # keep track of original environment/Python search path to restore
+        self.orig_sys_path = sys.path[:]
+
+        self.orig_paths = {}
+        for path in ['buildpath', 'installpath', 'sourcepath']:
+            self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
+
+        self.test_sourcepath = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        self.test_buildpath = tempfile.mkdtemp()
+        os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
+        self.test_installpath = tempfile.mkdtemp()
+        os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
+        init_config()
+
+    def tearDown(self):
+        """Clean up after running testcase."""
+        os.remove(self.logfile)
+        os.chdir(self.cwd)
+        modify_env(os.environ, self.orig_environ)
+        tempfile.tempdir = None
+
+        # restore original Python search path
+        sys.path = self.orig_sys_path
+
+        for path in [self.test_buildpath, self.test_installpath]:
+            try:
+                shutil.rmtree(path)
+            except OSError, err:
+                pass
+
+        for path in ['buildpath', 'installpath', 'sourcepath']:
+            if self.orig_paths[path] is not None:
+                os.environ['EASYBUILD_%s' % path.upper()] = self.orig_paths[path]
+            else:
+                if 'EASYBUILD_%s' % path.upper() in os.environ:
+                    del os.environ['EASYBUILD_%s' % path.upper()]
+        init_config()
+
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
+        """Helper method to call EasyBuild main function."""
+        # clear instance of ConfigurationVariables to ensure configuration is reinitialized
+        config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
+        myerr = False
+        if logfile is None:
+            logfile = self.logfile
+        try:
+            main((args, logfile, do_build))
+        except SystemExit:
+            pass
+        except Exception, err:
+            myerr = err
+            if verbose:
+                print "err: %s" % err
+
+        if return_error:
+            return read_file(self.logfile), myerr
+        else:
+            return read_file(self.logfile)
+
+
+def init_config(args=None):
+    """(re)initialize configuration"""
+
+    # clean up any instances of ConfigurationVariables before reinitializing configuration
+    config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
+
+    # initialize configuration so config.get_modules_tool function works
+    eb_go = eboptions.parse_options(args=args)
+    config.init(eb_go.options, eb_go.get_options_by_section('config'))
+
+    return eb_go.options
 
 def find_full_path(base_path, trim=(lambda x: x)):
     """

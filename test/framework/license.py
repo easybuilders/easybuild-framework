@@ -27,7 +27,6 @@ Unit tests for easyconfig/licenses.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 

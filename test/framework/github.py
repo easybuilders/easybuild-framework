@@ -55,7 +55,7 @@ class GithubTest(EnhancedTestCase):
 
     def setUp(self):
         """setup"""
-        self.cwd = os.getcwd()
+        super(GithubTest, self).setUp()
         self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_LOGIN, GITHUB_PASSWORD, GITHUB_TOKEN)
 
     def test_walk(self):
@@ -84,10 +84,6 @@ class GithubTest(EnhancedTestCase):
             os.remove(fp)
         except (IOError, OSError):
             pass
-
-    def tearDown(self):
-        """cleanup"""
-        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """
