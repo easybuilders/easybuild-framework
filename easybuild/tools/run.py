@@ -273,9 +273,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             res = question.search(stdoutErr)
             if tmpOut and res:
                 fa = answers[0] % res.groupdict()
-                # cycle through list of answers, last answer is never dropped
-                if len(answers) > 1:
-                    answers.pop(0)
+                # cycle through list of answers
+                last_answer = answers.pop(0)
+                answers.append(last_answer)
+                _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+
                 _log.debug("run_cmd_qa answer %s question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
                 send_all(p, fa)
                 hit = True
@@ -285,9 +287,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 res = question.search(stdoutErr)
                 if tmpOut and res:
                     fa = answers[0] % res.groupdict()
-                    # cycle through list of answers, last answer is never dropped
-                    if len(answers) > 1:
-                        answers.pop(0)
+                    # cycle through list of answers
+                    last_answer = answers.pop(0)
+                    answers.append(last_answer)
+                    _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+
                     _log.debug("run_cmd_qa answer %s std question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
                     send_all(p, fa)
                     hit = True

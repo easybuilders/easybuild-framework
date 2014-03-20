@@ -79,6 +79,12 @@ class RunTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Invalid type for answer", run_cmd_qa, cmd, {'q': 1})
 
+        # test cycling of answers
+        cmd = cmd * 2
+        (out, ec) = run_cmd_qa(cmd, {}, std_qa=qa)
+        self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n" * 2)
+        self.assertEqual(ec, 0)
+
     def test_run_cmd_simple(self):
         """Test return value for run_cmd in 'simple' mode."""
         self.assertEqual(True, run_cmd("echo hello", simple=True))
