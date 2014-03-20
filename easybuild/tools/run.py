@@ -151,6 +151,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     Executes a command cmd
     - looks for questions and tries to answer based on qa dictionary
+    - provided answers can be either strings or lists of strings (which will be used iteratively)
     - returns exitcode and stdout+stderr (mixed)
     - no input though stdin
     - if log_ok or log_all are set -> will log.error if non-zero exit-code
