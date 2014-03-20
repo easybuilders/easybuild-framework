@@ -124,12 +124,11 @@ OLDSTYLE_NEWSTYLE_MAP = {
 
 def map_to_newstyle(adict):
     """Map a dictionary with oldstyle keys to the new style."""
-    log = fancylogger.getLogger('config.map_to_newstyle', fname=False)
     res = {}
     for key, val in adict.items():
         if key in OLDSTYLE_NEWSTYLE_MAP:
             newkey = OLDSTYLE_NEWSTYLE_MAP.get(key)
-            log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
+            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
             key = newkey
         res[key] = val
     return res
@@ -138,7 +137,7 @@ def map_to_newstyle(adict):
 class ConfigurationVariables(FrozenDictKnownKeys):
     """This is a dict that supports legacy config names transparently."""
 
-    # singleton class: only one instance is created
+    # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
     REQUIRED = [
@@ -179,7 +178,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 class BuildOptions(FrozenDictKnownKeys):
     """Representation of a set of build options, acts like a dictionary."""
 
-    # singleton class: only one instance is created
+    # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
     KNOWN_KEYS = [
@@ -337,6 +336,14 @@ def init(options, config_options_dict):
     _log.debug("Updating config variables with generaloption dict %s" % config_options_dict)
     tmpdict.update(config_options_dict)
 
+    # make sure source path is a list
+    sourcepath = tmpdict['sourcepath']
+    if isinstance(sourcepath, basestring):
+        tmpdict['sourcepath'] = sourcepath.split(':')
+        _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
+    elif not isinstance(sourcepath, (tuple, list)):
+        _log.error("Value for sourcepath has invalid type (%s): %s" % (type(sourcepath), sourcepath))
+
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
 
@@ -376,13 +383,7 @@ def source_paths():
     """
     Return the list of source paths
     """
-    sourcepath = ConfigurationVariables()['sourcepath']
-    if isinstance(sourcepath, basestring):
-        return sourcepath.split(':')
-    elif isinstance(sourcepath, (tuple, list)):
-        return sourcepath
-    else:
-        _log.error("Value for sourcepath has invalid type (%s): %s" % (type(sourcepath), sourcepath))
+    return ConfigurationVariables()['sourcepath']
 
 
 def source_path():
