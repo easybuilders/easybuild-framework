@@ -200,7 +200,7 @@ def regtest(easyconfig_paths, build_specs=None):
 
     cur_dir = os.getcwd()
 
-    aggregate_regtest = build_option('aggregate_regtest', None)
+    aggregate_regtest = build_option('aggregate_regtest')
     if aggregate_regtest is not None:
         output_file = os.path.join(aggregate_regtest, "%s-aggregate.xml" % os.path.basename(aggregate_regtest))
         aggregate_xml_in_dirs(aggregate_regtest, output_file)
@@ -212,7 +212,7 @@ def regtest(easyconfig_paths, build_specs=None):
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
     var = config.oldstyle_environment_variables['test_output_path']
 
-    regtest_output_dir = build_option('regtest_output_dir', None)
+    regtest_output_dir = build_option('regtest_output_dir')
     if regtest_output_dir is not None:
         output_dir = regtest_output_dir
     elif var in os.environ:
@@ -228,7 +228,7 @@ def regtest(easyconfig_paths, build_specs=None):
     ecfiles = []
     if easyconfig_paths:
         for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs', []))
+            ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
     else:
         _log.error("No easyconfig paths specified.")
 
@@ -243,12 +243,12 @@ def regtest(easyconfig_paths, build_specs=None):
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
     # skip easyconfigs for which a module is already available, unless forced
-    if not build_option('force', False):
+    if not build_option('force'):
         _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
         easyconfigs = skip_available(easyconfigs)
         _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
 
-    if build_option('sequential', False):
+    if build_option('sequential'):
         return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
         resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)

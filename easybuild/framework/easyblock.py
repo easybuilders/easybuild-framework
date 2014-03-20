@@ -130,12 +130,12 @@ class EasyBlock(object):
 
         # modules footer
         self.modules_footer = None
-        modules_footer_path = build_option('modules_footer', None)
+        modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
 
         # recursive unloading in modules
-        self.recursive_mod_unload = build_option('recursive_mod_unload', False)
+        self.recursive_mod_unload = build_option('recursive_mod_unload')
 
         # easyconfig for this application
         extra = self.extra_options()
@@ -147,7 +147,7 @@ class EasyBlock(object):
         # logging
         self.log = None
         self.logfile = None
-        self.logdebug = build_option('debug', False)
+        self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
 
         # original environ will be set later
@@ -157,7 +157,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # robot path
-        self.robot_path = build_option('robot_path', None)
+        self.robot_path = build_option('robot_path')
 
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
@@ -175,7 +175,7 @@ class EasyBlock(object):
         self.sanity_check_fail_msgs = []
 
         # should we keep quiet?
-        self.silent = build_option('silent', False)
+        self.silent = build_option('silent')
 
         # full module name to generate
         self.mod_name = None
@@ -1987,7 +1987,7 @@ def build_and_install_software(module, orig_environ, build_specs=None):
     @param orig_environ: original environment (used to reset environment)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
-    silent = build_option('silent', False)
+    silent = build_option('silent')
 
     spec = module['spec']
 
@@ -2001,7 +2001,7 @@ def build_and_install_software(module, orig_environ, build_specs=None):
     cwd = os.getcwd()
 
     # load easyblock
-    easyblock = build_option('easyblock', None)
+    easyblock = build_option('easyblock')
     if not easyblock:
         # try to look in .eb file
         reg = re.compile(r"^\s*easyblock\s*=(.*)$")
@@ -2022,12 +2022,12 @@ def build_and_install_software(module, orig_environ, build_specs=None):
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
 
     # application settings
-    stop = build_option('stop', None)
+    stop = build_option('stop')
     if stop is not None:
         _log.debug("Stop set to %s" % stop)
         app.cfg['stop'] = stop
 
-    skip = build_option('skip', None)
+    skip = build_option('skip')
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
@@ -2037,8 +2037,8 @@ def build_and_install_software(module, orig_environ, build_specs=None):
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_option('skip_test_cases', False) and app.cfg['tests']
-        regtest_online = build_option('regtest_online', False)
+        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        regtest_online = build_option('regtest_online')
         result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
     except EasyBuildError, err:
         lastn = 300
@@ -2063,7 +2063,7 @@ def build_and_install_software(module, orig_environ, build_specs=None):
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time, build_option('command_line', None))
+            buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
             try:
@@ -2247,7 +2247,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time, build_option('command_line', None))
+                buildstats = get_build_stats(app, start_time, build_option('command_line'))
                 succes.append((app, buildstats))
 
     for result in test_results:

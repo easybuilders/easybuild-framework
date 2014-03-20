@@ -87,8 +87,8 @@ class EasyConfig(object):
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         # use legacy module classes as default
-        self.valid_module_classes = build_option('valid_module_classes', ['base', 'compiler', 'lib'])
-        if build_option('valid_module_classes', None) is not None:
+        self.valid_module_classes = build_option('valid_module_classes')
+        if self.valid_module_classes is not None:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
         # replace the category name with the category
@@ -115,7 +115,7 @@ class EasyConfig(object):
                 self.mandatory.append(key)
 
         # set valid stops
-        self.valid_stops = build_option('valid_stops', [])
+        self.valid_stops = build_option('valid_stops')
         self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
@@ -137,9 +137,9 @@ class EasyConfig(object):
         self.handle_allowed_system_deps()
 
         # perform validations
-        self.validation = build_option('validate', True) and validate
+        self.validation = build_option('validate') and validate
         if self.validation:
-            self.validate(check_osdeps=build_option('check_osdeps', True))
+            self.validate(check_osdeps=build_option('check_osdeps'))
 
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""

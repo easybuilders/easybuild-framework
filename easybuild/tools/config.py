@@ -209,32 +209,7 @@ class BuildOptions(FrozenDictKnownKeys):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    KNOWN_KEYS = [
-        'aggregate_regtest',
-        'check_osdeps',
-        'command_line',
-        'debug',
-        'dry_run',
-        'easyblock',
-        'experimental',
-        'force',
-        'ignore_dirs',
-        'modules_footer',
-        'only_blocks',
-        'recursive_mod_unload',
-        'regtest_online',
-        'regtest_output_dir',
-        'retain_all_deps',
-        'robot_path',
-        'sequential',
-        'silent',
-        'skip',
-        'skip_test_cases',
-        'stop',
-        'valid_module_classes',
-        'valid_stops',
-        'validate'
-    ]
+    KNOWN_KEYS = DEFAULT_BUILD_OPTIONS.keys()
 
 
 def get_user_easybuild_dir():
@@ -408,9 +383,9 @@ def init_build_options(build_options):
     return BuildOptions(bo)
 
 
-def build_option(key, default=None):
+def build_option(key):
     """Obtain value specified build option."""
-    return BuildOptions().get(key, default)
+    return BuildOptions()[key]
 
 
 def build_path():

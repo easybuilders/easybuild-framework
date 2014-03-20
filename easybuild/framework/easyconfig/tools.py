@@ -245,7 +245,7 @@ def process_easyconfig(path, build_specs=None, validate=True):
     @param path: path to easyconfig file
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
-    blocks = retrieve_blocks_in_spec(path, build_option('only_blocks', None))
+    blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
     easyconfigs = []
     for spec in blocks:
@@ -362,9 +362,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
-    robot = build_option('robot_path', None)
+    robot = build_option('robot_path')
 
-    retain_all_deps = build_option('retain_all_deps', False) or retain_all_deps
+    retain_all_deps = build_option('retain_all_deps') or retain_all_deps
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
@@ -471,7 +471,7 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     lines = []
-    if build_option('robot_path', None) is None:
+    if build_option('robot_path') is None:
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
@@ -501,7 +501,7 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
     if short:
         # insert after 'Dry run:' message
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
-    silent = build_option('silent', False)
+    silent = build_option('silent')
     print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
 
 
