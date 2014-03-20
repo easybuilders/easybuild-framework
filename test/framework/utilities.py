@@ -37,10 +37,18 @@ from unittest import TestCase
 from vsc import fancylogger
 
 import easybuild.tools.options as eboptions
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
+from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
+
+
+COMMON_BUILD_OPTIONS = {
+    'valid_module_classes': module_classes(),
+    'valid_stops': [x[0] for x in EasyBlock.get_steps()],
+}
 
 
 class EnhancedTestCase(TestCase):
@@ -87,7 +95,7 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
-        init_config()
+        init_config(build_options=COMMON_BUILD_OPTIONS)
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -111,7 +119,7 @@ class EnhancedTestCase(TestCase):
             else:
                 if 'EASYBUILD_%s' % path.upper() in os.environ:
                     del os.environ['EASYBUILD_%s' % path.upper()]
-        init_config()
+        init_config(build_options=COMMON_BUILD_OPTIONS)
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
         """Helper method to call EasyBuild main function."""
@@ -147,8 +155,7 @@ def init_config(args=None, build_options=None):
     eb_go = eboptions.parse_options(args=args)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
-    if build_options is not None:
-        config.init_build_options(build_options)
+    config.init_build_options(build_options)
 
     return eb_go.options
 

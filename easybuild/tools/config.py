@@ -315,7 +315,7 @@ def init(options, config_options_dict):
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
-        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
+        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the default list)
         tmpdict['moduleclasses'] = nub(list(tmpdict.get('moduleclasses', [])) +
                                          [x[0] for x in DEFAULT_MODULECLASSES])
 
@@ -375,11 +375,12 @@ def init(options, config_options_dict):
                     create_dir(key, directory)
 
 
-def init_build_options(build_options):
+def init_build_options(build_options=None):
     """Initialize build options."""
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
     bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
-    bo.update(build_options)
+    if build_options is not None:
+        bo.update(build_options)
     return BuildOptions(bo)
 
 

@@ -35,6 +35,7 @@ import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.module_generator
@@ -252,4 +253,6 @@ def suite():
 
 
 if __name__ == '__main__':
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     main()

@@ -34,7 +34,7 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import easybuild.tools.build_log
@@ -61,8 +61,6 @@ class EasyConfigTest(EnhancedTestCase):
         super(EasyConfigTest, self).setUp()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-        all_stops = [x[0] for x in EasyBlock.get_steps()]
-        init_config(build_options={'valid_stops': all_stops})
 
     def prep(self):
         """Prepare for test."""
