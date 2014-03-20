@@ -32,7 +32,9 @@ Unit tests for filetools.py
 import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd, run_cmd_qa, parse_log_for_error
 from easybuild.tools.run import _log as run_log
 
@@ -60,6 +62,27 @@ class RunTest(EnhancedTestCase):
         (out, ec) = run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
         self.assertEqual(out, "question\nanswer\n")
         # no reason echo hello could fail
+        self.assertEqual(ec, 0)
+
+    def test_run_cmd_qa_answers(self):
+        """Test providing list of answers in run_cmd_qa."""
+        cmd = "echo question; read x; echo $x; " * 2
+        qa = {"question": ["answer1", "answer2"]}
+
+        (out, ec) = run_cmd_qa(cmd, qa)
+        self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n")
+        self.assertEqual(ec, 0)
+
+        (out, ec) = run_cmd_qa(cmd, {}, std_qa=qa)
+        self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n")
+        self.assertEqual(ec, 0)
+
+        self.assertErrorRegex(EasyBuildError, "Invalid type for answer", run_cmd_qa, cmd, {'q': 1})
+
+        # test cycling of answers
+        cmd = cmd * 2
+        (out, ec) = run_cmd_qa(cmd, {}, std_qa=qa)
+        self.assertEqual(out, "question\nanswer1\nquestion\nanswer2\n" * 2)
         self.assertEqual(ec, 0)
 
     def test_run_cmd_simple(self):
@@ -102,4 +125,6 @@ def suite():
     return TestLoader().loadTestsFromTestCase(RunTest)
 
 if __name__ == '__main__':
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     main()
