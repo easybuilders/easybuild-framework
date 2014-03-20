@@ -32,7 +32,7 @@ The main easyconfig format class
 import copy
 import re
 from vsc import fancylogger
-from vsc.utils.missing import get_subclasses
+from vsc.utils.missing import get_subclasses, any
 
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
@@ -66,6 +66,7 @@ def get_format_version(txt):
 class NestedDict(dict):
     """A nested dictionary, with tracking of depth and parent"""
     def __init__(self, parent, depth):
+        """Initialise NestedDict instance"""
         dict.__init__(self)
         self.depth = depth
         self.parent = parent
@@ -91,6 +92,7 @@ class NestedDict(dict):
 class TopNestedDict(NestedDict):
     """The top level nested dictionary (depth 0, parent is itself)"""
     def __init__(self, parent=None, depth=None):
+        """Initialise TopNestedDict instance"""
         # parent and depth are ignored; just to support same init for copier
         NestedDict.__init__(self, self, 0)
 
@@ -98,9 +100,10 @@ class TopNestedDict(NestedDict):
 class Squashed(object):
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
     def __init__(self):
+        """Initialise Squashed instance"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        # a OrderedVersionOperators instance to keep track of the data of the matching
+        # OrderedVersionOperators instances to keep track of the data of the matching
         # version and toolchain version sections
         self.versions = OrderedVersionOperators()
         self.tcversions = OrderedVersionOperators()
@@ -132,17 +135,19 @@ class Squashed(object):
         self.versions.add(section, squashed.result, update=True)
 
     def final(self):
-        """Final squashing of version and toolchainversion operators"""
+        """Final squashing of version and toolchainversion operators and return the result"""
         self.log.debug('Pre-final result %s' % self.result)
         self.log.debug('Pre-final versions %s with data %s' % (self.versions, self.versions.datamap))
         self.log.debug('Pre-final tcversions %s with data %s' % (self.tcversions, self.tcversions.datamap))
 
-        # update res, most strict matching versionoperator should be first element
+        # update self.result, most strict matching versionoperator should be first element
         # so update in reversed order
         # also update toolchain data before version data
         for vers in [self.tcversions, self.versions]:
             for versop in vers.versops[::-1]:
                 self.result.update(vers.get_data(versop))
+
+        return self.result
 
 
 class EBConfigObj(object):
@@ -268,7 +273,8 @@ class EBConfigObj(object):
                     # parse value as a section, recursively
                     new_value = self.parse_sections(value, current.get_nested_dict())
 
-                    self.log.debug('Converted section key %s value %s in new key %s new value %s' % (key, value, new_key, new_value))
+                    self.log.debug('Converted section key %s value %s in new key %s new value %s' %
+                                   (key, value, new_key, new_value))
                     current[new_key] = new_value
 
             else:
@@ -334,11 +340,11 @@ class EBConfigObj(object):
         for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
                                             ('toolchain', 'toolchains', 'as_dict')]:
             if supported_key in self.supported:
-                self.log.debug('%s in supported, trying to detemine default for %s' % (supported_key, key))
+                self.log.debug('%s in supported section, trying to determine default for %s' % (supported_key, key))
                 first = self.supported[supported_key][0]
                 f_val = getattr(first, fn_name)()
                 if f_val is None:
-                    self.log.error("First %s %s can't be used as default (%s retuned None)" % (key, first, fn_name))
+                    self.log.error("First %s %s can't be used as default (%s returned None)" % (key, first, fn_name))
                 else:
                     self.log.debug('Using first %s (%s) as default %s' % (key, first, f_val))
                     self.default[key] = f_val
@@ -368,18 +374,17 @@ class EBConfigObj(object):
 
         vt_tuple = (version, tcname, tcversion)
         squashed = self._squash(vt_tuple, self.sections, sanity)
-        squashed.final()
+        result = squashed.final()
 
-        self.log.debug('End squash with result %s' % squashed.result)
-        return squashed.result
+        self.log.debug('End squash with result %s' % result)
+        return result
 
     def _squash(self, vt_tuple, processed, sanity):
         """
         Project the multidimensional easyconfig (or subsection thereof) to single easyconfig
         Returns Squashed instance for the processed block.
-
         @param vt_tuple: tuple with version (version to keep), tcname (toolchain name to keep) and 
-                            tcversion (toolchain version to keep) (Data should not change)
+                            tcversion (toolchain version to keep)
         @param processed: easyconfig (Top)NestedDict
         @param sanity: dictionary to keep track of section markers and detect conflicts 
         """
@@ -387,91 +392,124 @@ class EBConfigObj(object):
         res_sections = {}
 
         # a Squashed instance to keep track of the data of the matching version and toolchainversion sections
-        # also contains the result
+        # also contains the intermediate result
         squashed = Squashed()
 
         self.log.debug('Start processed %s' % processed)
         # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
         for key, value in processed.items():
             if isinstance(value, NestedDict):
-                if isinstance(key, ToolchainVersionOperator):
-                    # perform sanity check for all toolchains, use .add to check for conflicts
-                    tc_overops = sanity['toolchains'].setdefault(key.tc_name, OrderedVersionOperators())
-                    tc_overops.add(key)
-
-                    if key.test(tcname, tcversion):
-                        tup = (tcname, tcversion, key)
-                        self.log.debug("Found matching marker for specified toolchain '%s, %s': %s" % tup)
-                        # TODO remove when unifying add_toolchina with .add()
-                        tmp_squashed = self._squash(vt_tuple, value, sanity)
-                        res_sections.update(tmp_squashed.result)
-                        squashed.add_toolchain(tmp_squashed)
-                    else:
-                        tmpl = "Found marker for other toolchain or version '%s', ignoring this (nested) section."
-                        self.log.debug(tmpl % key)
-                elif isinstance(key, VersionOperator):
-                    # keep track of all version operators, and enforce conflict check
-                    sanity['versops'].add(key)
-                    if key.test(version):
-                        self.log.debug('Found matching version marker %s' % key)
-                        squashed.add_version(key, self._squash(vt_tuple, value, sanity))
-                    else:
-                        self.log.debug('Found non-matching version marker %s. Ignoring this (nested) section.' % key)
-                else:
-                    self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
-
+                tmp = self._squash_netsed_dict(key, value, squashed, sanity, vt_tuple)
+                res_sections.update(tmp)
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.debug("Found VERSION_OPERATOR_VALUE_TYPES entry (%s)" % key)
-                if key == 'toolchains':
-                    # remove any other toolchain from list
-                    self.log.debug("Filtering 'toolchains' key")
-
-                    matching_toolchains = []
-                    tmp_tc_oversops = {}
-                    for tcversop in value:
-                        tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
-                        tup = (tcversop, tc_overops, tcname, tcversion)
-                        self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % tup)
-                        tc_overops.add(tcversop)  # test non-conflicting list
-                        if tcversop.test(tcname, tcversion):
-                            matching_toolchains.append(tcversop)
-
-                    if matching_toolchains:
-                        # does this have any use?
-                        self.log.debug('Matching toolchains %s found (but data not needed)' % matching_toolchains)
-                    else:
-                        self.log.debug('No matching toolchains, removing the whole current key %s' % key)
-                        return Squashed()
-
-                elif key == 'versions':
-                    self.log.debug("Adding all versions %s from versions key" % value)
-                    matching_versions = []
-                    tmp_versops = OrderedVersionOperators()
-                    for versop in value:
-                        tmp_versops.add(versop)  # test non-conlficting list
-                        if versop.test(version):
-                            matching_versions.append(versop)
-                    if matching_versions:
-                        # does this have any use?
-                        self.log.debug('Matching versions %s found (but data not needed)' % matching_versions)
-                    else:
-                        self.log.debug('No matching versions, removing the whole current key %s' % key)
-                        return Squashed()
-                else:
-                    self.log.debug('Adding regular VERSION_OPERATOR_VALUE_TYPES key %s value %s' % (key, value))
-                    squashed.result[key] = value
+                tmp = self._squash_versop(key, value, squashed, sanity, vt_tuple)
+                if not tmp is None:
+                    return tmp
             else:
-                    self.log.debug('Adding key %s value %s' % (key, value))
-                    squashed.result[key] = value
+                self.log.debug('Adding key %s value %s' % (key, value))
+                squashed.result[key] = value
 
-        # merge the current attributes with higher level ones, higher level ones win
-        # TODO figure out ordered processing of sections?
-        self.log.debug('Current level result %s' % (squashed.result))
-        self.log.debug('Higher level sections result %s' % (res_sections))
+        # merge the current attributes with deeper nested ones, deepest nested ones win
+        self.log.debug('Current level result %s' % squashed.result)
+        self.log.debug('Higher level sections result %s' % res_sections)
         squashed.result.update(res_sections)
 
-        self.log.debug('End processed %s ordered versions %s result %s' % (processed, squashed.versions, squashed.result))
+        self.log.debug('End processed %s ordered versions %s result %s' %
+                       (processed, squashed.versions, squashed.result))
         return squashed
+
+    def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
+        """
+        Squash NestedDict instance, returns dict with already squashed data 
+            from possible higher sections 
+        @param key: section key
+        @param nested_dict: the nested_dict instance
+        @param squashed: Squashed instance
+        @param sanity: the sanity dict
+        @param vt_tuple: version, tc_name, tc_version tuple
+        """
+        version, tcname, tcversion = vt_tuple
+        res_sections = {}
+
+        if isinstance(key, ToolchainVersionOperator):
+            # perform sanity check for all toolchains, use .add to check for conflicts
+            tc_overops = sanity['toolchains'].setdefault(key.tc_name, OrderedVersionOperators())
+            tc_overops.add(key)
+
+            if key.test(tcname, tcversion):
+                tup = (tcname, tcversion, key)
+                self.log.debug("Found matching marker for specified toolchain '%s, %s': %s" % tup)
+                # TODO remove when unifying add_toolchina with .add()
+                tmp_squashed = self._squash(vt_tuple, nested_dict, sanity)
+                res_sections.update(tmp_squashed.result)
+                squashed.add_toolchain(tmp_squashed)
+            else:
+                tmpl = "Found marker for other toolchain or version '%s', ignoring this (nested) section."
+                self.log.debug(tmpl % key)
+        elif isinstance(key, VersionOperator):
+            # keep track of all version operators, and enforce conflict check
+            sanity['versops'].add(key)
+            if key.test(version):
+                self.log.debug('Found matching version marker %s' % key)
+                squashed.add_version(key, self._squash(vt_tuple, nested_dict, sanity))
+            else:
+                self.log.debug('Found non-matching version marker %s. Ignoring this (nested) section.' % key)
+        else:
+            self.log.error("Unhandled section marker '%s' (type '%s')" % (key, type(key)))
+
+        return res_sections
+
+    def _squash_versop(self, key, value, squashed, sanity, vt_tuple):
+        """
+        Squash VERSION_OPERATOR_VALUE_TYPES value 
+            return None or new Squashed instance 
+        @param key: section key
+        @param nested_dict: the nested_dict instance
+        @param squashed: Squashed instance
+        @param sanity: the sanity dict
+        @param vt_tuple: version, tc_name, tc_version tuple
+        """
+        version, tcname, tcversion = vt_tuple
+        if key == 'toolchains':
+            # remove any other toolchain from list
+            self.log.debug("Filtering 'toolchains' key")
+
+            matching_toolchains = []
+            tmp_tc_oversops = {}  # temporary, only for conflict checking
+            for tcversop in value:
+                tc_overops = tmp_tc_oversops.setdefault(tcversop.tc_name, OrderedVersionOperators())
+                tup = (tcversop, tc_overops, tcname, tcversion)
+                self.log.debug('Add tcversop %s to tc_overops %s tcname %s tcversion %s' % tup)
+                tc_overops.add(tcversop)  # test non-conflicting list
+                if tcversop.test(tcname, tcversion):
+                    matching_toolchains.append(tcversop)
+
+            if matching_toolchains:
+                # does this have any use?
+                self.log.debug('Matching toolchains %s found (but data not needed)' % matching_toolchains)
+            else:
+                self.log.debug('No matching toolchains, removing the whole current key %s' % key)
+                return Squashed()
+
+        elif key == 'versions':
+            self.log.debug("Adding all versions %s from versions key" % value)
+            matching_versions = []
+            tmp_versops = OrderedVersionOperators()  # temporary, only for conflict checking
+            for versop in value:
+                tmp_versops.add(versop)  # test non-conflicting list
+                if versop.test(version):
+                    matching_versions.append(versop)
+            if matching_versions:
+                # does this have any use?
+                self.log.debug('Matching versions %s found (but data not needed)' % matching_versions)
+            else:
+                self.log.debug('No matching versions, removing the whole current key %s' % key)
+                return Squashed()
+        else:
+            self.log.error('Unexpected VERSION_OPERATOR_VALUE_TYPES key %s value %s' % (key, value))
+
+        return None
 
     def get_version_toolchain(self, version=None, tcname=None, tcversion=None):
         """Return tuple of version, toolchainname and toolchainversion (possibly using defaults)."""
@@ -507,7 +545,7 @@ class EBConfigObj(object):
                 self.log.debug("No toolchain version specified, using default %s" % tcversion)
             else:
                 self.log.error("No toolchain version specified, no default found.")
-        elif True in [tc.test(tcname, tcversion) for tc in tcs]:
+        elif any([tc.test(tcname, tcversion) for tc in tcs]):
             self.log.debug("Toolchain '%s' version '%s' is supported in easyconfig" % (tcname, tcversion))
         else:
             tup = (tcname, tcversion, tcs)

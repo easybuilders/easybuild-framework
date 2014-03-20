@@ -37,7 +37,7 @@ from vsc import fancylogger
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 
-# a cache for toolchain names lookups. Don't init on import!
+# a cache for toolchain names lookups (defined at runtime).
 TOOLCHAIN_NAMES = {}
 
 
@@ -311,7 +311,8 @@ class VersionOperator(object):
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
         if not isinstance(versop_other, self.__class__):
-            self.log.error('overlap/conflict check needs instance of self (got type %s)' % (type(versop_other)))
+            self.log.error('overlap/conflict check needs instance of self %s (got type %s)' %
+                           (self.__class__.__name__, type(versop_other)))
 
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
@@ -542,21 +543,21 @@ class ToolchainVersionOperator(VersionOperator):
         boundary_other_in_self = self.test(other.tc_name, other.version)
         return boundary_self_in_other, boundary_other_in_self
 
-    def test(self, test_name, test_version):
+    def test(self, name, version):
         """
-        Check if a toolchain with name test_name and version test_version would fit 
+        Check if a toolchain with name name and version version would fit 
             in this ToolchainVersionOperator 
-        @param test_name: toolchain name
-        @param test_version: a version string or EasyVersion instance
+        @param name: toolchain name
+        @param version: a version string or EasyVersion instance
         """
         # checks whether this ToolchainVersionOperator instance is valid using __bool__ function
         if not self:
             self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
 
-        tc_name_res = test_name == self.tc_name
+        tc_name_res = name == self.tc_name
         if not tc_name_res:
-            self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, test_name))
-        version_res = super(ToolchainVersionOperator, self).test(test_version)
+            self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, name))
+        version_res = super(ToolchainVersionOperator, self).test(version)
         res = tc_name_res and version_res
         tup = (tc_name_res, version_res, res)
         self.log.debug("result of testing expression tc_name_res %s version_res %s: %s" % tup)
@@ -615,6 +616,8 @@ class OrderedVersionOperators(object):
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
         @param data: additional data for supplied version operator to be stored
+        @param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
+                       instead of overriding the existing data with the new data (method used for updating is .update)    
         """
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
@@ -623,7 +626,6 @@ class OrderedVersionOperators(object):
             self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % tup)
 
         if versop_new in self.versops:
-            # adding the same version operator twice is considered a failure
             self.log.debug("Versop %s already added." % versop_new)
         else:
             # no need for equality testing, we consider it an error
@@ -644,9 +646,9 @@ class OrderedVersionOperators(object):
                     self.versops.append(versop_new)
                 self.log.debug("add: new ordered list of version operators: %s" % self.versops)
 
-        self.add_data(versop_new, data, update)
+        self._add_data(versop_new, data, update)
 
-    def add_data(self, versop_new, data, update):
+    def _add_data(self, versop_new, data, update):
         """Add the data to the datamap, use the string representation of the operator as key"""
         versop_new_str = str(versop_new)
 
