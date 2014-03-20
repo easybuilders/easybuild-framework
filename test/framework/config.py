@@ -477,8 +477,8 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_configuration_variables(self):
         """Test usage of ConfigurationVariables."""
-        # delete instances of ConfigurationVariables
-        ConfigurationVariables.__metaclass__._instances.clear()
+        # delete instance of ConfigurationVariables
+        ConfigurationVariables.__metaclass__._instances.pop(ConfigurationVariables, None)
 
         # make sure ConfigurationVariables is a singleton class (only one available instance)
         cv1 = ConfigurationVariables()
@@ -489,8 +489,8 @@ modules_install_suffix = '%(modsuffix)s'
 
     def test_build_options(self):
         """Test usage of BuildOptions."""
-        # delete instances of BuildOptions
-        BuildOptions.__metaclass__._instances.clear()
+        # delete instance of BuildOptions
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
 
         # make sure BuildOptions is a singleton class
         bo1 = BuildOptions()
@@ -499,7 +499,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertTrue(bo1 is bo2)
         self.assertTrue(bo1 is bo3)
 
-        BuildOptions.__metaclass__._instances.clear()
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
         bo = BuildOptions({
             'debug': False,
             'force': True
@@ -512,7 +512,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
-        BuildOptions.__metaclass__._instances.clear()
+        BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
         msg = "Encountered unknown keys .* \(known keys: .*"
         self.assertErrorRegex(Exception, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
