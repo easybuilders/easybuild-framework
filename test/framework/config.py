@@ -448,6 +448,13 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
 
+        # with a list of provided source paths, only the first source path is created automagically
+        new_sourcepath = os.path.join(self.tmpdir, 'not', 'there', 'yet')
+        os.environ['EASYBUILD_SOURCEPATH'] = "%s:/foo:/bar" % new_sourcepath
+        self.assertFalse(os.path.exists(new_sourcepath))
+        init_config()
+        self.assertTrue(os.path.exists(new_sourcepath))
+
         del os.environ['EASYBUILD_CONFIGFILES']
 
     def test_set_tmpdir(self):
