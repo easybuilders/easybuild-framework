@@ -150,7 +150,7 @@ def main(testing_data=(None, None, None)):
         options.force = True
         retain_all_deps = True
 
-    build_options = {
+    config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'check_osdeps': not options.ignore_osdeps,
         'command_line': eb_command_line,
@@ -175,7 +175,7 @@ def main(testing_data=(None, None, None)):
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         'validate': not options.force,
-    }
+    })
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -183,7 +183,9 @@ def main(testing_data=(None, None, None)):
         if easyconfigs_paths:
             search_path = easyconfigs_paths
         query = options.search or options.search_short
-        search_file(search_path, query, build_options=build_options, short=not options.search)
+        ignore_dirs = config.build_option('ignore_dirs')
+        silent = config.build_option('silent')
+        search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -244,7 +246,7 @@ def main(testing_data=(None, None, None)):
             ec_paths = [path[0] for path in paths]
         else:  # fallback: easybuild-easyconfigs install path
             ec_paths = easyconfigs_pkg_full_paths
-        regtest_ok = regtest(ec_paths, build_options=build_options, build_specs=build_specs)
+        regtest_ok = regtest(ec_paths, build_specs=build_specs)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -264,7 +266,7 @@ def main(testing_data=(None, None, None)):
                     ec_file = tweak(f, None, build_specs)
                 else:
                     ec_file = f
-                ecs = process_easyconfig(ec_file, build_options=build_options, build_specs=build_specs)
+                ecs = process_easyconfig(ec_file, build_specs=build_specs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
@@ -275,7 +277,7 @@ def main(testing_data=(None, None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        print_dry_run(easyconfigs, short=not options.dry_run, build_options=build_options, build_specs=build_specs)
+        print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
         cleanup(logfile, eb_tmpdir, testing)
@@ -288,7 +290,7 @@ def main(testing_data=(None, None, None)):
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         print_msg("resolving dependencies ...", log=_log, silent=testing)
-        ordered_ecs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
@@ -314,8 +316,7 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = build_easyconfigs_in_parallel(command, ordered_ecs, build_options=build_options,
-                                                 build_specs=build_specs)
+            jobs = build_easyconfigs_in_parallel(command, ordered_ecs, build_specs=build_specs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -333,8 +334,7 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
-            (success, _) = build_and_install_software(ec, orig_environ, build_options=build_options,
-                                                      build_specs=build_specs)
+            (success, _) = build_and_install_software(ec, orig_environ, build_specs=build_specs)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1

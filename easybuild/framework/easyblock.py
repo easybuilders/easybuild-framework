@@ -59,7 +59,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
+from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
@@ -100,15 +100,12 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, build_options=None, build_specs=None):
+    def __init__(self, path, build_specs=None):
         """
         Initialize the EasyBlock instance.
         @param path: path to easyconfig file
-        @param build_options: dictionary of build options, e.g. robot_path, validate_ec, check_osdeps, ... (default: {})
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
-        if build_options is None:
-            build_options = {}
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -133,23 +130,16 @@ class EasyBlock(object):
 
         # modules footer
         self.modules_footer = None
-        modules_footer_path = build_options.get('modules_footer', None)
+        modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
 
         # recursive unloading in modules
-        self.recursive_mod_unload = build_options.get('recursive_mod_unload', False)
+        self.recursive_mod_unload = build_option('recursive_mod_unload')
 
         # easyconfig for this application
-        all_stops = [x[0] for x in self.get_steps()]
-        ec_build_options = copy.deepcopy(build_options)
-        ec_build_options.update({
-            'valid_module_classes': module_classes(),
-            'valid_stops': all_stops,
-            'validate': build_options.get('validate_ec', True),
-        })
         extra = self.extra_options()
-        self.cfg = EasyConfig(path, extra_options=extra, build_options=ec_build_options, build_specs=build_specs)
+        self.cfg = EasyConfig(path, extra_options=extra, build_specs=build_specs)
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -157,7 +147,7 @@ class EasyBlock(object):
         # logging
         self.log = None
         self.logfile = None
-        self.logdebug = build_options.get('debug', False)
+        self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
 
         # original environ will be set later
@@ -167,7 +157,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # robot path
-        self.robot_path = build_options.get('robot_path', None)
+        self.robot_path = build_option('robot_path')
 
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
@@ -185,7 +175,7 @@ class EasyBlock(object):
         self.sanity_check_fail_msgs = []
 
         # should we keep quiet?
-        self.silent = build_options.get('silent', False)
+        self.silent = build_option('silent')
 
         # full module name to generate
         self.mod_name = None
@@ -1990,15 +1980,14 @@ def get_class(easyblock, name=None):
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
 
 
-def build_and_install_software(module, orig_environ, build_options=None, build_specs=None):
+def build_and_install_software(module, orig_environ, build_specs=None):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
     @param orig_environ: original environment (used to reset environment)
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
-    silent = build_options.get('silent', False)
+    silent = build_option('silent')
 
     spec = module['spec']
 
@@ -2012,7 +2001,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     cwd = os.getcwd()
 
     # load easyblock
-    easyblock = build_options.get('easyblock', None)
+    easyblock = build_option('easyblock')
     if not easyblock:
         # try to look in .eb file
         reg = re.compile(r"^\s*easyblock\s*=(.*)$")
@@ -2026,19 +2015,19 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     name = module['ec']['name']
     try:
         app_class = get_class(easyblock, name=name)
-        app = app_class(spec, build_options=build_options, build_specs=build_specs)
+        app = app_class(spec, build_specs=build_specs)
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         tup = (name, easyblock, err.msg)
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
 
     # application settings
-    stop = build_options.get('stop', None)
+    stop = build_option('stop')
     if stop is not None:
         _log.debug("Stop set to %s" % stop)
         app.cfg['stop'] = stop
 
-    skip = build_options.get('skip', None)
+    skip = build_option('skip')
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
@@ -2048,8 +2037,8 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_options.get('skip_test_cases', False) and app.cfg['tests']
-        regtest_online = build_options.get('regtest_online', False)
+        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        regtest_online = build_option('regtest_online')
         result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
     except EasyBuildError, err:
         lastn = 300
@@ -2074,7 +2063,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
+            buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
             try:
@@ -2146,11 +2135,10 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     return (exit_code == 0, application_log)
 
 
-def get_easyblock_instance(easyconfig, build_options=None, build_specs=None):
+def get_easyblock_instance(easyconfig, build_specs=None):
     """
     Get an instance for this easyconfig
     @param easyconfig: parsed easyconfig
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
 
     returns an instance of EasyBlock (or subclass thereof)
@@ -2169,10 +2157,10 @@ def get_easyblock_instance(easyconfig, build_options=None, build_specs=None):
             break
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, build_options=build_options, build_specs=build_specs)
+    return app_class(spec, build_specs=build_specs)
 
 
-def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None):
+def build_easyconfigs(easyconfigs, output_dir, test_results):
     """Build the list of easyconfigs."""
 
     build_stopped = {}
@@ -2189,7 +2177,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
             try:
                 if step == 'initialization':
                     _log.info("Running %s step" % step)
-                    return get_easyblock_instance(obj, build_options=build_options)
+                    return get_easyblock_instance(obj)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)
@@ -2259,7 +2247,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
+                buildstats = get_build_stats(app, start_time, build_option('command_line'))
                 succes.append((app, buildstats))
 
     for result in test_results:

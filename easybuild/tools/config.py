@@ -33,7 +33,7 @@ EasyBuild configuration (paths, preferences, etc.)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-
+import copy
 import os
 import random
 import string
@@ -65,6 +65,34 @@ DEFAULT_PATH_SUBDIRS = {
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
     'subdir_software': 'software',
+}
+
+
+DEFAULT_BUILD_OPTIONS = {
+    'aggregate_regtest': None,
+    'check_osdeps': True,
+    'command_line': None,
+    'debug': False,
+    'dry_run': False,
+    'easyblock': None,
+    'experimental': False,
+    'force': False,
+    'ignore_dirs': None,
+    'modules_footer': None,
+    'only_blocks': None,
+    'recursive_mod_unload': False,
+    'regtest_online': False,
+    'regtest_output_dir': None,
+    'retain_all_deps': False,
+    'robot_path': None,
+    'sequential': False,
+    'silent': False,
+    'skip': None,
+    'skip_test_cases': False,
+    'stop': None,
+    'valid_module_classes': None,
+    'valid_stops': None,
+    'validate': True,
 }
 
 
@@ -181,32 +209,7 @@ class BuildOptions(FrozenDictKnownKeys):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    KNOWN_KEYS = [
-        'aggregate_regtest',
-        'check_osdeps',
-        'command_line',
-        'debug',
-        'dry_run',
-        'easyblock',
-        'experimental',
-        'force',
-        'ignore_dirs',
-        'modules_footer',
-        'only_blocks',
-        'recursive_mod_unload',
-        'regtest_online',
-        'regtest_output_dir',
-        'retain_all_deps',
-        'robot_path',
-        'sequential',
-        'silent',
-        'skip',
-        'skip_test_cases',
-        'stop',
-        'valid_module_classes',
-        'valid_stops',
-        'validate'
-    ]
+    KNOWN_KEYS = DEFAULT_BUILD_OPTIONS.keys()
 
 
 def get_user_easybuild_dir():
@@ -312,7 +315,7 @@ def init(options, config_options_dict):
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
-        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the defautl list)
+        # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the default list)
         tmpdict['moduleclasses'] = nub(list(tmpdict.get('moduleclasses', [])) +
                                          [x[0] for x in DEFAULT_MODULECLASSES])
 
@@ -370,6 +373,21 @@ def init(options, config_options_dict):
                 if not os.path.isdir(directory):
                     _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
                     create_dir(key, directory)
+
+
+def init_build_options(build_options=None):
+    """Initialize build options."""
+    # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
+    bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
+    if build_options is not None:
+        bo.update(build_options)
+    # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
+    return BuildOptions(bo)
+
+
+def build_option(key):
+    """Obtain value specified build option."""
+    return BuildOptions()[key]
 
 
 def build_path():

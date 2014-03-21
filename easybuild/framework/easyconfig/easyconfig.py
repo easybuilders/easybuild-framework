@@ -42,6 +42,7 @@ from vsc import fancylogger
 from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
@@ -72,25 +73,22 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_options=None, build_specs=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed
         @param extra_options: dictionary with extra variables that can be set for this specific instance
-        @param build_options: dictionary of build options, e.g. robot_path, validate, check_osdeps, ... (default: {})
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
+        @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         """
-        if build_options is None:
-            build_options = {}
-
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
         # use legacy module classes as default
-        self.valid_module_classes = build_options.get('valid_module_classes', ['base', 'compiler', 'lib'])
-        if 'valid_module_classes' in build_options:
+        self.valid_module_classes = build_option('valid_module_classes')
+        if self.valid_module_classes is not None:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
         # replace the category name with the category
@@ -117,8 +115,8 @@ class EasyConfig(object):
                 self.mandatory.append(key)
 
         # set valid stops
-        self.valid_stops = build_options.get('valid_stops', [])
-        self.log.debug("Non-empty list of valid stops obtained: %s" % self.valid_stops)
+        self.valid_stops = build_option('valid_stops')
+        self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
         self._toolchain = None
@@ -139,9 +137,9 @@ class EasyConfig(object):
         self.handle_allowed_system_deps()
 
         # perform validations
-        self.validation = build_options.get('validate', True)
+        self.validation = build_option('validate') and validate
         if self.validation:
-            self.validate(check_osdeps=build_options.get('check_osdeps', True))
+            self.validate(check_osdeps=build_option('check_osdeps'))
 
     def _legacy_license(self, extra_options):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
@@ -179,12 +177,7 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        build_options = {
-            'validate': self.validation,
-            'valid_stops': self.valid_stops,
-            'valid_module_classes': copy.deepcopy(self.valid_module_classes),
-        }
-        ec = EasyConfig(self.path, extra_options={}, build_options=build_options)
+        ec = EasyConfig(self.path, extra_options={}, validate=self.validation)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -466,6 +459,8 @@ class EasyConfig(object):
         validation helper method. attr is the attribute it will check, values are the possible values.
         if the value of the attribute is not in the is array, it will report an error
         """
+        if values is None:
+            values = []
         if self[attr] and self[attr] not in values:
             self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
 
