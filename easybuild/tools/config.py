@@ -377,10 +377,11 @@ def init(options, config_options_dict):
 
 def init_build_options(build_options=None):
     """Initialize build options."""
-    # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
+    # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
     if build_options is not None:
         bo.update(build_options)
+    # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
     return BuildOptions(bo)
 
 
