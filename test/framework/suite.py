@@ -54,6 +54,7 @@ import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.modulestool as mt
 import test.framework.options as o
+import test.framework.parallelbuild as p
 import test.framework.repository as r
 import test.framework.robot as robot
 import test.framework.run as run
