@@ -100,10 +100,10 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, path, build_specs=None):
+    def __init__(self, ec, build_specs=None):
         """
         Initialize the EasyBlock instance.
-        @param path: path to easyconfig file
+        @param ec: path to easyconfig file or parsed easyconfig file (instance of EasyConfig class)
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
 
@@ -139,7 +139,12 @@ class EasyBlock(object):
 
         # easyconfig for this application
         extra = self.extra_options()
-        self.cfg = EasyConfig(path, extra_options=extra, build_specs=build_specs)
+        if isinstance(ec, basestring):
+            self.cfg = EasyConfig(ec, extra_options=extra, build_specs=build_specs)
+        elif isinstance(ec, EasyConfig):
+            self.cfg = ec
+        else:
+            _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']

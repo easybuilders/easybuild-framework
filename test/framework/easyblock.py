@@ -37,6 +37,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -70,21 +71,31 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
-        self.contents =  """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1']
-"""
+        name = "pi"
+        version = "3.14"
+        self.contents =  '\n'.join([
+            'name = "%s"' % name,
+            'version = "%s"' % version,
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'exts_list = ["ext1"]',
+        ])
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(self.eb_file)
+        self.assertEqual(eb.cfg['name'], name)
+        self.assertEqual(eb.cfg['version'], version)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
         sys.stdout.close()
         sys.stdout = stdoutorig
+
+        # test passing of parsed easyconfig file to EasyBlock constructor
+        ec = EasyConfig(self.eb_file)
+        eb2 = EasyBlock(ec)
+        self.assertEqual(eb2.cfg['name'], name)
+        self.assertEqual(eb2.cfg['version'], version)
 
         # cleanup
         eb.close_log()
