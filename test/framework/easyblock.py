@@ -103,13 +103,13 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_fake_module_load(self):
         """Testcase for fake module load"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
         self.writeEC()
         eb = EasyBlock(self.eb_file)
         eb.installdir = config.build_path()
@@ -122,14 +122,14 @@ toolchain = {"name":"dummy", "version": "dummy"}
 
     def test_extensions_step(self):
         """Test the extensions_step"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1']
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = ["ext1"]',
+        ])
         self.writeEC()
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
@@ -156,16 +156,16 @@ exts_list = ['ext1']
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1', 'ext2']
-exts_filter = ("if [ %(name)s == 'ext2' ]; then exit 0; else exit 1; fi", '')
-exts_defaultclass = ['easybuild.framework.extension', 'Extension']
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = ["ext1", "ext2"]',
+            'exts_filter = ("if [ %(name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
+            'exts_defaultclass = ["easybuild.framework.extension", "Extension"]',
+        ])
         # check if skip skips correct extensions
         self.writeEC()
         eb = EasyBlock(self.eb_file)
