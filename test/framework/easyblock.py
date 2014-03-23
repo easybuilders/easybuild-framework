@@ -36,7 +36,7 @@ import sys
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, fetch_easyblock_from_easyconfig_file, get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
@@ -288,6 +288,17 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
+
+    def test_fetch_easyblock_from_easyconfig_file(self):
+        """Test fetch_easyblock_from_easyconfig_file function."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+
+        for ec_file, res in [
+            (os.path.join(test_ecs_dir, 'toy-0.0.eb'), None),
+            (os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'), 'Toolchain'),
+        ]:
+            easyblock = fetch_easyblock_from_easyconfig_file(ec_file)
+            self.assertEqual(easyblock, res)
 
     def tearDown(self):
         """ make sure to remove the temporary file """

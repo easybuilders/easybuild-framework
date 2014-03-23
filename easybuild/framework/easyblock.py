@@ -1986,11 +1986,11 @@ def fetch_easyblock_from_easyconfig_file(path):
     """Fetch easyblock specification from given easyconfig file."""
     # check whether easyblock is specified in easyconfig file
     # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*easyblock\s*=\s*['\"](.*)['\"]\s*$", re.M)
+    reg = re.compile(r"""^\s*easyblock\s*=\s*(?P<easyblock>.*)\s*$""", re.M)
     txt = read_file(path)
     res = reg.search(txt)
     if res:
-        return res.group(1)
+        return res.group('easyblock').strip("'\"")
     else:
         return None
 
