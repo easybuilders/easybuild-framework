@@ -157,7 +157,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
-    var = config.oldstyle_environment_variables['test_output_path']
+    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
     easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
@@ -210,7 +210,7 @@ def regtest(easyconfig_paths, build_specs=None):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.oldstyle_environment_variables['test_output_path']
+    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
 
     regtest_output_dir = build_option('regtest_output_dir')
     if regtest_output_dir is not None:
