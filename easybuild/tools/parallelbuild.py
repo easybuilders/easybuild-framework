@@ -176,7 +176,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
 def prepare_easyconfig(ec):
     """
     Prepare for building specified easyconfig (fetch sources)
-    @param ec: parsed easyconfig
+    @param ec: parsed easyconfig (EasyConfig instance)
     """
     try:
         easyblock_instance = get_easyblock_instance(ec)

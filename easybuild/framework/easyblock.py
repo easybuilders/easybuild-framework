@@ -103,7 +103,7 @@ class EasyBlock(object):
     def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
-        @param ec: path to easyconfig file or parsed easyconfig file (instance of EasyConfig class)
+        @param ec: a parsed easyconfig file (EasyConfig instance)
         """
 
         # list of patch/source files, along with checksums
@@ -1982,6 +1982,19 @@ def get_class(easyblock, name=None):
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
 
 
+def fetch_easyblock_from_easyconfig_file(path):
+    """Fetch easyblock specification from given easyconfig file."""
+    # check whether easyblock is specified in easyconfig file
+    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
+    reg = re.compile(r"^\s*easyblock\s*=\s*['\"](.*)['\"]\s*$", re.M)
+    txt = read_file(path)
+    res = reg.search(txt)
+    if res:
+        return res.group(1)
+    else:
+        return None
+
+
 def build_and_install_software(module, orig_environ):
     """
     Build the software
@@ -2004,13 +2017,7 @@ def build_and_install_software(module, orig_environ):
     # load easyblock
     easyblock = build_option('easyblock')
     if not easyblock:
-        # check whether easyblock is specified in easyconfig file
-        # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-        reg = re.compile(r"^\s*easyblock\s*=(.*)$", re.M)
-        txt = read_file(spec)
-        res = reg.search(txt)
-        if res:
-            easyblock = eval(res.group(1))
+        easyblock = fetch_easyblock_from_easyconfig_file(spec)
 
     name = module['ec']['name']
     try:
@@ -2138,7 +2145,7 @@ def build_and_install_software(module, orig_environ):
 def get_easyblock_instance(easyconfig):
     """
     Get an instance for this easyconfig
-    @param easyconfig: parsed easyconfig
+    @param easyconfig: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -2146,13 +2153,8 @@ def get_easyblock_instance(easyconfig):
     name = easyconfig['ec']['name']
 
     # handle easyconfigs with custom easyblocks
-    easyblock = None
     # determine easyblock specification from easyconfig file, if any
-    regex = re.compile(r"^\s*easyblock\s*=(.*)$")
-    txt = read_file(spec)
-    res = regex.search(txt)
-    if res:
-        easyblock = eval(res.group(1))
+    easyblock = fetch_easyblock_from_easyconfig_file(spec)
 
     app_class = get_class(easyblock, name=name)
     return app_class(easyconfig['ec'])
