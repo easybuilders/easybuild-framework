@@ -57,7 +57,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
-        self.eb = EasyBlock(eb_full_path)
+        ec = EasyConfig(eb_full_path)
+        self.eb = EasyBlock(ec)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
 

@@ -100,11 +100,10 @@ class EasyBlock(object):
     #
     # INIT
     #
-    def __init__(self, ec, build_specs=None):
+    def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
         @param ec: path to easyconfig file or parsed easyconfig file (instance of EasyConfig class)
-        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         """
 
         # list of patch/source files, along with checksums
@@ -139,9 +138,7 @@ class EasyBlock(object):
 
         # easyconfig for this application
         extra = self.extra_options()
-        if isinstance(ec, basestring):
-            self.cfg = EasyConfig(ec, extra_options=extra, build_specs=build_specs)
-        elif isinstance(ec, EasyConfig):
+        if isinstance(ec, EasyConfig):
             self.cfg = ec
         else:
             _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
@@ -1985,12 +1982,11 @@ def get_class(easyblock, name=None):
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
 
 
-def build_and_install_software(module, orig_environ, build_specs=None):
+def build_and_install_software(module, orig_environ):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
     @param orig_environ: original environment (used to reset environment)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     silent = build_option('silent')
 
@@ -2008,19 +2004,18 @@ def build_and_install_software(module, orig_environ, build_specs=None):
     # load easyblock
     easyblock = build_option('easyblock')
     if not easyblock:
-        # try to look in .eb file
-        reg = re.compile(r"^\s*easyblock\s*=(.*)$")
+        # check whether easyblock is specified in easyconfig file
+        # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
+        reg = re.compile(r"^\s*easyblock\s*=(.*)$", re.M)
         txt = read_file(spec)
-        for line in txt.split('\n'):
-            match = reg.search(line)
-            if match:
-                easyblock = eval(match.group(1))
-                break
+        res = reg.search(txt)
+        if res:
+            easyblock = eval(res.group(1))
 
     name = module['ec']['name']
     try:
         app_class = get_class(easyblock, name=name)
-        app = app_class(spec, build_specs=build_specs)
+        app = app_class(module['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         tup = (name, easyblock, err.msg)
@@ -2140,11 +2135,10 @@ def build_and_install_software(module, orig_environ, build_specs=None):
     return (exit_code == 0, application_log)
 
 
-def get_easyblock_instance(easyconfig, build_specs=None):
+def get_easyblock_instance(easyconfig):
     """
     Get an instance for this easyconfig
     @param easyconfig: parsed easyconfig
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -2153,16 +2147,15 @@ def get_easyblock_instance(easyconfig, build_specs=None):
 
     # handle easyconfigs with custom easyblocks
     easyblock = None
-    reg = re.compile(r"^\s*easyblock\s*=(.*)$")
+    # determine easyblock specification from easyconfig file, if any
+    regex = re.compile(r"^\s*easyblock\s*=(.*)$")
     txt = read_file(spec)
-    for line in txt.split('\n'):
-        match = reg.search(line)
-        if match:
-            easyblock = eval(match.group(1))
-            break
+    res = regex.search(txt)
+    if res:
+        easyblock = eval(res.group(1))
 
     app_class = get_class(easyblock, name=name)
-    return app_class(spec, build_specs=build_specs)
+    return app_class(easyconfig['ec'])
 
 
 def build_easyconfigs(easyconfigs, output_dir, test_results):

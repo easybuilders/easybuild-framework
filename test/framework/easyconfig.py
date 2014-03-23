@@ -275,7 +275,8 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
         ])
         self.prep()
-        eb = EasyBlock(self.eb_file)
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
     def test_suggestions(self):
@@ -765,7 +766,8 @@ class EasyConfigTest(EnhancedTestCase):
             'buildininstalldir = True',
         ])
         self.prep()
-        eb = EasyBlock(self.eb_file)
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
         eb.gen_builddir()
         eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
