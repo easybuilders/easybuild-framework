@@ -52,9 +52,10 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
-from easybuild.framework.easyconfig.tools import fetch_parameter_from_easyconfig_file, get_class_for, get_easyblock_class
-from easybuild.framework.easyconfig.tools import get_paths_for, get_module_path, resolve_dependencies
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, fetch_parameter_from_easyconfig_file
+from easybuild.framework.easyconfig.easyconfig import get_class_for, get_easyblock_class, get_module_path
+from easybuild.framework.easyconfig.easyconfig import resolve_template
+from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
@@ -92,7 +93,7 @@ class EasyBlock(object):
         """
         Extra options method which will be passed to the EasyConfig constructor.
         """
-        if extra == None:
+        if extra is None:
             return []
         else:
             return extra

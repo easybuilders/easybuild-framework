@@ -43,14 +43,15 @@ from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
@@ -86,6 +87,9 @@ class EasyConfig(object):
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
+        if not os.path.isfile(path):
+            self.log.error("EasyConfig __init__ expected a valid path")
+
         # use legacy module classes as default
         self.valid_module_classes = build_option('valid_module_classes')
         if self.valid_module_classes is not None:
@@ -97,14 +101,17 @@ class EasyConfig(object):
             self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
 
         if extra_options is None:
-            self.extra_options = {}
-        elif isinstance(extra_options, (list, tuple,)):
-            # TODO legacy behaviour. should be more strictly enforced. do we log here?
-            self.extra_options = dict(extra_options)
-        elif isinstance(extra_options, dict):
-            self.extra_options = extra_options
+            name = fetch_parameter_from_easyconfig_file(path, 'name')
+            easyblock = fetch_parameter_from_easyconfig_file(path, 'easyblock')
+            app_class = get_easyblock_class(easyblock, name=name)
+            self.extra_options = app_class.extra_options()
         else:
-            tup = (type(extra_options), extra_options)
+            self.extra_options = extra_options
+
+        if isinstance(self.extra_options, (list, tuple,)):
+            self.extra_options = dict(self.extra_options)
+        elif not isinstance(self.extra_options, dict):
+            tup = (type(self.extra_options), self.extra_options)
             self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
         self._legacy_license()
@@ -125,9 +132,6 @@ class EasyConfig(object):
 
         # store toolchain
         self._toolchain = None
-
-        if not os.path.isfile(path):
-            self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
             'moduleclass': self.valid_module_classes,
@@ -184,7 +188,7 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, extra_options=self.extra_options, validate=self.validation)
+        ec = EasyConfig(self.path, validate=self.validation)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -658,6 +662,127 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
         'versionsuffix': suffix,
     }
     return det_full_ec_version(cfg)
+
+
+def fetch_parameter_from_easyconfig_file(path, param):
+    """Fetch parameter specification from given easyconfig file."""
+    # check whether easyblock is specified in easyconfig file
+    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
+    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*)\s*$" % param, re.M)
+    txt = read_file(path)
+    res = reg.search(txt)
+    if res:
+        return res.group('param').strip("'\"")
+    else:
+        return None
+
+
+def get_class_for(modulepath, class_name):
+    """
+    Get class for a given class name and easyblock module path.
+    """
+    # try to import specified module path, reraise ImportError if it occurs
+    try:
+        m = __import__(modulepath, globals(), locals(), [''])
+    except ImportError, err:
+        raise ImportError(err)
+    # try to import specified class name from specified module path, throw ImportError if this fails
+    try:
+        c = getattr(m, class_name)
+    except AttributeError, err:
+        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
+    return c
+
+
+def get_easyblock_class(easyblock, name=None):
+    """
+    Get class for a particular easyblock (or use default)
+    """
+
+    def_class = get_easyconfig_parameter_default('easyblock')
+    def_mod_path = get_module_path(def_class, generic=True)
+
+    try:
+        if easyblock:
+            # something was specified, lets parse it
+            es = easyblock.split('.')
+            class_name = es.pop(-1)
+            # figure out if full path was specified or not
+            if es:
+                modulepath = '.'.join(es)
+                tup = (class_name, modulepath)
+                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)" % tup)
+                cls = get_class_for(modulepath, class_name)
+            else:
+                # if we only get the class name, most likely we're dealing with a generic easyblock
+                try:
+                    modulepath = get_module_path(easyblock, generic=True)
+                    cls = get_class_for(modulepath, class_name)
+                except ImportError, err:
+                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
+                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+
+            if not class_name == cls.__name__:
+                tup = (easyblock, class_name, cls.__name__)
+                _log.error("Sanity check on class obtained for easyblock '%s' failed ('%s' vs '%s')" % tup)
+        else:
+            # if no easyblock specified, try to find if one exists
+            if name is None:
+                name = "UNKNOWN"
+            # The following is a generic way to calculate unique class names for any funny software title
+            class_name = encode_class_name(name)
+            # modulepath will be the namespace + encoded modulename (from the classname)
+            modulepath = get_module_path(class_name)
+            if not os.path.exists("%s.py" % modulepath):
+                _log.deprecated("Determine module path based on software name", "2.0")
+                modulepath = get_module_path(name, decode=False)
+
+            # try and find easyblock
+            try:
+                _log.debug("getting class for %s.%s" % (modulepath, class_name))
+                cls = get_class_for(modulepath, class_name)
+                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+            except ImportError, err:
+
+                # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
+                # and not because of a broken import statement in the easyblock module
+                error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
+                _log.debug("error regexp: %s" % error_re.pattern)
+                if error_re.match(str(err)):
+                    # no easyblock could be found, so fall back to default class.
+                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
+                                (class_name, (def_mod_path, def_class), err))
+                    cls = get_class_for(def_mod_path, def_class)
+                else:
+                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+
+        _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+        return cls
+
+    except Exception, err:
+        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
+
+
+def get_module_path(name, generic=False, decode=True):
+    """
+    Determine the module path for a given easyblock or software name,
+    based on the encoded class name.
+    """
+    if name is None:
+        return None
+
+    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
+    if decode:
+        name = decode_class_name(name)
+    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
+
+    modpath = ['easybuild', 'easyblocks']
+    if generic:
+        modpath.append('generic')
+
+    return '.'.join(modpath + [module_name])
 
 
 def resolve_template(value, tmpl_dict):

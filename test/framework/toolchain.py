@@ -36,7 +36,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
-from easybuild.framework.easyconfig.tools import parse_easyconfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -57,7 +57,7 @@ class ToolchainTest(EnhancedTestCase):
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
-        ec = parse_easyconfig(ec_file, validate=False)
+        ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
 

@@ -73,15 +73,14 @@ except ImportError, err:
 
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import decode_class_name, det_common_path_prefix, encode_class_name, run_cmd
+from easybuild.tools.filetools import det_common_path_prefix, run_cmd
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import remove_unwanted_chars, quote_str
-from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
+from easybuild.tools.utilities import quote_str
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.format.format import get_format_version, FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.version import EasyVersion
@@ -94,7 +93,7 @@ def ec_filename_for(path):
     Return a suiting file name for the easyconfig file at <path>,
     as determined by its contents.
     """
-    ec = parse_easyconfig(path, validate=False)
+    ec = EasyConfig(path, validate=False)
 
     fn = "%s-%s.eb" % (ec['name'], det_full_ec_version(ec))
 
@@ -241,140 +240,6 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
         return [spec]
 
 
-def get_class_for(modulepath, class_name):
-    """
-    Get class for a given class name and easyblock module path.
-    """
-    # try to import specified module path, reraise ImportError if it occurs
-    try:
-        m = __import__(modulepath, globals(), locals(), [''])
-    except ImportError, err:
-        raise ImportError(err)
-    # try to import specified class name from specified module path, throw ImportError if this fails
-    try:
-        c = getattr(m, class_name)
-    except AttributeError, err:
-        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
-    return c
-
-
-def get_module_path(name, generic=False, decode=True):
-    """
-    Determine the module path for a given easyblock or software name,
-    based on the encoded class name.
-    """
-    if not name:
-        return None
-
-    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
-    if decode:
-        name = decode_class_name(name)
-    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
-
-    if generic:
-        modpath = '.'.join(["easybuild", "easyblocks", "generic"])
-    else:
-        modpath = '.'.join(["easybuild", "easyblocks"])
-
-    return '.'.join([modpath, module_name])
-
-
-def get_easyblock_class(easyblock, name=None):
-    """
-    Get class for a particular easyblock (or use default)
-    """
-
-    def_class = get_easyconfig_parameter_default('easyblock')
-    def_mod_path = get_module_path(def_class, generic=True)
-
-    try:
-        # if no easyblock specified, try to find if one exists
-        if not easyblock:
-            if not name:
-                name = "UNKNOWN"
-            # The following is a generic way to calculate unique class names for any funny software title
-            class_name = encode_class_name(name)
-            # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(class_name)
-            if not os.path.exists("%s.py" % modulepath):
-                _log.deprecated("Determine module path based on software name", "2.0")
-                modulepath = get_module_path(name, decode=False)
-
-            # try and find easyblock
-            try:
-                _log.debug("getting class for %s.%s" % (modulepath, class_name))
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-                return cls
-            except ImportError, err:
-
-                # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
-                # and not because of a broken import statement in the easyblock module
-                error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
-                _log.debug("error regexp: %s" % error_re.pattern)
-                if not error_re.match(str(err)):
-                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
-
-                else:
-                    # no easyblock could be found, so fall back to default class.
-                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, (def_mod_path, def_class), err))
-                    cls = get_class_for(def_mod_path, def_class)
-
-        # something was specified, lets parse it
-        else:
-            class_name = easyblock.split('.')[-1]
-            # figure out if full path was specified or not
-            if len(easyblock.split('.')) > 1:
-                _log.info("Assuming that full easyblock module path was specified.")
-                modulepath = '.'.join(easyblock.split('.')[:-1])
-                cls = get_class_for(modulepath, class_name)
-            else:
-                # if we only get the class name, most likely we're dealing with a generic easyblock
-                try:
-                    modulepath = get_module_path(easyblock, generic=True)
-                    cls = get_class_for(modulepath, class_name)
-                except ImportError, err:
-                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
-                    modulepath = get_module_path(easyblock)
-                    cls = get_class_for(modulepath, class_name)
-                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
-
-        _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-        return cls
-
-    except Exception, err:
-        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
-
-
-def fetch_parameter_from_easyconfig_file(path, param):
-    """Fetch parameter specification from given easyconfig file."""
-    # check whether easyblock is specified in easyconfig file
-    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>.*)\s*$" % param, re.M)
-    txt = read_file(path)
-    res = reg.search(txt)
-    if res:
-        return res.group('param').strip("'\"")
-    else:
-        return None
-
-
-def parse_easyconfig(path, build_specs=None, validate=None):
-    """
-    Parse easyconfig file at specified path.
-    @param path: path to easyconfig file
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    @param validate: whether or not to perform validation
-    """
-    name = fetch_parameter_from_easyconfig_file(path, 'name')
-    easyblock = fetch_parameter_from_easyconfig_file(path, 'easyblock')
-    app_class = get_easyblock_class(easyblock, name=name)
-    extra_options = app_class.extra_options()
-    ec = EasyConfig(path, extra_options=extra_options, build_specs=build_specs, validate=validate)
-    return ec
-
-
 def process_easyconfig(path, build_specs=None, validate=True):
     """
     Process easyconfig, returning some information for each block
@@ -391,7 +256,7 @@ def process_easyconfig(path, build_specs=None, validate=True):
 
         # create easyconfig
         try:
-            ec = parse_easyconfig(spec, build_specs=build_specs, validate=validate)
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -847,7 +712,7 @@ def select_or_generate_ec(fp, paths, specs):
     ec_files = nub(ec_files)
     _log.debug("Unique ec_files: %s" % ec_files)
 
-    ecs_and_files = [(parse_easyconfig(f, validate=False), f) for f in ec_files]
+    ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
     # TOOLCHAIN NAME
 

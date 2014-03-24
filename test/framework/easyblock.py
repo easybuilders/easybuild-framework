@@ -38,7 +38,6 @@ from unittest import TestLoader, main
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import fetch_parameter_from_easyconfig_file, parse_easyconfig
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
@@ -86,7 +85,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         self.assertEqual(eb.cfg['name'], name)
         self.assertEqual(eb.cfg['version'], version)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
@@ -107,7 +106,7 @@ class EasyBlockTest(EnhancedTestCase):
             'toolchain = {"name": "dummy", "version": "dummy"}',
         ])
         self.writeEC()
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.build_path()
         fake_mod_data = eb.load_fake_module()
         eb.clean_up_fake_module(fake_mod_data)
@@ -129,7 +128,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
         self.assertRaises(EasyBuildError, eb.extensions_step)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
@@ -137,7 +136,7 @@ class EasyBlockTest(EnhancedTestCase):
         # test if everything works fine if set
         self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
         self.writeEC()
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
         eb.extensions_step()
@@ -164,7 +163,7 @@ class EasyBlockTest(EnhancedTestCase):
         ])
         # check if skip skips correct extensions
         self.writeEC()
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
@@ -199,7 +198,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test if module is generated correctly
         self.writeEC()
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
@@ -230,7 +229,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
-        eb = EasyBlock(parse_easyconfig(self.eb_file))
+        eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
         eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
@@ -282,20 +281,6 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
-
-    def test_fetch_parameter_from_easyconfig_file(self):
-        """Test fetch_easyblock_from_easyconfig_file function."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-
-        for ec_file, correct_name, correct_easyblock in [
-            (os.path.join(test_ecs_dir, 'toy-0.0.eb'), 'toy', None),
-            (os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
-        ]:
-            name = fetch_parameter_from_easyconfig_file(ec_file, 'name')
-            self.assertEqual(name, correct_name)
-            easyblock = fetch_parameter_from_easyconfig_file(ec_file, 'easyblock')
-            self.assertEqual(easyblock, correct_easyblock)
-
 
     def tearDown(self):
         """ make sure to remove the temporary file """
