@@ -52,23 +52,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     logfile = None
 
-    def setUp(self):
-        """Prepare for running unit tests."""
-        super(CommandLineOptionsTest, self).setUp()
-
-        # (re)import and reload easybuild modules
-        import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
-        easybuild = reload(easybuild)
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
-        reload(easybuild.easyblocks.generic)
-        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
-
-        # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
-
     def test_help_short(self, txt=None):
         """Test short help message."""
 

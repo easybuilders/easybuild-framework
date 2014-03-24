@@ -91,6 +91,19 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
         init_config()
 
+        # add test easyblocks to Python search path and (re)import and reload easybuild modules
+        import easybuild
+        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        reload(easybuild)
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
+        reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+
+        # set MODULEPATH to included test modules
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+
     def tearDown(self):
         """Clean up after running testcase."""
         os.remove(self.logfile)
