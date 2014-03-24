@@ -723,10 +723,6 @@ def get_easyblock_class(easyblock, name=None):
                     modulepath = get_module_path(easyblock)
                     cls = get_class_for(modulepath, class_name)
                 _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
-
-            if not class_name == cls.__name__:
-                tup = (easyblock, class_name, cls.__name__)
-                _log.error("Sanity check on class obtained for easyblock '%s' failed ('%s' vs '%s')" % tup)
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
@@ -758,7 +754,8 @@ def get_easyblock_class(easyblock, name=None):
                 else:
                     _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
 
-        _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+        tup = (cls.__name__, easyblock, name)
+        _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
         return cls
 
     except Exception, err:
