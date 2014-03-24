@@ -216,7 +216,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file)
         self.assertRaises(KeyError, lambda: eb['custom_key'])
 
-        extra_vars = [('custom_key', ['default', "This is a default key", easyconfig.CUSTOM])]
+        extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
         eb = EasyConfig(self.eb_file, extra_options=extra_vars)
         self.assertEqual(eb['custom_key'], 'default')
@@ -237,7 +237,7 @@ class EasyConfigTest(EnhancedTestCase):
         # test if extra toolchain options are being passed
         self.assertEqual(eb.toolchain.options['static'], True)
 
-        extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
+        extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
 
         # test extra mandatory vars
         self.assertErrorRegex(EasyBuildError, r"mandatory variables? \S* not provided",

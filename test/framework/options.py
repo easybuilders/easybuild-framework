@@ -355,7 +355,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 if custom is not None:
                     args.extend(['-e', custom])
 
-                outtxt = self.eb_main(args, logfile=dummylogfn)
+                outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
 
                 # check whether all parameter types are listed
                 par_types = [BUILD, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT,

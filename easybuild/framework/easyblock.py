@@ -94,8 +94,11 @@ class EasyBlock(object):
         Extra options method which will be passed to the EasyConfig constructor.
         """
         if extra is None:
-            return []
+            return {}
         else:
+            if not isinstance(extra, dict):
+                _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
+                extra = dict(extra)
             return extra
 
     #

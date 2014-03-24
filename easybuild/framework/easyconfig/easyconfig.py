@@ -108,11 +108,14 @@ class EasyConfig(object):
         else:
             self.extra_options = extra_options
 
-        if isinstance(self.extra_options, (list, tuple,)):
-            self.extra_options = dict(self.extra_options)
-        elif not isinstance(self.extra_options, dict):
-            tup = (type(self.extra_options), self.extra_options)
-            self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
+        if not isinstance(self.extra_options, dict):
+            if isinstance(self.extra_options, (list, tuple,)):
+                typ = type(self.extra_options)
+                self.extra_options = dict(self.extra_options)
+                self.log.deprecated("Specified extra_options should be of type 'dict', found type '%s'" % typ, '1.0')
+            else:
+                tup = (type(self.extra_options), self.extra_options)
+                self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
         self._legacy_license()
 
