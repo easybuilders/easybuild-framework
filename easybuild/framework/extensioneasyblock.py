@@ -60,7 +60,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             extra_vars = dict(extra_vars)
 
         extra_vars.update({
-            'options': ({}, "Dictionary with extension options.", CUSTOM),
+            'options': [{}, "Dictionary with extension options.", CUSTOM],
         })
         return EasyBlock.extra_options(extra_vars)
 
