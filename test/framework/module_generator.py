@@ -39,9 +39,9 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.module_generator
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -57,7 +57,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
-        self.eb = EasyBlock(eb_full_path)
+        ec = EasyConfig(eb_full_path)
+        self.eb = EasyBlock(ec)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
 

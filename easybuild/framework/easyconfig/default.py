@@ -186,6 +186,8 @@ def convert_to_help(opts, has_default=False):
         @param: has_default, if False, add the DEFAULT_CONFIG list
     """
     mapping = OrderedDict()
+    if isinstance(opts, dict):
+        opts = opts.items()
     if not has_default:
         defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
         opts = defs + opts

@@ -73,7 +73,8 @@ except ImportError, err:
 
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
+from easybuild.tools.filetools import det_common_path_prefix, run_cmd
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -244,6 +245,7 @@ def process_easyconfig(path, build_specs=None, validate=True):
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param validate: whether or not to perform validation
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 

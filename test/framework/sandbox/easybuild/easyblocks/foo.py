@@ -36,11 +36,13 @@ class EB_foo(EasyBlock):
     """Support for building/installing foo."""
 
     @staticmethod
-    def extra_options(more_extra_vars=[]):
+    def extra_options(more_extra_vars=None):
         """Custom easyconfig parameters for foo."""
-
-        extra_vars = [
-                      ('foo_extra1', [None, "first foo-specific easyconfig parameter (mandatory)", MANDATORY]),
-                      ('foo_extra2', ['FOO', "second foo-specific easyconfig parameter", CUSTOM]),
-                     ]
-        return EasyBlock.extra_options(extra_vars + more_extra_vars)
+        if more_extra_vars is None:
+            more_extra_vars = {}
+        extra_vars = {
+            'foo_extra1': [None, "first foo-specific easyconfig parameter (mandatory)", MANDATORY],
+            'foo_extra2': ['FOO', "second foo-specific easyconfig parameter", CUSTOM],
+        }
+        extra_vars.update(more_extra_vars)
+        return EasyBlock.extra_options(extra_vars)

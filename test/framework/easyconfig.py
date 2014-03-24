@@ -40,9 +40,9 @@ from unittest import TestLoader, main
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.easyconfig import det_installversion
-from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
+from easybuild.framework.easyconfig.tools import obtain_ec_for, tweak
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -216,7 +216,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file)
         self.assertRaises(KeyError, lambda: eb['custom_key'])
 
-        extra_vars = [('custom_key', ['default', "This is a default key", easyconfig.CUSTOM])]
+        extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
         eb = EasyConfig(self.eb_file, extra_options=extra_vars)
         self.assertEqual(eb['custom_key'], 'default')
@@ -237,7 +237,7 @@ class EasyConfigTest(EnhancedTestCase):
         # test if extra toolchain options are being passed
         self.assertEqual(eb.toolchain.options['static'], True)
 
-        extra_vars.extend([('mandatory_key', ['default', 'another mandatory key', easyconfig.MANDATORY])])
+        extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
 
         # test extra mandatory vars
         self.assertErrorRegex(EasyBuildError, r"mandatory variables? \S* not provided",
@@ -275,7 +275,8 @@ class EasyConfigTest(EnhancedTestCase):
             ']',
         ])
         self.prep()
-        eb = EasyBlock(self.eb_file)
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
     def test_suggestions(self):
@@ -462,7 +463,8 @@ class EasyConfigTest(EnhancedTestCase):
                                         'version = "1.2.3"',
                                         'homepage = "http://example.com"',
                                         'description = "test easyconfig"',
-                                        'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver)
+                                        'toolchain = {"name": "%s", "version": "%s"}' % (tcname, tcver),
+                                        'foo_extra1 = "bar"',
                                        ]))
                    ]
 
@@ -765,7 +767,8 @@ class EasyConfigTest(EnhancedTestCase):
             'buildininstalldir = True',
         ])
         self.prep()
-        eb = EasyBlock(self.eb_file)
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
         eb.gen_builddir()
         eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
@@ -805,6 +808,38 @@ class EasyConfigTest(EnhancedTestCase):
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_fetch_parameter_from_easyconfig_file(self):
+        """Test fetch_easyblock_from_easyconfig_file function."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        toy_ec_file = os.path.join(test_ecs_dir, 'toy-0.0.eb')
+
+        for ec_file, correct_name, correct_easyblock in [
+            (toy_ec_file, 'toy', None),
+            (os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
+        ]:
+            name = fetch_parameter_from_easyconfig_file(ec_file, 'name')
+            self.assertEqual(name, correct_name)
+            easyblock = fetch_parameter_from_easyconfig_file(ec_file, 'easyblock')
+            self.assertEqual(easyblock, correct_easyblock)
+
+        self.assertEqual(fetch_parameter_from_easyconfig_file(toy_ec_file, 'description'), "Toy C program.")
+
+    def test_get_easyblock_class(self):
+        """Test get_easyblock_class function."""
+        from easybuild.easyblocks.generic.configuremake import ConfigureMake
+        from easybuild.easyblocks.generic.toolchain import Toolchain
+        from easybuild.easyblocks.toy import EB_toy
+        for easyblock, easyblock_class in [
+            ('ConfigureMake', ConfigureMake),
+            ('easybuild.easyblocks.generic.configuremake.ConfigureMake', ConfigureMake),
+            ('Toolchain', Toolchain),
+            ('EB_toy', EB_toy),
+        ]:
+            self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
+
+        self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
+        self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
 
 def suite():
     """ returns all the testcases in this module """

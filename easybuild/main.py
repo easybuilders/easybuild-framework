@@ -246,7 +246,7 @@ def main(testing_data=(None, None, None)):
             ec_paths = [path[0] for path in paths]
         else:  # fallback: easybuild-easyconfigs install path
             ec_paths = easyconfigs_pkg_full_paths
-        regtest_ok = regtest(ec_paths, build_specs=build_specs)
+        regtest_ok = regtest(ec_paths)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -316,7 +316,7 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = build_easyconfigs_in_parallel(command, ordered_ecs, build_specs=build_specs)
+            jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -334,7 +334,7 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
-            (success, _) = build_and_install_software(ec, orig_environ, build_specs=build_specs)
+            (success, _) = build_and_install_software(ec, orig_environ)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1

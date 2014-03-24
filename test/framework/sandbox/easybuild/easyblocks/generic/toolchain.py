@@ -23,23 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for building and installing foofoo, implemented as an easyblock
+Dummy easyblock for toolchains.
 
 @author: Kenneth Hoste (Ghent University)
 """
+from easybuild.framework.easyblock import EasyBlock
 
-from easybuild.easyblocks.foo import EB_foo
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-
-
-class EB_foofoo(EB_foo):
-    """Support for building/installing foofoo."""
-
-    @staticmethod
-    def extra_options():
-        """Custom easyconfig parameters for foofoo."""
-        extra_vars = {
-            'foofoo_extra1': [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY],
-            'foofoo_extra2': ['FOOFOO', "second foofoo-specific easyconfig parameter", CUSTOM],
-        }
-        return EB_foo.extra_options(extra_vars)
+class Toolchain(EasyBlock):
+    """Dummy support for toolchains."""
+    pass

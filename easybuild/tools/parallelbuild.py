@@ -53,14 +53,13 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, build_specs=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
@@ -86,7 +85,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, b
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, build_specs=build_specs)
+        prepare_easyconfig(ec)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -174,14 +173,13 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     return job
 
 
-def prepare_easyconfig(ec, build_specs=None):
+def prepare_easyconfig(ec):
     """
     Prepare for building specified easyconfig (fetch sources)
-    @param ec: parsed easyconfig
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param ec: parsed easyconfig (EasyConfig instance)
     """
     try:
-        easyblock_instance = get_easyblock_instance(ec, build_specs=build_specs)
+        easyblock_instance = get_easyblock_instance(ec)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step(skip_checksums=True)
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
@@ -258,7 +256,7 @@ def regtest(easyconfig_paths, build_specs=None):
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir, build_specs=build_specs)
+        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
 
         print "List of submitted jobs:"
         for job in jobs:

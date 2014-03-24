@@ -53,11 +53,15 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         # using [] as default value is a bad idea, so we handle it this way
         if extra_vars is None:
-            extra_vars = []
+            extra_vars = {}
 
-        extra_vars.extend([
-                           ('options', [{}, "Dictionary with extension options.", CUSTOM]),
-                          ])
+        if not isinstance(extra_vars, dict):
+            self.log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '1.0')
+            extra_vars = dict(extra_vars)
+
+        extra_vars.update({
+            'options': [{}, "Dictionary with extension options.", CUSTOM],
+        })
         return EasyBlock.extra_options(extra_vars)
 
     def __init__(self, *args, **kwargs):
