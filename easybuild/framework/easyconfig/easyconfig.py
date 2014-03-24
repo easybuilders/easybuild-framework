@@ -97,20 +97,25 @@ class EasyConfig(object):
             self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
 
         if extra_options is None:
-            extra_options = {}
+            self.extra_options = {}
         elif isinstance(extra_options, (list, tuple,)):
             # TODO legacy behaviour. should be more strictly enforced. do we log here?
-            extra_options = dict(extra_options)
+            self.extra_options = dict(extra_options)
+        elif isinstance(extra_options, dict):
+            self.extra_options = extra_options
+        else:
+            tup = (type(extra_options), extra_options)
+            self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
-        self._legacy_license(extra_options)
+        self._legacy_license()
 
-        self._config.update(extra_options)
+        self._config.update(self.extra_options)
 
         self.path = path
         self.mandatory = MANDATORY_PARAMS[:]
 
         # extend mandatory keys
-        for key, value in extra_options.items():
+        for key, value in self.extra_options.items():
             if value[2] == MANDATORY:
                 self.mandatory.append(key)
 
@@ -141,19 +146,21 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
-    def _legacy_license(self, extra_options):
+    def _legacy_license(self, ecdict=None):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
         self.log.deprecated('_legacy_license does not have to be checked', '2.0')
-        if 'license' in extra_options:
-            if 'software_license' in extra_options:
+        if ecdict is None:
+            ecdict = self.extra_options
+        if 'license' in ecdict:
+            if 'software_license' in ecdict:
                 self.log.error("Can't use deprecated 'license' and 'software_license' at the same time")
             else:
                 self.log.deprecated("Use 'software_license' instead of 'license'.", '2.0')
-                extra_options['software_license'] = extra_options['license']
+                ecdict['software_license'] = ecdict['license']
         # this is not strictly deprecated, only the license usage.
         # but lets keep it here for safety/convenience
-        if 'software_license' in extra_options:
-            lic = extra_options['software_license']
+        if 'software_license' in ecdict:
+            lic = ecdict['software_license']
             if not isinstance(lic, License):
                 self.log.deprecated('license type has to be License subclass', '2.0')
                 typ_lic = type(lic)
@@ -170,14 +177,14 @@ class EasyConfig(object):
                         License.__init__(self)
                 lic = LicenseLegacy(lic)
                 EASYCONFIG_LICENSES_DICT[lic.name] = lic
-                extra_options['software_license'] = lic
+                ecdict['software_license'] = lic
 
     def copy(self):
         """
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, extra_options={}, validate=self.validation)
+        ec = EasyConfig(self.path, extra_options=self.extra_options, validate=self.validation)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 

@@ -39,9 +39,9 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.module_generator
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.tools import parse_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -57,7 +57,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
-        ec = EasyConfig(eb_full_path)
+        ec = parse_easyconfig(eb_full_path)
         self.eb = EasyBlock(ec)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
@@ -162,7 +162,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # test default naming scheme
             for ec_file in ec_files:
                 ec_path = os.path.abspath(ec_file)
-                ec = EasyConfig(ec_path, validate=False)
+                ec = parse_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
                 ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
                 mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
@@ -211,7 +211,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # test custom naming scheme
         for ec_file in ec_files:
             ec_path = os.path.abspath(ec_file)
-            ec = EasyConfig(ec_path, validate=False)
+            ec = parse_easyconfig(ec_path, validate=False)
             # derive module name directly from easyconfig file name
             ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
             if ec_name in ec2mod_map:
