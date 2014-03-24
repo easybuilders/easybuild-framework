@@ -245,16 +245,16 @@ def get_class_for(modulepath, class_name):
     """
     Get class for a given class name and easyblock module path.
     """
-    # >>> import pkgutil
-    # >>> loader = pkgutil.find_loader('easybuild.apps.Base')
-    # >>> d = loader.load_module('Base')
-    # >>> c = getattr(d,'Likwid')
-    # >>> c()
-    m = __import__(modulepath, globals(), locals(), [''])
+    # try to import specified module path, reraise ImportError if it occurs
+    try:
+        m = __import__(modulepath, globals(), locals(), [''])
+    except ImportError, err:
+        raise ImportError(err)
+    # try to import specified class name from specified module path, throw ImportError if this fails
     try:
         c = getattr(m, class_name)
-    except AttributeError:
-        raise ImportError
+    except AttributeError, err:
+        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
     return c
 
 

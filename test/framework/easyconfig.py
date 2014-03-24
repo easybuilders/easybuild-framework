@@ -42,7 +42,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import det_installversion
-from easybuild.framework.easyconfig.tools import tweak, obtain_ec_for, parse_easyconfig
+from easybuild.framework.easyconfig.tools import get_easyblock_class, obtain_ec_for, parse_easyconfig, tweak
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -808,6 +808,22 @@ class EasyConfigTest(EnhancedTestCase):
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_get_easyblock_class(self):
+        """Test get_easyblock_class function."""
+        from easybuild.easyblocks.generic.configuremake import ConfigureMake
+        from easybuild.easyblocks.generic.toolchain import Toolchain
+        from easybuild.easyblocks.toy import EB_toy
+        for easyblock, easyblock_class in [
+            ('ConfigureMake', ConfigureMake),
+            ('easybuild.easyblocks.generic.configuremake.ConfigureMake', ConfigureMake),
+            ('Toolchain', Toolchain),
+            ('EB_toy', EB_toy),
+        ]:
+            self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
+
+        self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
+        self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
 
 def suite():
     """ returns all the testcases in this module """
