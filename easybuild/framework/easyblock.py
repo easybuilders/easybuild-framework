@@ -102,7 +102,10 @@ class EasyBlock(object):
             extra = dict(extra)
 
         # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
-        return extra.items()
+        _log.deprecated("Returning list of tuples rather than a dict as return value of extra_options", '2.0')
+        res = extra.items()
+
+        return res
 
     #
     # INIT
