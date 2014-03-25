@@ -94,13 +94,15 @@ class EasyBlock(object):
         Extra options method which will be passed to the EasyConfig constructor.
         """
         if extra is None:
-            return {}
-        else:
-            if not isinstance(extra, dict):
-                _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
-                _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
-                extra = dict(extra)
-            return extra
+            extra = {}
+
+        if not isinstance(extra, dict):
+            _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
+            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
+            extra = dict(extra)
+
+        # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
+        return extra.items()
 
     #
     # INIT

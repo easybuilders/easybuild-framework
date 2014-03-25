@@ -55,7 +55,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     def extra_options(extra_vars=None):
         """Extra easyconfig parameters specific to ExtensionEasyBlock."""
 
-        # using [] as default value is a bad idea, so we handle it this way
+        # using {} as default value is a bad idea, so we handle it this way
         if extra_vars is None:
             extra_vars = {}
 
