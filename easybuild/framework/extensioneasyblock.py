@@ -60,7 +60,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             extra_vars = {}
 
         if not isinstance(extra_vars, dict):
-            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '1.0')
+            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
             extra_vars = dict(extra_vars)
 
         extra_vars.update({
