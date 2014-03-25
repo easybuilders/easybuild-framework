@@ -237,6 +237,10 @@ class EasyConfigTest(EnhancedTestCase):
         # test if extra toolchain options are being passed
         self.assertEqual(eb.toolchain.options['static'], True)
 
+        # test legacy behavior of passing a list of tuples rather than a dict
+        eb = EasyConfig(self.eb_file, extra_options=extra_vars.items())
+        self.assertEqual(eb['custom_key'], 'test')
+
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
 
         # test extra mandatory vars

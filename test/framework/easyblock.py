@@ -74,6 +74,23 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
+
+        def check_extra_options_format(extra_options):
+            """Make sure extra_options value is of correct format."""
+            # EasyBuild v1.x
+            self.assertTrue(isinstance(extra_options, list))
+            for extra_option in extra_options:
+                self.assertTrue(isinstance(extra_option, tuple))
+                self.assertEqual(len(extra_option), 2)
+                self.assertTrue(isinstance(extra_option[0], basestring))
+                self.assertTrue(isinstance(extra_option[1], list))
+                self.assertEqual(len(extra_option[1]), 3)
+            # EasyBuild v2.0 (breaks backward compatibility compared to v1.x)
+            #self.assertTrue(isinstance(extra_options, dict))
+            #for key in extra_options:
+            #    self.assertTrue(isinstance(extra_options[key], list))
+            #    self.assertTrue(len(extra_options[key]), 3)
+
         name = "pi"
         version = "3.14"
         self.contents =  '\n'.join([
@@ -92,6 +109,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg['name'], name)
         self.assertEqual(eb.cfg['version'], version)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
+        check_extra_options_format(eb.extra_options())
         sys.stdout.close()
         sys.stdout = stdoutorig
 
@@ -99,14 +117,16 @@ class EasyBlockTest(EnhancedTestCase):
         exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
         self.assertEqual(exeb1.cfg['name'], 'foo')
         extra_options = exeb1.extra_options()
-        self.assertTrue('options' in extra_options)
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
 
         # test extensioneasyblock, as easyblock
         exeb2 = ExtensionEasyBlock(ec)
         self.assertEqual(exeb2.cfg['name'], 'pi')
         self.assertEqual(exeb2.cfg['version'], '3.14')
         extra_options = exeb2.extra_options()
-        self.assertTrue('options' in extra_options)
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
 
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
@@ -115,8 +135,9 @@ class EasyBlockTest(EnhancedTestCase):
         texeb = TestExtension(eb, {'name': 'bar'})
         self.assertEqual(texeb.cfg['name'], 'bar')
         extra_options = texeb.extra_options()
-        self.assertTrue('options' in extra_options)
-        self.assertEqual(extra_options['extra_param'], [None, "help", CUSTOM])
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
+        self.assertEqual([val for (key, val) in extra_options if key == 'extra_param'][0], [None, "help", CUSTOM])
 
         # cleanup
         eb.close_log()
