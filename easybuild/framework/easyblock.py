@@ -98,6 +98,7 @@ class EasyBlock(object):
         else:
             if not isinstance(extra, dict):
                 _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
+                _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
                 extra = dict(extra)
             return extra
 

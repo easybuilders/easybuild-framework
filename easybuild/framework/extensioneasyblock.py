@@ -26,12 +26,16 @@ implemented as an easyblock
 """
 import copy
 import os
+from vsc import fancylogger
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import apply_patch, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
+
+
+_log = fancylogger.getLogger('extensioneasyblock', fname=False)
 
 
 class ExtensionEasyBlock(EasyBlock, Extension):
@@ -56,7 +60,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             extra_vars = {}
 
         if not isinstance(extra_vars, dict):
-            self.log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '1.0')
+            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
             extra_vars = dict(extra_vars)
 
         extra_vars.update({
