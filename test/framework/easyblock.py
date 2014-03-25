@@ -37,8 +37,10 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
+from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import process_easyconfig
+from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
@@ -85,12 +87,36 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
-        eb = EasyBlock(EasyConfig(self.eb_file))
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
         self.assertEqual(eb.cfg['name'], name)
         self.assertEqual(eb.cfg['version'], version)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
         sys.stdout.close()
         sys.stdout = stdoutorig
+
+        # test extensioneasyblock, as extension
+        exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
+        self.assertEqual(exeb1.cfg['name'], 'foo')
+        extra_options = exeb1.extra_options()
+        self.assertTrue('options' in extra_options)
+
+        # test extensioneasyblock, as easyblock
+        exeb2 = ExtensionEasyBlock(ec)
+        self.assertEqual(exeb2.cfg['name'], 'pi')
+        self.assertEqual(exeb2.cfg['version'], '3.14')
+        extra_options = exeb2.extra_options()
+        self.assertTrue('options' in extra_options)
+
+        class TestExtension(ExtensionEasyBlock):
+            @staticmethod
+            def extra_options():
+                return ExtensionEasyBlock.extra_options([('extra_param', [None, "help", CUSTOM])])
+        texeb = TestExtension(eb, {'name': 'bar'})
+        self.assertEqual(texeb.cfg['name'], 'bar')
+        extra_options = texeb.extra_options()
+        self.assertTrue('options' in extra_options)
+        self.assertEqual(extra_options['extra_param'], [None, "help", CUSTOM])
 
         # cleanup
         eb.close_log()
