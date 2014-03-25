@@ -182,7 +182,10 @@ class FancyLogger(logging.getLoggerClass()):
             new_msg = msg.decode('utf8', 'replace')
         else:
             new_msg = msg
-        return FancyLogRecord(name, level, pathname, lineno, new_msg, args, excinfo)
+        logrecordcls = logging.LogRecord
+        if self.fancyrecord:
+            logrecordcls = FancyLogRecord
+        return logrecordcls(name, level, pathname, lineno, new_msg, args, excinfo)
 
     def raiseException(self, message, exception=None, catch=False):
         """
@@ -320,15 +323,23 @@ def thread_name():
     return threading.currentThread().getName()
 
 
-def getLogger(name=None, fname=True, clsname=False):
+def getLogger(name=None, fname=True, clsname=False, fancyrecord=None):
     """
     returns a fancylogger
     if fname is True, the loggers name will be 'name[.classname].functionname'
     if clsname is True the loggers name will be 'name.classname[.functionname]'
+    This will return a logger with a fancylog record, which includes the className template for the logformat
+    This can make your code a lot slower, so this can be dissabled by setting fancyrecord to False, and
+    will also be disabled if a Name is set, and fancyrecord is not set to True
     """
     nameparts = [getRootLoggerName()]
+
     if name:
         nameparts.append(name)
+    elif fancyrecord is None or fancyrecord:  # only be fancy if fancyrecord is True or no name is given
+        fancyrecord = True
+    fancyrecord = bool(fancyrecord)  # make sure fancyrecord is a nice bool, not None
+
     if clsname:
         nameparts.append(_getCallingClassName())
     if fname:
@@ -336,6 +347,7 @@ def getLogger(name=None, fname=True, clsname=False):
     fullname = ".".join(nameparts)
 
     l = logging.getLogger(fullname)
+    l.fancyrecord = fancyrecord
     if os.environ.get('FANCYLOGGER_GETLOGGER_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
         print 'FANCYLOGGER_GETLOGGER_DEBUG',
         print 'name', name, 'fname', fname, 'fullname', fullname,
