@@ -894,7 +894,7 @@ class EasyBlock(object):
         """
         # self.mod_name might not be set (e.g. during unit tests)
         if self.mod_name is not None:
-            m = modules_tool(mod_paths)
+            m = modules_tool(mod_paths=mod_paths)
             # purge all loaded modules if desired
             if purge:
                 m.purge()
@@ -937,7 +937,7 @@ class EasyBlock(object):
             try:
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
-                m = modules_tool(mod_paths)
+                m = modules_tool(mod_paths=mod_paths)
                 # self.mod_name might not be set (e.g. during unit tests)
                 if self.mod_name is not None:
                     m.unload([self.mod_name])

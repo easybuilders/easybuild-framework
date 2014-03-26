@@ -125,11 +125,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     '--software-name=somethingrandom',
                     info_arg,
                    ]
-            outtxt, myerr = self.eb_main(args, return_error=True)
+            outtxt = self.eb_main(args)
 
             for log_msg_type in ['INFO', 'ERROR']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, "%s log messages are included when using %s (err: %s, out: %s)" % (log_msg_type, info_arg, myerr, outtxt))
+                self.assertTrue(res, "%s log messages are included when using %s ( out: %s)" % (log_msg_type, info_arg, outtxt))
 
             for log_msg_type in ['DEBUG']:
                 res = re.search(' %s ' % log_msg_type, outtxt)
@@ -300,7 +300,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             _stdout = sys.stdout
 
-            myerr = None
             fd, fn = tempfile.mkstemp()
             fh = os.fdopen(fd, 'w')
             sys.stdout = fh
@@ -311,7 +310,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     '--debug',
                     stdout_arg,
                    ]
-            _, myerr = self.eb_main(args, logfile=dummylogfn, return_error=True)
+            self.eb_main(args, logfile=dummylogfn)
 
             # make sure we restore
             sys.stdout.flush()
@@ -603,13 +602,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 '--robot=.',
                 '--debug',
                ]
-        outtxt, myerr = self.eb_main(args, return_error=True)
+        outtxt = self.eb_main(args)
 
         # error message when template is not found
         error_msg1 = "ERROR .* No easyconfig files found for software nosuchsoftware, and no templates available. I'm all out of ideas."
         # error message when template is found
         error_msg2 = "ERROR .* Unable to find an easyconfig for the given specifications"
-        msg = "Error message when eb can't find software with specified name (myerr: %s, outtxt: %s)" % (myerr, outtxt)
+        msg = "Error message when eb can't find software with specified name (outtxt: %s)" % outtxt
         self.assertTrue(re.search(error_msg1, outtxt) or re.search(error_msg2, outtxt), msg)
 
     def test_footer(self):
@@ -848,6 +847,55 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # set it back
         easybuild.tools.build_log.CURRENT_VERSION = orig_value
+
+    def test_allow_modules_tool_mismatch(self):
+        """Test allowing mismatch of modules tool with 'module' function."""
+        # make sure MockModulesTool is available
+        from test.framework.modulestool import MockModulesTool
+
+        # keep track of original module definition so we can restore it
+        orig_module = os.environ.get('module', None)
+
+        # check whether mismatch between 'module' function and selected modules tool is detected
+        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+        ]
+        self.eb_main(args, do_build=True)
+        outtxt = read_file(self.logfile)
+        error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
+        self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
+
+        # check that --allow-modules-tool-mispatch transforms this error into a warning
+        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+            '--allow-modules-tool-mismatch',
+        ]
+        self.eb_main(args, do_build=True)
+        outtxt = read_file(self.logfile)
+        warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
+
+        # check whether match between 'module' function and selected modules tool is detected
+        os.environ['module'] = "() {  eval ` /bin/echo $*`\n}"
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--modules-tool=MockModulesTool',
+            '--debug',
+        ]
+        self.eb_main(args, do_build=True)
+        outtxt = read_file(self.logfile)
+        found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
+        self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
+
+        # restore 'module' function
+        if orig_module is not None:
+            os.environ['module'] = orig_module
+        else:
+            del os.environ['module']
 
 
 def suite():

@@ -42,6 +42,7 @@ from test.framework.utilities import find_full_path
 
 ORIG_MODULES_TOOL = modules.modules_tool
 ORIG_MAIN_MODULES_TOOL = ectools.modules_tool
+ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
 class MockModule(modules.ModulesTool):
@@ -73,6 +74,7 @@ class RobotTest(EnhancedTestCase):
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(self.base_easyconfig_dir)
@@ -85,6 +87,7 @@ class RobotTest(EnhancedTestCase):
             'dependencies': []
         }
         build_options = {
+            'allow_modules_tool_mismatch': True,
             'robot_path': None,
             'validate': False,
         }
@@ -246,6 +249,11 @@ class RobotTest(EnhancedTestCase):
 
         config.modules_tool = ORIG_MODULES_TOOL
         ectools.modules_tool = ORIG_MAIN_MODULES_TOOL
+        if ORIG_MODULE_FUNCTION is not None:
+            os.environ['module'] = ORIG_MODULE_FUNCTION
+        else:
+            if 'module' in os.environ:
+                del os.environ['module']
 
 
 def suite():

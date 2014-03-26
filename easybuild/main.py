@@ -152,6 +152,7 @@ def main(testing_data=(None, None, None)):
 
     config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
+        'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
         'command_line': eb_command_line,
         'debug': options.debug,

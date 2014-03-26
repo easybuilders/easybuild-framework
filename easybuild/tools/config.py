@@ -70,6 +70,7 @@ DEFAULT_PATH_SUBDIRS = {
 
 DEFAULT_BUILD_OPTIONS = {
     'aggregate_regtest': None,
+    'allow_modules_tool_mismatch': False,
     'check_osdeps': True,
     'command_line': None,
     'debug': False,
