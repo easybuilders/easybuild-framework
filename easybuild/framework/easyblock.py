@@ -1565,7 +1565,7 @@ class EasyBlock(object):
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
-                paths.update({'dirs': ["bin", "lib"]})
+                paths.update({'dirs': ['bin', ('lib', 'lib64')]})
                 self.log.info("Using default sanity check paths: %s" % paths)
         else:
             self.log.info("Using specified sanity check paths: %s" % paths)
