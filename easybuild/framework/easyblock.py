@@ -52,19 +52,20 @@ from vsc.utils.missing import nub
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, resolve_template
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, fetch_parameter_from_easyconfig_file
+from easybuild.framework.easyconfig.easyconfig import get_class_for, get_easyblock_class, get_module_path
+from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths
+from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
 from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
-from easybuild.tools.filetools import decode_class_name, write_file, compute_checksum, verify_checksum
+from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
@@ -92,24 +93,28 @@ class EasyBlock(object):
         """
         Extra options method which will be passed to the EasyConfig constructor.
         """
-        if extra == None:
-            return []
-        else:
-            return extra
+        if extra is None:
+            extra = {}
+
+        if not isinstance(extra, dict):
+            _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
+            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
+            extra = dict(extra)
+
+        # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
+        _log.deprecated("Returning list of tuples rather than a dict as return value of extra_options", '2.0')
+        res = extra.items()
+
+        return res
 
     #
     # INIT
     #
-    def __init__(self, path, build_options=None, build_specs=None):
+    def __init__(self, ec):
         """
         Initialize the EasyBlock instance.
-        @param path: path to easyconfig file
-        @param build_options: dictionary of build options, e.g. robot_path, validate_ec, check_osdeps, ... (default: {})
-        @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
+        @param ec: a parsed easyconfig file (EasyConfig instance)
         """
-        if build_options is None:
-            build_options = {}
-        self.build_options = copy.deepcopy(build_options)
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -128,29 +133,24 @@ class EasyBlock(object):
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
         # modules interface with default MODULEPATH
-        self.modules_tool = modules_tool(build_options=self.build_options)
+        self.modules_tool = modules_tool()
         # module generator
         self.moduleGenerator = None
 
         # modules footer
         self.modules_footer = None
-        modules_footer_path = build_options.get('modules_footer', None)
+        modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
 
         # recursive unloading in modules
-        self.recursive_mod_unload = build_options.get('recursive_mod_unload', False)
+        self.recursive_mod_unload = build_option('recursive_mod_unload')
 
         # easyconfig for this application
-        all_stops = [x[0] for x in self.get_steps()]
-        ec_build_options = copy.deepcopy(build_options)
-        ec_build_options.update({
-            'valid_module_classes': module_classes(),
-            'valid_stops': all_stops,
-            'validate': build_options.get('validate_ec', True),
-        })
-        extra = self.extra_options()
-        self.cfg = EasyConfig(path, extra_options=extra, build_options=ec_build_options, build_specs=build_specs)
+        if isinstance(ec, EasyConfig):
+            self.cfg = ec
+        else:
+            _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -158,7 +158,7 @@ class EasyBlock(object):
         # logging
         self.log = None
         self.logfile = None
-        self.logdebug = build_options.get('debug', False)
+        self.logdebug = build_option('debug')
         self.postmsg = ''  # allow a post message to be set, which can be shown as last output
 
         # original environ will be set later
@@ -168,7 +168,7 @@ class EasyBlock(object):
         self.loaded_modules = []
 
         # robot path
-        self.robot_path = build_options.get('robot_path', None)
+        self.robot_path = build_option('robot_path')
 
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
@@ -186,7 +186,7 @@ class EasyBlock(object):
         self.sanity_check_fail_msgs = []
 
         # should we keep quiet?
-        self.silent = build_options.get('silent', False)
+        self.silent = build_option('silent')
 
         # full module name to generate
         self.mod_name = None
@@ -894,7 +894,7 @@ class EasyBlock(object):
         """
         # self.mod_name might not be set (e.g. during unit tests)
         if self.mod_name is not None:
-            m = modules_tool(mod_paths=mod_paths, build_options=self.build_options)
+            m = modules_tool(mod_paths=mod_paths)
             # purge all loaded modules if desired
             if purge:
                 m.purge()
@@ -937,7 +937,7 @@ class EasyBlock(object):
             try:
                 mod_paths = [fake_mod_path]
                 mod_paths.extend(self.modules_tool.mod_paths)
-                m = modules_tool(mod_paths=mod_paths, build_options=self.build_options)
+                m = modules_tool(mod_paths=mod_paths)
                 # self.mod_name might not be set (e.g. during unit tests)
                 if self.mod_name is not None:
                     m.unload([self.mod_name])
@@ -1885,121 +1885,13 @@ class EasyBlock(object):
         return True
 
 
-def get_class_for(modulepath, class_name):
-    """
-    Get class for a given class name and easyblock module path.
-    """
-    # >>> import pkgutil
-    # >>> loader = pkgutil.find_loader('easybuild.apps.Base')
-    # >>> d = loader.load_module('Base')
-    # >>> c = getattr(d,'Likwid')
-    # >>> c()
-    m = __import__(modulepath, globals(), locals(), [''])
-    try:
-        c = getattr(m, class_name)
-    except AttributeError:
-        raise ImportError
-    return c
-
-
-def get_module_path(name, generic=False, decode=True):
-    """
-    Determine the module path for a given easyblock or software name,
-    based on the encoded class name.
-    """
-    if not name:
-        return None
-
-    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
-    if decode:
-        name = decode_class_name(name)
-    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
-
-    if generic:
-        modpath = '.'.join(["easybuild", "easyblocks", "generic"])
-    else:
-        modpath = '.'.join(["easybuild", "easyblocks"])
-
-    return '.'.join([modpath, module_name])
-
-
-def get_class(easyblock, name=None):
-    """
-    Get class for a particular easyblock (or use default)
-    """
-
-    def_class = get_easyconfig_parameter_default('easyblock')
-    def_mod_path = get_module_path(def_class, generic=True)
-
-    try:
-        # if no easyblock specified, try to find if one exists
-        if not easyblock:
-            if not name:
-                name = "UNKNOWN"
-            # The following is a generic way to calculate unique class names for any funny software title
-            class_name = encode_class_name(name)
-            # modulepath will be the namespace + encoded modulename (from the classname)
-            modulepath = get_module_path(class_name)
-            if not os.path.exists("%s.py" % modulepath):
-                _log.deprecated("Determine module path based on software name", "2.0")
-                modulepath = get_module_path(name, decode=False)
-
-            # try and find easyblock
-            try:
-                _log.debug("getting class for %s.%s" % (modulepath, class_name))
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-                return cls
-            except ImportError, err:
-
-                # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
-                # and not because of a broken import statement in the easyblock module
-                error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
-                _log.debug("error regexp: %s" % error_re.pattern)
-                if not error_re.match(str(err)):
-                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
-
-                else:
-                    # no easyblock could be found, so fall back to default class.
-                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, (def_mod_path, def_class), err))
-                    cls = get_class_for(def_mod_path, def_class)
-
-        # something was specified, lets parse it
-        else:
-            class_name = easyblock.split('.')[-1]
-            # figure out if full path was specified or not
-            if len(easyblock.split('.')) > 1:
-                _log.info("Assuming that full easyblock module path was specified.")
-                modulepath = '.'.join(easyblock.split('.')[:-1])
-                cls = get_class_for(modulepath, class_name)
-            else:
-                # if we only get the class name, most likely we're dealing with a generic easyblock
-                try:
-                    modulepath = get_module_path(easyblock, generic=True)
-                    cls = get_class_for(modulepath, class_name)
-                except ImportError, err:
-                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
-                    modulepath = get_module_path(easyblock)
-                    cls = get_class_for(modulepath, class_name)
-                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
-
-        _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
-        return cls
-
-    except Exception, err:
-        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
-
-
-def build_and_install_software(module, orig_environ, build_options=None, build_specs=None):
+def build_and_install_software(module, orig_environ):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
     @param orig_environ: original environment (used to reset environment)
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
-    silent = build_options.get('silent', False)
+    silent = build_option('silent')
 
     spec = module['spec']
 
@@ -2013,33 +1905,26 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     cwd = os.getcwd()
 
     # load easyblock
-    easyblock = build_options.get('easyblock', None)
+    easyblock = build_option('easyblock')
     if not easyblock:
-        # try to look in .eb file
-        reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-        txt = read_file(spec)
-        for line in txt.split('\n'):
-            match = reg.search(line)
-            if match:
-                easyblock = eval(match.group(1))
-                break
+        easyblock = fetch_parameter_from_easyconfig_file(spec, 'easyblock')
 
     name = module['ec']['name']
     try:
-        app_class = get_class(easyblock, name=name)
-        app = app_class(spec, build_options=build_options, build_specs=build_specs)
+        app_class = get_easyblock_class(easyblock, name=name)
+        app = app_class(module['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         tup = (name, easyblock, err.msg)
         print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
 
     # application settings
-    stop = build_options.get('stop', None)
+    stop = build_option('stop')
     if stop is not None:
         _log.debug("Stop set to %s" % stop)
         app.cfg['stop'] = stop
 
-    skip = build_options.get('skip', None)
+    skip = build_option('skip')
     if skip is not None:
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
@@ -2049,8 +1934,8 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_options.get('skip_test_cases', False) and app.cfg['tests']
-        regtest_online = build_options.get('regtest_online', False)
+        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        regtest_online = build_option('regtest_online')
         result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
     except EasyBuildError, err:
         lastn = 300
@@ -2075,7 +1960,7 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
             # collect build stats
             _log.info("Collecting build stats...")
 
-            buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
+            buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
             try:
@@ -2147,12 +2032,10 @@ def build_and_install_software(module, orig_environ, build_options=None, build_s
     return (exit_code == 0, application_log)
 
 
-def get_easyblock_instance(easyconfig, build_options=None, build_specs=None):
+def get_easyblock_instance(easyconfig):
     """
     Get an instance for this easyconfig
-    @param easyconfig: parsed easyconfig
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param easyconfig: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
@@ -2160,20 +2043,14 @@ def get_easyblock_instance(easyconfig, build_options=None, build_specs=None):
     name = easyconfig['ec']['name']
 
     # handle easyconfigs with custom easyblocks
-    easyblock = None
-    reg = re.compile(r"^\s*easyblock\s*=(.*)$")
-    txt = read_file(spec)
-    for line in txt.split('\n'):
-        match = reg.search(line)
-        if match:
-            easyblock = eval(match.group(1))
-            break
+    # determine easyblock specification from easyconfig file, if any
+    easyblock = fetch_parameter_from_easyconfig_file(spec, 'easyblock')
 
-    app_class = get_class(easyblock, name=name)
-    return app_class(spec, build_options=build_options, build_specs=build_specs)
+    app_class = get_easyblock_class(easyblock, name=name)
+    return app_class(easyconfig['ec'])
 
 
-def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None):
+def build_easyconfigs(easyconfigs, output_dir, test_results):
     """Build the list of easyconfigs."""
 
     build_stopped = {}
@@ -2190,7 +2067,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
             try:
                 if step == 'initialization':
                     _log.info("Running %s step" % step)
-                    return get_easyblock_instance(obj, build_options=build_options)
+                    return get_easyblock_instance(obj)
                 else:
                     apploginfo(obj, "Running %s step" % step)
                     method(obj)
@@ -2260,7 +2137,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results, build_options=None)
 
             if app not in build_stopped:
                 # gather build stats
-                buildstats = get_build_stats(app, start_time, build_options.get('command_line', None))
+                buildstats = get_build_stats(app, start_time, build_option('command_line'))
                 succes.append((app, buildstats))
 
     for result in test_results:

@@ -45,7 +45,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_modules_tool, install_path
+from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.filetools import convert_name, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.run import run_cmd
@@ -73,7 +73,7 @@ output_matchers = {
     # regex below matches modules like 'ictce/3.2.1.015.u4', 'OpenMPI/1.6.4-no-OFED', ...
     #
     # Module lines notes:
-    # * module name may have '(default)' appeneded [modulecmd]
+    # * module name may have '(default)' appended [modulecmd]
     # ignored lines:
     # * module paths lines may start with a (empty) set of '-'s, which will be followed by a space [modulecmd.tcl]
     # * module paths may end with a ':' [modulecmd, lmod]
@@ -133,14 +133,12 @@ class ModulesTool(object):
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
 
-    def __init__(self, mod_paths=None, build_options=None):
+    def __init__(self, mod_paths=None):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
-        if build_options is None:
-            build_options = {}
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
@@ -170,9 +168,12 @@ class ModulesTool(object):
 
         # some initialisation/verification
         self.check_cmd_avail()
-        self.check_module_function(allow_mismatch=build_options.get('allow_modules_tool_mismatch', False))
+        self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.use_module_paths()
+
+        # this can/should be set to True during testing
+        self.testing = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -678,24 +679,30 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        cmd = ['spider', '-o', 'moduleT', os.environ['MODULEPATH']]
+        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+        self.log.debug("Running command '%s'..." % ' '.join(cmd))
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
 
         if stderr:
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        try:
-            cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-            self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-            cache_dir = os.path.dirname(cache_filefn)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            cache_file = open(cache_filefn, 'w')
-            cache_file.write(stdout)
-            cache_file.close()
-        except (IOError, OSError), err:
-            self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
+        if self.testing:
+            # don't actually update local cache when testing, just return the cache contents
+            return stdout
+        else:
+            try:
+                cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
+                cache_dir = os.path.dirname(cache_filefn)
+                if not os.path.exists(cache_dir):
+                    os.makedirs(cache_dir)
+                cache_file = open(cache_filefn, 'w')
+                cache_file.write(stdout)
+                cache_file.close()
+            except (IOError, OSError), err:
+                self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
@@ -815,7 +822,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, build_options=None):
+def modules_tool(mod_paths=None):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -823,7 +830,7 @@ def modules_tool(mod_paths=None, build_options=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, build_options=build_options)
+        return modules_tool_class(mod_paths=mod_paths)
     else:
         return None
 

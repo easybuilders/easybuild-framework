@@ -27,8 +27,8 @@ Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
 """
-
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
 from easybuild.tools.systemtools import get_avail_core_count, get_core_count
@@ -36,7 +36,7 @@ from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_ve
 from easybuild.tools.systemtools import get_os_type, get_shared_lib_ext, get_platform_name, get_os_name, get_os_version
 
 
-class SystemToolsTest(TestCase):
+class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def test_core_count(self):

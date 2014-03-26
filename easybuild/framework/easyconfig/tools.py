@@ -72,7 +72,9 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
-from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import det_common_path_prefix, run_cmd
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
@@ -91,7 +93,7 @@ def ec_filename_for(path):
     Return a suiting file name for the easyconfig file at <path>,
     as determined by its contents.
     """
-    ec = EasyConfig(path, build_options={'validate': False})
+    ec = EasyConfig(path, validate=False)
 
     fn = "%s-%s.eb" % (ec['name'], det_full_ec_version(ec))
 
@@ -238,14 +240,14 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
         return [spec]
 
 
-def process_easyconfig(path, build_options=None, build_specs=None):
+def process_easyconfig(path, build_specs=None, validate=True):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param validate: whether or not to perform validation
     """
-    blocks = retrieve_blocks_in_spec(path, build_options.get('only_blocks', None))
+    blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
     easyconfigs = []
     for spec in blocks:
@@ -254,7 +256,7 @@ def process_easyconfig(path, build_options=None, build_specs=None):
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, build_options=build_options, build_specs=build_specs)
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -298,9 +300,9 @@ def process_easyconfig(path, build_options=None, build_specs=None):
     return easyconfigs
 
 
-def skip_available(easyconfigs, testing=False, build_options=None):
+def skip_available(easyconfigs, testing=False):
     """Skip building easyconfigs for which a module is already available."""
-    avail_modules = modules_tool(build_options=build_options).available()
+    avail_modules = modules_tool().available()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
         module = ec['module']
@@ -355,23 +357,23 @@ def robot_find_easyconfig(paths, name, version):
     return None
 
 
-def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
+def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
-    robot = build_options.get('robot_path', None)
+    robot = build_option('robot_path')
 
-    if build_options.get('retain_all_deps', False):
+    retain_all_deps = build_option('retain_all_deps') or retain_all_deps
+    if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []
         _log.info("Forcing all dependencies to be retained.")
     else:
         # Get a list of all available modules (format: [(name, installversion), ...])
-        avail_modules = modules_tool(build_options=build_options).available()
+        avail_modules = modules_tool().available()
 
         if len(avail_modules) == 0:
             _log.warning("No installed modules. Your MODULEPATH is probably incomplete: %s" % os.getenv('MODULEPATH'))
@@ -430,7 +432,7 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
                         entry['dependencies'].remove(cand_dep)
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        processed_ecs = process_easyconfig(path, build_options=build_options, build_specs=build_specs)
+                        processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
                         mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
@@ -450,6 +452,11 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
             # add additional (new) easyconfigs to list of stuff to process
             unprocessed.extend(additional)
 
+        elif not robot:
+            # no use in continuing if robot is not enabled, dependencies won't be resolved anyway
+            irresolvable = [dep for x in unprocessed for dep in x['dependencies']]
+            break
+
     if irresolvable:
         irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
         _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
@@ -458,28 +465,22 @@ def resolve_dependencies(unprocessed, build_options=None, build_specs=None):
     return ordered_ecs
 
 
-def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None):
+def print_dry_run(easyconfigs, short=False, build_specs=None):
     """
     Print dry run information
     @param easyconfigs: list of easyconfig files
     @param short: print short output (use a variable for the common prefix)
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     lines = []
-    if build_options.get('robot_path', None) is None:
+    if build_option('robot_path') is None:
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        build_options = copy.deepcopy(build_options)
-        build_options.update({
-            'retain_all_deps': True,
-            'check_osdeps': False,
-        })
-        all_specs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+        all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
 
-    unbuilt_specs = skip_available(all_specs, testing=True, build_options=build_options)
+    unbuilt_specs = skip_available(all_specs, testing=True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
     var_name = 'CFGS'
@@ -502,7 +503,7 @@ def print_dry_run(easyconfigs, short=False, build_options=None, build_specs=None
     if short:
         # insert after 'Dry run:' message
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
-    silent = build_options.get('silent', False)
+    silent = build_option('silent')
     print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
 
 
@@ -711,7 +712,7 @@ def select_or_generate_ec(fp, paths, specs):
     ec_files = nub(ec_files)
     _log.debug("Unique ec_files: %s" % ec_files)
 
-    ecs_and_files = [(EasyConfig(f, build_options={'validate': False}), f) for f in ec_files]
+    ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
     # TOOLCHAIN NAME
 

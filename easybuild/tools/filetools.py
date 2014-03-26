@@ -307,18 +307,14 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, build_options=None, short=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     """
     Search for a particular file (only prints)
     """
-    if build_options is None:
-        build_options = {}
-
-    ignore_dirs = build_options.get('ignore_dirs', ['.git', '.svn'])
+    if ignore_dirs is None:
+        ignore_dirs = ['.git', '.svn']
     if not isinstance(ignore_dirs, list):
         _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
-
-    silent = build_options.get('silent', False)
 
     var_lines = []
     hit_lines = []

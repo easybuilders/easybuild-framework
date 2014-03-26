@@ -42,7 +42,7 @@ import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs, get_easyblock_instance
 from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_repository, get_repositorypath
+from easybuild.tools.config import build_option, get_repository, get_repositorypath
 from easybuild.tools.filetools import find_easyconfigs
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.module_generator import det_full_module_name
@@ -53,15 +53,13 @@ from vsc import fancylogger
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, build_options=None, build_specs=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
@@ -87,7 +85,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, b
         # This is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec, build_options=build_options, build_specs=build_specs)
+        prepare_easyconfig(ec)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -158,7 +156,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
-    var = config.oldstyle_environment_variables['test_output_path']
+    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
     easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
@@ -175,15 +173,13 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     return job
 
 
-def prepare_easyconfig(ec, build_options=None, build_specs=None):
+def prepare_easyconfig(ec):
     """
     Prepare for building specified easyconfig (fetch sources)
-    @param ec: parsed easyconfig
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param ec: parsed easyconfig (EasyConfig instance)
     """
     try:
-        easyblock_instance = get_easyblock_instance(ec, build_options=build_options, build_specs=build_specs)
+        easyblock_instance = get_easyblock_instance(ec)
         easyblock_instance.update_config_template_run_step()
         easyblock_instance.fetch_step(skip_checksums=True)
         _log.debug("Cleaning up log file %s..." % easyblock_instance.logfile)
@@ -193,17 +189,16 @@ def prepare_easyconfig(ec, build_options=None, build_specs=None):
         _log.error("An error occured while preparing %s: %s" % (ec, err))
 
 
-def regtest(easyconfig_paths, build_options=None, build_specs=None):
+def regtest(easyconfig_paths, build_specs=None):
     """
     Run regression test, using easyconfigs available in given path
     @param easyconfig_paths: path of easyconfigs to run regtest on
-    @param build_options: dictionary specifying build options (e.g. robot_path, check_osdeps, ...)
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
     cur_dir = os.getcwd()
 
-    aggregate_regtest = build_options.get('aggregate_regtest', None)
+    aggregate_regtest = build_option('aggregate_regtest')
     if aggregate_regtest is not None:
         output_file = os.path.join(aggregate_regtest, "%s-aggregate.xml" % os.path.basename(aggregate_regtest))
         aggregate_xml_in_dirs(aggregate_regtest, output_file)
@@ -213,9 +208,9 @@ def regtest(easyconfig_paths, build_options=None, build_specs=None):
     # create base directory, which is used to place
     # all log files and the test output as xml
     basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.oldstyle_environment_variables['test_output_path']
+    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
 
-    regtest_output_dir = build_options.get('regtest_output_dir', None)
+    regtest_output_dir = build_option('regtest_output_dir')
     if regtest_output_dir is not None:
         output_dir = regtest_output_dir
     elif var in os.environ:
@@ -231,7 +226,7 @@ def regtest(easyconfig_paths, build_options=None, build_specs=None):
     ecfiles = []
     if easyconfig_paths:
         for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path, ignore_dirs=build_options.get('ignore_dirs', []))
+            ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
     else:
         _log.error("No easyconfig paths specified.")
 
@@ -241,28 +236,27 @@ def regtest(easyconfig_paths, build_options=None, build_specs=None):
     easyconfigs = []
     for ecfile in ecfiles:
         try:
-            easyconfigs.extend(process_easyconfig(ecfile, build_options=build_options, build_specs=build_specs))
+            easyconfigs.extend(process_easyconfig(ecfile, build_specs=build_specs))
         except EasyBuildError, err:
             test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
 
     # skip easyconfigs for which a module is already available, unless forced
-    if not build_options.get('force', False):
+    if not build_option('force'):
         _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
         easyconfigs = skip_available(easyconfigs)
         _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
 
-    if build_options.get('sequential', False):
-        return build_easyconfigs(easyconfigs, output_dir, test_results, build_options=build_options)
+    if build_option('sequential'):
+        return build_easyconfigs(easyconfigs, output_dir, test_results)
     else:
-        resolved = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
 
         cmd = "eb %(spec)s --regtest --sequential -ld"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir,
-                                             build_options=build_options, build_specs=build_specs)
+        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
 
         print "List of submitted jobs:"
         for job in jobs:
