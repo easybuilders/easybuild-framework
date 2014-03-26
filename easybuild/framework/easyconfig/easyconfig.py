@@ -32,6 +32,7 @@ Easyconfig module that contains the EasyConfig class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
@@ -46,7 +47,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, run_cmd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
+from easybuild.tools.systemtools import check_os_dependency, get_shared_lib_ext
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
@@ -332,7 +333,7 @@ class EasyConfig(object):
             elif not isinstance(dep, tuple):
                 self.log.error("Non-tuple value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
 
-            if not any([self._os_dependency_check(cand_dep) for cand_dep in dep]):
+            if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
                 not_found.append(dep)
 
         if not_found:
@@ -485,27 +486,8 @@ class EasyConfig(object):
         """
         Check if dependency is available from OS.
         """
-        # - uses rpm -q and dpkg -s --> can be run as non-root!!
-        # - fallback on which
-        # - should be extended to files later?
-        cmd = "exit 1"
-        if get_os_name() in ['debian', 'ubuntu']:
-            if run_cmd('which dpkg', simple=True, log_ok=False):
-                cmd = "dpkg -s %s" % dep
-        else:
-            # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-            if run_cmd('which rpm', simple=True, log_ok=False):
-                cmd = "rpm -q %s" % dep
-
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
-
-        if not found:
-            # fallback for when os-dependency is a binary/library
-            cmd = 'which %(dep)s || locate --regexp "/%(dep)s$"' % {'dep': dep}
-
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
-
-        return found
+        self.log.deprecated("_os_dependency_check() is deprecated, use systemtools.check_os_dependency() instead", '2.0')
+        return check_os_dependency(dep)
 
     # private method
     def _parse_dependency(self, dep):

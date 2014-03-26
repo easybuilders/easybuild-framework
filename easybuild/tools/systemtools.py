@@ -377,3 +377,30 @@ def get_os_version():
         return os_version
     else:
         return UNKNOWN
+
+
+def check_os_dependency(dep):
+    """
+    Check if dependency is available from OS.
+    """
+    # - uses rpm -q and dpkg -s --> can be run as non-root!!
+    # - fallback on which
+    # - should be extended to files later?
+    cmd = "exit 1"
+    if get_os_name() in ['debian', 'ubuntu']:
+        if run_cmd('which dpkg', simple=True, log_ok=False):
+            cmd = "dpkg -s %s" % dep
+    else:
+        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+        if run_cmd('which rpm', simple=True, log_ok=False):
+            cmd = "rpm -q %s" % dep
+
+    found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if not found:
+        # fallback for when os-dependency is a binary/library
+        cmd = 'which %(dep)s || locate --regexp "/%(dep)s$"' % {'dep': dep}
+
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    return found
