@@ -227,13 +227,13 @@ class ModulesTool(object):
     def check_module_function(self, allow_mismatch=False):
         """Check whether selected module tool matches 'module' function definition."""
         out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        modcmd = os.path.basename(self.cmd)
+        mod_details = "'%s' (%s)" % (modcmd, self.__class__.__name__)
         if ec == 0:
-            cmd = os.path.basename(self.cmd)
-            mod_cmd_re = re.compile(r".*%s " % cmd, re.M)
+            mod_cmd_re = re.compile(r".*%s " % modcmd, re.M)
             if mod_cmd_re.search(out):
-                self.log.debug("Found command '%s' in defined 'module' function." % cmd)
+                self.log.debug("Found command '%s' in defined 'module' function." % modcmd)
             else:
-                mod_details = "'%s' (%s)" % (cmd, self.__class__.__name__)
                 msg = "Module command %s used by EasyBuild not found in defined 'module' function.\n" % mod_details
                 msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
                 msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
@@ -246,7 +246,7 @@ class ModulesTool(object):
                     self.log.error(msg)
         else:
             # module function may not be defined (weird, but fine)
-            self.log.warning("'module' function not defined, can't verify whether modules tool matches it.")
+            self.log.warning("No 'module' function defined, can't check if modules tool '%s' matches it." % mod_details)
 
     def check_module_path(self):
         """

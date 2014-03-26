@@ -147,7 +147,7 @@ class ModulesToolTest(EnhancedTestCase):
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
-        warn_regex = re.compile("WARNING 'module' function not defined, can't verify whether modules tool matches it.")
+        warn_regex = re.compile("WARNING No 'module' function defined, can't check if modules tool '.*' matches it.")
         self.assertTrue(warn_regex.search(logtxt))
 
         fancylogger.logToFile(self.logfile, enable=False)
