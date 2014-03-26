@@ -252,7 +252,8 @@ class RobotTest(EnhancedTestCase):
         if ORIG_MODULE_FUNCTION is not None:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         else:
-            del os.environ['module']
+            if 'module' in os.environ:
+                del os.environ['module']
 
 
 def suite():
