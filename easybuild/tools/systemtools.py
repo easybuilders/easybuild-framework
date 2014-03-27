@@ -405,7 +405,7 @@ def check_os_dependency(dep):
 
     # try locate if it's available
     if found is None and which('locate'):
-        cmd = 'locate --regexp "/%(dep)s$"' % {'dep': dep}
+        cmd = 'locate --regexp "/%s$"' % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
