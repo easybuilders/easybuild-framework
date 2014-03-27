@@ -33,8 +33,9 @@ import sys
 
 from easybuild.tools.agithub import Client
 
-from vsc.utils.generaloption import simple_option
 from vsc.utils import fancylogger
+from vsc.utils.generaloption import simple_option
+from vsc.utils.missing import post_order, topological_sort
 
 
 logger = fancylogger.getLogger()
@@ -47,10 +48,21 @@ class CpanMeta(object):
     """
     def __init__(self):
         """Constructor"""
-        dummy = {'download_url': 'example.com/bla', 'release': '0', 'version': '0', 'distribution': 'ExtUtils-MakeMaker',
-                 'modulename': 'ExtUtils::MakeMaker'}
-        self.cache = {'ExtUtils::MakeMaker': dummy,  'perl': dummy}
-        self.graph = {'ExtUtils::MakeMaker': [], 'perl': []}
+        dummy = {
+            'download_url': 'example.com/bla',
+            'release': '0',
+            'version': '0',
+            'distribution': 'ExtUtils-MakeMaker',
+            'modulename': 'ExtUtils::MakeMaker',
+        }
+        self.cache = {
+            'ExtUtils::MakeMaker': dummy,
+            'perl': dummy,
+        }
+        self.graph = {
+            'ExtUtils::MakeMaker': [],
+            'perl': [],
+        }
         self.client = Client('api.metacpan.org')
 
     def get_module_data(self, modulename):
@@ -87,51 +99,26 @@ class CpanMeta(object):
         return self.graph
 
 
-def post_order(graph, root):
-    """Walk the graph from the given root in a post-order manner, by providing the correspoding generator."""
-    for node in graph[root]:
-        for child in post_order(graph, node):
-            yield child
-    yield root
-
-
-def topological_sort(graph, root):
-    """Perform a topological sorting of the given graph.
-
-    The graph needs to be in the following format:
-
-        g = { t1: [t2, t3],
-              t2: [t4, t5, t6],
-              t3: []
-              t4: []
-              t5: [t3]
-              t6: [t5]
-            }
-
-    where each node is mapped to a list of nodes it has an edge to.
-
-    @returns: generator for traversing the graph in the desired order
-    """
-    visited = set()
-    for node in post_order(graph, root):
-        if node not in visited:
-            yield node
-            visited.add(node)  # been there, done that.
-
-
 go = simple_option()
+
+if len(go.args) != 1:
+    sys.stderr.write("Usage: %s <Perl module>\n" % sys.argv[0])
+    sys.exit(1)
 
 cpan = CpanMeta()
 modules = cpan.get_recursive_data(go.args[0])
 print modules
 
-# topological soft, so we get correct dependencies order
-for module in topological_sort(modules, go.args[0]):
+# topological sort, so we get correct dependencies order
+for module in topological_sort(modules):
     data = cpan.cache[module]
     url, name = data['download_url'].rsplit("/", 1)
     data.update({'url': url, 'tarball': name})  # distribution sometimes contains subdirs
     if data['release'] is not '0' and data['version'] is not '0':
-        print    """('%(modulename)s', '%(version)s', {
-                    'source_tmpl': '%(tarball)s',
-                    'source_urls': ['%(url)s'],
-                }),""" % data
+        extension = '\n'.join([
+            "('%(modulename)s', '%(version)s', {",
+            "   'source_tmpl': '%(tarball)s',",
+            "   'source_urls': ['%(url)s'],",
+            "}),",
+        ]) % data
+        print extension

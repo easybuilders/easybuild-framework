@@ -40,7 +40,7 @@ try:
 except ImportError:
     import simplejson as json
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 
 class Client(object):
