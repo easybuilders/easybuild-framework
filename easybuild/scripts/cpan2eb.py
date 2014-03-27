@@ -93,8 +93,8 @@ class CpanMeta(object):
             if "requires" in dep["relationship"]:
                 self.get_recursive_data(dep['module'])
                 # if for some reason you get to many hits here, you might want to filter on build and confirure in phase: (To be further tested)
-                # if "build" in dep["phase"] or "configure" in dep["phase"]:
-                dependencies.add(dep['module'])
+                if "build" in dep["phase"] or "configure" in dep["phase"]:
+                    dependencies.add(dep['module'])
         self.graph[modulename] = dependencies
         return self.graph
 
