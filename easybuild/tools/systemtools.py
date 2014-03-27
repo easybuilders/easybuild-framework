@@ -38,7 +38,7 @@ try:
 except ImportError:
     pass
 
-from easybuild.tools.filetools import read_file, run_cmd
+from easybuild.tools.filetools import read_file, run_cmd, which
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -386,16 +386,18 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    cmd = "exit 1"
+    cmd = None
     if get_os_name() in ['debian', 'ubuntu']:
-        if run_cmd('which dpkg', simple=True, log_ok=False):
+        if which('dpkg'):
             cmd = "dpkg -s %s" % dep
     else:
         # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-        if run_cmd('which rpm', simple=True, log_ok=False):
+        if which('rpm'):
             cmd = "rpm -q %s" % dep
 
-    found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+    found = None
+    if cmd:
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     if not found:
         # fallback for when os-dependency is a binary/library

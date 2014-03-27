@@ -482,14 +482,6 @@ class EasyConfig(object):
             self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
 
     # private method
-    def _os_dependency_check(self, dep):
-        """
-        Check if dependency is available from OS.
-        """
-        self.log.deprecated("_os_dependency_check() is deprecated, use systemtools.check_os_dependency() instead", '2.0')
-        return check_os_dependency(dep)
-
-    # private method
     def _parse_dependency(self, dep):
         """
         parses the dependency into a usable dict with a common format
