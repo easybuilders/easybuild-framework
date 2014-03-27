@@ -205,6 +205,15 @@ class ModuleGenerator(object):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def set_fake(self, fake):
+        """Determine whether this ModuleGenerator instance should generate fake modules."""
+        _log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
+        self.fake = fake
+
+    def is_fake(self):
+        """Return whether this ModuleGenerator instance generates fake modules or not."""
+        return self.fake
+
 
 def avail_module_naming_schemes():
     """

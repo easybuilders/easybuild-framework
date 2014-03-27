@@ -37,6 +37,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 """
 
 import copy
+import glob
 import grp  # @UnresolvedImport
 import re
 import os
@@ -44,10 +45,9 @@ import shutil
 import stat
 import time
 import traceback
-import glob
 import urllib
 from distutils.version import LooseVersion
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
@@ -860,19 +860,25 @@ class EasyBlock(object):
         """
         requirements = self.make_module_req_guess()
 
-        cwd = os.getcwd()
-        try:
-            os.chdir(self.installdir)
-        except OSError:
-            # The installdir does not exist, so there is nothing to guess
-            return ""
-        txt = "\n"
-        for key in sorted(requirements):
-            for path in requirements[key]:
-                paths = glob.glob(path)
-                if paths:
-                    txt += self.moduleGenerator.prepend_paths(key, paths)
-        os.chdir(cwd)
+        if os.path.exists(self.installdir):
+            try:
+                cwd = os.getcwd()
+                os.chdir(self.installdir)
+            except OSError, err:
+                self.log.error("Failed to change to %s: %s" % (self.installdir, err))
+
+            txt = "\n"
+            for key in sorted(requirements):
+                for path in requirements[key]:
+                    paths = glob.glob(path)
+                    if paths:
+                        txt += self.moduleGenerator.prepend_paths(key, paths)
+            try:
+                os.chdir(cwd)
+            except OSError, err:
+                self.log.error("Failed to change back to %s: %s" % (cwd, err))
+        else:
+            txt = ""
         return txt
 
     def make_module_req_guess(self):
@@ -997,12 +1003,15 @@ class EasyBlock(object):
                 'ext_name': modname,
                 'ext_version': ext.get('version'),
                 'src': ext.get('source'),
-                # the ones below are only there for legacy purposes
-                # TODO deprecated, remove in v2.0
-                # TODO same dict is used in extension.py sanity_check_step, resolve this
+            }
+
+            deprecated_msg = "Providing 'name' and 'version' keys for extensions, should use 'ext_name', 'ext_version'"
+            self.log.deprecated(deprecated_msg, '2.0')
+            tmpldict.update({
                 'name': modname,
                 'version': ext.get('version'),
-            }
+            })
+
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
@@ -1694,7 +1703,8 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.moduleGenerator.fake = fake
+        orig_fake = self.moduleGenerator.is_fake()
+        self.moduleGenerator.set_fake(fake)
         modpath = self.moduleGenerator.create_files()
 
         txt = ''
@@ -1712,6 +1722,7 @@ class EasyBlock(object):
             self.make_devel_module()
 
         self.modules_tool.update()
+        self.moduleGenerator.set_fake(orig_fake)
 
         return modpath
 

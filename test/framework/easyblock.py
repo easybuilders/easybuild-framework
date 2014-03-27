@@ -164,24 +164,25 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_make_module_req(self):
         """Testcase for make_module_req"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
         self.writeEC()
-        eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['installpath']
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
 
-        #create fake directories and files that should be guessed
-        open(os.path.join(eb.installdir, 'foo.jar'), 'a').close()
-        open(os.path.join(eb.installdir, 'bla.jar'), 'a').close()
+        # create fake directories and files that should be guessed
+        os.makedirs(eb.installdir)
+        open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
+        open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
         os.mkdir(os.path.join(eb.installdir, 'bin'))
         os.mkdir(os.path.join(eb.installdir, 'share'))
         os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
-        #this is not a path that should be picked up
+        # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
         guess = eb.make_module_req()
