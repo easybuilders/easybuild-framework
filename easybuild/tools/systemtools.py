@@ -401,8 +401,11 @@ def check_os_dependency(dep):
 
     if not found:
         # fallback for when os-dependency is a binary/library
-        cmd = 'which %(dep)s || locate --regexp "/%(dep)s$"' % {'dep': dep}
+        found = which(dep)
 
+    # try locate if it's available
+    if not found and which('locate'):
+        cmd = 'locate --regexp "/%(dep)s$"' % {'dep': dep}
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
