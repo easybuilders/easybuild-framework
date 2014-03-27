@@ -37,18 +37,17 @@ The EasyBlock class should serve as a base class for all easyblocks.
 """
 
 import copy
+import glob
 import grp  # @UnresolvedImport
 import re
 import os
 import shutil
 import stat
-import sys
 import time
 import traceback
 import urllib
 from distutils.version import LooseVersion
-from vsc import fancylogger
-from vsc.utils.missing import nub
+from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
@@ -135,7 +134,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.moduleGenerator = None
+        self.moduleGenerator = ModuleGenerator(self, fake=True)
 
         # modules footer
         self.modules_footer = None
@@ -193,7 +192,6 @@ class EasyBlock(object):
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
-
     # INIT/CLOSE LOG
     def _init_log(self):
         """
@@ -209,7 +207,6 @@ class EasyBlock(object):
 
         self.log.info(this_is_easybuild())
 
-
     def close_log(self):
         """
         Shutdown the logger.
@@ -217,11 +214,9 @@ class EasyBlock(object):
         self.log.info("Closing log for application name %s version %s" % (self.name, self.version))
         fancylogger.logToFile(self.logfile, enable=False)
 
-
     #
     # FETCH UTILITY FUNCTIONS
     #
-
     def get_checksum_for(self, checksums, filename=None, index=None):
         """
         Obtain checksum for given filename.
@@ -362,10 +357,10 @@ class EasyBlock(object):
                         self.log.error('Extension specified in unknown format (list/tuple too long)')
 
                     ext_src = {
-                               'name': ext_name,
-                               'version': ext_version,
-                               'options': ext_options,
-                              }
+                        'name': ext_name,
+                        'version': ext_version,
+                        'options': ext_options,
+                    }
 
                     checksums = ext_options.get('checksums', None)
 
@@ -488,10 +483,10 @@ class EasyBlock(object):
 
                 # most likely paths
                 candidate_filepaths = [
-                                       letterpath,  # easyblocks-style subdir
-                                       namepath,  # subdir with software name
-                                       path,  # directly in directory
-                                      ]
+                    letterpath,  # easyblocks-style subdir
+                    namepath,  # subdir with software name
+                    path,  # directly in directory
+                ]
 
                 # see if file can be found at that location
                 for cfp in candidate_filepaths:
@@ -501,10 +496,10 @@ class EasyBlock(object):
                     # also check in 'extensions' subdir for extensions
                     if extension:
                         fullpaths = [
-                                     os.path.join(cfp, "extensions", filename),
-                                     os.path.join(cfp, "packages", filename),  # legacy
-                                     fullpath
-                                    ]
+                            os.path.join(cfp, "extensions", filename),
+                            os.path.join(cfp, "packages", filename),  # legacy
+                            fullpath
+                        ]
                     else:
                         fullpaths = [fullpath]
 
@@ -576,11 +571,9 @@ class EasyBlock(object):
 
                 self.log.error("Couldn't find file %s anywhere, and downloading it didn't work either...\nPaths attempted (in order): %s " % (filename, ', '.join(failedpaths)))
 
-
     #
     # GETTER/SETTER UTILITY FUNCTIONS
     #
-
     @property
     def name(self):
         """
@@ -640,7 +633,7 @@ class EasyBlock(object):
             self.log.info("Changing build dir to %s" % self.installdir)
             self.builddir = self.installdir
 
-            self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) " \
+            self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
                           "and 'keeppreviousinstall' because we're building in the installation directory.")
             # force cleanup before installation
             self.cfg['cleanupoldbuild'] = True
@@ -867,11 +860,25 @@ class EasyBlock(object):
         """
         requirements = self.make_module_req_guess()
 
-        txt = "\n"
-        for key in sorted(requirements):
-            for path in requirements[key]:
-                if os.path.exists(os.path.join(self.installdir, path)):
-                    txt += self.moduleGenerator.prepend_paths(key, [path])
+        if os.path.exists(self.installdir):
+            try:
+                cwd = os.getcwd()
+                os.chdir(self.installdir)
+            except OSError, err:
+                self.log.error("Failed to change to %s: %s" % (self.installdir, err))
+
+            txt = "\n"
+            for key in sorted(requirements):
+                for path in requirements[key]:
+                    paths = glob.glob(path)
+                    if paths:
+                        txt += self.moduleGenerator.prepend_paths(key, paths)
+            try:
+                os.chdir(cwd)
+            except OSError, err:
+                self.log.error("Failed to change back to %s: %s" % (cwd, err))
+        else:
+            txt = ""
         return txt
 
     def make_module_req_guess(self):
@@ -882,10 +889,11 @@ class EasyBlock(object):
             'PATH': ['bin', 'sbin'],
             'LD_LIBRARY_PATH': ['lib', 'lib64'],
             'LIBRARY_PATH': ['lib', 'lib64'],
-            'CPATH':['include'],
+            'CPATH': ['include'],
             'MANPATH': ['man', 'share/man'],
-            'PKG_CONFIG_PATH' : ['lib/pkgconfig', 'share/pkgconfig'],
-            'ACLOCAL_PATH' : ['share/aclocal'],
+            'PKG_CONFIG_PATH': ['lib/pkgconfig', 'share/pkgconfig'],
+            'ACLOCAL_PATH': ['share/aclocal'],
+            'CLASSPATH': ['*.jar'],
         }
 
     def load_module(self, mod_paths=None, purge=True):
@@ -992,15 +1000,18 @@ class EasyBlock(object):
             else:
                 modname = name
             tmpldict = {
-                        'ext_name': modname,
-                        'ext_version': ext.get('version'),
-                        'src': ext.get('source'),
-                        # the ones below are only there for legacy purposes
-                        # TODO deprecated, remove in v2.0
-                        # TODO same dict is used in extension.py sanity_check_step, resolve this
-                        'name': modname,
-                        'version': ext.get('version'),
-                       }
+                'ext_name': modname,
+                'ext_version': ext.get('version'),
+                'src': ext.get('source'),
+            }
+
+            deprecated_msg = "Providing 'name' and 'version' keys for extensions, should use 'ext_name', 'ext_version'"
+            self.log.deprecated(deprecated_msg, '2.0')
+            tmpldict.update({
+                'name': modname,
+                'version': ext.get('version'),
+            })
+
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
@@ -1188,11 +1199,9 @@ class EasyBlock(object):
                 return True
         return False
 
-
     #
     # STEP FUNCTIONS
     #
-
     def check_readiness_step(self):
         """
         Verify if all is ok to start build.
@@ -1528,7 +1537,7 @@ class EasyBlock(object):
                 adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False,
                                    ignore_errors=True)
             except EasyBuildError, err:
-                self.log.error("Unable to change group permissions of file(s). " \
+                self.log.error("Unable to change group permissions of file(s). "
                                "Are you a member of this group?\n%s" % err)
             self.log.info("Successfully made software only available for group %s" % self.cfg['group'])
 
@@ -1576,7 +1585,7 @@ class EasyBlock(object):
         lenvals = [len(x) for x in paths.values()]
         req_keys = sorted(path_keys_and_check.keys())
         if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            self.log.error("Incorrect format for sanity_check_paths (should have %s keys, " \
+            self.log.error("Incorrect format for sanity_check_paths (should have %s keys, "
                            "values should be lists (at least one non-empty))." % '/'.join(req_keys))
 
         for key, check_fn in path_keys_and_check.items():
@@ -1629,12 +1638,12 @@ class EasyBlock(object):
                 command = (None, None)
 
             # Build substition dictionary
-            check_cmd = { 'name': self.name.lower(), 'options': '-h' }
+            check_cmd = {'name': self.name.lower(), 'options': '-h'}
 
-            if command[0] != None:
+            if command[0] is not None:
                 check_cmd['name'] = command[0]
 
-            if command[1] != None:
+            if command[1] is not None:
                 check_cmd['options'] = command[1]
 
             cmd = "%(name)s %(options)s" % check_cmd
@@ -1694,7 +1703,8 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.moduleGenerator = ModuleGenerator(self, fake)
+        orig_fake = self.moduleGenerator.is_fake()
+        self.moduleGenerator.set_fake(fake)
         modpath = self.moduleGenerator.create_files()
 
         txt = ''
@@ -1712,6 +1722,7 @@ class EasyBlock(object):
             self.make_devel_module()
 
         self.modules_tool.update()
+        self.moduleGenerator.set_fake(orig_fake)
 
         return modpath
 
@@ -1854,9 +1865,9 @@ class EasyBlock(object):
 
         if run_test_cases:
             steps.append(('testcases', 'running test cases', [
-                                                              lambda x: x.load_module(),
-                                                              lambda x: x.test_cases_step(),
-                                                             ], False))
+                lambda x: x.load_module(),
+                lambda x: x.test_cases_step(),
+            ], False))
 
         return steps
 

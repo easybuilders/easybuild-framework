@@ -162,6 +162,41 @@ class EasyBlockTest(EnhancedTestCase):
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_req(self):
+        """Testcase for make_module_req"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        # create fake directories and files that should be guessed
+        os.makedirs(eb.installdir)
+        open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
+        open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
+        os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'share'))
+        os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
+        # this is not a path that should be picked up
+        os.mkdir(os.path.join(eb.installdir, 'CPATH'))
+
+        guess = eb.make_module_req()
+
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+        self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
@@ -247,6 +282,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
 
@@ -266,7 +302,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
-        self.contents =  '\n'.join([
+        self.contents = '\n'.join([
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -301,7 +337,7 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure build dir is unique
         eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
-        for i in range(0,3):
+        for i in range(3):
             eb.gen_builddir()
             self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
             eb.make_builddir()
@@ -336,6 +372,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.remove(self.eb_file)
         if self.orig_tmp_logdir is not None:
             os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
+
 
 def suite():
     """ return all the tests in this file """
