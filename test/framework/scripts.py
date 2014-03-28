@@ -47,7 +47,7 @@ class ScriptsTest(EnhancedTestCase):
         # adjust $PYTHONPATH such that test easyblocks are found by the script
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
         pythonpath = os.environ['PYTHONPATH']
-        os.environ['PYTHONPATH'] = "%s:%s" % (eb_blocks_path, pythonpath)
+        os.environ['PYTHONPATH'] = "%s:%s" % (pythonpath, eb_blocks_path)
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
