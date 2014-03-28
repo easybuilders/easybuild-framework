@@ -44,15 +44,10 @@ class ScriptsTest(EnhancedTestCase):
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
 
-        # adjust PYTHONPATH such that test easyblocks are found
-        import easybuild
+        # adjust $PYTHONPATH such that test easyblocks are found by the script
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        if not eb_blocks_path in sys.path:
-            sys.path.append(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
+        pythonpath = os.environ['PYTHONPATH']
+        os.environ['PYTHONPATH'] = "%s:%s" % (eb_blocks_path, pythonpath)
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
@@ -91,6 +86,7 @@ class ScriptsTest(EnhancedTestCase):
             self.assertTrue(re.search(pattern, out, re.M))
 
         shutil.rmtree(tmpdir)
+        os.environ['PYTHONPATH'] = pythonpath
 
 def suite():
     """ returns all the testcases in this module """
