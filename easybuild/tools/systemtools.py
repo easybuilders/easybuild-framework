@@ -38,7 +38,7 @@ try:
 except ImportError:
     pass
 
-from easybuild.tools.filetools import read_file, run_cmd
+from easybuild.tools.filetools import read_file, run_cmd, which
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -377,3 +377,35 @@ def get_os_version():
         return os_version
     else:
         return UNKNOWN
+
+
+def check_os_dependency(dep):
+    """
+    Check if dependency is available from OS.
+    """
+    # - uses rpm -q and dpkg -s --> can be run as non-root!!
+    # - fallback on which
+    # - should be extended to files later?
+    cmd = None
+    if get_os_name() in ['debian', 'ubuntu']:
+        if which('dpkg'):
+            cmd = "dpkg -s %s" % dep
+    else:
+        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+        if which('rpm'):
+            cmd = "rpm -q %s" % dep
+
+    found = None
+    if cmd is not None:
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if found is None:
+        # fallback for when os-dependency is a binary/library
+        found = which(dep)
+
+    # try locate if it's available
+    if found is None and which('locate'):
+        cmd = 'locate --regexp "/%s$"' % dep
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    return found
