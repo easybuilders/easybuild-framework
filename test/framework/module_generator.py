@@ -44,6 +44,7 @@ from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
 from easybuild.tools.module_generator import det_full_module_name as det_full_module_name_mg
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import det_full_module_name as det_full_module_name_ec
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
@@ -163,23 +164,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
 
         build_options = {
-            'ignore_osdeps': True,
+            'check_osdeps': False,
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,
         }
+        init_config(build_options=build_options)
 
         def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
             for ec_file in ec_files:
                 ec_path = os.path.abspath(ec_file)
-                ec = EasyConfig(ec_path, validate=False)
+                ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
                 ec_fn = os.path.basename(ec_file)
                 if ec_fn in ec2mod_map:
                     # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
-                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ec))
+                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']))
 
         # test default module naming scheme
         default_ec2mod_map = {
@@ -219,12 +221,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
             mns_mod = __import__(mns_path, globals(), locals(), [''])
             test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
             easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
-        init_config()
+        init_config(build_options=build_options)
 
         # test simple custom module naming scheme
-        build_options = {
-            'module_naming_scheme': 'TestModuleNamingScheme',
-        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
         init_config(build_options=build_options)
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/4.6.3',
@@ -238,9 +238,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         test_mns()
 
         # test module naming scheme using all available easyconfig parameters
-        build_options = {
-            'module_naming_scheme': 'TestModuleNamingSchemeAll',
-        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
         init_config(build_options=build_options)
         ec2mod_map = {
             'GCC-4.6.3.eb': 'GCC/78fd6227e5446b043e9055ba911c7df41b6deaff',
@@ -278,9 +276,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(det_full_module_name_ec(dep_spec), ec2mod_map[dep_ec])
 
         # restore default module naming scheme, and retest
-        build_options = {
-            'module_naming_scheme': self.orig_module_naming_scheme,
-        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
         ec2mod_map = default_ec2mod_map
         test_mns()

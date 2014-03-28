@@ -74,10 +74,9 @@ except ImportError, err:
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, read_file, write_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
@@ -240,16 +239,13 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
         return [spec]
 
 
-def det_full_module_name(ec, eb_ns=False, build_options=None):
+def det_full_module_name(ec, eb_ns=False):
     """
     Determine full module name following the currently active module naming scheme.
 
     First try to pass 'parsed' easyconfig as supplied,
     try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
     """
-    if build_options is None:
-        build_options = {}
-
     try:
         mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
 
@@ -257,18 +253,18 @@ def det_full_module_name(ec, eb_ns=False, build_options=None):
         # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
         # when a key error occurs, try and find an easyconfig file to parse via the robot,
         # and retry with the parsed easyconfig file (which will contains a full set of keys)
-        robot = build_options['robot_path']
+        robot = build_option('robot_path')
         eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
-        if eb_file is not None:
-            parsed_ec = process_easyconfig(eb_file, build_options=build_options)
+        if eb_file is None:
+            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+        else:
+            parsed_ec = process_easyconfig(eb_file)
             if len(parsed_ec) > 1:
                 _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
             try:
                 mod_name = _det_full_module_name(parsed_ec[0]['ec'], eb_ns=eb_ns)
             except KeyError, err:
                 _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
-        else:
-            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
 
     return mod_name
 
