@@ -30,6 +30,7 @@ Unit tests for scripts
 import os
 import re
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -42,6 +43,17 @@ class ScriptsTest(EnhancedTestCase):
 
     def test_generate_software_list(self):
         """Test for generate_software_list.py script."""
+
+        # adjust PYTHONPATH such that test easyblocks are found
+        import easybuild
+        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
+        if not eb_blocks_path in sys.path:
+            sys.path.append(eb_blocks_path)
+            easybuild = reload(easybuild)
+
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
         script = os.path.join(topdir, 'easybuild', 'scripts', 'generate_software_list.py')
