@@ -29,6 +29,7 @@ Implementation of a test module naming scheme.
 """
 
 import os
+from vsc import fancylogger
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
@@ -39,6 +40,10 @@ try:
     from hashlib import sha1
 except ImportError:
     from sha import sha as sha1
+
+
+_log = fancylogger.getLogger('TestModuleNamingSchemeAll', fname=False)
+
 
 class TestModuleNamingSchemeAll(ModuleNamingScheme):
     """Class implementing a module naming scheme that uses all available easyconfig parameters, for testing purposes."""
@@ -60,4 +65,6 @@ class TestModuleNamingSchemeAll(ModuleNamingScheme):
                     res += '%s:%s,' % (item_key, ec[key][item_key])
             else:
                 res += str(ec[key])
-        return os.path.join(ec['name'], sha1(res).hexdigest())
+        ec_sha1 = sha1(res).hexdigest()
+        _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
+        return os.path.join(ec['name'], ec_sha1)

@@ -181,8 +181,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ec_fn = os.path.basename(ec_file)
                 if ec_fn in ec2mod_map:
                     # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
-                    msg = "Same module name for for '%s' and file with contents '%s'" % (ec_fn, ecs[0]['ec'])
-                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']), msg)
+                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']))
 
         # test default module naming scheme
         default_ec2mod_map = {
