@@ -61,7 +61,7 @@ class TestModuleNamingSchemeAll(ModuleNamingScheme):
         @return: string with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
         """
         res = ''
-        for key in DEFAULT_CONFIG:
+        for key in sorted(DEFAULT_CONFIG.keys()):
             if isinstance(ec[key], dict):
                 res += '%s=>' % key
                 for item_key in sorted(ec[key].keys()):
