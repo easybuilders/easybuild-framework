@@ -36,7 +36,8 @@ import shutil
 import sys
 import tempfile
 import unittest
-from vsc import fancylogger
+from vsc.utils import fancylogger
+from vsc.utils.fancylogger import setLogLevelDebug
 
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
@@ -85,7 +86,7 @@ os.close(fd)
 os.remove(log_fn)
 fancylogger.logToFile(log_fn)
 log = fancylogger.getLogger()
-log.setLevelName('DEBUG')
+setLogLevelDebug()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
