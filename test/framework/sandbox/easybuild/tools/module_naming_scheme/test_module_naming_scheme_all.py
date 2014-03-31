@@ -29,9 +29,7 @@ Implementation of a test module naming scheme.
 """
 
 import os
-from vsc.utils import fancylogger
-from vsc.utils import fancylogger
-from vsc.utils.fancylogger import setLogLevelDebug
+from vsc import fancylogger
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
@@ -45,7 +43,6 @@ except ImportError:
 
 
 _log = fancylogger.getLogger('TestModuleNamingSchemeAll', fname=False)
-setLogLevelDebug()
 
 
 class TestModuleNamingSchemeAll(ModuleNamingScheme):
