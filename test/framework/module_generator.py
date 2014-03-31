@@ -241,13 +241,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
         init_config(build_options=build_options)
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/78fd6227e5446b043e9055ba911c7df41b6deaff',
-            'gzip-1.4.eb': 'gzip/04d858d9403e3360aeb0745c2efb5e08f461a112',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/15b0fbeb494c9c97656f1441ed6132c79e4397ed',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/3d19976f814e38f50bd944a1b5448372261ea3ad',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/5d240d33e497d26fe447bfcfddfc8e86653671ff',
-            'toy-0.0.eb': 'toy/15dff40edc9cdd6dbb9eaa5c59931b64c9a93562',
-            'toy-0.0-multiple.eb': 'toy/ea20e007c1a540f37bcd42bffc93f4db887afaaa',
+            'GCC-4.6.3.eb': 'GCC/afd4d25a1a2cdb1364c55274fb6929fab622f652',
+            'gzip-1.4.eb': 'gzip/b6306986fb95a06ad8bd2a09689d8997ff3e80dd',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/3c2d54583487828c21e17ed185eac372cabc5bb0',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/1fb1e3787d6063e05a04b2c054faf00dbe1dfe97',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/78c9afa1ff09994fe38d796b7569ce4b175e3551',
+            'toy-0.0.eb': 'toy/494518267cc5ed64c4250c5fbd1730a6e48fde17',
+            'toy-0.0-multiple.eb': 'toy/02822d81743944e1c072fc3c717c666da70f1be6',
         }
         test_mns()
 
