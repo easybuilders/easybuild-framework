@@ -926,6 +926,7 @@ def det_full_module_name(ec, eb_ns=False):
         mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
 
     except KeyError, err:
+        _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
         # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
         # when a key error occurs, try and find an easyconfig file to parse via the robot,
         # and retry with the parsed easyconfig file (which will contains a full set of keys)
