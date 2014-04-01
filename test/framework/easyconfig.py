@@ -36,6 +36,8 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
+from vsc import fancylogger
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
@@ -59,6 +61,9 @@ class EasyConfigTest(EnhancedTestCase):
     def setUp(self):
         """Set up everything for running a unit test."""
         super(EasyConfigTest, self).setUp()
+
+        self.cwd = os.getcwd()
+        self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
@@ -864,4 +869,7 @@ def suite():
 
 
 if __name__ == '__main__':
+    # also chekc the setUp for debug
+    # logToScreen(enable=True)
+    # setLogLevelDebug()
     main()

@@ -29,14 +29,16 @@ This describes the easyconfig version class. To be used in EasyBuild for anythin
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import copy
 import operator as op
 import re
 from distutils.version import LooseVersion
 from vsc import fancylogger
 
-from easybuild.tools.convert import Convert, DictOfStrings, ListOfStrings
 from easybuild.tools.toolchain.utilities import search_toolchain
+
+
+# a cache for toolchain names lookups (defined at runtime).
+TOOLCHAIN_NAMES = {}
 
 
 class EasyVersion(LooseVersion):
@@ -134,7 +136,7 @@ class VersionOperator(object):
         """
         # checks whether this VersionOperator instance is valid using __bool__ function
         if not self:
-            self.log.error('Not a valid VersionOperator. Not initialised yet?')
+            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
 
         if isinstance(test_version, basestring):
             test_version = self._convert(test_version)
@@ -279,6 +281,14 @@ class VersionOperator(object):
 
         return versop_dict
 
+    def _boundary_check(self, other):
+        """Return the boundary checks via testing: is self in other, and is other in self
+        @param other: a VersionOperator instance
+        """
+        boundary_self_in_other = other.test(self.version)
+        boundary_other_in_self = self.test(other.version)
+        return boundary_self_in_other, boundary_other_in_self
+
     def test_overlap_and_conflict(self, versop_other):
         """
         Test if there is any overlap between this instance and versop_other, and if so, if there is a conflict or not.
@@ -300,14 +310,17 @@ class VersionOperator(object):
         """
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
+        if not isinstance(versop_other, self.__class__):
+            self.log.error('overlap/conflict check needs instance of self %s (got type %s)' %
+                           (self.__class__.__name__, type(versop_other)))
+
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
             return True, False
-        # from here on, this versop and versop_other are not equal
 
+        # from here on, this versop and versop_other are not equal
         same_boundary = self.version == versop_other.version
-        boundary_self_in_other = versop_other.test(self.version)
-        boundary_other_in_self = self.test(versop_other.version)
+        boundary_self_in_other, boundary_other_in_self = self._boundary_check(versop_other)
 
         suffix_allowed = self.suffix == versop_other.suffix
 
@@ -451,10 +464,23 @@ class ToolchainVersionOperator(VersionOperator):
         version_str = super(ToolchainVersionOperator, self).__str__()
         return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
+    def _get_all_toolchain_names(self, search_string=''):
+        """
+        Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
+        @param search_string: passed to search_toolchain function.
+        """
+        global TOOLCHAIN_NAMES
+        if not search_string in TOOLCHAIN_NAMES:
+            _, all_tcs = search_toolchain(search_string)
+            self.log.debug('Found all toolchains for "%s" to %s' % (search_string, all_tcs))
+            TOOLCHAIN_NAMES[search_string] = [x.NAME for x in all_tcs]
+            self.log.debug('Set TOOLCHAIN_NAMES for "%s" to %s' % (search_string, TOOLCHAIN_NAMES[search_string]))
+
+        return TOOLCHAIN_NAMES[search_string]
+
     def is_valid(self):
         """Check if this is a valid ToolchainVersionOperator"""
-        _, all_tcs = search_toolchain('')
-        tc_names = [x.NAME for x in all_tcs]
+        tc_names = self._get_all_toolchain_names()
         known_tc_name = self.tc_name in tc_names
         return known_tc_name and super(ToolchainVersionOperator, self).is_valid()
 
@@ -477,8 +503,7 @@ class ToolchainVersionOperator(VersionOperator):
         Create the regular expression for toolchain support of format ^<toolchain> <versop_expr>$ ,
         with <toolchain> the name of one of the supported toolchains and <versop_expr> in '<operator> <version>' syntax
         """
-        _, all_tcs = search_toolchain('')
-        tc_names = [x.NAME for x in all_tcs]
+        tc_names = self._get_all_toolchain_names()
         self.log.debug("found toolchain names %s" % tc_names)
 
         versop_regex = super(ToolchainVersionOperator, self).versop_regex(begin_end=False)
@@ -510,21 +535,54 @@ class ToolchainVersionOperator(VersionOperator):
         self.log.debug("toolchain versop expression '%s' parsed to '%s'" % (tcversop_str, tcversop_dict))
         return tcversop_dict
 
+    def _boundary_check(self, other):
+        """Return the boundary checks via testing: is self in other, and is other in self
+        @param other: a ToolchainVersionOperator instance
+        """
+        boundary_self_in_other = other.test(self.tc_name, self.version)
+        boundary_other_in_self = self.test(other.tc_name, other.version)
+        return boundary_self_in_other, boundary_other_in_self
+
+    def test(self, name, version):
+        """
+        Check if a toolchain with name name and version version would fit 
+            in this ToolchainVersionOperator 
+        @param name: toolchain name
+        @param version: a version string or EasyVersion instance
+        """
+        # checks whether this ToolchainVersionOperator instance is valid using __bool__ function
+        if not self:
+            self.log.error('Not a valid %s. Not initialised yet?' % self.__class__.__name__)
+
+        tc_name_res = name == self.tc_name
+        if not tc_name_res:
+            self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, name))
+        version_res = super(ToolchainVersionOperator, self).test(version)
+        res = tc_name_res and version_res
+        tup = (tc_name_res, version_res, res)
+        self.log.debug("result of testing expression tc_name_res %s version_res %s: %s" % tup)
+
+        return res
+
     def as_dict(self):
         """
         Return toolchain version operator as a dictionary with name/version keys.
         Returns None if translation to a dictionary is not possible (e.g. non-equals operator, missing version, ...).
         """
         version = self.get_version_str()
-        if self.operator == self.OPERATOR_MAP['==']:
+        # TODO allow all self.INCLUDE_OPERATORS?
+        allowed = [self.OPERATOR_MAP[x] for x in ['==']]
+        if self.operator in allowed:
             tc_dict = {
                 'name': self.tc_name,
                 'version': version,
             }
             if self.suffix is not None:
                 tc_dict.update({'versionsuffix': self.suffix})
+            self.log.debug('returning %s as dict (allowed operator %s)' % (tc_dict, self.operator))
             return tc_dict
         else:
+            self.log.debug('returning None as dict; operator %s not in allowed list (%s)' % (self.operator, allowed))
             return None
 
 
@@ -549,23 +607,26 @@ class OrderedVersionOperators(object):
         """Print the list and map"""
         return "ordered version operators: %s; data map: %s" % (self.versops, self.datamap)
 
-    def add(self, versop_new, data=None):
+    def add(self, versop_new, data=None, update=None):
         """
         Try to add argument as VersionOperator instance to current list of version operators.
         Make sure there is no conflict with existing versops, and that the ordering is maintained.
+        After add, versop_new is in the OrderedVersionOperators. If the same versop_new was already in it,
+        it will update the data (if not None) (and not raise an error)
 
         @param versop_new: VersionOperator instance (or will be converted into one if type basestring)
         @param data: additional data for supplied version operator to be stored
+        @param update: if versop_new already exist and has data set, try to update the existing data with the new data; 
+                       instead of overriding the existing data with the new data (method used for updating is .update)    
         """
         if isinstance(versop_new, basestring):
             versop_new = VersionOperator(versop_new)
         elif not isinstance(versop_new, VersionOperator):
-            arg = (versop_new, type(versop_new))
-            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % arg)
+            tup = (versop_new, type(versop_new))
+            self.log.error(("add: argument must be a VersionOperator instance or basestring: %s; type %s") % tup)
 
         if versop_new in self.versops:
-            # adding the same version operator twice is considered a failure
-            self.log.error("Versop %s already added." % versop_new)
+            self.log.debug("Versop %s already added." % versop_new)
         else:
             # no need for equality testing, we consider it an error
             gt_test = [versop_new > versop for versop in self.versops]
@@ -585,5 +646,30 @@ class OrderedVersionOperators(object):
                     self.versops.append(versop_new)
                 self.log.debug("add: new ordered list of version operators: %s" % self.versops)
 
-                self.log.debug("Keeping track of data for %s: %s" % (versop_new, data))
-                self.datamap[versop_new] = data
+        self._add_data(versop_new, data, update)
+
+    def _add_data(self, versop_new, data, update):
+        """Add the data to the datamap, use the string representation of the operator as key"""
+        versop_new_str = str(versop_new)
+
+        if update and versop_new_str in self.datamap:
+            self.log.debug("Keeping track of data for %s UPDATE: %s" % (versop_new_str, data))
+            if not hasattr(self.datamap[versop_new_str], 'update'):
+                tup = (versop_new_str, type(self.datamap[versop_new_str]))
+                self.log.error("Can't update on datamap key %s type %s" % tup)
+            self.datamap[versop_new_str].update(data)
+        else:
+            self.log.debug("Keeping track of data for %s SET: %s" % (versop_new_str, data))
+            self.datamap[versop_new_str] = data
+
+    def get_data(self, versop):
+        """Return the data for versop from datamap"""
+        if not isinstance(versop, VersionOperator):
+            tup = (versop, type(versop))
+            self.log.error(("get_data: argument must be a VersionOperator instance: %s; type %s") % tup)
+
+        versop_str = str(versop)
+        if versop_str in self.datamap:
+            return self.datamap[versop_str]
+        else:
+            self.log.error('No data in datamap for versop %s' % versop)
