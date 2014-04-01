@@ -72,6 +72,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
+        super(ToyBuildTest, self).tearDown()
         # remove logs
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
@@ -211,6 +212,34 @@ class ToyBuildTest(EnhancedTestCase):
 
             self.check_toy(self.test_installpath, outtxt, **specs)
 
+    def test_toy_download_sources(self):
+        """Test toy build with sources that still need to be 'downloaded'."""
+        tmpdir = tempfile.mkdtemp()
+        # copy toy easyconfig file, and append source_urls to it
+        shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
+        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        f = open(ec_file, 'a')
+        source_url = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'sandbox', 'sources', 'toy')
+        f.write('\nsource_urls = ["file://%s"]\n' % source_url)
+        f.close()
+
+        # unset $EASYBUILD_XPATH env vars, to make sure --prefix is picked up
+        for cfg_opt in ['build', 'install', 'source']:
+            del os.environ['EASYBUILD_%sPATH' % cfg_opt.upper()]
+        args = [
+            ec_file,
+            '--prefix=%s' % tmpdir,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
+        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+
+        self.check_toy(tmpdir, outtxt)
+
+        self.assertTrue(os.path.exists(os.path.join(tmpdir, 'sources', 't', 'toy', 'toy-0.0.tar.gz')))
+
+        shutil.rmtree(tmpdir)
 
 def suite():
     """ return all the tests in this file """
