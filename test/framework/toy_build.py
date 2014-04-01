@@ -217,6 +217,6 @@ def suite():
     return TestLoader().loadTestsFromTestCase(ToyBuildTest)
 
 if __name__ == '__main__':
-    logToScreen(enable=True)
-    setLogLevelDebug()
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     unittestmain()
