@@ -51,8 +51,10 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, print_dry_run
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available, tweak
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
+from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
+from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
 from easybuild.tools.options import process_software_build_specs

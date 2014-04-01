@@ -81,14 +81,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         full_version = ''.join([versionprefix, version, versionsuffix])
 
+        # check for success
+        success = re.compile("COMPLETED: Installation ended successfully")
+        self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s" % outtxt)
+
         # if the module exists, it should be fine
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         self.assertTrue(os.path.exists(toy_module), msg)
-
-        # check for success
-        success = re.compile("COMPLETED: Installation ended successfully")
-        self.assertTrue(success.search(outtxt))
 
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', 'toy', full_version)

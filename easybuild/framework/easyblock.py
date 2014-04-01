@@ -776,12 +776,11 @@ class EasyBlock(object):
 
         # Load dependencies
         builddeps = self.cfg.builddependencies()
-        for (dep, mod_name) in self.toolchain.dependencies:
+        for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                dep_mod_name = det_full_module_name(dep)
-                self.log.debug("Adding %s as a module dependency" % dep_mod_name)
-                load += self.moduleGenerator.load_module(dep_mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(dep_mod_name)
+                self.log.debug("Adding %s as a module dependency" % dep['mod_name'])
+                load += self.moduleGenerator.load_module(dep['mod_name'], recursive_unload=self.recursive_mod_unload)
+                unload += self.moduleGenerator.unload_module(dep['mod_name'])
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
@@ -1213,8 +1212,7 @@ class EasyBlock(object):
             self.log.warning("Loaded modules detected: %s" % loadedmods)
 
         # do all dependencies have a toolchain version?
-        deps_with_mod_names = [(dep, det_full_module_name(dep)) for dep in self.cfg.dependencies()]
-        self.toolchain.add_dependencies(deps_with_mod_names)
+        self.toolchain.add_dependencies(self.cfg.dependencies())
         if not len(self.cfg.dependencies()) == len(self.toolchain.dependencies):
             self.log.debug("dep %s (%s)" % (len(self.cfg.dependencies()), self.cfg.dependencies()))
             self.log.debug("tc.dep %s (%s)" % (len(self.toolchain.dependencies), self.toolchain.dependencies))

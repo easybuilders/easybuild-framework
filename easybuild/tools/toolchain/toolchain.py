@@ -273,12 +273,12 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
-        for (dep, mod_name) in dependencies:
-            if not self.modules_tool.exists(mod_name):
-                self.log.error('add_dependencies: no module %s found for dependency %s' % (mod_name, dep))
+        for dep in dependencies:
+            if not self.modules_tool.exists(dep['mod_name']):
+                self.log.error('add_dependencies: no module %s found for dependency %s' % dep)
             else:
-                self.dependencies.append((dep, mod_name))
-                self.log.debug('add_dependencies: added toolchain dependency %s (module %s)' % (dep, mod_name))
+                self.dependencies.append(dep)
+                self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -306,13 +306,13 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([mod_name for (_, mod_name) in self.dependencies])
+                self.modules_tool.load([dep['mod_name'] for dep in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
         self.log.debug("Loading toolchain module and dependencies...")
         self.modules_tool.load([self.det_module_name()])
-        self.modules_tool.load([mod_name for (_, mod_name) in self.dependencies])
+        self.modules_tool.load([dep['mod_name'] for dep in self.dependencies])
 
         # determine direct toolchain dependencies
         mod_name = self.det_module_name()
@@ -376,9 +376,9 @@ class Toolchain(object):
                     ld_paths.append(p)
 
         if not names:
-            deps = [dep for (dep, _) in self.dependencies]
+            deps = self.dependencies
         else:
-            deps = [{'name':name} for name in names if name is not None]
+            deps = [{'name': name} for name in names if name is not None]
 
         for root in self.get_software_root([dep['name'] for dep in deps]):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)

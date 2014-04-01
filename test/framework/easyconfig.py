@@ -42,7 +42,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
-from easybuild.framework.easyconfig.tools import obtain_ec_for, tweak
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -563,6 +563,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'dummy': False,
+                'mod_name': 'foo/1.2.3-GCC-4.4.5',
             },
             {
                 'name': 'bar',
@@ -570,6 +571,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
                 'dummy': False,
+                'mod_name': 'bar/666-gompi-1.4.10-bleh',
             },
         ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
