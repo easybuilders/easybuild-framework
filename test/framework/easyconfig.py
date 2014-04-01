@@ -40,9 +40,9 @@ from unittest import TestLoader, main
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
-from easybuild.framework.easyconfig.tools import obtain_ec_for, tweak
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -272,7 +272,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "source_urls": [("http://example.com", "suffix")],'
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
-            '           "673085af5622393e543b9ea31f66c590",',  # checksum for source (gzip-1.4.eb)
+            '           "504c7036558938f997c1c269a01d7458",',  # checksum for source (gzip-1.4.eb)
             '           "bd2075fc6b26a7371e4f5c1687a75d0a",',  # checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
@@ -563,6 +563,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'dummy': False,
+                'mod_name': 'foo/1.2.3-GCC-4.4.5',
             },
             {
                 'name': 'bar',
@@ -570,6 +571,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
                 'dummy': False,
+                'mod_name': 'bar/666-gompi-1.4.10-bleh',
             },
         ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
@@ -844,6 +846,17 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
+
+    def test_easyconfig_paths(self):
+        """Test create_paths function."""
+        cand_paths = create_paths("/some/path", "Foo", "1.2.3")
+        expected_paths = [
+            "/some/path/Foo/1.2.3.eb",
+            "/some/path/Foo/Foo-1.2.3.eb",
+            "/some/path/f/Foo/Foo-1.2.3.eb",
+            "/some/path/Foo-1.2.3.eb",
+        ]
+        self.assertEqual(cand_paths, expected_paths)
 
 def suite():
     """ returns all the testcases in this module """

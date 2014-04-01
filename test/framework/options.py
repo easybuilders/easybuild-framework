@@ -679,7 +679,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
             '--recursive-module-unload',
         ]
-        self.eb_main(args, do_build=True)
+        self.eb_main(args, do_build=True, verbose=True)
 
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', '0.0-deps')
         toy_module_txt = read_file(toy_module)

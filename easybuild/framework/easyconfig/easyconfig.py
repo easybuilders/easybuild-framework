@@ -39,21 +39,24 @@ import copy
 import difflib
 import os
 import re
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, run_cmd
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import check_os_dependency, get_shared_lib_ext
+from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import template_constant_dict
@@ -491,18 +494,19 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'mod_name']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'name': '',
+            'dummy': False,
+            'mod_name': None,  # module name
+            'name': '',  # software name
+            'toolchain': None,
             'version': '',
             'versionsuffix': '',
-            'toolchain': None,
-            'dummy': False,
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -557,6 +561,8 @@ class EasyConfig(object):
 
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
+
+        dependency['mod_name'] = det_full_module_name(dependency)
 
         return dependency
 
@@ -818,3 +824,127 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
+
+def process_easyconfig(path, build_specs=None, validate=True):
+    """
+    Process easyconfig, returning some information for each block
+    @param path: path to easyconfig file
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param validate: whether or not to perform validation
+    """
+    blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
+
+    easyconfigs = []
+    for spec in blocks:
+        # process for dependencies and real installversionname
+        _log.debug("Processing easyconfig %s" % spec)
+
+        # create easyconfig
+        try:
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate)
+        except EasyBuildError, err:
+            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
+            _log.exception(msg)
+
+        name = ec['name']
+
+        # this app will appear as following module in the list
+        easyconfig = {
+            'ec': ec,
+            'spec': spec,
+            'module': det_full_module_name(ec),
+            'dependencies': [],
+            'builddependencies': [],
+        }
+        if len(blocks) > 1:
+            easyconfig['original_spec'] = path
+
+        # add build dependencies
+        for dep in ec.builddependencies():
+            _log.debug("Adding build dependency %s for app %s." % (dep, name))
+            easyconfig['builddependencies'].append(dep)
+
+        # add dependencies (including build dependencies)
+        for dep in ec.dependencies():
+            _log.debug("Adding dependency %s for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        # add toolchain as dependency too
+        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            dep = ec.toolchain.as_dict()
+            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        del ec
+
+        # this is used by the parallel builder
+        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
+
+        easyconfigs.append(easyconfig)
+
+    return easyconfigs
+
+
+def create_paths(path, name, version):
+    """
+    Returns all the paths where easyconfig could be located
+    <path> is the basepath
+    <name> should be a string
+    <version> can be a '*' if you use glob patterns, or an install version otherwise
+    """
+    cand_paths = [
+        (name, version),  # e.g. <path>/GCC/4.8.2.eb
+        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+    ]
+    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
+
+
+def robot_find_easyconfig(paths, name, version):
+    """
+    Find an easyconfig for module in path
+    """
+    if not isinstance(paths, (list, tuple)):
+        paths = [paths]
+    # candidate easyconfig paths
+    for path in paths:
+        easyconfigs_paths = create_paths(path, name, version)
+        for easyconfig_path in easyconfigs_paths:
+            _log.debug("Checking easyconfig path %s" % easyconfig_path)
+            if os.path.isfile(easyconfig_path):
+                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
+                return os.path.abspath(easyconfig_path)
+
+    return None
+
+
+def det_full_module_name(ec, eb_ns=False):
+    """
+    Determine full module name following the currently active module naming scheme.
+
+    First try to pass 'parsed' easyconfig as supplied,
+    try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
+    """
+    try:
+        mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
+
+    except KeyError, err:
+        _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
+        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
+        # when a key error occurs, try and find an easyconfig file to parse via the robot,
+        # and retry with the parsed easyconfig file (which will contains a full set of keys)
+        robot = build_option('robot_path')
+        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+        if eb_file is None:
+            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+        else:
+            parsed_ec = process_easyconfig(eb_file)
+            if len(parsed_ec) > 1:
+                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+            try:
+                mod_name = _det_full_module_name(parsed_ec[0]['ec'], eb_ns=eb_ns)
+            except KeyError, err:
+                _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
+
+    return mod_name

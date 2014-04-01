@@ -29,27 +29,42 @@ Implementation of a test module naming scheme.
 """
 
 import os
+from vsc import fancylogger
 
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.ordereddict import OrderedDict
+
+# prefer hashlib.sha1 (only in Python 2.5 and up) over sha.sha
+try:
+    from hashlib import sha1
+except ImportError:
+    from sha import sha as sha1
 
 
-class TestModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing a simple module naming scheme for testing purposes."""
+_log = fancylogger.getLogger('TestModuleNamingSchemeAll', fname=False)
+
+
+class TestModuleNamingSchemeAll(ModuleNamingScheme):
+    """Class implementing a module naming scheme that uses all available easyconfig parameters, for testing purposes."""
 
     def det_full_module_name(self, ec):
         """
-        Determine full module name from given easyconfig, according to a simple testing module naming scheme.
+        Determine full module name from given easyconfig, according to a testing module naming scheme,
+        using all available easyconfig parameters.
 
         @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
-        @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
+        @return: string with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
         """
-        if ec['toolchain']['name'] == 'goolf':
-            mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'GCC':
-            mod_name = os.path.join('gnu', ec['name'], ec['version'])
-        elif ec['toolchain']['name'] == 'ictce':
-            mod_name = os.path.join('intel', 'intelmpi', ec['name'], ec['version'])
-        else:
-            mod_name = os.path.join(ec['name'], ec['version'])
-        return mod_name
+        res = ''
+        for key in sorted(DEFAULT_CONFIG.keys()):
+            if isinstance(ec[key], dict):
+                res += '%s=>' % key
+                for item_key in sorted(ec[key].keys()):
+                    res += '%s:%s,' % (item_key, ec[key][item_key])
+            else:
+                res += str(ec[key])
+        ec_sha1 = sha1(res).hexdigest()
+        _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
+        return os.path.join(ec['name'], ec_sha1)

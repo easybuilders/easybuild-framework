@@ -51,10 +51,11 @@ from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, fetch_parameter_from_easyconfig_file
-from easybuild.framework.easyconfig.easyconfig import get_class_for, get_easyblock_class, get_module_path
-from easybuild.framework.easyconfig.easyconfig import resolve_template
-from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.tools import det_full_module_name, get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
@@ -67,7 +68,7 @@ from easybuild.tools.filetools import download_file, encode_class_name, extract_
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
-from easybuild.tools.module_generator import det_full_module_name, det_devel_module_filename
+from easybuild.tools.module_generator import det_devel_module_filename
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -777,10 +778,9 @@ class EasyBlock(object):
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                dep_mod_name = det_full_module_name(dep)
-                self.log.debug("Adding %s as a module dependency" % dep_mod_name)
-                load += self.moduleGenerator.load_module(dep_mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(dep_mod_name)
+                self.log.debug("Adding %s as a module dependency" % dep['mod_name'])
+                load += self.moduleGenerator.load_module(dep['mod_name'], recursive_unload=self.recursive_mod_unload)
+                unload += self.moduleGenerator.unload_module(dep['mod_name'])
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
@@ -1978,9 +1978,9 @@ def build_and_install_software(module, orig_environ):
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
-                if 'originalSpec' in module:
+                if 'original_spec' in module:
                     block = det_full_ec_version(app.cfg) + ".block"
-                    repo.add_easyconfig(module['originalSpec'], app.name, block, buildstats, currentbuildstats)
+                    repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % det_full_module_name(app.cfg))
                 del repo

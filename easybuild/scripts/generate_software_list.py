@@ -35,6 +35,7 @@ from optparse import OptionParser
 
 import easybuild.tools.build_log  # ensure use of EasyBuildLog
 import easybuild.tools.config as config
+import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.github import Githubfs
 from vsc import fancylogger
@@ -98,6 +99,8 @@ else:
 
 
 # configure EasyBuild, by parsing options
+eb_go = eboptions.parse_options(args=args)
+config.init(eb_go.options, eb_go.get_options_by_section('config'))
 config.init_build_options({'validate': False})
 
 
