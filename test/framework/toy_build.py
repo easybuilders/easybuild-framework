@@ -226,9 +226,11 @@ class ToyBuildTest(EnhancedTestCase):
         # unset $EASYBUILD_XPATH env vars, to make sure --prefix is picked up
         for cfg_opt in ['build', 'install', 'source']:
             del os.environ['EASYBUILD_%sPATH' % cfg_opt.upper()]
+        sourcepath = os.path.join(tmpdir, 'mysources')
         args = [
             ec_file,
             '--prefix=%s' % tmpdir,
+            '--sourcepath=%s' % ':'.join([sourcepath, '/bar']),  # include senseless path which should be ignored
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -237,7 +239,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.check_toy(tmpdir, outtxt)
 
-        self.assertTrue(os.path.exists(os.path.join(tmpdir, 'sources', 't', 'toy', 'toy-0.0.tar.gz')))
+        self.assertTrue(os.path.exists(os.path.join(sourcepath, 't', 'toy', 'toy-0.0.tar.gz')))
 
         shutil.rmtree(tmpdir)
 
