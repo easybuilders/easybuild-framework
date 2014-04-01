@@ -40,7 +40,7 @@ from unittest import TestLoader, main
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_installversion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.build_log import EasyBuildError
@@ -846,6 +846,17 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
+
+    def test_easyconfig_paths(self):
+        """Test create_paths function."""
+        cand_paths = create_paths("/some/path", "Foo", "1.2.3")
+        expected_paths = [
+            "/some/path/Foo/1.2.3.eb",
+            "/some/path/Foo/Foo-1.2.3.eb",
+            "/some/path/f/Foo/Foo-1.2.3.eb",
+            "/some/path/Foo-1.2.3.eb",
+        ]
+        self.assertEqual(cand_paths, expected_paths)
 
 def suite():
     """ returns all the testcases in this module """
