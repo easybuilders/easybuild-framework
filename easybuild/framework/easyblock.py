@@ -1978,9 +1978,9 @@ def build_and_install_software(module, orig_environ):
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
-                if 'originalSpec' in module:
+                if 'original_spec' in module:
                     block = det_full_ec_version(app.cfg) + ".block"
-                    repo.add_easyconfig(module['originalSpec'], app.name, block, buildstats, currentbuildstats)
+                    repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % det_full_module_name(app.cfg))
                 del repo

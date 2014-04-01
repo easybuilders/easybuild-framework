@@ -349,7 +349,7 @@ def main(testing_data=(None, None, None)):
 
     # cleanup and spec files
     for ec in easyconfigs:
-        if 'originalSpec' in ec and os.path.isfile(ec['spec']):
+        if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
     # cleanup tmp log file (all is well, all modules have their own log file)

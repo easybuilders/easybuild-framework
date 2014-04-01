@@ -53,6 +53,9 @@ from easybuild.tools.utilities import quote_str
 _log = fancylogger.getLogger('easyconfig.tweak', fname=False)
 
 
+EASYCONFIG_TEMPLATE = "TEMPLATE"
+
+
 def ec_filename_for(path):
     """
     Return a suiting file name for the easyconfig file at <path>,
@@ -88,15 +91,12 @@ def tweak(src_fn, target_fn, tweaks):
     # determine new toolchain if it's being changed
     keys = tweaks.keys()
     if 'toolchain_name' in keys or 'toolchain_version' in keys:
-
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
-
         res = tc_regexp.search(ectxt)
         if not res:
             _log.error("No toolchain found in easyconfig file %s?" % src_fn)
 
         toolchain = eval(res.group(1))
-
         for key in ['name', 'version']:
             tc_key = "toolchain_%s" % key
             if tc_key in keys:
@@ -109,7 +109,6 @@ def tweak(src_fn, target_fn, tweaks):
                 return "{'name': '%(name)s', 'version': '%(version)s'}" % self
 
         tweaks.update({'toolchain': TcDict({'name': toolchain['name'], 'version': toolchain['version']})})
-
         _log.debug("New toolchain constructed: %s" % tweaks['toolchain'])
 
     additions = []
@@ -118,9 +117,7 @@ def tweak(src_fn, target_fn, tweaks):
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-
             regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
-
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -149,7 +146,6 @@ def tweak(src_fn, target_fn, tweaks):
 
         regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
-
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
@@ -177,9 +173,7 @@ def tweak(src_fn, target_fn, tweaks):
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
     if not target_fn:
-
         fn = None
-
         try:
             # obtain temporary filename
             fd, tmpfn = tempfile.mkstemp()
@@ -193,7 +187,6 @@ def tweak(src_fn, target_fn, tweaks):
 
             # get rid of temporary file
             os.remove(tmpfn)
-
         except OSError, err:
             _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
 
@@ -291,7 +284,7 @@ def select_or_generate_ec(fp, paths, specs):
     if len(ec_files) == 0:
         # look for a template file if no easyconfig for specified software name is available
         for path in paths:
-            templ_file = os.path.join(path, "TEMPLATE.eb")
+            templ_file = os.path.join(path, "%s.eb" % EASYCONFIG_TEMPLATE)
 
             if os.path.isfile(templ_file):
                 ec_files = [templ_file]
@@ -301,6 +294,14 @@ def select_or_generate_ec(fp, paths, specs):
 
         if len(ec_files) == 0:
             _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
+
+    # only retain unique easyconfig files
+    ec_files = nub(ec_files)
+    _log.debug("Unique ec_files: %s" % ec_files)
+
+    ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
+
+    # TOOLCHAIN NAME
 
     # we can't rely on set, because we also need to be able to obtain a list of unique lists
     def unique(l):
@@ -315,21 +316,13 @@ def select_or_generate_ec(fp, paths, specs):
         else:
             return l
 
-    # filter unique
-    ec_files = nub(ec_files)
-    _log.debug("Unique ec_files: %s" % ec_files)
-
-    ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
-
-    # TOOLCHAIN NAME
-
     # determine list of unique toolchain names
     tcnames = unique([x[0]['toolchain']['name'] for x in ecs_and_files])
     _log.debug("Found %d unique toolchain names: %s" % (len(tcnames), tcnames))
 
     # if a toolchain was selected, and we have no easyconfig files for it, try and use a template
     if specs.get('toolchain_name') and not specs['toolchain_name'] in tcnames:
-        if "TEMPLATE" in tcnames:
+        if EASYCONFIG_TEMPLATE in tcnames:
             _log.info("No easyconfig file for specified toolchain, but template is available.")
         else:
             _log.error("No easyconfig file for %s with toolchain %s, " \
@@ -343,16 +336,16 @@ def select_or_generate_ec(fp, paths, specs):
         # known toolchain, so only retain those
         selected_tcname = tcname
     else:
-        if len(tcnames) == 1 and not tcnames[0] == "TEMPLATE":
+        if len(tcnames) == 1 and not tcnames[0] == EASYCONFIG_TEMPLATE:
             # only one (non-template) toolchain availble, so use that
             tcname = tcnames[0]
             selected_tcname = tcname
-        elif len(tcnames) == 1 and tcnames[0] == "TEMPLATE":
+        elif len(tcnames) == 1 and tcnames[0] == EASYCONFIG_TEMPLATE:
             selected_tcname = tcnames[0]
         else:
             # fall-back: use template toolchain if a toolchain name was specified
             if tcname:
-                selected_tcname = "TEMPLATE"
+                selected_tcname = EASYCONFIG_TEMPLATE
             else:
                 # if multiple toolchains are available, and none is specified, we quit
                 # we can't just pick one, how would we prefer one over the other?
@@ -505,9 +498,9 @@ def obtain_ec_for(specs, paths, fp):
     Either select between available ones, or use the best suited available one
     to generate a new easyconfig file.
 
-    <paths> is a list of paths where easyconfig files can be found
-    <fp> is the desired file name
-    <log> is an EasyBuildLog instance
+    @param specs: list of available easyconfig files
+    @param paths: a list of paths where easyconfig files can be found
+    @param fp: the desired file name
     """
 
     # ensure that at least name is specified

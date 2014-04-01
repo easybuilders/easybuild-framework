@@ -56,8 +56,9 @@ from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
-from easybuild.framework.easyconfig.parser import EasyConfigParser, retrieve_blocks_in_spec
+from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
@@ -501,7 +502,8 @@ class EasyConfig(object):
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             'dummy': False,
-            'name': '',
+            'mod_name': None,  # module name
+            'name': '',  # software name
             'toolchain': None,
             'version': '',
             'versionsuffix': '',
@@ -855,7 +857,7 @@ def process_easyconfig(path, build_specs=None, validate=True):
             'builddependencies': [],
         }
         if len(blocks) > 1:
-            easyconfig['originalSpec'] = path
+            easyconfig['original_spec'] = path
 
         # add build dependencies
         for dep in ec.builddependencies():
@@ -890,18 +892,20 @@ def create_paths(path, name, version):
     <name> should be a string
     <version> can be a '*' if you use glob patterns, or an install version otherwise
     """
-    return [os.path.join(path, name, version + ".eb"),
-            os.path.join(path, name, "%s-%s.eb" % (name, version)),
-            os.path.join(path, name.lower()[0], name, "%s-%s.eb" % (name, version)),
-            os.path.join(path, "%s-%s.eb" % (name, version)),
-           ]
+    cand_paths = [
+        (name, version),  # e.g. <path>/GCC/4.8.2.eb
+        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+    ]
+    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
 def robot_find_easyconfig(paths, name, version):
     """
     Find an easyconfig for module in path
     """
-    if not isinstance(paths, list):
+    if not isinstance(paths, (list, tuple)):
         paths = [paths]
     # candidate easyconfig paths
     for path in paths:
