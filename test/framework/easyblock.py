@@ -29,29 +29,26 @@ Unit tests for easyblock.py
 @author: Kenneth Hoste (Ghent University)
 """
 
-#TODO: implement testcases for each step method
 import os
 import re
-import shutil
 import tempfile
 import sys
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.extension import Extension
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
+from easybuild.framework.easyconfig import CUSTOM
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import process_easyconfig
+from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from easybuild.tools.module_generator import det_full_module_name
 
 
-class EasyBlockTest(TestCase):
+class EasyBlockTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
-
-    # initialize configuration so modules_tool() function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     def writeEC(self):
         """ create temporary easyconfig file """
@@ -59,38 +56,88 @@ class EasyBlockTest(TestCase):
 
     def setUp(self):
         """ setup """
+        super(EasyBlockTest, self).setUp()
+
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)
-        config.variables['tmp_logdir'] = tempfile.mkdtemp()
-        config.variables['installpath'] = tempfile.mkdtemp()
-        config.variables['buildpath'] = tempfile.mkdtemp()
-        config.variables['logfile_format'] = ("temp","temp")
-        self.cwd = os.getcwd()
+
+        self.orig_tmp_logdir = os.environ.get('EASYBUILD_TMP_LOGDIR', None)
+        self.test_tmp_logdir = tempfile.mkdtemp()
+        os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir
 
     def test_empty(self):
         self.contents = "# empty"
         self.writeEC()
         """ empty files should not parse! """
-        self.assertRaises(EasyBuildError, EasyBlock, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyBlock, "")
+        self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "Value of incorrect type passed", EasyBlock, "")
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
-        self.contents =  """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1']
-"""
+
+        def check_extra_options_format(extra_options):
+            """Make sure extra_options value is of correct format."""
+            # EasyBuild v1.x
+            self.assertTrue(isinstance(extra_options, list))
+            for extra_option in extra_options:
+                self.assertTrue(isinstance(extra_option, tuple))
+                self.assertEqual(len(extra_option), 2)
+                self.assertTrue(isinstance(extra_option[0], basestring))
+                self.assertTrue(isinstance(extra_option[1], list))
+                self.assertEqual(len(extra_option[1]), 3)
+            # EasyBuild v2.0 (breaks backward compatibility compared to v1.x)
+            #self.assertTrue(isinstance(extra_options, dict))
+            #for key in extra_options:
+            #    self.assertTrue(isinstance(extra_options[key], list))
+            #    self.assertTrue(len(extra_options[key]), 3)
+
+        name = "pi"
+        version = "3.14"
+        self.contents =  '\n'.join([
+            'name = "%s"' % name,
+            'version = "%s"' % version,
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'exts_list = ["ext1"]',
+        ])
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
-        eb = EasyBlock(self.eb_file)
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        self.assertEqual(eb.cfg['name'], name)
+        self.assertEqual(eb.cfg['version'], version)
         self.assertRaises(NotImplementedError, eb.run_all_steps, True, False)
+        check_extra_options_format(eb.extra_options())
         sys.stdout.close()
         sys.stdout = stdoutorig
+
+        # test extensioneasyblock, as extension
+        exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
+        self.assertEqual(exeb1.cfg['name'], 'foo')
+        extra_options = exeb1.extra_options()
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
+
+        # test extensioneasyblock, as easyblock
+        exeb2 = ExtensionEasyBlock(ec)
+        self.assertEqual(exeb2.cfg['name'], 'pi')
+        self.assertEqual(exeb2.cfg['version'], '3.14')
+        extra_options = exeb2.extra_options()
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
+
+        class TestExtension(ExtensionEasyBlock):
+            @staticmethod
+            def extra_options():
+                return ExtensionEasyBlock.extra_options([('extra_param', [None, "help", CUSTOM])])
+        texeb = TestExtension(eb, {'name': 'bar'})
+        self.assertEqual(texeb.cfg['name'], 'bar')
+        extra_options = texeb.extra_options()
+        check_extra_options_format(extra_options)
+        self.assertTrue('options' in [key for (key, _) in extra_options])
+        self.assertEqual([val for (key, val) in extra_options if key == 'extra_param'][0], [None, "help", CUSTOM])
 
         # cleanup
         eb.close_log()
@@ -98,16 +145,16 @@ exts_list = ['ext1']
 
     def test_fake_module_load(self):
         """Testcase for fake module load"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
         self.writeEC()
-        eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['installpath']
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.build_path()
         fake_mod_data = eb.load_fake_module()
         eb.clean_up_fake_module(fake_mod_data)
 
@@ -115,30 +162,65 @@ toolchain = {"name":"dummy", "version": "dummy"}
         eb.close_log()
         os.remove(eb.logfile)
 
+    def test_make_module_req(self):
+        """Testcase for make_module_req"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name":"dummy", "version": "dummy"}',
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
+
+        # create fake directories and files that should be guessed
+        os.makedirs(eb.installdir)
+        open(os.path.join(eb.installdir, 'foo.jar'), 'w').write('foo.jar')
+        open(os.path.join(eb.installdir, 'bla.jar'), 'w').write('bla.jar')
+        os.mkdir(os.path.join(eb.installdir, 'bin'))
+        os.mkdir(os.path.join(eb.installdir, 'share'))
+        os.mkdir(os.path.join(eb.installdir, 'share', 'man'))
+        # this is not a path that should be picked up
+        os.mkdir(os.path.join(eb.installdir, 'CPATH'))
+
+        guess = eb.make_module_req()
+
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+        self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+        self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1']
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = ["ext1"]',
+        ])
         self.writeEC()
         """Testcase for extensions"""
         # test for proper error message without the exts_defaultclass set
-        eb = EasyBlock(self.eb_file)
-        eb.installdir = config.variables['installpath']
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = config.install_path()
         self.assertRaises(EasyBuildError, eb.extensions_step)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
 
         # test if everything works fine if set
         self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
         self.writeEC()
-        eb = EasyBlock(self.eb_file)
-        eb.builddir = config.variables['buildpath']
-        eb.installdir = config.variables['installpath']
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.extensions_step()
 
         # test for proper error message when skip is set, but no exts_filter is set
@@ -151,22 +233,22 @@ exts_list = ['ext1']
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
-        self.contents = """
-name = "pi"
-version = "3.14"
-homepage = "http://example.com"
-description = "test easyconfig"
-toolchain = {"name":"dummy", "version": "dummy"}
-exts_list = ['ext1', 'ext2']
-exts_filter = ("if [ %(name)s == 'ext2' ]; then exit 0; else exit 1; fi", '')
-exts_defaultclass = ['easybuild.framework.extension', 'Extension']
-"""
+        self.contents = '\n'.join([
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'exts_list = ["ext1", "ext2"]',
+            'exts_filter = ("if [ %(name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
+            'exts_defaultclass = ["easybuild.framework.extension", "Extension"]',
+        ])
         # check if skip skips correct extensions
         self.writeEC()
-        eb = EasyBlock(self.eb_file)
+        eb = EasyBlock(EasyConfig(self.eb_file))
         #self.assertTrue('ext1' in eb.exts.keys() and 'ext2' in eb.exts.keys())
-        eb.builddir = config.variables['buildpath']
-        eb.installdir = config.variables['installpath']
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
         eb.skip = True
         eb.extensions_step()
         # 'ext1' should be in eb.exts
@@ -196,15 +278,11 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
             "modextrapaths = %s" % str(modextrapaths),
         ])
 
-        # overwrite installpath config setting
-        orig_installpath = config.variables['installpath']
-        installpath = tempfile.mkdtemp()
-        config.variables['installpath'] = installpath
-
         # test if module is generated correctly
         self.writeEC()
-        eb = EasyBlock(self.eb_file)
-        eb.installdir = os.path.join(config.variables['installpath'], config.variables['subdir_software'], 'pi', '3.14')
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath))
 
@@ -222,12 +300,9 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         for (key, val) in modextrapaths.items():
             self.assertTrue(re.search('^prepend-path\s+%s\s+\$root/%s$' % (key, val), txt, re.M))
 
-        # restore original settings
-        config.variables['installpath'] = orig_installpath
-
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
-        self.contents =  '\n'.join([
+        self.contents = '\n'.join([
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -237,7 +312,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         self.writeEC()
         stdoutorig = sys.stdout
         sys.stdout = open("/dev/null", 'w')
-        eb = EasyBlock(self.eb_file)
+        eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
         eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
@@ -262,7 +337,7 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         # make sure build dir is unique
         eb.cfg['cleanupoldbuild'] = False
         builddir = eb.builddir
-        for i in range(0,3):
+        for i in range(3):
             eb.gen_builddir()
             self.assertEqual(eb.builddir, "%s.%d" % (builddir, i))
             eb.make_builddir()
@@ -272,24 +347,32 @@ exts_defaultclass = ['easybuild.framework.extension', 'Extension']
         sys.stdout = stdoutorig
         eb.close_log()
 
+    def test_get_easyblock_instance(self):
+        """Test get_easyblock_instance function."""
+        # adjust PYTHONPATH such that test easyblocks are found
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        import easybuild
+        eb_blocks_path = os.path.join(testdir, 'sandbox')
+        if not eb_blocks_path in sys.path:
+            sys.path.append(eb_blocks_path)
+            easybuild = reload(easybuild)
+
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+
+        from easybuild.easyblocks.toy import EB_toy
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+        self.assertTrue(isinstance(eb, EB_toy))
+
     def tearDown(self):
         """ make sure to remove the temporary file """
-        os.remove(self.eb_file)
-        shutil.rmtree(config.variables['tmp_logdir'])
-        shutil.rmtree(config.variables['installpath'])
-        shutil.rmtree(config.variables['buildpath'])
-        os.chdir(self.cwd)
+        super(EasyBlockTest, self).tearDown()
 
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
+        os.remove(self.eb_file)
+        if self.orig_tmp_logdir is not None:
+            os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
+
 
 def suite():
     """ return all the tests in this file """

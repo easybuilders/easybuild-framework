@@ -39,9 +39,10 @@ import sys
 
 from distutils.version import LooseVersion
 
-from easybuild.framework.easyblock import EasyBlock, get_class
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -144,6 +145,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
+                                            None, 'store_true', False),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
@@ -424,7 +427,7 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_class(self.options.easyblock)
+        app = get_easyblock_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(extra, has_default=False)
         if len(extra) > 0:

@@ -29,21 +29,20 @@ Unit tests for robot (dependency resolution).
 """
 
 import os
-import re
 from copy import deepcopy
-from unittest import TestCase, TestLoader
+from test.framework.utilities import EnhancedTestCase, init_config
+from unittest import TestLoader
 from unittest import main as unittestmain
-from vsc import fancylogger
 
-import easybuild.tools.options as eboptions
 import easybuild.framework.easyconfig.tools as ectools
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
-orig_modules_tool = modules.modules_tool
-orig_main_modules_tool = ectools.modules_tool
+ORIG_MODULES_TOOL = modules.modules_tool
+ORIG_MAIN_MODULES_TOOL = ectools.modules_tool
+ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
 class MockModule(modules.ModulesTool):
@@ -65,32 +64,17 @@ def mock_module(mod_paths=None):
     return MockModule(mod_paths=mod_paths)
 
 
-class RobotTest(TestCase):
+class RobotTest(EnhancedTestCase):
     """ Testcase for the robot dependency resolution """
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
-            str_args = ', '.join(map(str, args) + [str_kwargs])
-            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg), "Pattern '%s' is found in '%s'" % (regex, err.msg))
 
     def setUp(self):
         """Set up everything for a unit test."""
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        super(RobotTest, self).setUp()
 
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
-
-        self.log = fancylogger.getLogger("RobotTest", fname=False)
-
-        self.cwd = os.getcwd()
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
         self.assertTrue(self.base_easyconfig_dir)
@@ -103,11 +87,12 @@ class RobotTest(TestCase):
             'dependencies': []
         }
         build_options = {
-            'ignore_osdeps': True,
+            'allow_modules_tool_mismatch': True,
             'robot_path': None,
             'validate': False,
         }
-        res = resolve_dependencies([deepcopy(easyconfig)], build_options=build_options)
+        init_config(build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig)])
         self.assertEqual([easyconfig], res)
 
         easyconfig_dep = {
@@ -129,7 +114,8 @@ class RobotTest(TestCase):
             'parsed': True,
         }
         build_options.update({'robot_path': self.base_easyconfig_dir})
-        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        init_config(build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct
         self.assertEqual(len(res), 2)
         self.assertEqual('gzip/1.4', res[0]['module'])
@@ -140,14 +126,15 @@ class RobotTest(TestCase):
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         build_options.update({'robot_path': None})
-        res = resolve_dependencies(ecs, build_options=build_options)
+        init_config(build_options=build_options)
+        res = resolve_dependencies(ecs)
         # all dependencies should be resolved
         self.assertEqual(0, sum(len(ec['dependencies']) for ec in res))
 
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
         msg = "Irresolvable dependencies encountered"
-        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, build_options=build_options)
+        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
@@ -159,7 +146,8 @@ class RobotTest(TestCase):
         }]
         ecs = [deepcopy(easyconfig_dep)]
         build_options.update({'robot_path': self.base_easyconfig_dir})
-        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        init_config(build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig_dep)])
 
         # GCC should be first (required by gzip dependency)
         self.assertEqual('GCC/4.6.3', res[0]['module'])
@@ -183,7 +171,7 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        res = resolve_dependencies(ecs, build_options=build_options)
+        res = resolve_dependencies(ecs)
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 2)
@@ -193,10 +181,11 @@ class RobotTest(TestCase):
 
         # force doesn't trigger rebuild of all deps, but listed easyconfigs for which a module is available are rebuilt
         build_options.update({'force': True})
+        init_config(build_options=build_options)
         easyconfig['module'] = 'this/is/already/there'
         MockModule.avail_modules.append('this/is/already/there')
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
-        res = resolve_dependencies(ecs, build_options=build_options)
+        res = resolve_dependencies(ecs)
 
         # there should only be three retained builds, foo + goolf dep and the additional build (even though a module is available)
         self.assertEqual(len(res), 3)
@@ -207,23 +196,26 @@ class RobotTest(TestCase):
 
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
+        init_config(build_options=build_options)
         newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
-        res = resolve_dependencies(newecs, build_options=build_options)
+        res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 2)
         self.assertEqual('goolf/1.4.10', res[0]['module'])
         self.assertEqual('foo/1.2.3', res[1]['module'])
 
         # with retain_all_deps enabled, all dependencies ae retained
         build_options.update({'retain_all_deps': True})
+        init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
         newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
-        res = resolve_dependencies(newecs, build_options=build_options)
+        res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 9)
         self.assertEqual('GCC/4.7.2', res[0]['module'])
         self.assertEqual('goolf/1.4.10', res[-2]['module'])
         self.assertEqual('foo/1.2.3', res[-1]['module'])
 
         build_options.update({'retain_all_deps': False})
+        init_config(build_options=build_options)
 
         # provide even less goolf ingredients (no OpenBLAS/ScaLAPACK), make sure the numbers add up
         MockModule.avail_modules = [
@@ -241,7 +233,7 @@ class RobotTest(TestCase):
             'dummy': True,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        res = resolve_dependencies([deepcopy(easyconfig_dep)], build_options=build_options)
+        res = resolve_dependencies([deepcopy(easyconfig_dep)])
 
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
@@ -253,9 +245,15 @@ class RobotTest(TestCase):
 
     def tearDown(self):
         """ reset the Modules back to its original """
-        config.modules_tool = orig_modules_tool
-        ectools.modules_tool = orig_main_modules_tool
-        os.chdir(self.cwd)
+        super(RobotTest, self).tearDown()
+
+        config.modules_tool = ORIG_MODULES_TOOL
+        ectools.modules_tool = ORIG_MAIN_MODULES_TOOL
+        if ORIG_MODULE_FUNCTION is not None:
+            os.environ['module'] = ORIG_MODULE_FUNCTION
+        else:
+            if 'module' in os.environ:
+                del os.environ['module']
 
 
 def suite():

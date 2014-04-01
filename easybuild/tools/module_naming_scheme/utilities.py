@@ -54,4 +54,3 @@ def det_full_ec_version(ec):
     ecver = ''.join([x for x in [ec.get('versionprefix', ''), ecver, ec['versionsuffix']] if x])
 
     return ecver
-

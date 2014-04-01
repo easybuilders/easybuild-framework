@@ -31,15 +31,14 @@ Unit tests for filetools.py
 """
 import os
 import tempfile
-from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
 from test.framework.utilities import find_full_path
 
 
-class FileToolsTest(TestCase):
+class FileToolsTest(EnhancedTestCase):
     """ Testcase for filetools module """
 
     class_names = [
@@ -51,7 +50,8 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        """Set up testcase."""
+        super(FileToolsTest, self).setUp()
         self.legacySetUp()
 
     def legacySetUp(self):
@@ -59,13 +59,6 @@ class FileToolsTest(TestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-
-        config.oldstyle_init(cfg_full_path)
-        self.cwd = os.getcwd()
-
-    def tearDown(self):
-        """cleanup"""
-        os.chdir(self.cwd)
 
     def test_extract_cmd(self):
         """Test various extract commands."""

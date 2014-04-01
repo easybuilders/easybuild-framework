@@ -1,0 +1,40 @@
+# EASYCONFIGFORMAT 2.0
+# this is a version test
+"""
+docstring test
+@author: Stijn De Weirdt (UGent)
+@maintainer: Kenneth Hoste (UGent)
+"""
+name = "toy"
+
+homepage = 'http://hpcugent.github.com/easybuild'
+description = "Toy C program."
+docurls = ["https://github.com/hpcugent/easybuild/wiki"]
+
+software_license = GPLv2
+software_license_urls = ['https://github.com/hpcugent/easybuild/wiki/License']
+
+sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
+checksums = ['be662daa971a640e40be5c804d9d7d10']  # (MD5) source checksum
+
+sanity_check_paths = {
+    'files': [('bin/yot', 'bin/toy')],
+    'dirs': ['bin'],
+}
+
+moduleclass = 'tools'
+
+[SUPPORTED]
+versions = 1.0, 0.0, 1.1, 1.5, 1.6, 2.0, 3.0
+toolchains = goolf == 1.4.10, dummy == dummy
+
+[> 1.0]
+# all 1.x versions and more recent are 'stable'
+versionprefix = stable-
+[[>= 1.5]]
+# custom suffix for 'early' 1.x releases
+versionsuffix = -early
+
+[> 2.0]
+# v2.x and up is considered stable mature
+versionsuffix = -mature

@@ -1,3 +1,15 @@
+##
+# This file is an EasyBuild reciPY as per https://github.com/hpcugent/easybuild
+#
+# Copyright:: Copyright (c) 2012-2013 Cyprus Institute / CaSToRC
+# Authors::   Thekla Loizou <t.loizou@cyi.ac.cy>
+# License::   MIT/GPL
+# $Id$
+#
+# This work implements a part of the HPCBIOS project and is a component of the policy:
+# http://hpcbios.readthedocs.org/en/latest/HPCBIOS_06-19.html
+##
+
 name = 'gzip'
 version = '1.4'
 
@@ -11,7 +23,14 @@ toolchain = {'name': 'GCC','version': '4.6.3'}
 sources = ['%s-%s.tar.gz'%(name,version)]
 
 # download location for source files
-source_urls = ['http://ftpmirror.gnu.org/gzip']
+source_urls = [GNU_SOURCE]
 
 # make sure the gzip and gunzip binaries are available after installation
-sanity_check_paths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}
+sanity_check_paths = {
+    'files': ["bin/gunzip", "bin/gzip"],
+    'dirs': [],
+}
+
+# run 'gzip -h' and 'gzip --version' after installation
+sanity_check_commands = [True, ('gzip', '--version')]
+

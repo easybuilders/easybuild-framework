@@ -32,25 +32,31 @@ Easyconfig module that contains the EasyConfig class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 
 import copy
 import difflib
 import os
 import re
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
-from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name
+from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.format.convert import Dependency
+from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.framework.easyconfig.templates import template_constant_dict
@@ -72,25 +78,25 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_options=None, build_specs=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed
         @param extra_options: dictionary with extra variables that can be set for this specific instance
-        @param build_options: dictionary of build options, e.g. robot_path, validate, check_osdeps, ... (default: {})
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
+        @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         """
-        if build_options is None:
-            build_options = {}
-
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
+        if not os.path.isfile(path):
+            self.log.error("EasyConfig __init__ expected a valid path")
+
         # use legacy module classes as default
-        self.valid_module_classes = build_options.get('valid_module_classes', ['base', 'compiler', 'lib'])
-        if 'valid_module_classes' in build_options:
+        self.valid_module_classes = build_option('valid_module_classes')
+        if self.valid_module_classes is not None:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
         # replace the category name with the category
@@ -99,32 +105,42 @@ class EasyConfig(object):
             self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
 
         if extra_options is None:
-            extra_options = {}
-        elif isinstance(extra_options, (list, tuple,)):
-            # TODO legacy behaviour. should be more strictly enforced. do we log here?
-            extra_options = dict(extra_options)
+            name = fetch_parameter_from_easyconfig_file(path, 'name')
+            easyblock = fetch_parameter_from_easyconfig_file(path, 'easyblock')
+            app_class = get_easyblock_class(easyblock, name=name)
+            self.extra_options = app_class.extra_options()
+        else:
+            self.extra_options = extra_options
 
-        self._legacy_license(extra_options)
+        if not isinstance(self.extra_options, dict):
+            if isinstance(self.extra_options, (list, tuple,)):
+                typ = type(self.extra_options)
+                self.log.deprecated("Specified extra_options should be of type 'dict', found type '%s'" % typ, '2.0')
+                tup = (self.extra_options, type(self.extra_options))
+                self.log.debug("Converting extra_options value '%s' of type '%s' to a dict" % tup)
+                self.extra_options = dict(self.extra_options)
+            else:
+                tup = (type(self.extra_options), self.extra_options)
+                self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
-        self._config.update(extra_options)
+        self._legacy_license()
+
+        self._config.update(self.extra_options)
 
         self.path = path
         self.mandatory = MANDATORY_PARAMS[:]
 
         # extend mandatory keys
-        for key, value in extra_options.items():
+        for key, value in self.extra_options.items():
             if value[2] == MANDATORY:
                 self.mandatory.append(key)
 
         # set valid stops
-        self.valid_stops = build_options.get('valid_stops', [])
-        self.log.debug("Non-empty list of valid stops obtained: %s" % self.valid_stops)
+        self.valid_stops = build_option('valid_stops')
+        self.log.debug("List of valid stops obtained: %s" % self.valid_stops)
 
         # store toolchain
         self._toolchain = None
-
-        if not os.path.isfile(path):
-            self.log.error("EasyConfig __init__ expected a valid path")
 
         self.validations = {
             'moduleclass': self.valid_module_classes,
@@ -139,15 +155,25 @@ class EasyConfig(object):
         self.handle_allowed_system_deps()
 
         # perform validations
-        self.validation = build_options.get('validate', True)
+        self.validation = build_option('validate') and validate
         if self.validation:
-            self.validate(check_osdeps=build_options.get('check_osdeps', True))
+            self.validate(check_osdeps=build_option('check_osdeps'))
 
-    def _legacy_license(self, extra_options):
+    def _legacy_license(self, ecdict=None):
         """Function to help migrate away from old custom license parameter to new mandatory one"""
         self.log.deprecated('_legacy_license does not have to be checked', '2.0')
-        if 'license' in extra_options:
-            lic = extra_options['license']
+        if ecdict is None:
+            ecdict = self.extra_options
+        if 'license' in ecdict:
+            if 'software_license' in ecdict:
+                self.log.error("Can't use deprecated 'license' and 'software_license' at the same time")
+            else:
+                self.log.deprecated("Use 'software_license' instead of 'license'.", '2.0')
+                ecdict['software_license'] = ecdict['license']
+        # this is not strictly deprecated, only the license usage.
+        # but lets keep it here for safety/convenience
+        if 'software_license' in ecdict:
+            lic = ecdict['software_license']
             if not isinstance(lic, License):
                 self.log.deprecated('license type has to be License subclass', '2.0')
                 typ_lic = type(lic)
@@ -164,19 +190,14 @@ class EasyConfig(object):
                         License.__init__(self)
                 lic = LicenseLegacy(lic)
                 EASYCONFIG_LICENSES_DICT[lic.name] = lic
-                extra_options['license'] = lic
+                ecdict['software_license'] = lic
 
     def copy(self):
         """
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        build_options = {
-            'validate': self.validation,
-            'valid_stops': self.valid_stops,
-            'valid_module_classes': copy.deepcopy(self.valid_module_classes),
-        }
-        ec = EasyConfig(self.path, extra_options={}, build_options=build_options)
+        ec = EasyConfig(self.path, validate=self.validation)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -285,11 +306,11 @@ class EasyConfig(object):
 
     def validate_license(self):
         """Validate the license"""
-        lic = self._config['license'][0]
+        lic = self._config['software_license'][0]
         if lic is None:
             self.log.deprecated('Mandatory license not enforced', '2.0')
             # when mandatory, remove this possibility
-            if 'license' in self.mandatory:
+            if 'software_license' in self.mandatory:
                 self.log.error('License is mandatory')
         elif not isinstance(lic, License):
             self.log.error('License %s has to be a License subclass instance, found classname %s.' %
@@ -315,7 +336,7 @@ class EasyConfig(object):
             elif not isinstance(dep, tuple):
                 self.log.error("Non-tuple value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
 
-            if not any([self._os_dependency_check(cand_dep) for cand_dep in dep]):
+            if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
                 not_found.append(dep)
 
         if not_found:
@@ -458,35 +479,10 @@ class EasyConfig(object):
         validation helper method. attr is the attribute it will check, values are the possible values.
         if the value of the attribute is not in the is array, it will report an error
         """
+        if values is None:
+            values = []
         if self[attr] and self[attr] not in values:
             self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
-
-    # private method
-    def _os_dependency_check(self, dep):
-        """
-        Check if dependency is available from OS.
-        """
-        # - uses rpm -q and dpkg -s --> can be run as non-root!!
-        # - fallback on which
-        # - should be extended to files later?
-        cmd = "exit 1"
-        if get_os_name() in ['debian', 'ubuntu']:
-            if run_cmd('which dpkg', simple=True, log_ok=False):
-                cmd = "dpkg -s %s" % dep
-        else:
-            # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-            if run_cmd('which rpm', simple=True, log_ok=False):
-                cmd = "rpm -q %s" % dep
-
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
-
-        if not found:
-            # fallback for when os-dependency is a binary/library
-            cmd = 'which %(dep)s || locate --regexp "/%(dep)s$"' % {'dep': dep}
-
-            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
-
-        return found
 
     # private method
     def _parse_dependency(self, dep):
@@ -498,18 +494,19 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'mod_name']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'name': '',
+            'dummy': False,
+            'mod_name': None,  # module name
+            'name': '',  # software name
+            'toolchain': None,
             'version': '',
             'versionsuffix': '',
-            'toolchain': None,
-            'dummy': False,
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -564,6 +561,8 @@ class EasyConfig(object):
 
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
+
+        dependency['mod_name'] = det_full_module_name(dependency)
 
         return dependency
 
@@ -650,6 +649,124 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     return det_full_ec_version(cfg)
 
 
+def fetch_parameter_from_easyconfig_file(path, param):
+    """Fetch parameter specification from given easyconfig file."""
+    # check whether easyblock is specified in easyconfig file
+    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
+    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*)\s*$" % param, re.M)
+    txt = read_file(path)
+    res = reg.search(txt)
+    if res:
+        return res.group('param').strip("'\"")
+    else:
+        return None
+
+
+def get_class_for(modulepath, class_name):
+    """
+    Get class for a given class name and easyblock module path.
+    """
+    # try to import specified module path, reraise ImportError if it occurs
+    try:
+        m = __import__(modulepath, globals(), locals(), [''])
+    except ImportError, err:
+        raise ImportError(err)
+    # try to import specified class name from specified module path, throw ImportError if this fails
+    try:
+        c = getattr(m, class_name)
+    except AttributeError, err:
+        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
+    return c
+
+
+def get_easyblock_class(easyblock, name=None):
+    """
+    Get class for a particular easyblock (or use default)
+    """
+
+    def_class = get_easyconfig_parameter_default('easyblock')
+    def_mod_path = get_module_path(def_class, generic=True)
+
+    try:
+        if easyblock:
+            # something was specified, lets parse it
+            es = easyblock.split('.')
+            class_name = es.pop(-1)
+            # figure out if full path was specified or not
+            if es:
+                modulepath = '.'.join(es)
+                tup = (class_name, modulepath)
+                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)" % tup)
+                cls = get_class_for(modulepath, class_name)
+            else:
+                # if we only get the class name, most likely we're dealing with a generic easyblock
+                try:
+                    modulepath = get_module_path(easyblock, generic=True)
+                    cls = get_class_for(modulepath, class_name)
+                except ImportError, err:
+                    # we might be dealing with a non-generic easyblock, e.g. with --easyblock is used
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
+                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+        else:
+            # if no easyblock specified, try to find if one exists
+            if name is None:
+                name = "UNKNOWN"
+            # The following is a generic way to calculate unique class names for any funny software title
+            class_name = encode_class_name(name)
+            # modulepath will be the namespace + encoded modulename (from the classname)
+            modulepath = get_module_path(class_name)
+            if not os.path.exists("%s.py" % modulepath):
+                _log.deprecated("Determine module path based on software name", "2.0")
+                modulepath = get_module_path(name, decode=False)
+
+            # try and find easyblock
+            try:
+                _log.debug("getting class for %s.%s" % (modulepath, class_name))
+                cls = get_class_for(modulepath, class_name)
+                _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
+            except ImportError, err:
+
+                # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
+                # and not because of a broken import statement in the easyblock module
+                error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
+                _log.debug("error regexp: %s" % error_re.pattern)
+                if error_re.match(str(err)):
+                    # no easyblock could be found, so fall back to default class.
+                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
+                                (class_name, (def_mod_path, def_class), err))
+                    cls = get_class_for(def_mod_path, def_class)
+                else:
+                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+
+        tup = (cls.__name__, easyblock, name)
+        _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+        return cls
+
+    except Exception, err:
+        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
+
+
+def get_module_path(name, generic=False, decode=True):
+    """
+    Determine the module path for a given easyblock or software name,
+    based on the encoded class name.
+    """
+    if name is None:
+        return None
+
+    # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
+    if decode:
+        name = decode_class_name(name)
+    module_name = remove_unwanted_chars(name.replace('-', '_')).lower()
+
+    modpath = ['easybuild', 'easyblocks']
+    if generic:
+        modpath.append('generic')
+
+    return '.'.join(modpath + [module_name])
+
+
 def resolve_template(value, tmpl_dict):
     """Given a value, try to susbstitute the templated strings with actual values.
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
@@ -707,3 +824,127 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
+
+def process_easyconfig(path, build_specs=None, validate=True):
+    """
+    Process easyconfig, returning some information for each block
+    @param path: path to easyconfig file
+    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param validate: whether or not to perform validation
+    """
+    blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
+
+    easyconfigs = []
+    for spec in blocks:
+        # process for dependencies and real installversionname
+        _log.debug("Processing easyconfig %s" % spec)
+
+        # create easyconfig
+        try:
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate)
+        except EasyBuildError, err:
+            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
+            _log.exception(msg)
+
+        name = ec['name']
+
+        # this app will appear as following module in the list
+        easyconfig = {
+            'ec': ec,
+            'spec': spec,
+            'module': det_full_module_name(ec),
+            'dependencies': [],
+            'builddependencies': [],
+        }
+        if len(blocks) > 1:
+            easyconfig['original_spec'] = path
+
+        # add build dependencies
+        for dep in ec.builddependencies():
+            _log.debug("Adding build dependency %s for app %s." % (dep, name))
+            easyconfig['builddependencies'].append(dep)
+
+        # add dependencies (including build dependencies)
+        for dep in ec.dependencies():
+            _log.debug("Adding dependency %s for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        # add toolchain as dependency too
+        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            dep = ec.toolchain.as_dict()
+            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+            easyconfig['dependencies'].append(dep)
+
+        del ec
+
+        # this is used by the parallel builder
+        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
+
+        easyconfigs.append(easyconfig)
+
+    return easyconfigs
+
+
+def create_paths(path, name, version):
+    """
+    Returns all the paths where easyconfig could be located
+    <path> is the basepath
+    <name> should be a string
+    <version> can be a '*' if you use glob patterns, or an install version otherwise
+    """
+    cand_paths = [
+        (name, version),  # e.g. <path>/GCC/4.8.2.eb
+        (name, "%s-%s" % (name, version)),  # e.g. <path>/GCC/GCC-4.8.2.eb
+        (name.lower()[0], name, "%s-%s" % (name, version)),  # e.g. <path>/g/GCC/GCC-4.8.2.eb
+        ("%s-%s" % (name, version),),  # e.g. <path>/GCC-4.8.2.eb
+    ]
+    return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
+
+
+def robot_find_easyconfig(paths, name, version):
+    """
+    Find an easyconfig for module in path
+    """
+    if not isinstance(paths, (list, tuple)):
+        paths = [paths]
+    # candidate easyconfig paths
+    for path in paths:
+        easyconfigs_paths = create_paths(path, name, version)
+        for easyconfig_path in easyconfigs_paths:
+            _log.debug("Checking easyconfig path %s" % easyconfig_path)
+            if os.path.isfile(easyconfig_path):
+                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
+                return os.path.abspath(easyconfig_path)
+
+    return None
+
+
+def det_full_module_name(ec, eb_ns=False):
+    """
+    Determine full module name following the currently active module naming scheme.
+
+    First try to pass 'parsed' easyconfig as supplied,
+    try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
+    """
+    try:
+        mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
+
+    except KeyError, err:
+        _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
+        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
+        # when a key error occurs, try and find an easyconfig file to parse via the robot,
+        # and retry with the parsed easyconfig file (which will contains a full set of keys)
+        robot = build_option('robot_path')
+        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+        if eb_file is None:
+            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+        else:
+            parsed_ec = process_easyconfig(eb_file)
+            if len(parsed_ec) > 1:
+                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+            try:
+                mod_name = _det_full_module_name(parsed_ec[0]['ec'], eb_ns=eb_ns)
+            except KeyError, err:
+                _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
+
+    return mod_name

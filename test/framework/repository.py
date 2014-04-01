@@ -28,22 +28,23 @@ Unit tests for repository.py.
 @author: Toon Willems (Ghent University)
 """
 
-import os
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.repository import FileRepository, init_repository
 
 
-class RepositoryTest(TestCase):
+class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def setUp(self):
         """Set up test."""
+        super(RepositoryTest, self).setUp()
+
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
-        self.cwd = os.getcwd()
 
     def test_filerepository(self):
         """Test creating instance of FileRepository."""
@@ -70,8 +71,9 @@ class RepositoryTest(TestCase):
 
     def tearDown(self):
         """Clean up after test."""
+        super(RepositoryTest, self).tearDown()
+
         shutil.rmtree(self.path, True)
-        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """
