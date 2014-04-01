@@ -219,6 +219,7 @@ class TestEBConfigObj(EnhancedTestCase):
             '[[>= 1.5]]',
             'versionsuffix = -early',
             '[> 2.0]',
+            'versionprefix = production-',
             'versionsuffix = -mature',
         ]
 
@@ -231,7 +232,7 @@ class TestEBConfigObj(EnhancedTestCase):
             ('1.5', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
             ('1.6', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
             ('2.0', {'versionprefix': 'stable-', 'versionsuffix': '-early'}),
-            ('3.0', {'versionprefix': 'stable-', 'versionsuffix': '-mature'}),
+            ('3.0', {'versionprefix': 'production-', 'versionsuffix': '-mature'}),
         ]
 
         for version, res in  data:
