@@ -193,29 +193,31 @@ class EasyBlock(object):
         self.mod_name = None
 
         # try and use the specified group (if any)
-        self.group = build_option('group')
+        group = build_option('group')
         if self.cfg['group'] is not None:
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], self.group))
-            self.group = self.cfg['group']
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group))
+            group = self.cfg['group']
 
-        self.group_id = None
-        if self.group is not None:
+        self.group = None
+        if group is not None:
             try:
-                self.group_id = grp.getgrnam(self.group).gr_gid
+                group_id = grp.getgrnam(group).gr_gid
             except KeyError, err:
-                self.log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (self.group, err))
+                self.log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group, err))
+
+            self.group = (group, group_id)
             try:
-                os.setgid(self.group_id)
+                os.setgid(self.group[1])
             except OSError, err:
-                err_msg = "Failed to use group '%s' (gid: %s): %s; " % (self.group, self.group_id, err)
+                err_msg = "Failed to use group %s: %s; " % (self.group, err)
                 user = pwd.getpwuid(os.getuid()).pw_name
-                grp_members = grp.getgrgid(self.group_id).gr_mem
+                grp_members = grp.getgrgid(self.group[1]).gr_mem
                 if user in grp_members:
-                    err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % self.group
+                    err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % self.group[0]
                 else:
-                    err_msg += "user '%s' is not in group '%s' (members: %s)" % (user, self.group, grp_members)
+                    err_msg += "current user '%s' is not in group %s (members: %s)" % (user, self.group, grp_members)
                 self.log.error(err_msg)
-            self.log.info("Using group '%s' (gid: %s)" % (self.group, self.group_id))
+            self.log.info("Using group '%s' (gid: %s)" % self.group)
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -1524,15 +1526,15 @@ class EasyBlock(object):
         - set file permissions ....
         Installing user must be member of the group that it is changed to
         """
-        if self.group_id is not None:
+        if self.group is not None:
             # remove permissions for others, and set group ID
             try:
                 perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
-                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group_id,
+                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group[1],
                                    relative=True, ignore_errors=True)
             except EasyBuildError, err:
                 self.log.error("Unable to change group permissions of file(s): %s" % err)
-            self.log.info("Successfully made software only available for group %s" % self.cfg['group'])
+            self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
 
         if read_only_installdir():
             # remove write permissions for everyone
