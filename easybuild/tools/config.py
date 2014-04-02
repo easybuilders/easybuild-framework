@@ -353,28 +353,6 @@ def init(options, config_options_dict):
 
     _log.debug("Config variables: %s" % variables)
 
-    def create_dir(dirtype, dirname):
-        _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
-        try:
-            os.makedirs(dirname)
-        except OSError, err:
-            _log.error("Failed to create directory %s: %s" % (dirname, err))
-        _log.debug("%s directory %s created" % (dirtype, dirname))
-
-    for key, value in variables.get_items_check_required():
-        # verify directories, try and create them if they don't exist
-        if key in ['buildpath', 'installpath', 'sourcepath']:
-            if not isinstance(value, (list, tuple,)):
-                if isinstance(value, basestring):
-                    # only retain first path, others are considered 'read-only' and trying to create them may fail
-                    value = [value.split(os.pathsep)[0]]
-                else:
-                    value = [value]
-            for directory in value:
-                if not os.path.isdir(directory):
-                    _log.warn('The %s directory %s does not exist or does not have proper permissions' % (key, directory))
-                    create_dir(key, directory)
-
 
 def init_build_options(build_options=None):
     """Initialize build options."""
