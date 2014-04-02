@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.filetools import convert_name, read_file, which
+from easybuild.tools.filetools import convert_name, mkdir, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -697,7 +697,7 @@ class Lmod(ModulesTool):
                 self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
                 cache_dir = os.path.dirname(cache_filefn)
                 if not os.path.exists(cache_dir):
-                    os.makedirs(cache_dir)
+                    mkdir(cache_dir, parents=True)
                 cache_file = open(cache_filefn, 'w')
                 cache_file.write(stdout)
                 cache_file.close()

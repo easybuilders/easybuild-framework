@@ -33,6 +33,7 @@ import grp
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
@@ -103,19 +104,23 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def test_toy_build(self):
+    def test_toy_build(self, extra_args=None, ec_file=None):
         """Perform a toy build."""
+        if extra_args is None:
+            extra_args = []
+        if ec_file is None:
+            ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         args = [
-                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-                '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
-               ]
-        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
+        ]
+        outtxt = self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
 
@@ -329,6 +334,45 @@ class ToyBuildTest(EnhancedTestCase):
 
         # restore original umask
         os.umask(orig_umask)
+
+    def test_toy_gid_sticky_bits(self):
+        """Test setting gid and sticky bits."""
+        subdirs = [
+            (('',), False),
+            (('software',), False),
+            (('software', 'toy'), False),
+            (('software', 'toy', '0.0'), True),
+            (('modules', 'all'), False),
+            (('modules', 'all', 'toy'), False),
+        ]
+        # no gid/sticky bits by default
+        self.test_toy_build()
+        for subdir, _ in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            self.assertFalse(perms & stat.S_ISGID, "no gid bit on %s" % fullpath)
+            self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
+
+        # git/sticky bits are set, but only on (re)created directories
+        self.test_toy_build(extra_args=['--set-gid-bit', '--set-sticky-bit'])
+        for subdir, bits_set in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            if bits_set:
+                self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
+                self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
+            else:
+                self.assertFalse(perms & stat.S_ISGID, "no gid bit on %s" % fullpath)
+                self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
+
+        # start with a clean slate, now gid/sticky bits should be set on everything
+        shutil.rmtree(self.test_installpath)
+        self.test_toy_build(extra_args=['--set-gid-bit', '--set-sticky-bit'])
+        for subdir, _ in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
+            self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
 
 
 def suite():

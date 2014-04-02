@@ -46,6 +46,7 @@ from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.config import build_option
 from easybuild.tools import run
 
 
@@ -175,12 +176,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
-    if not os.path.isdir(dest):
-        # try to create it
-        try:
-            os.makedirs(dest)
-        except OSError, err:
-            _log.exception("Can't extract file %s: directory %s can't be created: %err " % (fn, dest, err))
+    mkdir(dest, parents=True)
 
     # use absolute pathnames from now on
     absDest = os.path.abspath(dest)
@@ -249,8 +245,7 @@ def download_file(filename, url, path):
 
     # make sure directory exists
     basedir = os.path.dirname(path)
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
+    mkdir(basedir, parents=True)
 
     downloaded = False
     attempt_cnt = 0
@@ -741,7 +736,7 @@ def patch_perl_script_autoflush(path):
     write_file(path, newtxt)
 
 
-def mkdir(path, parents=False, gid_bit=False, sticky_bit=False):
+def mkdir(path, parents=False, gid_bit=None, sticky_bit=None):
     """
     Create a directory
     Directory is the path to create
@@ -750,6 +745,11 @@ def mkdir(path, parents=False, gid_bit=False, sticky_bit=False):
     @param gid_bit: set group ID bit, to make subdirectories and files inherit group
     @param sticky_bit: set sticky bit, to avoid that other users can remove/rename files in this directory
     """
+    if gid_bit is None:
+        gid_bit = build_option('set_gid_bit')
+    if sticky_bit is None:
+        sticky_bit = build_option('set_sticky_bit')
+
     # exit early if path already exists
     if not os.path.exists(path):
         tup = (path, parents, gid_bit, sticky_bit)

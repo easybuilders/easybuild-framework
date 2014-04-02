@@ -41,6 +41,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme
+from easybuild.tools.filetools import mkdir
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -85,12 +86,8 @@ class ModuleGenerator(object):
         classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
 
         # Create directories and links
-        for directory in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
-            if not os.path.isdir(directory):
-                try:
-                    os.makedirs(directory)
-                except OSError, err:
-                    _log.exception("Couldn't make directory %s: %s" % (directory, err))
+        for path in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
+            mkdir(path, parents=True)
 
         # Make a symlink from classpathFile to self.filename
         try:

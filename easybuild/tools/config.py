@@ -88,6 +88,8 @@ DEFAULT_BUILD_OPTIONS = {
     'retain_all_deps': False,
     'robot_path': None,
     'sequential': False,
+    'set_gid_bit': False,
+    'set_sticky_bit': False,
     'silent': False,
     'skip': None,
     'skip_test_cases': False,
@@ -315,6 +317,7 @@ def init(options, config_options_dict):
     tmpdict = {}
 
     if SUPPORT_OLDSTYLE:
+
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 

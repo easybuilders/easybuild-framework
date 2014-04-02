@@ -44,7 +44,7 @@ from easybuild.framework.easyconfig.tools import det_full_module_name, process_e
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
-from easybuild.tools.filetools import find_easyconfigs
+from easybuild.tools.filetools import find_easyconfigs, mkdir
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
@@ -219,8 +219,7 @@ def regtest(easyconfig_paths, build_specs=None):
         # default: current dir + easybuild-test-[timestamp]
         output_dir = os.path.join(cur_dir, basename)
 
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
+    mkdir(output_dir, parents=True)
 
     # find all easyconfigs
     ecfiles = []

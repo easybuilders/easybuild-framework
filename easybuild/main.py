@@ -181,6 +181,8 @@ def main(testing_data=(None, None, None)):
         'robot_path': robot_path,
         'sequential': options.sequential,
         'silent': testing,
+        'set_gid_bit': options.set_gid_bit,
+        'set_sticky_bit': options.set_sticky_bit,
         'skip': options.skip,
         'skip_test_cases': options.skip_test_cases,
         'stop': options.stop,
