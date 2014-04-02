@@ -170,6 +170,7 @@ def main(testing_data=(None, None, None)):
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,
+        'group': options.group,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,

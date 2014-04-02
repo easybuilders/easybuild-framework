@@ -153,6 +153,7 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
                              None, 'store_true', False),
+            'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),

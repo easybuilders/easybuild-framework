@@ -78,6 +78,7 @@ DEFAULT_BUILD_OPTIONS = {
     'easyblock': None,
     'experimental': False,
     'force': False,
+    'group': None,
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,

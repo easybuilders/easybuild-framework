@@ -263,30 +263,39 @@ class ToyBuildTest(EnhancedTestCase):
         gid = os.getgid()
         curr_grp = grp.getgrgid(gid).gr_name
 
-        for umask, group, dir_perms, fil_perms, bin_perms in [
-            (None, None, 0755, 0644, 0755),  # default: inherit session umask
-            (None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group
-            ('000', None, 0777, 0666, 0777),  # stupid empty umask
-            ('032', None, 0745, 0644, 0745),  # no write/execute for group, no write for other
-            ('030', curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
-            ('077', None, 0700, 0600, 0700),  # no access for other/group
+        for umask, cfg_group, ec_group, dir_perms, fil_perms, bin_perms in [
+            (None, None, None, 0755, 0644, 0755),  # default: inherit session umask
+            (None, None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in ec
+            (None, curr_grp, None, 0750, 0640, 0750),  # default umask, but with specified group in cfg
+            (None, 'notagrp', curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in both cfg and ec
+            ('000', None, None, 0777, 0666, 0777),  # stupid empty umask
+            ('032', None, None, 0745, 0644, 0745),  # no write/execute for group, no write for other
+            ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
+            ('077', None, None, 0700, 0600, 0700),  # no access for other/group
         ]:
-            if group is None:
+            if cfg_group is None and ec_group is None:
                 allargs = [toy_ec_file]
-            else:
+            elif ec_group is not None:
                 shutil.copy2(toy_ec_file, self.test_buildpath)
                 tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(toy_ec_file))
                 f = open(tmp_ec_file, 'a')
-                f.write("\ngroup = '%s'" % group)
+                f.write("\ngroup = '%s'" % ec_group)
                 f.close()
                 allargs = [tmp_ec_file]
             allargs.extend(args)
             if umask is not None:
                 allargs.append("--umask=%s" % umask)
+            if cfg_group is not None:
+                allargs.append("--group=%s" % cfg_group)
             outtxt = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, verbose=True)
 
             # verify that installation was correct
             self.check_toy(self.test_installpath, outtxt)
+
+            # group specified in easyconfig overrules configured group
+            group = cfg_group
+            if ec_group is not None:
+                group = ec_group
 
             # verify permissions
             paths_perms = [
@@ -311,6 +320,9 @@ class ToyBuildTest(EnhancedTestCase):
                 perms = os.stat(fullpath).st_mode & 0777
                 msg = "Path %s has %s permissions: %s" % (fullpath, oct(correct_perms), oct(perms))
                 self.assertEqual(perms, correct_perms, msg)
+                if group is not None:
+                    path_gid = os.stat(fullpath).st_gid
+                    self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
 
             # cleanup for next iteration
             shutil.rmtree(self.test_installpath)

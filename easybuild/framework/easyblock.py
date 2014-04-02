@@ -191,6 +191,25 @@ class EasyBlock(object):
         # full module name to generate
         self.mod_name = None
 
+        # try and use the specified group (if any)
+        self.group = None
+        if build_option('group') is not None or self.cfg['group'] is not None:
+            self.group = build_option('group')
+            if self.cfg['group'] is not None:
+                self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], self.group))
+                self.group = self.cfg['group']
+
+            gid = grp.getgrnam(self.group).gr_gid
+            try:
+                os.setgid(gid)
+            except OSError, err:
+                err_msg = '\n'.join([
+                    "Failed to use group '%s': %s" % err,
+                    "Change your current primary group before using EasyBuild, using 'newgrp %s'." % self.group,
+                ])
+                self.log.error(err_msg)
+            self.log.info("Using group '%s' (gid: %s)" % (self.group, gid))
+
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
     # INIT/CLOSE LOG
@@ -1234,12 +1253,6 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.mod_name)
 
-        # Set group id, if a group was specified
-        if self.cfg['group']:
-            gid = grp.getgrnam(self.cfg['group'])[2]
-            os.setgid(gid)
-            self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
-
     def fetch_step(self, skip_checksums=False):
         """
         prepare for building
@@ -1529,9 +1542,9 @@ class EasyBlock(object):
         - set file permissions ....
         Installing user must be member of the group that it is changed to
         """
-        if self.cfg['group']:
+        if self.group is not None:
             # remove permissions for others, and set group ID
-            gid = grp.getgrnam(self.cfg['group'])[2]
+            gid = grp.getgrnam(self.group).gr_gid
             try:
                 perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
                 adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=gid, relative=True,
