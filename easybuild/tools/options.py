@@ -159,10 +159,11 @@ class EasyBuildOptions(GeneralOption):
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
-            'set-gid-bit': ("Set group ID bit on directories", None, 'store_true', False),
-            'set-sticky-bit': ("Set sticky bit on directories", None, 'store_true', False),
+            'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
-            'umask': ("umask used for (parent) install directories (e.g. '022')", None, 'store', None),
+            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
+                      None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))

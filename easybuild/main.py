@@ -114,7 +114,7 @@ def main(testing_data=(None, None, None)):
     _log = fancylogger.getLogger(fname=False)
 
     if options.umask is not None:
-        _log.info("umask was changed, now set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
+        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
     # hello world!
     _log.info(this_is_easybuild())
@@ -182,9 +182,9 @@ def main(testing_data=(None, None, None)):
         'sequential': options.sequential,
         'silent': testing,
         'set_gid_bit': options.set_gid_bit,
-        'set_sticky_bit': options.set_sticky_bit,
         'skip': options.skip,
         'skip_test_cases': options.skip_test_cases,
+        'sticky_bit': options.sticky_bit,
         'stop': options.stop,
         'umask': options.umask,
         'valid_module_classes': module_classes(),

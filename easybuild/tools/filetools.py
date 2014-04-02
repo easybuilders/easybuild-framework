@@ -736,25 +736,26 @@ def patch_perl_script_autoflush(path):
     write_file(path, newtxt)
 
 
-def mkdir(path, parents=False, gid_bit=None, sticky_bit=None):
+def mkdir(path, parents=False, set_gid=None, sticky=None):
     """
     Create a directory
     Directory is the path to create
 
     @param parents: create parent directories if needed (mkdir -p)
-    @param gid_bit: set group ID bit, to make subdirectories and files inherit group
-    @param sticky_bit: set sticky bit, to avoid that other users can remove/rename files in this directory
+    @param set_gid: set group ID bit, to make subdirectories and files inherit group
+    @param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
+                   to avoid users can removing/renaming files in this directory
     """
-    if gid_bit is None:
-        gid_bit = build_option('set_gid_bit')
-    if sticky_bit is None:
-        sticky_bit = build_option('set_sticky_bit')
+    if set_gid is None:
+        set_gid = build_option('set_gid_bit')
+    if sticky is None:
+        sticky = build_option('sticky_bit')
 
     # exit early if path already exists
     if not os.path.exists(path):
-        tup = (path, parents, gid_bit, sticky_bit)
-        _log.info("Creating directory %s (parents: %s, gid_bit: %s, sticky_bit: %s)" % tup)
-        # gid and sticky bit are only set on *new* directories, so we need to determine the existing parent path
+        tup = (path, parents, set_gid, sticky)
+        _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)" % tup)
+        # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
         existing_parent_path = os.path.dirname(path)
         try:
             if parents:
@@ -769,9 +770,9 @@ def mkdir(path, parents=False, gid_bit=None, sticky_bit=None):
 
         # set group ID and sticky bits, if desired
         bits = 0
-        if gid_bit:
+        if set_gid:
             bits |= stat.S_ISGID
-        if sticky_bit:
+        if sticky:
             bits |= stat.S_ISVTX
         if bits:
             try:

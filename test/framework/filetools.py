@@ -215,12 +215,12 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
         # setting group ID bit works
         giddir = os.path.join(foodir, 'gid')
-        check_mkdir(giddir, gid_bit=True)
+        check_mkdir(giddir, set_gid=True)
         self.assertTrue(os.stat(giddir).st_mode & stat.S_ISGID, "gid bit set %s" % giddir)
         self.assertFalse(os.stat(giddir).st_mode & stat.S_ISVTX, "no sticky bit %s" % giddir)
         # setting stciky bit works
         stickydir = os.path.join(barfoodir, 'sticky')
-        check_mkdir(stickydir, sticky_bit=True)
+        check_mkdir(stickydir, sticky=True)
         self.assertFalse(os.stat(stickydir).st_mode & stat.S_ISGID, "no gid bit %s" % stickydir)
         self.assertTrue(os.stat(stickydir).st_mode & stat.S_ISVTX, "sticky bit set %s" % stickydir)
         # setting both works, bits are set for all new subdirectories
@@ -228,7 +228,7 @@ class FileToolsTest(EnhancedTestCase):
         stickygiddirs.append(os.path.join(stickygiddirs[-1], 'sticky'))
         stickygiddirs.append(os.path.join(stickygiddirs[-1], 'and'))
         stickygiddirs.append(os.path.join(stickygiddirs[-1], 'gid'))
-        check_mkdir(stickygiddirs[-1], parents=True, gid_bit=True, sticky_bit=True)
+        check_mkdir(stickygiddirs[-1], parents=True, set_gid=True, sticky=True)
         for subdir in stickygiddirs:
             gid_or_sticky = stat.S_ISGID | stat.S_ISVTX
             self.assertEqual(os.stat(subdir).st_mode & gid_or_sticky, gid_or_sticky, "gid bit set %s" % subdir)

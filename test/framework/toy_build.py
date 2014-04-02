@@ -264,6 +264,12 @@ class ToyBuildTest(EnhancedTestCase):
         # set umask hard to verify default reliably
         orig_umask = os.umask(0022)
 
+        # test specifying a non-existing group
+        allargs = [toy_ec_file] + args + ['--group=thisgroupdoesnotexist']
+        outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
+        err_regex = re.compile("Failed to get group ID .* group does not exist")
+        self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, outtxt))
+
         # determine current group name (at least we can use that)
         gid = os.getgid()
         curr_grp = grp.getgrgid(gid).gr_name
@@ -354,7 +360,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
 
         # git/sticky bits are set, but only on (re)created directories
-        self.test_toy_build(extra_args=['--set-gid-bit', '--set-sticky-bit'])
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, bits_set in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
@@ -367,7 +373,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # start with a clean slate, now gid/sticky bits should be set on everything
         shutil.rmtree(self.test_installpath)
-        self.test_toy_build(extra_args=['--set-gid-bit', '--set-sticky-bit'])
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, _ in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
             perms = os.stat(fullpath).st_mode
