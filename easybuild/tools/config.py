@@ -91,6 +91,7 @@ DEFAULT_BUILD_OPTIONS = {
     'skip': None,
     'skip_test_cases': False,
     'stop': None,
+    'umask': None,
     'valid_module_classes': None,
     'valid_stops': None,
     'validate': True,

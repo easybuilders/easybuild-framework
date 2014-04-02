@@ -1530,19 +1530,19 @@ class EasyBlock(object):
         Installing user must be member of the group that it is changed to
         """
         if self.cfg['group']:
-
+            # remove permissions for others, and set group ID
             gid = grp.getgrnam(self.cfg['group'])[2]
-            # rwx for owner, r-x for group, --- for other
             try:
-                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False,
+                perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
+                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=gid, relative=True,
                                    ignore_errors=True)
             except EasyBuildError, err:
                 self.log.error("Unable to change group permissions of file(s). "
                                "Are you a member of this group?\n%s" % err)
             self.log.info("Successfully made software only available for group %s" % self.cfg['group'])
 
-        else:
-            # remove write permissions for group and other
+        # remove write permissions for group and other, unless a custom umask was set
+        if build_option('umask') is None:
             perms = stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for group/other on install dir.")

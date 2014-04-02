@@ -29,6 +29,7 @@ Toy build unit test
 """
 
 import glob
+import grp
 import os
 import re
 import shutil
@@ -242,6 +243,80 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(sourcepath, 't', 'toy', 'toy-0.0.tar.gz')))
 
         shutil.rmtree(tmpdir)
+
+    def test_toy_with_umask(self):
+        """Test toy build with custom umask settings."""
+        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
+
+        # set umask hard to verify default reliably
+        orig_umask = os.umask(0022)
+
+        # determine current group name (at least we can use that)
+        gid = os.getgid()
+        curr_grp = grp.getgrgid(gid).gr_name
+
+        for umask, group, dir_perms, fil_perms, bin_perms in [
+            (None, None, 0755, 0644, 0755),  # default: inherit session umask
+            (None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group
+            ('000', None, 0777, 0666, 0777),  # stupid empty umask
+            ('032', None, 0745, 0644, 0745),  # no write/execute for group, no write for other
+            ('030', curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
+            ('077', None, 0700, 0600, 0700),  # no access for other/group
+        ]:
+            if group is None:
+                allargs = [toy_ec_file]
+            else:
+                shutil.copy2(toy_ec_file, self.test_buildpath)
+                tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(toy_ec_file))
+                f = open(tmp_ec_file, 'a')
+                f.write("\ngroup = '%s'" % group)
+                f.close()
+                allargs = [tmp_ec_file]
+            allargs.extend(args)
+            if umask is not None:
+                allargs.append("--umask=%s" % umask)
+            outtxt = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, verbose=True)
+
+            # verify that installation was correct
+            self.check_toy(self.test_installpath, outtxt)
+
+            # verify permissions
+            paths_perms = [
+                (('software', 'toy', '0.0'), dir_perms),
+                (('software', 'toy', '0.0', 'bin'), dir_perms),
+                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms),
+            ]
+            # only software subdirs are chmod'ed for 'protected' installs, so don't check those if a group is specified
+            if group is None:
+                paths_perms.extend([
+                    (('software', ), dir_perms),
+                    (('software', 'toy'), dir_perms),
+                    (('software', 'toy', '0.0', 'easybuild', '*.log'), fil_perms),
+                    (('modules', ), dir_perms),
+                    (('modules', 'all'), dir_perms),
+                    (('modules', 'all', 'toy'), dir_perms),
+                    (('modules', 'all', 'toy', '0.0'), fil_perms),
+                ])
+            for path, correct_perms in paths_perms:
+                fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
+                perms = os.stat(fullpath).st_mode & 0777
+                msg = "Path %s has %s permissions: %s" % (fullpath, oct(correct_perms), oct(perms))
+                self.assertEqual(perms, correct_perms, msg)
+
+            # cleanup for next iteration
+            shutil.rmtree(self.test_installpath)
+
+        # restore original umask
+        os.umask(orig_umask)
+
 
 def suite():
     """ return all the tests in this file """
