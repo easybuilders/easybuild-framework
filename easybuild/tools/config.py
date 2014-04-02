@@ -353,14 +353,6 @@ def init(options, config_options_dict):
 
     _log.debug("Config variables: %s" % variables)
 
-    def create_dir(dirtype, dirname):
-        _log.debug('Will try to create the %s directory %s.' % (dirtype, dirname))
-        try:
-            os.makedirs(dirname)
-        except OSError, err:
-            _log.error("Failed to create directory %s: %s" % (dirname, err))
-        _log.debug("%s directory %s created" % (dirtype, dirname))
-
 
 def init_build_options(build_options=None):
     """Initialize build options."""
