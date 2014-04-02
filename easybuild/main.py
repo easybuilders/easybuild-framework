@@ -92,7 +92,7 @@ def main(testing_data=(None, None, None)):
 
     # set umask (as early as possible)
     if options.umask is not None:
-        new_umask = int('0%s' % options.umask, 8)
+        new_umask = int(options.umask, 8)
         old_umask = os.umask(new_umask)
 
     # set temporary directory to use
