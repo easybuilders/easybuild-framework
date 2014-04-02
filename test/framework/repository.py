@@ -49,10 +49,12 @@ class RepositoryTest(EnhancedTestCase):
     def test_filerepository(self):
         """Test creating instance of FileRepository."""
         repo = FileRepository(self.path)
+        repo.init()
         self.assertEqual(repo.wc, self.path)
 
         subdir = 'sub/dir'
         repo = FileRepository(self.path, subdir)
+        repo.init()
         self.assertEqual(repo.wc, self.path)
         self.assertEqual(repo.subdir, subdir)
 

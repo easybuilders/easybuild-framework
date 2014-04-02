@@ -41,6 +41,7 @@ import glob
 import grp  # @UnresolvedImport
 import re
 import os
+import pwd
 import shutil
 import stat
 import time
@@ -63,8 +64,8 @@ from easybuild.tools.config import build_path, get_log_filename, get_repository,
 from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, read_file, rmtree2, run_cmd
+from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
+from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2, run_cmd
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
@@ -190,6 +191,33 @@ class EasyBlock(object):
 
         # full module name to generate
         self.mod_name = None
+
+        # try and use the specified group (if any)
+        group = build_option('group')
+        if self.cfg['group'] is not None:
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group))
+            group = self.cfg['group']
+
+        self.group = None
+        if group is not None:
+            try:
+                group_id = grp.getgrnam(group).gr_gid
+            except KeyError, err:
+                self.log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group, err))
+
+            self.group = (group, group_id)
+            try:
+                os.setgid(self.group[1])
+            except OSError, err:
+                err_msg = "Failed to use group %s: %s; " % (self.group, err)
+                user = pwd.getpwuid(os.getuid()).pw_name
+                grp_members = grp.getgrgid(self.group[1]).gr_mem
+                if user in grp_members:
+                    err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % self.group[0]
+                else:
+                    err_msg += "current user '%s' is not in group %s (members: %s)" % (user, self.group, grp_members)
+                self.log.error(err_msg)
+            self.log.info("Using group '%s' (gid: %s)" % self.group)
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -432,21 +460,11 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            for srcpath in srcpaths:
-                filepath = os.path.join(srcpath, self.name[0].lower(), self.name)
-                if extension:
-                    filepath = os.path.join(filepath, "extensions")
-                if os.path.isdir(filepath):
-                    self.log.info("Going to try and download file to %s" % filepath)
-                    break
-
-            # if no path was found, let's just create it in the last source path
-            if not os.path.isdir(filepath):
-                try:
-                    self.log.info("No path found to download file to, so creating it: %s" % filepath)
-                    os.makedirs(filepath)
-                except OSError, err:
-                    self.log.error("Failed to create %s: %s" % (filepath, err))
+            filepath = os.path.join(srcpath, self.name[0].lower(), self.name)
+            if extension:
+                filepath = os.path.join(filepath, "extensions")
+            self.log.info("Creating path %s to download file to" % filepath)
+            mkdir(filepath, parents=True)
 
             try:
                 fullpath = os.path.join(filepath, filename)
@@ -526,11 +544,7 @@ class EasyBlock(object):
                 source_urls.extend(self.cfg['source_urls'])
 
                 targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
-                if not os.path.isdir(targetdir):
-                    try:
-                        os.makedirs(targetdir)
-                    except OSError, err:
-                        self.log.error("Failed to create directory %s to download source file %s into" % (targetdir, filename))
+                mkdir(targetdir, parents=True)
 
                 for url in source_urls:
 
@@ -668,42 +682,39 @@ class EasyBlock(object):
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
         self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
 
-    def make_dir(self, dirName, clean, dontcreateinstalldir=False):
+    def make_dir(self, dir_name, clean, dontcreateinstalldir=False):
         """
         Create the directory.
         """
-        if os.path.exists(dirName):
-            self.log.info("Found old directory %s" % dirName)
+        if os.path.exists(dir_name):
+            self.log.info("Found old directory %s" % dir_name)
             if self.cfg['keeppreviousinstall']:
-                self.log.info("Keeping old directory %s (hopefully you know what you are doing)" % dirName)
+                self.log.info("Keeping old directory %s (hopefully you know what you are doing)" % dir_name)
                 return
             elif clean:
                 try:
-                    rmtree2(dirName)
-                    self.log.info("Removed old directory %s" % dirName)
+                    rmtree2(dir_name)
+                    self.log.info("Removed old directory %s" % dir_name)
                 except OSError, err:
-                    self.log.exception("Removal of old directory %s failed: %s" % (dirName, err))
+                    self.log.exception("Removal of old directory %s failed: %s" % (dir_name, err))
             else:
                 try:
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
-                    backupdir = "%s.%s" % (dirName, timestamp)
-                    shutil.move(dirName, backupdir)
-                    self.log.info("Moved old directory %s to %s" % (dirName, backupdir))
+                    backupdir = "%s.%s" % (dir_name, timestamp)
+                    shutil.move(dir_name, backupdir)
+                    self.log.info("Moved old directory %s to %s" % (dir_name, backupdir))
                 except OSError, err:
-                    self.log.exception("Moving old directory to backup %s %s failed: %s" % (dirName, backupdir, err))
+                    self.log.exception("Moving old directory to backup %s %s failed: %s" % (dir_name, backupdir, err))
 
         if dontcreateinstalldir:
-            olddir = dirName
-            dirName = os.path.dirname(dirName)
-            self.log.info("Cleaning only, no actual creation of %s, only verification/creation of dirname %s" % (olddir, dirName))
-            if os.path.exists(dirName):
+            olddir = dir_name
+            dir_name = os.path.dirname(dir_name)
+            self.log.info("Cleaning only, no actual creation of %s, only verification/defining of dirname %s" % (olddir, dir_name))
+            if os.path.exists(dir_name):
                 return
             # if not, create dir as usual
 
-        try:
-            os.makedirs(dirName)
-        except OSError, err:
-            self.log.exception("Can't create directory %s: %s" % (dirName, err))
+        mkdir(dir_name, parents=True)
 
     #
     # MODULE UTILITY FUNCTIONS
@@ -751,8 +762,7 @@ class EasyBlock(object):
             output_dir = self.builddir
         else:
             output_dir = os.path.join(self.installdir, log_path())
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+            mkdir(output_dir, parents=True)
 
         filename = os.path.join(output_dir, det_devel_module_filename(self.cfg))
         self.log.debug("Writing devel module to %s" % filename)
@@ -1234,12 +1244,6 @@ class EasyBlock(object):
             else:
                 self.log.info("No module %s found. Not skipping anything." % self.mod_name)
 
-        # Set group id, if a group was specified
-        if self.cfg['group']:
-            gid = grp.getgrnam(self.cfg['group'])[2]
-            os.setgid(gid)
-            self.log.debug("Changing group to %s (gid: %s)" % (self.cfg['group'], gid))
-
     def fetch_step(self, skip_checksums=False):
         """
         prepare for building
@@ -1287,15 +1291,8 @@ class EasyBlock(object):
                    os.path.join(install_path('mod'), GENERAL_CLASS, self.name),
                    os.path.join(install_path('mod'), self.cfg['moduleclass'], self.name)]
         self.log.info("Checking dirs that need to be created: %s" % pardirs)
-        try:
-            for pardir in pardirs:
-                if not os.path.exists(pardir):
-                    os.makedirs(pardir)
-                    self.log.debug("Created directory %s" % pardir)
-                else:
-                    self.log.debug("Not creating %s, it already exists." % pardir)
-        except OSError, err:
-            self.log.error("Failed to create parent dirs in install and modules path: %s" % err)
+        for pardir in pardirs:
+            mkdir(pardir, parents=True)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -1529,29 +1526,26 @@ class EasyBlock(object):
         - set file permissions ....
         Installing user must be member of the group that it is changed to
         """
-        if self.cfg['group']:
-
-            gid = grp.getgrnam(self.cfg['group'])[2]
-            # rwx for owner, r-x for group, --- for other
+        if self.group is not None:
+            # remove permissions for others, and set group ID
             try:
-                adjust_permissions(self.installdir, 0750, recursive=True, group_id=gid, relative=False,
-                                   ignore_errors=True)
+                perms = stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
+                adjust_permissions(self.installdir, perms, add=False, recursive=True, group_id=self.group[1],
+                                   relative=True, ignore_errors=True)
             except EasyBuildError, err:
-                self.log.error("Unable to change group permissions of file(s). "
-                               "Are you a member of this group?\n%s" % err)
-            self.log.info("Successfully made software only available for group %s" % self.cfg['group'])
-
-        else:
-            # remove write permissions for group and other
-            perms = stat.S_IWGRP | stat.S_IWOTH
-            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
+                self.log.error("Unable to change group permissions of file(s): %s" % err)
+            self.log.info("Successfully made software only available for group %s (gid %s)" % self.group)
 
         if read_only_installdir():
             # remove write permissions for everyone
             perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
+        else:
+            # remove write permissions for group and other to protect installation
+            perms = stat.S_IWGRP | stat.S_IWOTH
+            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
 
     def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """
@@ -1994,8 +1988,7 @@ def build_and_install_software(module, orig_environ):
         # cleanup logs
         app.close_log()
         try:
-            if not os.path.isdir(new_log_dir):
-                os.makedirs(new_log_dir)
+            mkdir(new_log_dir, parents=True)
             log_fn = os.path.basename(get_log_filename(app.name, app.version))
             application_log = os.path.join(new_log_dir, log_fn)
             shutil.move(app.logfile, application_log)

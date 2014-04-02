@@ -59,7 +59,7 @@ from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import any
 
@@ -153,12 +153,17 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
                              None, 'store_true', False),
+            'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
+            'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
+                      None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -314,6 +319,11 @@ class EasyBuildOptions(GeneralOption):
         if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
             stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' %
                             (','.join(self.options.try_toolchain)))
+
+        if self.options.umask:
+            umask_regex = re.compile('^[0-7]{3}$')
+            if not umask_regex.match(self.options.umask):
+                stop_msg.append("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
 
         if len(stop_msg) > 0:
             indent = " "*2

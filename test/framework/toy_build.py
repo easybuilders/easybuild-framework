@@ -29,9 +29,11 @@ Toy build unit test
 """
 
 import glob
+import grp
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
@@ -102,19 +104,23 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def test_toy_build(self):
+    def test_toy_build(self, extra_args=None, ec_file=None):
         """Perform a toy build."""
+        if extra_args is None:
+            extra_args = []
+        if ec_file is None:
+            ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         args = [
-                os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
-                '--sourcepath=%s' % self.test_sourcepath,
-                '--buildpath=%s' % self.test_buildpath,
-                '--installpath=%s' % self.test_installpath,
-                '--debug',
-                '--unittest-file=%s' % self.logfile,
-                '--force',
-                '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
-               ]
-        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
+        ]
+        outtxt = self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
 
@@ -242,6 +248,138 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(sourcepath, 't', 'toy', 'toy-0.0.tar.gz')))
 
         shutil.rmtree(tmpdir)
+
+    def test_toy_permissions(self):
+        """Test toy build with custom umask settings."""
+        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+        ]
+
+        # set umask hard to verify default reliably
+        orig_umask = os.umask(0022)
+
+        # test specifying a non-existing group
+        allargs = [toy_ec_file] + args + ['--group=thisgroupdoesnotexist']
+        outtxt, err = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, return_error=True)
+        err_regex = re.compile("Failed to get group ID .* group does not exist")
+        self.assertTrue(err_regex.search(outtxt), "Pattern '%s' found in '%s'" % (err_regex.pattern, outtxt))
+
+        # determine current group name (at least we can use that)
+        gid = os.getgid()
+        curr_grp = grp.getgrgid(gid).gr_name
+
+        for umask, cfg_group, ec_group, dir_perms, fil_perms, bin_perms in [
+            (None, None, None, 0755, 0644, 0755),  # default: inherit session umask
+            (None, None, curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in ec
+            (None, curr_grp, None, 0750, 0640, 0750),  # default umask, but with specified group in cfg
+            (None, 'notagrp', curr_grp, 0750, 0640, 0750),  # default umask, but with specified group in both cfg and ec
+            ('000', None, None, 0777, 0666, 0777),  # stupid empty umask
+            ('032', None, None, 0745, 0644, 0745),  # no write/execute for group, no write for other
+            ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
+            ('077', None, None, 0700, 0600, 0700),  # no access for other/group
+        ]:
+            if cfg_group is None and ec_group is None:
+                allargs = [toy_ec_file]
+            elif ec_group is not None:
+                shutil.copy2(toy_ec_file, self.test_buildpath)
+                tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(toy_ec_file))
+                f = open(tmp_ec_file, 'a')
+                f.write("\ngroup = '%s'" % ec_group)
+                f.close()
+                allargs = [tmp_ec_file]
+            allargs.extend(args)
+            if umask is not None:
+                allargs.append("--umask=%s" % umask)
+            if cfg_group is not None:
+                allargs.append("--group=%s" % cfg_group)
+            outtxt = self.eb_main(allargs, logfile=self.dummylogfn, do_build=True, verbose=True)
+
+            # verify that installation was correct
+            self.check_toy(self.test_installpath, outtxt)
+
+            # group specified in easyconfig overrules configured group
+            group = cfg_group
+            if ec_group is not None:
+                group = ec_group
+
+            # verify permissions
+            paths_perms = [
+                # no write permissions for group/other, regardless of umask
+                (('software', 'toy', '0.0'), dir_perms & ~ 0022),
+                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0022),
+                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0022),
+            ]
+            # only software subdirs are chmod'ed for 'protected' installs, so don't check those if a group is specified
+            if group is None:
+                paths_perms.extend([
+                    (('software', ), dir_perms),
+                    (('software', 'toy'), dir_perms),
+                    (('software', 'toy', '0.0', 'easybuild', '*.log'), fil_perms),
+                    (('modules', ), dir_perms),
+                    (('modules', 'all'), dir_perms),
+                    (('modules', 'all', 'toy'), dir_perms),
+                    (('modules', 'all', 'toy', '0.0'), fil_perms),
+                ])
+            for path, correct_perms in paths_perms:
+                fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
+                perms = os.stat(fullpath).st_mode & 0777
+                msg = "Path %s has %s permissions: %s" % (fullpath, oct(correct_perms), oct(perms))
+                self.assertEqual(perms, correct_perms, msg)
+                if group is not None:
+                    path_gid = os.stat(fullpath).st_gid
+                    self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
+
+            # cleanup for next iteration
+            shutil.rmtree(self.test_installpath)
+
+        # restore original umask
+        os.umask(orig_umask)
+
+    def test_toy_gid_sticky_bits(self):
+        """Test setting gid and sticky bits."""
+        subdirs = [
+            (('',), False),
+            (('software',), False),
+            (('software', 'toy'), False),
+            (('software', 'toy', '0.0'), True),
+            (('modules', 'all'), False),
+            (('modules', 'all', 'toy'), False),
+        ]
+        # no gid/sticky bits by default
+        self.test_toy_build()
+        for subdir, _ in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            self.assertFalse(perms & stat.S_ISGID, "no gid bit on %s" % fullpath)
+            self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
+
+        # git/sticky bits are set, but only on (re)created directories
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        for subdir, bits_set in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            if bits_set:
+                self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
+                self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
+            else:
+                self.assertFalse(perms & stat.S_ISGID, "no gid bit on %s" % fullpath)
+                self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
+
+        # start with a clean slate, now gid/sticky bits should be set on everything
+        shutil.rmtree(self.test_installpath)
+        self.test_toy_build(extra_args=['--set-gid-bit', '--sticky-bit'])
+        for subdir, _ in subdirs:
+            fullpath = os.path.join(self.test_installpath, *subdir)
+            perms = os.stat(fullpath).st_mode
+            self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
+            self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
+
 
 def suite():
     """ return all the tests in this file """

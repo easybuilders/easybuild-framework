@@ -90,6 +90,11 @@ def main(testing_data=(None, None, None)):
     options = eb_go.options
     orig_paths = eb_go.args
 
+    # set umask (as early as possible)
+    if options.umask is not None:
+        new_umask = int(options.umask, 8)
+        old_umask = os.umask(new_umask)
+
     # set temporary directory to use
     eb_tmpdir = set_tmpdir(options.tmpdir)
 
@@ -107,6 +112,9 @@ def main(testing_data=(None, None, None)):
 
     global _log
     _log = fancylogger.getLogger(fname=False)
+
+    if options.umask is not None:
+        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
     # hello world!
     _log.info(this_is_easybuild())
@@ -162,6 +170,7 @@ def main(testing_data=(None, None, None)):
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,
+        'group': options.group,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
@@ -172,9 +181,12 @@ def main(testing_data=(None, None, None)):
         'robot_path': robot_path,
         'sequential': options.sequential,
         'silent': testing,
+        'set_gid_bit': options.set_gid_bit,
         'skip': options.skip,
         'skip_test_cases': options.skip_test_cases,
+        'sticky_bit': options.sticky_bit,
         'stop': options.stop,
+        'umask': options.umask,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         'validate': not options.force,

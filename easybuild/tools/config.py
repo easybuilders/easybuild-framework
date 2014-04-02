@@ -46,7 +46,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
 from easybuild.tools.environment import read_environment as _read_environment
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -78,6 +78,7 @@ DEFAULT_BUILD_OPTIONS = {
     'easyblock': None,
     'experimental': False,
     'force': False,
+    'group': None,
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,
@@ -87,10 +88,13 @@ DEFAULT_BUILD_OPTIONS = {
     'retain_all_deps': False,
     'robot_path': None,
     'sequential': False,
+    'set_gid_bit': False,
     'silent': False,
     'skip': None,
     'skip_test_cases': False,
+    'sticky_bit': False,
     'stop': None,
+    'umask': None,
     'valid_module_classes': None,
     'valid_stops': None,
     'validate': True,
@@ -313,6 +317,7 @@ def init(options, config_options_dict):
     tmpdict = {}
 
     if SUPPORT_OLDSTYLE:
+
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
