@@ -244,7 +244,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
-    def test_toy_with_umask(self):
+    def test_toy_permissions(self):
         """Test toy build with custom umask settings."""
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
         args = [
@@ -290,9 +290,10 @@ class ToyBuildTest(EnhancedTestCase):
 
             # verify permissions
             paths_perms = [
-                (('software', 'toy', '0.0'), dir_perms),
-                (('software', 'toy', '0.0', 'bin'), dir_perms),
-                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms),
+                # no write permissions for group/other, regardless of umask
+                (('software', 'toy', '0.0'), dir_perms & ~ 0022),
+                (('software', 'toy', '0.0', 'bin'), dir_perms & ~ 0022),
+                (('software', 'toy', '0.0', 'bin', 'toy'), bin_perms & ~ 0022),
             ]
             # only software subdirs are chmod'ed for 'protected' installs, so don't check those if a group is specified
             if group is None:

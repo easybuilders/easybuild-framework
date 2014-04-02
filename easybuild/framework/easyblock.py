@@ -1541,17 +1541,16 @@ class EasyBlock(object):
                                "Are you a member of this group?\n%s" % err)
             self.log.info("Successfully made software only available for group %s" % self.cfg['group'])
 
-        # remove write permissions for group and other, unless a custom umask was set
-        if build_option('umask') is None:
-            perms = stat.S_IWGRP | stat.S_IWOTH
-            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
-            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
-
         if read_only_installdir():
             # remove write permissions for everyone
             perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
             adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
             self.log.info("Successfully removed write permissions recursively for *EVERYONE* on install dir.")
+        else:
+            # remove write permissions for group and other to protect installation
+            perms = stat.S_IWGRP | stat.S_IWOTH
+            adjust_permissions(self.installdir, perms, add=False, recursive=True, relative=True, ignore_errors=True)
+            self.log.info("Successfully removed write permissions recursively for group/other on install dir.")
 
     def sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False):
         """

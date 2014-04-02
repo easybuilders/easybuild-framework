@@ -159,7 +159,7 @@ class EasyBuildOptions(GeneralOption):
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
-            'umask': ("umask setting to be used for software installations (e.g. '022')", None, 'store', None),
+            'umask': ("umask used for (parent) install directories (e.g. '022')", None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
