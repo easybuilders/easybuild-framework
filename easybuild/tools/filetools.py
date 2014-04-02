@@ -203,7 +203,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run_cmd(cmd, simple=True)
+    run.run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
@@ -612,7 +612,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patchFile))
 
     patchCmd = "patch -b -p%d -i %s" % (p, apatch)
-    result = run_cmd(patchCmd, simple=True)
+    result = run.run_cmd(patchCmd, simple=True)
     if not result:
         _log.error("Patching with patch %s failed" % patchFile)
         return
@@ -741,32 +741,47 @@ def patch_perl_script_autoflush(path):
     write_file(path, newtxt)
 
 
-def mkdir(directory, parents=False):
+def mkdir(path, parents=False, gid_bit=False, sticky_bit=False):
     """
     Create a directory
     Directory is the path to create
 
-    When parents is True then no error if directory already exists
-    and make parent directories as needed (cfr. mkdir -p)
+    @param parents: create parent directories if needed (mkdir -p)
+    @param gid_bit: set group ID bit, to make subdirectories and files inherit group
+    @param sticky_bit: set sticky bit, to avoid that other users can remove/rename files in this directory
     """
-    if parents:
+    # exit early if path already exists
+    if not os.path.exists(path):
+        tup = (path, parents, gid_bit, sticky_bit)
+        _log.info("Creating directory %s (parents: %s, gid_bit: %s, sticky_bit: %s)" % tup)
+        # gid and sticky bit are only set on *new* directories, so we need to determine the existing parent path
+        existing_parent_path = os.path.dirname(path)
         try:
-            os.makedirs(directory)
-            _log.debug("Succesfully created directory %s and needed parents" % directory)
-        except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.debug("Directory %s already exitst" % directory)
+            if parents:
+                # climb up until we hit an existing path or the empty string (for relative paths)
+                while existing_parent_path and not os.path.exists(existing_parent_path):
+                    existing_parent_path = os.path.dirname(existing_parent_path)
+                os.makedirs(path)
             else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:  # not parents
-        try:
-            os.mkdir(directory)
-            _log.debug("Succesfully created directory %s" % directory)
+                os.mkdir(path)
         except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.warning("Directory %s already exitst" % directory)
-            else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
+            _log.error("Failed to create directory %s: %s" % (path, err))
+
+        # set group ID and sticky bits, if desired
+        bits = 0
+        if gid_bit:
+            bits |= stat.S_ISGID
+        if sticky_bit:
+            bits |= stat.S_ISVTX
+        if bits:
+            try:
+                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
+                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
+            except OSError, err:
+                _log.error("Failed to set groud ID/sticky bit: %s" % err)
+    else:
+        _log.debug("Not creating existing path %s" % path)
 
 
 def rmtree2(path, n=3):
