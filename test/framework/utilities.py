@@ -83,7 +83,7 @@ class EnhancedTestCase(TestCase):
         for path in ['buildpath', 'installpath', 'sourcepath']:
             self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
-        self.test_sourcepath = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        self.test_sourcepath = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
