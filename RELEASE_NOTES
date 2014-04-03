@@ -1,6 +1,33 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.12.0 (April 4th 2014)
+------------------------
+
+feature + bugfix release
+- various enhancements, including:
+    - complete support for custom module naming schemes (#879, #904)
+        - a fully parsed easyconfig file is now passes to det_full_module_name function
+        - this does require that an easyconfig file matching the dependency specifcation is available
+    - add more features to better support using a shared install target with multiple users (#902, #903, #904)
+    - further development on support for new easyconfig format (v2.0) (#844, #848)
+        - not considered stable yet, so still requires using --experimental
+    - enhanced bootstrap script to also support Lmod and modulecmd.tcl module tools (#869)
+    - add support to run_cmd_qa function to supply a list of answers  (#887)
+    - detect mismatch between definition of 'module' function and selected modules tool (#871)
+        - allowing mismatch now requires --allow-modules-tool-mismatch; an empty 'module' function is simply ignored
+    - provide lib64 fallback option for directories in default sanity check paths (#896)
+    - add support for adding JAR files to $CLASSPATH (#898)
+    - enhanced and cleaned up unit tests (#877, #880, #884, #899, #901)
+    - code cleanup and refactoring
+        - get rid of global variable for configuration settings in config.py, use singleton instead (#874, #888, #890, #892)
+        - track build options via singleton in config.py rather than passing them around all over (#886, #889)
+        - avoid parsing easyconfig files multiple times by passing a parsed easyconfig to the easyblock (#891)
+        - deprecate list of tuples return type of extra_options static method (#893, #894)
+        - move OS dependency check to systemtools.py module (#895)
+- bug fixes, including:
+         fix linking with -lcudart if CUDA is part of the toolchain, should also include -lrt (#882)
+
 v1.11.1 (February 28th 2014)
 ----------------------------
 
