@@ -28,7 +28,7 @@ Unit tests for easyblock.py
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
+import copy
 import os
 import re
 import shutil
@@ -419,6 +419,34 @@ class EasyBlockTest(EnhancedTestCase):
             # if this fails, it should be because there's no online access
             download_fail_regex = re.compile('socket error')
             self.assertTrue(download_fail_regex.search(str(err)))
+
+        shutil.rmtree(tmpdir)
+
+    def test_check_readiness(self):
+        """Test check_readiness method."""
+        init_config(build_options={'validate': False})
+
+        # check that check_readiness step works (adding dependencies, etc.)
+        ec_file = 'OpenMPI-1.6.4-GCC-4.6.4.eb'
+        ec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', ec_file)
+        ec = EasyConfig(ec_path)
+        eb = EasyBlock(ec)
+        eb.check_readiness_step()
+
+        # a proper error should be thrown for dependencies that can't be resolved (module should be there)
+        tmpdir = tempfile.mkdtemp()
+        shutil.copy2(ec_path, tmpdir)
+        ec_path = os.path.join(tmpdir, ec_file)
+        f = open(ec_path, 'a')
+        f.write("\ndependencies += [('nosuchsoftware', '1.2.3')]\n")
+        f.close()
+        ec = EasyConfig(ec_path)
+        eb = EasyBlock(ec)
+        try:
+            eb.check_readiness_step()
+        except EasyBuildError, err:
+            err_regex = re.compile("no module 'nosuchsoftware/1.2.3-GCC-4.6.4' found for dependency .*")
+            self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
 

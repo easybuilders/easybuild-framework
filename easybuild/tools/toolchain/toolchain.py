@@ -275,10 +275,11 @@ class Toolchain(object):
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
             if not self.modules_tool.exists(dep['mod_name']):
-                self.log.error('add_dependencies: no module %s found for dependency %s' % dep)
+                tup = (dep['mod_name'], dep)
+                self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
             else:
                 self.dependencies.append(dep)
-                self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
+                self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
