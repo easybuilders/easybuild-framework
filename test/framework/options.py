@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
@@ -853,24 +853,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure MockModulesTool is available
         from test.framework.modulestool import MockModulesTool
 
+        ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+
         # keep track of original module definition so we can restore it
         orig_module = os.environ.get('module', None)
 
         # check whether mismatch between 'module' function and selected modules tool is detected
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
         error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
         self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
+        init_config()
 
         # check that --allow-modules-tool-mispatch transforms this error into a warning
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
             '--allow-modules-tool-mismatch',
         ]
@@ -878,11 +881,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = read_file(self.logfile)
         warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
+        init_config()
 
         # check whether match between 'module' function and selected modules tool is detected
         os.environ['module'] = "() {  eval ` /bin/echo $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
             '--debug',
         ]
@@ -890,6 +894,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = read_file(self.logfile)
         found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
         self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
+        init_config()
 
         # restore 'module' function
         if orig_module is not None:
