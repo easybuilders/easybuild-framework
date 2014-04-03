@@ -460,7 +460,7 @@ class EasyBlock(object):
             filename = url.split('/')[-1]
 
             # figure out where to download the file to
-            filepath = os.path.join(srcpath, self.name[0].lower(), self.name)
+            filepath = os.path.join(srcpaths[0], self.name[0].lower(), self.name)
             if extension:
                 filepath = os.path.join(filepath, "extensions")
             self.log.info("Creating path %s to download file to" % filepath)

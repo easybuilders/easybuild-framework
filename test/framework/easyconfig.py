@@ -34,7 +34,7 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc import fancylogger
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -261,6 +261,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
+        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        init_config()
         self.contents = '\n'.join([
             'name = "pi"',
             'version = "3.14"',

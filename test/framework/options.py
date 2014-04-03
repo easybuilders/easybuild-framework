@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
@@ -273,7 +273,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         ]:
 
             # clear log file
-            outtxt = write_file(self.logfile, '')
+            write_file(self.logfile, '')
 
             args = [
                     eb_file,
@@ -853,13 +853,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure MockModulesTool is available
         from test.framework.modulestool import MockModulesTool
 
+        ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+
         # keep track of original module definition so we can restore it
         orig_module = os.environ.get('module', None)
 
         # check whether mismatch between 'module' function and selected modules tool is detected
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
         ]
         self.eb_main(args, do_build=True)
@@ -870,7 +872,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check that --allow-modules-tool-mispatch transforms this error into a warning
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
             '--allow-modules-tool-mismatch',
         ]
@@ -882,7 +884,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check whether match between 'module' function and selected modules tool is detected
         os.environ['module'] = "() {  eval ` /bin/echo $*`\n}"
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            ec_file,
             '--modules-tool=MockModulesTool',
             '--debug',
         ]
