@@ -83,7 +83,9 @@ class EnhancedTestCase(TestCase):
         for path in ['buildpath', 'installpath', 'sourcepath']:
             self.orig_paths[path] = os.environ.get('EASYBUILD_%s' % path.upper(), None)
 
-        self.test_sourcepath = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources')
+        testdir = os.path.dirname(os.path.abspath(__file__))
+
+        self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
@@ -93,7 +95,7 @@ class EnhancedTestCase(TestCase):
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules
         import easybuild
-        sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox')))
+        sys.path.append(os.path.join(testdir, 'sandbox'))
         reload(easybuild)
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
@@ -102,7 +104,7 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+        os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
 
     def tearDown(self):
         """Clean up after running testcase."""

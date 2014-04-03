@@ -273,7 +273,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         ]:
 
             # clear log file
-            outtxt = write_file(self.logfile, '')
+            write_file(self.logfile, '')
 
             args = [
                     eb_file,
