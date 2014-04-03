@@ -261,7 +261,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
-        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         init_config()
         self.contents = '\n'.join([
             'name = "pi"',
