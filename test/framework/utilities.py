@@ -147,6 +147,8 @@ class EnhancedTestCase(TestCase):
             if verbose:
                 print "err: %s" % err
 
+        os.chdir(self.cwd)
+
         if return_error:
             return read_file(self.logfile), myerr
         else:

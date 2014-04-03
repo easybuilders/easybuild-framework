@@ -868,7 +868,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = read_file(self.logfile)
         error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
         self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
-        init_config()
 
         # check that --allow-modules-tool-mispatch transforms this error into a warning
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
@@ -881,7 +880,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = read_file(self.logfile)
         warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
-        init_config()
 
         # check whether match between 'module' function and selected modules tool is detected
         os.environ['module'] = "() {  eval ` /bin/echo $*`\n}"
@@ -894,7 +892,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = read_file(self.logfile)
         found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
         self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
-        init_config()
 
         # restore 'module' function
         if orig_module is not None:
