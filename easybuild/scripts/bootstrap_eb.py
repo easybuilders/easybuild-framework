@@ -31,12 +31,14 @@ Installs distribute with included (patched) distribute_setup.py script to obtain
 and then performs a staged install of EasyBuild:
  * stage 1: install EasyBuild with easy_install to a temporary directory
  * stage 2: install EasyBuild with EasyBuild from stage 1 to a temporary directory
- * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory (default or $EASYBUILDINSTALLPATH)
+ * stage 3: install EasyBuild with EasyBuild from stage 2 to intended install directory
+   (default or $EASYBUILD_INSTALLPATH)
 
 Authors: Kenneth Hoste (UGent), Stijn Deweirdt (UGent)
 License: GPLv2
 
-inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py (via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
+inspired by https://bitbucket.org/pdubroy/pip/raw/tip/getpip.py
+(via http://dubroy.com/blog/so-you-want-to-install-a-python-package/)
 """
 
 import copy
@@ -124,6 +126,40 @@ def prep(path):
         # PYTHONPATH needs to be set as well, otherwise setuptools will fail
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
+
+def check_module_command(tmpdir):
+    """Check which module command is available, and prepare for using it."""
+
+    # order matters, so we can't use the keys from modules_tools which are unordered
+    known_module_commands = ['modulecmd', 'lmod', 'modulecmd.tcl']
+    modules_tools = {
+        'modulecmd': 'EnvironmentModulesC',
+        'lmod': 'Lmod',
+        'modulecmd.tcl': 'EnvironmentModulesTcl',
+    }
+    out = os.path.join(tmpdir, 'module_command.out')
+    modtool = None
+    for modcmd in known_module_commands:
+        cmd = "%s python help" % modcmd
+        os.system("%s > %s 2>&1" % (cmd, out))
+        modcmd_re = re.compile('module\s.*command\s')
+        txt = open(out, "r").read()
+        debug("Output from %s: %s" % (cmd, txt))
+        if modcmd_re.search(txt):
+            modtool = modules_tools[modcmd]
+            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
+            break
+
+    if modtool is None:
+        msg = [
+            "Could not find any module command, make sure one available in your $PATH.",
+            "Known module commands are checked in order, and include: %s" % ', '.join(known_module_commands),
+            "Check the output of 'type module' to determine the location of the module command you are using.",
+        ]
+        error('\n'.join(msg))
+
+    return modtool
 
 #
 # Stage functions
@@ -279,6 +315,9 @@ def stage2(tmpdir, versions, install_path):
     f.write(EB_EC_FILE % versions)
     f.close()
 
+    # unset $MODULEPATH, we don't care about already installed modules
+    os.environ['MODULEPATH'] = ''
+
     # set command line arguments for eb
     eb_args = ['eb', ebfile]
     if print_debug:
@@ -287,10 +326,10 @@ def stage2(tmpdir, versions, install_path):
     # make sure we don't leave any stuff behind in default path $HOME/.local/easybuild
     # and set build and install path explicitely
     if LooseVersion(versions['version']) < LooseVersion("1.3.0"):
-        os.environ['EASYBUILDPREFIX'] = tmpdir
-        os.environ['EASYBUILDBUILDPATH'] = tmpdir
+        os.environ['EASYBUILD_PREFIX'] = tmpdir
+        os.environ['EASYBUILD_BUILDPATH'] = tmpdir
         if install_path is not None:
-            os.environ['EASYBUILDINSTALLPATH'] = install_path
+            os.environ['EASYBUILD_INSTALLPATH'] = install_path
     else:
         # only for v1.3 and up
         eb_args.append('--prefix=%s' % tmpdir)
@@ -323,15 +362,8 @@ def main():
     debug("Going to use %s as temporary directory" % tmpdir)
     os.chdir(tmpdir)
 
-    # check whether 'modulecmd' is available, we need that
-    out = os.path.join(tmpdir, 'modulecmd.out')
-    cmd = "modulecmd python help"
-    os.system("%s > %s 2>&1" % (cmd, out))
-    modcmd_re = re.compile('Usage: module')
-    txt = open(out, "r").read()
-    if not modcmd_re.search(txt):
-        error("Could not find 'modulecmd', make sure it's available in your PATH. \
-               Output from %s: %s" % (cmd, txt))
+    # check whether a module command is available, we need that
+    modtool = check_module_command(tmpdir)
 
     # clean sys.path, remove paths that may contain EasyBuild packages or stuff installed with easy_install
     orig_sys_path = sys.path[:]
@@ -369,17 +401,21 @@ def main():
 
     info('Done!')
 
+    info('')
     if install_path is not None:
-        info('EasyBuild v%s was installed to %s, so make sure your MODULEPATH includes %s' % \
+        info('EasyBuild v%s was installed to %s, so make sure your $MODULEPATH includes %s' % \
              (versions['version'], install_path, os.path.join(install_path, 'modules', 'all')))
     else:
-        info('EasyBuild v%s was installed to configured install path, make sure your MODULEPATH is set correctly.' % \
+        info('EasyBuild v%s was installed to configured install path, make sure your $MODULEPATH is set correctly.' % \
              versions['version'])
-        info('(default config => add "$HOME/.local/easybuild/modules/all" in MODULEPATH)')
+        info('(default config => add "$HOME/.local/easybuild/modules/all" in $MODULEPATH)')
 
+    info('')
     info("Run 'module load EasyBuild', and run 'eb --help' to get help on using EasyBuild.")
+    info("Set $EASYBUILD_MODULES_TOOL to '%s' to use the same modules tool as was used now." % modtool)
+    info('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
-    info("To install software with EasyBuild to %s, make sure EASYBUILDINSTALLPATH is set accordingly." % install_path)
+    info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
     info("See https://github.com/hpcugent/easybuild/wiki/Configuration for details on configuring EasyBuild.")
 
 # template easyconfig file for EasyBuild

@@ -30,16 +30,17 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import shutil
+import stat
 import tempfile
-from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
+from test.framework.utilities import EnhancedTestCase, find_full_path
+from unittest import TestLoader, main
 
-import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
-from test.framework.utilities import find_full_path
+from easybuild.tools.build_log import EasyBuildError
 
 
-class FileToolsTest(TestCase):
+class FileToolsTest(EnhancedTestCase):
     """ Testcase for filetools module """
 
     class_names = [
@@ -51,7 +52,8 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        """Set up testcase."""
+        super(FileToolsTest, self).setUp()
         self.legacySetUp()
 
     def legacySetUp(self):
@@ -59,13 +61,6 @@ class FileToolsTest(TestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-
-        config.oldstyle_init(cfg_full_path)
-        self.cwd = os.getcwd()
-
-    def tearDown(self):
-        """cleanup"""
-        os.chdir(self.cwd)
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -183,6 +178,66 @@ class FileToolsTest(TestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
+
+    def test_download_file(self):
+        """Test download_file function."""
+        fn = 'toy-0.0.tar.gz'
+        target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
+        # provide local file path as source URL
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location)
+
+    def test_mkdir(self):
+        """Test mkdir function."""
+        tmpdir = tempfile.mkdtemp()
+
+        def check_mkdir(path, error=None, **kwargs):
+            """Create specified directory with mkdir, and check for correctness."""
+            if error is None:
+                ft.mkdir(path, **kwargs)
+                self.assertTrue(os.path.exists(path) and os.path.isdir(path), "Directory %s exists" % path)
+            else:
+                self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
+
+        foodir = os.path.join(tmpdir, 'foo')
+        barfoodir = os.path.join(tmpdir, 'bar', 'foo')
+        check_mkdir(foodir)
+        # no error on existing paths
+        check_mkdir(foodir)
+        # no recursion by defaults, requires parents=True
+        check_mkdir(barfoodir, error="Failed.*No such file or directory")
+        check_mkdir(barfoodir, parents=True)
+        check_mkdir(os.path.join(barfoodir, 'bar', 'foo', 'trolololol'), parents=True)
+        # group ID and sticky bits are disabled by default
+        self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
+        self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+        # setting group ID bit works
+        giddir = os.path.join(foodir, 'gid')
+        check_mkdir(giddir, set_gid=True)
+        self.assertTrue(os.stat(giddir).st_mode & stat.S_ISGID, "gid bit set %s" % giddir)
+        self.assertFalse(os.stat(giddir).st_mode & stat.S_ISVTX, "no sticky bit %s" % giddir)
+        # setting stciky bit works
+        stickydir = os.path.join(barfoodir, 'sticky')
+        check_mkdir(stickydir, sticky=True)
+        self.assertFalse(os.stat(stickydir).st_mode & stat.S_ISGID, "no gid bit %s" % stickydir)
+        self.assertTrue(os.stat(stickydir).st_mode & stat.S_ISVTX, "sticky bit set %s" % stickydir)
+        # setting both works, bits are set for all new subdirectories
+        stickygiddirs = [os.path.join(foodir, 'new')]
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'sticky'))
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'and'))
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'gid'))
+        check_mkdir(stickygiddirs[-1], parents=True, set_gid=True, sticky=True)
+        for subdir in stickygiddirs:
+            gid_or_sticky = stat.S_ISGID | stat.S_ISVTX
+            self.assertEqual(os.stat(subdir).st_mode & gid_or_sticky, gid_or_sticky, "gid bit set %s" % subdir)
+        # existing parent dirs are untouched, no sticky/group ID bits set
+        self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
+        self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+
+        shutil.rmtree(tmpdir)
+
 
 def suite():
     """ returns all the testcases in this module """

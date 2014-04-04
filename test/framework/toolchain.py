@@ -32,30 +32,20 @@ import os
 import re
 import shutil
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-import easybuild.tools.config as config
 import easybuild.tools.modules as modules
-import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
-class ToolchainTest(TestCase):
+class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """Set up everything for a unit test."""
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        super(ToolchainTest, self).setUp()
 
         # start with a clean slate
         modules.modules_tool().purge()
@@ -67,7 +57,7 @@ class ToolchainTest(TestCase):
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
-        ec = EasyConfig(ec_file, build_options={'validate': False})
+        ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertTrue('debug' in tc.options)
 
@@ -383,7 +373,7 @@ class ToolchainTest(TestCase):
         nvcc_flags = r' '.join([
             r'-Xcompiler="-O2 -march=native"',
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
-            r'-Xlinker=".* -lm -lcudart -lpthread"',
+            r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
         ])
 
@@ -399,7 +389,7 @@ class ToolchainTest(TestCase):
         self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
 
         # check CUDA runtime lib
-        self.assertTrue("-lcudart" in tc.get_variable('LIBS'))
+        self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
     def test_ictce_toolchain(self):
         """Test for ictce toolchain."""
@@ -470,8 +460,11 @@ class ToolchainTest(TestCase):
 
     def tearDown(self):
         """Cleanup."""
-        # purge any loaded modules, restore $MODULEPATH
+        # purge any loaded modules before restoring $MODULEPATH
         modules.modules_tool().purge()
+
+        super(ToolchainTest, self).tearDown()
+
         os.environ['MODULEPATH'] = self.orig_modpath
         # reinitialize modules tool after touching $MODULEPATH
         modules.modules_tool()

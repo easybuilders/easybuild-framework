@@ -27,33 +27,20 @@ Unit tests for easyconfig/format/version.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
-import re
+import copy
 
-from easybuild.framework.easyconfig.format.format import EBConfigObj
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
+
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
-from unittest import TestCase, TestLoader, main
-
-from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 
-class EasyConfigVersion(TestCase):
+class EasyConfigVersion(EnhancedTestCase):
     """Unit tests for format.version module."""
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args, **kwargs)
-            self.assertTrue(False)  # this will fail when no exception is thrown at all
-        except error, err:
-            res = re.search(regex, err.msg)
-            if not res:
-                print "err: %s" % err
-            self.assertTrue(res)
 
     def test_parser_regex(self):
         """Test the version parser"""
@@ -209,29 +196,75 @@ class EasyConfigVersion(TestCase):
                 self.assertEqual(tcv.tc_name, None)
                 self.assertEqual(tcv.tcversop_str, None)
 
-    def test_configobj(self):
-        """Test configobj sort"""
+    def test_toolchain_versop_test(self):
+        """Test the ToolchainVersionOperator test"""
+        top = ToolchainVersionOperator()
         _, tcs = search_toolchain('')
         tc_names = [x.NAME for x in tcs]
-        tcmax = min(len(tc_names), 3)
-        if len(tc_names) < tcmax:
-            tcmax = len(tc_names)
-        tc = tc_names[0]
-        configobj_txt = [
-            '[DEFAULT]',
-            'toolchains=%s >= 7.8.9' % ','.join(tc_names[:tcmax]),
-            'versions=1.2.3,2.3.4,3.4.5',
-            '[>= 2.3.4]',
-            'foo=bar',
-            '[== 3.4.5]',
-            'baz=biz',
-            '[!= %s 5.6.7]' % tc,
-            '[%s > 7.8.9]' % tc_names[tcmax - 1],
-        ]
+        for tc in tc_names:  # test all known toolchain names
+            # test version expressions with optional version operator
+            tests = [
+                ("%s >= 1.2.3" % tc, (
+                    (tc, '1.2.3', True),  # version ok, name ok
+                    (tc, '1.2.4', True),  # version ok, name ok
+                    (tc, '1.2.2', False),  # version not ok, name ok
+                    ('x' + tc, '1.2.3', False),  # version ok, name not ok
+                    ('x' + tc, '1.2.2', False),  # version not ok, name not ok
+                    )),
+            ]
+            for txt, subtests in tests:
+                tcversop = ToolchainVersionOperator(txt)
+                for name, version, res in subtests:
+                    self.assertEqual(tcversop.test(name, version), res)
 
-        co = ConfigObj(configobj_txt)
-        cov = EBConfigObj()
-        # FIXME: actually check something
+    def test_ordered_versop_add_data(self):
+        """Test the add and data handling"""
+        ovop = OrderedVersionOperators()
+        tests = [
+            ('> 1', '5'),
+            ('> 2', {'x': 3}),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            ovop.add(versop)
+            # no data was added, this is a new entry, mapper is initialised with None
+            self.assertEqual(ovop.get_data(versop), None)
+            ovop.add(versop, data)
+            # test data
+            self.assertEqual(ovop.get_data(versop), data)
+
+        # new data for same versops
+        tests = [
+            ('> 1', '6'),
+            ('> 2', {'x': 4}),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            ovop.add(versop, data)
+            # test updated data
+            self.assertEqual(ovop.get_data(versop), data)
+
+        # 'update' a value
+        # the data for '> 1' has no .update()
+        extra_data = {'y': 4}
+        tests = [
+            ('> 2', extra_data),
+        ]
+        for versop_txt, data in tests:
+            versop = VersionOperator(versop_txt)
+            prevdata = copy.deepcopy(ovop.get_data(versop))
+            prevdata.update(extra_data)
+
+            ovop.add(versop, data, update=True)
+            # test updated data
+            self.assertEqual(ovop.get_data(versop), prevdata)
+
+        # use update=True on new element
+        versop = VersionOperator('> 10000')
+        new_data = {'new': 5}
+        ovop.add(versop, new_data, update=True)
+        # test updated data
+        self.assertEqual(ovop.get_data(versop), new_data)
 
 
 def suite():

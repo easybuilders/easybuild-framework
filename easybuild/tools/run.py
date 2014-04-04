@@ -43,6 +43,7 @@ import time
 from vsc import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
+import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -150,6 +151,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """
     Executes a command cmd
     - looks for questions and tries to answer based on qa dictionary
+    - provided answers can be either strings or lists of strings (which will be used iteratively)
     - returns exitcode and stdout+stderr (mixed)
     - no input though stdin
     - if log_ok or log_all are set -> will log.error if non-zero exit-code
@@ -179,33 +181,45 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     split = '[\s\n]+'
     regSplit = re.compile(r"" + split)
 
-    def process_QA(q, a):
+    def process_QA(q, a_s):
         splitq = [escape_special(x) for x in regSplit.split(q)]
         regQtxt = split.join(splitq) + split.rstrip('+') + "*$"
-        # # add optional split at the end
-        if not a.endswith('\n'):
-            a += '\n'
+        # add optional split at the end
+        for i in [idx for idx, a in enumerate(a_s) if not a.endswith('\n')]:
+            a_s[i] += '\n'
         regQ = re.compile(r"" + regQtxt)
         if regQ.search(q):
-            return (a, regQ)
+            return (a_s, regQ)
         else:
             _log.error("runqanda: Question %s converted in %s does not match itself" % (q, regQtxt))
 
+    def check_answers_list(answers):
+        """Make sure we have a list of answers (as strings)."""
+        if isinstance(answers, basestring):
+            answers = [answers]
+        elif not isinstance(answers, list):
+            msg = "Invalid type for answer on %s, no string or list: %s (%s)" % (question, type(answers), answers)
+            _log.error(msg)
+        # list is manipulated when answering matching question, so return a copy
+        return answers[:]
+
     newQA = {}
     _log.debug("newQA: ")
-    for question, answer in qa.items():
-        (a, regQ) = process_QA(question, answer)
-        newQA[regQ] = a
-        _log.debug("newqa[%s]: %s" % (regQ.pattern, a))
+    for question, answers in qa.items():
+        answers = check_answers_list(answers)
+        (answers, regQ) = process_QA(question, answers)
+        newQA[regQ] = answers
+        _log.debug("newqa[%s]: %s" % (regQ.pattern, newQA[regQ]))
 
     newstdQA = {}
     if std_qa:
-        for question, answer in std_qa.items():
+        for question, answers in std_qa.items():
             regQ = re.compile(r"" + question + r"[\s\n]*$")
-            if not answer.endswith('\n'):
-                answer += '\n'
-            newstdQA[regQ] = answer
-            _log.debug("newstdQA[%s]: %s" % (regQ.pattern, answer))
+            answers = check_answers_list(answers)
+            for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
+                answers[i] += '\n'
+            newstdQA[regQ] = answers
+            _log.debug("newstdQA[%s]: %s" % (regQ.pattern, newstdQA[regQ]))
 
     new_no_qa = []
     if no_qa:
@@ -254,20 +268,30 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             tmpOut = None
 
         hit = False
-        for q, a in newQA.items():
-            res = q.search(stdoutErr)
+        for question, answers in newQA.items():
+            res = question.search(stdoutErr)
             if tmpOut and res:
-                fa = a % res.groupdict()
-                _log.debug("run_cmd_qa answer %s question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
+                fa = answers[0] % res.groupdict()
+                # cycle through list of answers
+                last_answer = answers.pop(0)
+                answers.append(last_answer)
+                _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+
+                _log.debug("run_cmd_qa answer %s question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
                 send_all(p, fa)
                 hit = True
                 break
         if not hit:
-            for q, a in newstdQA.items():
-                res = q.search(stdoutErr)
+            for question, answers in newstdQA.items():
+                res = question.search(stdoutErr)
                 if tmpOut and res:
-                    fa = a % res.groupdict()
-                    _log.debug("run_cmd_qa answer %s standard question %s out %s" % (fa, q.pattern, stdoutErr[-50:]))
+                    fa = answers[0] % res.groupdict()
+                    # cycle through list of answers
+                    last_answer = answers.pop(0)
+                    answers.append(last_answer)
+                    _log.debug("List of answers for question %s after cycling: %s" % (question.pattern, answers))
+
+                    _log.debug("run_cmd_qa answer %s std question %s out %s" % (fa, question.pattern, stdoutErr[-50:]))
                     send_all(p, fa)
                     hit = True
                     break

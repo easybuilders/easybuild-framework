@@ -27,20 +27,23 @@ Unit tests for ModulesTool class.
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import copy
 import os
+import re
+import tempfile
+from vsc import fancylogger
 
+from test.framework.utilities import EnhancedTestCase
 from unittest import main as unittestmain
-from unittest import TestCase, TestLoader
+from unittest import TestLoader
 from distutils.version import StrictVersion
 
 import easybuild.tools.options as eboptions
-from easybuild.tools import config
-from easybuild.tools import modules
+from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import which
 from easybuild.tools.modules import modules_tool, Lmod
+from test.framework.utilities import init_config
 
 
 class MockModulesTool(modules.ModulesTool):
@@ -58,17 +61,12 @@ class BrokenMockModulesTool(MockModulesTool):
     COMMAND_ENVIRONMENT = 'BMMT_CMD'
 
 
-class ModulesToolTest(TestCase):
+class ModulesToolTest(EnhancedTestCase):
     """ Testcase for ModulesTool """
 
     def setUp(self):
-        """set up everything for a unit test."""
-        # keep track of original environment, so we can restore it
-        self.orig_environ = copy.deepcopy(os.environ)
-
-        # initialize configuration so config.get_modules_tool function works
-        eb_go = eboptions.parse_options()
-        config.init(eb_go.options, eb_go.get_options_by_section('config'))
+        """Testcase setup."""
+        super(ModulesToolTest, self).setUp()
 
         # keep track of original $MODULEPATH, so we can restore it
         self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
@@ -77,8 +75,13 @@ class ModulesToolTest(TestCase):
         # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
         modules_tool().purge()
 
+        # keep track of original 'module' function definition so we can restore it
+        self.orig_module = os.environ.get('module', None)
+
     def test_mock(self):
         """Test the mock module"""
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+
         # ue empty mod_path list, otherwise the install_path is called
         mmt = MockModulesTool(mod_paths=[])
 
@@ -92,6 +95,7 @@ class ModulesToolTest(TestCase):
 
     def test_environment_command(self):
         """Test setting cmd via enviroment"""
+        os.environ['module'] = "() { %s $*\n}" % BrokenMockModulesTool.COMMAND
 
         try:
             bmmt = BrokenMockModulesTool(mod_paths=[])
@@ -101,6 +105,7 @@ class ModulesToolTest(TestCase):
             self.assertTrue('command is not available' in str(err))
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
+        os.environ['module'] = "() { /bin/echo $*\n}"
         bmmt = BrokenMockModulesTool(mod_paths=[])
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -110,11 +115,53 @@ class ModulesToolTest(TestCase):
         # clean it up
         del os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT]
 
+    def test_module_mismatch(self):
+        """Test whether mismatch detection between modules tool and 'module' function works."""
+        # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
+        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        self.assertErrorRegex(EasyBuildError, ".*command .* not found in defined 'module' function", MockModulesTool)
+
+        # check whether escaping error by allowing mismatch via build options works
+        build_options = {
+            'allow_modules_tool_mismatch': True,
+        }
+        init_config(build_options=build_options)
+
+        fancylogger.logToFile(self.logfile)
+
+        mt = MockModulesTool()
+        f = open(self.logfile, 'r')
+        logtxt = f.read()
+        f.close()
+        warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        self.assertTrue(warn_regex.search(logtxt), "Found pattern '%s' in: %s" % (warn_regex.pattern, logtxt))
+
+        # redefine 'module' function with correct module command
+        os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+        mt = MockModulesTool()
+        self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
+
+        # a warning should be logged if the 'module' function is undefined
+        del os.environ['module']
+        mt = MockModulesTool()
+        f = open(self.logfile, 'r')
+        logtxt = f.read()
+        f.close()
+        warn_regex = re.compile("WARNING No 'module' function defined, can't check if modules tool '.*' matches it.")
+        self.assertTrue(warn_regex.search(logtxt))
+
+        fancylogger.logToFile(self.logfile, enable=False)
+
     def test_lmod_specific(self):
         """Lmod-specific test (skipped unless Lmod is used as modules tool)."""
         lmod_abspath = which(Lmod.COMMAND)
         # only run this test if 'lmod' is available in $PATH
         if lmod_abspath is not None:
+            build_options = {
+                'allow_modules_tool_mismatch': True,
+            }
+            init_config(build_options=build_options)
+
             # drop any location where 'lmod' or 'spider' can be found from $PATH
             paths = os.environ.get('PATH', '').split(os.pathsep)
             new_paths = []
@@ -140,13 +187,19 @@ class ModulesToolTest(TestCase):
             self.assertTrue(lmod.update(), "Updated local Lmod spider cache is non-empty")
 
     def tearDown(self):
-        """cleanup"""
+        """Testcase cleanup."""
+        super(ModulesToolTest, self).tearDown()
+
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
         # reinitialize a modules tool, to trigger 'module use' on module paths
         modules_tool()
 
-        # restore (full) original environment
-        modify_env(os.environ, self.orig_environ)
+        # restore 'module' function
+        if self.orig_module is not None:
+            os.environ['module'] = self.orig_module
+        else:
+            if 'module' in os.environ:
+                del os.environ['module']
 
 
 def suite():

@@ -51,8 +51,10 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_software
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, obtain_path, print_dry_run
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies, skip_available, tweak
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
+from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
+from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
 from easybuild.tools.options import process_software_build_specs
@@ -88,6 +90,11 @@ def main(testing_data=(None, None, None)):
     options = eb_go.options
     orig_paths = eb_go.args
 
+    # set umask (as early as possible)
+    if options.umask is not None:
+        new_umask = int(options.umask, 8)
+        old_umask = os.umask(new_umask)
+
     # set temporary directory to use
     eb_tmpdir = set_tmpdir(options.tmpdir)
 
@@ -105,6 +112,9 @@ def main(testing_data=(None, None, None)):
 
     global _log
     _log = fancylogger.getLogger(fname=False)
+
+    if options.umask is not None:
+        _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
     # hello world!
     _log.info(this_is_easybuild())
@@ -150,8 +160,9 @@ def main(testing_data=(None, None, None)):
         options.force = True
         retain_all_deps = True
 
-    build_options = {
+    config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
+        'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
         'command_line': eb_command_line,
         'debug': options.debug,
@@ -159,6 +170,7 @@ def main(testing_data=(None, None, None)):
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,
+        'group': options.group,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
@@ -169,13 +181,16 @@ def main(testing_data=(None, None, None)):
         'robot_path': robot_path,
         'sequential': options.sequential,
         'silent': testing,
+        'set_gid_bit': options.set_gid_bit,
         'skip': options.skip,
         'skip_test_cases': options.skip_test_cases,
+        'sticky_bit': options.sticky_bit,
         'stop': options.stop,
+        'umask': options.umask,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         'validate': not options.force,
-    }
+    })
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -183,7 +198,9 @@ def main(testing_data=(None, None, None)):
         if easyconfigs_paths:
             search_path = easyconfigs_paths
         query = options.search or options.search_short
-        search_file(search_path, query, build_options=build_options, short=not options.search)
+        ignore_dirs = config.build_option('ignore_dirs')
+        silent = config.build_option('silent')
+        search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
 
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
@@ -244,7 +261,7 @@ def main(testing_data=(None, None, None)):
             ec_paths = [path[0] for path in paths]
         else:  # fallback: easybuild-easyconfigs install path
             ec_paths = easyconfigs_pkg_full_paths
-        regtest_ok = regtest(ec_paths, build_options=build_options, build_specs=build_specs)
+        regtest_ok = regtest(ec_paths)
 
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
@@ -264,7 +281,7 @@ def main(testing_data=(None, None, None)):
                     ec_file = tweak(f, None, build_specs)
                 else:
                     ec_file = f
-                ecs = process_easyconfig(ec_file, build_options=build_options, build_specs=build_specs)
+                ecs = process_easyconfig(ec_file, build_specs=build_specs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
@@ -275,7 +292,7 @@ def main(testing_data=(None, None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        print_dry_run(easyconfigs, short=not options.dry_run, build_options=build_options, build_specs=build_specs)
+        print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
         cleanup(logfile, eb_tmpdir, testing)
@@ -288,7 +305,7 @@ def main(testing_data=(None, None, None)):
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         print_msg("resolving dependencies ...", log=_log, silent=testing)
-        ordered_ecs = resolve_dependencies(easyconfigs, build_options=build_options, build_specs=build_specs)
+        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
@@ -314,8 +331,7 @@ def main(testing_data=(None, None, None)):
         command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
         _log.info("Command template for jobs: %s" % command)
         if not testing:
-            jobs = build_easyconfigs_in_parallel(command, ordered_ecs, build_options=build_options,
-                                                 build_specs=build_specs)
+            jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
             txt = ["List of submitted jobs:"]
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
@@ -333,8 +349,7 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
-            (success, _) = build_and_install_software(ec, orig_environ, build_options=build_options,
-                                                      build_specs=build_specs)
+            (success, _) = build_and_install_software(ec, orig_environ)
             if success:
                 correct_built_cnt += 1
             all_built_cnt += 1
@@ -346,7 +361,7 @@ def main(testing_data=(None, None, None)):
 
     # cleanup and spec files
     for ec in easyconfigs:
-        if 'originalSpec' in ec and os.path.isfile(ec['spec']):
+        if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
     # cleanup tmp log file (all is well, all modules have their own log file)

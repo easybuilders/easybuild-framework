@@ -46,7 +46,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import stats_to_str
-from easybuild.tools.filetools import rmtree2, read_file, write_file
+from easybuild.tools.filetools import mkdir, rmtree2, read_file, write_file
 from easybuild.tools.version import VERBOSE_VERSION
 
 _log = fancylogger.getLogger('repository', fname=False)
@@ -93,8 +93,17 @@ class Repository(object):
         self.subdir = subdir
         self.repo = repo_path
         self.wc = None
+        self.initialized = False
+
+    def init(self):
+        """Prepare repository for use."""
         self.setup_repo()
         self.create_working_copy()
+        self.initialized = True
+
+    def is_initialized(self):
+        """Indicate whether repository was initialized."""
+        return self.initialized
 
     def setup_repo(self):
         """
@@ -153,12 +162,7 @@ class FileRepository(Repository):
 
         if a subdir is specified also create the subdir
         """
-        if not os.path.isdir(self.repo):
-            os.makedirs(self.repo)
-
-        full_path = os.path.join(self.repo, self.subdir)
-        if not os.path.isdir(full_path):
-            os.makedirs(full_path)
+        mkdir(os.path.join(self.repo, self.subdir), parents=True)
 
     def create_working_copy(self):
         """ set the working directory to the repo directory """
@@ -174,8 +178,7 @@ class FileRepository(Repository):
         """
         # create directory for eb file
         full_path = os.path.join(self.wc, self.subdir, name)
-        if not os.path.isdir(full_path):
-            os.makedirs(full_path)
+        mkdir(full_path, parents=True)
 
         # destination
         dest = os.path.join(full_path, "%s.eb" % version)
@@ -213,7 +216,7 @@ class FileRepository(Repository):
             self.log.debug("version %s for %s has not been found in the repo" % (ec_version, name))
             return []
 
-        eb = EasyConfig(dest, build_options={'validate': False})
+        eb = EasyConfig(dest, validate=False)
         return eb['buildstats']
 
 
@@ -450,15 +453,16 @@ def avail_repositories(check_useable=True):
 
 def init_repository(repository, repository_path):
     """Return an instance of the selected repository class."""
+    inited_repo = None
     if isinstance(repository, Repository):
-        return repository
+        inited_repo = repository
     elif isinstance(repository, basestring):
         repo = avail_repositories().get(repository)
         try:
             if isinstance(repository_path, basestring):
-                return repo(repository_path)
+                inited_repo = repo(repository_path)
             elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
-                return repo(*repository_path)
+                inited_repo = repo(*repository_path)
             else:
                 _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
                            (repository_path, type(repository_path)))
@@ -467,3 +471,6 @@ def init_repository(repository, repository_path):
                        (repository, repo.__name__, repository_path, err))
     else:
         _log.error('Unknown typo of repository spec: %s (type %s)' % (repo, type(repo)))
+
+    inited_repo.init()
+    return inited_repo
