@@ -6,14 +6,14 @@ v1.12.0 (April 4th 2014)
 
 feature + bugfix release
 - various enhancements, including:
-    - complete support for custom module naming schemes (#879, #904)
-        - a fully parsed easyconfig file is now passes to det_full_module_name function
-        - this does require that an easyconfig file matching the dependency specifcation is available
-    - add more features to better support using a shared install target with multiple users (#902, #903, #904)
+    - completed support for custom module naming schemes (#879, #904)
+        - a fully parsed easyconfig file is now passed to the det_full_module_name function
+        - this does require that an easyconfig file matching the dependency specification is available
+    - added more features to better support using a shared install target with multiple users (#902, #903, #904)
     - further development on support for new easyconfig format (v2.0) (#844, #848)
         - not considered stable yet, so still requires using --experimental
     - enhanced bootstrap script to also support Lmod and modulecmd.tcl module tools (#869)
-    - add support to run_cmd_qa function to supply a list of answers  (#887)
+    - added support to run_cmd_qa function to supply a list of answers  (#887)
     - detect mismatch between definition of 'module' function and selected modules tool (#871)
         - allowing mismatch now requires --allow-modules-tool-mismatch; an empty 'module' function is simply ignored
     - provide lib64 fallback option for directories in default sanity check paths (#896)
