@@ -1,4 +1,4 @@
-# #
+#
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -72,6 +72,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.framework.easyconfig.easyconfig import det_full_module_name, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.tweak import tweak
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -115,7 +116,7 @@ def find_resolved_modules(unprocessed, avail_modules):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
+def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, try_to_generate=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
@@ -190,6 +191,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         entry['dependencies'].remove(cand_dep)
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
+                        if try_to_generate:
+                            path = tweak(path, None, build_specs)
                         processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
