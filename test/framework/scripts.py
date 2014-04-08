@@ -46,8 +46,6 @@ class ScriptsTest(EnhancedTestCase):
 
         # adjust $PYTHONPATH such that test easyblocks are found by the script
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        pythonpath = os.environ['PYTHONPATH']
-        os.environ['PYTHONPATH'] = "%s:%s" % (pythonpath, eb_blocks_path)
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
@@ -62,7 +60,7 @@ class ScriptsTest(EnhancedTestCase):
             for ec_file in files:
                 shutil.copy2(os.path.join(root, ec_file), tmpdir)
 
-        cmd = "python %s --local --quiet --path %s" % (script, tmpdir)
+        cmd = "PYTHONPATH=$PYTHONPATH:%s python %s --local --quiet --path %s" % (eb_blocks_path, script, tmpdir)
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
@@ -86,7 +84,6 @@ class ScriptsTest(EnhancedTestCase):
             self.assertTrue(re.search(pattern, out, re.M))
 
         shutil.rmtree(tmpdir)
-        os.environ['PYTHONPATH'] = pythonpath
 
 def suite():
     """ returns all the testcases in this module """
