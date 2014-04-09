@@ -199,12 +199,15 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, t
                     else:
                         found = False
                         for path in paths:
-                            if try_to_generate:
-                                path = tweak(path, None, build_specs)
-                                processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
-                            else:
-                                processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
-                            _log.info("Robot: resolving dependency %s with tweaked %s" % (cand_dep, path))
+                            try:
+                                processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                                _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
+                            except EasyBuildError, e:
+                                _log.debug("could not process %s: %s", path, e)
+                                if try_to_generate:
+                                    path = tweak(path, None, build_specs)
+                                    processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                                    _log.info("Robot: resolving dependency %s with tweaked %s" % (cand_dep, path))
 
 
                             # ensure that selected easyconfig provides required dependency
