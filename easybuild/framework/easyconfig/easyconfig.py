@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import glob
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
 
@@ -901,20 +902,24 @@ def create_paths(path, name, version):
     return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(paths, name, version):
+def robot_find_easyconfig(paths, name, version, fuzzy=False):
     """
-    Find an easyconfig for module in path
+    Find a list of possible easyconfig for module in path
+    if fuzzy is false it will only look for name and version, and disregard the suffixes
     """
     if not isinstance(paths, (list, tuple)):
         paths = [paths]
+    if fuzzy:
+        version += "*"
     # candidate easyconfig paths
     for path in paths:
         easyconfigs_paths = create_paths(path, name, version)
         for easyconfig_path in easyconfigs_paths:
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
-            if os.path.isfile(easyconfig_path):
+            paths = glob.glob(easyconfig_path)
+            if paths:
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                return os.path.abspath(easyconfig_path)
+                return [os.path.abspath(x) for x in paths]
 
     return None
 
@@ -935,7 +940,7 @@ def det_full_module_name(ec, eb_ns=False):
         # when a key error occurs, try and find an easyconfig file to parse via the robot,
         # and retry with the parsed easyconfig file (which will contains a full set of keys)
         robot = build_option('robot_path')
-        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))[0]
         if eb_file is None:
             _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
         else:
