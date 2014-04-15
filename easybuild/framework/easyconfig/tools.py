@@ -190,7 +190,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, t
                         version = det_full_ec_version(cand_dep)
                         suffix = ''
 
-                    paths = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep), try_to_generate, suffix)
+                    paths = robot_find_easyconfig(robot, cand_dep['name'], version, try_to_generate, suffix)
 
                     _log.debug('paths for easyconfig %s: %s', str(cand_dep), paths)
 
