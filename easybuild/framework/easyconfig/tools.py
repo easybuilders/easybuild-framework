@@ -184,9 +184,13 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, t
                     if try_to_generate:
                         #don't try to get the full version, since it an be changed anyway
                         # we get a new list of paths now
-                        paths = robot_find_easyconfig(robot, cand_dep['name'], cand_dep['version'], True)
+                        version = cand_dep['version']
+                        suffix = det_full_ec_version(cand_dep)[len(version):]
                     else:
-                        paths = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+                        version = det_full_ec_version(cand_dep)
+                        suffix = ''
+
+                    paths = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep), try_to_generate, suffix)
 
                     _log.debug('paths for easyconfig %s: %s', str(cand_dep), paths)
 
@@ -209,13 +213,12 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, t
                                     processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
                                     _log.info("Robot: resolving dependency %s with tweaked %s" % (cand_dep, path))
 
-
                             # ensure that selected easyconfig provides required dependency
                             mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
                             dep_mod_name = det_full_module_name(cand_dep)
                             if not dep_mod_name in mods:
-                               tup = (path, dep_mod_name, mods)
-                               _log.info("easyconfig file %s does not contain module %s (mods: %s)" % tup)
+                                tup = (path, dep_mod_name, mods)
+                                _log.info("easyconfig file %s does not contain module %s (mods: %s)" % tup)
                             else:
                                 # we have found what we needed
                                 found = True
