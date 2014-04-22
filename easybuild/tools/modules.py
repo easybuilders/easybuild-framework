@@ -224,17 +224,18 @@ class ModulesTool(object):
             mod_tool = self.__class__.__name__
             self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
 
-    def check_module_function(self, allow_mismatch=False):
+    def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
         out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
-        modcmd = os.path.basename(self.cmd)
-        mod_details = "'%s' (%s)" % (modcmd, self.__class__.__name__)
+        if regex is None:
+            regex = r".*%s" % os.path.basename(self.cmd)
+        mod_cmd_re = re.compile(regex, re.M)
+        mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
         if ec == 0:
-            mod_cmd_re = re.compile(r".*%s " % modcmd, re.M)
             if mod_cmd_re.search(out):
-                self.log.debug("Found command '%s' in defined 'module' function." % modcmd)
+                self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
             else:
-                msg = "Module command %s used by EasyBuild not found in defined 'module' function.\n" % mod_details
+                msg = "%s not found in defined 'module' function.\n" % mod_details
                 msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
                 msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
                 if allow_mismatch:
@@ -246,7 +247,7 @@ class ModulesTool(object):
                     self.log.error(msg)
         else:
             # module function may not be defined (weird, but fine)
-            self.log.warning("No 'module' function defined, can't check if modules tool '%s' matches it." % mod_details)
+            self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
     def check_module_path(self):
         """
@@ -659,6 +660,11 @@ class Lmod(ModulesTool):
 
         super(Lmod, self).set_and_check_version()
 
+    def check_module_function(self, *args, **kwargs):
+        """Check whether selected module tool matches 'module' function definition."""
+        if not 'regex' in kwargs:
+            kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
+        super(Lmod, self).check_module_function(*args, **kwargs)
 
     def available(self, mod_name=None):
         """
