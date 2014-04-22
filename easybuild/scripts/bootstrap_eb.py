@@ -56,8 +56,13 @@ print_debug = False
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
 
+# undefine 'module' function, to avoid that EasyBuild trips over it on mismatch with used modules tool
+del os.environ['module']
+
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
+
+easybuild_modules_tool = None
 
 #
 # Utility functions
@@ -127,6 +132,9 @@ def prep(path):
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
 
+    os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
+    debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
 
@@ -147,7 +155,8 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
             modtool = modules_tools[modcmd]
-            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            global easybuild_modules_tool
+            easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
 
