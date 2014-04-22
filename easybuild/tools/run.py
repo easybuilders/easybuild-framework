@@ -95,12 +95,14 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     - if log_output is True -> all output of command will be logged to a tempfile
     - path is the path run_cmd should chdir to before doing anything
     """
+    cwd = os.getcwd()
     try:
         if path:
             os.chdir(path)
 
         _log.debug("run_cmd: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except:
+    except OSError, err:
+        _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
     # # Log command output
@@ -143,6 +145,11 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     if log_output:
         runLog.close()
 
+    try:
+        os.chdir(cwd)
+    except OSError, err:
+        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
+
     return parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp)
 
 
@@ -160,12 +167,14 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     - if log_output is True -> all output of command will be logged to a tempfile
     - path is the path run_cmd should chdir to before doing anything
     """
+    cwd = os.getcwd()
     try:
         if path:
             os.chdir(path)
 
         _log.debug("run_cmd_qa: running cmd %s (in %s)" % (cmd, os.getcwd()))
-    except:
+    except OSError, err:
+        _log.warning("Failed to change to %s: %s" % (path, err))
         _log.info("running cmd %s in non-existing directory, might fail!" % cmd)
 
     # Part 1: process the QandA dictionary
@@ -338,6 +347,11 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 
     # Not needed anymore. Subprocess does this correct?
     # ec=os.WEXITSTATUS(ec)
+
+    try:
+        os.chdir(cwd)
+    except OSError, err:
+        _log.error("Failed to return to %s after executing command: %s" % (cwd, err))
 
     return parse_cmd_output(cmd, stdoutErr, ec, simple, log_all, log_ok, regexp)
 
