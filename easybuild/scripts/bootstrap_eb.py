@@ -329,7 +329,7 @@ def stage2(tmpdir, versions, install_path):
     os.environ['MODULEPATH'] = ''
 
     # set command line arguments for eb
-    eb_args = ['eb', ebfile]
+    eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
 
