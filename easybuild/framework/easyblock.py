@@ -897,8 +897,8 @@ class EasyBlock(object):
         """
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib64'],
-            'LIBRARY_PATH': ['lib', 'lib64'],
+            'LD_LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
+            'LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
             'CPATH': ['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH': ['lib/pkgconfig', 'share/pkgconfig'],
