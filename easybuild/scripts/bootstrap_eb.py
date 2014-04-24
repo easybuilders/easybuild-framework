@@ -57,7 +57,8 @@ print_debug = False
 os.environ['PYTHONPATH'] = ''
 
 # undefine 'module' function, to avoid that EasyBuild trips over it on mismatch with used modules tool
-del os.environ['module']
+if 'module' in os.environ:
+    del os.environ['module']
 
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
