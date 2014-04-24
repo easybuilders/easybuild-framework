@@ -343,6 +343,12 @@ def stage2(tmpdir, versions, install_path):
         if install_path is not None:
             eb_args.append('--installpath=%s' % install_path)
 
+    # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
+    if install_path is not None:
+        modules_path = os.path.join(install_path, 'modules', 'all')
+        os.makedirs(modules_path)
+        debug("Created path %s" % modules_path)
+
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
     sys.argv = eb_args
 
