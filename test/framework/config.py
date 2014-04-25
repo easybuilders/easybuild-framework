@@ -43,7 +43,8 @@ from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions, Co
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import write_file
-from easybuild.tools.repository import FileRepository, init_repository
+from easybuild.tools.repository import init_repository
+from easybuild.tools.repository_type.file_repository import FileRepository
 
 
 class EasyBuildConfigTest(EnhancedTestCase):

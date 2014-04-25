@@ -33,8 +33,8 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.tools.repository import FileRepository, init_repository
-
+from easybuild.tools.repository import init_repository
+from easybuild.tools.repository_type.file_repository import FileRepository
 
 class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
