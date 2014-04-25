@@ -119,7 +119,7 @@ class ModulesToolTest(EnhancedTestCase):
         """Test whether mismatch detection between modules tool and 'module' function works."""
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
         os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
-        self.assertErrorRegex(EasyBuildError, ".*command .* not found in defined 'module' function", MockModulesTool)
+        self.assertErrorRegex(EasyBuildError, ".*pattern .* not found in defined 'module' function", MockModulesTool)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -133,7 +133,7 @@ class ModulesToolTest(EnhancedTestCase):
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
-        warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        warn_regex = re.compile("WARNING .*pattern .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(logtxt), "Found pattern '%s' in: %s" % (warn_regex.pattern, logtxt))
 
         # redefine 'module' function with correct module command
@@ -147,7 +147,7 @@ class ModulesToolTest(EnhancedTestCase):
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
-        warn_regex = re.compile("WARNING No 'module' function defined, can't check if modules tool '.*' matches it.")
+        warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
         self.assertTrue(warn_regex.search(logtxt))
 
         fancylogger.logToFile(self.logfile, enable=False)

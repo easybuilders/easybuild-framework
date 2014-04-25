@@ -866,7 +866,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        error_regex = re.compile("ERROR .*command .* not found in defined 'module' function")
+        error_regex = re.compile("ERROR .*pattern .* not found in defined 'module' function")
         self.assertTrue(error_regex.search(outtxt), "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
 
         # check that --allow-modules-tool-mispatch transforms this error into a warning
@@ -878,7 +878,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        warn_regex = re.compile("WARNING .*command .* not found in defined 'module' function")
+        warn_regex = re.compile("WARNING .*pattern .* not found in defined 'module' function")
         self.assertTrue(warn_regex.search(outtxt), "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
 
         # check whether match between 'module' function and selected modules tool is detected
@@ -890,7 +890,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        found_regex = re.compile("DEBUG Found command .* in defined 'module' function")
+        found_regex = re.compile("DEBUG Found pattern .* in defined 'module' function")
         self.assertTrue(found_regex.search(outtxt), "Found debug message w.r.t. module function: %s" % outtxt[-600:])
 
         # restore 'module' function

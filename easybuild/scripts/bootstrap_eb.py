@@ -59,6 +59,8 @@ os.environ['PYTHONPATH'] = ''
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
+easybuild_modules_tool = None
+
 #
 # Utility functions
 #
@@ -127,6 +129,9 @@ def prep(path):
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
 
+    os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
+    debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
 
@@ -147,7 +152,8 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
             modtool = modules_tools[modcmd]
-            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            global easybuild_modules_tool
+            easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
 
@@ -319,7 +325,7 @@ def stage2(tmpdir, versions, install_path):
     os.environ['MODULEPATH'] = ''
 
     # set command line arguments for eb
-    eb_args = ['eb', ebfile]
+    eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
 
@@ -336,6 +342,12 @@ def stage2(tmpdir, versions, install_path):
         eb_args.append('--buildpath=%s' % tmpdir)
         if install_path is not None:
             eb_args.append('--installpath=%s' % install_path)
+
+    # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
+    if install_path is not None:
+        modules_path = os.path.join(install_path, 'modules', 'all')
+        os.makedirs(modules_path)
+        debug("Created path %s" % modules_path)
 
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
     sys.argv = eb_args
