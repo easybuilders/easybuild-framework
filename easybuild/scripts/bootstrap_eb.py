@@ -276,7 +276,9 @@ def stage1(tmpdir):
     # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("python -S %s/easybuild/main.py --version > %s 2>&1" % (pkg_egg_dir_framework, version_out_file))
+    cmd = "python -c 'from easybuild.tools.version import this_is_easybuild; print this_is_easybuild()' > %s 2>&1" % version_out_file
+    debug("Determining EasyBuild version using command '%s'" % cmd)
+    os.system(cmd)
     txt = open(version_out_file, "r").read()
     res = version_re.search(txt)
     if res:
@@ -309,7 +311,7 @@ def stage1(tmpdir):
 def stage2(tmpdir, versions, install_path):
     """STAGE 2: install EasyBuild to temporary dir with EasyBuild from stage 1."""
 
-    info("\n\n+++ STAGE 2: installing EasyBuild in temporary dir with EasyBuild from stage 1...\n\n")
+    info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
     # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
     pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
@@ -346,7 +348,8 @@ def stage2(tmpdir, versions, install_path):
     # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
     if install_path is not None:
         modules_path = os.path.join(install_path, 'modules', 'all')
-        os.makedirs(modules_path)
+        if not os.path.exists(modules_path):
+            os.makedirs(modules_path)
         debug("Created path %s" % modules_path)
 
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
