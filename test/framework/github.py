@@ -72,7 +72,7 @@ class GithubTest(EnhancedTestCase):
     def test_read_api(self):
         """Test the githubfs read function"""
         try:
-            self.assertEquals(self.ghfs.read("a_directory/a_file.txt"), "this is a line of text\n")
+            self.assertEquals(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
         except IOError:
             pass
 
@@ -80,7 +80,7 @@ class GithubTest(EnhancedTestCase):
         """Test the githubfs read function without using the api"""
         try:
             fp = self.ghfs.read("a_directory/a_file.txt", api=False)
-            self.assertEquals(open(fp, 'r').read(), "this is a line of text\n")
+            self.assertEquals(open(fp, 'r').read().strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
             pass
