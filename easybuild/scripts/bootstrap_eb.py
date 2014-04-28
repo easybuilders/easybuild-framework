@@ -59,6 +59,8 @@ os.environ['PYTHONPATH'] = ''
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
+easybuild_modules_tool = None
+
 #
 # Utility functions
 #
@@ -127,6 +129,9 @@ def prep(path):
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
 
+    os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
+    debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
 
@@ -147,7 +152,8 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
             modtool = modules_tools[modcmd]
-            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            global easybuild_modules_tool
+            easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
 
@@ -270,7 +276,9 @@ def stage1(tmpdir):
     # NOTE: EasyBuild uses some magic to determine the EasyBuild version based on the versions of the individual packages
     version_re = re.compile("This is EasyBuild (?P<version>[0-9.]*[a-z0-9]*) \(framework: [0-9.]*[a-z0-9]*, easyblocks: [0-9.]*[a-z0-9]*\)")
     version_out_file = os.path.join(tmpdir, 'eb_version.out')
-    os.system("python -S %s/easybuild/main.py --version > %s 2>&1" % (pkg_egg_dir_framework, version_out_file))
+    cmd = "python -c 'from easybuild.tools.version import this_is_easybuild; print this_is_easybuild()' > %s 2>&1" % version_out_file
+    debug("Determining EasyBuild version using command '%s'" % cmd)
+    os.system(cmd)
     txt = open(version_out_file, "r").read()
     res = version_re.search(txt)
     if res:
@@ -303,7 +311,7 @@ def stage1(tmpdir):
 def stage2(tmpdir, versions, install_path):
     """STAGE 2: install EasyBuild to temporary dir with EasyBuild from stage 1."""
 
-    info("\n\n+++ STAGE 2: installing EasyBuild in temporary dir with EasyBuild from stage 1...\n\n")
+    info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
     # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
     pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
@@ -319,7 +327,7 @@ def stage2(tmpdir, versions, install_path):
     os.environ['MODULEPATH'] = ''
 
     # set command line arguments for eb
-    eb_args = ['eb', ebfile]
+    eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
 
@@ -336,6 +344,13 @@ def stage2(tmpdir, versions, install_path):
         eb_args.append('--buildpath=%s' % tmpdir)
         if install_path is not None:
             eb_args.append('--installpath=%s' % install_path)
+
+    # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
+    if install_path is not None:
+        modules_path = os.path.join(install_path, 'modules', 'all')
+        if not os.path.exists(modules_path):
+            os.makedirs(modules_path)
+        debug("Created path %s" % modules_path)
 
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
     sys.argv = eb_args
