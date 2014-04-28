@@ -1,6 +1,13 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.12.1 (April 25th 2014)
+-------------------------
+
+bugfix release
+- return to original directory after executing a command in a subdir (#908)
+- fix bootstrap with Lmod, fix issue with module function check and Lmod (#911)
+
 v1.12.0 (April 4th 2014)
 ------------------------
 
