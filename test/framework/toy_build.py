@@ -124,6 +124,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.check_toy(self.test_installpath, outtxt)
 
+        # make sure postinstallcmds were used
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+        self.assertEqual(open(os.path.join(toy_installdir, 'README'), 'r').read(), "TOY\n")
+
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found

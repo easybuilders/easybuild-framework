@@ -22,4 +22,6 @@ sanity_check_paths = {
     'dirs': ['bin'],
 }
 
+postinstallcmds = ["echo TOY > %(installdir)s/README"]
+
 moduleclass = 'tools'
