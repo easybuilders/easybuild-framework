@@ -65,8 +65,9 @@ from easybuild.tools.config import log_path, module_classes, read_only_installdi
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
-from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2, run_cmd
+from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
+from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_devel_module_filename
@@ -1523,9 +1524,21 @@ class EasyBlock(object):
     def post_install_step(self):
         """
         Do some postprocessing
+        - run post install commands if any were specified
         - set file permissions ....
         Installing user must be member of the group that it is changed to
         """
+        if self.cfg['postinstallcmds'] is not None:
+            # make sure we have a list of commands
+            if isinstance(self.cfg['postinstallcmds'], basestring):
+                self.cfg['postinstallcmds'] = [self.cfg['postinstallcmds']]
+            elif not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
+                self.log.error("Invalid value for 'postinstallcmds', should be string, or list/tuple of strings.")
+            for cmd in self.cfg['postinstallcmds']:
+                if not isinstance(cmd, basestring):
+                    self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
+                run_cmd(cmd, simple=True, log_ok=False, log_all=False)
+
         if self.group is not None:
             # remove permissions for others, and set group ID
             try:

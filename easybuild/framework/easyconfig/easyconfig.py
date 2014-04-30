@@ -70,7 +70,15 @@ _log.deprecated('Mandatory license not enforced', '2.0')
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
-ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'premakeopts', 'makeopts', 'preinstallopts', 'installopts']
+ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
+_log.deprecated("Including 'makeopts' and 'premakeopts' in parameters which are iterated over.", '2.0')
+ITERATE_OPTIONS.extend(['makeopts', 'premakeopts'])
+
+# list of deprecated easyconfig parameters, and their alternatives
+DEPRECATED_OPTIONS = [
+    ('makeopts', 'buildopts'),
+    ('premakeopts', 'prebuildopts'),
+]
 
 
 class EasyConfig(object):
@@ -233,6 +241,17 @@ class EasyConfig(object):
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
+
+        # check for deprecated easyconfig parameters
+        for opt, alt_opt in DEPRECATED_OPTIONS:
+            if opt in local_vars:
+                self.log.deprecated("Using '%s' is deprecated, use '%s' instead." % (opt, alt_opt), '1.999')
+                val = local_vars[opt]
+                if not alt_opt in local_vars:
+                    self.log.debug("Setting '%s' to value specified for deprecated '%s' (%s)" % (opt, alt_opt, val))
+                    local_vars[alt_opt] = val
+                else:
+                    self.log.error("Both deprecated '%s' and its alternative '%s' are being defined." % (opt, alt_opt))
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
