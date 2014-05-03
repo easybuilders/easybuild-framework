@@ -1530,10 +1530,8 @@ class EasyBlock(object):
         """
         if self.cfg['postinstallcmds'] is not None:
             # make sure we have a list of commands
-            if isinstance(self.cfg['postinstallcmds'], basestring):
-                self.cfg['postinstallcmds'] = [self.cfg['postinstallcmds']]
-            elif not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
-                self.log.error("Invalid value for 'postinstallcmds', should be string, or list/tuple of strings.")
+            if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
+                self.log.error("Invalid value for 'postinstallcmds', should be list or tuple of strings.")
             for cmd in self.cfg['postinstallcmds']:
                 if not isinstance(cmd, basestring):
                     self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)

@@ -284,7 +284,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
             '           "504c7036558938f997c1c269a01d7458",',  # checksum for source (gzip-1.4.eb)
-            '           "bd2075fc6b26a7371e4f5c1687a75d0a",',  # checksum for patch (toy-0.0.eb)
+            '           "ddd5161154f5db67701525123129ff09",',  # checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
             ']',
