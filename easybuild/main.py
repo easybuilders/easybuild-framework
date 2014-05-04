@@ -292,7 +292,7 @@ def main(testing_data=(None, None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs, try_to_generate=try_to_generate)
 
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
         cleanup(logfile, eb_tmpdir, testing)
@@ -305,7 +305,7 @@ def main(testing_data=(None, None, None)):
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
         print_msg("resolving dependencies ...", log=_log, silent=testing)
-        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs, try_to_generate=try_to_generate)
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []

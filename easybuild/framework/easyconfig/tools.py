@@ -1,4 +1,4 @@
-# #
+#
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -72,6 +72,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.framework.easyconfig.easyconfig import det_full_module_name, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.tweak import tweak
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -115,7 +116,7 @@ def find_resolved_modules(unprocessed, avail_modules):
     return ordered_ecs, new_unprocessed, new_avail_modules
 
 
-def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
+def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False, try_to_generate=False):
     """
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
@@ -180,29 +181,55 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+                    if try_to_generate:
+                        #don't try to get the full version, since it an be changed anyway
+                        # we get a new list of paths now
+                        version = cand_dep['version']
+                        suffix = det_full_ec_version(cand_dep)[len(version):]
+                    else:
+                        version = det_full_ec_version(cand_dep)
+                        suffix = ''
 
-                    if path is None:
+                    paths = robot_find_easyconfig(robot, cand_dep['name'], version, try_to_generate, suffix)
+
+                    _log.debug('paths for easyconfig %s: %s', str(cand_dep), paths)
+
+                    if not paths:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
                         if cand_dep not in irresolvable:
                             irresolvable.append(cand_dep)
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
                     else:
-                        _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                        found = False
+                        for path in paths:
+                            try:
+                                processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                                _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
+                            except EasyBuildError, e:
+                                _log.debug("could not process %s: %s", path, e)
+                                if try_to_generate:
+                                    path = tweak(path, None, build_specs)
+                                    processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                                    _log.info("Robot: resolving dependency %s with tweaked %s" % (cand_dep, path))
 
-                        # ensure that selected easyconfig provides required dependency
-                        mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
-                        dep_mod_name = det_full_module_name(cand_dep)
-                        if not dep_mod_name in mods:
-                            tup = (path, dep_mod_name, mods)
-                            _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
-
-                        for ec in processed_ecs:
-                            if not ec in unprocessed + additional:
-                                additional.append(ec)
-                                _log.debug("Added %s as dependency of %s" % (ec, entry))
+                            # ensure that selected easyconfig provides required dependency
+                            mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
+                            dep_mod_name = det_full_module_name(cand_dep)
+                            if not dep_mod_name in mods:
+                                tup = (path, dep_mod_name, mods)
+                                _log.info("easyconfig file %s does not contain module %s (mods: %s)" % tup)
+                            else:
+                                # we have found what we needed
+                                found = True
+                                break
+                        if not found:
+                            irresolvable.append(cand_dep)
+                        else:
+                            for ec in processed_ecs:
+                                if not ec in unprocessed + additional:
+                                    additional.append(ec)
+                                    _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
                     mod_name = det_full_module_name(entry['ec'], eb_ns=True)
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
@@ -223,7 +250,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     return ordered_ecs
 
 
-def print_dry_run(easyconfigs, short=False, build_specs=None):
+def print_dry_run(easyconfigs, short=False, build_specs=None, try_to_generate=False):
     """
     Print dry run information
     @param easyconfigs: list of easyconfig files
@@ -236,7 +263,7 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
         all_specs = easyconfigs
     else:
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
-        all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
+        all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True, try_to_generate=try_to_generate)
 
     unbuilt_specs = skip_available(all_specs, testing=True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)

@@ -1,4 +1,4 @@
-# #
+##
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 
 """
 Easyconfig module that contains the EasyConfig class.
@@ -37,8 +37,12 @@ Easyconfig module that contains the EasyConfig class.
 
 import copy
 import difflib
+import glob
 import os
 import re
+
+from difflib import SequenceMatcher
+
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
 
@@ -901,20 +905,40 @@ def create_paths(path, name, version):
     return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(paths, name, version):
+def robot_find_easyconfig(paths, name, version, fuzzy=False, suffix=''):
     """
-    Find an easyconfig for module in path
+    Find a list of possible easyconfig for module in path
+    if fuzzy is false it will only look for name and version, and disregard the suffixes
+    if fuzzy is true it will use the version as a prefix and return all paths that fit, orderd by distance to name-version-<suffix>
     """
     if not isinstance(paths, (list, tuple)):
         paths = [paths]
+    if fuzzy:
+        search_version = version + "*"
+    else:
+        search_version = version
     # candidate easyconfig paths
     for path in paths:
-        easyconfigs_paths = create_paths(path, name, version)
+        easyconfigs_paths = create_paths(path, name, search_version)
         for easyconfig_path in easyconfigs_paths:
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
-            if os.path.isfile(easyconfig_path):
-                _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                return os.path.abspath(easyconfig_path)
+            paths = glob.glob(easyconfig_path)
+            if paths:
+                _log.debug("Found easyconfig files for name %s, version %s at %s, paths matched: %s",
+                           name, version, easyconfig_path, paths)
+
+                # sort using difflib's sequencematcher
+                result = []
+                s = SequenceMatcher()
+                s.set_seq2(name + '-' + version + suffix)
+                # do the matches
+                for path in paths:
+                    s.set_seq1(path)
+                    result.append((s.ratio, path))
+                # sort by ratio, bigger is better
+                result = sorted(result, reverse=True)
+                # return the paths
+                return [os.path.abspath(x) for score, x in result]
 
     return None
 
@@ -935,7 +959,7 @@ def det_full_module_name(ec, eb_ns=False):
         # when a key error occurs, try and find an easyconfig file to parse via the robot,
         # and retry with the parsed easyconfig file (which will contains a full set of keys)
         robot = build_option('robot_path')
-        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))[0]
         if eb_file is None:
             _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
         else:
