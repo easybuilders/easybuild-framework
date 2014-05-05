@@ -59,7 +59,7 @@ from easybuild.tools.config import get_repository, module_classes, get_repositor
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
-from easybuild.tools.repository import init_repository
+from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.version import this_is_easybuild  # from a single location
 
 

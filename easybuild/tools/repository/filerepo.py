@@ -45,7 +45,7 @@ import time
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import stats_to_str
 from easybuild.tools.filetools import mkdir, read_file, write_file
-from easybuild.tools.repository import Repository
+from easybuild.tools.repository.repository import Repository
 from easybuild.tools.version import VERBOSE_VERSION
 
 class FileRepository(Repository):

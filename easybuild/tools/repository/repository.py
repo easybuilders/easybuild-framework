@@ -128,7 +128,7 @@ def avail_repositories(check_useable=True):
     Return all available repositories.
         check_useable: boolean, if True, only return usable repositories
     """
-    import_available_modules('easybuild.tools.repository_type')
+    import_available_modules('easybuild.tools.repository')
 
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 

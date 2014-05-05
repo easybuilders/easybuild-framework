@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Declares easybuild.tools.repository_type namespace, in an extendable way.
+Declares easybuild.tools.repository namespace, in an extendable way.
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)

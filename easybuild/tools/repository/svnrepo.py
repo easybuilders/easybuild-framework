@@ -45,7 +45,7 @@ from vsc import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import rmtree2
-from easybuild.tools.repository_type.file_repository import FileRepository
+from easybuild.tools.repository.filerepo import FileRepository
 
 _log = fancylogger.getLogger('repository', fname=False)
 
