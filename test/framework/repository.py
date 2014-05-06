@@ -113,8 +113,7 @@ class RepositoryTest(EnhancedTestCase):
 
         repo = SvnRepository(test_repo_url)
         repo.init()
-        self.assertEqual(os.path.basename(repo.wc), 'testrepository')
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):
