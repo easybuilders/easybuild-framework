@@ -86,7 +86,7 @@ class SvnRepository(FileRepository):
         """
         self.repo = os.path.join(self.repo, self.subdir)
         try:
-            raise pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
+            pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
                                "properly. Run 'python -c \"import pysvn\"' to test.")
