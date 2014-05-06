@@ -100,9 +100,8 @@ class GitRepository(FileRepository):
         # try to get a copy of
         try:
             client = git.Git(self.wc)
-            out = client.clone(self.repo)
-            # out  = 'Cloning into easybuild...'
-            reponame = out.split("\n")[0].split()[-1].strip(".").strip("'")
+            client.clone(self.repo)
+            reponame = os.listdir(self.wc)[0]
             self.log.debug("rep name is %s" % reponame)
         except git.GitCommandError, err:
             # it might already have existed
