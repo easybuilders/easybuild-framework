@@ -43,7 +43,6 @@ import tempfile
 import time
 from vsc import fancylogger
 
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 

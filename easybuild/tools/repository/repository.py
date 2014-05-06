@@ -23,9 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Set of repository tools
-
-We have a plain filesystem, an svn and a git repository
+Generic support for dealing with repositories
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Dries Verdegem (Ghent University)
@@ -36,11 +34,6 @@ We have a plain filesystem, an svn and a git repository
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
-import getpass
-import os
-import socket
-import tempfile
-import time
 from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
