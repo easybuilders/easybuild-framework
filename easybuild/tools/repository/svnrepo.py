@@ -43,7 +43,6 @@ import tempfile
 import time
 from vsc import fancylogger
 
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
@@ -87,7 +86,7 @@ class SvnRepository(FileRepository):
         """
         self.repo = os.path.join(self.repo, self.subdir)
         try:
-            raise pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
+            pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
             self.log.exception("pysvn not available (%s). Make sure it is installed " % err +
                                "properly. Run 'python -c \"import pysvn\"' to test.")

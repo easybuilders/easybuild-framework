@@ -36,10 +36,7 @@ Plain filesystem repository
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
-import getpass
 import os
-import socket
-import tempfile
 import time
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
