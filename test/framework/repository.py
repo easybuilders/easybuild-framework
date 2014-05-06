@@ -72,6 +72,7 @@ class RepositoryTest(EnhancedTestCase):
         try:
             from git import GitCommandError
         except ImportError:
+            print "(skipping GitRepository test)"
             return
 
         test_repo_url = 'https://github.com/hpcugent/testrepository'
@@ -100,6 +101,12 @@ class RepositoryTest(EnhancedTestCase):
 
     def test_svnrepo(self):
         """Test using SvnRepository."""
+        # only run this test if git Python module is available
+        try:
+            from pysvn import ClientError
+        except ImportError:
+            print "(skipping SvnRepository test)"
+            return
 
         # GitHub also supports SVN
         test_repo_url = 'https://github.com/hpcugent/testrepository'
