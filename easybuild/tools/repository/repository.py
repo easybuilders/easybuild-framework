@@ -77,13 +77,13 @@ class Repository(object):
         """
         Set up repository.
         """
-        pass
+        raise NotImplementedError
 
     def create_working_copy(self):
         """
         Create working copy.
         """
-        pass
+        raise NotImplementedError
 
     def add_easyconfig(self, cfg, name, version, stats, previous):
         """
@@ -92,7 +92,7 @@ class Repository(object):
         Stats contains some build stats, this should be a list of dictionaries.
         previous is the list of previous buildstats
         """
-        pass
+        raise NotImplementedError
 
     def commit(self, msg=None):
         """
@@ -113,7 +113,7 @@ class Repository(object):
         """
         Get the build statististics for software with name and easyconfig version
         """
-        pass
+        raise NotImplementedError
 
 
 def avail_repositories(check_useable=True):

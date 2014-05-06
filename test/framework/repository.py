@@ -97,7 +97,7 @@ class RepositoryTest(EnhancedTestCase):
 
     def test_svnrepo(self):
         """Test using SvnRepository."""
-        # only run this test if git Python module is available
+        # only run this test if pysvn Python module is available
         try:
             from pysvn import ClientError
         except ImportError:
