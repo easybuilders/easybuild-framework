@@ -40,10 +40,6 @@ from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
 
 
-GITHUB_LOGIN = os.environ.get('EASYBUILD_GITHUB_LOGIN', None)
-GITHUB_TOKEN = os.environ.get('EASYBUILD_GITHUB_TOKEN', None)
-
-
 class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
