@@ -46,7 +46,7 @@ from vsc import fancylogger
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
-_log = fancylogger.getLogger('repository', fname=False)
+_log = fancylogger.getLogger('svnrepo', fname=False)
 
 # optional Python packages, these might be missing
 # failing imports are just ignored

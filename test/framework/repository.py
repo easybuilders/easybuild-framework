@@ -40,10 +40,6 @@ from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_cmd
 
 
-GITHUB_LOGIN = os.environ.get('EASYBUILD_GITHUB_LOGIN', None)
-GITHUB_TOKEN = os.environ.get('EASYBUILD_GITHUB_TOKEN', None)
-
-
 class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
@@ -101,7 +97,7 @@ class RepositoryTest(EnhancedTestCase):
 
     def test_svnrepo(self):
         """Test using SvnRepository."""
-        # only run this test if git Python module is available
+        # only run this test if pysvn Python module is available
         try:
             from pysvn import ClientError
         except ImportError:
