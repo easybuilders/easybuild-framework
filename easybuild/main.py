@@ -57,6 +57,7 @@ from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_avai
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
@@ -208,7 +209,11 @@ def main(testing_data=(None, None, None)):
 
     paths = []
     if len(orig_paths) == 0:
-        if 'name' in build_specs:
+        pr = options.from_pr
+        if pr is not None:
+            pr_files = fetch_easyconfigs_from_pr(pr, path=os.path.join(eb_tmpdir, "files_pr%s" % pr))
+            paths = [(path, False) for path in pr_files if path.endswith('.eb')]
+        elif 'name' in build_specs:
             paths = [obtain_path(build_specs, easyconfigs_paths, try_to_generate=try_to_generate,
                                  exit_on_error=not testing)]
         elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):

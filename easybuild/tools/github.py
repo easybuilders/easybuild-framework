@@ -26,16 +26,29 @@
 Utility module for working with github
 
 @author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 import base64
+import os
+import re
 import tempfile
 import urllib
-from easybuild.tools.agithub import Github
 from vsc import fancylogger
 
-PATH_SEPARATOR = "/"
+from easybuild.tools.agithub import Github
+from easybuild.tools.filetools import mkdir
+
+
 GITHUB_DIR_TYPE = u'dir'
+GITHUB_EB_MAIN = 'hpcugent'
+GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_RAW = 'https://raw.githubusercontent.com'
+GITHUB_STATE_CLOSED = 'closed'
+
+
+_log = fancylogger.getLogger('github', fname=False)
+
 
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
@@ -59,7 +72,7 @@ class Githubfs(object):
     def join(*args):
         """This method joins 'paths' inside a github repository"""
         args = [x for x in args if x]
-        return PATH_SEPARATOR.join(args)
+        return os.path.sep.join(args)
 
     def get_repo(self):
         """Returns the repo as a Github object (from agithub)"""
@@ -69,7 +82,7 @@ class Githubfs(object):
         """returns the path as a Github object (from agithub)"""
         endpoint = self.get_repo()['contents']
         if path:
-            for subpath in path.split(PATH_SEPARATOR):
+            for subpath in path.split(os.path.sep):
                 endpoint = endpoint[subpath]
         return endpoint
 
@@ -149,3 +162,74 @@ class Githubfs(object):
 class GithubError(Exception):
     """Error raised by the Githubfs"""
     pass
+
+
+def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None):
+    """Fetch patched easyconfig files for a particular PR."""
+
+    def download(url, path):
+        """Download file from specified URL to specified path."""
+        _, httpmsg = urllib.urlretrieve(url, path)
+
+        if not httpmsg.type == 'text/plain':
+            _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
+
+    if not isinstance(pr, int):
+        try:
+            pr = int(pr)
+        except ValueError, err:
+            _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (pr, err))
+
+    if path is None:
+        path = tempfile.mkdtemp()
+    else:
+        # make sure path exists, create it if necessary
+        mkdir(path, parents=True)
+
+    # fetch data for specified PR
+    g = Github(username=github_user, token=github_token)
+    pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
+    status, pr_data = pr_url.get()
+    _log.debug("status: %d, data: %s" % (status, pr_data))
+    if not status == 200:
+        tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, status)
+        _log.error("Failed to get data for PR #%d from %s/%s (status: %d)" % tup)
+
+    for key in sorted(pr_data.keys()):
+        _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
+
+    # make sure PR is still open
+    if pr_data['state'] == GITHUB_STATE_CLOSED:
+        _log.error("Pull request #%d is already closed" % pr)
+
+    # determine list of changed files via diff
+    diff_path = os.path.join(path, os.path.basename(pr_data['diff_url']))
+    download(pr_data['diff_url'], diff_path)
+
+    diff_lines = open(diff_path).readlines()
+    patched_regex = re.compile('^\+\+\+ [a-z]/(.*)$')
+    patched_files = []
+    for line in diff_lines:
+        res = patched_regex.search(line)
+        if res:
+            patched_files.append(res.group(1))
+    os.remove(diff_path)
+
+    # obtain last commit
+    status, commits_data = pr_url.commits.get()
+    last_commit = commits_data[-1]
+    _log.debug("Commits: %s" % commits_data)
+
+    # obtain most recent version of patched files
+    for patched_file in patched_files:
+        fn = os.path.basename(patched_file)
+        full_url = os.path.join(GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file)
+        _log.info("Downloading %s from %s" % (fn, full_url))
+        download(full_url, os.path.join(path, fn))
+
+    all_files = [os.path.basename(x) for x in patched_files]
+    tmp_files = os.listdir(path)
+    if not sorted(tmp_files) == sorted(all_files):
+        _log.error("Not all patched files were downloaded to %s: %s vs %s" % (path, tmp_files, all_files))
+
+    return [os.path.join(path, fn) for fn in tmp_files]
