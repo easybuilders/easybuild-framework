@@ -43,6 +43,7 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 
@@ -197,6 +198,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, status)
         _log.error("Failed to get data for PR #%d from %s/%s (status: %d)" % tup)
 
+    # 'clean' on successful (or missing) test, 'unstable' on failed tests
+    stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
+    if not stable:
+        _log.error("Mergeable state for PR #%d is not '%s'." % (pr, GITHUB_MERGEABLE_STATE_CLEAN))
+
     for key in sorted(pr_data.keys()):
         _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
 
@@ -230,4 +236,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     if not sorted(tmp_files) == sorted(all_files):
         _log.error("Not all patched files were downloaded to %s: %s vs %s" % (path, tmp_files, all_files))
 
-    return [os.path.join(path, fn) for fn in tmp_files]
+    ec_files = [os.path.join(path, fn) for fn in tmp_files]
+
+    return ec_files
