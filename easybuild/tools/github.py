@@ -186,6 +186,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         # make sure path exists, create it if necessary
         mkdir(path, parents=True)
 
+    _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
+
     # fetch data for specified PR
     g = Github(username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
@@ -197,10 +199,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
 
     for key in sorted(pr_data.keys()):
         _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
-
-    # make sure PR is still open
-    if pr_data['state'] == GITHUB_STATE_CLOSED:
-        _log.error("Pull request #%d is already closed" % pr)
 
     # determine list of changed files via diff
     diff_path = os.path.join(path, os.path.basename(pr_data['diff_url']))
