@@ -57,7 +57,7 @@ from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_avai
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr
+from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, post_comment_in_issue
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
@@ -131,6 +131,11 @@ def main(testing_data=(None, None, None)):
             _log.info("Using robot path(s): %s" % options.robot)
         else:
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
+
+    # make sure both GitHub user name and token are provided when testing easyconfig PRs
+    if options.test_easyconfigs_pr:
+        if options.github_user is None or options.github_token is None:
+            _log.error("Please provide both a GitHub user name and token when testing easyconfig PRs.")
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
@@ -208,10 +213,12 @@ def main(testing_data=(None, None, None)):
     (try_to_generate, build_specs) = process_software_build_specs(options)
 
     paths = []
+    pr_nr = options.test_easyconfigs_pr or options.from_pr
     if len(orig_paths) == 0:
-        pr = options.from_pr
-        if pr is not None:
-            pr_files = fetch_easyconfigs_from_pr(pr, path=os.path.join(eb_tmpdir, "files_pr%s" % pr))
+        if pr_nr is not None:
+            pr_path = os.path.join(eb_tmpdir, "files_pr%s" % pr_nr)
+            pr_files = fetch_easyconfigs_from_pr(pr_nr, path=pr_path, github_user=options.github_user,
+                                                 github_token=options.github_token)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
             paths = [obtain_path(build_specs, easyconfigs_paths, try_to_generate=try_to_generate,
@@ -359,7 +366,8 @@ def main(testing_data=(None, None, None)):
                 correct_built_cnt += 1
             all_built_cnt += 1
 
-    print_msg("Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt), log=_log, silent=testing)
+    success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt)
+    print_msg(success_msg, log=_log, silent=testing)
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
@@ -376,6 +384,27 @@ def main(testing_data=(None, None, None)):
         fancylogger.logToFile(logfile, enable=False)
     cleanup(logfile, eb_tmpdir, testing)
 
+    # report back in PR in case of testing
+    if options.test_easyconfigs_pr:
+        user = options.github_user
+        token = options.github_token
+
+        # create a gist with a full test report
+        gist_lines = [
+            "Command line: %s" % eb_command_line,
+        ]
+        gist = '\n'.join(gist_lines)
+        descr = "Test report for easyconfigs PR #%d" % pr_nr
+        fn = 'test_report_pr%d.txt' % pr_nr
+        gist_url = create_gist(gist, descr=descr, fn=fn, github_user=user, github_token=token)
+
+        # post comment to report test result
+        comment_lines = [
+            success_msg,
+            "See %s for a full test report." % gist_url,
+        ]
+        comment = '\n'.join(comment_lines)
+        post_comment_in_issue(pr_nr, comment, github_user=user, github_token=token)
 
 if __name__ == "__main__":
     try:
