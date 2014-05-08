@@ -1941,9 +1941,9 @@ def build_and_install_software(module, orig_environ):
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
         result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
-        lastn = 300
-        errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
-        _log.exception(errormsg)
+        first_n = 300
+        errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
+        _log.warning(errormsg)
         result = False
 
     ended = "ended"
@@ -1979,7 +1979,7 @@ def build_and_install_software(module, orig_environ):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        exit_code = 0
+        success = True
         succ = "successfully"
         summary = "COMPLETED"
 
@@ -2003,13 +2003,13 @@ def build_and_install_software(module, orig_environ):
 
     # build failed
     else:
-        exit_code = 1
+        success = False
         summary = "FAILED"
 
         build_dir = ''
         if app.builddir:
             build_dir = " (build directory: %s)" % (app.builddir)
-        succ = "unsuccessfully%s:\n%s" % (build_dir, errormsg)
+        succ = "unsuccessfully%s: %s" % (build_dir, errormsg)
 
         # cleanup logs
         app.close_log()
@@ -2018,9 +2018,9 @@ def build_and_install_software(module, orig_environ):
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
     # check for errors
-    if exit_code != 0 or filetools.errors_found_in_log > 0:
-        print_msg("\nWARNING: Build exited with non-zero exit code %d. %d possible error(s) were detected in the "
-                  "build logs, please verify the build.\n" % (exit_code, filetools.errors_found_in_log),
+    if filetools.errors_found_in_log > 0:
+        print_msg("WARNING: %d possible error(s) were detected in the "
+                  "build logs, please verify the build." % filetools.errors_found_in_log,
                   _log, silent=silent)
 
     if app.postmsg:
@@ -2031,7 +2031,7 @@ def build_and_install_software(module, orig_environ):
     del app
     os.chdir(cwd)
 
-    return (exit_code == 0, application_log)
+    return (success, application_log, errormsg)
 
 
 def get_easyblock_instance(easyconfig):
