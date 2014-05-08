@@ -164,15 +164,15 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
 
     start_time, environ_dump, system_info = init_session_state
     end_time = gmtime()
-    system_info = ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
-    environment = ["\t%s: %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
-    if module_list:
-        module_list = ["\t%s" % mod['mod_name'] for mod in module_list]
-    else:
-        module_list = ["\t(none)"]
 
     # create a gist with a full test report
-    test_report = ["Test result:", "\t%s" % success_msg, ""]
+    test_report = [
+        "Test report for https://github.com/hpcugent/easybuild-easyconfigs/pull/%s" % pr_nr,
+        "",
+        "#### Test result",
+        "%s" % success_msg,
+        "",
+    ]
 
     build_overview = []
     for ec in ordered_ecs:
@@ -199,27 +199,38 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
                 gist_url = create_gist(partial_log_txt, descr=descr, fn=fn, github_user=user, github_token=token)
                 test_log = "(partial log available at %s)" % gist_url
 
-        build_overview.append("\t[%s] %s %s" % (test_result, os.path.basename(ec['spec']), test_log))
-    test_report.extend(["Overview of tested easyconfigs (in order):"] + build_overview + [""])
+        build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
+    test_report.extend(["#### Overview of tested easyconfigs (in order)"] + build_overview + [""])
 
     time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
     start_time = strftime(time_format, start_time)
     end_time = strftime(time_format, end_time)
-    test_report.extend(["Time info:", "\tstart: %s" % start_time, "\tend: %s" % end_time, ""])
+    test_report.extend(["#### Time info", " * start: %s" % start_time, " * end: %s" % end_time, ""])
 
-    eb_config = ["\t\t%s" % x for x in sorted(eb_config)]
+    eb_config = [x for x in sorted(eb_config)]
     test_report.extend([
-        "EasyBuild info:",
-        "\teasybuild-framework version: %s" % FRAMEWORK_VERSION,
-        "\teasybuild-easyblocks version: %s" % EASYBLOCKS_VERSION,
-        "\tcommand line:",
-        "\t\teb %s" % ' '.join(sys.argv[1:]),
-        "\tfull configuration (includes defaults):",
-    ] + eb_config + [""])
+        "#### EasyBuild info",
+        " * easybuild-framework version: %s" % FRAMEWORK_VERSION,
+        " * easybuild-easyblocks version: %s" % EASYBLOCKS_VERSION,
+        " * command line:",
+        "```",
+        "eb %s" % ' '.join(sys.argv[1:]),
+        "```",
+        " * full configuration (includes defaults):",
+        "```",
+    ] + eb_config + ["````", ""])
 
-    test_report.extend(["System info:"] + system_info + [""])
-    test_report.extend(["List of loaded modules:"] + module_list + [""])
-    test_report.extend(["Environment:"] + environment + [""])
+    system_info = [" * _%s:_ %s" % (key.replace('_', ' '), system_info[key]) for key in sorted(system_info.keys())]
+    test_report.extend(["#### System info"] + system_info + [""])
+
+    if module_list:
+        module_list = [" * %s" % mod['mod_name'] for mod in module_list]
+    else:
+        module_list = [" * (none)"]
+    test_report.extend(["#### List of loaded modules"] + module_list + [""])
+
+    environment = ["%s = %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
+    test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
     return '\n'.join(test_report)
 
@@ -231,7 +242,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_sessio
 
     # create gist with test report
     descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
-    fn = 'easybuild_test_report_easyconfigs_pr%s_%s.txt' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
+    fn = 'easybuild_test_report_easyconfigs_pr%s_%s.md' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
     gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
 
     # post comment to report test result
