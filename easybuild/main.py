@@ -62,7 +62,7 @@ from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
-from easybuild.tools.repository import init_repository
+from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION, this_is_easybuild  # from a single location
 

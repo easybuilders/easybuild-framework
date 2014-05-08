@@ -585,7 +585,7 @@ def oldstyle_read_configuration(filename):
 
     # import avail_repositories here to avoid cyclic dependencies
     # this block of code is going to be removed in EB v2.0
-    from easybuild.tools.repository import avail_repositories
+    from easybuild.tools.repository.repository import avail_repositories
     file_variables = avail_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)
