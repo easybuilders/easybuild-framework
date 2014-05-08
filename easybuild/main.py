@@ -57,7 +57,7 @@ from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_avai
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
-from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, post_comment_in_issue
+from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch_github_token, post_comment_in_issue
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
@@ -132,10 +132,16 @@ def main(testing_data=(None, None, None)):
         else:
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
-    # make sure both GitHub user name and token are provided when testing easyconfig PRs
+    # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
+    github_token = None
     if options.test_easyconfigs_pr:
-        if options.github_user is None or options.github_token is None:
-            _log.error("Please provide both a GitHub user name and token when testing easyconfig PRs.")
+        if options.github_user is None:
+            _log.error("No GitHub user name provided, required when testing easyconfig PRs.")
+        github_token, msg = fetch_github_token(options.github_user)
+        if github_token is None:
+            _log.error(msg)
+        else:
+            _log.info(msg)
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
@@ -218,7 +224,7 @@ def main(testing_data=(None, None, None)):
         if pr_nr is not None:
             pr_path = os.path.join(eb_tmpdir, "files_pr%s" % pr_nr)
             pr_files = fetch_easyconfigs_from_pr(pr_nr, path=pr_path, github_user=options.github_user,
-                                                 github_token=options.github_token)
+                                                 github_token=github_token)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
             paths = [obtain_path(build_specs, easyconfigs_paths, try_to_generate=try_to_generate,
@@ -361,8 +367,8 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
-            (success, _) = build_and_install_software(ec, orig_environ)
-            if success:
+            (ec['success'], _) = build_and_install_software(ec, orig_environ)
+            if ec['success']:
                 correct_built_cnt += 1
             all_built_cnt += 1
 
@@ -386,17 +392,24 @@ def main(testing_data=(None, None, None)):
 
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
-        user = options.github_user
-        token = options.github_token
+
+        success_msg += " (%d easyconfigs in this PR)" % len(paths)
 
         # create a gist with a full test report
-        gist_lines = [
-            "Command line: %s" % eb_command_line,
-        ]
-        gist = '\n'.join(gist_lines)
+        ok_or_fail = ("FAIL", "OK")  # False == 0, True == 1
+        build_overview = ["\t[%s] %s" % (ok_or_fail[ec['success']], os.path.basename(ec['spec'])) for ec in ordered_ecs]
+        test_report = '\n'.join([
+            "Test result:",
+            "\t%s" % success_msg,
+            "",
+            "EasyBuild command line:",
+            "\teb %s" % ' '.join(eb_command_line),
+            "",
+            "Overview of tested easyconfigs (in order):",
+        ] + build_overview)
         descr = "Test report for easyconfigs PR #%s" % pr_nr
         fn = 'test_report_pr%s.txt' % pr_nr
-        gist_url = create_gist(gist, descr=descr, fn=fn, github_user=user, github_token=token)
+        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
 
         # post comment to report test result
         comment_lines = [
@@ -404,7 +417,11 @@ def main(testing_data=(None, None, None)):
             "See %s for a full test report." % gist_url,
         ]
         comment = '\n'.join(comment_lines)
-        post_comment_in_issue(pr_nr, comment, github_user=user, github_token=token)
+        post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
+
+        msg = "Test report, uploaded to %s and mentioned in a comment in easyconfigs PR#%s:\n" % (gist_url, pr_nr)
+        msg += test_report
+        print_msg(msg)
 
 if __name__ == "__main__":
     try:
