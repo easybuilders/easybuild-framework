@@ -195,7 +195,7 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
                 logtxt = read_file(ec['log_file'])
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
                 descr = "(partial) EasyBuild log for failed build of %s (PR #%s)" % (ec['spec'], pr_nr)
-                fn = '%s.log' % os.path.basename(ec['spec'])[:-3]
+                fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                 gist_url = create_gist(partial_log_txt, descr=descr, fn=fn, github_user=user, github_token=token)
                 test_log = "(partial log available at %s)" % gist_url
 
