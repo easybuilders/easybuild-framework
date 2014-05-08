@@ -379,7 +379,13 @@ def main(testing_data=(None, None, None)):
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
-            (ec['success'], _) = build_and_install_software(ec, orig_environ)
+            try:
+                (ec['success'], app_log) = build_and_install_software(ec, orig_environ)
+                ec['eb_log'] = app_log
+            except Exception, err:
+                # purposely catch all exceptions
+                ec['success'] = False
+                ec['err'] = err
             if ec['success']:
                 correct_built_cnt += 1
             all_built_cnt += 1
@@ -424,8 +430,21 @@ def main(testing_data=(None, None, None)):
         # create a gist with a full test report
         test_report = ["Test result:", "\t%s" % success_msg, ""]
 
-        ok_or_fail = ("FAIL", "OK")  # False == 0, True == 1
-        build_overview = ["\t[%s] %s" % (ok_or_fail[ec['success']], os.path.basename(ec['spec'])) for ec in ordered_ecs]
+        build_overview = []
+        for ec in ordered_ecs:
+            if ec['success']:
+                test_result = 'SUCCESS'
+                correct_built_cnt += 1
+            else:
+                test_result = 'FAIL '
+                if 'err' in ec:
+                    if isinstance(ec['err'], EasyBuildError):
+                        test_result += '(build issue)'
+                    else:
+                        test_result += '(unhandled exception: %s)' % ec['err'].__class__.__name__
+                else:
+                    test_result += '(unknown cause, not an exception?!)'
+            build_overview.append("\t[%s] %s" % (test_result, os.path.basename(ec['spec'])))
         test_report.extend(["Overview of tested easyconfigs (in order):"] + build_overview + [""])
 
         time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
