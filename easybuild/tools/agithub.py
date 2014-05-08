@@ -90,13 +90,14 @@ class Client(object):
         headers['User-Agent'] = self.username
     else:
         headers['User-Agent'] = 'agithub'
-    fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
+    req = 'cli request: %s, %s, %s %s', method, url, body, headers
+    fancylogger.getLogger().debug(req)
     #TODO: Context manager
     conn = self.get_connection()
     try:
         conn.request(method, url, body, headers)
     except socket.gaierror, err:
-        fancylogger.getLogger().raiseException("Failed to issue HTTP request.")
+        fancylogger.getLogger().raiseException("Failed to issue HTTP request to GitHub API: %s (err: %s)" % (req, err))
     response = conn.getresponse()
     status = response.status
     body = response.read()
