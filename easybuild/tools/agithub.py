@@ -34,6 +34,7 @@ Interface to GitHub.
 
 import base64
 import re
+import socket
 import httplib, urllib
 try:
     import json
@@ -75,6 +76,7 @@ class Client(object):
 
   def post(self, url, body=None, headers={}, **params):
     url += self.urlencode(params)
+    headers["Content-type"] = "application/json"
     return self.request('POST', url, json.dumps(body), headers)
 
   def put(self, url, body=None, headers={}, **params):
@@ -84,11 +86,17 @@ class Client(object):
   def request(self, method, url, body, headers):
     if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
-    headers['User-Agent'] = 'agithub'
+    if self.username is not None:
+        headers['User-Agent'] = self.username
+    else:
+        headers['User-Agent'] = 'agithub'
     fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
     #TODO: Context manager
     conn = self.get_connection()
-    conn.request(method, url, body, headers)
+    try:
+        conn.request(method, url, body, headers)
+    except socket.gaierror, err:
+        fancylogger.getLogger().raiseException("Failed to issue HTTP request.")
     response = conn.getresponse()
     status = response.status
     body = response.read()
