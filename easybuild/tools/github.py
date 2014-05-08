@@ -46,6 +46,8 @@ GITHUB_FILE_TYPE = u'file'
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
+HTTP_STATUS_OK = 200
+HTTP_STATUS_CREATED = 201
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -194,14 +196,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
     status, pr_data = pr_url.get()
     _log.debug("status: %d, data: %s" % (status, pr_data))
-    if not status == 200:
+    if not status == HTTP_STATUS_OK:
         tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, status)
         _log.error("Failed to get data for PR #%d from %s/%s (status: %d)" % tup)
 
     # 'clean' on successful (or missing) test, 'unstable' on failed tests
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
     if not stable:
-        _log.error("Mergeable state for PR #%d is not '%s'." % (pr, GITHUB_MERGEABLE_STATE_CLEAN))
+        tup = (pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
+        _log.error("Mergeable state for PR #%d is not '%s': %s." % tup)
 
     for key in sorted(pr_data.keys()):
         _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
@@ -239,3 +242,42 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     ec_files = [os.path.join(path, fn) for fn in tmp_files]
 
     return ec_files
+
+def create_gist(txt, fn=None, descr=None, github_user=None, github_token=None):
+    """Create a gist with the provided text."""
+    if descr is None:
+        descr = "(none)"
+    if fn is None:
+        fn = 'file1.txt'
+
+    body = {
+        "description": descr,
+        "public": True,
+        "files": {
+            fn: {
+                "content": txt,
+            }
+        }
+    }
+    g = Github(username=github_user, token=github_token)
+    status, data = g.gists.post(body=body)
+
+    if not status == HTTP_STATUS_CREATED:
+        _log.error("Failed to create gist; status %s, data: %s" % (status, data))
+
+    return data['html_url']
+
+def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None, github_token=None):
+    """Post a comment in the specified PR."""
+    if not isinstance(issue, int):
+        try:
+            issue = int(issue)
+        except ValueError, err:
+            _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
+
+    g = Github(username=github_user, token=github_token)
+    pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
+
+    status, data = pr_url.comments.post(body={'body': txt})
+    if not status == HTTP_STATUS_CREATED:
+        _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
