@@ -432,12 +432,20 @@ def main(testing_data=(None, None, None)):
         gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
 
         # post comment to report test result
+        short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+            'cpu_model': system_info['cpu_model'],
+            'os_name': system_info['os_name'],
+            'os_type': system_info['os_type'],
+            'os_version': system_info['os_version'],
+            'pyver': system_info['python_version'].split(' ')[0],
+        }
         comment_lines = [
             success_msg,
+            short_system_info,
             "See %s for a full test report." % gist_url,
         ]
         comment = '\n'.join(comment_lines)
-        #post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
+        post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
 
         msg = "Test report, uploaded to %s and mentioned in a comment in easyconfigs PR#%s:\n" % (gist_url, pr_nr)
         msg += test_report
