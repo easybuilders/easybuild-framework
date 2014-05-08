@@ -395,7 +395,7 @@ def main(testing_data=(None, None, None)):
         ]
         gist = '\n'.join(gist_lines)
         descr = "Test report for easyconfigs PR #%s" % pr_nr
-        fn = 'test_report_pr%d.txt' % pr_nr
+        fn = 'test_report_pr%s.txt' % pr_nr
         gist_url = create_gist(gist, descr=descr, fn=fn, github_user=user, github_token=token)
 
         # post comment to report test result
