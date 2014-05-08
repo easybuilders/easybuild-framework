@@ -274,6 +274,8 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
+            'github_token': ("GitHub API token", None, 'store', None),
+            'github_user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
             'regtest-online': ("Enable online regression test mode",
@@ -282,6 +284,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
+            'test-easyconfigs-pr': ("Test easyconfigs from specified PR", None, 'store', None, {'metavar': 'PR#'}),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
