@@ -62,7 +62,8 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_github_token
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import post_easyconfigs_pr_test_report, regtest, session_module_list, session_state
+from easybuild.tools.testing import create_test_report, post_easyconfigs_pr_test_report
+from easybuild.tools.testing import regtest, session_module_list, session_state
 from easybuild.tools.version import this_is_easybuild  # from a single location
 
 
@@ -79,7 +80,7 @@ def main(testing_data=(None, None, None)):
     """
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_session_state = session_state()
+    init_state = session_state()
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -205,7 +206,7 @@ def main(testing_data=(None, None, None)):
     })
 
     # obtain list of loaded modules, build options must be initialized first
-    module_list = session_module_list()
+    modlist = session_module_list()
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -396,9 +397,10 @@ def main(testing_data=(None, None, None)):
 
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
-        success_msg += " (%d easyconfigs in this PR)" % len(paths)
+        msg = success_msg + " (%d easyconfigs in this PR)" % len(paths)
         eb_config = eb_go.generate_cmd_line(add_default=True)
-        post_easyconfigs_pr_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, module_list, eb_config)
+        test_report = create_test_report(pr_nr, msg, ordered_ecs, init_state, modlist, eb_config, gist_log=True)
+        post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_state)
 
     # cleanup and spec files
     for ec in easyconfigs:

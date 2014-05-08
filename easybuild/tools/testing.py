@@ -157,20 +157,13 @@ def session_module_list():
     return modtool.list()
 
 
-def post_easyconfigs_pr_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, module_list, eb_config):
-    """Post test report in a gist, and submit comment in easyconfigs PR."""
+def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, module_list, eb_config, gist_log=False):
+    """Create test report for easyconfigs PR."""
     user = build_option('github_user')
     token= fetch_github_token(user)
 
     start_time, environ_dump, system_info = init_session_state
     end_time = gmtime()
-    short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
-        'cpu_model': system_info['cpu_model'],
-        'os_name': system_info['os_name'],
-        'os_type': system_info['os_type'],
-        'os_version': system_info['os_version'],
-        'pyver': system_info['python_version'].split(' ')[0],
-    }
     system_info = ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
     environment = ["\t%s: %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
     if module_list:
@@ -196,9 +189,9 @@ def post_easyconfigs_pr_test_report(pr_nr, success_msg, ordered_ecs, init_sessio
             else:
                 test_result += '(unknown cause, not an exception?!)'
 
-            # create gist for log file (if available)
+            # create gist for log file (if desired and available)
             test_log = ''
-            if 'log_file' in ec:
+            if gist_log and 'log_file' in ec:
                 logtxt = read_file(ec['log_file'])
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
                 descr = "(partial) EasyBuild log for failed build of %s (PR #%s)" % (ec['spec'], pr_nr)
@@ -228,12 +221,28 @@ def post_easyconfigs_pr_test_report(pr_nr, success_msg, ordered_ecs, init_sessio
     test_report.extend(["List of loaded modules:"] + module_list + [""])
     test_report.extend(["Environment:"] + environment + [""])
 
-    test_report = '\n'.join(test_report)
+    return '\n'.join(test_report)
+
+
+def post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_session_state):
+    """Post test report in a gist, and submit comment in easyconfigs PR."""
+    user = build_option('github_user')
+    token= fetch_github_token(user)
+
+    # create gist with test report
     descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
     fn = 'easybuild_test_report_easyconfigs_pr%s_%s.txt' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
     gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
 
     # post comment to report test result
+    system_info = init_session_state[2]
+    short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
+        'cpu_model': system_info['cpu_model'],
+        'os_name': system_info['os_name'],
+        'os_type': system_info['os_type'],
+        'os_version': system_info['os_version'],
+        'pyver': system_info['python_version'].split(' ')[0],
+    }
     comment_lines = [
         success_msg,
         short_system_info,
