@@ -31,6 +31,8 @@ Module with useful functions for getting system information
 import os
 import platform
 import re
+import sys
+from socket import gethostname
 from vsc import fancylogger
 try:
     # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
@@ -38,7 +40,8 @@ try:
 except ImportError:
     pass
 
-from easybuild.tools.filetools import read_file, run_cmd, which
+from easybuild.tools.filetools import read_file, which
+from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -409,3 +412,25 @@ def check_os_dependency(dep):
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
+
+
+def get_system_info():
+    """Return a dictionary with system information."""
+    gcc_version = '; '.join(run_cmd("gcc --version", simple=False, log_all=False, log_ok=False)[0].split('\n'))
+    python_version = '; '.join(sys.version.split('\n'))
+    return {
+        'core_count': get_core_count(),
+        'cpu_model': get_cpu_model(),
+        'cpu_speed': get_cpu_speed(),
+        'cpu_vendor': get_cpu_vendor(),
+        'gcc_version': gcc_version,
+        'gcc_which': which('gcc'),
+        'hostname': gethostname(),
+        'kernel_name': get_kernel_name(),
+        'os_name': get_os_name(),
+        'os_type': get_os_type(),
+        'os_version': get_os_version(),
+        'platform_name': get_platform_name(),
+        'python_version': python_version,
+        'python_which': which('python'),
+    }

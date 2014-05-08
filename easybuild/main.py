@@ -41,6 +41,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from time import gmtime, strftime
 from vsc import fancylogger
 from vsc.utils.missing import any
 
@@ -61,7 +62,8 @@ from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
-from easybuild.tools.version import this_is_easybuild  # from a single location
+from easybuild.tools.systemtools import get_system_info
+from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION, this_is_easybuild  # from a single location
 
 
 _log = None
@@ -75,12 +77,17 @@ def main(testing_data=(None, None, None)):
     - read easyconfig
     - build software
     """
+    start_time = gmtime()
+
     # disallow running EasyBuild as root
     if os.getuid() == 0:
         sys.stderr.write("ERROR: You seem to be running EasyBuild with root privileges.\n"
                          "That's not wise, so let's end this here.\n"
                          "Exiting.\n")
         sys.exit(1)
+
+    # purposely get system info very early, to avoid loaded module meddling in
+    system_info = get_system_info()
 
     # steer behavior when testing main
     testing = testing_data[0] is not None
@@ -393,6 +400,7 @@ def main(testing_data=(None, None, None)):
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
 
+        end_time = gmtime()
         success_msg += " (%d easyconfigs in this PR)" % len(paths)
 
         # create a gist with a full test report
@@ -406,7 +414,19 @@ def main(testing_data=(None, None, None)):
             "\teb %s" % ' '.join(eb_command_line),
             "",
             "Overview of tested easyconfigs (in order):",
-        ] + build_overview)
+        ] + build_overview + [
+            "",
+            "Time info:",
+            "\tstart: %s" % strftime('%a, %d %b %Y %H:%M:%S +0000 (UTC)', start_time),
+            "\tend: %s" % strftime('%a, %d %b %Y %H:%M:%S +0000 (UTC)', end_time),
+            "",
+            "EasyBuild info:",
+            "\teasybuild-framework: %s" % FRAMEWORK_VERSION,
+            "\teasybuild-easyblocks: %s" % EASYBLOCKS_VERSION,
+            "",
+            "System info:",
+        ] + ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
+        )
         descr = "Test report for easyconfigs PR #%s" % pr_nr
         fn = 'test_report_pr%s.txt' % pr_nr
         gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
@@ -417,7 +437,7 @@ def main(testing_data=(None, None, None)):
             "See %s for a full test report." % gist_url,
         ]
         comment = '\n'.join(comment_lines)
-        post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
+        #post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
 
         msg = "Test report, uploaded to %s and mentioned in a comment in easyconfigs PR#%s:\n" % (gist_url, pr_nr)
         msg += test_report
