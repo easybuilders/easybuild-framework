@@ -277,8 +277,6 @@ class EasyBuildOptions(GeneralOption):
             'github_user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
-            'regtest-online': ("Enable online regression test mode",
-                               None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",

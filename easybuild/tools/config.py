@@ -83,7 +83,6 @@ DEFAULT_BUILD_OPTIONS = {
     'modules_footer': None,
     'only_blocks': None,
     'recursive_mod_unload': False,
-    'regtest_online': False,
     'regtest_output_dir': None,
     'retain_all_deps': False,
     'robot_path': None,

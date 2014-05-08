@@ -196,7 +196,6 @@ def main(testing_data=(None, None, None)):
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
         'recursive_mod_unload': options.recursive_module_unload,
-        'regtest_online': options.regtest_online,
         'regtest_output_dir': options.regtest_output_dir,
         'retain_all_deps': retain_all_deps,
         'robot_path': robot_path,

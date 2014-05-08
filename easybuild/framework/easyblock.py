@@ -1865,11 +1865,10 @@ class EasyBlock(object):
 
         return steps
 
-    def run_all_steps(self, run_test_cases, regtest_online):
+    def run_all_steps(self, run_test_cases):
         """
         Build and install this software.
         run_test_cases (bool): run tests after building (e.g.: make test)
-        regtest_online (bool): do an online regtest, this means check the websites and try to download sources"
         """
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
@@ -1940,8 +1939,7 @@ def build_and_install_software(module, orig_environ):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
-        regtest_online = build_option('regtest_online')
-        result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
+        result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
         lastn = 300
         errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
