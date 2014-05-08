@@ -35,6 +35,11 @@ import tempfile
 import urllib
 from vsc import fancylogger
 
+try:
+    import keyring
+except ImportError:
+    pass
+
 from easybuild.tools.agithub import Github
 from easybuild.tools.filetools import mkdir
 
@@ -48,6 +53,7 @@ GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
+KEYRING_GITHUB_TOKEN = 'github_token'
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -197,8 +203,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     status, pr_data = pr_url.get()
     _log.debug("status: %d, data: %s" % (status, pr_data))
     if not status == HTTP_STATUS_OK:
-        tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, status)
-        _log.error("Failed to get data for PR #%d from %s/%s (status: %d)" % tup)
+        tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
+        _log.error("Failed to get data for PR #%d from %s/%s (status: %d %s)" % tup)
 
     # 'clean' on successful (or missing) test, 'unstable' on failed tests
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
@@ -281,3 +287,24 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
     status, data = pr_url.comments.post(body={'body': txt})
     if not status == HTTP_STATUS_CREATED:
         _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
+
+def fetch_github_token(user):
+    """Fetch GitHub token for specified user from keyring."""
+
+    token_fail_msg = "Failed to obtain GitHub token from keyring, "
+    if not 'keyring' in globals():
+        _log.error(token_fail_msg + "required Python module https://pypi.python.org/pypi/keyring is not available.")
+    github_token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+
+    if github_token is None:
+        msg = '\n'.join([
+            "Failed to obtain GitHub token for %s, required when testing easyconfig PRs." % user,
+            "Use the following procedure to install a GitHub token in your keyring:",
+            "$ python",
+            ">>> import getpass, keyring",
+            ">>> keyring.set_password('%s', '%s', getpass.getpass())" % (KEYRING_GITHUB_TOKEN, user),
+        ])
+    else:
+        msg = "Successfully obtained GitHub token for user %s from keyring." % user
+
+    return github_token, msg
