@@ -57,7 +57,7 @@ from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
+from easybuild.tools.filetools import cleanup, find_easyconfigs, read_file, search_file
 from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch_github_token, post_comment_in_issue
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import process_software_build_specs
@@ -366,28 +366,35 @@ def main(testing_data=(None, None, None)):
             txt.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
             txt.append("(%d jobs submitted)" % len(jobs))
 
-            msg = "\n".join(txt)
-            _log.info("Submitted parallel build jobs, exiting now (%s)." % msg)
-            print msg
-
+            print_msg("Submitted parallel build jobs, exiting now: %s" % '\n'.join(txt), log=_log)
             cleanup(logfile, eb_tmpdir, testing)
-
             sys.exit(0)
 
-    # build software, will exit when errors occurs (except when regtesting)
+    # build software, will exit when errors occurs (except when testing)
+    exit_on_failure = options.test_easyconfigs_pr is None
     correct_built_cnt = 0
     all_built_cnt = 0
     if not testing or (testing and do_build):
         for ec in ordered_ecs:
             try:
-                (ec['success'], app_log) = build_and_install_software(ec, orig_environ)
-                ec['eb_log'] = app_log
+                (ec['success'], app_log, err) = build_and_install_software(ec, orig_environ)
+                ec['log_file'] = app_log
+                if not ec['success']:
+                    ec['err'] = EasyBuildError(err)
             except Exception, err:
                 # purposely catch all exceptions
                 ec['success'] = False
                 ec['err'] = err
+
+            # keep track of success/total count
             if ec['success']:
                 correct_built_cnt += 1
+            else:
+                if exit_on_failure:
+                    msg = "Build of %s failed" % ec['spec']
+                    if 'err' in ec:
+                        msg += " (err: %s)" % ec['err']
+                    _log.error(msg)
             all_built_cnt += 1
 
     success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt)
@@ -395,18 +402,6 @@ def main(testing_data=(None, None, None)):
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
-
-    # cleanup and spec files
-    for ec in easyconfigs:
-        if 'original_spec' in ec and os.path.isfile(ec['spec']):
-            os.remove(ec['spec'])
-
-    # cleanup tmp log file (all is well, all modules have their own log file)
-    if options.logtostdout:
-        fancylogger.logToScreen(enable=False, stdout=True)
-    else:
-        fancylogger.logToFile(logfile, enable=False)
-    cleanup(logfile, eb_tmpdir, testing)
 
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
@@ -436,6 +431,7 @@ def main(testing_data=(None, None, None)):
                 test_result = 'SUCCESS'
                 correct_built_cnt += 1
             else:
+                # compose test result string
                 test_result = 'FAIL '
                 if 'err' in ec:
                     if isinstance(ec['err'], EasyBuildError):
@@ -444,7 +440,19 @@ def main(testing_data=(None, None, None)):
                         test_result += '(unhandled exception: %s)' % ec['err'].__class__.__name__
                 else:
                     test_result += '(unknown cause, not an exception?!)'
-            build_overview.append("\t[%s] %s" % (test_result, os.path.basename(ec['spec'])))
+
+                # create gist for log file (if available)
+                test_log = ''
+                if 'log_file' in ec:
+                    logtxt = read_file(ec['log_file'])
+                    partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
+                    descr = "(partial) EasyBuild log for failed build of %s (PR #%s)" % (ec['spec'], pr_nr)
+                    fn = '%s.log' % os.path.basename(ec['spec'])[:-3]
+                    gist_url = create_gist(partial_log_txt, descr=descr, fn=fn,
+                                           github_user=options.github_user, github_token=github_token)
+                    test_log = "(partial log available at %s)" % gist_url
+
+            build_overview.append("\t[%s] %s %s" % (test_result, os.path.basename(ec['spec']), test_log))
         test_report.extend(["Overview of tested easyconfigs (in order):"] + build_overview + [""])
 
         time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
@@ -469,7 +477,8 @@ def main(testing_data=(None, None, None)):
         test_report = '\n'.join(test_report)
         descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
         fn = 'easybuild_test_report_easyconfigs_pr%s_%s.txt' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
-        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
+        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user,
+                               github_token=github_token)
 
         # post comment to report test result
         comment_lines = [
@@ -483,6 +492,18 @@ def main(testing_data=(None, None, None)):
         msg = "Test report, uploaded to %s and mentioned in a comment in easyconfigs PR#%s:\n" % (gist_url, pr_nr)
         msg += test_report
         print_msg(msg)
+
+    # cleanup and spec files
+    for ec in easyconfigs:
+        if 'original_spec' in ec and os.path.isfile(ec['spec']):
+            os.remove(ec['spec'])
+
+    # cleanup tmp log file (all is well, all modules have their own log file)
+    if options.logtostdout:
+        fancylogger.logToScreen(enable=False, stdout=True)
+    else:
+        fancylogger.logToFile(logfile, enable=False)
+    cleanup(logfile, eb_tmpdir, testing)
 
 if __name__ == "__main__":
     try:
