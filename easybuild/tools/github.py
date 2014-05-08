@@ -54,6 +54,7 @@ GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
+URL_SEP = "/"
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -81,7 +82,7 @@ class Githubfs(object):
     def join(*args):
         """This method joins 'paths' inside a github repository"""
         args = [x for x in args if x]
-        return os.path.sep.join(args)
+        return URL_SEP.join(args)
 
     def get_repo(self):
         """Returns the repo as a Github object (from agithub)"""
@@ -91,7 +92,7 @@ class Githubfs(object):
         """returns the path as a Github object (from agithub)"""
         endpoint = self.get_repo()['contents']
         if path:
-            for subpath in path.split(os.path.sep):
+            for subpath in path.split(URL_SEP):
                 endpoint = endpoint[subpath]
         return endpoint
 
@@ -239,7 +240,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     # obtain most recent version of patched files
     for patched_file in patched_files:
         fn = os.path.basename(patched_file)
-        full_url = os.path.join(GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file)
+        full_url = URL_SEP.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
         download(full_url, os.path.join(path, fn))
 
@@ -294,6 +295,9 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
 
+    if user is None:
+        _log.error("No GitHub user name provided, required for fetching GitHub token.")
+
     token_fail_msg = "Failed to obtain GitHub token from keyring, "
     if not 'keyring' in globals():
         _log.error(token_fail_msg + "required Python module https://pypi.python.org/pypi/keyring is not available.")
@@ -301,13 +305,14 @@ def fetch_github_token(user):
 
     if github_token is None:
         msg = '\n'.join([
-            "Failed to obtain GitHub token for %s, required when testing easyconfig PRs." % user,
+            "Failed to obtain GitHub token for %s" % user,
             "Use the following procedure to install a GitHub token in your keyring:",
             "$ python",
             ">>> import getpass, keyring",
             ">>> keyring.set_password('%s', '%s', getpass.getpass())" % (KEYRING_GITHUB_TOKEN, user),
         ])
+        _log.error(msg)
     else:
-        msg = "Successfully obtained GitHub token for user %s from keyring." % user
+        _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
 
-    return github_token, msg
+    return github_token

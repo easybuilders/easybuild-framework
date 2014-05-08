@@ -57,15 +57,13 @@ from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, find_easyconfigs, read_file, search_file
-from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch_github_token, post_comment_in_issue
-from easybuild.tools.modules import modules_tool
+from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_github_token
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import get_system_info
-from easybuild.tools.testing import regtest
-from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION, this_is_easybuild  # from a single location
+from easybuild.tools.testing import post_easyconfigs_pr_test_report, regtest, session_module_list, session_state
+from easybuild.tools.version import this_is_easybuild  # from a single location
 
 
 _log = None
@@ -79,7 +77,9 @@ def main(testing_data=(None, None, None)):
     - read easyconfig
     - build software
     """
-    start_time = gmtime()
+
+    # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
+    init_session_state = session_state()
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -87,10 +87,6 @@ def main(testing_data=(None, None, None)):
                          "That's not wise, so let's end this here.\n"
                          "Exiting.\n")
         sys.exit(1)
-
-    # purposely get environment/system info very early, to avoid modules loaded by EasyBuild meddling in
-    environ_dump = copy.deepcopy(os.environ)
-    system_info = get_system_info()
 
     # steer behavior when testing main
     testing = testing_data[0] is not None
@@ -145,13 +141,7 @@ def main(testing_data=(None, None, None)):
     # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
     github_token = None
     if options.test_easyconfigs_pr:
-        if options.github_user is None:
-            _log.error("No GitHub user name provided, required when testing easyconfig PRs.")
-        github_token, msg = fetch_github_token(options.github_user)
-        if github_token is None:
-            _log.error(msg)
-        else:
-            _log.info(msg)
+        github_token = fetch_github_token(options.github_user)
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
@@ -192,6 +182,7 @@ def main(testing_data=(None, None, None)):
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,
+        'github_user': options.github_user,
         'group': options.group,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
@@ -213,9 +204,8 @@ def main(testing_data=(None, None, None)):
         'validate': not options.force,
     })
 
-    # obtain list of loaded modules
-    modtool = modules_tool()
-    module_list = modtool.list()
+    # obtain list of loaded modules, build options must be initialized first
+    module_list = session_module_list()
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -406,93 +396,9 @@ def main(testing_data=(None, None, None)):
 
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
-
-        end_time = gmtime()
         success_msg += " (%d easyconfigs in this PR)" % len(paths)
-        short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
-            'cpu_model': system_info['cpu_model'],
-            'os_name': system_info['os_name'],
-            'os_type': system_info['os_type'],
-            'os_version': system_info['os_version'],
-            'pyver': system_info['python_version'].split(' ')[0],
-        }
-        system_info = ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
-        environment = ["\t%s: %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
-        if module_list:
-            module_list = ["\t%s" % mod['mod_name'] for mod in module_list]
-        else:
-            module_list = ["\t(none)"]
-
-        # create a gist with a full test report
-        test_report = ["Test result:", "\t%s" % success_msg, ""]
-
-        build_overview = []
-        for ec in ordered_ecs:
-            if ec['success']:
-                test_result = 'SUCCESS'
-                correct_built_cnt += 1
-            else:
-                # compose test result string
-                test_result = 'FAIL '
-                if 'err' in ec:
-                    if isinstance(ec['err'], EasyBuildError):
-                        test_result += '(build issue)'
-                    else:
-                        test_result += '(unhandled exception: %s)' % ec['err'].__class__.__name__
-                else:
-                    test_result += '(unknown cause, not an exception?!)'
-
-                # create gist for log file (if available)
-                test_log = ''
-                if 'log_file' in ec:
-                    logtxt = read_file(ec['log_file'])
-                    partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
-                    descr = "(partial) EasyBuild log for failed build of %s (PR #%s)" % (ec['spec'], pr_nr)
-                    fn = '%s.log' % os.path.basename(ec['spec'])[:-3]
-                    gist_url = create_gist(partial_log_txt, descr=descr, fn=fn,
-                                           github_user=options.github_user, github_token=github_token)
-                    test_log = "(partial log available at %s)" % gist_url
-
-            build_overview.append("\t[%s] %s %s" % (test_result, os.path.basename(ec['spec']), test_log))
-        test_report.extend(["Overview of tested easyconfigs (in order):"] + build_overview + [""])
-
-        time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
-        start_time = strftime(time_format, start_time)
-        end_time = strftime(time_format, end_time)
-        test_report.extend(["Time info:", "\tstart: %s" % start_time, "\tend: %s" % end_time, ""])
-
-        eb_config = ["\t\t%s" % x for x in sorted(eb_go.generate_cmd_line(add_default=True))]
-        test_report.extend([
-            "EasyBuild info:",
-            "\teasybuild-framework version: %s" % FRAMEWORK_VERSION,
-            "\teasybuild-easyblocks version: %s" % EASYBLOCKS_VERSION,
-            "\tcommand line:",
-            "\t\teb %s" % ' '.join(sys.argv[1:]),
-            "\tfull configuration (includes defaults):",
-        ] + eb_config + [""])
-
-        test_report.extend(["System info:"] + system_info + [""])
-        test_report.extend(["List of loaded modules:"] + module_list + [""])
-        test_report.extend(["Environment:"] + environment + [""])
-
-        test_report = '\n'.join(test_report)
-        descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
-        fn = 'easybuild_test_report_easyconfigs_pr%s_%s.txt' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
-        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user,
-                               github_token=github_token)
-
-        # post comment to report test result
-        comment_lines = [
-            success_msg,
-            short_system_info,
-            "See %s for a full test report." % gist_url,
-        ]
-        comment = '\n'.join(comment_lines)
-        post_comment_in_issue(pr_nr, comment, github_user=options.github_user, github_token=github_token)
-
-        msg = "Test report, uploaded to %s and mentioned in a comment in easyconfigs PR#%s:\n" % (gist_url, pr_nr)
-        msg += test_report
-        print_msg(msg)
+        eb_config = eb_go.generate_cmd_line(add_default=True)
+        post_easyconfigs_pr_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, module_list, eb_config)
 
     # cleanup and spec files
     for ec in easyconfigs:
