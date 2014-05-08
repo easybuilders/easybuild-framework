@@ -59,6 +59,7 @@ from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
 from easybuild.tools.github import create_gist, fetch_easyconfigs_from_pr, fetch_github_token, post_comment_in_issue
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel, regtest
 from easybuild.tools.repository import init_repository
@@ -86,7 +87,8 @@ def main(testing_data=(None, None, None)):
                          "Exiting.\n")
         sys.exit(1)
 
-    # purposely get system info very early, to avoid loaded module meddling in
+    # purposely get environment/system info very early, to avoid modules loaded by EasyBuild meddling in
+    environ_dump = copy.deepcopy(os.environ)
     system_info = get_system_info()
 
     # steer behavior when testing main
@@ -210,6 +212,10 @@ def main(testing_data=(None, None, None)):
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         'validate': not options.force,
     })
+
+    # obtain list of loaded modules
+    modtool = modules_tool()
+    module_list = modtool.list()
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -402,36 +408,6 @@ def main(testing_data=(None, None, None)):
 
         end_time = gmtime()
         success_msg += " (%d easyconfigs in this PR)" % len(paths)
-
-        # create a gist with a full test report
-        ok_or_fail = ("FAIL", "OK")  # False == 0, True == 1
-        build_overview = ["\t[%s] %s" % (ok_or_fail[ec['success']], os.path.basename(ec['spec'])) for ec in ordered_ecs]
-        test_report = '\n'.join([
-            "Test result:",
-            "\t%s" % success_msg,
-            "",
-            "EasyBuild command line:",
-            "\teb %s" % ' '.join(eb_command_line),
-            "",
-            "Overview of tested easyconfigs (in order):",
-        ] + build_overview + [
-            "",
-            "Time info:",
-            "\tstart: %s" % strftime('%a, %d %b %Y %H:%M:%S +0000 (UTC)', start_time),
-            "\tend: %s" % strftime('%a, %d %b %Y %H:%M:%S +0000 (UTC)', end_time),
-            "",
-            "EasyBuild info:",
-            "\teasybuild-framework: %s" % FRAMEWORK_VERSION,
-            "\teasybuild-easyblocks: %s" % EASYBLOCKS_VERSION,
-            "",
-            "System info:",
-        ] + ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
-        )
-        descr = "Test report for easyconfigs PR #%s" % pr_nr
-        fn = 'test_report_pr%s.txt' % pr_nr
-        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
-
-        # post comment to report test result
         short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
             'cpu_model': system_info['cpu_model'],
             'os_name': system_info['os_name'],
@@ -439,6 +415,45 @@ def main(testing_data=(None, None, None)):
             'os_version': system_info['os_version'],
             'pyver': system_info['python_version'].split(' ')[0],
         }
+        system_info = ["\t%s: %s" % (key, system_info[key]) for key in sorted(system_info.keys())]
+        environment = ["\t%s: %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
+        if module_list:
+            module_list = ["\t%s" % mod['mod_name'] for mod in module_list]
+        else:
+            module_list = ["\t(none)"]
+
+        # create a gist with a full test report
+        test_report = ["Test result:", "\t%s" % success_msg, ""]
+
+        ok_or_fail = ("FAIL", "OK")  # False == 0, True == 1
+        build_overview = ["\t[%s] %s" % (ok_or_fail[ec['success']], os.path.basename(ec['spec'])) for ec in ordered_ecs]
+        test_report.extend(["Overview of tested easyconfigs (in order):"] + build_overview + [""])
+
+        time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
+        start_time = strftime(time_format, start_time)
+        end_time = strftime(time_format, end_time)
+        test_report.extend(["Time info:", "\tstart: %s" % start_time, "\tend: %s" % end_time, ""])
+
+        eb_config = ["\t\t%s" % x for x in sorted(eb_go.generate_cmd_line(add_default=True))]
+        test_report.extend([
+            "EasyBuild info:",
+            "\teasybuild-framework version: %s" % FRAMEWORK_VERSION,
+            "\teasybuild-easyblocks version: %s" % EASYBLOCKS_VERSION,
+            "\tcommand line:",
+            "\t\teb %s" % ' '.join(sys.argv[1:]),
+            "\tfull configuration (includes defaults):",
+        ] + eb_config + [""])
+
+        test_report.extend(["System info:"] + system_info + [""])
+        test_report.extend(["List of loaded modules:"] + module_list + [""])
+        test_report.extend(["Environment:"] + environment + [""])
+
+        test_report = '\n'.join(test_report)
+        descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
+        fn = 'easybuild_test_report_easyconfigs_pr%s_%s.txt' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
+        gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=options.github_user, github_token=github_token)
+
+        # post comment to report test result
         comment_lines = [
             success_msg,
             short_system_info,

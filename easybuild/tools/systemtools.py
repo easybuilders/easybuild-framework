@@ -417,6 +417,7 @@ def check_os_dependency(dep):
 def get_system_info():
     """Return a dictionary with system information."""
     gcc_version = '; '.join(run_cmd("gcc --version", simple=False, log_all=False, log_ok=False)[0].split('\n'))
+    libc_version = '; '.join(run_cmd("ldd --version", simple=False, log_all=False, log_ok=False)[0].split('\n'))
     python_version = '; '.join(sys.version.split('\n'))
     return {
         'core_count': get_core_count(),
@@ -424,13 +425,14 @@ def get_system_info():
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),
         'gcc_version': gcc_version,
-        'gcc_which': which('gcc'),
         'hostname': gethostname(),
+        'libc_version': libc_version,
         'kernel_name': get_kernel_name(),
         'os_name': get_os_name(),
         'os_type': get_os_type(),
         'os_version': get_os_version(),
         'platform_name': get_platform_name(),
         'python_version': python_version,
-        'python_which': which('python'),
+        'system_python_path': which('python'),
+        'system_gcc_path': which('gcc'),
     }
