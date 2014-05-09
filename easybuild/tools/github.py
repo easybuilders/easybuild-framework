@@ -292,11 +292,15 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
     if not status == HTTP_STATUS_CREATED:
         _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
 
-def fetch_github_token(user):
+def fetch_github_token(user, require_token=False):
     """Fetch GitHub token for specified user from keyring."""
 
     if user is None:
-        _log.error("No GitHub user name provided, required for fetching GitHub token.")
+        msg = "No GitHub user name provided, required for fetching GitHub token."
+        if require_token:
+            _log.error(msg)
+        else:
+            _log.warning(msg)
 
     token_fail_msg = "Failed to obtain GitHub token from keyring, "
     if not 'keyring' in globals():
@@ -304,12 +308,11 @@ def fetch_github_token(user):
     github_token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
 
     if github_token is None:
+        python_cmd = ""
         msg = '\n'.join([
             "Failed to obtain GitHub token for %s" % user,
             "Use the following procedure to install a GitHub token in your keyring:",
-            "$ python",
-            ">>> import getpass, keyring",
-            ">>> keyring.set_password('%s', '%s', getpass.getpass())" % (KEYRING_GITHUB_TOKEN, user),
+            "$ python -c 'import getpass, keyring; 'keyring.set_password(\"%s\", \"%s\", getpass.getpass())'" % (KEYRING_GITHUB_TOKEN, user),
         ])
         _log.error(msg)
     else:

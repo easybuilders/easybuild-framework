@@ -158,6 +158,7 @@ def write_file(path, txt):
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
+        mkdir(os.path.dirname(path), parents=True)
         f = open(path, 'w')
         f.write(txt)
         f.close()

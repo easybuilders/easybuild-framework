@@ -157,7 +157,7 @@ def session_module_list():
     return modtool.list()
 
 
-def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, module_list, eb_config, gist_log=False):
+def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_config, pr_nr=None, gist_log=False):
     """Create test report for easyconfigs PR."""
     user = build_option('github_user')
     token= fetch_github_token(user)
@@ -166,13 +166,17 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
     end_time = gmtime()
 
     # create a gist with a full test report
-    test_report = [
-        "Test report for https://github.com/hpcugent/easybuild-easyconfigs/pull/%s" % pr_nr,
-        "",
+    test_report = []
+    if pr_nr is not None:
+        test_report.extend([
+            "Test report for https://github.com/hpcugent/easybuild-easyconfigs/pull/%s" % pr_nr,
+            "",
+        ])
+    test_report.extend([
         "#### Test result",
-        "%s" % success_msg,
+        "%s" % msg,
         "",
-    ]
+    ])
 
     build_overview = []
     for ec in ordered_ecs:
@@ -194,7 +198,9 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
             if gist_log and 'log_file' in ec:
                 logtxt = read_file(ec['log_file'])
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
-                descr = "(partial) EasyBuild log for failed build of %s (PR #%s)" % (ec['spec'], pr_nr)
+                descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
+                if pr_nr is not None:
+                    descr += " (PR #%s)" % pr_nr
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                 gist_url = create_gist(partial_log_txt, descr=descr, fn=fn, github_user=user, github_token=token)
                 test_log = "(partial log available at %s)" % gist_url
@@ -235,7 +241,7 @@ def create_test_report(pr_nr, success_msg, ordered_ecs, init_session_state, modu
     return '\n'.join(test_report)
 
 
-def post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_session_state):
+def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
     user = build_option('github_user')
     token= fetch_github_token(user)
@@ -255,7 +261,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_sessio
         'pyver': system_info['python_version'].split(' ')[0],
     }
     comment_lines = [
-        success_msg,
+        msg,
         short_system_info,
         "See %s for a full test report." % gist_url,
     ]

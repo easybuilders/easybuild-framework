@@ -57,7 +57,7 @@ from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file
+from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_github_token
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
@@ -141,8 +141,10 @@ def main(testing_data=(None, None, None)):
 
     # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
     github_token = None
-    if options.test_easyconfigs_pr:
-        github_token = fetch_github_token(options.github_user)
+    pr_nr = options.test_easyconfigs_pr or options.from_pr
+    if pr_nr:
+        # a GitHub token is only strictly required when testing a PR (to post gists/comments)
+        github_token = fetch_github_token(options.github_user, require_token=options.test_easyconfigs_pr is not None)
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
@@ -223,7 +225,6 @@ def main(testing_data=(None, None, None)):
     (try_to_generate, build_specs) = process_software_build_specs(options)
 
     paths = []
-    pr_nr = options.test_easyconfigs_pr or options.from_pr
     if len(orig_paths) == 0:
         if pr_nr is not None:
             pr_path = os.path.join(eb_tmpdir, "files_pr%s" % pr_nr)
@@ -363,7 +364,7 @@ def main(testing_data=(None, None, None)):
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
-    exit_on_failure = options.test_easyconfigs_pr is None
+    exit_on_failure = options.test_easyconfigs_pr is None and options.dump_test_report is None
     correct_built_cnt = 0
     all_built_cnt = 0
     if not testing or (testing and do_build):
@@ -396,11 +397,17 @@ def main(testing_data=(None, None, None)):
     repo.cleanup()
 
     # report back in PR in case of testing
+    eb_config = eb_go.generate_cmd_line(add_default=True)
     if options.test_easyconfigs_pr:
         msg = success_msg + " (%d easyconfigs in this PR)" % len(paths)
-        eb_config = eb_go.generate_cmd_line(add_default=True)
-        test_report = create_test_report(pr_nr, msg, ordered_ecs, init_state, modlist, eb_config, gist_log=True)
+        test_report = create_test_report(msg, ordered_ecs, init_state, modlist, eb_config, pr_nr=pr_nr, gist_log=True)
         post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_state)
+    else:
+        test_report = create_test_report(success_msg, ordered_ecs, init_state, modlist, eb_config)
+    _log.debug("Test report: %s" % test_report)
+    if options.dump_test_report is not None:
+        write_file(options.dump_test_report, test_report)
+        _log.info("Test report dumped to %s" % options.dump_test_report)
 
     # cleanup and spec files
     for ec in easyconfigs:
