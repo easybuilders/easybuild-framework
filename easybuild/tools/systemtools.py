@@ -428,7 +428,8 @@ def get_libc_version():
         if libc_regex is not None:
             _log.debug("Found libc %s" % libc_regex.group(1))
             return libc_regex.group(1)
-
+        else:
+            _log.error("Could not determine the libc version")
     else:
         _log.info("Not yet implemented...")
         return None
