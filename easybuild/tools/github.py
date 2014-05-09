@@ -214,7 +214,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
     if not stable:
         tup = (pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
-        _log.error("Mergeable state for PR #%d is not '%s': %s." % tup)
+        _log.warning("Mergeable state for PR #%d is not '%s': %s." % tup)
 
     for key in sorted(pr_data.keys()):
         _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
