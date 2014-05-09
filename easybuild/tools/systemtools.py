@@ -96,7 +96,7 @@ def get_avail_core_count():
             f = open("/proc/%s/status" % mypid, 'r')
             txt = f.read()
             f.close()
-            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
+            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M | re.I)
         except IOError:
             cpuset = None
 
@@ -212,7 +212,7 @@ def get_cpu_speed():
     os_type = get_os_type()
     if os_type == LINUX:
         try:
-             # Linux with cpu scaling
+            # Linux with cpu scaling
             max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
             try:
                 f = open(max_freq_fp, 'r')
@@ -409,3 +409,26 @@ def check_os_dependency(dep):
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
+
+
+def get_libc_version():
+    """
+    Find the version of glibc used on this system
+    """
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        out, ec = run_cmd("ldd --version", log_ok=False)
+
+        if ec:
+            _log.error("Cannot determine libc version")
+
+        libc_regex = re.search(r"^ldd \(.*\) ([0-9.]+)$", out, re.M)
+
+        if libc_regex is not None:
+            _log.debug("Found libc %s" % libc_regex.group(1))
+            return libc_regex.group(1)
+
+    else:
+        _log.info("Not yet implemented...")
+        return None
