@@ -516,6 +516,20 @@ def extract_cmd(fn, overwrite=False):
     return ftype % fn
 
 
+def det_patched_files(patch):
+    """Determine list of patched files from a patch."""
+    # expected format: "+++ path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex = re.compile(r"^\s*\+\+\+\s+([ab]/)?(?P<file>\S+)", re.M)
+    try:
+        f = open(patch, 'r')
+        txt = f.read()
+        f.close()
+    except IOError, err:
+        _log.error("Failed to read patch: %s" % patch)
+
+    return [x.group('file') for x in patched_regex.finditer(txt)]
+
 def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
@@ -560,30 +574,16 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
         # - we will try to match that level from current directory
-        patchreg = re.compile(r"^\s*\+\+\+\s+(?P<file>\S+)")
-        try:
-            f = open(apatch)
-            txt = "ok"
-            plusLines = []
-            while txt:
-                txt = f.readline()
-                found = patchreg.search(txt)
-                if found:
-                    plusLines.append(found)
-            f.close()
-        except IOError, err:
-            _log.error("Can't read patch %s: %s" % (apatch, err))
-            return
+        patched_files = det_patched_files(apatch)
 
-        if not plusLines:
+        if not patched_files:
             _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
             return
 
         p = None
-        for line in plusLines:
+        for patched_file in patched_files:
             # locate file by stripping of /
-            f = line.group('file')
-            tf2 = f.split('/')
+            tf2 = patched_file.split('/')
             n = len(tf2)
             plusFound = False
             i = None
@@ -595,7 +595,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
                 p = i
                 break
             else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
+                _log.debug('No match found for %s, trying next +++ line of patch file...' % patched_file)
 
         if p is None:  # p can also be zero, so don't use "not p"
             # no match
