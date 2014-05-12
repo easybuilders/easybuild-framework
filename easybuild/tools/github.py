@@ -31,6 +31,7 @@ Utility module for working with github
 import base64
 import os
 import re
+import socket
 import tempfile
 import urllib
 from vsc import fancylogger
@@ -41,7 +42,7 @@ except ImportError:
     pass
 
 from easybuild.tools.agithub import Github
-from easybuild.tools.filetools import mkdir
+from easybuild.tools.filetools import det_patched_files, mkdir
 
 
 GITHUB_DIR_TYPE = u'dir'
@@ -181,6 +182,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         """Download file from specified URL to specified path."""
         try:
             _, httpmsg = urllib.urlretrieve(url, path)
+            _log.debug("Downloaded %s to %s" % (url, path))
         except IOError, err:
             _log.error("Failed to download %s to %s: %s" % (url, path, err))
 
@@ -204,7 +206,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     # fetch data for specified PR
     g = Github(username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
-    status, pr_data = pr_url.get()
+    try:
+        status, pr_data = pr_url.get()
+    except socket.gaierror, err:
+        status, pr_data = 0, None
     _log.debug("status: %d, data: %s" % (status, pr_data))
     if not status == HTTP_STATUS_OK:
         tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
@@ -216,20 +221,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         tup = (pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
         _log.warning("Mergeable state for PR #%d is not '%s': %s." % tup)
 
-    for key in sorted(pr_data.keys()):
-        _log.debug("\n%s:\n\n%s\n" % (key, pr_data[key]))
+    for key, val in sorted(pr_data.items()):
+        _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # determine list of changed files via diff
     diff_path = os.path.join(path, os.path.basename(pr_data['diff_url']))
     download(pr_data['diff_url'], diff_path)
 
-    diff_lines = open(diff_path).readlines()
-    patched_regex = re.compile('^\+\+\+ [a-z]/(.*)$')
-    patched_files = []
-    for line in diff_lines:
-        res = patched_regex.search(line)
-        if res:
-            patched_files.append(res.group(1))
+    patched_files = det_patched_files(diff_path)
+    _log.debug("List of patches files: %s" % patched_files)
     os.remove(diff_path)
 
     # obtain last commit
@@ -314,7 +314,10 @@ def fetch_github_token(user, require_token=False):
             "Use the following procedure to install a GitHub token in your keyring:",
             "$ python -c 'import getpass, keyring; 'keyring.set_password(\"%s\", \"%s\", getpass.getpass())'" % (KEYRING_GITHUB_TOKEN, user),
         ])
-        _log.error(msg)
+        if require_token:
+            _log.error(msg)
+        else:
+            _log.warning(msg)
     else:
         _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
 
