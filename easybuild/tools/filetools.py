@@ -752,6 +752,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     if sticky is None:
         sticky = build_option('sticky_bit')
 
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
+
     # exit early if path already exists
     if not os.path.exists(path):
         tup = (path, parents, set_gid, sticky)
