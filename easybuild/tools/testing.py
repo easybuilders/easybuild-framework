@@ -180,6 +180,7 @@ def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_con
 
     build_overview = []
     for ec in ordered_ecs:
+        test_log = ''
         if ec['success']:
             test_result = 'SUCCESS'
         else:
@@ -194,7 +195,6 @@ def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_con
                 test_result += '(unknown cause, not an exception?!)'
 
             # create gist for log file (if desired and available)
-            test_log = ''
             if gist_log and 'log_file' in ec:
                 logtxt = read_file(ec['log_file'])
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
