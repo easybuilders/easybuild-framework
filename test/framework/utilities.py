@@ -149,6 +149,9 @@ class EnhancedTestCase(TestCase):
 
         os.chdir(self.cwd)
 
+        # make sure config is reinitialized
+        init_config()
+
         if return_error:
             return read_file(self.logfile), myerr
         else:
@@ -166,6 +169,7 @@ def init_config(args=None, build_options=None):
     eb_go = eboptions.parse_options(args=args)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+    # initialize build options
     if build_options is None:
         build_options = {
             'valid_module_classes': module_classes(),

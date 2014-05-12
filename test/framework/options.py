@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader
 from unittest import main as unittestmain
 
