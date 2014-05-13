@@ -1889,7 +1889,7 @@ class EasyBlock(object):
         return True
 
 
-def build_and_install_software(module, orig_environ):
+def build_and_install_one(module, orig_environ):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
@@ -2033,6 +2033,34 @@ def build_and_install_software(module, orig_environ):
 
     return (success, application_log, errormsg)
 
+
+def build_and_install_software(ecs, orig_environ, exit_on_failure=True):
+    """Build and install software for all provided parsed easyconfig files."""
+    correct_built_cnt = 0
+    # don't modify in-place
+    ecs = copy.deepcopy(ecs)
+    for ec in ecs:
+        try:
+            (ec['success'], app_log, err) = build_and_install_one(ec, orig_environ)
+            ec['log_file'] = app_log
+            if not ec['success']:
+                ec['err'] = EasyBuildError(err)
+        except Exception, err:
+            # purposely catch all exceptions
+            ec['success'] = False
+            ec['err'] = err
+
+        # keep track of success/total count
+        if ec['success']:
+            correct_built_cnt += 1
+        else:
+            if exit_on_failure:
+                msg = "Build of %s failed" % ec['spec']
+                if 'err' in ec:
+                    msg += " (err: %s)" % ec['err']
+                _log.error(msg)
+
+    return ecs
 
 def get_easyblock_instance(easyconfig):
     """

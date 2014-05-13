@@ -365,33 +365,11 @@ def main(testing_data=(None, None, None)):
 
     # build software, will exit when errors occurs (except when testing)
     exit_on_failure = options.test_easyconfigs_pr is None and options.dump_test_report is None
-    correct_built_cnt = 0
-    all_built_cnt = 0
     if not testing or (testing and do_build):
-        for ec in ordered_ecs:
-            try:
-                (ec['success'], app_log, err) = build_and_install_software(ec, orig_environ)
-                ec['log_file'] = app_log
-                if not ec['success']:
-                    ec['err'] = EasyBuildError(err)
-            except Exception, err:
-                # purposely catch all exceptions
-                ec['success'] = False
-                ec['err'] = err
+        correct_built_cnt = build_and_install_software(ordered_ecs, orig_environ, exit_on_failure=exit_on_failure)
 
-            # keep track of success/total count
-            if ec['success']:
-                correct_built_cnt += 1
-            else:
-                if exit_on_failure:
-                    msg = "Build of %s failed" % ec['spec']
-                    if 'err' in ec:
-                        msg += " (err: %s)" % ec['err']
-                    _log.error(msg)
-            all_built_cnt += 1
-
-    overall_success = correct_built_cnt == all_built_cnt
-    success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt)
+    overall_success = correct_built_cnt == len(ordered_ecs)
+    success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, len(ordered_ecs))
     print_msg(success_msg, log=_log, silent=testing)
 
     repo = init_repository(get_repository(), get_repositorypath())
