@@ -516,17 +516,20 @@ def extract_cmd(fn, overwrite=False):
     return ftype % fn
 
 
-def det_patched_files(patch):
+def det_patched_files(path=None, txt=None):
     """Determine list of patched files from a patch."""
     # expected format: "+++ path/to/patched/file"
     # also take into account the 'a/' or 'b/' prefix that may be used
     patched_regex = re.compile(r"^\s*\+\+\+\s+([ab]/)?(?P<file>\S+)", re.M)
-    try:
-        f = open(patch, 'r')
-        txt = f.read()
-        f.close()
-    except IOError, err:
-        _log.error("Failed to read patch: %s" % patch)
+    if path is not None:
+        try:
+            f = open(path, 'r')
+            txt = f.read()
+            f.close()
+        except IOError, err:
+            _log.error("Failed to read patch %s: %s" % (path, err))
+    elif txt is None:
+        _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
 
     return [x.group('file') for x in patched_regex.finditer(txt)]
 
@@ -574,7 +577,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
         # - we will try to match that level from current directory
-        patched_files = det_patched_files(apatch)
+        patched_files = det_patched_files(path=apatch)
 
         if not patched_files:
             _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)

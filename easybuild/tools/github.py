@@ -34,6 +34,7 @@ import re
 import socket
 import tempfile
 import urllib
+import urllib2
 from vsc import fancylogger
 
 try:
@@ -178,16 +179,22 @@ class GithubError(Exception):
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None):
     """Fetch patched easyconfig files for a particular PR."""
 
-    def download(url, path):
+    def download(url, path=None):
         """Download file from specified URL to specified path."""
-        try:
-            _, httpmsg = urllib.urlretrieve(url, path)
-            _log.debug("Downloaded %s to %s" % (url, path))
-        except IOError, err:
-            _log.error("Failed to download %s to %s: %s" % (url, path, err))
+        if path is not None:
+            try:
+                _, httpmsg = urllib.urlretrieve(url, path)
+                _log.debug("Downloaded %s to %s" % (url, path))
+            except IOError, err:
+                _log.error("Failed to download %s to %s: %s" % (url, path, err))
 
-        if not httpmsg.type == 'text/plain':
-            _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
+            if not httpmsg.type == 'text/plain':
+                _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
+        else:
+            try:
+                return urllib2.urlopen(url).read()
+            except urllib2.URLError, err:
+                _log.error("Failed to open %s for reading: %s" % (url, err))
 
     if not isinstance(pr, int):
         try:
@@ -225,12 +232,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # determine list of changed files via diff
-    diff_path = os.path.join(path, os.path.basename(pr_data['diff_url']))
-    download(pr_data['diff_url'], diff_path)
+    diff_txt = download(pr_data['diff_url'])
 
-    patched_files = det_patched_files(diff_path)
+    patched_files = det_patched_files(txt=diff_txt)
     _log.debug("List of patches files: %s" % patched_files)
-    os.remove(diff_path)
 
     # obtain last commit
     status, commits_data = pr_url.commits.get()
@@ -242,7 +247,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
         fn = os.path.basename(patched_file)
         full_url = URL_SEP.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
-        download(full_url, os.path.join(path, fn))
+        download(full_url, path=os.path.join(path, fn))
 
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)
