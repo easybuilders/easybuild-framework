@@ -91,7 +91,7 @@ class Client(object):
         headers['User-Agent'] = self.username
     else:
         headers['User-Agent'] = 'agithub'
-    req = 'cli request: %s, %s, %s %s', method, url, body, headers
+    req = 'cli request: %s, %s, %s %s' % (method, url, body, headers)
     fancylogger.getLogger().debug(req)
     #TODO: Context manager
     conn = self.get_connection()
