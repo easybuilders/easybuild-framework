@@ -52,7 +52,7 @@ def get_build_stats(app, start_time, command_line):
         ('command_line', command_line),
         ('modules_tool', app.modules_tool.buildstats()),
     ])
-    for key, val in sorted(get_system_info()):
+    for key, val in sorted(get_system_info().items()):
         buildstats.update({key: val})
 
     return buildstats
