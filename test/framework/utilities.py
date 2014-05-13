@@ -130,7 +130,7 @@ class EnhancedTestCase(TestCase):
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
         # clear instance of BuildOptions and ConfigurationVariables to ensure configuration is reinitialized
         config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
@@ -151,6 +151,9 @@ class EnhancedTestCase(TestCase):
 
         # make sure config is reinitialized
         init_config()
+
+        if myerr and raise_error:
+            raise myerr
 
         if return_error:
             return read_file(self.logfile), myerr

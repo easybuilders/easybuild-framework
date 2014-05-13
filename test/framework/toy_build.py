@@ -27,7 +27,6 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
-
 import glob
 import grp
 import os
@@ -42,6 +41,7 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.filetools import write_file
+from easybuild.tools.build_log import EasyBuildError
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -104,7 +104,7 @@ class ToyBuildTest(EnhancedTestCase):
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def test_toy_build(self, extra_args=None, ec_file=None):
+    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, verbose=True, raise_error=False):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -120,9 +120,34 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
         ]
-        outtxt = self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True)
+        if tmpdir is not None:
+            args.append('--tmpdir=%s' % tmpdir)
+        args.extend(extra_args)
+        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose, raise_error=raise_error)
 
-        self.check_toy(self.test_installpath, outtxt)
+        if verify:
+            self.check_toy(self.test_installpath, outtxt)
+
+    def test_toy_broken(self):
+        """Test deliberately broken toy build."""
+        tmpdir = tempfile.mkdtemp()
+        broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
+        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        broken_toy_ec_txt = open(toy_ec_file, 'r').read()
+        broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
+        f = open(broken_toy_ec, 'w')
+        f.write(broken_toy_ec_txt)
+        f.close()
+        error_regex = "Checksum verification .* failed"
+        self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
+                              verify=False, verbose=False, raise_error=True)
+
+        # make sure log file is retained, also for failed build
+        log_path_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*.log')
+        self.assertTrue(len(glob.glob(log_path_pattern)) == 1, "Log file found at %s" % log_path_pattern)
+
+        # cleanup
+        shutil.rmtree(tmpdir)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
