@@ -295,30 +295,31 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
 def fetch_github_token(user, require_token=False):
     """Fetch GitHub token for specified user from keyring."""
 
+    github_token = None
     if user is None:
         msg = "No GitHub user name provided, required for fetching GitHub token."
-        if require_token:
-            _log.error(msg)
-        else:
-            _log.warning(msg)
-
-    token_fail_msg = "Failed to obtain GitHub token from keyring, "
-    if not 'keyring' in globals():
-        _log.error(token_fail_msg + "required Python module https://pypi.python.org/pypi/keyring is not available.")
-    github_token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+    elif not 'keyring' in globals():
+        msg = "Failed to obtain GitHub token from keyring, "
+        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
+    else:
+        github_token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+        if github_token is None:
+            tup = (KEYRING_GITHUB_TOKEN, user)
+            python_cmd = "import getpass, keyring; keyring.set_password(\"%s\", \"%s\", getpass.getpass())" % tup
+            msg = '\n'.join([
+                "Failed to obtain GitHub token for %s" % user,
+                "Use the following procedure to install a GitHub token in your keyring:",
+                "$ python -c '%s'" % python_cmd,
+            ])
 
     if github_token is None:
-        python_cmd = ""
-        msg = '\n'.join([
-            "Failed to obtain GitHub token for %s" % user,
-            "Use the following procedure to install a GitHub token in your keyring:",
-            "$ python -c 'import getpass, keyring; 'keyring.set_password(\"%s\", \"%s\", getpass.getpass())'" % (KEYRING_GITHUB_TOKEN, user),
-        ])
+        # failure, for some reason
         if require_token:
             _log.error(msg)
         else:
             _log.warning(msg)
     else:
+        # success
         _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
 
     return github_token
