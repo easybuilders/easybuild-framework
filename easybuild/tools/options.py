@@ -275,7 +275,7 @@ class EasyBuildOptions(GeneralOption):
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
             'dump-test-report': ("Dump test report to specified path", None, 'store', None),
-            'github_user': ("GitHub username", None, 'store', None),
+            'github-user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
