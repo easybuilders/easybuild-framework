@@ -420,7 +420,7 @@ def get_system_info():
     libc_version = '; '.join(run_cmd("ldd --version", simple=False, log_all=False, log_ok=False)[0].split('\n'))
     python_version = '; '.join(sys.version.split('\n'))
     return {
-        'core_count': get_core_count(),
+        'core_count': get_avail_core_count(),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),
