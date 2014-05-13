@@ -390,6 +390,7 @@ def main(testing_data=(None, None, None)):
                     _log.error(msg)
             all_built_cnt += 1
 
+    overall_success = correct_built_cnt == all_built_cnt
     success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, all_built_cnt)
     print_msg(success_msg, log=_log, silent=testing)
 
@@ -414,12 +415,13 @@ def main(testing_data=(None, None, None)):
         if 'original_spec' in ec and os.path.isfile(ec['spec']):
             os.remove(ec['spec'])
 
-    # cleanup tmp log file (all is well, all modules have their own log file)
+    # cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir path)
     if options.logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
     else:
         fancylogger.logToFile(logfile, enable=False)
-    cleanup(logfile, eb_tmpdir, testing)
+    if overall_success:
+        cleanup(logfile, eb_tmpdir, testing)
 
 if __name__ == "__main__":
     try:
