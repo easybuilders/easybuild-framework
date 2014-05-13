@@ -606,7 +606,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn)
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
 
         modules = [
             'icc/2013_sp1.2.144',
