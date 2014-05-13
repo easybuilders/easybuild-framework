@@ -605,6 +605,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
+            '--github-user=easybuild_test',  # a GitHub token should be available for this user
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
 
