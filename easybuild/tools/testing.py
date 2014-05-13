@@ -202,7 +202,7 @@ def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_con
                 if pr_nr is not None:
                     descr += " (PR #%s)" % pr_nr
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
-                gist_url = create_gist(partial_log_txt, descr=descr, fn=fn, github_user=user, github_token=token)
+                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=user, github_token=token)
                 test_log = "(partial log available at %s)" % gist_url
 
         build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))

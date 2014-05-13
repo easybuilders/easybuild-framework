@@ -39,8 +39,9 @@ from vsc import fancylogger
 
 try:
     import keyring
+    HAVE_KEYRING=True
 except ImportError:
-    pass
+    HAVE_KEYRING=False
 
 from easybuild.tools.agithub import Github
 from easybuild.tools.filetools import det_patched_files, mkdir
@@ -257,12 +258,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
 
     return ec_files
 
-def create_gist(txt, fn=None, descr=None, github_user=None, github_token=None):
+def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
     if descr is None:
         descr = "(none)"
-    if fn is None:
-        fn = 'file1.txt'
 
     body = {
         "description": descr,
@@ -302,7 +301,7 @@ def fetch_github_token(user, require_token=False):
     github_token = None
     if user is None:
         msg = "No GitHub user name provided, required for fetching GitHub token."
-    elif not 'keyring' in globals():
+    elif not HAVE_KEYRING:
         msg = "Failed to obtain GitHub token from keyring, "
         msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
     else:
