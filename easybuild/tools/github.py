@@ -56,7 +56,6 @@ GITHUB_STATE_CLOSED = 'closed'
 HTTP_STATUS_OK = 200
 HTTP_STATUS_CREATED = 201
 KEYRING_GITHUB_TOKEN = 'github_token'
-URL_SEP = "/"
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -84,7 +83,7 @@ class Githubfs(object):
     def join(*args):
         """This method joins 'paths' inside a github repository"""
         args = [x for x in args if x]
-        return URL_SEP.join(args)
+        return '/'.join(args)
 
     def get_repo(self):
         """Returns the repo as a Github object (from agithub)"""
@@ -94,7 +93,7 @@ class Githubfs(object):
         """returns the path as a Github object (from agithub)"""
         endpoint = self.get_repo()['contents']
         if path:
-            for subpath in path.split(URL_SEP):
+            for subpath in path.split('/'):
                 endpoint = endpoint[subpath]
         return endpoint
 
@@ -245,7 +244,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     # obtain most recent version of patched files
     for patched_file in patched_files:
         fn = os.path.basename(patched_file)
-        full_url = URL_SEP.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file])
+        full_url = '/'.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, last_commit['sha'], patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
         download(full_url, path=os.path.join(path, fn))
 
