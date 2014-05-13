@@ -148,7 +148,11 @@ def regtest(easyconfig_paths, build_specs=None):
 
 def session_state():
     """Get session state: timestamp, dump of environment, system info."""
-    return gmtime(), copy.deepcopy(os.environ), get_system_info()
+    return {
+        'time': gmtime(),
+        'environment': copy.deepcopy(os.environ),
+        'system_info': get_system_info(),
+    }
 
 
 def session_module_list():
@@ -157,12 +161,11 @@ def session_module_list():
     return modtool.list()
 
 
-def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_config, pr_nr=None, gist_log=False):
-    """Create test report for easyconfigs PR."""
+def create_test_report(msg, ordered_ecs, init_session_state, pr_nr=None, gist_log=False):
+    """Create test report for easyconfigs PR, in Markdown format."""
     user = build_option('github_user')
     token= fetch_github_token(user)
 
-    start_time, environ_dump, system_info = init_session_state
     end_time = gmtime()
 
     # create a gist with a full test report
@@ -209,11 +212,11 @@ def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_con
     test_report.extend(["#### Overview of tested easyconfigs (in order)"] + build_overview + [""])
 
     time_format = "%a, %d %b %Y %H:%M:%S +0000 (UTC)"
-    start_time = strftime(time_format, start_time)
+    start_time = strftime(time_format, init_session_state['time'])
     end_time = strftime(time_format, end_time)
     test_report.extend(["#### Time info", " * start: %s" % start_time, " * end: %s" % end_time, ""])
 
-    eb_config = [x for x in sorted(eb_config)]
+    eb_config = [x for x in sorted(init_session_state['easybuild_configuration'])]
     test_report.extend([
         "#### EasyBuild info",
         " * easybuild-framework version: %s" % FRAMEWORK_VERSION,
@@ -226,15 +229,18 @@ def create_test_report(msg, ordered_ecs, init_session_state, module_list, eb_con
         "```",
     ] + eb_config + ["````", ""])
 
+    system_info = init_session_state['system_info']
     system_info = [" * _%s:_ %s" % (key.replace('_', ' '), system_info[key]) for key in sorted(system_info.keys())]
     test_report.extend(["#### System info"] + system_info + [""])
 
+    module_list = init_session_state['module_list']
     if module_list:
         module_list = [" * %s" % mod['mod_name'] for mod in module_list]
     else:
         module_list = [" * (none)"]
     test_report.extend(["#### List of loaded modules"] + module_list + [""])
 
+    environ_dump = init_session_state['environment']
     environment = ["%s = %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
@@ -252,7 +258,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state)
     gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
 
     # post comment to report test result
-    system_info = init_session_state[2]
+    system_info = init_session_state['system_info']
     short_system_info = "%(os_type)s %(os_name)s %(os_version)s, %(cpu_model)s, Python %(pyver)s" % {
         'cpu_model': system_info['cpu_model'],
         'os_name': system_info['os_name'],

@@ -51,7 +51,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
-from easybuild.framework.easyblock import EasyBlock, build_and_install_software
+from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
@@ -70,6 +70,43 @@ from easybuild.tools.version import this_is_easybuild  # from a single location
 _log = None
 
 
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
+    """Build and install software for all provided parsed easyconfig files."""
+    orig_environ = init_session_state['environment']
+    # don't modify in-place
+    ecs = copy.deepcopy(ecs)
+
+    for ec in ecs:
+        try:
+            (ec['success'], app_log, err) = build_and_install_one(ec, orig_environ)
+            ec['log_file'] = app_log
+            if not ec['success']:
+                ec['err'] = EasyBuildError(err)
+        except Exception, err:
+            # purposely catch all exceptions
+            ec['success'] = False
+            ec['err'] = err
+
+        # keep track of success/total count
+        if ec['success']:
+            test_msg = "Successfully built %s" % ec['spec']
+        else:
+            test_msg = "Build of %s failed" % ec['spec']
+            if 'err' in ec:
+                test_msg += " (err: %s)" % ec['err']
+
+        # dump test report next to log file
+        test_report_txt = create_test_report(test_msg, [ec], init_session_state)
+        if 'log_file' in ec:
+            test_report_fp = "%s_test_report.md" % '.'.join(ec['log_file'].split('.')[:-1])
+            write_file(test_report_fp, test_report_txt)
+
+        if not ec['success'] and exit_on_failure:
+            _log.error(test_msg)
+
+    return ecs
+
+
 def main(testing_data=(None, None, None)):
     """
     Main function:
@@ -80,7 +117,7 @@ def main(testing_data=(None, None, None)):
     """
 
     # purposely session state very early, to avoid modules loaded by EasyBuild meddling in
-    init_state = session_state()
+    init_session_state = session_state()
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
@@ -97,6 +134,8 @@ def main(testing_data=(None, None, None)):
     eb_go = eboptions.parse_options(args=args)
     options = eb_go.options
     orig_paths = eb_go.args
+    eb_config = eb_go.generate_cmd_line(add_default=True)
+    init_session_state.update({'easybuild_configuration': eb_config})
 
     # set umask (as early as possible)
     if options.umask is not None:
@@ -209,6 +248,8 @@ def main(testing_data=(None, None, None)):
 
     # obtain list of loaded modules, build options must be initialized first
     modlist = session_module_list()
+    init_session_state.update({'module_list': modlist})
+    _log.debug("Initial session state: %s" % init_session_state)
 
     # search for easyconfigs
     if options.search or options.search_short:
@@ -310,7 +351,6 @@ def main(testing_data=(None, None, None)):
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
     # before building starts, take snapshot of environment (watch out -t option!)
-    orig_environ = copy.deepcopy(os.environ)
     os.chdir(os.environ['PWD'])
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
@@ -366,23 +406,23 @@ def main(testing_data=(None, None, None)):
     # build software, will exit when errors occurs (except when testing)
     exit_on_failure = options.test_easyconfigs_pr is None and options.dump_test_report is None
     if not testing or (testing and do_build):
-        correct_built_cnt = build_and_install_software(ordered_ecs, orig_environ, exit_on_failure=exit_on_failure)
+        ordered_ecs = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
 
-    overall_success = correct_built_cnt == len(ordered_ecs)
-    success_msg = "Build succeeded for %s out of %s" % (correct_built_cnt, len(ordered_ecs))
+    correct_builds_cnt = len([ec for ec in ordered_ecs if ec['success']])
+    overall_success = correct_builds_cnt == len(ordered_ecs)
+    success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
     print_msg(success_msg, log=_log, silent=testing)
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
 
     # report back in PR in case of testing
-    eb_config = eb_go.generate_cmd_line(add_default=True)
     if options.test_easyconfigs_pr:
         msg = success_msg + " (%d easyconfigs in this PR)" % len(paths)
-        test_report = create_test_report(msg, ordered_ecs, init_state, modlist, eb_config, pr_nr=pr_nr, gist_log=True)
-        post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_state)
+        test_report = create_test_report(msg, ordered_ecs, init_session_state, pr_nr=pr_nr, gist_log=True)
+        post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_session_state)
     else:
-        test_report = create_test_report(success_msg, ordered_ecs, init_state, modlist, eb_config)
+        test_report = create_test_report(success_msg, ordered_ecs, init_session_state)
     _log.debug("Test report: %s" % test_report)
     if options.dump_test_report is not None:
         write_file(options.dump_test_report, test_report)
