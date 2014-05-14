@@ -183,7 +183,7 @@ def main(testing_data=(None, None, None)):
     # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
     github_token = None
     pr_nr = options.test_easyconfigs_pr or options.from_pr
-    if pr_nr:
+    if pr_nr is not None:
         # a GitHub token is only strictly required when testing a PR (to post gists/comments);
         # it is optional with --from-pr, but can be used if available in order to be less susceptible to rate limiting
         github_token = fetch_github_token(options.github_user, require_token=options.test_easyconfigs_pr is not None)
