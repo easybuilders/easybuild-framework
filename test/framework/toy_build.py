@@ -98,13 +98,18 @@ class ToyBuildTest(EnhancedTestCase):
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
         self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1, "Found 1 file at %s" % install_log_path_pattern)
 
+        # make sure test report is available
+        test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*test_report.md' % version)
+        self.assertTrue(len(glob.glob(test_report_path_pattern)) == 1, "Found 1 file at %s" % test_report_path_pattern)
+
         ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
         self.assertTrue(os.path.exists(ec_file_path))
 
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, verbose=True, raise_error=False):
+    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
+                       raise_error=False, test_report=None):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -122,11 +127,43 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         if tmpdir is not None:
             args.append('--tmpdir=%s' % tmpdir)
+        if test_report is not None:
+            args.append('--dump-test-report=%s' % test_report)
         args.extend(extra_args)
-        outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose, raise_error=raise_error)
+        myerr = None
+        try:
+            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
+                                  raise_error=raise_error)
+        except Exception, err:
+            myerr = err
 
         if verify:
             self.check_toy(self.test_installpath, outtxt)
+
+        # make sure full test report was dumped, and contains sensible information
+        if test_report is not None:
+            self.assertTrue(os.path.exists(test_report))
+            if fails:
+                test_result = 'FAIL'
+            else:
+                test_result = 'SUCCESS'
+            regex_patterns = [
+                r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
+                r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
+                r"Time info[\S\s]*start:[\S\s]*end:",
+                r"EasyBuild info[\S\s]*framework version:[\S\s]*easyblocks ver[\S\s]*command line[\S\s]*configuration",
+                r"System info[\S\s]*cpu model[\S\s]*os name[\S\s]*os version[\S\s]*python version",
+                r"List of loaded modules",
+                r"Environment",
+            ]
+            test_report_txt = open(test_report).read()
+            for regex_pattern in regex_patterns:
+                regex = re.compile(regex_pattern, re.M)
+                msg = "Pattern %s found in full test report: %s" % (regex.pattern, test_report_txt)
+                self.assertTrue(regex.search(test_report_txt), msg)
+
+        if raise_error and (myerr is not None):
+            raise myerr
 
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
@@ -140,11 +177,20 @@ class ToyBuildTest(EnhancedTestCase):
         f.close()
         error_regex = "Checksum verification .* failed"
         self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
-                              verify=False, verbose=False, raise_error=True)
+                              verify=False, fails=True, verbose=False, raise_error=True)
 
         # make sure log file is retained, also for failed build
         log_path_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*.log')
         self.assertTrue(len(glob.glob(log_path_pattern)) == 1, "Log file found at %s" % log_path_pattern)
+
+        # make sure individual test report is retained, also for failed build
+        test_report_fp_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*test_report.md')
+        self.assertTrue(len(glob.glob(test_report_fp_pattern)) == 1, "Test report %s found" % test_report_fp_pattern)
+
+        # test dumping full test report (doesn't raise an exception)
+        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+        self.test_toy_build(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True, verbose=False,
+                            raise_error=True, test_report=test_report_fp)
 
         # cleanup
         shutil.rmtree(tmpdir)
