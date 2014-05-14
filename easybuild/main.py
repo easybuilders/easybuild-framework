@@ -73,38 +73,40 @@ _log = None
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     """Build and install software for all provided parsed easyconfig files."""
     orig_environ = init_session_state['environment']
-    # don't modify in-place
-    ecs = copy.deepcopy(ecs)
 
+    res = []
     for ec in ecs:
+        ec_res = {}
         try:
-            (ec['success'], app_log, err) = build_and_install_one(ec, orig_environ)
-            ec['log_file'] = app_log
-            if not ec['success']:
-                ec['err'] = EasyBuildError(err)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, orig_environ)
+            ec_res['log_file'] = app_log
+            if not ec_res['success']:
+                ec_res['err'] = EasyBuildError(err)
         except Exception, err:
             # purposely catch all exceptions
-            ec['success'] = False
-            ec['err'] = err
+            ec_res['success'] = False
+            ec_res['err'] = err
 
         # keep track of success/total count
-        if ec['success']:
+        if ec_res['success']:
             test_msg = "Successfully built %s" % ec['spec']
         else:
             test_msg = "Build of %s failed" % ec['spec']
-            if 'err' in ec:
-                test_msg += " (err: %s)" % ec['err']
+            if 'err' in ec_res:
+                test_msg += " (err: %s)" % ec_res['err']
 
         # dump test report next to log file
-        test_report_txt = create_test_report(test_msg, [ec], init_session_state)
-        if 'log_file' in ec:
-            test_report_fp = "%s_test_report.md" % '.'.join(ec['log_file'].split('.')[:-1])
+        test_report_txt = create_test_report(test_msg, [(ec, ec_res)], init_session_state)
+        if 'log_file' in ec_res:
+            test_report_fp = "%s_test_report.md" % '.'.join(ec_res['log_file'].split('.')[:-1])
             write_file(test_report_fp, test_report_txt)
 
-        if not ec['success'] and exit_on_failure:
+        if not ec_res['success'] and exit_on_failure:
             _log.error(test_msg)
 
-    return ecs
+        res.append((ec, ec_res))
+
+    return res
 
 
 def main(testing_data=(None, None, None)):
@@ -182,7 +184,8 @@ def main(testing_data=(None, None, None)):
     github_token = None
     pr_nr = options.test_easyconfigs_pr or options.from_pr
     if pr_nr:
-        # a GitHub token is only strictly required when testing a PR (to post gists/comments)
+        # a GitHub token is only strictly required when testing a PR (to post gists/comments);
+        # it is optional with --from-pr, but can be used if available in order to be less susceptible to rate limiting
         github_token = fetch_github_token(options.github_user, require_token=options.test_easyconfigs_pr is not None)
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
@@ -406,9 +409,11 @@ def main(testing_data=(None, None, None)):
     # build software, will exit when errors occurs (except when testing)
     exit_on_failure = options.test_easyconfigs_pr is None and options.dump_test_report is None
     if not testing or (testing and do_build):
-        ordered_ecs = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+        ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
+    else:
+        ecs_with_res = [(ec, {}) for ec in ordered_ecs]
 
-    correct_builds_cnt = len([ec for ec in ordered_ecs if ec['success']])
+    correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
     success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
     print_msg(success_msg, log=_log, silent=testing)
@@ -419,10 +424,10 @@ def main(testing_data=(None, None, None)):
     # report back in PR in case of testing
     if options.test_easyconfigs_pr:
         msg = success_msg + " (%d easyconfigs in this PR)" % len(paths)
-        test_report = create_test_report(msg, ordered_ecs, init_session_state, pr_nr=pr_nr, gist_log=True)
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
         post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_session_state)
     else:
-        test_report = create_test_report(success_msg, ordered_ecs, init_session_state)
+        test_report = create_test_report(success_msg, ecs_with_res, init_session_state)
     _log.debug("Test report: %s" % test_report)
     if options.dump_test_report is not None:
         write_file(options.dump_test_report, test_report)

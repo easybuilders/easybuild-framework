@@ -161,7 +161,7 @@ def session_module_list():
     return modtool.list()
 
 
-def create_test_report(msg, ordered_ecs, init_session_state, pr_nr=None, gist_log=False):
+def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):
     """Create test report for easyconfigs PR, in Markdown format."""
     user = build_option('github_user')
     token= fetch_github_token(user)
@@ -182,24 +182,24 @@ def create_test_report(msg, ordered_ecs, init_session_state, pr_nr=None, gist_lo
     ])
 
     build_overview = []
-    for ec in ordered_ecs:
+    for (ec, ec_res) in ecs_with_res:
         test_log = ''
-        if ec['success']:
+        if ec_res['success']:
             test_result = 'SUCCESS'
         else:
             # compose test result string
             test_result = 'FAIL '
-            if 'err' in ec:
-                if isinstance(ec['err'], EasyBuildError):
+            if 'err' in ec_res:
+                if isinstance(ec_res['err'], EasyBuildError):
                     test_result += '(build issue)'
                 else:
-                    test_result += '(unhandled exception: %s)' % ec['err'].__class__.__name__
+                    test_result += '(unhandled exception: %s)' % ec_res['err'].__class__.__name__
             else:
                 test_result += '(unknown cause, not an exception?!)'
 
             # create gist for log file (if desired and available)
-            if gist_log and 'log_file' in ec:
-                logtxt = read_file(ec['log_file'])
+            if gist_log and 'log_file' in ec_res:
+                logtxt = read_file(ec_res['log_file'])
                 partial_log_txt = '\n'.join(logtxt.split('\n')[-500:])
                 descr = "(partial) EasyBuild log for failed build of %s" % ec['spec']
                 if pr_nr is not None:

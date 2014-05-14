@@ -520,7 +520,7 @@ def det_patched_files(path=None, txt=None):
     """Determine list of patched files from a patch."""
     # expected format: "+++ path/to/patched/file"
     # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex = re.compile(r"^\s*\+\+\+\s+([ab]/)?(?P<file>\S+)", re.M)
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?:[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
         try:
             f = open(path, 'r')
