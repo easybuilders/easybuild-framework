@@ -36,12 +36,10 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
-import copy
 import os
 import subprocess
 import sys
 import tempfile
-from time import gmtime, strftime
 from vsc import fancylogger
 from vsc.utils.missing import any
 
@@ -64,6 +62,7 @@ from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, post_easyconfigs_pr_test_report, upload_test_report_as_gist
 from easybuild.tools.testing import regtest, session_module_list, session_state
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.version import this_is_easybuild  # from a single location
 
 
@@ -339,16 +338,16 @@ def main(testing_data=(None, None, None)):
             print_error("Can't find path %s" % path)
 
         try:
-            files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
-            for f in files:
-                if not generated and try_to_generate and build_specs:
-                    ec_file = tweak(f, None, build_specs)
-                else:
-                    ec_file = f
+            ec_files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
+            for ec_file in ec_files:
                 ecs = process_easyconfig(ec_file, build_specs=build_specs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
+
+    # tweak obtained easyconfig files, if requested
+    if try_to_generate and build_specs:
+        easyconfigs = tweak(easyconfigs, build_specs)
 
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])

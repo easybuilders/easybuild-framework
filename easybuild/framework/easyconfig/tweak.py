@@ -43,7 +43,8 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.tools.build_log import print_error, print_msg, print_warning
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
+from easybuild.framework.easyconfig.tools import resolve_dependencies
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -68,7 +69,38 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(src_fn, target_fn, tweaks):
+def tweak(easyconfigs, build_specs):
+    """Tweak list of easyconfigs according to provided build specifications."""
+
+    # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
+    toolchains = nub(['%(name)s-%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
+    if len(toolchains) > 1:
+        _log.error("Multiple toolchains featured in listed easyconfigs, --try-X not supported in that case.")
+
+    # obtain full dependency graph for specified easyconfigs
+    # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
+    orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+
+    # determine toolchain based on last easyconfigs
+    toolchain = orig_ecs[-1]['ec']['toolchain']
+    _log.debug("Filtering using toolchain %s" % toolchain)
+
+    # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
+    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+        while orig_ecs[0]['ec']['toolchain'] != toolchain:
+            orig_ecs = orig_ecs[1:]
+
+    # generate tweaked easyconfigs, and continue with those instead
+    easyconfigs = []
+    for orig_ec in orig_ecs:
+        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs)
+        new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
+        easyconfigs.extend(new_ecs)
+
+    return easyconfigs
+
+
+def tweak_one(src_fn, target_fn, tweaks):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
