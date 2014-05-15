@@ -434,9 +434,8 @@ def get_glibc_version():
     os_type = get_os_type()
 
     if os_type == LINUX:
-        glibc_tool = 'ldd'
-        glibc_ver_str = get_tool_version(glibc_tool)
-        glibc_ver_regex = re.compile(r"^%s.*?(\d[\d.]*).*$" % glibc_tool)
+        glibc_ver_str = get_tool_version('ldd')
+        glibc_ver_regex = re.compile(r"^ldd \(.*\) (\d[\d.]*).*$")
         res = glibc_ver_regex.search(glibc_ver_str)
 
         if res is not None:
