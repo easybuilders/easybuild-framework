@@ -62,7 +62,7 @@ from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_github_token
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.testing import create_test_report, post_easyconfigs_pr_test_report
+from easybuild.tools.testing import create_test_report, post_easyconfigs_pr_test_report, upload_test_report_as_gist
 from easybuild.tools.testing import regtest, session_module_list, session_state
 from easybuild.tools.version import this_is_easybuild  # from a single location
 
@@ -181,12 +181,9 @@ def main(testing_data=(None, None, None)):
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
     # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
-    github_token = None
-    pr_nr = options.test_easyconfigs_pr or options.from_pr
-    if pr_nr is not None:
-        # a GitHub token is only strictly required when testing a PR (to post gists/comments);
-        # it is optional with --from-pr, but can be used if available in order to be less susceptible to rate limiting
-        github_token = fetch_github_token(options.github_user, require_token=options.test_easyconfigs_pr is not None)
+    # a GitHub token is only strictly required when testing a PR (to post gists/comments);
+    # it is optional with --from-pr, but can be used if available in order to be less susceptible to rate limiting
+    github_token = fetch_github_token(options.github_user, require_token=options.upload_test_report)
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
@@ -270,9 +267,9 @@ def main(testing_data=(None, None, None)):
 
     paths = []
     if len(orig_paths) == 0:
-        if pr_nr is not None:
-            pr_path = os.path.join(eb_tmpdir, "files_pr%s" % pr_nr)
-            pr_files = fetch_easyconfigs_from_pr(pr_nr, path=pr_path, github_user=options.github_user,
+        if options.from_pr:
+            pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
+            pr_files = fetch_easyconfigs_from_pr(options.from_pr, path=pr_path, github_user=options.github_user,
                                                  github_token=github_token)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
@@ -407,7 +404,7 @@ def main(testing_data=(None, None, None)):
             sys.exit(0)
 
     # build software, will exit when errors occurs (except when testing)
-    exit_on_failure = options.test_easyconfigs_pr is None and options.dump_test_report is None
+    exit_on_failure = not options.dump_test_report and not options.upload_test_report
     if not testing or (testing and do_build):
         ecs_with_res = build_and_install_software(ordered_ecs, init_session_state, exit_on_failure=exit_on_failure)
     else:
@@ -416,22 +413,30 @@ def main(testing_data=(None, None, None)):
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
     success_msg = "Build succeeded for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
-    print_msg(success_msg, log=_log, silent=testing)
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
 
     # report back in PR in case of testing
-    if options.test_easyconfigs_pr:
+    if options.upload_test_report:
         msg = success_msg + " (%d easyconfigs in this PR)" % len(paths)
-        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
-        post_easyconfigs_pr_test_report(pr_nr, test_report, success_msg, init_session_state)
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=options.from_pr, gist_log=True)
+        if options.from_pr:
+            # upload test report to gist and issue a comment in the PR to notify
+            msg = post_easyconfigs_pr_test_report(options.from_pr, test_report, success_msg, init_session_state, overall_success)
+            print_msg(msg)
+        else:
+            # only upload test report as a gist
+            gist_url = upload_test_report_as_gist(test_report)
+            print_msg("Test report uploaded to %s" % gist_url)
     else:
         test_report = create_test_report(success_msg, ecs_with_res, init_session_state)
     _log.debug("Test report: %s" % test_report)
     if options.dump_test_report is not None:
         write_file(options.dump_test_report, test_report)
         _log.info("Test report dumped to %s" % options.dump_test_report)
+
+    print_msg(success_msg, log=_log, silent=testing)
 
     # cleanup and spec files
     for ec in easyconfigs:

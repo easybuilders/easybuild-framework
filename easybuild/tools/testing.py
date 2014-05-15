@@ -42,7 +42,7 @@ import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies
 from easybuild.framework.easyconfig.tools import skip_available
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file
 from easybuild.tools.github import create_gist, fetch_github_token, post_comment_in_issue
@@ -247,15 +247,28 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     return '\n'.join(test_report)
 
 
-def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state):
+def upload_test_report_as_gist(test_report, descr=None, fn=None):
+    """Upload test report as a gist."""
+    if descr is None:
+        descr = "EasyBuild test report"
+    if fn is None:
+        fn = 'easybuild_test_report_%s.md' % strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
+
+    user = build_option('github_user')
+    token = fetch_github_token(user)
+
+    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
+    return gist_url
+
+def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
     user = build_option('github_user')
-    token= fetch_github_token(user)
+    token = fetch_github_token(user)
 
     # create gist with test report
     descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
     fn = 'easybuild_test_report_easyconfigs_pr%s_%s.md' % (pr_nr, strftime("%Y%M%d-UTC-%H-%M-%S", gmtime()))
-    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
+    gist_url = upload_test_report_as_gist(test_report, descr=descr, fn=fn)
 
     # post comment to report test result
     system_info = init_session_state['system_info']
@@ -267,6 +280,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state)
         'pyver': system_info['python_version'].split(' ')[0],
     }
     comment_lines = [
+        ('**FAILED**', '**SUCCESS**')[success],
         msg,
         short_system_info,
         "See %s for a full test report." % gist_url,
@@ -275,4 +289,4 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state)
     post_comment_in_issue(pr_nr, comment, github_user=user, github_token=token)
 
     msg = "Test report uploaded to %s and mentioned in a comment in easyconfigs PR#%s" % (gist_url, pr_nr)
-    print_msg(msg)
+    return msg
