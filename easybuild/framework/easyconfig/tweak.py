@@ -516,7 +516,7 @@ def select_or_generate_ec(fp, paths, specs):
             fp = "%s-%s.eb" % (name, installver)
 
         # generate tweaked easyconfig file
-        tweak(selected_ec_file, fp, specs)
+        tweak_one(selected_ec_file, fp, specs)
 
         _log.info("Generated easyconfig file %s, and using it to build the requested software." % fp)
 
