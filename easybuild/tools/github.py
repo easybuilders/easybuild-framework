@@ -197,12 +197,6 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
             except urllib2.URLError, err:
                 _log.error("Failed to open %s for reading: %s" % (url, err))
 
-    if not isinstance(pr, int):
-        try:
-            pr = int(pr)
-        except ValueError, err:
-            _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (pr, err))
-
     if path is None:
         path = tempfile.mkdtemp()
     else:
