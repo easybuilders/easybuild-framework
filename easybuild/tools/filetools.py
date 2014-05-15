@@ -158,6 +158,7 @@ def write_file(path, txt):
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
+        mkdir(os.path.dirname(path), parents=True)
         f = open(path, 'w')
         f.write(txt)
         f.close()
@@ -515,6 +516,23 @@ def extract_cmd(fn, overwrite=False):
     return ftype % fn
 
 
+def det_patched_files(path=None, txt=None):
+    """Determine list of patched files from a patch."""
+    # expected format: "+++ path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?:[ab]/)?(?P<file>\S+)", re.M)
+    if path is not None:
+        try:
+            f = open(path, 'r')
+            txt = f.read()
+            f.close()
+        except IOError, err:
+            _log.error("Failed to read patch %s: %s" % (path, err))
+    elif txt is None:
+        _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
+
+    return [x.group('file') for x in patched_regex.finditer(txt)]
+
 def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
@@ -559,30 +577,16 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
         # - we will try to match that level from current directory
-        patchreg = re.compile(r"^\s*\+\+\+\s+(?P<file>\S+)")
-        try:
-            f = open(apatch)
-            txt = "ok"
-            plusLines = []
-            while txt:
-                txt = f.readline()
-                found = patchreg.search(txt)
-                if found:
-                    plusLines.append(found)
-            f.close()
-        except IOError, err:
-            _log.error("Can't read patch %s: %s" % (apatch, err))
-            return
+        patched_files = det_patched_files(path=apatch)
 
-        if not plusLines:
+        if not patched_files:
             _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
             return
 
         p = None
-        for line in plusLines:
+        for patched_file in patched_files:
             # locate file by stripping of /
-            f = line.group('file')
-            tf2 = f.split('/')
+            tf2 = patched_file.split('/')
             n = len(tf2)
             plusFound = False
             i = None
@@ -594,7 +598,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
                 p = i
                 break
             else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
+                _log.debug('No match found for %s, trying next +++ line of patch file...' % patched_file)
 
         if p is None:  # p can also be zero, so don't use "not p"
             # no match
@@ -750,6 +754,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
         set_gid = build_option('set_gid_bit')
     if sticky is None:
         sticky = build_option('sticky_bit')
+
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):

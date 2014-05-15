@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader
 from unittest import main as unittestmain
 
@@ -593,6 +593,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
+
+    def test_from_pr(self):
+        """Test fetching easyconfigs from a PR."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
+            '--from-pr=726',
+            '--dry-run',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+
+        modules = [
+            'icc/2013_sp1.2.144',
+            'ifort/2013_sp1.2.144',
+            'impi/4.1.3.049',
+            'imkl/11.1.2.144',
+            'ictce/6.2.5',
+            'gzip/1.6-ictce-6.2.5',
+        ]
+        for module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
     def test_no_such_software(self):
         """Test using no arguments."""
