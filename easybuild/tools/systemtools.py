@@ -459,7 +459,7 @@ def get_system_info():
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),
-        'gcc_version': get_tool_version('gcc'),
+        'gcc_version': get_tool_version('gcc', '-v'),
         'hostname': gethostname(),
         'glibc_version': get_glibc_version(),
         'kernel_name': get_kernel_name(),
