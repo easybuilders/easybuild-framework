@@ -280,6 +280,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
         'pyver': system_info['python_version'].split(' ')[0],
     }
     comment_lines = [
+        "Test report by @%s" % user,
         ('**FAILED**', '**SUCCESS**')[success],
         msg,
         short_system_info,
