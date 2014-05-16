@@ -1072,7 +1072,7 @@ class EasyBlock(object):
             tmpdir = self.cfg['start_dir']
 
         if not os.path.isabs(tmpdir):
-            if len(self.src) > 0 and not self.skip:
+            if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
                 self.cfg['start_dir'] = os.path.join(self.src[0]['finalpath'], tmpdir)
             else:
                 self.cfg['start_dir'] = os.path.join(self.builddir, tmpdir)
