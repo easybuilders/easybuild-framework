@@ -178,14 +178,10 @@ class FancyLogger(logging.getLoggerClass()):
         """
         overwrite make record to use a fancy record (with more options)
         """
-        if hasattr(msg, 'decode'):
-            new_msg = msg.decode('utf8', 'replace')
-        else:
-            new_msg = msg
         logrecordcls = logging.LogRecord
         if self.fancyrecord:
             logrecordcls = FancyLogRecord
-        return logrecordcls(name, level, pathname, lineno, new_msg, args, excinfo)
+        return logrecordcls(name, level, pathname, lineno, repr(msg), args, excinfo)
 
     def raiseException(self, message, exception=None, catch=False):
         """
