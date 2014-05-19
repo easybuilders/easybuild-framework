@@ -181,7 +181,7 @@ class FancyLogger(logging.getLoggerClass()):
         logrecordcls = logging.LogRecord
         if self.fancyrecord:
             logrecordcls = FancyLogRecord
-        return logrecordcls(name, level, pathname, lineno, repr(msg), args, excinfo)
+        return logrecordcls(name, level, pathname, lineno, repr(msg).strip("\"'"), args, excinfo)
 
     def raiseException(self, message, exception=None, catch=False):
         """
