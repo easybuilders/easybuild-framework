@@ -519,10 +519,14 @@ class ModulesTool(object):
                     result.append(module.groupdict())
             return result
 
+    def list(self):
+        """Return result of 'module list'."""
+        return self.run_module('list')
+
     def loaded_modules(self):
         """Return a list of loaded modules."""
         # obtain list of loaded modules from 'module list' using --terse
-        mods = [mod['mod_name'] for mod in self.run_module('list')]
+        mods = [mod['mod_name'] for mod in self.list()]
 
         # filter out devel modules
         loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]

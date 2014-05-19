@@ -130,7 +130,7 @@ class EnhancedTestCase(TestCase):
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False):
+    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
         # clear instance of BuildOptions and ConfigurationVariables to ensure configuration is reinitialized
         config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
@@ -149,6 +149,12 @@ class EnhancedTestCase(TestCase):
 
         os.chdir(self.cwd)
 
+        # make sure config is reinitialized
+        init_config()
+
+        if myerr and raise_error:
+            raise myerr
+
         if return_error:
             return read_file(self.logfile), myerr
         else:
@@ -166,6 +172,7 @@ def init_config(args=None, build_options=None):
     eb_go = eboptions.parse_options(args=args)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
+    # initialize build options
     if build_options is None:
         build_options = {
             'valid_module_classes': module_classes(),

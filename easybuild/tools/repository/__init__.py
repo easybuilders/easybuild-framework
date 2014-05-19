@@ -1,5 +1,5 @@
-#
-# Copyright 2014-2014 Ghent University
+##
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,38 +21,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-#
+##
 """
-All required to provide details of build environment 
-and allow for reproducable builds
+Declares easybuild.tools.repository namespace, in an extendable way.
 
+@author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
-@author: Stijn De Weirdt (Ghent University)
 """
-import time
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.systemtools import get_system_info
-from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
+from pkgutil import extend_path
 
-
-def get_build_stats(app, start_time, command_line):
-    """
-    Return build statistics for this build
-    """
-
-    time_now = time.time()
-    build_time = round(time_now - start_time, 2)
-
-    buildstats = OrderedDict([
-        ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
-        ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-        ('timestamp', int(time_now)),
-        ('build_time', build_time),
-        ('install_size', app.det_installsize()),
-        ('command_line', command_line),
-        ('modules_tool', app.modules_tool.buildstats()),
-    ])
-    for key, val in sorted(get_system_info().items()):
-        buildstats.update({key: val})
-
-    return buildstats
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

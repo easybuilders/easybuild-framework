@@ -32,19 +32,13 @@ import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.tools.github import Githubfs
+from easybuild.tools.github import Githubfs, fetch_github_token
 
 
 # the user who's repo to test
 GITHUB_USER = "hpcugent"
 # the repo of this user to use in this test
 GITHUB_REPO = "testrepository"
-# Github username (optional)
-GITHUB_LOGIN = os.environ.get('EASYBUILD_GITHUB_LOGIN', None)
-# Github password (optional)
-GITHUB_PASSWORD = None
-# github auth token to use (optional)
-GITHUB_TOKEN = os.environ.get('EASYBUILD_GITHUB_TOKEN', None)
 # branch to test
 GITHUB_BRANCH = 'master'
 
@@ -56,34 +50,48 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
-        self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_LOGIN, GITHUB_PASSWORD, GITHUB_TOKEN)
+        github_user = 'easybuild_test'
+        github_token = fetch_github_token(github_user, require_token=True)
+        if github_token is None:
+            self.ghfs = None
+        else:
+            self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, github_user, None, github_token)
 
     def test_walk(self):
         """test the gitubfs walk function"""
         # TODO: this will not work when rate limited, so we should have a test account token here
-        try:
-            self.assertEquals([x for x in self.ghfs.walk(None)], [(None, ['a_directory', 'second_dir'], ['README.md']),
-                     ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
-                     ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
-                )
-        except IOError:
-            pass
+        if self.ghfs is not None:
+            try:
+                expected = [(None, ['a_directory', 'second_dir'], ['README.md']),
+                            ('a_directory', ['a_subdirectory'], ['a_file.txt']), ('a_directory/a_subdirectory', [],
+                            ['a_file.txt']), ('second_dir', [], ['a_file.txt'])]
+                self.assertEquals([x for x in self.ghfs.walk(None)], expected)
+            except IOError:
+                pass
+        else:
+            print "Skipping test_walk, no GitHub token available?"
 
     def test_read_api(self):
         """Test the githubfs read function"""
-        try:
-            self.assertEquals(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
-        except IOError:
-            pass
+        if self.ghfs is not None:
+            try:
+                self.assertEquals(self.ghfs.read("a_directory/a_file.txt").strip(), "this is a line of text")
+            except IOError:
+                pass
+        else:
+            print "Skipping test_read_api, no GitHub token available?"
 
     def test_read(self):
         """Test the githubfs read function without using the api"""
-        try:
-            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
-            self.assertEquals(open(fp, 'r').read().strip(), "this is a line of text")
-            os.remove(fp)
-        except (IOError, OSError):
-            pass
+        if self.ghfs is not None:
+            try:
+                fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+                self.assertEquals(open(fp, 'r').read().strip(), "this is a line of text")
+                os.remove(fp)
+            except (IOError, OSError):
+                pass
+        else:
+            print "Skipping test_read, no GitHub token available?"
 
 def suite():
     """ returns all the testcases in this module """
