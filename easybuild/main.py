@@ -196,8 +196,15 @@ def main(testing_data=(None, None, None)):
     if not easyconfigs_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # process software build specifications (if any), i.e.
+    # software name/version, toolchain name/version, extra patches, ...
+    (try_to_generate, build_specs) = process_software_build_specs(options)
+
     # specified robot paths are preferred over installed easyconfig files
-    if robot_path:
+    # --try-X and --dep-graph both require --robot, so enable it with path of installed easyconfigs
+    if robot_path or try_to_generate or options.dep_graph:
+        if robot_path is None:
+            robot_path = []
         robot_path.extend(easyconfigs_paths)
         easyconfigs_paths = robot_path[:]
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
@@ -259,10 +266,6 @@ def main(testing_data=(None, None, None)):
         ignore_dirs = config.build_option('ignore_dirs')
         silent = config.build_option('silent')
         search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
-
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, build_specs) = process_software_build_specs(options)
 
     paths = []
     if len(orig_paths) == 0:

@@ -185,6 +185,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
                         if cand_dep not in irresolvable:
+                            _log.debug("Irresolvable dependency found: %s" % cand_dep)
                             irresolvable.append(cand_dep)
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
