@@ -569,7 +569,7 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
-    VERSION_REGEXP = r'^\s*VERSION\s*=\s*(?P<version>\d\S*)\s*^'
+    VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
