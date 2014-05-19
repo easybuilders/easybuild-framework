@@ -205,15 +205,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for existing module
         args = [
-                eb_file,
-                '--sourcepath=%s' % sourcepath,
-                '--buildpath=%s' % buildpath,
-                '--installpath=%s' % installpath,
-                '--force',
-                '--skip',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args, do_build=True)
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--force',
+            '--debug',
+        ]
+        self.eb_main(args, do_build=True)
+        modules_tool().purge()
+
+        args.append('--skip')
+        outtxt = self.eb_main(args, do_build=True, verbose=True)
 
         found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
         found = re.search(found_msg, outtxt, re.M)
@@ -231,17 +234,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for non-existing module
         args = [
-                eb_file,
-                '--sourcepath=%s' % sourcepath,
-                '--buildpath=%s' % buildpath,
-                '--installpath=%s' % installpath,
-                '--try-software-version=1.2.3.4.5.6.7.8.9',
-                '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
-                '--force',
-                '--skip',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args, do_build=True)
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--try-software-version=1.2.3.4.5.6.7.8.9',
+            '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
+            '--force',
+            '--debug',
+        ]
+        self.eb_main(args, do_build=True)
+        modules_tool().purge()
+
+        args.append('--skip')
+        outtxt = self.eb_main(args, do_build=True, verbose=True)
 
         found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
         found = re.search(found_msg, outtxt)
