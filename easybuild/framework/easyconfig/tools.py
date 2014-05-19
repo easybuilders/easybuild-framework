@@ -190,7 +190,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         entry['dependencies'].remove(cand_dep)
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                        # build specs should not be passed down to resolved dependencies,
+                        # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
+                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
                         mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]

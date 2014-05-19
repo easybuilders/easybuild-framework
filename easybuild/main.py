@@ -340,7 +340,11 @@ def main(testing_data=(None, None, None)):
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
             for ec_file in ec_files:
-                ecs = process_easyconfig(ec_file, build_specs=build_specs)
+                # only pass build specs when not generating easyconfig files
+                if try_to_generate:
+                    ecs = process_easyconfig(ec_file)
+                else:
+                    ecs = process_easyconfig(ec_file, build_specs=build_specs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
