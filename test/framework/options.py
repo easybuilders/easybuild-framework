@@ -953,7 +953,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True)
 
         # toolchain gompi/1.4.10 should be listed
-        tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
+        tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
         self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
 
         # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
