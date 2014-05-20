@@ -73,9 +73,9 @@ def tweak(easyconfigs, build_specs):
     """Tweak list of easyconfigs according to provided build specifications."""
 
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
-    toolchains = nub(['%(name)s-%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
+    toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
     if len(toolchains) > 1:
-        _log.error("Multiple toolchains featured in listed easyconfigs, --try-X not supported in that case.")
+        _log.error("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s" % toolchains)
 
     # obtain full dependency graph for specified easyconfigs
     # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
