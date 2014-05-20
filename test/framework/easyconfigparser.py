@@ -28,19 +28,20 @@ Unit tests for easyconfig/parser.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
-from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
 
 
-class EasyConfigParserTest(TestCase):
+class EasyConfigParserTest(EnhancedTestCase):
     """Test the parser"""
 
     def test_v10(self):

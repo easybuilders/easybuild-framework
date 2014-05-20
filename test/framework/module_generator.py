@@ -30,55 +30,48 @@ Unit tests for module_generator.py.
 """
 
 import os
-import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase, init_config
+from unittest import TestLoader, main
+from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import get_subclasses
 
-import easybuild.tools.options as eboptions
 import easybuild.tools.module_generator
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator, det_full_module_name, is_valid_module_name
+from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
+from easybuild.tools.module_generator import det_full_module_name as det_full_module_name_mg
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.tools import det_full_module_name as det_full_module_name_ec
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
 
-class ModuleGeneratorTest(TestCase):
+class ModuleGeneratorTest(EnhancedTestCase):
     """ testcase for ModuleGenerator """
-
-    # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options()
-    config.init(eb_go.options, eb_go.get_options_by_section('config'))
-    del eb_go
-
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
 
     def setUp(self):
         """ initialize ModuleGenerator with test Application """
-
+        super(ModuleGeneratorTest, self).setUp()
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
-        self.eb = EasyBlock(eb_full_path)
+        ec = EasyConfig(eb_full_path)
+        self.eb = EasyBlock(ec)
         self.modgen = ModuleGenerator(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
-        self.cwd = os.getcwd()
+        
+        self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def tearDown(self):
         """cleanup"""
+        super(ModuleGeneratorTest, self).tearDown()
         os.remove(self.eb.logfile)
-        os.chdir(self.cwd)
         shutil.rmtree(self.modgen.app.installdir)
 
     def test_descr(self):
@@ -164,23 +157,44 @@ class ModuleGeneratorTest(TestCase):
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
+        init_config(build_options={'valid_stops': all_stops})
+
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
         ec_files = [fil for fil in ec_files if not "v2.0" in fil]  # TODO FIXME: drop this once 2.0 support works
 
-        def test_default():
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        init_config(build_options=build_options)
+
+        def test_mns():
             """Test default module naming scheme."""
             # test default naming scheme
             for ec_file in ec_files:
                 ec_path = os.path.abspath(ec_file)
-                ec = EasyConfig(ec_path, build_options={'validate': False, 'valid_stops': all_stops})
+                ecs = process_easyconfig(ec_path, validate=False)
                 # derive module name directly from easyconfig file name
-                ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
-                mod_name = ec_name.split('-')[0]  # get module name (assuming no '-' is in software name)
-                mod_version = '-'.join(ec_name.split('-')[1:])  # get module version
-                self.assertEqual(os.path.join(mod_name, mod_version), det_full_module_name(ec))
+                ec_fn = os.path.basename(ec_file)
+                if ec_fn in ec2mod_map:
+                    # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
+                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']))
 
-        test_default()
+        # test default module naming scheme
+        default_ec2mod_map = {
+            'GCC-4.6.3.eb': 'GCC/4.6.3',
+            'gzip-1.4.eb': 'gzip/1.4',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/1.4-GCC-4.6.3',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/1.5-goolf-1.4.10',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/1.5-ictce-4.1.13',
+            'toy-0.0.eb': 'toy/0.0',
+            'toy-0.0-multiple.eb': 'toy/0.0-somesuffix',  # first block sets versionsuffix to '-somesuffix'
+        }
+        ec2mod_map = default_ec2mod_map
+        test_mns()
 
         # generating module name from non-parsed easyconfig works fine
         non_parsed = {
@@ -192,7 +206,7 @@ class ModuleGeneratorTest(TestCase):
                 'version': '6.6.6',
             },
         }
-        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name(non_parsed))
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name_ec(non_parsed))
 
         # install custom module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
@@ -200,45 +214,72 @@ class ModuleGeneratorTest(TestCase):
         reload(easybuild)
         reload(easybuild.tools)
         reload(easybuild.tools.module_naming_scheme)
-        orig_module_naming_scheme = config.get_module_naming_scheme()
-        config.variables['module_naming_scheme'] = 'TestModuleNamingScheme'
-        mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
-        mns_mod = __import__(mns_path, globals(), locals(), [''])
-        test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
-        easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
 
+        # make sure test module naming schemes are available
+        for test_mns_mod in ['test_module_naming_scheme', 'test_module_naming_scheme_all']:
+            mns_path = "easybuild.tools.module_naming_scheme.%s" % test_mns_mod
+            mns_mod = __import__(mns_path, globals(), locals(), [''])
+            test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
+            easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
+        init_config(build_options=build_options)
 
+        # test simple custom module naming scheme
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
+        init_config(build_options=build_options)
         ec2mod_map = {
-            'GCC-4.6.3': 'GCC/4.6.3',
-            'gzip-1.4': 'gzip/1.4',
-            'gzip-1.4-GCC-4.6.3': 'gnu/gzip/1.4',
-            'gzip-1.5-goolf-1.4.10': 'gnu/openmpi/gzip/1.5',
-            'gzip-1.5-ictce-4.1.13': 'intel/intelmpi/gzip/1.5',
-            'toy-0.0': 'toy/0.0',
-            'toy-0.0-multiple': 'toy/0.0',  # test module naming scheme ignores version suffixes
+            'GCC-4.6.3.eb': 'GCC/4.6.3',
+            'gzip-1.4.eb': 'gzip/1.4',
+            'gzip-1.4-GCC-4.6.3.eb': 'gnu/gzip/1.4',
+            'gzip-1.5-goolf-1.4.10.eb': 'gnu/openmpi/gzip/1.5',
+            'gzip-1.5-ictce-4.1.13.eb': 'intel/intelmpi/gzip/1.5',
+            'toy-0.0.eb': 'toy/0.0',
+            'toy-0.0-multiple.eb': 'toy/0.0',  # test module naming scheme ignores version suffixes
         }
+        test_mns()
 
-        # test custom naming scheme
-        for ec_file in ec_files:
-            ec_path = os.path.abspath(ec_file)
-            build_options = {
-                'validate': False,
-                'valid_stops': all_stops,
-                'ignore_osdeps': True,
-            }
-            ec = EasyConfig(ec_path, build_options=build_options)
-            # derive module name directly from easyconfig file name
-            ec_name = '.'.join(ec_file.split(os.path.sep)[-1].split('.')[:-1])  # cut off '.eb' end
-            if ec_name in ec2mod_map:
-                self.assertEqual(ec2mod_map[ec_name], det_full_module_name(ec))
+        # test module naming scheme using all available easyconfig parameters
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
+        init_config(build_options=build_options)
+        ec2mod_map = {
+            'GCC-4.6.3.eb': 'GCC/afd4d25a1a2cdb1364c55274fb6929fab622f652',
+            'gzip-1.4.eb': 'gzip/b6306986fb95a06ad8bd2a09689d8997ff3e80dd',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/3c2d54583487828c21e17ed185eac372cabc5bb0',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/1fb1e3787d6063e05a04b2c054faf00dbe1dfe97',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/78c9afa1ff09994fe38d796b7569ce4b175e3551',
+            'toy-0.0.eb': 'toy/494518267cc5ed64c4250c5fbd1730a6e48fde17',
+            'toy-0.0-multiple.eb': 'toy/02822d81743944e1c072fc3c717c666da70f1be6',
+        }
+        test_mns()
 
-        # generating module name from non-parsed easyconfig does not work (and shouldn't)
-        error_msg = "Can not ensure correct module name generation for non-parsed easyconfig specifications."
-        self.assertErrorRegex(EasyBuildError, error_msg, det_full_module_name, non_parsed)
+        # test determining module name for dependencies (i.e. non-parsed easyconfigs)
+        # using a module naming scheme that requires all easyconfig parameters
+        for dep_ec, dep_spec in [
+            ('GCC-4.6.3.eb', {
+                'name': 'GCC',
+                'version': '4.6.3',
+                'versionsuffix': '',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            }),
+            ('gzip-1.5-goolf-1.4.10.eb', {
+                'name': 'gzip',
+                'version': '1.5',
+                'versionsuffix': '',
+                'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+            }),
+            ('toy-0.0-multiple.eb', {
+                'name': 'toy',
+                'version': '0.0',
+                'versionsuffix': '-multiple',
+                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            }),
+        ]:
+            self.assertEqual(det_full_module_name_ec(dep_spec), ec2mod_map[dep_ec])
 
         # restore default module naming scheme, and retest
-        config.variables['module_naming_scheme'] = orig_module_naming_scheme
-        test_default()
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
+        init_config(build_options=build_options)
+        ec2mod_map = default_ec2mod_map
+        test_mns()
 
     def test_mod_name_validation(self):
         """Test module naming validation."""
@@ -269,4 +310,6 @@ def suite():
 
 
 if __name__ == '__main__':
+    #logToScreen(enable=True)
+    #setLogLevelDebug()
     main()

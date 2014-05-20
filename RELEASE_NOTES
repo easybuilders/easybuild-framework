@@ -1,6 +1,49 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.12.1 (April 25th 2014)
+-------------------------
+
+bugfix release
+- return to original directory after executing a command in a subdir (#908)
+- fix bootstrap with Lmod, fix issue with module function check and Lmod (#911)
+
+v1.12.0 (April 4th 2014)
+------------------------
+
+feature + bugfix release
+- various enhancements, including:
+    - completed support for custom module naming schemes (#879, #904)
+        - a fully parsed easyconfig file is now passed to the det_full_module_name function
+        - this does require that an easyconfig file matching the dependency specification is available
+    - added more features to better support using a shared install target with multiple users (#902, #903, #904)
+    - further development on support for new easyconfig format (v2.0) (#844, #848)
+        - not considered stable yet, so still requires using --experimental
+    - enhanced bootstrap script to also support Lmod and modulecmd.tcl module tools (#869)
+    - added support to run_cmd_qa function to supply a list of answers  (#887)
+    - detect mismatch between definition of 'module' function and selected modules tool (#871)
+        - allowing mismatch now requires --allow-modules-tool-mismatch; an empty 'module' function is simply ignored
+    - provide lib64 fallback option for directories in default sanity check paths (#896)
+    - add support for adding JAR files to $CLASSPATH (#898)
+    - enhanced and cleaned up unit tests (#877, #880, #884, #899, #901)
+    - code cleanup and refactoring
+        - get rid of global variable for configuration settings in config.py, use singleton instead (#874, #888, #890, #892)
+        - track build options via singleton in config.py rather than passing them around all over (#886, #889)
+        - avoid parsing easyconfig files multiple times by passing a parsed easyconfig to the easyblock (#891)
+        - deprecate list of tuples return type of extra_options static method (#893, #894)
+        - move OS dependency check to systemtools.py module (#895)
+- bug fixes, including:
+         fix linking with -lcudart if CUDA is part of the toolchain, should also include -lrt (#882)
+
+v1.11.1 (February 28th 2014)
+----------------------------
+
+bugfix release
+- various bug fixes, including:
+    - fix hard crash when $LMOD_CMD specified full path to lmod binary, but spider binary is not in $PATH (#861, #873)
+    - fix bug in initialisation of repositories, causing problems when a repository subdirectory is specified (#852)
+    - avoid long wait when dependency resolution fails if --robot is not specified (#875)
+
 v1.11.0 (February 16th 2014)
 ----------------------------
 

@@ -67,6 +67,8 @@ class Toolchain(object):
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
     def __init__(self, name=None, version=None):
+        """Toolchain constructor."""
+
         self.base_init()
 
         self.dependencies = []
@@ -272,12 +274,12 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            mod_name = det_full_module_name(dep)
-            if not self.modules_tool.exists(mod_name):
-                self.log.error('add_dependencies: no module found for dependency %s' % str(dep))
+            if not self.modules_tool.exists(dep['mod_name']):
+                tup = (dep['mod_name'], dep)
+                self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
             else:
                 self.dependencies.append(dep)
-                self.log.debug('add_dependencies: added toolchain dependency %s' % dep)
+                self.log.debug('add_dependencies: added toolchain dependency %s' % str(dep))
 
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
@@ -305,13 +307,13 @@ class Toolchain(object):
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
-                self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
+                self.modules_tool.load([dep['mod_name'] for dep in self.dependencies])
             return
 
         # Load the toolchain and dependencies modules
         self.log.debug("Loading toolchain module and dependencies...")
         self.modules_tool.load([self.det_module_name()])
-        self.modules_tool.load([det_full_module_name(dep) for dep in self.dependencies])
+        self.modules_tool.load([dep['mod_name'] for dep in self.dependencies])
 
         # determine direct toolchain dependencies
         mod_name = self.det_module_name()
@@ -377,7 +379,7 @@ class Toolchain(object):
         if not names:
             deps = self.dependencies
         else:
-            deps = [{'name':name} for name in names if name is not None]
+            deps = [{'name': name} for name in names if name is not None]
 
         for root in self.get_software_root([dep['name'] for dep in deps]):
             self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)

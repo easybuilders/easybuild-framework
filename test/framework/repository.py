@@ -27,37 +27,114 @@ Unit tests for repository.py.
 
 @author: Toon Willems (Ghent University)
 """
-
 import os
 import shutil
 import tempfile
-from unittest import TestCase, TestSuite, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-from easybuild.tools.repository import FileRepository
+from easybuild.tools.repository.filerepo import FileRepository
+from easybuild.tools.repository.gitrepo import GitRepository
+from easybuild.tools.repository.svnrepo import SvnRepository
+from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.run import run_cmd
 
 
-class RepositoryTest(TestCase):
+class RepositoryTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def setUp(self):
-        """ make sure temporary path does not exist """
+        """Set up test."""
+        super(RepositoryTest, self).setUp()
+
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
-        self.cwd = os.getcwd()
 
-    def runTest(self):
-        """ after initialization it should be the working copy """
+    def test_filerepo(self):
+        """Test using FileRepository."""
         repo = FileRepository(self.path)
+        repo.init()
         self.assertEqual(repo.wc, self.path)
 
+        subdir = 'sub/dir'
+        repo = FileRepository(self.path, subdir)
+        repo.init()
+        self.assertEqual(repo.wc, self.path)
+        self.assertEqual(repo.subdir, subdir)
+
+    def test_gitrepo(self):
+        """Test using GitRepository."""
+        # only run this test if git Python module is available
+        try:
+            from git import GitCommandError
+        except ImportError:
+            print "(skipping GitRepository test)"
+            return
+
+        test_repo_url = 'https://github.com/hpcugent/testrepository'
+
+        # URL
+        repo = GitRepository(test_repo_url)
+        repo.init()
+        self.assertEqual(os.path.basename(repo.wc), 'testrepository')
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
+        shutil.rmtree(repo.wc)
+
+        # filepath
+        tmpdir = tempfile.mkdtemp()
+        cmd = "cd %s && git clone --bare %s" % (tmpdir, test_repo_url)
+        _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+
+        # skip remainder of test if creating bare git repo didn't work
+        if ec == 0:
+            repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
+            repo.init()
+            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, False)
+
+            shutil.rmtree(repo.wc)
+            shutil.rmtree(tmpdir)
+
+    def test_svnrepo(self):
+        """Test using SvnRepository."""
+        # only run this test if pysvn Python module is available
+        try:
+            from pysvn import ClientError
+        except ImportError:
+            print "(skipping SvnRepository test)"
+            return
+
+        # GitHub also supports SVN
+        test_repo_url = 'https://github.com/hpcugent/testrepository'
+
+        repo = SvnRepository(test_repo_url)
+        repo.init()
+        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'trunk', 'README.md')))
+        shutil.rmtree(repo.wc)
+
+    def test_init_repository(self):
+        """Test use of init_repository function."""
+        repo = init_repository('FileRepository', self.path)
+        self.assertEqual(repo.wc, self.path)
+
+        repo = init_repository('FileRepository', [self.path])
+        self.assertEqual(repo.wc, self.path)
+
+        subdir = 'sub/dir'
+        repo = init_repository('FileRepository', [self.path, subdir])
+        self.assertEqual(repo.wc, self.path)
+        self.assertEqual(repo.subdir, subdir)
+
     def tearDown(self):
-        """ clean up after myself """
+        """Clean up after test."""
+        super(RepositoryTest, self).tearDown()
+
         shutil.rmtree(self.path, True)
-        os.chdir(self.cwd)
 
 def suite():
     """ returns all the testcases in this module """
-    return TestSuite([RepositoryTest()])
+    return TestLoader().loadTestsFromTestCase(RepositoryTest)
+
 
 if __name__ == '__main__':
     main()

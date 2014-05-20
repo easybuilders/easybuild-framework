@@ -46,6 +46,7 @@ from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.config import build_option
 from easybuild.tools import run
 
 
@@ -157,6 +158,7 @@ def write_file(path, txt):
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
+        mkdir(os.path.dirname(path), parents=True)
         f = open(path, 'w')
         f.write(txt)
         f.close()
@@ -175,12 +177,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
-    if not os.path.isdir(dest):
-        # try to create it
-        try:
-            os.makedirs(dest)
-        except OSError, err:
-            _log.exception("Can't extract file %s: directory %s can't be created: %err " % (fn, dest, err))
+    mkdir(dest, parents=True)
 
     # use absolute pathnames from now on
     absDest = os.path.abspath(dest)
@@ -203,7 +200,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run_cmd(cmd, simple=True)
+    run.run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
@@ -249,8 +246,7 @@ def download_file(filename, url, path):
 
     # make sure directory exists
     basedir = os.path.dirname(path)
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
+    mkdir(basedir, parents=True)
 
     downloaded = False
     attempt_cnt = 0
@@ -307,18 +303,14 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, build_options=None, short=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     """
     Search for a particular file (only prints)
     """
-    if build_options is None:
-        build_options = {}
-
-    ignore_dirs = build_options.get('ignore_dirs', ['.git', '.svn'])
+    if ignore_dirs is None:
+        ignore_dirs = ['.git', '.svn']
     if not isinstance(ignore_dirs, list):
         _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
-
-    silent = build_options.get('silent', False)
 
     var_lines = []
     hit_lines = []
@@ -524,6 +516,23 @@ def extract_cmd(fn, overwrite=False):
     return ftype % fn
 
 
+def det_patched_files(path=None, txt=None):
+    """Determine list of patched files from a patch."""
+    # expected format: "+++ path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?:[ab]/)?(?P<file>\S+)", re.M)
+    if path is not None:
+        try:
+            f = open(path, 'r')
+            txt = f.read()
+            f.close()
+        except IOError, err:
+            _log.error("Failed to read patch %s: %s" % (path, err))
+    elif txt is None:
+        _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
+
+    return [x.group('file') for x in patched_regex.finditer(txt)]
+
 def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
@@ -568,30 +577,16 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
         # - we will try to match that level from current directory
-        patchreg = re.compile(r"^\s*\+\+\+\s+(?P<file>\S+)")
-        try:
-            f = open(apatch)
-            txt = "ok"
-            plusLines = []
-            while txt:
-                txt = f.readline()
-                found = patchreg.search(txt)
-                if found:
-                    plusLines.append(found)
-            f.close()
-        except IOError, err:
-            _log.error("Can't read patch %s: %s" % (apatch, err))
-            return
+        patched_files = det_patched_files(path=apatch)
 
-        if not plusLines:
+        if not patched_files:
             _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
             return
 
         p = None
-        for line in plusLines:
+        for patched_file in patched_files:
             # locate file by stripping of /
-            f = line.group('file')
-            tf2 = f.split('/')
+            tf2 = patched_file.split('/')
             n = len(tf2)
             plusFound = False
             i = None
@@ -603,7 +598,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
                 p = i
                 break
             else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
+                _log.debug('No match found for %s, trying next +++ line of patch file...' % patched_file)
 
         if p is None:  # p can also be zero, so don't use "not p"
             # no match
@@ -616,7 +611,7 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.debug("Using specified patch level %d for patch %s" % (level, patchFile))
 
     patchCmd = "patch -b -p%d -i %s" % (p, apatch)
-    result = run_cmd(patchCmd, simple=True)
+    result = run.run_cmd(patchCmd, simple=True)
     if not result:
         _log.error("Patching with patch %s failed" % patchFile)
         return
@@ -745,32 +740,56 @@ def patch_perl_script_autoflush(path):
     write_file(path, newtxt)
 
 
-def mkdir(directory, parents=False):
+def mkdir(path, parents=False, set_gid=None, sticky=None):
     """
     Create a directory
     Directory is the path to create
 
-    When parents is True then no error if directory already exists
-    and make parent directories as needed (cfr. mkdir -p)
+    @param parents: create parent directories if needed (mkdir -p)
+    @param set_gid: set group ID bit, to make subdirectories and files inherit group
+    @param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
+                   to avoid users can removing/renaming files in this directory
     """
-    if parents:
+    if set_gid is None:
+        set_gid = build_option('set_gid_bit')
+    if sticky is None:
+        sticky = build_option('sticky_bit')
+
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
+
+    # exit early if path already exists
+    if not os.path.exists(path):
+        tup = (path, parents, set_gid, sticky)
+        _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)" % tup)
+        # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
+        existing_parent_path = os.path.dirname(path)
         try:
-            os.makedirs(directory)
-            _log.debug("Succesfully created directory %s and needed parents" % directory)
-        except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.debug("Directory %s already exitst" % directory)
+            if parents:
+                # climb up until we hit an existing path or the empty string (for relative paths)
+                while existing_parent_path and not os.path.exists(existing_parent_path):
+                    existing_parent_path = os.path.dirname(existing_parent_path)
+                os.makedirs(path)
             else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:  # not parents
-        try:
-            os.mkdir(directory)
-            _log.debug("Succesfully created directory %s" % directory)
+                os.mkdir(path)
         except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.warning("Directory %s already exitst" % directory)
-            else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
+            _log.error("Failed to create directory %s: %s" % (path, err))
+
+        # set group ID and sticky bits, if desired
+        bits = 0
+        if set_gid:
+            bits |= stat.S_ISGID
+        if sticky:
+            bits |= stat.S_ISVTX
+        if bits:
+            try:
+                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
+                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
+            except OSError, err:
+                _log.error("Failed to set groud ID/sticky bit: %s" % err)
+    else:
+        _log.debug("Not creating existing path %s" % path)
 
 
 def rmtree2(path, n=3):
