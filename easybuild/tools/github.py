@@ -229,7 +229,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     # determine list of changed files via diff
     diff_txt = download(pr_data['diff_url'])
 
-    patched_files = det_patched_files(txt=diff_txt)
+    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
     _log.debug("List of patches files: %s" % patched_files)
 
     # obtain last commit
