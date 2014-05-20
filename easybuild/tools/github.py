@@ -37,13 +37,24 @@ import urllib
 import urllib2
 from vsc import fancylogger
 
+
+_log = fancylogger.getLogger('github', fname=False)
+
+
 try:
     import keyring
-    HAVE_KEYRING=True
-except ImportError:
-    HAVE_KEYRING=False
+    HAVE_KEYRING = True
+except ImportError, err:
+    _log.warning("Failed to import 'keyring' Python module: %s" % err)
+    HAVE_KEYRING = False
 
-from easybuild.tools.agithub import Github
+try:
+    from easybuild.tools.agithub import Github
+    HAVE_GITHUB_API = True
+except ImportError, err:
+    _log.warning("Failed to import from 'agithub' Python module: %s" % err)
+    HAVE_GITHUB_API = False
+
 from easybuild.tools.filetools import det_patched_files, mkdir
 
 
@@ -60,12 +71,21 @@ KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
 
-_log = fancylogger.getLogger('github', fname=False)
+def with_github_api(github_function):
+    """Decorator to make sure GitHub API support is available."""
+    def safe_github_function(*args, **kwargs):
+        """Call provided function if GitHub API support is available, or fail."""
+        if HAVE_GITHUB_API:
+            return github_function(*args, **kwargs)
+        else:
+            _log.error("Required support for GitHub API is not available")
+    return safe_github_function
 
 
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
 
+    @with_github_api
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
         @param githubuser: the github user's repo we want to use.
@@ -177,6 +197,7 @@ class GithubError(Exception):
     pass
 
 
+@with_github_api
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None):
     """Fetch patched easyconfig files for a particular PR."""
 
@@ -254,6 +275,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
 
     return ec_files
 
+
+@with_github_api
 def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
     if descr is None:
@@ -276,6 +299,8 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
 
     return data['html_url']
 
+
+@with_github_api
 def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None, github_token=None):
     """Post a comment in the specified PR."""
     if not isinstance(issue, int):
@@ -290,6 +315,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
     status, data = pr_url.comments.post(body={'body': txt})
     if not status == HTTP_STATUS_CREATED:
         _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
+
 
 def fetch_github_token(user, require_token=False):
     """Fetch GitHub token for specified user from keyring."""
