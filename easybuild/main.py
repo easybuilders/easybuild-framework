@@ -224,6 +224,7 @@ def main(testing_data=(None, None, None)):
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
+        'cleanup_builddir': options.cleanup_builddir,
         'command_line': eb_command_line,
         'debug': options.debug,
         'dry_run': options.dry_run,

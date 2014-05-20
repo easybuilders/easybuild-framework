@@ -963,6 +963,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
             mod_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/easybuild-\S*/%s\s\(module: %s\)\s*$" % (ec, mod), re.M)
             self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
+    def test_cleanup_builddir(self):
+        """Test cleaning up of build dir and --disable-cleanup-builddir."""
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        toy_buildpath = os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy')
+
+        args = [
+            toy_ec,
+            '--force',
+        ]
+        self.eb_main(args, do_build=True, verbose=True)
+
+        # make sure build directory is properly cleaned up after a successful build (default behavior)
+        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after succesful build" % toy_buildpath)
+        # make sure --disable-cleanup-builddir works
+        args.append('--disable-cleanup-builddir')
+        self.eb_main(args, do_build=True, verbose=True)
+        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained when requested" % toy_buildpath)
+        shutil.rmtree(toy_buildpath)
+
+        # make sure build dir stays in case of failed build
+        args = [
+            toy_ec,
+            '--force',
+            '--try-amend=premakeopts=nosuchcommand &&',
+        ]
+        self.eb_main(args, do_build=True)
+        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(CommandLineOptionsTest)
