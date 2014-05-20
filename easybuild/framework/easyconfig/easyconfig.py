@@ -74,11 +74,11 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 _log.deprecated("Including 'makeopts' and 'premakeopts' in parameters which are iterated over.", '2.0')
 ITERATE_OPTIONS.extend(['makeopts', 'premakeopts'])
 
-# list of deprecated easyconfig parameters, and their alternatives
-DEPRECATED_OPTIONS = [
-    ('makeopts', 'buildopts'),
-    ('premakeopts', 'prebuildopts'),
-]
+# map of deprecated easyconfig parameters, and their replacements
+DEPRECATED_OPTIONS = {
+    'makeopts': 'buildopts',
+    'premakeopts': 'prebuildopts',
+}
 
 
 class EasyConfig(object):
@@ -223,6 +223,23 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
+    def _handle_deprecated(self, local_vars):
+        """Handle deprecated options."""
+        self.log.deprecated("Handling of deprecated options %s" % DEPRECATED_OPTIONS, '1.999')
+
+        # check for deprecated easyconfig parameters
+        for opt, alt_opt in DEPRECATED_OPTIONS.items():
+            if opt in local_vars:
+                self.log.deprecated("Using '%s' is deprecated, use '%s' instead." % (opt, alt_opt), '1.999')
+                val = local_vars[opt]
+                if not alt_opt in local_vars:
+                    self.log.debug("Setting '%s' to value specified for deprecated '%s' (%s)" % (opt, alt_opt, val))
+                    local_vars[alt_opt] = val
+                else:
+                    self.log.error("Both deprecated '%s' and its alternative '%s' are being defined." % (opt, alt_opt))
+
+        self._legacy_license(local_vars)
+
     def parse(self):
         """
         Parse the file and set options
@@ -242,16 +259,7 @@ class EasyConfig(object):
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
-        # check for deprecated easyconfig parameters
-        for opt, alt_opt in DEPRECATED_OPTIONS:
-            if opt in local_vars:
-                self.log.deprecated("Using '%s' is deprecated, use '%s' instead." % (opt, alt_opt), '1.999')
-                val = local_vars[opt]
-                if not alt_opt in local_vars:
-                    self.log.debug("Setting '%s' to value specified for deprecated '%s' (%s)" % (opt, alt_opt, val))
-                    local_vars[alt_opt] = val
-                else:
-                    self.log.error("Both deprecated '%s' and its alternative '%s' are being defined." % (opt, alt_opt))
+        self._handle_deprecated(local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
@@ -267,8 +275,6 @@ class EasyConfig(object):
         if typos:
             self.log.error("You may have some typos in your easyconfig file: %s" %
                             ', '.join(["%s -> %s" % typo for typo in typos]))
-
-        self._legacy_license(local_vars)
 
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
