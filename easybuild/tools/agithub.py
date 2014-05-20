@@ -36,21 +36,12 @@ import base64
 import re
 import socket
 import httplib, urllib
-
-from vsc import fancylogger
-
-
 try:
     import json
-    HAVE_JSON = True
 except ImportError:
-    try:
-        # fallback for Python 2.4
-        import simplejson as json
-        HAVE_JSON = True
-    except ImportError:
-        fancylogger.getLogger().warning("Python module 'json' and fallback 'simplejson' both not available.")
-        HAVE_JSON = False
+    import simplejson as json
+
+from vsc import fancylogger
 
 
 class Client(object):
@@ -85,21 +76,15 @@ class Client(object):
     return self.request('DELETE', url, None, headers)
 
   def post(self, url, body=None, headers={}, **params):
-    if not HAVE_JSON:
-        fancylogger.getLogger().error("Required Python module 'json' not available.")
     url += self.urlencode(params)
     headers["Content-type"] = "application/json"
     return self.request('POST', url, json.dumps(body), headers)
 
   def put(self, url, body=None, headers={}, **params):
-    if not HAVE_JSON:
-        fancylogger.getLogger().error("Required Python module 'json' not available.")
     url += self.urlencode(params)
     return self.request('PUT', url, json.dumps(body), headers)
 
   def request(self, method, url, body, headers):
-    if not HAVE_JSON:
-        fancylogger.getLogger().error("Required Python module 'json' not available.")
     if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
     if self.username is not None:
