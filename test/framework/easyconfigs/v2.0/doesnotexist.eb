@@ -10,9 +10,10 @@ name = 'doesnotexist'
 
 homepage = "http://www.example.com/"
 description = "doesnotexist is bug free software"
-docurl = "http://www.example.com/docs"
+docurls = ["http://www.example.com/docs"]
 
-license = VeryRestrictive
+software_license = VeryRestrictive
+software_license_urls = ['http://localhost/my_license']
 
 # source tarball filename
 sources = ['%(name)s-%(version)s.tar.gz']

@@ -36,7 +36,12 @@ import shutil
 import sys
 import tempfile
 import unittest
-from vsc import fancylogger
+from vsc.utils import fancylogger
+
+# disable all logging to significantly speed up tests
+import easybuild.tools.build_log  # initialize EasyBuild logging, so we disable it
+fancylogger.disableDefaultHandlers()
+fancylogger.setLogLevelError()
 
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
@@ -45,6 +50,7 @@ import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
 import test.framework.easyconfigformat as ef
+import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
 import test.framework.format_convert as f_c
@@ -54,9 +60,11 @@ import test.framework.module_generator as mg
 import test.framework.modules as m
 import test.framework.modulestool as mt
 import test.framework.options as o
+import test.framework.parallelbuild as p
 import test.framework.repository as r
 import test.framework.robot as robot
 import test.framework.run as run
+import test.framework.scripts as sc
 import test.framework.systemtools as s
 import test.framework.toolchain as tc
 import test.framework.toolchainvariables as tcv
@@ -84,11 +92,11 @@ os.close(fd)
 os.remove(log_fn)
 fancylogger.logToFile(log_fn)
 log = fancylogger.getLogger()
-log.setLevelName('DEBUG')
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c]
+tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc]
+
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
 # uses XMLTestRunner if possible, so we can output an XML file that can be supplied to Jenkins

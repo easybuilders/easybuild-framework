@@ -41,6 +41,7 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme
+from easybuild.tools.filetools import mkdir
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -85,12 +86,8 @@ class ModuleGenerator(object):
         classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
 
         # Create directories and links
-        for directory in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
-            if not os.path.isdir(directory):
-                try:
-                    os.makedirs(directory)
-                except OSError, err:
-                    _log.exception("Couldn't make directory %s: %s" % (directory, err))
+        for path in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
+            mkdir(path, parents=True)
 
         # Make a symlink from classpathFile to self.filename
         try:
@@ -205,6 +202,15 @@ class ModuleGenerator(object):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
 
+    def set_fake(self, fake):
+        """Determine whether this ModuleGenerator instance should generate fake modules."""
+        _log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
+        self.fake = fake
+
+    def is_fake(self):
+        """Return whether this ModuleGenerator instance generates fake modules or not."""
+        return self.fake
+
 
 def avail_module_naming_schemes():
     """
@@ -277,16 +283,7 @@ def det_full_module_name(ec, eb_ns=False):
         # return module name under EasyBuild module naming scheme
         mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
     else:
-        try:
-            mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
-        except KeyError, err:
-            # easyconfig keys available for generating module name are limited to name/version/versionsuffix/toolchain
-            # because dependency specifications only provide these keys
-            # to support more involved module naming scheme, a parsed easyconfig file is always required
-            # see https://github.com/hpcugent/easybuild-framework/issues/687
-            error_msg = "An error occured when determining module name for %s, " % ec
-            error_msg += "make sure only name/version/versionsuffix/toolchain are used to determine module name: %s" % err
-            _log.error(error_msg)
+        mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
 
     if not is_valid_module_name(mod_name):
         _log.error("%s is not a valid module name" % str(mod_name))

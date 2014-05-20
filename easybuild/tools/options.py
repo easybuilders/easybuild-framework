@@ -39,9 +39,10 @@ import sys
 
 from distutils.version import LooseVersion
 
-from easybuild.framework.easyblock import EasyBlock, get_class
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -56,9 +57,9 @@ from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.repository import avail_repositories
+from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import any
 
@@ -136,6 +137,11 @@ class EasyBuildOptions(GeneralOption):
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
 
+        # additional options that don't need a --try equivalent
+        opts.update({
+            'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
+        })
+
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
@@ -144,18 +150,25 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
+                                            None, 'store_true', False),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
                              None, 'store_true', False),
+            'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
+            'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
+                      None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -261,14 +274,15 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
+            'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'github-user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
-            'regtest-online': ("Enable online regression test mode",
-                               None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
@@ -311,6 +325,11 @@ class EasyBuildOptions(GeneralOption):
         if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
             stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' %
                             (','.join(self.options.try_toolchain)))
+
+        if self.options.umask:
+            umask_regex = re.compile('^[0-7]{3}$')
+            if not umask_regex.match(self.options.umask):
+                stop_msg.append("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
 
         if len(stop_msg) > 0:
             indent = " "*2
@@ -424,7 +443,7 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_class(self.options.easyblock)
+        app = get_easyblock_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(extra, has_default=False)
         if len(extra) > 0:
@@ -538,20 +557,20 @@ class EasyBuildOptions(GeneralOption):
         usable_repos = avail_repositories(check_useable=True).keys()
 
         indent = ' ' * 2
-        txt = ['All avaialble repository types']
+        txt = ['All avaliable repository types']
         repos = sorted(all_repos.keys())
         for repo in repos:
             if repo in usable_repos:
                 missing = ''
             else:
-                missing = ' (*Not usable*, something is missing (eg a specific module))'
+                missing = ' (*not usable*, something is missing (e.g. a required Python module))'
             if repo in repopath_defaults:
-                default = ' (Default arguments: %s)' % (repopath_defaults[repo])
+                default = ' (default arguments: %s)' % ', '.join(repopath_defaults[repo])
             else:
-                default = ' (No default arguments)'
+                default = ' (no default arguments)'
 
-            txt.append("%s%s%s%s" % (indent, repo, default, missing))
-            txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
+            txt.append("%s* %s%s%s" % (indent, repo, default, missing))
+            txt.append("%s%s" % (indent * 3, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
 

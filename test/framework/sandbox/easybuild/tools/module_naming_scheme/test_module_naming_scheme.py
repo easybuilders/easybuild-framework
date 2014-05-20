@@ -42,7 +42,7 @@ class TestModuleNamingScheme(ModuleNamingScheme):
 
         @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
-        @return: n-element tuple with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
+        @return: string with full module name, e.g.: 'gzip/1.5', 'intel/intelmpi/gzip'/1.5'
         """
         if ec['toolchain']['name'] == 'goolf':
             mod_name = os.path.join('gnu', 'openmpi', ec['name'], ec['version'])

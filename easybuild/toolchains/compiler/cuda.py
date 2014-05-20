@@ -65,7 +65,7 @@ class Cuda(Compiler):
 
     COMPILER_CUDA_CC = 'nvcc'
     COMPILER_CUDA_CXX = 'nvcc'
-    LIB_CUDA_RUNTIME = 'cudart'
+    LIB_CUDA_RUNTIME = ['rt', 'cudart']
 
     def __init__(self, *args, **kwargs):
         """Constructor, with settings custom to CUDA."""

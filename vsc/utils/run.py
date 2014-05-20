@@ -654,6 +654,7 @@ class RunQA(RunLoop, RunAsync):
     """Question/Answer processing"""
     LOOP_MAX_MISS_COUNT = 20
     INIT_INPUT_CLOSE = False
+    CYCLE_ANSWERS = True
 
     def __init__(self, cmd, **kwargs):
         """
@@ -683,43 +684,56 @@ class RunQA(RunLoop, RunAsync):
             - replace whitespace
             - replace newline
         - qa_reg: question is compiled as is, and whitespace+ending is added
+        - provided answers can be either strings or lists of strings (which will be used iteratively)
         """
 
         def escape_special(string):
             specials = '.*+?(){}[]|\$^'
             return re.sub(r"([%s])" % ''.join(['\%s' % x for x in specials]), r"\\\1", string)
 
-        split = '[\s\n]+'
-        reg_split = re.compile(r"" + split)
+        SPLIT = '[\s\n]+'
+        REG_SPLIT = re.compile(r"" + SPLIT)
 
-        def process_qa(q, a):
-            split_q = [escape_special(x) for x in reg_split.split(q)]
-            reg_q_txt = split.join(split_q) + split.rstrip('+') + "*$"
-            # add optional split at the end
-            if not a.endswith('\n'):
-                a += '\n'
-            reg_q = re.compile(r"" + reg_q_txt)
-            if reg_q.search(q):
-                return (a, reg_q)
+        def process_answers(answers):
+            """Construct list of newline-terminated answers (as strings)."""
+            if isinstance(answers, basestring):
+                answers = [answers]
+            elif isinstance(answers, list):
+                # list is manipulated when answering matching question, so take a copy
+                answers = answers[:]
             else:
-                self.log.error("_parse_q_a process_qa: question %s converted in %s does not match itself" %
-                               (q, reg_q_txt))
+                msg_tmpl = "Invalid type for answer, not a string or list: %s (%s)"
+                self.log.raiseException(msg_tmpl % (type(answers), answers), exception=TypeError)
+            # add optional split at the end
+            for i in [idx for idx, a in enumerate(answers) if not a.endswith('\n')]:
+                answers[i] += '\n'
+            return answers
+
+        def process_question(question):
+            """Convert string question to regex."""
+            split_q = [escape_special(x) for x in REG_SPLIT.split(question)]
+            reg_q_txt = SPLIT.join(split_q) + SPLIT.rstrip('+') + "*$"
+            reg_q = re.compile(r"" + reg_q_txt)
+            if reg_q.search(question):
+                return reg_q
+            else:
+                # this is just a sanity check on the created regex, can this actually occur?
+                msg_tmpl = "_parse_qa process_question: question %s converted in %s does not match itself"
+                self.log.raiseException(msg_tmpl % (question.pattern, reg_q_txt), exception=ValueError)
 
         new_qa = {}
         self.log.debug("new_qa: ")
-        for question, answer in qa.items():
-            (a, reg_q) = process_qa(question, answer)
-            new_qa[reg_q] = a
-            self.log.debug("new_qa[%s]: %s" % (reg_q.pattern.__repr__(), a))
+        for question, answers in qa.items():
+            reg_q = process_question(question)
+            new_qa[reg_q] = process_answers(answers)
+            self.log.debug("new_qa[%s]: %s" % (reg_q.pattern.__repr__(), answers))
 
         new_qa_reg = {}
         self.log.debug("new_qa_reg: ")
-        for question, answer in qa_reg.items():
+        for question, answers in qa_reg.items():
             reg_q = re.compile(r"" + question + r"[\s\n]*$")
-            if not answer.endswith('\n'):
-                answer += '\n'
-            new_qa_reg[reg_q] = answer
-            self.log.debug("new_qa_reg[%s]: %s" % (reg_q.pattern.__repr__(), answer))
+            new_qa_reg[reg_q] = process_answers(answers)
+            self.log.debug("new_qa_reg[%s]: %s" % (reg_q.pattern.__repr__(), answers))
 
         # simple statements, can contain wildcards
         new_no_qa = [re.compile(r"" + x + r"[\s\n]*$") for x in no_qa]
@@ -742,13 +756,18 @@ class RunQA(RunLoop, RunAsync):
 
         # qa first and then qa_reg
         nr_qa = len(self.qa)
-        for idx, (q, a) in enumerate(self.qa.items() + self.qa_reg.items()):
-            res = q.search(self._process_output)
+        for idx, (question, answers) in enumerate(self.qa.items() + self.qa_reg.items()):
+            res = question.search(self._process_output)
             if output and res:
-                fa = a % res.groupdict()
+                answer = answers[0] % res.groupdict()
+                if len(answers) > 1:
+                    prev_answer = answers.pop(0)
+                    if self.CYCLE_ANSWERS:
+                        answers.append(prev_answer)
+                    self.log.debug("New answers list for question %s: %s" % (question.pattern, answers))
                 self.log.debug("_loop_process_output: answer %s question %s (std: %s) out %s" %
-                               (fa, q.pattern, idx >= nr_qa, self._process_output[-50:]))
-                self._process_module.send_all(self._process, fa)
+                               (answer, question.pattern, idx >= nr_qa, self._process_output[-50:]))
+                self._process_module.send_all(self._process, answer)
                 hit = True
                 break
 

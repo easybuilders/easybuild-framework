@@ -45,9 +45,10 @@ from vsc import fancylogger
 from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_modules_tool, install_path
-from easybuild.tools.filetools import convert_name, read_file, which
+from easybuild.tools.config import build_option, get_modules_tool, install_path
+from easybuild.tools.filetools import convert_name, mkdir, read_file, which
 from easybuild.tools.module_generator import det_full_module_name, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
+from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
@@ -72,7 +73,7 @@ output_matchers = {
     # regex below matches modules like 'ictce/3.2.1.015.u4', 'OpenMPI/1.6.4-no-OFED', ...
     #
     # Module lines notes:
-    # * module name may have '(default)' appeneded [modulecmd]
+    # * module name may have '(default)' appended [modulecmd]
     # ignored lines:
     # * module paths lines may start with a (empty) set of '-'s, which will be followed by a space [modulecmd.tcl]
     # * module paths may end with a ':' [modulecmd, lmod]
@@ -138,6 +139,7 @@ class ModulesTool(object):
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         # make sure we don't have the same path twice
         if mod_paths is None:
@@ -166,8 +168,12 @@ class ModulesTool(object):
 
         # some initialisation/verification
         self.check_cmd_avail()
+        self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.use_module_paths()
+
+        # this can/should be set to True during testing
+        self.testing = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -217,6 +223,31 @@ class ModulesTool(object):
         else:
             mod_tool = self.__class__.__name__
             self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
+
+    def check_module_function(self, allow_mismatch=False, regex=None):
+        """Check whether selected module tool matches 'module' function definition."""
+        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if regex is None:
+            regex = r".*%s" % os.path.basename(self.cmd)
+        mod_cmd_re = re.compile(regex, re.M)
+        mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+        if ec == 0:
+            if mod_cmd_re.search(out):
+                self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
+            else:
+                msg = "%s not found in defined 'module' function.\n" % mod_details
+                msg += "Specify the correct modules tool to avoid weird problems due to this mismatch, "
+                msg += "see the --modules-tool and --avail-modules-tools command line options.\n"
+                if allow_mismatch:
+                    msg += "Obtained definition of 'module' function: %s" % out
+                    self.log.warning(msg)
+                else:
+                    msg += "Or alternatively, use --allow-modules-tool-mismatch to stop treating this as an error. "
+                    msg += "Obtained definition of 'module' function: %s" % out
+                    self.log.error(msg)
+        else:
+            # module function may not be defined (weird, but fine)
+            self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
     def check_module_path(self):
         """
@@ -310,7 +341,7 @@ class ModulesTool(object):
                 if len(mods) == 0:
                     self.log.warning('No module %s available' % str(mod))
                 else:
-                    self.log.warning('More then one module found for %s: %s' % (mod, mods))
+                    self.log.warning('More than one module found for %s: %s' % (mod, mods))
                 continue
 
     def remove_module(self, modules):
@@ -488,10 +519,14 @@ class ModulesTool(object):
                     result.append(module.groupdict())
             return result
 
+    def list(self):
+        """Return result of 'module list'."""
+        return self.run_module('list')
+
     def loaded_modules(self):
         """Return a list of loaded modules."""
         # obtain list of loaded modules from 'module list' using --terse
-        mods = [mod['mod_name'] for mod in self.run_module('list')]
+        mods = [mod['mod_name'] for mod in self.list()]
 
         # filter out devel modules
         loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
@@ -534,7 +569,7 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
-    VERSION_REGEXP = r'^\s*VERSION\s*=\s*(?P<version>\d\S*)\s*^'
+    VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
@@ -629,6 +664,11 @@ class Lmod(ModulesTool):
 
         super(Lmod, self).set_and_check_version()
 
+    def check_module_function(self, *args, **kwargs):
+        """Check whether selected module tool matches 'module' function definition."""
+        if not 'regex' in kwargs:
+            kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
+        super(Lmod, self).check_module_function(*args, **kwargs)
 
     def available(self, mod_name=None):
         """
@@ -649,24 +689,30 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        cmd = ['spider', '-o', 'moduleT', os.environ['MODULEPATH']]
+        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+        self.log.debug("Running command '%s'..." % ' '.join(cmd))
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
 
         if stderr:
             self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        try:
-            cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-            self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-            cache_dir = os.path.dirname(cache_filefn)
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-            cache_file = open(cache_filefn, 'w')
-            cache_file.write(stdout)
-            cache_file.close()
-        except (IOError, OSError), err:
-            self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
+        if self.testing:
+            # don't actually update local cache when testing, just return the cache contents
+            return stdout
+        else:
+            try:
+                cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
+                cache_dir = os.path.dirname(cache_filefn)
+                if not os.path.exists(cache_dir):
+                    mkdir(cache_dir, parents=True)
+                cache_file = open(cache_filefn, 'w')
+                cache_file.write(stdout)
+                cache_file.close()
+            except (IOError, OSError), err:
+                self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""
