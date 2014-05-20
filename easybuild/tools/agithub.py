@@ -86,20 +86,20 @@ class Client(object):
 
   def post(self, url, body=None, headers={}, **params):
     if not HAVE_JSON:
-        fancylogger.getLogger().raiseException("Required Python module 'json' not available.")
+        fancylogger.getLogger().error("Required Python module 'json' not available.")
     url += self.urlencode(params)
     headers["Content-type"] = "application/json"
     return self.request('POST', url, json.dumps(body), headers)
 
   def put(self, url, body=None, headers={}, **params):
     if not HAVE_JSON:
-        fancylogger.getLogger().raiseException("Required Python module 'json' not available.")
+        fancylogger.getLogger().error("Required Python module 'json' not available.")
     url += self.urlencode(params)
     return self.request('PUT', url, json.dumps(body), headers)
 
   def request(self, method, url, body, headers):
     if not HAVE_JSON:
-        fancylogger.getLogger().raiseException("Required Python module 'json' not available.")
+        fancylogger.getLogger().error("Required Python module 'json' not available.")
     if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
     if self.username is not None:
