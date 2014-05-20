@@ -36,12 +36,10 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
-import copy
 import os
 import subprocess
 import sys
 import tempfile
-from time import gmtime, strftime
 from vsc import fancylogger
 from vsc.utils.missing import any
 
@@ -64,6 +62,7 @@ from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, post_easyconfigs_pr_test_report, upload_test_report_as_gist
 from easybuild.tools.testing import regtest, session_module_list, session_state
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.version import this_is_easybuild  # from a single location
 
 
@@ -197,8 +196,15 @@ def main(testing_data=(None, None, None)):
     if not easyconfigs_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # process software build specifications (if any), i.e.
+    # software name/version, toolchain name/version, extra patches, ...
+    (try_to_generate, build_specs) = process_software_build_specs(options)
+
     # specified robot paths are preferred over installed easyconfig files
-    if robot_path:
+    # --try-X and --dep-graph both require --robot, so enable it with path of installed easyconfigs
+    if robot_path or try_to_generate or options.dep_graph:
+        if robot_path is None:
+            robot_path = []
         robot_path.extend(easyconfigs_paths)
         easyconfigs_paths = robot_path[:]
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
@@ -260,10 +266,6 @@ def main(testing_data=(None, None, None)):
         ignore_dirs = config.build_option('ignore_dirs')
         silent = config.build_option('silent')
         search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
-
-    # process software build specifications (if any), i.e.
-    # software name/version, toolchain name/version, extra patches, ...
-    (try_to_generate, build_specs) = process_software_build_specs(options)
 
     paths = []
     if len(orig_paths) == 0:
@@ -339,16 +341,20 @@ def main(testing_data=(None, None, None)):
             print_error("Can't find path %s" % path)
 
         try:
-            files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
-            for f in files:
-                if not generated and try_to_generate and build_specs:
-                    ec_file = tweak(f, None, build_specs)
+            ec_files = find_easyconfigs(path, ignore_dirs=options.ignore_dirs)
+            for ec_file in ec_files:
+                # only pass build specs when not generating easyconfig files
+                if try_to_generate:
+                    ecs = process_easyconfig(ec_file)
                 else:
-                    ec_file = f
-                ecs = process_easyconfig(ec_file, build_specs=build_specs)
+                    ecs = process_easyconfig(ec_file, build_specs=build_specs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
+
+    # tweak obtained easyconfig files, if requested
+    if try_to_generate and build_specs:
+        easyconfigs = tweak(easyconfigs, build_specs)
 
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])
