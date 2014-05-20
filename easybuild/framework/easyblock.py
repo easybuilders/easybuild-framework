@@ -74,7 +74,7 @@ from easybuild.tools.module_generator import det_devel_module_filename
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
-from easybuild.tools.repository import init_repository
+from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import get_avail_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
@@ -1876,11 +1876,10 @@ class EasyBlock(object):
 
         return steps
 
-    def run_all_steps(self, run_test_cases, regtest_online):
+    def run_all_steps(self, run_test_cases):
         """
         Build and install this software.
         run_test_cases (bool): run tests after building (e.g.: make test)
-        regtest_online (bool): do an online regtest, this means check the websites and try to download sources"
         """
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
@@ -1901,7 +1900,7 @@ class EasyBlock(object):
         return True
 
 
-def build_and_install_software(module, orig_environ):
+def build_and_install_one(module, orig_environ):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
@@ -1951,12 +1950,11 @@ def build_and_install_software(module, orig_environ):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
-        regtest_online = build_option('regtest_online')
-        result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
+        result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
-        lastn = 300
-        errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
-        _log.exception(errormsg)
+        first_n = 300
+        errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
+        _log.warning(errormsg)
         result = False
 
     ended = "ended"
@@ -1992,7 +1990,7 @@ def build_and_install_software(module, orig_environ):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        exit_code = 0
+        success = True
         succ = "successfully"
         summary = "COMPLETED"
 
@@ -2016,13 +2014,13 @@ def build_and_install_software(module, orig_environ):
 
     # build failed
     else:
-        exit_code = 1
+        success = False
         summary = "FAILED"
 
         build_dir = ''
         if app.builddir:
             build_dir = " (build directory: %s)" % (app.builddir)
-        succ = "unsuccessfully%s:\n%s" % (build_dir, errormsg)
+        succ = "unsuccessfully%s: %s" % (build_dir, errormsg)
 
         # cleanup logs
         app.close_log()
@@ -2031,9 +2029,9 @@ def build_and_install_software(module, orig_environ):
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
     # check for errors
-    if exit_code != 0 or filetools.errors_found_in_log > 0:
-        print_msg("\nWARNING: Build exited with non-zero exit code %d. %d possible error(s) were detected in the "
-                  "build logs, please verify the build.\n" % (exit_code, filetools.errors_found_in_log),
+    if filetools.errors_found_in_log > 0:
+        print_msg("WARNING: %d possible error(s) were detected in the "
+                  "build logs, please verify the build." % filetools.errors_found_in_log,
                   _log, silent=silent)
 
     if app.postmsg:
@@ -2044,8 +2042,7 @@ def build_and_install_software(module, orig_environ):
     del app
     os.chdir(cwd)
 
-    return (exit_code == 0, application_log)
-
+    return (success, application_log, errormsg)
 
 def get_easyblock_instance(easyconfig):
     """

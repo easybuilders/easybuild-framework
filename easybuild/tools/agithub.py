@@ -28,12 +28,13 @@
 Interface to GitHub.
 
 @author: Jonathan Paugh
-@uathor: Jens Timmerman (Ghent University)
-@uathor: Kenneth Hoste (Ghent University)
+@author: Jens Timmerman (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import base64
 import re
+import socket
 import httplib, urllib
 try:
     import json
@@ -51,7 +52,7 @@ class Client(object):
       'put',
       )
 
-  def __init__(self, username=None, password=None, token=None):
+  def __init__(self, url, username=None, password=None, token=None):
     self.auth_header = None
     if username is not None:
       if password is None and token is None:
@@ -64,6 +65,7 @@ class Client(object):
       elif token is not None:
         self.auth_header = 'Token %s' % token
     self.username = username
+    self.url = url
 
   def get(self, url, headers={}, **params):
     url += self.urlencode(params)
@@ -75,6 +77,7 @@ class Client(object):
 
   def post(self, url, body=None, headers={}, **params):
     url += self.urlencode(params)
+    headers["Content-type"] = "application/json"
     return self.request('POST', url, json.dumps(body), headers)
 
   def put(self, url, body=None, headers={}, **params):
@@ -84,11 +87,18 @@ class Client(object):
   def request(self, method, url, body, headers):
     if self.auth_header is not None:
         headers['Authorization'] = self.auth_header
-    headers['User-Agent'] = 'agithub'
-    fancylogger.getLogger().debug('cli request: %s, %s, %s %s', method, url, body, headers)
+    if self.username is not None:
+        headers['User-Agent'] = self.username
+    else:
+        headers['User-Agent'] = 'agithub'
+    req = 'cli request: %s, %s, %s %s' % (method, url, body, headers)
+    fancylogger.getLogger().debug(req)
     #TODO: Context manager
     conn = self.get_connection()
-    conn.request(method, url, body, headers)
+    try:
+        conn.request(method, url, body, headers)
+    except socket.gaierror, err:
+        fancylogger.getLogger().raiseException("Failed to issue HTTP request to GitHub API: %s (err: %s)" % (req, err))
     response = conn.getresponse()
     status = response.status
     body = response.read()
@@ -109,7 +119,7 @@ class Client(object):
     return 'Basic ' + base64.b64encode('%s:%s' % (self.username, password)).strip()
 
   def get_connection(self):
-    return httplib.HTTPSConnection('api.github.com')
+    return httplib.HTTPSConnection(self.url)
 
 
 class Github(object):
@@ -136,7 +146,7 @@ class Github(object):
   automatically supports the full API--so why should you care?
   '''
   def __init__(self, *args, **kwargs):
-    self.client = Client(*args, **kwargs)
+    self.client = Client('api.github.com', *args, **kwargs)
   def __getattr__(self, key):
     return RequestBuilder(self.client).__getattr__(key)
 

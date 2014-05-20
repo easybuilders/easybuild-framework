@@ -238,6 +238,10 @@ class FileToolsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_det_patched_files(self):
+        """Test det_patched_files function."""
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        self.assertEqual(ft.det_patched_files(pf), ['toy-0.0/toy.source'])
 
 def suite():
     """ returns all the testcases in this module """

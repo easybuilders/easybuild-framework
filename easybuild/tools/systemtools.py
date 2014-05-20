@@ -31,6 +31,8 @@ Module with useful functions for getting system information
 import os
 import platform
 import re
+import sys
+from socket import gethostname
 from vsc import fancylogger
 try:
     # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
@@ -38,7 +40,8 @@ try:
 except ImportError:
     pass
 
-from easybuild.tools.filetools import read_file, run_cmd, which
+from easybuild.tools.filetools import read_file, which
+from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -96,7 +99,7 @@ def get_avail_core_count():
             f = open("/proc/%s/status" % mypid, 'r')
             txt = f.read()
             f.close()
-            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
+            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M | re.I)
         except IOError:
             cpuset = None
 
@@ -212,7 +215,7 @@ def get_cpu_speed():
     os_type = get_os_type()
     if os_type == LINUX:
         try:
-             # Linux with cpu scaling
+            # Linux with cpu scaling
             max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
             try:
                 f = open(max_freq_fp, 'r')
@@ -409,3 +412,62 @@ def check_os_dependency(dep):
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
+
+
+def get_tool_version(tool, version_option='--version'):
+    """
+    Get output of running version option for specific command line tool.
+    Output is returned as a single-line string (newlines are replaced by '; ').
+    """
+    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False)
+    if ec:
+        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
+        return UNKNOWN
+    else:
+        return '; '.join(out.split('\n'))
+
+
+def get_glibc_version():
+    """
+    Find the version of glibc used on this system
+    """
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        glibc_ver_str = get_tool_version('ldd')
+        glibc_ver_regex = re.compile(r"^ldd \([^)]*\) (\d[\d.]*).*$")
+        res = glibc_ver_regex.search(glibc_ver_str)
+
+        if res is not None:
+            glibc_version = res.group(1)
+            _log.debug("Found glibc version %s" % glibc_version)
+            return glibc_version
+        else:
+            tup = (glibc_ver_str, glibc_ver_regex.pattern)
+            _log.error("Failed to determine version from '%s' using pattern '%s'." % tup)
+    else:
+        # no glibc on OS X standard
+        _log.debug("No glibc on a non-Linux system, so can't determine version.")
+        return UNKNOWN
+
+
+def get_system_info():
+    """Return a dictionary with system information."""
+    python_version = '; '.join(sys.version.split('\n'))
+    return {
+        'core_count': get_avail_core_count(),
+        'cpu_model': get_cpu_model(),
+        'cpu_speed': get_cpu_speed(),
+        'cpu_vendor': get_cpu_vendor(),
+        'gcc_version': get_tool_version('gcc', version_option='-v'),
+        'hostname': gethostname(),
+        'glibc_version': get_glibc_version(),
+        'kernel_name': get_kernel_name(),
+        'os_name': get_os_name(),
+        'os_type': get_os_type(),
+        'os_version': get_os_version(),
+        'platform_name': get_platform_name(),
+        'python_version': python_version,
+        'system_python_path': which('python'),
+        'system_gcc_path': which('gcc'),
+    }
