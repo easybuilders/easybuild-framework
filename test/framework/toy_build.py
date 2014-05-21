@@ -113,8 +113,10 @@ class ToyBuildTest(EnhancedTestCase):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
+        test_readme = False
         if ec_file is None:
             ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            test_readme = True
         args = [
             ec_file,
             '--sourcepath=%s' % self.test_sourcepath,
@@ -139,6 +141,11 @@ class ToyBuildTest(EnhancedTestCase):
 
         if verify:
             self.check_toy(self.test_installpath, outtxt)
+
+        if test_readme:
+            # make sure postinstallcmds were used
+            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+            self.assertEqual(open(os.path.join(toy_install_path, 'README'), 'r').read(), "TOY\n")
 
         # make sure full test report was dumped, and contains sensible information
         if test_report is not None:
@@ -194,10 +201,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-
-        # make sure postinstallcmds were used
-        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
-        self.assertEqual(open(os.path.join(toy_installdir, 'README'), 'r').read(), "TOY\n")
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
