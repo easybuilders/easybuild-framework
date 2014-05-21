@@ -75,6 +75,8 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tbz2', "tar xjf test.tbz2"),
             ('test.tb2', "tar xjf test.tb2"),
             ('test.tar.bz2', "tar xjf test.tar.bz2"),
+            ('test.gz', "gunzip test.gz"),
+            ("/some/path/test.gz", "cp /some/path/test.gz . && gunzip test.gz"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
