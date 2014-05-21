@@ -520,7 +520,7 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
     """Determine list of patched files from a patch."""
     # expected format: "+++ path/to/patched/file"
     # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<file>(?:[ab]/)?\S+)", re.M)
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
         try:
             f = open(path, 'r')
@@ -531,12 +531,12 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
     elif txt is None:
         _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
 
-    patched_files = [x.group('file') for x in patched_regex.finditer(txt)]
-
-    if omit_ab_prefix:
-        for i, patched_file in enumerate(patched_files):
-            if patched_file.startswith('a/') or patched_file.startswith('b/'):
-                patched_files[i] = patched_file[2:]
+    patched_files = []
+    for match in patched_regex.finditer(txt):
+        patched_file = match.group('file')
+        if not omit_ab_prefix and match.group('ab_prefix') is not None:
+            patched_file = match.group('ab_prefix') + patched_file
+        patched_files.append(patched_file)
 
     return patched_files
 
