@@ -74,9 +74,9 @@ ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', '
 
 # map of deprecated easyconfig parameters, and their replacements
 DEPRECATED_OPTIONS = {
-    'license': 'software_license',
-    'makeopts': 'buildopts',
-    'premakeopts': 'prebuildopts',
+    'license': ('software_license', '2.0'),
+    'makeopts': ('buildopts', '2.0'),
+    'premakeopts': ('prebuildopts', '2.0'),
 }
 
 
@@ -87,8 +87,8 @@ def handle_deprecated_easyconfig_parameter(ec_method):
         # map name of deprecated easyconfig parameter to new name
         if key in DEPRECATED_OPTIONS:
             depr_key = key
-            key = DEPRECATED_OPTIONS[depr_key]
-            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), '2.0')
+            key, ver = DEPRECATED_OPTIONS[depr_key]
+            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), ver)
 
         # make sure that value for software_license has correct type, convert if needed
         if key == 'software_license':
@@ -170,8 +170,8 @@ class EasyConfig(object):
         # map deprecated params to new names if they occur in extra_options
         for key, val in self.extra_options.items():
             if key in DEPRECATED_OPTIONS:
-                new_key = DEPRECATED_OPTIONS[key]
-                self.log.deprecated("Found deprecated key '%s', should use '%s' instead." % (key, new_key), '2.0')
+                new_key, depr_ver = DEPRECATED_OPTIONS[key]
+                self.log.deprecated("Found deprecated key '%s', should use '%s' instead." % (key, new_key), depr_ver)
                 self.extra_options[new_key] = self.extra_options[key]
                 self.log.debug("Set '%s' with value of deprecated '%s': %s" % (new_key, key, self.extra_options[key]))
                 del self.extra_options[key]
