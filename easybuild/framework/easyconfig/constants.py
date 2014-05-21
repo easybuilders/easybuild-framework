@@ -31,7 +31,7 @@ be used within an Easyconfig file.
 @author: Kenneth Hoste (Ghent University)
 """
 import platform
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
 

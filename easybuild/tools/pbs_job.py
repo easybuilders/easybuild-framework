@@ -33,7 +33,7 @@ Interface module to TORQUE (PBS).
 import os
 import tempfile
 import time
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('pbs_job', fname=False)

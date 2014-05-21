@@ -31,11 +31,10 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
-
 import os
 import sys
 from copy import copy
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.version import VERSION
 

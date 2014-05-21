@@ -37,7 +37,7 @@ import glob
 import os
 import re
 import sys
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, nub
 
 import easybuild.tools.toolchain

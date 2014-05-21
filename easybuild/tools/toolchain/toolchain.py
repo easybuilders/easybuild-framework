@@ -32,7 +32,7 @@ Creating a new toolchain should be as simple as possible.
 """
 
 import os
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.environment import setvar
 from easybuild.tools.module_generator import det_full_module_name

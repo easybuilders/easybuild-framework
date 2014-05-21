@@ -41,7 +41,7 @@ import subprocess
 import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError

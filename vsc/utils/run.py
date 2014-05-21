@@ -583,7 +583,7 @@ class RunFile(Run):
                                         self.filename)
             else:
                 dirname = os.path.dirname(self.filename)
-                if not os.path.isdir(dirname):
+                if dirname and not os.path.isdir(dirname):
                     try:
                         os.makedirs(dirname)
                     except:

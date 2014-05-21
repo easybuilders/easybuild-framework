@@ -45,7 +45,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.version import VERSION
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
@@ -855,19 +855,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         log = fancylogger.getLogger()
 
-        # force it to current version
+        # force it to lower version using 0.x, which should no result in any raised error (only deprecation logging)
         topt = EasyBuildOptions(
-            go_args=['--deprecated=%s' % orig_value],
+            go_args=['--deprecated=0.%s' % orig_value],
         )
-
         try:
             log.deprecated('x', str(orig_value))
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
 
-        # force higher version by prefixing it with 1
+        # force it to current version, which should result in deprecation
         topt = EasyBuildOptions(
-            go_args=['--deprecated=1%s' % orig_value],
+            go_args=['--deprecated=%s' % orig_value],
         )
         try:
             log.deprecated('x', str(orig_value))
@@ -875,6 +874,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
         except easybuild.tools.build_log.EasyBuildError, err2:
             self.assertTrue('DEPRECATED' in str(err2))
+
+        # force higher version by prefixing it with 1, which should result in deprecation
+        topt = EasyBuildOptions(
+            go_args=['--deprecated=1%s' % orig_value],
+        )
+        try:
+            log.deprecated('x', str(orig_value))
+            # not supposed to get here
+            self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
+        except easybuild.tools.build_log.EasyBuildError, err3:
+            self.assertTrue('DEPRECATED' in str(err3))
 
         # set it back
         easybuild.tools.build_log.CURRENT_VERSION = orig_value
