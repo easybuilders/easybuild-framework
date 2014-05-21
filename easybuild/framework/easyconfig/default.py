@@ -89,19 +89,20 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'easyblock': ['ConfigureMake', "EasyBlock to use for building", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'makeopts': ['', 'Extra options passed to make (default already has -j X)', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
                         'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
+    'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
     'preinstallopts': ['', 'Extra prefix options for installation.', BUILD],
-    'premakeopts': ['', 'Extra options pre-passed to build command.', BUILD],
+    'postinstallcmds': [[], 'Commands to run after the install step.', BUILD],
     'runtest': [None, ('Indicates if a test should be run after make; should specify argument '
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "

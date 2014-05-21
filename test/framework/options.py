@@ -371,7 +371,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                                     (param_type, avail_arg, args, outtxt))
 
                 # check a couple of easyconfig parameters
-                for param in ["name", "version", "toolchain", "versionsuffix", "makeopts", "sources", "start_dir",
+                for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
                     self.assertTrue(re.search("%s(?:\(\*\))?:\s*\w.*" % param, outtxt),
                                     "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
