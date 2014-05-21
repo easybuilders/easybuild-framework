@@ -884,11 +884,11 @@ class EasyConfigTest(EnhancedTestCase):
             'buildininstalldir = True',
         ]
         # alternative option is ready to use
-        for opt, alt_opt, val in deprecated_options:
-            self.contents = '\n'.join(clean_contents + ['%s = %s' % (opt, quote_str(val))])
+        for depr_opt, new_opt, val in deprecated_options:
+            self.contents = '\n'.join(clean_contents + ['%s = %s' % (depr_opt, quote_str(val))])
             self.prep()
             ec = EasyConfig(self.eb_file)
-            self.assertEqual(ec[opt], ec[alt_opt])
+            self.assertEqual(ec[depr_opt], ec[new_opt])
 
 def suite():
     """ returns all the testcases in this module """
