@@ -185,12 +185,15 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
                         if cand_dep not in irresolvable:
+                            _log.debug("Irresolvable dependency found: %s" % cand_dep)
                             irresolvable.append(cand_dep)
                         # remove irresolvable dependency from list of dependencies so we can continue
                         entry['dependencies'].remove(cand_dep)
                     else:
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
-                        processed_ecs = process_easyconfig(path, build_specs=build_specs, validate=not retain_all_deps)
+                        # build specs should not be passed down to resolved dependencies,
+                        # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
+                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
                         mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]

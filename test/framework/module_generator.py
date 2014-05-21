@@ -248,7 +248,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'gzip-1.5-goolf-1.4.10.eb': 'gzip/f1dbb38c4518a15fc8bb1fbf797ceda02f0cacd0',
             'gzip-1.5-ictce-4.1.13.eb': 'gzip/3ef9ac73b468c989f5a47b30098d340e92c3d0da',
             'toy-0.0.eb': 'toy/778417f0e140ebbaebd60d0f98c8b2411f980edf',
-            'toy-0.0-multiple.eb': 'toy/25b80916d9c45c7842cd7a9fda52b1522f6ca3da',
+            'toy-0.0-multiple.eb': 'toy/2d45f3cde87dedf30662f4a005023d56d2532bf0',
         }
         test_mns()
 

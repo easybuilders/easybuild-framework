@@ -127,7 +127,6 @@ DEFAULT_CONFIG = {
                           FILEMANAGEMENT],
     'cleanupoldbuild': [True, ('Boolean to remove (True) or backup (False) the previous build '
                                'directory with identical name or not.'), FILEMANAGEMENT],
-
     'cleanupoldinstall': [True, ('Boolean to remove (True) or backup (False) the previous install '
                                  'directory with identical name or not.'), FILEMANAGEMENT],
     'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install directory'),

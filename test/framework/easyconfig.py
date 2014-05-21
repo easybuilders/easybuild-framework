@@ -44,7 +44,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
-from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
@@ -344,7 +344,7 @@ class EasyConfigTest(EnhancedTestCase):
                   'toolchain_version': tcver,
                   'patches': new_patches
                  }
-        tweak(self.eb_file, tweaked_fn, tweaks)
+        tweak_one(self.eb_file, tweaked_fn, tweaks)
 
         eb = EasyConfig(tweaked_fn)
         self.assertEqual(eb['version'], ver)
@@ -368,7 +368,7 @@ class EasyConfigTest(EnhancedTestCase):
             'foo': "bar"
         }
 
-        tweak(self.eb_file, tweaked_fn, tweaks)
+        tweak_one(self.eb_file, tweaked_fn, tweaks)
 
         eb = EasyConfig(tweaked_fn)
         self.assertEqual(eb['toolchain']['name'], tcname)

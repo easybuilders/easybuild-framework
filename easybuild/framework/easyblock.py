@@ -1073,7 +1073,7 @@ class EasyBlock(object):
             tmpdir = self.cfg['start_dir']
 
         if not os.path.isabs(tmpdir):
-            if len(self.src) > 0 and not self.skip:
+            if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
                 self.cfg['start_dir'] = os.path.join(self.src[0]['finalpath'], tmpdir)
             else:
                 self.cfg['start_dir'] = os.path.join(self.builddir, tmpdir)
@@ -1681,10 +1681,10 @@ class EasyBlock(object):
         """
         Cleanup leftover mess: remove/clean build directory
 
-        except when we're building in the installation directory,
-        otherwise we remove the installation
+        except when we're building in the installation directory or
+        cleanup_builddir is False, otherwise we remove the installation
         """
-        if not self.build_in_installdir:
+        if not self.build_in_installdir and build_option('cleanup_builddir'):
             try:
                 os.chdir(build_path())  # make sure we're out of the dir we're removing
 
@@ -1701,6 +1701,9 @@ class EasyBlock(object):
 
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
+
+        if not build_option('cleanup_builddir'):
+            self.log.info("Keeping builddir %s" % self.builddir)
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 

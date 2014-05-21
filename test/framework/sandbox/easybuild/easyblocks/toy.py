@@ -44,7 +44,7 @@ class EB_toy(EasyBlock):
 
     def build_step(self):
         """Build toy."""
-        run_cmd('gcc toy.c -o toy')
+        run_cmd('%s gcc toy.c -o toy' % self.cfg['premakeopts'])
 
     def install_step(self):
         """Install toy."""
