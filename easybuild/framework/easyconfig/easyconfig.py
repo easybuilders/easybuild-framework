@@ -71,14 +71,50 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
-_log.deprecated("Including 'makeopts' and 'premakeopts' in parameters which are iterated over.", '2.0')
-ITERATE_OPTIONS.extend(['makeopts', 'premakeopts'])
 
 # map of deprecated easyconfig parameters, and their replacements
 DEPRECATED_OPTIONS = {
+    'license': 'software_license',
     'makeopts': 'buildopts',
     'premakeopts': 'prebuildopts',
 }
+
+
+def handle_deprecated_easyconfig_parameter(ec_method):
+    """Decorator to handle deprecated easyconfig parameters."""
+    def new_ec_method(self, key, *args, **kwargs):
+        """Map deprecated easyconfig parameters to the new correct parameter."""
+        # map name of deprecated easyconfig parameter to new name
+        if key in DEPRECATED_OPTIONS:
+            depr_key = key
+            key = DEPRECATED_OPTIONS[depr_key]
+            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), '2.0')
+
+        # make sure that value for software_license has correct type, convert if needed
+        if key == 'software_license':
+            # key 'license' will already be mapped to 'software_license' above
+            lic = self._config['software_license']
+            if not isinstance(lic, License):
+                self.log.deprecated('Type for software_license must to be instance of License (sub)class', '2.0')
+                lic_type = type(lic)
+
+                class LicenseLegacy(License, lic_type):
+                    """A special License class to deal with legacy license paramters"""
+                    DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
+                                    " (DO NOT USE).")
+                    HIDDEN = False
+
+                    def __init__(self, *args):
+                        if len(args) > 0:
+                            lic_type.__init__(self, args[0])
+                        License.__init__(self)
+                lic = LicenseLegacy(lic)
+                EASYCONFIG_LICENSES_DICT[lic.name] = lic
+                self._config['software_license'] = lic
+
+        return ec_method(self, key, *args, **kwargs)
+
+    return new_ec_method
 
 
 class EasyConfig(object):
@@ -131,8 +167,14 @@ class EasyConfig(object):
                 tup = (type(self.extra_options), self.extra_options)
                 self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
-        self._legacy_license()
-
+        # map deprecated params to new names if they occur in extra_options
+        for key, val in self.extra_options.items():
+            if key in DEPRECATED_OPTIONS:
+                new_key = DEPRECATED_OPTIONS[key]
+                self.log.deprecated("Found deprecated key '%s', should use '%s' instead." % (key, new_key), '2.0')
+                self.extra_options[new_key] = self.extra_options[key]
+                self.log.debug("Set '%s' with value of deprecated '%s': %s" % (new_key, key, self.extra_options[key]))
+                del self.extra_options[key]
         self._config.update(self.extra_options)
 
         self.path = path
@@ -167,39 +209,6 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
-    def _legacy_license(self, ecdict=None):
-        """Function to help migrate away from old custom license parameter to new mandatory one"""
-        self.log.deprecated('_legacy_license does not have to be checked', '2.0')
-        if ecdict is None:
-            ecdict = self.extra_options
-        if 'license' in ecdict:
-            if 'software_license' in ecdict:
-                self.log.error("Can't use deprecated 'license' and 'software_license' at the same time")
-            else:
-                self.log.deprecated("Use 'software_license' instead of 'license'.", '2.0')
-                ecdict['software_license'] = ecdict['license']
-        # this is not strictly deprecated, only the license usage.
-        # but lets keep it here for safety/convenience
-        if 'software_license' in ecdict:
-            lic = ecdict['software_license']
-            if not isinstance(lic, License):
-                self.log.deprecated('license type has to be License subclass', '2.0')
-                typ_lic = type(lic)
-
-                class LicenseLegacy(License, typ_lic):
-                    """A special License class to deal with legacy license paramters"""
-                    DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
-                                    " (DO NOT USE).")
-                    HIDDEN = False
-
-                    def __init__(self, *args):
-                        if len(args) > 0:
-                            typ_lic.__init__(self, args[0])
-                        License.__init__(self)
-                lic = LicenseLegacy(lic)
-                EASYCONFIG_LICENSES_DICT[lic.name] = lic
-                ecdict['software_license'] = lic
-
     def copy(self):
         """
         Return a copy of this EasyConfig instance.
@@ -223,23 +232,6 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def _handle_deprecated(self, local_vars):
-        """Handle deprecated options."""
-        self.log.deprecated("Handling of deprecated options %s" % DEPRECATED_OPTIONS, '1.999')
-
-        # check for deprecated easyconfig parameters
-        for opt, alt_opt in DEPRECATED_OPTIONS.items():
-            if opt in local_vars:
-                self.log.deprecated("Using '%s' is deprecated, use '%s' instead." % (opt, alt_opt), '1.999')
-                val = local_vars[opt]
-                if not alt_opt in local_vars:
-                    self.log.debug("Setting '%s' to value specified for deprecated '%s' (%s)" % (opt, alt_opt, val))
-                    local_vars[alt_opt] = val
-                else:
-                    self.log.error("Both deprecated '%s' and its alternative '%s' are being defined." % (opt, alt_opt))
-
-        self._legacy_license(local_vars)
-
     def parse(self):
         """
         Parse the file and set options
@@ -258,8 +250,6 @@ class EasyConfig(object):
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
-
-        self._handle_deprecated(local_vars)
 
         # validate mandatory keys
         # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
@@ -280,12 +270,13 @@ class EasyConfig(object):
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
             # do not store variables we don't need
-            if key in self._config:
+            if key in self._config.keys() + DEPRECATED_OPTIONS.keys():
                 if key in ['builddependencies', 'dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
                 else:
                     self[key] = local_vars[key]
-                self.log.info("setting config option %s: value %s (type: %s)" % (key, self[key], type(self[key])))
+                tup = (key, self[key], type(self[key]))
+                self.log.info("setting config option %s: value %s (type: %s)" % tup)
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
@@ -618,6 +609,7 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
+    @handle_deprecated_easyconfig_parameter
     def __getitem__(self, key):
         """
         will return the value without the help text
@@ -630,6 +622,7 @@ class EasyConfig(object):
         else:
             return value
 
+    @handle_deprecated_easyconfig_parameter
     def __setitem__(self, key, value):
         """
         sets the value of key in config.
