@@ -251,11 +251,8 @@ cd $sandbox
 echo "Fetching EasyBuild repositories into $sandbox"
 fetch 'framework' $framework_spec
 fetch 'easyblocks' $easyblocks_spec
-if [[ "$eb_args" =~ .*\.eb.* ]]
-then
-    # only fetch easyconfigs repository if easyconfig files are specified
-    fetch 'easyconfigs' $easyconfigs_spec
-elif [[ "$easyconfigs_spec" =~ ^[0-9][0-9]*$ ]]
+fetch 'easyconfigs' $easyconfigs_spec
+if [[ "$easyconfigs_spec" =~ ^[0-9][0-9]*$ ]]
 then
     # specify --from-pr if no easyconfig files are specified and a easyconfigs repo PR # is provided
     extra_eb_args="$extra_eb_args --from-pr=$easyconfigs_spec"
@@ -264,7 +261,7 @@ cd $cwd
 
 # set up sandbox environment
 export PATH=$sandbox/easybuild-framework/:$PATH
-export PYTHONPATH=$sandbox/easybuild-framework:$sandbox/easybuild-easyblocks:$sandbox/easyblocks-easyconfigs:$PYTHONPATH
+export PYTHONPATH=$sandbox/easybuild-framework:$sandbox/easybuild-easyblocks:$sandbox/easybuild-easyconfigs:$PYTHONPATH
 export MODULEPATH=$sandbox/modules/all:$MODULEPATH
 debug "PATH: $PATH"
 debug "PYTHONPATH: $PYTHONPATH"
@@ -273,7 +270,7 @@ debug "MODULEPATH: $MODULEPATH"
 # compose command line
 # we need to exclude any other EasyBuild installations, just prepending to $PYTHONPATH is not enough
 # so, use "python -S -m easybuild.main" rather than calling "eb"
-eb_cmd="python -S -m easybuild.main --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args"
+eb_cmd='python -S -m easybuild.main --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args'
 
 # run EasyBuild
 echo "Running '$eb_cmd' in $PWD"
