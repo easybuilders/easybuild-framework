@@ -263,12 +263,17 @@ fi
 cd $cwd
 
 # set up sandbox environment
-PATH=$sandbox/easybuild-framework/:$PATH
-PYTHONPATH=$sandbox/easybuild-framework/:$sandbox/easybuild-easyblocks/:$sandbox/easyblocks-easyconfigs/:$PYTHONPATH
-MODULEPATH=$sandbox/modules/all:$MODULEPATH
+export PATH=$sandbox/easybuild-framework/:$PATH
+export PYTHONPATH=$sandbox/easybuild-framework:$sandbox/easybuild-easyblocks:$sandbox/easyblocks-easyconfigs:$PYTHONPATH
+export MODULEPATH=$sandbox/modules/all:$MODULEPATH
+debug "PATH: $PATH"
+debug "PYTHONPATH: $PYTHONPATH"
+debug "MODULEPATH: $MODULEPATH"
 
 # compose command line
-eb_cmd="eb --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args"
+# we need to exclude any other EasyBuild installations, just prepending to $PYTHONPATH is not enough
+# so, use "python -S -m easybuild.main" rather than calling "eb"
+eb_cmd="python -S -m easybuild.main --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args"
 
 # run EasyBuild
 echo "Running '$eb_cmd' in $PWD"
