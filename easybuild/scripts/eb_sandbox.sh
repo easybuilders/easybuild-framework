@@ -103,7 +103,7 @@ download_repo() {
         eval $git_clone_cmd
     else
         ok=false
-        (which curl &> /dev/null && ok=true) || warning "curl command is not available"
+        which curl &> /dev/null && ok=true || warning "curl command is not available"
         if [[ $ok = true ]]
         then
             # use curl if it's available
