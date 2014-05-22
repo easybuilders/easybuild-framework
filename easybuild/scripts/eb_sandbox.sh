@@ -96,21 +96,17 @@ download_repo() {
     then
         debug "git is available, so using it"
         git_url="https://github.com/$user/easybuild-${repo}.git"
-        git_clone_cmd="git clone $git_url"
-        debug "Cloning $git_url into $PWD using '$git_clone_cmd'"
+        # only download last 100 revisions, don't pull in all history
+        git_clone_cmd="git clone --branch $branch --depth 100 $git_url"
+        debug "Cloning branch $branch from $git_url into $PWD using '$git_clone_cmd'"
         eval $git_clone_cmd
-        cd easybuild-$repo
-        git checkout -b $branch remotes/origin/$branch
-        debug "Checked out $user:$branch in $PWD"
     else
         debug "git is not available, so downloading the old-fashioned way"
-        tarball=${repo}_${user}_${branch}.tar.gz
-        curl_cmd="curl -LsS https://github.com/$user/easybuild-$repo/archive/${branch}.tar.gz -o $tarball"
-        debug "Downloading tarball $user:$branch from using '$curl_cmd'"
+        curl_cmd="curl -LsS https://github.com/$user/easybuild-$repo/archive/${branch}.tar.gz | tar xfz -"
+        debug "Downloading and unpacking tarball $user:$branch from using '$curl_cmd'"
         eval $curl_cmd
-        tar xfz ${repo}_${user}_${branch}.tar.gz
-        debug "Downloaded and unpacked $repo/$user:$branch in $PWD"
     fi
+    debug "Downloaded easybuild-$repo/$user:$branch to $PWD/easybuild-$repo"
 }
 
 # fetch EasyBuild repository according to provided specifications (user:branch or PR)
@@ -159,7 +155,7 @@ random_str() {
 ########
 
 # parse command line options
-while getopts ":b:c:d:f:ghkt:" o; do
+while getopts ":b:c:df:ghkt:" o; do
     case "${o}" in
         b)
             easyblocks_spec=${OPTARG}
