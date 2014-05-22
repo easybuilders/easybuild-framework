@@ -32,8 +32,9 @@
 # exit on errors
 set -e
 
-DEFAULT_USER_BRANCH='hpcugent:develop'
-DEFAULT_SANDBOX_DIR='/tmp'
+DEFAULT_USER_BRANCH='hpcugent:master'
+# use $TMPDIR/$TMP/$TEMP (in order of preference) as default sandbox if set, use /tmp as default
+DEFAULT_SANDBOX_DIR=${TMPDIR:=${TMP:=${TEMP:='/tmp'}}}
 GITHUB_API_URL='https://api.github.com/repos/hpcugent'
 
 # disable debugging by default
