@@ -36,7 +36,6 @@ import tempfile
 import urllib
 import urllib2
 from vsc.utils import fancylogger
-from vsc.utils.rest import RestClient
 
 
 _log = fancylogger.getLogger('github', fname=False)
