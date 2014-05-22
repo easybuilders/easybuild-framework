@@ -124,8 +124,14 @@ download_repo() {
                 error "Neither curl nor wget are available, giving up"
             fi
         fi
+        mv easybuild-${repo}-${branch} easybuild-${repo}
     fi
-    debug "Downloaded easybuild-$repo/$user:$branch to $PWD/easybuild-$repo"
+    if [ -d $sandbox/easybuild-$repo ]
+    then
+        debug "Downloaded easybuild-$repo/$user:$branch to $sandbox/easybuild-$repo"
+    else
+        error "Failed to find $sandbox/easybuild-$repo, some failure was not detected?"
+    fi
 }
 
 # fetch EasyBuild repository according to provided specifications (user:branch or PR)
@@ -257,8 +263,8 @@ fi
 cd $cwd
 
 # set up sandbox environment
-PATH=$sandbox/easybuild-framework:$PATH
-PYTHONPATH=$sandbox/easybuild-framework:$sandbox/easybuild-easyblocks:$sandbox/easyblocks-easyconfigs:$PYTHONPATH
+PATH=$sandbox/easybuild-framework/:$PATH
+PYTHONPATH=$sandbox/easybuild-framework/:$sandbox/easybuild-easyblocks/:$sandbox/easyblocks-easyconfigs/:$PYTHONPATH
 MODULEPATH=$sandbox/modules/all:$MODULEPATH
 
 # compose command line
