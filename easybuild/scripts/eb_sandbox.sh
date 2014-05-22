@@ -79,7 +79,7 @@ help() {
     echo "  -c: Specify easyconfigs PR (passed to --from-pr)"
     echo "  -d: Enable debugging"
     echo "  -f: Specify framework user:branch or PR (default: ${DEFAULT_USER_BRANCH})"
-    echo "  -g: Use 'git clone' to fetch repositories (default: use 'curl')"
+    echo "  -g: Use 'git clone' to fetch repositories (default: use 'curl' or 'wget')"
     echo "  -h: Print help"
     echo "  -k: keep sandbox around (default: remove sandbox, unless script failed)"
     echo "  -t: Specify (parent) path for sandbox"
@@ -95,17 +95,35 @@ download_repo() {
     # use git, if it's available
     if [ $use_git = true ]
     then
-        debug "git is available, so using it"
+        which git | error "git command is not available"
         git_url="https://github.com/$user/easybuild-${repo}.git"
         # only download last 100 revisions, don't pull in all history
         git_clone_cmd="git clone --branch $branch --depth 100 $git_url"
         debug "Cloning branch $branch from $git_url into $PWD using '$git_clone_cmd'"
         eval $git_clone_cmd
     else
-        debug "git is not available, so downloading the old-fashioned way"
-        curl_cmd="curl -LsS https://github.com/$user/easybuild-$repo/archive/${branch}.tar.gz | tar xfz -"
-        debug "Downloading and unpacking tarball $user:$branch from using '$curl_cmd'"
-        eval $curl_cmd
+        ok=false
+        (which curl &> /dev/null && ok=true) || warning "curl command is not available"
+        if [[ $ok = true ]]
+        then
+            # use curl if it's available
+            curl_cmd="curl -LsS https://github.com/$user/easybuild-$repo/archive/${branch}.tar.gz | tar xfz -"
+            debug "Downloading and unpacking tarball $user:$branch using '$curl_cmd'"
+            eval $curl_cmd
+        else
+            # try wget if curl is not available
+            which wget &> /dev/null && ok=true || warning "wget command is not available"
+            if [[ $ok = true ]]
+            then
+                tarball=${repo}_${user}_${branch}.tar.gz
+                wget_cmd="wget https://github.com/$user/easybuild-$repo/archive/${branch}.tar.gz -O $tarball"
+                debug "Downloading and unpacking tarball $user:$branch using '$wget_cmd'"
+                eval $wget_cmd
+                tar xfz $tarball
+            else
+                error "Neither curl nor wget are available, giving up"
+            fi
+        fi
     fi
     debug "Downloaded easybuild-$repo/$user:$branch to $PWD/easybuild-$repo"
 }
