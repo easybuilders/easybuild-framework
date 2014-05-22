@@ -159,7 +159,7 @@ random_str() {
 ########
 
 # parse command line options
-while getopts ":f:b:c:t:h" o; do
+while getopts ":b:c:d:f:ghkt:" o; do
     case "${o}" in
         b)
             easyblocks_spec=${OPTARG}
