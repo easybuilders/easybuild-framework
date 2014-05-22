@@ -255,10 +255,10 @@ eval $eb_cmd 2>&1 | tee eb.log
 echo "EasyBuild log available at eb.log"
 
 # cleanup
-if [ ! $keep_sandbox = true ]
+if [ $keep_sandbox = true ]
 then
+    echo "Sandbox $sandbox retained"
+else
     rm -rf $sandbox
     echo "Cleaned up sandbox $sandbox"
-else
-    echo "Sandbox $sandbox retained"
 fi
