@@ -49,10 +49,10 @@ except ImportError, err:
     HAVE_KEYRING = False
 
 try:
-    from easybuild.tools.agithub import Github
+    from vsc.utils.rest import RestClient
     HAVE_GITHUB_API = True
 except ImportError, err:
-    _log.warning("Failed to import from 'agithub' Python module: %s" % err)
+    _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
 from easybuild.tools.filetools import det_patched_files, mkdir
