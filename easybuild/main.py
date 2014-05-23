@@ -40,7 +40,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import any
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging

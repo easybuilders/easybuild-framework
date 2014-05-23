@@ -35,7 +35,7 @@ Map values can be string with named templates
 @author: Kenneth Hoste (Ghent University)
 """
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 
 class ToolchainOptions(dict):

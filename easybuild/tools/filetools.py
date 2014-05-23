@@ -41,7 +41,7 @@ import stat
 import time
 import urllib
 import zlib
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import all
 
 import easybuild.tools.environment as env

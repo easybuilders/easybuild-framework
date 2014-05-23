@@ -31,7 +31,7 @@ be used within an Easyconfig file.
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from distutils.version import LooseVersion
 
 from easybuild.tools.systemtools import get_shared_lib_ext

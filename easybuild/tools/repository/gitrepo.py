@@ -41,7 +41,7 @@ import os
 import socket
 import tempfile
 import time
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository

@@ -48,6 +48,23 @@ from vsc.utils import fancylogger
 from vsc.utils.frozendict import FrozenDict
 
 
+def partial(func, *args, **keywords):
+    """
+    Return a new partial object which when called will behave like func called with the positional arguments args
+    and keyword arguments keywords. If more arguments are supplied to the call, they are appended to args. If additional
+    keyword arguments are supplied, they extend and override keywords.
+    new in python 2.5, from https://docs.python.org/2/library/functools.html#functools.partial
+    """
+    def newfunc(*fargs, **fkeywords):
+        newkeywords = keywords.copy()
+        newkeywords.update(fkeywords)
+        return func(*(args + fargs), **newkeywords)
+    newfunc.func = func
+    newfunc.args = args
+    newfunc.keywords = keywords
+    return newfunc
+
+
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
 
@@ -292,9 +309,9 @@ class TryOrFail(object):
         self.sleep = sleep
 
     def __call__(self, function):
-        def new_function(*args, **kwargs ):
+        def new_function(*args, **kwargs):
             log = fancylogger.getLogger(function.__name__)
-            for i in xrange(0,self.n):
+            for i in xrange(0, self.n):
                 try:
                     return function(*args, **kwargs)
                 except self.exceptions, err:
@@ -330,4 +347,3 @@ def topological_sort(graph):
             if not node in visited:
                 yield node
                 visited.add(node)
-

@@ -29,7 +29,7 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 @author: Kenneth Hoste (Ghent University)
 """
 from pkgutil import extend_path
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment

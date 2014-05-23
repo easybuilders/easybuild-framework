@@ -51,7 +51,7 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('testing', fname=False)
