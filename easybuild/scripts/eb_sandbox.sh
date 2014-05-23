@@ -270,7 +270,7 @@ debug "MODULEPATH: $MODULEPATH"
 # compose command line
 # we need to exclude any other EasyBuild installations, just prepending to $PYTHONPATH is not enough
 # so, use "python -S -m easybuild.main" rather than calling "eb"
-eb_cmd='python -S -m easybuild.main --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args'
+eb_cmd="python -S -m easybuild.main --buildpath $sandbox --installpath $sandbox --force --debug $eb_args $extra_eb_args"
 
 # run EasyBuild
 echo "Running '$eb_cmd' in $PWD"
