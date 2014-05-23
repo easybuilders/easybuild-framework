@@ -41,7 +41,7 @@ import stat
 import time
 import urllib
 import zlib
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
@@ -516,11 +516,11 @@ def extract_cmd(fn, overwrite=False):
     return ftype % fn
 
 
-def det_patched_files(path=None, txt=None):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
     """Determine list of patched files from a patch."""
     # expected format: "+++ path/to/patched/file"
     # also take into account the 'a/' or 'b/' prefix that may be used
-    patched_regex = re.compile(r"^\s*\+{3}\s+(?:[ab]/)?(?P<file>\S+)", re.M)
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
     if path is not None:
         try:
             f = open(path, 'r')
@@ -531,16 +531,46 @@ def det_patched_files(path=None, txt=None):
     elif txt is None:
         _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
 
-    return [x.group('file') for x in patched_regex.finditer(txt)]
+    patched_files = []
+    for match in patched_regex.finditer(txt):
+        patched_file = match.group('file')
+        if not omit_ab_prefix and match.group('ab_prefix') is not None:
+            patched_file = match.group('ab_prefix') + patched_file
+        patched_files.append(patched_file)
 
-def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
+    return patched_files
+
+
+def guess_patch_level(patched_files, parent_dir):
+    """Guess patch level based on list of patched files and specified directory."""
+    patch_level = None
+    for patched_file in patched_files:
+        # locate file by stripping of directories
+        tf2 = patched_file.split(os.path.sep)
+        n_paths = len(tf2)
+        path_found = False
+        level = None
+        for level in range(n_paths):
+            if os.path.isfile(os.path.join(parent_dir, *tf2[level:])):
+                path_found = True
+                break
+        if path_found:
+            patch_level = level
+            break
+        else:
+            _log.debug('No match found for %s, trying next patched file...' % patched_file)
+
+    return patch_level
+
+
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
     """
 
-    if not os.path.isfile(patchFile):
-        _log.error("Can't find patch %s: no such file" % patchFile)
+    if not os.path.isfile(patch_file):
+        _log.error("Can't find patch %s: no such file" % patch_file)
         return
 
     if fn and not os.path.isfile(fn):
@@ -554,26 +584,19 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     # copy missing files
     if copy:
         try:
-            shutil.copy2(patchFile, dest)
-            _log.debug("Copied patch %s to dir %s" % (patchFile, dest))
+            shutil.copy2(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
             return 'ok'
         except IOError, err:
-            _log.error("Failed to copy %s to dir %s: %s" % (patchFile, dest, err))
+            _log.error("Failed to copy %s to dir %s: %s" % (patch_file, dest, err))
             return
 
     # use absolute paths
-    apatch = os.path.abspath(patchFile)
+    apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
 
-    try:
-        os.chdir(adest)
-        _log.debug("Changing to directory %s" % adest)
-    except OSError, err:
-        _log.error("Can't change to directory %s: %s" % (adest, err))
-        return
-
     if not level:
-        # Guess p level
+        # guess value for -p (patch level)
         # - based on +++ lines
         # - first +++ line that matches an existing file determines guessed level
         # - we will try to match that level from current directory
@@ -583,37 +606,29 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
             _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
             return
 
-        p = None
-        for patched_file in patched_files:
-            # locate file by stripping of /
-            tf2 = patched_file.split('/')
-            n = len(tf2)
-            plusFound = False
-            i = None
-            for i in range(n):
-                if os.path.isfile('/'.join(tf2[i:])):
-                    plusFound = True
-                    break
-            if plusFound:
-                p = i
-                break
-            else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % patched_file)
+        patch_level = guess_patch_level(patched_files, adest)
 
-        if p is None:  # p can also be zero, so don't use "not p"
+        if patch_level is None:  # patch_level can also be 0 (zero), so don't use "not patch_level"
             # no match
-            _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
+            _log.error("Can't determine patch level for patch %s from directory %s" % (patch_file, adest))
         else:
-            _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
+            _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
 
     else:
-        p = level
-        _log.debug("Using specified patch level %d for patch %s" % (level, patchFile))
+        patch_level = level
+        _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
 
-    patchCmd = "patch -b -p%d -i %s" % (p, apatch)
-    result = run.run_cmd(patchCmd, simple=True)
+    try:
+        os.chdir(adest)
+        _log.debug("Changing to directory %s" % adest)
+    except OSError, err:
+        _log.error("Can't change to directory %s: %s" % (adest, err))
+        return
+
+    patch_cmd = "patch -b -p%d -i %s" % (patch_level, apatch)
+    result = run.run_cmd(patch_cmd, simple=True)
     if not result:
-        _log.error("Patching with patch %s failed" % patchFile)
+        _log.error("Patching with patch %s failed" % patch_file)
         return
 
     return result

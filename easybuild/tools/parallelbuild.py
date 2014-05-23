@@ -43,7 +43,7 @@ from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
 from easybuild.tools.repository.repository import init_repository
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)

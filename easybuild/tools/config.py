@@ -39,7 +39,7 @@ import random
 import string
 import tempfile
 import time
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import nub, FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 

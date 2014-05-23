@@ -29,7 +29,7 @@ Implementation of a test module naming scheme.
 """
 
 import os
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme

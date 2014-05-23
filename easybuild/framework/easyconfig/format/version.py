@@ -32,7 +32,7 @@ This describes the easyconfig version class. To be used in EasyBuild for anythin
 import operator as op
 import re
 from distutils.version import LooseVersion
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.toolchain.utilities import search_toolchain
 

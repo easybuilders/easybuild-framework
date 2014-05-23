@@ -34,7 +34,7 @@ import shutil
 import sys
 import tempfile
 from unittest import TestCase
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
@@ -52,7 +52,7 @@ class EnhancedTestCase(TestCase):
         """Convenience method to match regex with the expected error message"""
         try:
             call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k, str(v)]) for (k, v) in kwargs.items()])
+            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
             str_args = ', '.join(map(str, args) + [str_kwargs])
             self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error, err:
@@ -61,9 +61,14 @@ class EnhancedTestCase(TestCase):
             elif hasattr(err, 'message'):
                 msg = err.message
             elif hasattr(err, 'args'):  # KeyError in Python 2.4 only provides message via 'args' attribute
-                msg = str(err.args[0])
+                msg = err.args[0]
             else:
-                msg = str(err)
+                msg = err
+            try:
+                msg = str(msg)
+            except UnicodeEncodeError:
+                msg = msg.encode('utf8', 'replace')
+            self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
             self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
 
     def setUp(self):

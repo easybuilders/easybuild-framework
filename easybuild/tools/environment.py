@@ -29,7 +29,7 @@ Utility module for modifying os.environ
 @author: Ward Poelmans (Ghent University)
 """
 import os
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 _log = fancylogger.getLogger('environment', fname=False)
 

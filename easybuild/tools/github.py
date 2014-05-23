@@ -35,7 +35,8 @@ import socket
 import tempfile
 import urllib
 import urllib2
-from vsc import fancylogger
+from vsc.utils import fancylogger
+from vsc.utils.rest import RestClient
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -58,6 +59,7 @@ except ImportError, err:
 from easybuild.tools.filetools import det_patched_files, mkdir
 
 
+GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
@@ -96,7 +98,7 @@ class Githubfs(object):
         @param token:    (optional) a github api token.
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        self.gh = Github(username, password, token)
+        self.gh = RestClient(GITHUB_API_URL, username=username, password=password, token=token)
         self.githubuser = githubuser
         self.reponame = reponame
         self.branchname = branchname
@@ -227,7 +229,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
 
     # fetch data for specified PR
-    g = Github(username=github_user, token=github_token)
+    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
     try:
         status, pr_data = pr_url.get()
@@ -250,7 +252,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     # determine list of changed files via diff
     diff_txt = download(pr_data['diff_url'])
 
-    patched_files = det_patched_files(txt=diff_txt)
+    patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
     _log.debug("List of patches files: %s" % patched_files)
 
     # obtain last commit
@@ -291,7 +293,7 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
             }
         }
     }
-    g = Github(username=github_user, token=github_token)
+    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     status, data = g.gists.post(body=body)
 
     if not status == HTTP_STATUS_CREATED:
@@ -309,7 +311,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         except ValueError, err:
             _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
 
-    g = Github(username=github_user, token=github_token)
+    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
 
     status, data = pr_url.comments.post(body={'body': txt})

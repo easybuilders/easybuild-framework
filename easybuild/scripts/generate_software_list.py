@@ -38,7 +38,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.github import Githubfs
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 # parse options
 parser = OptionParser()

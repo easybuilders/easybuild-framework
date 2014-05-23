@@ -30,7 +30,7 @@ be used within an Easyconfig file.
 @author: Stijn De Weirdt (Ghent University)
 """
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)

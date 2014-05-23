@@ -33,7 +33,7 @@ import platform
 import re
 import sys
 from socket import gethostname
-from vsc import fancylogger
+from vsc.utils import fancylogger
 try:
     # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
     from vsc.utils.affinity import sched_getaffinity

@@ -31,7 +31,7 @@ The main easyconfig format class
 """
 import copy
 import re
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, any
 
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators

@@ -31,7 +31,7 @@ import glob
 import os
 import string
 import sys
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
 import easybuild.tools.environment as env
