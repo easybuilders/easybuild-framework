@@ -35,7 +35,7 @@ Main entry point for EasyBuild: build software from .eb input file
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (University of Luxembourg)
 """
-
+import copy
 import os
 import subprocess
 import sys
@@ -71,7 +71,10 @@ _log = None
 
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     """Build and install software for all provided parsed easyconfig files."""
-    orig_environ = init_session_state['environment']
+    # obtain a copy of the starting environment so each build can start afresh
+    # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
+    # e.g. via easyconfig.handle_allowed_system_deps
+    orig_environ = copy.deepcopy(os.environ)
 
     res = []
     for ec in ecs:
