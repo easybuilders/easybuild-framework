@@ -36,6 +36,7 @@ import tempfile
 import urllib
 import urllib2
 from vsc.utils import fancylogger
+from vsc.utils.patterns import Singleton
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -96,6 +97,9 @@ class Githubfs(object):
         @param password: (optional) your github password.
         @param token:    (optional) a github api token.
         """
+        if token is None:
+            token = GithubToken(username)
+
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.gh = RestClient(GITHUB_API_URL, username=username, password=password, token=token)
         self.githubuser = githubuser
@@ -219,6 +223,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
             except urllib2.URLError, err:
                 _log.error("Failed to open %s for reading: %s" % (url, err))
 
+    # a GitHub token is optional here, but can be used if available in order to be less susceptible to rate limiting
+    if github_token is None:
+        github_token = GithubToken(github_user)
+
     if path is None:
         path = tempfile.mkdtemp()
     else:
@@ -282,6 +290,8 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     """Create a gist with the provided text."""
     if descr is None:
         descr = "(none)"
+    if github_token is None:
+        github_token = GithubToken(github_user)
 
     body = {
         "description": descr,
@@ -309,6 +319,8 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
             issue = int(issue)
         except ValueError, err:
             _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
+    if github_token is None:
+        github_token = GithubToken(github_user)
 
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
@@ -318,7 +330,22 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
 
 
-def fetch_github_token(user, require_token=False):
+class GithubToken(object):
+    """Representation of a GitHub token."""
+
+    # singleton metaclass: only one instance is created
+    __metaclass__ = Singleton
+
+    def __init__(self, user, *args, **kwargs):
+        """Initialize: obtain token."""
+        self.token = fetch_github_token(user)
+
+    def __str__(self):
+        """Return string representation of this token."""
+        return self.token
+
+
+def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
 
     github_token = None
@@ -340,10 +367,7 @@ def fetch_github_token(user, require_token=False):
 
     if github_token is None:
         # failure, for some reason
-        if require_token:
-            _log.error(msg)
-        else:
-            _log.warning(msg)
+        _log.warning(msg)
     else:
         # success
         _log.info("Successfully obtained GitHub token for user %s from keyring." % user)

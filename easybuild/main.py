@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_avai
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_github_token
+from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
@@ -182,11 +182,6 @@ def main(testing_data=(None, None, None)):
         else:
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
-    # make sure both GitHub user name is provided and that GitHub token can be obtained when testing easyconfig PRs
-    # a GitHub token is only strictly required when testing a PR (to post gists/comments);
-    # it is optional with --from-pr, but can be used if available in order to be less susceptible to rate limiting
-    github_token = fetch_github_token(options.github_user, require_token=options.upload_test_report)
-
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
     robot_path = None
     if options.robot:
@@ -275,8 +270,7 @@ def main(testing_data=(None, None, None)):
     if len(orig_paths) == 0:
         if options.from_pr:
             pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
-            pr_files = fetch_easyconfigs_from_pr(options.from_pr, path=pr_path, github_user=options.github_user,
-                                                 github_token=github_token)
+            pr_files = fetch_easyconfigs_from_pr(options.from_pr, path=pr_path, github_user=options.github_user)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
             paths = [obtain_path(build_specs, easyconfigs_paths, try_to_generate=try_to_generate,
