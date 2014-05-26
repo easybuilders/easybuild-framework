@@ -473,38 +473,37 @@ def extract_cmd(filepath, overwrite=False):
     - better to use Python magic?
     """
     filename = os.path.basename(filepath)
-    exts = [x.lower() for x in filepath.split('.')]
+    exts = [x.lower() for x in filename.split('.')]
+    target = '.'.join(exts[:-1])
     cmd_tmpl = None
 
     # gzipped or gzipped tarball
     if exts[-1] in ['gz']:
-        if filename == filepath:
-            cmd_tmpl = "gunzip %(filepath)s"
-        else:
-            # gunzip extracts in place, so copy the file first
-            cmd_tmpl = "cp %(filepath)s . && gunzip %(filename)s"
-
-        # unzip .tar.gz in one go
         if exts[-2] in ['tar']:
+            # unzip .tar.gz in one go
             cmd_tmpl = "tar xzf %(filepath)s"
+        else:
+            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
 
     elif exts[-1] in ['tgz', 'gtgz']:
         cmd_tmpl = "tar xzf %(filepath)s"
 
     # bzipped or bzipped tarball
     elif exts[-1] in ['bz2']:
-        cmd_tmpl = "bunzip2 %(filepath)s"
         if exts[-2] in ['tar']:
             cmd_tmpl = 'tar xjf %(filepath)s'
+        else:
+            cmd_tmpl = "bunzip2 %(filepath)s"
 
     elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
         cmd_tmpl = "tar xjf %(filepath)s"
 
     # xzipped or xzipped tarball
     elif exts[-1] in ['xz']:
-        cmd_tmpl = "unxz %(filepath)s"
         if exts[-2] in ['tar']:
             cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
+        else:
+            cmd_tmpl = "unxz %(filepath)s"
 
     elif exts[-1] in ['txz']:
         cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
@@ -523,7 +522,7 @@ def extract_cmd(filepath, overwrite=False):
     if cmd_tmpl is None:
         _log.error('Unknown file type for file %s (%s)' % (filepath, exts))
 
-    return cmd_tmpl % {'filepath': filepath, 'filename': filename}
+    return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
