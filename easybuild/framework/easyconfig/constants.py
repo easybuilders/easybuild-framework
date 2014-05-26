@@ -53,8 +53,8 @@ def constant_documentation():
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")
-    for cst in EASYCONFIG_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst, EASYCONFIG_CONSTANTS[cst][0], EASYCONFIG_CONSTANTS[cst][1]))
+    for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst, val, descr))
 
     return "\n".join(doc)
 
