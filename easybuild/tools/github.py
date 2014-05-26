@@ -73,21 +73,9 @@ KEYRING_GITHUB_TOKEN = 'github_token'
 URL_SEPARATOR = '/'
 
 
-def with_github_api(github_function):
-    """Decorator to make sure GitHub API support is available."""
-    def safe_github_function(*args, **kwargs):
-        """Call provided function if GitHub API support is available, or fail."""
-        if HAVE_GITHUB_API:
-            return github_function(*args, **kwargs)
-        else:
-            _log.error("Required support for GitHub API is not available")
-    return safe_github_function
-
-
 class Githubfs(object):
     """This class implements some higher level functionality on top of the Github api"""
 
-    @with_github_api
     def __init__(self, githubuser, reponame, branchname="master", username=None, password=None, token=None):
         """Construct a new githubfs object
         @param githubuser: the github user's repo we want to use.
@@ -98,8 +86,7 @@ class Githubfs(object):
         @param token:    (optional) a github api token.
         """
         if token is None:
-            token = GithubToken(username)
-
+            token = fetch_github_token(username)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.gh = RestClient(GITHUB_API_URL, username=username, password=password, token=token)
         self.githubuser = githubuser
@@ -202,8 +189,7 @@ class GithubError(Exception):
     pass
 
 
-@with_github_api
-def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None):
+def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
 
     def download(url, path=None):
@@ -224,8 +210,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
                 _log.error("Failed to open %s for reading: %s" % (url, err))
 
     # a GitHub token is optional here, but can be used if available in order to be less susceptible to rate limiting
-    if github_token is None:
-        github_token = GithubToken(github_user)
+    github_token = fetch_github_token(github_user)
 
     if path is None:
         path = tempfile.mkdtemp()
@@ -285,13 +270,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None, github_token=None
     return ec_files
 
 
-@with_github_api
-def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
+def create_gist(txt, fn, descr=None, github_user=None):
     """Create a gist with the provided text."""
     if descr is None:
         descr = "(none)"
-    if github_token is None:
-        github_token = GithubToken(github_user)
+    github_token = fetch_github_token(github_user)
 
     body = {
         "description": descr,
@@ -311,16 +294,14 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
     return data['html_url']
 
 
-@with_github_api
-def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None, github_token=None):
+def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=None):
     """Post a comment in the specified PR."""
     if not isinstance(issue, int):
         try:
             issue = int(issue)
         except ValueError, err:
             _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
-    if github_token is None:
-        github_token = GithubToken(github_user)
+    github_token = fetch_github_token(github_user)
 
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
     pr_url = g.repos[GITHUB_EB_MAIN][repo].issues[issue]
@@ -336,40 +317,32 @@ class GithubToken(object):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    def __init__(self, user, *args, **kwargs):
-        """Initialize: obtain token."""
-        self.token = fetch_github_token(user)
+    def __init__(self, user):
+        """Initialize: obtain GitHub token for specified user from keyring."""
+        self.token = None
+        if user is None:
+            msg = "No GitHub user name provided, required for fetching GitHub token."
+        elif not HAVE_KEYRING:
+            msg = "Failed to obtain GitHub token from keyring, "
+            msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
+        else:
+            self.token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
+            if self.token is None:
+                tup = (KEYRING_GITHUB_TOKEN, user)
+                python_cmd = "import getpass, keyring; keyring.set_password(\"%s\", \"%s\", getpass.getpass())" % tup
+                msg = '\n'.join([
+                    "Failed to obtain GitHub token for %s" % user,
+                    "Use the following procedure to install a GitHub token in your keyring:",
+                    "$ python -c '%s'" % python_cmd,
+                ])
 
-    def __str__(self):
-        """Return string representation of this token."""
-        return self.token
-
+        if self.token is None:
+            # failure, for some reason
+            _log.warning(msg)
+        else:
+            # success
+            _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
 
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
-
-    github_token = None
-    if user is None:
-        msg = "No GitHub user name provided, required for fetching GitHub token."
-    elif not HAVE_KEYRING:
-        msg = "Failed to obtain GitHub token from keyring, "
-        msg += "required Python module https://pypi.python.org/pypi/keyring is not available."
-    else:
-        github_token = keyring.get_password(KEYRING_GITHUB_TOKEN, user)
-        if github_token is None:
-            tup = (KEYRING_GITHUB_TOKEN, user)
-            python_cmd = "import getpass, keyring; keyring.set_password(\"%s\", \"%s\", getpass.getpass())" % tup
-            msg = '\n'.join([
-                "Failed to obtain GitHub token for %s" % user,
-                "Use the following procedure to install a GitHub token in your keyring:",
-                "$ python -c '%s'" % python_cmd,
-            ])
-
-    if github_token is None:
-        # failure, for some reason
-        _log.warning(msg)
-    else:
-        # success
-        _log.info("Successfully obtained GitHub token for user %s from keyring." % user)
-
-    return github_token
+    return GithubToken(user).token

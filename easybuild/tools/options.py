@@ -36,7 +36,6 @@ Command line options for eb
 import os
 import re
 import sys
-
 from distutils.version import LooseVersion
 
 from easybuild.framework.easyblock import EasyBlock
@@ -53,6 +52,7 @@ from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools.convert import ListOfStrings
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
@@ -348,12 +348,15 @@ class EasyBuildOptions(GeneralOption):
         if self.options.strict:
             run.strictness = self.options.strict
 
+        # override current version of EasyBuild with version specified to --deprecated
         if self.options.deprecated:
             build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
 
+        # log to specified value of --unittest-file
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
+        # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
@@ -362,6 +365,21 @@ class EasyBuildOptions(GeneralOption):
                ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
+
+        # fail early if required dependencies for functionality requiring using GitHub API are not available:
+        if self.options.from_pr or self.options.upload_test_report:
+            if not HAVE_GITHUB_API:
+                self.log.error("Required support for using GitHub API is not available (see warnings).")
+
+        # make sure a GitHub token is available when it's required
+        if self.options.upload_test_report:
+            if not HAVE_KEYRING:
+                self.log.error("Requiring support for fetching GitHub token is not available.")
+            if self.options.github_user is None:
+                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+            token = fetch_github_token(self.options.github_user)
+            if token is None:
+                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
 
         self._postprocess_config()
 

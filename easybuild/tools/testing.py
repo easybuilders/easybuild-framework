@@ -45,7 +45,7 @@ from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file
-from easybuild.tools.github import create_gist, fetch_github_token, post_comment_in_issue
+from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
@@ -164,7 +164,6 @@ def session_module_list():
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_log=False):
     """Create test report for easyconfigs PR, in Markdown format."""
     user = build_option('github_user')
-    token= fetch_github_token(user)
 
     end_time = gmtime()
 
@@ -205,7 +204,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
                 if pr_nr is not None:
                     descr += " (PR #%s)" % pr_nr
                 fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
-                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=user, github_token=token)
+                gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=user)
                 test_log = "(partial log available at %s)" % gist_url
 
         build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
@@ -255,15 +254,13 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
         fn = 'easybuild_test_report_%s.md' % strftime("%Y%M%d-UTC-%H-%M-%S", gmtime())
 
     user = build_option('github_user')
-    token = fetch_github_token(user)
 
-    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user, github_token=token)
+    gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user)
     return gist_url
 
 def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
     user = build_option('github_user')
-    token = fetch_github_token(user)
 
     # create gist with test report
     descr = "EasyBuild test report for easyconfigs PR #%s" % pr_nr
@@ -287,7 +284,7 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
         "See %s for a full test report." % gist_url,
     ]
     comment = '\n'.join(comment_lines)
-    post_comment_in_issue(pr_nr, comment, github_user=user, github_token=token)
+    post_comment_in_issue(pr_nr, comment, github_user=user)
 
     msg = "Test report uploaded to %s and mentioned in a comment in easyconfigs PR#%s" % (gist_url, pr_nr)
     return msg
