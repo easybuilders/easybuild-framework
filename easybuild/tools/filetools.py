@@ -466,54 +466,63 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(fn, overwrite=False):
+def extract_cmd(filepath, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
     - based on file suffix
     - better to use Python magic?
     """
-    ff = [x.lower() for x in fn.split('.')]
-    ftype = None
+    filename = os.path.basename(filepath)
+    exts = [x.lower() for x in filename.split('.')]
+    target = '.'.join(exts[:-1])
+    cmd_tmpl = None
 
     # gzipped or gzipped tarball
-    if ff[-1] in ['gz']:
-        ftype = 'gunzip %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xzf %s'
-    if ff[-1] in ['tgz', 'gtgz']:
-        ftype = 'tar xzf %s'
+    if exts[-1] in ['gz']:
+        if exts[-2] in ['tar']:
+            # unzip .tar.gz in one go
+            cmd_tmpl = "tar xzf %(filepath)s"
+        else:
+            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+
+    elif exts[-1] in ['tgz', 'gtgz']:
+        cmd_tmpl = "tar xzf %(filepath)s"
 
     # bzipped or bzipped tarball
-    if ff[-1] in ['bz2']:
-        ftype = 'bunzip2 %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xjf %s'
-    if ff[-1] in ['tbz', 'tbz2', 'tb2']:
-        ftype = 'tar xjf %s'
+    elif exts[-1] in ['bz2']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = 'tar xjf %(filepath)s'
+        else:
+            cmd_tmpl = "bunzip2 %(filepath)s"
+
+    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
+        cmd_tmpl = "tar xjf %(filepath)s"
 
     # xzipped or xzipped tarball
-    if ff[-1] in ['xz']:
-        ftype = 'unxz %s'
-        if ff[-2] in ['tar']:
-            ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] in ['txz']:
-        ftype = 'unxz %s --stdout | tar x'
+    elif exts[-1] in ['xz']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
+        else:
+            cmd_tmpl = "unxz %(filepath)s"
+
+    elif exts[-1] in ['txz']:
+        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
 
     # tarball
-    if ff[-1] in ['tar']:
-        ftype = 'tar xf %s'
+    elif exts[-1] in ['tar']:
+        cmd_tmpl = "tar xf %(filepath)s"
 
     # zip file
-    if ff[-1] in ['zip']:
+    elif exts[-1] in ['zip']:
         if overwrite:
-            ftype = 'unzip -qq -o %s'
+            cmd_tmpl = "unzip -qq -o %(filepath)s"
         else:
-            ftype = 'unzip -qq %s'
+            cmd_tmpl = "unzip -qq %(filepath)s"
 
-    if not ftype:
-        _log.error('Unknown file type from file %s (%s)' % (fn, ff))
+    if cmd_tmpl is None:
+        _log.error('Unknown file type for file %s (%s)' % (filepath, exts))
 
-    return ftype % fn
+    return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
