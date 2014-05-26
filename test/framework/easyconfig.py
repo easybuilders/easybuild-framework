@@ -36,13 +36,11 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
-from vsc.utils import fancylogger
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -50,7 +48,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.modules import get_software_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
@@ -891,20 +888,6 @@ class EasyConfigTest(EnhancedTestCase):
             self.prep()
             ec = EasyConfig(self.eb_file)
             self.assertEqual(ec[depr_opt], ec[new_opt])
-
-    def test_allow_system_deps(self):
-        """ test other validations beside mandatory variables """
-        self.contents = '\n'.join([
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
-            'allow_system_deps = [("Python", SYS_PYTHON_VERSION)]',
-        ])
-        self.prep()
-        EasyConfig(self.eb_file, validate=False)
-        self.assertTrue(get_software_version('Python'), EASYCONFIG_CONSTANTS['SYS_PYTHON_VERSION'][0])
 
 def suite():
     """ returns all the testcases in this module """

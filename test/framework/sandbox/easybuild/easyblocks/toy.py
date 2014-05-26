@@ -29,17 +29,24 @@ EasyBuild support for building and installing toy, implemented as an easyblock
 """
 
 import os
+import platform
 import shutil
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 from easybuild.tools.filetools import run_cmd
+from easybuild.tools.modules import get_software_root, get_software_version
 
 class EB_toy(EasyBlock):
     """Support for building/installing toy."""
 
     def configure_step(self):
         """Configure build of toy."""
+        # make sure Python system dep is handled correctly when specified
+        if self.cfg['allow_system_deps']:
+            if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
+                self.log.error("Sanity check on allowed Python system dep failed.")
+            
         os.rename('toy.source', 'toy.c')
 
     def build_step(self):
