@@ -36,7 +36,6 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
-from vsc.utils import fancylogger
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log

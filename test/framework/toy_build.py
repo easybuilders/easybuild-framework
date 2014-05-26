@@ -458,6 +458,16 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
             self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
 
+    def test_allow_system_deps(self):
+        """Test allow_system_deps easyconfig parameter."""
+        tmpdir = tempfile.mkdtemp()
+        # copy toy easyconfig file, and append source_urls to it
+        shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
+        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        f = open(ec_file, 'a')
+        f.write("\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n")
+        f.close()
+        self.test_toy_build(ec_file=ec_file)
 
 def suite():
     """ return all the tests in this file """
