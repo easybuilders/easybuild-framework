@@ -374,7 +374,7 @@ class EasyBuildOptions(GeneralOption):
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
-                self.log.error("Requiring support for fetching GitHub token is not available.")
+                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
             if self.options.github_user is None:
                 self.log.error("No GitHub user name provided, required for fetching GitHub token.")
             token = fetch_github_token(self.options.github_user)
