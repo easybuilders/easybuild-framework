@@ -51,7 +51,7 @@ class GithubTest(EnhancedTestCase):
         """setup"""
         super(GithubTest, self).setUp()
         github_user = 'easybuild_test'
-        github_token = fetch_github_token(github_user, require_token=True)
+        github_token = fetch_github_token(github_user)
         if github_token is None:
             self.ghfs = None
         else:
