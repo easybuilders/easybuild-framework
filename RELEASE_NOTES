@@ -1,6 +1,42 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.13.0 (May 29th 2014)
+-----------------------
+
+feature + bugfix release
+- make --try-X command line options work recursively (i.e. collaborate with --robot) (#922)
+    - EasyBuild will first build a full dependency graph of the specified easyconfigs, and then apply the --try specifications
+        - the elements of the dependency graph for the used toolchain and its dependencies are left untouched
+    - this makes "eb foo-1.0-goolf-1.4.10.eb --try-toolchain=ictce,5.5.0 --robot" also work when 'foo' has dependencies
+    - caveat: the specified easyconfig files must all use the same toolchain (version)
+- add support for testing easyconfig pull requests from EasyBuild command line (#920, #924, #925, #932, #933, #938)
+    - add --from-pr command line option for downloading easyconfig files from pull requests
+    - add --upload-test-report command line option for uploading a detailed test report to GitHub as a gist
+        - this requires specifying a GitHub username for which a GitHub token is available, using --github-user
+        - with --dump-test-report, the test report can simply be dumped to file rather than being uploaded to GitHub
+        - see also https://github.com/hpcugent/easybuild/wiki/Review-process-for-contributions#testing-result
+- the 'makeopts' and 'premakeopts' easyconfig parameter are deprecated, and replaced by 'buildopts' and 'prebuildopts' (#918)
+    - both 'makeopts' and 'premakeopts' will still be honored in future EasyBuild v1.x versions, but should no longer be used
+- various other enhancements, including:
+    - add --disable-cleanup-builddir command line option, to keep the build dir after a (successful) build (#853)
+        - the build dir is still cleaned up by default for successful builds, i.e. --cleanup-builddir is the default
+    - also consider lib32 in paths checked for $LD_LIBRARY_PATH and $LIBRARY_PATH (#912)
+    - reorganize support for file/git/svn repositories into 'repository' package, making it extensible (#913)
+    - add support for 'postinstallcmds' easyconfig parameter, to specify commands that need to be run after the install step (#918)
+    - make 'VERSION=' part in version of C environment modules tool optional, which is required for older versions (#930)
+- various bug fixes, including:
+    - fix small issues in bootstrap script: correctly determine EasyBuild version and make sure modules path exists (#915)
+    - fix github unit tests (#916)
+    - disable useless debug logging for unit tests (#919)
+    - fix unit test for --skip (#929)
+    - make sure 'start_dir' can be set based on location of unpacked first source file (#931)
+    - the 'vsc' package shipped with easybuild-framework is synced with vsc-base v1.9.1 (#935)
+        - fancylogger (used for logging in EasyBuild) is now robust against strings containing UTF8 characters
+        - the 'deprecated' logging function now does a non-strict version check (rather than an erroneous strict check)
+        - the easybuild.tools.agithub module is removed, vsc.utils.rest now provides the required functionality
+    - fix support for unpacking gzipped source files, don't unpack .gz files in-place in the source directory (#936)
+
 v1.12.1 (April 25th 2014)
 -------------------------
 
