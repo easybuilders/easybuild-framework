@@ -21,10 +21,13 @@ feature + bugfix release
 - various other enhancements, including:
     - add --disable-cleanup-builddir command line option, to keep the build dir after a (successful) build (#853)
         - the build dir is still cleaned up by default for successful builds, i.e. --cleanup-builddir is the default
+    - also consider lib32 in paths checked for $LD_LIBRARY_PATH and $LIBRARY_PATH (#912)
     - reorganize support for file/git/svn repositories into 'repository' package, making it extensible (#913)
     - add support for 'postinstallcmds' easyconfig parameter, to specify commands that need to be run after the install step (#918)
     - make 'VERSION=' part in version of C environment modules tool optional, which is required for older versions (#930)
 - various bug fixes, including:
+    - fix small issues in bootstrap script: correctly determine EasyBuild version and make sure modules path exists (#915)
+    - fix github unit tests (#916)
     - disable useless debug logging for unit tests (#919)
     - fix unit test for --skip (#929)
     - make sure 'start_dir' can be set based on location of unpacked first source file (#931)
