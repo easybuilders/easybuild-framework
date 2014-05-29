@@ -39,7 +39,7 @@ import random
 import string
 import tempfile
 import time
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import nub, FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
@@ -72,18 +72,19 @@ DEFAULT_BUILD_OPTIONS = {
     'aggregate_regtest': None,
     'allow_modules_tool_mismatch': False,
     'check_osdeps': True,
+    'cleanup_builddir': True,
     'command_line': None,
     'debug': False,
     'dry_run': False,
     'easyblock': None,
     'experimental': False,
     'force': False,
+    'github_user': None,
     'group': None,
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,
     'recursive_mod_unload': False,
-    'regtest_online': False,
     'regtest_output_dir': None,
     'retain_all_deps': False,
     'robot_path': None,
@@ -585,7 +586,7 @@ def oldstyle_read_configuration(filename):
 
     # import avail_repositories here to avoid cyclic dependencies
     # this block of code is going to be removed in EB v2.0
-    from easybuild.tools.repository import avail_repositories
+    from easybuild.tools.repository.repository import avail_repositories
     file_variables = avail_repositories(check_useable=False)
     try:
         execfile(filename, {}, file_variables)

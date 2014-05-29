@@ -30,7 +30,7 @@ The main easyconfig format class
 """
 import re
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
@@ -48,7 +48,7 @@ def build_easyconfig_constants_dict():
     # sanity check
     all_consts = [
         ('TEMPLATE_CONSTANTS', dict([(x[0], x[1]) for x in TEMPLATE_CONSTANTS])),
-        ('EASYCONFIG_CONSTANTS', dict([(x[0], x[1]) for x in EASYCONFIG_CONSTANTS])),
+        ('EASYCONFIG_CONSTANTS', dict([(key, val[0]) for key, val in EASYCONFIG_CONSTANTS.items()])),
         ('EASYCONFIG_LICENSES', EASYCONFIG_LICENSES_DICT),
     ]
     err = []

@@ -37,7 +37,7 @@ import os
 import string
 import sys
 import tempfile
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import config, module_naming_scheme

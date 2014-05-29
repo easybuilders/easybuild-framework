@@ -41,7 +41,7 @@ import stat
 import time
 import urllib
 import zlib
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
@@ -158,6 +158,7 @@ def write_file(path, txt):
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
+        mkdir(os.path.dirname(path), parents=True)
         f = open(path, 'w')
         f.write(txt)
         f.close()
@@ -465,64 +466,120 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(fn, overwrite=False):
+def extract_cmd(filepath, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
     - based on file suffix
     - better to use Python magic?
     """
-    ff = [x.lower() for x in fn.split('.')]
-    ftype = None
+    filename = os.path.basename(filepath)
+    exts = [x.lower() for x in filename.split('.')]
+    target = '.'.join(exts[:-1])
+    cmd_tmpl = None
 
     # gzipped or gzipped tarball
-    if ff[-1] in ['gz']:
-        ftype = 'gunzip %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xzf %s'
-    if ff[-1] in ['tgz', 'gtgz']:
-        ftype = 'tar xzf %s'
+    if exts[-1] in ['gz']:
+        if exts[-2] in ['tar']:
+            # unzip .tar.gz in one go
+            cmd_tmpl = "tar xzf %(filepath)s"
+        else:
+            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+
+    elif exts[-1] in ['tgz', 'gtgz']:
+        cmd_tmpl = "tar xzf %(filepath)s"
 
     # bzipped or bzipped tarball
-    if ff[-1] in ['bz2']:
-        ftype = 'bunzip2 %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xjf %s'
-    if ff[-1] in ['tbz', 'tbz2', 'tb2']:
-        ftype = 'tar xjf %s'
+    elif exts[-1] in ['bz2']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = 'tar xjf %(filepath)s'
+        else:
+            cmd_tmpl = "bunzip2 %(filepath)s"
+
+    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
+        cmd_tmpl = "tar xjf %(filepath)s"
 
     # xzipped or xzipped tarball
-    if ff[-1] in ['xz']:
-        ftype = 'unxz %s'
-        if ff[-2] in ['tar']:
-            ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] in ['txz']:
-        ftype = 'unxz %s --stdout | tar x'
+    elif exts[-1] in ['xz']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
+        else:
+            cmd_tmpl = "unxz %(filepath)s"
+
+    elif exts[-1] in ['txz']:
+        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
 
     # tarball
-    if ff[-1] in ['tar']:
-        ftype = 'tar xf %s'
+    elif exts[-1] in ['tar']:
+        cmd_tmpl = "tar xf %(filepath)s"
 
     # zip file
-    if ff[-1] in ['zip']:
+    elif exts[-1] in ['zip']:
         if overwrite:
-            ftype = 'unzip -qq -o %s'
+            cmd_tmpl = "unzip -qq -o %(filepath)s"
         else:
-            ftype = 'unzip -qq %s'
+            cmd_tmpl = "unzip -qq %(filepath)s"
 
-    if not ftype:
-        _log.error('Unknown file type from file %s (%s)' % (fn, ff))
+    if cmd_tmpl is None:
+        _log.error('Unknown file type for file %s (%s)' % (filepath, exts))
 
-    return ftype % fn
+    return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
+    """Determine list of patched files from a patch."""
+    # expected format: "+++ path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+    if path is not None:
+        try:
+            f = open(path, 'r')
+            txt = f.read()
+            f.close()
+        except IOError, err:
+            _log.error("Failed to read patch %s: %s" % (path, err))
+    elif txt is None:
+        _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
+
+    patched_files = []
+    for match in patched_regex.finditer(txt):
+        patched_file = match.group('file')
+        if not omit_ab_prefix and match.group('ab_prefix') is not None:
+            patched_file = match.group('ab_prefix') + patched_file
+        patched_files.append(patched_file)
+
+    return patched_files
+
+
+def guess_patch_level(patched_files, parent_dir):
+    """Guess patch level based on list of patched files and specified directory."""
+    patch_level = None
+    for patched_file in patched_files:
+        # locate file by stripping of directories
+        tf2 = patched_file.split(os.path.sep)
+        n_paths = len(tf2)
+        path_found = False
+        level = None
+        for level in range(n_paths):
+            if os.path.isfile(os.path.join(parent_dir, *tf2[level:])):
+                path_found = True
+                break
+        if path_found:
+            patch_level = level
+            break
+        else:
+            _log.debug('No match found for %s, trying next patched file...' % patched_file)
+
+    return patch_level
+
+
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
     """
 
-    if not os.path.isfile(patchFile):
-        _log.error("Can't find patch %s: no such file" % patchFile)
+    if not os.path.isfile(patch_file):
+        _log.error("Can't find patch %s: no such file" % patch_file)
         return
 
     if fn and not os.path.isfile(fn):
@@ -536,16 +593,39 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     # copy missing files
     if copy:
         try:
-            shutil.copy2(patchFile, dest)
-            _log.debug("Copied patch %s to dir %s" % (patchFile, dest))
+            shutil.copy2(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
             return 'ok'
         except IOError, err:
-            _log.error("Failed to copy %s to dir %s: %s" % (patchFile, dest, err))
+            _log.error("Failed to copy %s to dir %s: %s" % (patch_file, dest, err))
             return
 
     # use absolute paths
-    apatch = os.path.abspath(patchFile)
+    apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
+
+    if not level:
+        # guess value for -p (patch level)
+        # - based on +++ lines
+        # - first +++ line that matches an existing file determines guessed level
+        # - we will try to match that level from current directory
+        patched_files = det_patched_files(path=apatch)
+
+        if not patched_files:
+            _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
+            return
+
+        patch_level = guess_patch_level(patched_files, adest)
+
+        if patch_level is None:  # patch_level can also be 0 (zero), so don't use "not patch_level"
+            # no match
+            _log.error("Can't determine patch level for patch %s from directory %s" % (patch_file, adest))
+        else:
+            _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
+
+    else:
+        patch_level = level
+        _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
 
     try:
         os.chdir(adest)
@@ -554,62 +634,10 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.error("Can't change to directory %s: %s" % (adest, err))
         return
 
-    if not level:
-        # Guess p level
-        # - based on +++ lines
-        # - first +++ line that matches an existing file determines guessed level
-        # - we will try to match that level from current directory
-        patchreg = re.compile(r"^\s*\+\+\+\s+(?P<file>\S+)")
-        try:
-            f = open(apatch)
-            txt = "ok"
-            plusLines = []
-            while txt:
-                txt = f.readline()
-                found = patchreg.search(txt)
-                if found:
-                    plusLines.append(found)
-            f.close()
-        except IOError, err:
-            _log.error("Can't read patch %s: %s" % (apatch, err))
-            return
-
-        if not plusLines:
-            _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
-            return
-
-        p = None
-        for line in plusLines:
-            # locate file by stripping of /
-            f = line.group('file')
-            tf2 = f.split('/')
-            n = len(tf2)
-            plusFound = False
-            i = None
-            for i in range(n):
-                if os.path.isfile('/'.join(tf2[i:])):
-                    plusFound = True
-                    break
-            if plusFound:
-                p = i
-                break
-            else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
-
-        if p is None:  # p can also be zero, so don't use "not p"
-            # no match
-            _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
-        else:
-            _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
-
-    else:
-        p = level
-        _log.debug("Using specified patch level %d for patch %s" % (level, patchFile))
-
-    patchCmd = "patch -b -p%d -i %s" % (p, apatch)
-    result = run.run_cmd(patchCmd, simple=True)
+    patch_cmd = "patch -b -p%d -i %s" % (patch_level, apatch)
+    result = run.run_cmd(patch_cmd, simple=True)
     if not result:
-        _log.error("Patching with patch %s failed" % patchFile)
+        _log.error("Patching with patch %s failed" % patch_file)
         return
 
     return result
@@ -750,6 +778,9 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
         set_gid = build_option('set_gid_bit')
     if sticky is None:
         sticky = build_option('sticky_bit')
+
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
 
     # exit early if path already exists
     if not os.path.exists(path):

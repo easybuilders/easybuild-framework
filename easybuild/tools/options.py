@@ -36,7 +36,6 @@ Command line options for eb
 import os
 import re
 import sys
-
 from distutils.version import LooseVersion
 
 from easybuild.framework.easyblock import EasyBlock
@@ -53,11 +52,12 @@ from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools.convert import ListOfStrings
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.repository import avail_repositories
+from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
@@ -137,6 +137,11 @@ class EasyBuildOptions(GeneralOption):
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
 
+        # additional options that don't need a --try equivalent
+        opts.update({
+            'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
+        })
+
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
@@ -147,6 +152,7 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
+            'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
@@ -269,14 +275,15 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
+            'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'github-user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
-            'regtest-online': ("Enable online regression test mode",
-                               None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
@@ -341,12 +348,15 @@ class EasyBuildOptions(GeneralOption):
         if self.options.strict:
             run.strictness = self.options.strict
 
+        # override current version of EasyBuild with version specified to --deprecated
         if self.options.deprecated:
             build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
 
+        # log to specified value of --unittest-file
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
+        # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
@@ -355,6 +365,21 @@ class EasyBuildOptions(GeneralOption):
                ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
+
+        # fail early if required dependencies for functionality requiring using GitHub API are not available:
+        if self.options.from_pr or self.options.upload_test_report:
+            if not HAVE_GITHUB_API:
+                self.log.error("Required support for using GitHub API is not available (see warnings).")
+
+        # make sure a GitHub token is available when it's required
+        if self.options.upload_test_report:
+            if not HAVE_KEYRING:
+                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
+            if self.options.github_user is None:
+                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+            token = fetch_github_token(self.options.github_user)
+            if token is None:
+                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
 
         self._postprocess_config()
 

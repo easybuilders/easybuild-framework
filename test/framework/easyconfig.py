@@ -36,7 +36,6 @@ import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
-from vsc import fancylogger
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.build_log
@@ -44,12 +43,13 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
-from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
+from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -67,6 +67,8 @@ class EasyConfigTest(EnhancedTestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
+        self.orig_current_version = easybuild.tools.build_log.CURRENT_VERSION
+
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -79,6 +81,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
+        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -280,7 +283,7 @@ class EasyConfigTest(EnhancedTestCase):
             '       "patches": ["toy-0.0.eb"],',  # dummy patch to avoid downloading fail
             '       "checksums": [',
             '           "504c7036558938f997c1c269a01d7458",',  # checksum for source (gzip-1.4.eb)
-            '           "bd2075fc6b26a7371e4f5c1687a75d0a",',  # checksum for patch (toy-0.0.eb)
+            '           "ddd5161154f5db67701525123129ff09",',  # checksum for patch (toy-0.0.eb)
             '       ],',
             '   }),',
             ']',
@@ -340,7 +343,7 @@ class EasyConfigTest(EnhancedTestCase):
                   'toolchain_version': tcver,
                   'patches': new_patches
                  }
-        tweak(self.eb_file, tweaked_fn, tweaks)
+        tweak_one(self.eb_file, tweaked_fn, tweaks)
 
         eb = EasyConfig(tweaked_fn)
         self.assertEqual(eb['version'], ver)
@@ -364,7 +367,7 @@ class EasyConfigTest(EnhancedTestCase):
             'foo': "bar"
         }
 
-        tweak(self.eb_file, tweaked_fn, tweaks)
+        tweak_one(self.eb_file, tweaked_fn, tweaks)
 
         eb = EasyConfig(tweaked_fn)
         self.assertEqual(eb['toolchain']['name'], tcname)
@@ -729,12 +732,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['configopts'][0], configopts[0])
         self.assertEqual(eb['configopts'][1], configopts[1])
 
-        # also makeopts and installopts as lists
-        makeopts = ['CC=foo' , 'CC=bar']
+        # also buildopts and installopts as lists
+        buildopts = ['CC=foo' , 'CC=bar']
         installopts = ['FOO=foo' , 'BAR=bar']
         self.contents = orig_contents + '\n' + '\n'.join([
             "configopts = %s" % str(configopts),
-            "makeopts = %s" % str(makeopts),
+            "buildopts = %s" % str(buildopts),
             "installopts = %s" % str(installopts),
         ])
         self.prep()
@@ -742,8 +745,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(eb['configopts'][0], configopts[0])
         self.assertEqual(eb['configopts'][1], configopts[1])
-        self.assertEqual(eb['makeopts'][0], makeopts[0])
-        self.assertEqual(eb['makeopts'][1], makeopts[1])
+        self.assertEqual(eb['buildopts'][0], buildopts[0])
+        self.assertEqual(eb['buildopts'][1], buildopts[1])
         self.assertEqual(eb['installopts'][0], installopts[0])
         self.assertEqual(eb['installopts'][1], installopts[1])
 
@@ -751,7 +754,7 @@ class EasyConfigTest(EnhancedTestCase):
         installopts = ['FOO=foo', 'BAR=bar', 'BAZ=baz']
         self.contents = orig_contents + '\n' + '\n'.join([
             "configopts = %s" % str(configopts),
-            "makeopts = %s" % str(makeopts),
+            "buildopts = %s" % str(buildopts),
             "installopts = %s" % str(installopts),
         ])
         self.prep()
@@ -763,7 +766,7 @@ class EasyConfigTest(EnhancedTestCase):
         installopts = ['FOO=foo']
         self.contents = orig_contents + '\n' + '\n'.join([
             "configopts = %s" % str(configopts),
-            "makeopts = %s" % str(makeopts),
+            "buildopts = %s" % str(buildopts),
             "installopts = %s" % str(installopts),
         ])
         self.prep()
@@ -864,6 +867,27 @@ class EasyConfigTest(EnhancedTestCase):
             "/some/path/Foo-1.2.3.eb",
         ]
         self.assertEqual(cand_paths, expected_paths)
+
+    def test_deprecated_options(self):
+        """Test whether deprecated options are handled correctly."""
+        deprecated_options = [
+            ('makeopts', 'buildopts', 'CC=foo'),
+            ('premakeopts', 'prebuildopts', ['PATH=%(builddir)s/foo:$PATH', 'PATH=%(builddir)s/bar:$PATH']),
+        ]
+        clean_contents = [
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+            'buildininstalldir = True',
+        ]
+        # alternative option is ready to use
+        for depr_opt, new_opt, val in deprecated_options:
+            self.contents = '\n'.join(clean_contents + ['%s = %s' % (depr_opt, quote_str(val))])
+            self.prep()
+            ec = EasyConfig(self.eb_file)
+            self.assertEqual(ec[depr_opt], ec[new_opt])
 
 def suite():
     """ returns all the testcases in this module """

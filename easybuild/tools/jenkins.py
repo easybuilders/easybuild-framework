@@ -32,7 +32,7 @@ import os
 import xml.dom.minidom as xml
 
 from datetime import datetime
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 

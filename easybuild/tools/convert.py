@@ -30,7 +30,7 @@ This module implements all supported formats and their converters
 """
 import re
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, nub
 from vsc.utils.wrapper import Wrapper
 

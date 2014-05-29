@@ -240,14 +240,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # test module naming scheme using all available easyconfig parameters
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
         init_config(build_options=build_options)
+        # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/afd4d25a1a2cdb1364c55274fb6929fab622f652',
-            'gzip-1.4.eb': 'gzip/b6306986fb95a06ad8bd2a09689d8997ff3e80dd',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/3c2d54583487828c21e17ed185eac372cabc5bb0',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/1fb1e3787d6063e05a04b2c054faf00dbe1dfe97',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/78c9afa1ff09994fe38d796b7569ce4b175e3551',
-            'toy-0.0.eb': 'toy/494518267cc5ed64c4250c5fbd1730a6e48fde17',
-            'toy-0.0-multiple.eb': 'toy/02822d81743944e1c072fc3c717c666da70f1be6',
+            'GCC-4.6.3.eb': 'GCC/698cacc77167c6824f597f0b6371cad5e6749922',
+            'gzip-1.4.eb': 'gzip/d240a51c643ec42e709d405d958c7b26f5a25d5a',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/cea02d332af7044ae5faf762cea2ef6ffed014d2',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/f1dbb38c4518a15fc8bb1fbf797ceda02f0cacd0',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3ef9ac73b468c989f5a47b30098d340e92c3d0da',
+            'toy-0.0.eb': 'toy/778417f0e140ebbaebd60d0f98c8b2411f980edf',
+            'toy-0.0-multiple.eb': 'toy/2d45f3cde87dedf30662f4a005023d56d2532bf0',
         }
         test_mns()
 

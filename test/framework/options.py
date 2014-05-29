@@ -33,7 +33,7 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase, init_config
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader
 from unittest import main as unittestmain
 
@@ -45,7 +45,7 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.version import VERSION
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
@@ -205,15 +205,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for existing module
         args = [
-                eb_file,
-                '--sourcepath=%s' % sourcepath,
-                '--buildpath=%s' % buildpath,
-                '--installpath=%s' % installpath,
-                '--force',
-                '--skip',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args, do_build=True)
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--force',
+            '--debug',
+        ]
+        self.eb_main(args, do_build=True)
+        modules_tool().purge()
+
+        args.append('--skip')
+        outtxt = self.eb_main(args, do_build=True, verbose=True)
 
         found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
         found = re.search(found_msg, outtxt, re.M)
@@ -231,17 +234,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check log message with --skip for non-existing module
         args = [
-                eb_file,
-                '--sourcepath=%s' % sourcepath,
-                '--buildpath=%s' % buildpath,
-                '--installpath=%s' % installpath,
-                '--try-software-version=1.2.3.4.5.6.7.8.9',
-                '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
-                '--force',
-                '--skip',
-                '--debug',
-               ]
-        outtxt = self.eb_main(args, do_build=True)
+            eb_file,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % buildpath,
+            '--installpath=%s' % installpath,
+            '--try-software-version=1.2.3.4.5.6.7.8.9',
+            '--try-amend=sources=toy-0.0.tar.gz,toy-0.0.tar.gz',  # hackish, but fine
+            '--force',
+            '--debug',
+            '--skip',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True)
 
         found_msg = "Module toy/1.2.3.4.5.6.7.8.9 found."
         found = re.search(found_msg, outtxt)
@@ -368,7 +371,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                                     (param_type, avail_arg, args, outtxt))
 
                 # check a couple of easyconfig parameters
-                for param in ["name", "version", "toolchain", "versionsuffix", "makeopts", "sources", "start_dir",
+                for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
                     self.assertTrue(re.search("%s(?:\(\*\))?:\s*\w.*" % param, outtxt),
                                     "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
@@ -593,6 +596,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
+
+    def test_from_pr(self):
+        """Test fetching easyconfigs from a PR."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
+            '--from-pr=726',
+            '--dry-run',
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+
+        modules = [
+            'icc/2013_sp1.2.144',
+            'ifort/2013_sp1.2.144',
+            'impi/4.1.3.049',
+            'imkl/11.1.2.144',
+            'ictce/6.2.5',
+            'gzip/1.6-ictce-6.2.5',
+        ]
+        for module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -824,19 +855,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         log = fancylogger.getLogger()
 
-        # force it to current version
+        # force it to lower version using 0.x, which should no result in any raised error (only deprecation logging)
         topt = EasyBuildOptions(
-            go_args=['--deprecated=%s' % orig_value],
+            go_args=['--deprecated=0.%s' % orig_value],
         )
-
         try:
             log.deprecated('x', str(orig_value))
         except easybuild.tools.build_log.EasyBuildError, err:
             self.assertTrue(False, 'Deprecated logging should work')
 
-        # force higher version by prefixing it with 1
+        # force it to current version, which should result in deprecation
         topt = EasyBuildOptions(
-            go_args=['--deprecated=1%s' % orig_value],
+            go_args=['--deprecated=%s' % orig_value],
         )
         try:
             log.deprecated('x', str(orig_value))
@@ -844,6 +874,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
         except easybuild.tools.build_log.EasyBuildError, err2:
             self.assertTrue('DEPRECATED' in str(err2))
+
+        # force higher version by prefixing it with 1, which should result in deprecation
+        topt = EasyBuildOptions(
+            go_args=['--deprecated=1%s' % orig_value],
+        )
+        try:
+            log.deprecated('x', str(orig_value))
+            # not supposed to get here
+            self.assertTrue(False, 'Deprecated logging should throw EasyBuildError')
+        except easybuild.tools.build_log.EasyBuildError, err3:
+            self.assertTrue('DEPRECATED' in str(err3))
 
         # set it back
         easybuild.tools.build_log.CURRENT_VERSION = orig_value
@@ -899,6 +940,66 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             del os.environ['module']
 
+    def test_recursive_try(self):
+        """Test whether recursive --try-X works."""
+        ecs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
+        shutil.copy2(os.path.join(ecs_path, 'toy-0.0.eb'), tweaked_toy_ec)
+        f = open(tweaked_toy_ec, 'a')
+        f.write("dependencies = [('gzip', '1.4')]")  # add fictious dependency
+        f.close()
+
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+        args = [
+            tweaked_toy_ec,
+            '--sourcepath=%s' % sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--try-toolchain=gompi,1.4.10',
+            '--robot=%s' % ecs_path,
+            '--ignore-osdeps',
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True)
+
+        # toolchain gompi/1.4.10 should be listed
+        tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
+        self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
+
+        # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
+        for ec_name in ['gzip-1.4', 'toy-0.0']:
+            ec = '%s-gompi-1.4.10.eb' % ec_name
+            mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
+            mod_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/easybuild-\S*/%s\s\(module: %s\)\s*$" % (ec, mod), re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
+    def test_cleanup_builddir(self):
+        """Test cleaning up of build dir and --disable-cleanup-builddir."""
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        toy_buildpath = os.path.join(self.test_buildpath, 'toy', '0.0', 'dummy-dummy')
+
+        args = [
+            toy_ec,
+            '--force',
+        ]
+        self.eb_main(args, do_build=True, verbose=True)
+
+        # make sure build directory is properly cleaned up after a successful build (default behavior)
+        self.assertFalse(os.path.exists(toy_buildpath), "Build dir %s removed after succesful build" % toy_buildpath)
+        # make sure --disable-cleanup-builddir works
+        args.append('--disable-cleanup-builddir')
+        self.eb_main(args, do_build=True, verbose=True)
+        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained when requested" % toy_buildpath)
+        shutil.rmtree(toy_buildpath)
+
+        # make sure build dir stays in case of failed build
+        args = [
+            toy_ec,
+            '--force',
+            '--try-amend=premakeopts=nosuchcommand &&',
+        ]
+        self.eb_main(args, do_build=True)
+        self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)
 
 def suite():
     """ returns all the testcases in this module """

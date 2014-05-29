@@ -34,24 +34,20 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import math
 import os
-import re
-import sys
-from datetime import datetime
 
 import easybuild.tools.config as config
-from easybuild.framework.easyblock import build_easyconfigs, get_easyblock_instance
-from easybuild.framework.easyconfig.tools import det_full_module_name, process_easyconfig, resolve_dependencies
-from easybuild.framework.easyconfig.tools import skip_available
+from easybuild.framework.easyblock import get_easyblock_instance
+from easybuild.framework.easyconfig.tools import det_full_module_name
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, get_repository, get_repositorypath
-from easybuild.tools.filetools import find_easyconfigs, mkdir
-from easybuild.tools.jenkins import aggregate_xml_in_dirs
+from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
-from easybuild.tools.repository import init_repository
-from vsc import fancylogger
+from easybuild.tools.repository.repository import init_repository
+from vsc.utils import fancylogger
+
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
+
 
 def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
@@ -187,92 +183,3 @@ def prepare_easyconfig(ec):
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
         _log.error("An error occured while preparing %s: %s" % (ec, err))
-
-
-def regtest(easyconfig_paths, build_specs=None):
-    """
-    Run regression test, using easyconfigs available in given path
-    @param easyconfig_paths: path of easyconfigs to run regtest on
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-
-    cur_dir = os.getcwd()
-
-    aggregate_regtest = build_option('aggregate_regtest')
-    if aggregate_regtest is not None:
-        output_file = os.path.join(aggregate_regtest, "%s-aggregate.xml" % os.path.basename(aggregate_regtest))
-        aggregate_xml_in_dirs(aggregate_regtest, output_file)
-        _log.info("aggregated xml files inside %s, output written to: %s" % (aggregate_regtest, output_file))
-        sys.exit(0)
-
-    # create base directory, which is used to place
-    # all log files and the test output as xml
-    basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
-
-    regtest_output_dir = build_option('regtest_output_dir')
-    if regtest_output_dir is not None:
-        output_dir = regtest_output_dir
-    elif var in os.environ:
-        output_dir = os.path.abspath(os.environ[var])
-    else:
-        # default: current dir + easybuild-test-[timestamp]
-        output_dir = os.path.join(cur_dir, basename)
-
-    mkdir(output_dir, parents=True)
-
-    # find all easyconfigs
-    ecfiles = []
-    if easyconfig_paths:
-        for path in easyconfig_paths:
-            ecfiles += find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
-    else:
-        _log.error("No easyconfig paths specified.")
-
-    test_results = []
-
-    # process all the found easyconfig files
-    easyconfigs = []
-    for ecfile in ecfiles:
-        try:
-            easyconfigs.extend(process_easyconfig(ecfile, build_specs=build_specs))
-        except EasyBuildError, err:
-            test_results.append((ecfile, 'parsing_easyconfigs', 'easyconfig file error: %s' % err, _log))
-
-    # skip easyconfigs for which a module is already available, unless forced
-    if not build_option('force'):
-        _log.debug("Skipping easyconfigs from %s that already have a module available..." % easyconfigs)
-        easyconfigs = skip_available(easyconfigs)
-        _log.debug("Retained easyconfigs after skipping: %s" % easyconfigs)
-
-    if build_option('sequential'):
-        return build_easyconfigs(easyconfigs, output_dir, test_results)
-    else:
-        resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
-
-        cmd = "eb %(spec)s --regtest --sequential -ld"
-        command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
-        # retry twice in case of failure, to avoid fluke errors
-        command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
-
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
-
-        print "List of submitted jobs:"
-        for job in jobs:
-            print "%s: %s" % (job.name, job.jobid)
-        print "(%d jobs submitted)" % len(jobs)
-
-        # determine leaf nodes in dependency graph, and report them
-        all_deps = set()
-        for job in jobs:
-            all_deps = all_deps.union(job.deps)
-
-        leaf_nodes = []
-        for job in jobs:
-            if not job.jobid in all_deps:
-                leaf_nodes.append(str(job.jobid).split('.')[0])
-
-        _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
-        _log.info("Submitted regression test as jobs, results in %s" % output_dir)
-
-        return True  # success

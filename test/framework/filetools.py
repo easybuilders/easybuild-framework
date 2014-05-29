@@ -75,6 +75,11 @@ class FileToolsTest(EnhancedTestCase):
             ('test.tbz2', "tar xjf test.tbz2"),
             ('test.tb2', "tar xjf test.tb2"),
             ('test.tar.bz2', "tar xjf test.tar.bz2"),
+            ('test.gz', "gunzip -c test.gz > test"),
+            ("/some/path/test.gz", "gunzip -c /some/path/test.gz > test"),
+            ('test.xz', "unxz test.xz"),
+            ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
+            ('test.txz', "unxz test.txz --stdout | tar x"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
@@ -238,6 +243,28 @@ class FileToolsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_det_patched_files(self):
+        """Test det_patched_files function."""
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
+        self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
+
+    def test_guess_patch_level(self):
+        "Test guess_patch_level."""
+        # create dummy toy.source file so guess_patch_level can work
+        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
+        f.write("This is toy.source")
+        f.close()
+
+        for patched_file, correct_patch_level in [
+            ('toy.source', 0),
+            ('b/toy.source', 1),  # b/ prefix is used in +++ line in git diff patches
+            ('a/toy.source', 1),  # a/ prefix is used in --- line in git diff patches
+            ('c/toy.source', 1),
+            ('toy-0.0/toy.source', 1),
+            ('b/toy-0.0/toy.source', 2),
+        ]:
+            self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
 
 def suite():
     """ returns all the testcases in this module """

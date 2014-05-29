@@ -30,7 +30,7 @@ Unit tests for ModulesTool class.
 import os
 import re
 import tempfile
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from test.framework.utilities import EnhancedTestCase
 from unittest import main as unittestmain

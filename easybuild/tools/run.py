@@ -40,7 +40,7 @@ import subprocess
 import tempfile
 import time
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.asyncprocess import PIPE, STDOUT, Popen, recv_some, send_all
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!

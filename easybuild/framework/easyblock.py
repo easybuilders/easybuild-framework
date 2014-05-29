@@ -65,15 +65,16 @@ from easybuild.tools.config import log_path, module_classes, read_only_installdi
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
-from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2, run_cmd
+from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
+from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
 from easybuild.tools.module_generator import det_devel_module_filename
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
-from easybuild.tools.repository import init_repository
+from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import get_avail_core_count
 from easybuild.tools.utilities import remove_unwanted_chars
@@ -897,8 +898,8 @@ class EasyBlock(object):
         """
         return {
             'PATH': ['bin', 'sbin'],
-            'LD_LIBRARY_PATH': ['lib', 'lib64'],
-            'LIBRARY_PATH': ['lib', 'lib64'],
+            'LD_LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
+            'LIBRARY_PATH': ['lib', 'lib64', 'lib32'],
             'CPATH': ['include'],
             'MANPATH': ['man', 'share/man'],
             'PKG_CONFIG_PATH': ['lib/pkgconfig', 'share/pkgconfig'],
@@ -1072,7 +1073,7 @@ class EasyBlock(object):
             tmpdir = self.cfg['start_dir']
 
         if not os.path.isabs(tmpdir):
-            if len(self.src) > 0 and not self.skip:
+            if len(self.src) > 0 and not self.skip and self.src[0]['finalpath']:
                 self.cfg['start_dir'] = os.path.join(self.src[0]['finalpath'], tmpdir)
             else:
                 self.cfg['start_dir'] = os.path.join(self.builddir, tmpdir)
@@ -1523,9 +1524,19 @@ class EasyBlock(object):
     def post_install_step(self):
         """
         Do some postprocessing
+        - run post install commands if any were specified
         - set file permissions ....
         Installing user must be member of the group that it is changed to
         """
+        if self.cfg['postinstallcmds'] is not None:
+            # make sure we have a list of commands
+            if not isinstance(self.cfg['postinstallcmds'], (list, tuple)):
+                self.log.error("Invalid value for 'postinstallcmds', should be list or tuple of strings.")
+            for cmd in self.cfg['postinstallcmds']:
+                if not isinstance(cmd, basestring):
+                    self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
+                run_cmd(cmd, simple=True, log_ok=False, log_all=False)
+
         if self.group is not None:
             # remove permissions for others, and set group ID
             try:
@@ -1670,10 +1681,10 @@ class EasyBlock(object):
         """
         Cleanup leftover mess: remove/clean build directory
 
-        except when we're building in the installation directory,
-        otherwise we remove the installation
+        except when we're building in the installation directory or
+        cleanup_builddir is False, otherwise we remove the installation
         """
-        if not self.build_in_installdir:
+        if not self.build_in_installdir and build_option('cleanup_builddir'):
             try:
                 os.chdir(build_path())  # make sure we're out of the dir we're removing
 
@@ -1690,6 +1701,9 @@ class EasyBlock(object):
 
             except OSError, err:
                 self.log.exception("Cleaning up builddir %s failed: %s" % (self.builddir, err))
+
+        if not build_option('cleanup_builddir'):
+            self.log.info("Keeping builddir %s" % self.builddir)
 
         env.restore_env_vars(self.cfg['unwanted_env_vars'])
 
@@ -1865,11 +1879,10 @@ class EasyBlock(object):
 
         return steps
 
-    def run_all_steps(self, run_test_cases, regtest_online):
+    def run_all_steps(self, run_test_cases):
         """
         Build and install this software.
         run_test_cases (bool): run tests after building (e.g.: make test)
-        regtest_online (bool): do an online regtest, this means check the websites and try to download sources"
         """
         if self.cfg['stop'] and self.cfg['stop'] == 'cfg':
             return True
@@ -1890,7 +1903,7 @@ class EasyBlock(object):
         return True
 
 
-def build_and_install_software(module, orig_environ):
+def build_and_install_one(module, orig_environ):
     """
     Build the software
     @param module: dictionary contaning parsed easyconfig + metadata
@@ -1940,12 +1953,11 @@ def build_and_install_software(module, orig_environ):
     start_time = time.time()
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
-        regtest_online = build_option('regtest_online')
-        result = app.run_all_steps(run_test_cases=run_test_cases, regtest_online=regtest_online)
+        result = app.run_all_steps(run_test_cases=run_test_cases)
     except EasyBuildError, err:
-        lastn = 300
-        errormsg = "autoBuild Failed (last %d chars): %s" % (lastn, err.msg[-lastn:])
-        _log.exception(errormsg)
+        first_n = 300
+        errormsg = "build failed (first %d chars): %s" % (first_n, err.msg[:first_n])
+        _log.warning(errormsg)
         result = False
 
     ended = "ended"
@@ -1981,7 +1993,7 @@ def build_and_install_software(module, orig_environ):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        exit_code = 0
+        success = True
         succ = "successfully"
         summary = "COMPLETED"
 
@@ -2005,13 +2017,13 @@ def build_and_install_software(module, orig_environ):
 
     # build failed
     else:
-        exit_code = 1
+        success = False
         summary = "FAILED"
 
         build_dir = ''
         if app.builddir:
             build_dir = " (build directory: %s)" % (app.builddir)
-        succ = "unsuccessfully%s:\n%s" % (build_dir, errormsg)
+        succ = "unsuccessfully%s: %s" % (build_dir, errormsg)
 
         # cleanup logs
         app.close_log()
@@ -2020,9 +2032,9 @@ def build_and_install_software(module, orig_environ):
     print_msg("%s: Installation %s %s" % (summary, ended, succ), log=_log, silent=silent)
 
     # check for errors
-    if exit_code != 0 or filetools.errors_found_in_log > 0:
-        print_msg("\nWARNING: Build exited with non-zero exit code %d. %d possible error(s) were detected in the "
-                  "build logs, please verify the build.\n" % (exit_code, filetools.errors_found_in_log),
+    if filetools.errors_found_in_log > 0:
+        print_msg("WARNING: %d possible error(s) were detected in the "
+                  "build logs, please verify the build." % filetools.errors_found_in_log,
                   _log, silent=silent)
 
     if app.postmsg:
@@ -2033,8 +2045,7 @@ def build_and_install_software(module, orig_environ):
     del app
     os.chdir(cwd)
 
-    return (exit_code == 0, application_log)
-
+    return (success, application_log, errormsg)
 
 def get_easyblock_instance(easyconfig):
     """

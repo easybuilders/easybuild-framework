@@ -29,7 +29,7 @@ e.g., in compiling or linking
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-from vsc import fancylogger
+from vsc.utils import fancylogger
 import copy
 import os
 

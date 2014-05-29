@@ -41,7 +41,7 @@ import subprocess
 import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, any
 
 from easybuild.tools.build_log import EasyBuildError
@@ -519,10 +519,14 @@ class ModulesTool(object):
                     result.append(module.groupdict())
             return result
 
+    def list(self):
+        """Return result of 'module list'."""
+        return self.run_module('list')
+
     def loaded_modules(self):
         """Return a list of loaded modules."""
         # obtain list of loaded modules from 'module list' using --terse
-        mods = [mod['mod_name'] for mod in self.run_module('list')]
+        mods = [mod['mod_name'] for mod in self.list()]
 
         # filter out devel modules
         loaded_modules = [mod for mod in mods if not mod.endswith(DEVEL_MODULE_SUFFIX)]
@@ -565,7 +569,7 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
-    VERSION_REGEXP = r'^\s*VERSION\s*=\s*(?P<version>\d\S*)\s*^'
+    VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def module_software_name(self, mod_name):
         """Get the software name for a given module name."""

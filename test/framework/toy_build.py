@@ -27,7 +27,6 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
-
 import glob
 import grp
 import os
@@ -42,6 +41,7 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.tools.filetools import write_file
+from easybuild.tools.build_log import EasyBuildError
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -98,18 +98,25 @@ class ToyBuildTest(EnhancedTestCase):
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
         self.assertTrue(len(glob.glob(install_log_path_pattern)) == 1, "Found 1 file at %s" % install_log_path_pattern)
 
+        # make sure test report is available
+        test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*test_report.md' % version)
+        self.assertTrue(len(glob.glob(test_report_path_pattern)) == 1, "Found 1 file at %s" % test_report_path_pattern)
+
         ec_file_path = os.path.join(software_path, 'easybuild', 'toy-%s.eb' % full_version)
         self.assertTrue(os.path.exists(ec_file_path))
 
         devel_module_path = os.path.join(software_path, 'easybuild', 'toy-%s-easybuild-devel' % full_version)
         self.assertTrue(os.path.exists(devel_module_path))
 
-    def test_toy_build(self, extra_args=None, ec_file=None):
+    def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
+                       raise_error=False, test_report=None):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
+        test_readme = False
         if ec_file is None:
             ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            test_readme = True
         args = [
             ec_file,
             '--sourcepath=%s' % self.test_sourcepath,
@@ -120,9 +127,80 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
         ]
-        outtxt = self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True)
+        if tmpdir is not None:
+            args.append('--tmpdir=%s' % tmpdir)
+        if test_report is not None:
+            args.append('--dump-test-report=%s' % test_report)
+        args.extend(extra_args)
+        myerr = None
+        try:
+            outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
+                                  raise_error=raise_error)
+        except Exception, err:
+            myerr = err
 
-        self.check_toy(self.test_installpath, outtxt)
+        if verify:
+            self.check_toy(self.test_installpath, outtxt)
+
+        if test_readme:
+            # make sure postinstallcmds were used
+            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+            self.assertEqual(open(os.path.join(toy_install_path, 'README'), 'r').read(), "TOY\n")
+
+        # make sure full test report was dumped, and contains sensible information
+        if test_report is not None:
+            self.assertTrue(os.path.exists(test_report))
+            if fails:
+                test_result = 'FAIL'
+            else:
+                test_result = 'SUCCESS'
+            regex_patterns = [
+                r"Test result[\S\s]*Build succeeded for %d out of 1" % (not fails),
+                r"Overview of tested easyconfig[\S\s]*%s[\S\s]*%s" % (test_result, os.path.basename(ec_file)),
+                r"Time info[\S\s]*start:[\S\s]*end:",
+                r"EasyBuild info[\S\s]*framework version:[\S\s]*easyblocks ver[\S\s]*command line[\S\s]*configuration",
+                r"System info[\S\s]*cpu model[\S\s]*os name[\S\s]*os version[\S\s]*python version",
+                r"List of loaded modules",
+                r"Environment",
+            ]
+            test_report_txt = open(test_report).read()
+            for regex_pattern in regex_patterns:
+                regex = re.compile(regex_pattern, re.M)
+                msg = "Pattern %s found in full test report: %s" % (regex.pattern, test_report_txt)
+                self.assertTrue(regex.search(test_report_txt), msg)
+
+        if raise_error and (myerr is not None):
+            raise myerr
+
+    def test_toy_broken(self):
+        """Test deliberately broken toy build."""
+        tmpdir = tempfile.mkdtemp()
+        broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
+        toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        broken_toy_ec_txt = open(toy_ec_file, 'r').read()
+        broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
+        f = open(broken_toy_ec, 'w')
+        f.write(broken_toy_ec_txt)
+        f.close()
+        error_regex = "Checksum verification .* failed"
+        self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
+                              verify=False, fails=True, verbose=False, raise_error=True)
+
+        # make sure log file is retained, also for failed build
+        log_path_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*.log')
+        self.assertTrue(len(glob.glob(log_path_pattern)) == 1, "Log file found at %s" % log_path_pattern)
+
+        # make sure individual test report is retained, also for failed build
+        test_report_fp_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*test_report.md')
+        self.assertTrue(len(glob.glob(test_report_fp_pattern)) == 1, "Test report %s found" % test_report_fp_pattern)
+
+        # test dumping full test report (doesn't raise an exception)
+        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
+        self.test_toy_build(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True, verbose=False,
+                            raise_error=True, test_report=test_report_fp)
+
+        # cleanup
+        shutil.rmtree(tmpdir)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
@@ -380,6 +458,16 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(perms & stat.S_ISGID, "gid bit set on %s" % fullpath)
             self.assertTrue(perms & stat.S_ISVTX, "sticky bit set on %s" % fullpath)
 
+    def test_allow_system_deps(self):
+        """Test allow_system_deps easyconfig parameter."""
+        tmpdir = tempfile.mkdtemp()
+        # copy toy easyconfig file, and append source_urls to it
+        shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
+        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        f = open(ec_file, 'a')
+        f.write("\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n")
+        f.close()
+        self.test_toy_build(ec_file=ec_file)
 
 def suite():
     """ return all the tests in this file """
