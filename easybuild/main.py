@@ -333,8 +333,11 @@ def main(testing_data=(None, None, None)):
 
     # read easyconfig files
     easyconfigs = []
+    generated_ecs = False
     for (path, generated) in paths:
         path = os.path.abspath(path)
+        # keep track of whether any files were generated
+        generated_ecs |= generated
         if not os.path.exists(path):
             print_error("Can't find path %s" % path)
 
@@ -351,7 +354,8 @@ def main(testing_data=(None, None, None)):
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
     # tweak obtained easyconfig files, if requested
-    if try_to_generate and build_specs:
+    # don't try and tweak anything if easyconfigs were generated, since building a full dep graph is likely to fail
+    if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs)
 
     # before building starts, take snapshot of environment (watch out -t option!)
