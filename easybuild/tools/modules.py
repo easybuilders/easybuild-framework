@@ -436,6 +436,10 @@ class ModulesTool(object):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
 
+        if 'options' in kwargs:
+            for (index, option) in kwargs['options']:
+                args.insert(index, option)
+
         module_path_key = None
         original_module_path = None
         if 'mod_paths' in kwargs:
@@ -496,7 +500,7 @@ class ModulesTool(object):
                     self.log.debug("Tweaked stdout: %s" % stdout)
                 exec stdout
             except Exception, err:
-                out = "stdout: %s, stderr: %s" % (stdout, stderr)
+                out = "command: %s, stdout: %s, stderr: %s" % (fullcmd, stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
@@ -656,10 +660,14 @@ class Lmod(ModulesTool):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
+        os.environ['LMOD_QUIET'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
         super(Lmod, self).__init__(*args, **kwargs)
+
+        # run a dummy 'module list' to reset Lmod's state
+        self.run_module('list', options=[(0, '--initial_load')])
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
