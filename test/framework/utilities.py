@@ -43,6 +43,7 @@ from easybuild.tools import config, modules
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
+from easybuild.tools.modules import modules_tool
 
 
 class EnhancedTestCase(TestCase):
@@ -107,6 +108,9 @@ class EnhancedTestCase(TestCase):
         import easybuild.easyblocks.generic
         reload(easybuild.easyblocks.generic)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
+
+        # purge out any loaded modules with original $MODULEPATH before running each test
+        modules_tool().purge()
 
         # set MODULEPATH to included test modules
         os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')

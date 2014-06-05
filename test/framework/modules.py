@@ -51,13 +51,7 @@ class ModulesTest(EnhancedTestCase):
     def setUp(self):
         """set up everything for a unit test."""
         super(ModulesTest, self).setUp()
-
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
         self.testmods = modules_tool()
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        self.testmods.purge()
 
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
@@ -229,13 +223,6 @@ class ModulesTest(EnhancedTestCase):
         os.environ.pop('EBROOTFOO')
 
         shutil.rmtree(tmpdir)
-
-    def tearDown(self):
-        """cleanup"""
-        super(ModulesTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        self.init_testmods(test_modules_paths=self.orig_modulepaths)
 
 def suite():
     """ returns all the testcases in this module """
