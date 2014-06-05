@@ -68,13 +68,6 @@ class ModulesToolTest(EnhancedTestCase):
         """Testcase setup."""
         super(ModulesToolTest, self).setUp()
 
-        # keep track of original $MODULEPATH, so we can restore it
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        modules_tool().purge()
-
         # keep track of original 'module' function definition so we can restore it
         self.orig_module = os.environ.get('module', None)
 
@@ -192,12 +185,6 @@ class ModulesToolTest(EnhancedTestCase):
     def tearDown(self):
         """Testcase cleanup."""
         super(ModulesToolTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        modtool = modules_tool()
-        modtool.set_mod_paths()
-        for path in self.orig_modulepaths[::-1]:
-            modtool.prepend_module_path(path)
 
         # restore 'module' function
         if self.orig_module is not None:
