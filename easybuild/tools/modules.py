@@ -253,19 +253,21 @@ class ModulesTool(object):
         """
         Check if MODULEPATH is set and change it if necessary.
         """
-        # if self.mod_paths is not specified, use $MODULEPATH and make sure the EasyBuild module path is in there (first)
+        # if self.mod_paths is not specified, use $MODULEPATH and make sure the EasyBuild module path is in there
         if self.mod_paths is None:
             # take module path from environment
-            self.mod_paths = [x for x in nub(os.environ.get('MODULEPATH', '').split(':')) if len(x) > 0]
+            self.mod_paths = [x for x in os.environ.get('MODULEPATH', '').split(':') if len(x) > 0]
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
             # determine module path for EasyBuild install path to be included in $MODULEPATH
             eb_modpath = os.path.join(install_path(typ='modules'), GENERAL_CLASS)
 
-            # make sure EasyBuild module path is in 1st place
-            self.mod_paths = [x for x in self.mod_paths if not x == eb_modpath]
-            self.mod_paths.insert(0, eb_modpath)
-            self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
+            # check if EasyBuild module path is included, add it (in 1st place) if it's not
+            if not eb_modpath in self.mod_paths:
+                self.mod_paths.insert(0, eb_modpath)
+                self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % self.mod_paths)
+            else:
+                self.log.debug("Found EasyBuild module path %s in %s" % (eb_modpath, self.mod_paths))
 
         # set the module path environment accordingly
         os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
@@ -434,6 +436,10 @@ class ModulesTool(object):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
 
+        if 'options' in kwargs:
+            for (index, option) in kwargs['options']:
+                args.insert(index, option)
+
         module_path_key = None
         original_module_path = None
         if 'mod_paths' in kwargs:
@@ -464,11 +470,13 @@ class ModulesTool(object):
                 self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
             cmdlist = self.COMMAND_SHELL + cmdlist
 
-        self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
+        fullcmd = ' '.join(cmdlist + args)
+        self.log.debug("Running module command '%s' from %s" % (fullcmd, os.getcwd()))
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
+        self.log.debug("Output from module command '%s': stdout: %s, stderr: %s" % (fullcmd, stdout, stderr))
         if original_module_path is not None:
             os.environ['MODULEPATH'] = original_module_path
             self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
@@ -489,9 +497,10 @@ class ModulesTool(object):
                 tweak_fn = kwargs.get('tweak_stdout')
                 if tweak_fn is not None:
                     stdout = tweak_fn(stdout)
+                    self.log.debug("Tweaked stdout: %s" % stdout)
                 exec stdout
             except Exception, err:
-                out = "stdout: %s, stderr: %s" % (stdout, stderr)
+                out = "command: %s, stdout: %s, stderr: %s" % (fullcmd, stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
@@ -651,10 +660,14 @@ class Lmod(ModulesTool):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_EXPERT'] = '1'
+        os.environ['LMOD_QUIET'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
         super(Lmod, self).__init__(*args, **kwargs)
+
+        # run a dummy 'module list' to reset Lmod's state
+        self.run_module('list', options=[(0, '--initial_load')])
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
