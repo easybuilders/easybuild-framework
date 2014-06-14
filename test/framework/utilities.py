@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
-from easybuild.tools import config
+from easybuild.tools import config, modules
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
@@ -113,7 +113,6 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
-        os.remove(self.logfile)
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
@@ -140,6 +139,7 @@ class EnhancedTestCase(TestCase):
         # clear instance of BuildOptions and ConfigurationVariables to ensure configuration is reinitialized
         config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
         config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
+        modules.ModulesTool.__metaclass__._instances.clear()
         myerr = False
         if logfile is None:
             logfile = self.logfile
@@ -169,9 +169,10 @@ class EnhancedTestCase(TestCase):
 def init_config(args=None, build_options=None):
     """(re)initialize configuration"""
 
-    # clean up any instances of BuildOptions and ConfigurationVariables before reinitializing configuration
+    # clean up any singleton instances before reinitializing configuration
     config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
     config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
+    modules.ModulesTool.__metaclass__._instances.clear()
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args)

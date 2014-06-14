@@ -106,6 +106,7 @@ class ModulesToolTest(EnhancedTestCase):
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
+        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
         bmmt = BrokenMockModulesTool(mod_paths=[])
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -138,17 +139,19 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool()
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
+        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool()
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
         warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
-        self.assertTrue(warn_regex.search(logtxt))
+        self.assertTrue(warn_regex.search(logtxt), "Pattern %s found in %s" % (warn_regex.pattern, logtxt))
 
         fancylogger.logToFile(self.logfile, enable=False)
 
@@ -191,8 +194,10 @@ class ModulesToolTest(EnhancedTestCase):
         super(ModulesToolTest, self).tearDown()
 
         os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        # reinitialize a modules tool, to trigger 'module use' on module paths
-        modules_tool()
+        modtool = modules_tool()
+        modtool.set_mod_paths()
+        for path in self.orig_modulepaths[::-1]:
+            modtool.prepend_module_path(path)
 
         # restore 'module' function
         if self.orig_module is not None:
