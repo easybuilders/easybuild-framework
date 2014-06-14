@@ -681,6 +681,8 @@ class Lmod(ModulesTool):
         """Constructor, set lmod-specific class variable values."""
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_QUIET'] = '1'
+        # depending on the Lmod version, $LMOD_EXPERT should be set too (should no longer be needed with Lmod 5.6)
+        os.environ['LMOD_EXPERT'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
