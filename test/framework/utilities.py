@@ -109,11 +109,11 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.easyblocks.generic)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
-        # purge out any loaded modules with original $MODULEPATH before running each test
-        modules_tool().purge()
-
         # set MODULEPATH to included test modules
         os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
+
+        # purge out any loaded modules with original $MODULEPATH before running each test
+        modules_tool().purge()
 
     def tearDown(self):
         """Clean up after running testcase."""
