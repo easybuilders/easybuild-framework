@@ -261,7 +261,7 @@ def get_kernel_name():
 
     e.g., 'Linux', 'Darwin', ...
     """
-    _log.deprecated("get_kernel_name() (replaced by os_type())", "2.0")
+    _log.deprecated("get_kernel_name() (replaced by get_os_type())", "2.0")
     try:
         kernel_name = os.uname()[0]
         return kernel_name
