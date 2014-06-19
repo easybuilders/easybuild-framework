@@ -38,7 +38,7 @@ from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
+from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool, MODULE_SUBCMD_TIMINGS
 
 
 # number of modules included for testing purposes
@@ -239,4 +239,9 @@ def suite():
     return TestLoader().loadTestsFromTestCase(ModulesTest)
 
 if __name__ == '__main__':
-    main()
+    main(exit=False)
+    for subcmd in sorted(MODULE_SUBCMD_TIMINGS.keys()):
+        total = sum(MODULE_SUBCMD_TIMINGS[subcmd])
+        cnt = len(MODULE_SUBCMD_TIMINGS[subcmd])
+        if cnt > 0:
+            print "avg time (in secs) for %s: %s (cnt: %s)" % (subcmd, total/cnt, cnt)

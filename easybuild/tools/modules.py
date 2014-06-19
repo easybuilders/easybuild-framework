@@ -115,6 +115,17 @@ output_matchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
+MODULE_SUBCMD_TIMINGS = {
+    'avail': [],
+    'list': [],
+    'load': [],
+    'purge': [],
+    'unuse': [],
+    'update': [],
+    'use': [],
+    '--version': [],
+}
+
 
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
@@ -430,6 +441,7 @@ class ModulesTool(object):
         else:
             args = list(args)
 
+        subcmd = args[0]
         if args[0] in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
@@ -465,10 +477,15 @@ class ModulesTool(object):
             cmdlist = self.COMMAND_SHELL + cmdlist
 
         self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
+
+        import time
+        start = time.time()
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
+        end = time.time()
+        MODULE_SUBCMD_TIMINGS[subcmd].append(end-start)
         if original_module_path is not None:
             os.environ['MODULEPATH'] = original_module_path
             self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
