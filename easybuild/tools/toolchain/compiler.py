@@ -265,7 +265,7 @@ class Compiler(Toolchain):
         if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             if build_option('optarch') is not None:
                 optarch = build_option('optarch')
-			else:
+            else:
                 optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch

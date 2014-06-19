@@ -294,7 +294,6 @@ class ToolchainTest(EnhancedTestCase):
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
         tc_class, _ = search_toolchain("goalf")
-     
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         build_options = { }
         for optarch_var in [ 'march=lovelylovelysandybridge', None ]:
@@ -304,11 +303,11 @@ class ToolchainTest(EnhancedTestCase):
                 tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({'optarch': enable})
                 tc.prepare()
-                flag = '-%s' % tc.options.option_map['optarch']
+                flag = None
                 if optarch_var is not None:
-                    self.assertEqual(flag, '-march=lovelylovelysandybridge')
+                    flag = '-march=lovelylovelysandybridge'
                 else:
-                    self.assertEqual(flag, '-march=native')
+                    flag = '-march=native'
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
