@@ -84,6 +84,7 @@ DEFAULT_BUILD_OPTIONS = {
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,
+    'optarch': None,
     'recursive_mod_unload': False,
     'regtest_output_dir': None,
     'retain_all_deps': False,
