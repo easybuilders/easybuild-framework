@@ -32,7 +32,7 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
@@ -296,9 +296,10 @@ class ToolchainTest(EnhancedTestCase):
         tc_class, _ = search_toolchain("goalf")
      
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-
+        build_options = { }
         for optarch_var in [ 'somebogusstring', None ]:
             build_options.update({'optarch': optarch_var})
+            init_config(build_options=build_options)
             for enable in [True, False]:
                 tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({'optarch': enable})
