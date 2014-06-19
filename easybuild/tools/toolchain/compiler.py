@@ -262,9 +262,6 @@ class Compiler(Toolchain):
         if self.arch is None:
             self.arch = systemtools.get_cpu_vendor()
 
-        #if build_option('optarch') is not None:
-        #    # override toolchain settings for optarch from commandline 
-        #    self.options.options_map['optarch'] = build_option('optarch') 
         if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             if build_option('optarch') is not None:
                 optarch = build_option('optarch')

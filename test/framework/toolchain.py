@@ -297,15 +297,19 @@ class ToolchainTest(EnhancedTestCase):
      
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         build_options = { }
-        for optarch_var in [ 'somebogusstring', None ]:
+        for optarch_var in [ 'march=lovelylovelysandybridge', None ]:
             build_options.update({'optarch': optarch_var})
             init_config(build_options=build_options)
             for enable in [True, False]:
                 tc = tc_class(version="1.1.0-no-OFED")
                 tc.set_options({'optarch': enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP['optarch']
-                self.assertEqual(flag, 'somebogusstring')
+                flag = '-%s' % tc.options.option_map['optarch']
+                if optarch_var is not None:
+                    self.assertEqual(flag, '-march=lovelylovelysandybridge')
+                else:
+                    self.assertEqual(flag, '-march=native')
+
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
