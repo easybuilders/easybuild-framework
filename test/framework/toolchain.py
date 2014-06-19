@@ -291,6 +291,27 @@ class ToolchainTest(EnhancedTestCase):
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
 
+    def test_override_optarch(self):
+        """Test whether overriding the optarch flag works."""
+        tc_class, _ = search_toolchain("goalf")
+     
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+
+        for optarch_var in [ 'somebogusstring', None ]:
+            build_options.update({'optarch': optarch_var})
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({'optarch': enable})
+                tc.prepare()
+                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP['optarch']
+                self.assertEqual(flag, 'somebogusstring')
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
+                    else:
+                        self.assertTrue(flag not in flags, "optarch: False means no %s in %s" % (flag, flags))
+
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 

@@ -32,6 +32,7 @@ Toolchain compiler module, provides abstract class for compilers.
 import os
 
 from easybuild.tools import systemtools
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -261,8 +262,11 @@ class Compiler(Toolchain):
         if self.arch is None:
             self.arch = systemtools.get_cpu_vendor()
 
-        if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and \
-                self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+        if build_option('optarch') is not None:
+            # override toolchain settings for optarch from commandline 
+            self.options.options_map['optarch'] = build_option('optarch') 
+            pass
+        elif self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
