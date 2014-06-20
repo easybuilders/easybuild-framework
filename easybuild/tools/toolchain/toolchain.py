@@ -227,7 +227,9 @@ class Toolchain(object):
         if name is None and version is None:
             if self.mod_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_name).")
-            return self.modules_tool.exists(self.mod_name)
+            # check whether a matching module exists if self.mod_name contains a module name
+            if isinstance(self.mod_name, basestring):
+                return self.modules_tool.exists(self.mod_name)
 
         # if a specific name/version is provided, try to determine the module name
         # note: this may fail under a custom module naming scheme when it's using additional easyconfig parameters,
