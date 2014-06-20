@@ -70,7 +70,7 @@ from easybuild.tools.filetools import write_file, compute_checksum, verify_check
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
-from easybuild.tools.module_generator import det_devel_module_filename
+from easybuild.tools.module_generator import det_devel_module_filename, get_custom_module_naming_scheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -863,6 +863,15 @@ class EasyBlock(object):
             self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
             txt += self.modules_footer
 
+        return txt
+
+    def make_module_extend_modpath(self):
+        """
+        Include prepend-path statements for extending $MODULEPATH.
+        """
+        modpath_extensions = get_custom_module_naming_scheme().det_modpath_extensions(self.cfg)
+        txt = '# modulepath extensions\n'
+        txt += ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', modpath_extensions))
         return txt
 
     def make_module_req(self):
@@ -1718,6 +1727,7 @@ class EasyBlock(object):
         txt = ''
         txt += self.make_module_description()
         txt += self.make_module_dep()
+        txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
         txt += self.make_module_extra()
         txt += self.make_module_footer()

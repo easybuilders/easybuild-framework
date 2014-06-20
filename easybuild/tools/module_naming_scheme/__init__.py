@@ -50,13 +50,40 @@ class ModuleNamingScheme(object):
         @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
 
-        @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
+        @return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         raise NotImplementedError
         #return os.path.join(self.det_module_subdir(ec), self.det_module_name(ec))
 
     def det_module_name(self, ec):
+        """
+        Determine module name (not including a subdirectory of the $MODULEPATH).
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: string with module name, e.g. '<name>/<version>'
+        """
+        # by default: full module name doesn't include a $MODULEPATH subdir
         return self.det_full_module_name(ec)
 
     def det_module_subdir(self, ec):
+        """
+        Determine subdirectory for module file in $MODULEPATH.
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: string with subdir path (relative to $MODULEPATH), e.g. '<compiler>/<mpi_lib>'
+        """
+        # by default: no subdirectory
         return ''
+
+    def det_modpath_extensions(self, ec):
+        """
+        Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded.
+
+        @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
+                   'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
+        @return: A list of $MODULEPATH subdirectories.
+        """
+        # by default: an empty list of subdirectories to extend $MODULEPATH with
+        return []
