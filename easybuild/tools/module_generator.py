@@ -80,10 +80,11 @@ class ModuleGenerator(object):
             module_path = self.tmpdir
 
         # Real file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name(self.app.cfg))
+        # FIXME?
+        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name_nms(self.app.cfg))
 
         # Make symlink in moduleclass category
-        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
+        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name_nms(self.app.cfg))
 
         # Create directories and links
         for path in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
@@ -269,7 +270,7 @@ def is_valid_module_name(mod_name):
     return True
 
 
-def det_full_module_name(ec, eb_ns=False):
+def det_full_module_name_nms(ec, eb_ns=False):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -294,4 +295,5 @@ def det_full_module_name(ec, eb_ns=False):
 
 def det_devel_module_filename(ec):
     """Determine devel module filename."""
-    return det_full_module_name(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+    # FIXME?
+    return det_full_module_name_nms(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX

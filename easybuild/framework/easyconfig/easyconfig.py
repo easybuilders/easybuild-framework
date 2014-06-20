@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name_nms
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -429,6 +429,8 @@ class EasyConfig(object):
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
+        tc_mod_name = det_full_module_name(tc.as_dict())
+        tc.set_module_name(tc_mod_name)
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options
@@ -945,7 +947,7 @@ def det_full_module_name(ec, eb_ns=False):
     try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
     """
     try:
-        mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
+        mod_name = det_full_module_name_nms(ec, eb_ns=eb_ns)
 
     except KeyError, err:
         _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
@@ -961,7 +963,7 @@ def det_full_module_name(ec, eb_ns=False):
             if len(parsed_ec) > 1:
                 _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
             try:
-                mod_name = _det_full_module_name(parsed_ec[0]['ec'], eb_ns=eb_ns)
+                mod_name = det_full_module_name_nms(parsed_ec[0]['ec'], eb_ns=eb_ns)
             except KeyError, err:
                 _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
 

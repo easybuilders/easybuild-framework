@@ -274,7 +274,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
             }),
         ]:
+            # determine full module name
             self.assertEqual(det_full_module_name_ec(dep_spec), ec2mod_map[dep_ec])
+
+        # FIXME: also test use of det_module_name() method in toolchain, which is broken under TestModuleNamingSchemeAll
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme

@@ -35,7 +35,7 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name_nms
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -89,6 +89,7 @@ class Toolchain(object):
         self.vars = None
 
         self.modules_tool = modules_tool()
+        self.mod_name = None
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -206,15 +207,28 @@ class Toolchain(object):
 
     def det_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
-        return det_full_module_name(self.as_dict(name, version))
+        return det_full_module_name_nms(self.as_dict(name, version))
+
+    def set_module_name(self, modname):
+        """Set module name for this toolchain."""
+        self.mod_name = modname
 
     def _toolchain_exists(self, name=None, version=None):
         """
         Verify if there exists a toolchain by this name and version
         """
-        if not name:
+        # short-circuit to returning module name for this toolchain
+        if name is None and version is None:
+            if self.mod_name is None:
+                self.log.error("Toolchain module name was not set yet (using set_module_name).")
+            return self.mod_name
+
+        # if a specific name/version is provided, try to determine the module name
+        # note: this may fail under a custom module naming scheme when it's using additional easyconfig parameters,
+        # i.e. ones not provided by the toolchain specification return by as_dict (e.g. moduleclass)
+        if name is None:
             name = self.name
-        if not version:
+        if version is None:
             version = self.version
 
         if name == DUMMY_TOOLCHAIN_NAME:
