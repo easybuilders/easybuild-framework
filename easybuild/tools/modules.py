@@ -487,11 +487,13 @@ class ModulesTool(object):
                 self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
             cmdlist = self.COMMAND_SHELL + cmdlist
 
-        self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
+        full_cmd = ' '.join(cmdlist + args)
+        self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
+        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
         if original_module_path is not None:
             os.environ['MODULEPATH'] = original_module_path
             self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
