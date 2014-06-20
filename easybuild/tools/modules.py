@@ -688,14 +688,6 @@ class Lmod(ModulesTool):
 
         super(Lmod, self).__init__(*args, **kwargs)
 
-    def set_and_check_version(self):
-        """Get the module version, and check any requirements"""
-
-        # 'lmod python update' needs to be run after changing $MODULEPATH
-        self.run_module('update')
-
-        super(Lmod, self).set_and_check_version()
-
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
         if not 'regex' in kwargs:
