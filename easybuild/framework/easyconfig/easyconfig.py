@@ -849,7 +849,7 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
-def process_easyconfig(path, build_specs=None, validate=True):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
@@ -872,39 +872,42 @@ def process_easyconfig(path, build_specs=None, validate=True):
 
         name = ec['name']
 
-        # this app will appear as following module in the list
         easyconfig = {
             'ec': ec,
-            'spec': spec,
-            'module': det_full_module_name(ec),
-            'dependencies': [],
-            'builddependencies': [],
         }
-        if len(blocks) > 1:
-            easyconfig['original_spec'] = path
-
-        # add build dependencies
-        for dep in ec.builddependencies():
-            _log.debug("Adding build dependency %s for app %s." % (dep, name))
-            easyconfig['builddependencies'].append(dep)
-
-        # add dependencies (including build dependencies)
-        for dep in ec.dependencies():
-            _log.debug("Adding dependency %s for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        # add toolchain as dependency too
-        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            dep = ec.toolchain.as_dict()
-            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        del ec
-
-        # this is used by the parallel builder
-        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
         easyconfigs.append(easyconfig)
+
+        if not parse_only:
+            # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
+            easyconfig.update({
+                'spec': spec,
+                'module': det_full_module_name(ec),
+                'dependencies': [],
+                'builddependencies': [],
+            })
+            if len(blocks) > 1:
+                easyconfig['original_spec'] = path
+
+            # add build dependencies
+            for dep in ec.builddependencies():
+                _log.debug("Adding build dependency %s for app %s." % (dep, name))
+                easyconfig['builddependencies'].append(dep)
+
+            # add dependencies (including build dependencies)
+            for dep in ec.dependencies():
+                _log.debug("Adding dependency %s for app %s." % (dep, name))
+                easyconfig['dependencies'].append(dep)
+
+            # add toolchain as dependency too
+            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+                dep = ec.toolchain.as_dict()
+                _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+                easyconfig['dependencies'].append(dep)
+
+            del ec
+
+            # this is used by the parallel builder
+            easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
 
     return easyconfigs
 
@@ -965,12 +968,12 @@ def det_full_module_name(ec, eb_ns=False):
         if eb_file is None:
             _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
         else:
-            parsed_ec = process_easyconfig(eb_file)
+            parsed_ec = process_easyconfig(eb_file, parse_only=True)
             if len(parsed_ec) > 1:
                 _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
             try:
                 mod_name = det_full_module_name_nms(parsed_ec[0]['ec'], eb_ns=eb_ns)
             except KeyError, err:
-                _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
+                _log.error("A KeyError '%s' occured when determining a module name for %s." % (err, parsed_ec[0]['ec']))
 
     return mod_name
