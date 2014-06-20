@@ -207,6 +207,12 @@ class Toolchain(object):
 
     def det_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
+        # short-circuit to returning module name for this toolchain
+        if name is None and version is None:
+            if self.mod_name is None:
+                self.log.error("Toolchain module name was not set yet (using set_module_name).")
+            return self.mod_name
+
         return det_full_module_name_nms(self.as_dict(name, version))
 
     def set_module_name(self, modname):
@@ -221,7 +227,7 @@ class Toolchain(object):
         if name is None and version is None:
             if self.mod_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_name).")
-            return self.mod_name
+            return self.modules_tool.exists(self.mod_name)
 
         # if a specific name/version is provided, try to determine the module name
         # note: this may fail under a custom module naming scheme when it's using additional easyconfig parameters,
