@@ -71,7 +71,7 @@ from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_fil
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir, process_easyconfig, robot_find_easyconfig
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -81,7 +81,7 @@ def skip_available(easyconfigs, testing=False):
     avail_modules = modules_tool().available()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = ec['module']
+        module = ec['full_mod_name']
         if module in avail_modules:
             msg = "%s is already installed (module found), skipping" % module
             print_msg(msg, log=_log, silent=testing)
@@ -107,7 +107,7 @@ def find_resolved_modules(unprocessed, avail_modules):
         if len(new_ec['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            new_avail_modules.append(ec['module'])
+            new_avail_modules.append(ec['full_mod_name'])
 
         else:
             new_unprocessed.append(new_ec)
@@ -138,7 +138,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['module'] for p in unprocessed]
+    being_installed = [p['full_mod_name'] for p in unprocessed]
     avail_modules = [m for m in avail_modules if not m in being_installed]
 
     _log.debug('unprocessed before resolving deps: %s' % unprocessed)
@@ -161,7 +161,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             last_processed_count = len(avail_modules)
             more_ecs, unprocessed, avail_modules = find_resolved_modules(unprocessed, avail_modules)
             for ec in more_ecs:
-                if not ec['module'] in [x['module'] for x in ordered_ecs]:
+                if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
         # robot: look for existing dependencies, add them
@@ -253,7 +253,14 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
             ans = ' '
         else:
             ans = 'x'
-        mod = det_full_module_name(spec['ec'])
+
+        full_mod_name = det_full_module_name(spec['ec'])
+        mod_name = det_module_name(spec['ec'])
+        mod_subdir = det_module_subdir(spec['ec'])
+        if mod_name != full_mod_name:
+            mod = "%s | %s" % (mod_subdir, mod_name)
+        else:
+            mod = full_mod_name
 
         if short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])

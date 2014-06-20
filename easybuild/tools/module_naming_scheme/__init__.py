@@ -28,6 +28,7 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+import os
 from pkgutil import extend_path
 from vsc.utils import fancylogger
 
@@ -51,4 +52,11 @@ class ModuleNamingScheme(object):
 
         @return: string with full module name, e.g.: '<name>/<compiler>/<mpi_lib>/<version>'
         """
-        return NotImplementedError
+        raise NotImplementedError
+        #return os.path.join(self.det_module_subdir(ec), self.det_module_name(ec))
+
+    def det_module_name(self, ec):
+        return self.det_full_module_name(ec)
+
+    def det_module_subdir(self, ec):
+        return ''

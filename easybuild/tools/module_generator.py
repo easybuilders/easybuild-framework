@@ -79,28 +79,31 @@ class ModuleGenerator(object):
             _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, module_path))
             module_path = self.tmpdir
 
-        # Real file goes in 'all' category
-        # FIXME?
-        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name_nms(self.app.cfg))
+        # obtain dict with module name info (which may be more than just the module name)
+        mod_name = det_full_module_name_nms(self.app.cfg)
+
+        # module file goes in 'all' category
+        self.filename = os.path.join(module_path, GENERAL_CLASS, mod_name)
 
         # Make symlink in moduleclass category
-        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name_nms(self.app.cfg))
+        class_mod_file = os.path.join(module_path, self.app.cfg['moduleclass'], mod_name)
 
         # Create directories and links
-        for path in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
+        for path in [os.path.dirname(x) for x in [self.filename, class_mod_file]]:
             mkdir(path, parents=True)
 
-        # Make a symlink from classpathFile to self.filename
+        # make a symlink from classpathFile to self.filename
+        # FIXME don't create a broken symlink
         try:
             # remove symlink if its there (even if it's broken)
-            if os.path.lexists(classPathFile):
-                os.remove(classPathFile)
+            if os.path.lexists(class_mod_file):
+                os.remove(class_mod_file)
             # remove module file if it's there (it'll be recreated), see Application.make_module
             if os.path.exists(self.filename):
                 os.remove(self.filename)
-            os.symlink(self.filename, classPathFile)
+            os.symlink(self.filename, class_mod_file)
         except OSError, err:
-            _log.exception("Failed to create symlink from %s to %s: %s" % (classPathFile, self.filename, err))
+            _log.exception("Failed to create symlink from %s to %s: %s" % (class_mod_file, self.filename, err))
 
         return os.path.join(module_path, GENERAL_CLASS)
 
@@ -279,7 +282,7 @@ def det_full_module_name_nms(ec, eb_ns=False):
         - string representing module name has length > 0
         - module name only contains printable characters (string.printable, except carriage-control chars)
     """
-    _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
+    _log.debug("Determining full module name for %s (eb_ns: %s)" % (ec, eb_ns))
     if eb_ns:
         # return module name under EasyBuild module naming scheme
         mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
@@ -287,13 +290,30 @@ def det_full_module_name_nms(ec, eb_ns=False):
         mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
 
     if not is_valid_module_name(mod_name):
-        _log.error("%s is not a valid module name" % str(mod_name))
+        _log.error("%s is not a valid full module name" % str(mod_name))
     else:
-        _log.debug("Obtained module name %s" % mod_name)
+        _log.debug("Obtained valid full module name %s" % mod_name)
 
     return mod_name
 
+
 def det_devel_module_filename(ec):
     """Determine devel module filename."""
-    # FIXME?
     return det_full_module_name_nms(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+
+
+def det_module_name_nms(ec):
+    _log.debug("Determining module name for %s" % ec)
+    mod_name = get_custom_module_naming_scheme().det_module_name(ec)
+    if not is_valid_module_name(mod_name):
+        _log.error("%s is not a valid module name" % str(mod_name))
+    else:
+        _log.debug("Obtained valid module name %s" % mod_name)
+    return mod_name
+
+
+def det_module_subdir_nms(ec):
+    _log.debug("Determining module subdir for %s" % ec)
+    mod_subdir = get_custom_module_naming_scheme().det_module_subdir(ec)
+    _log.debug("Obtained subdir %s" % mod_subdir)
+    return mod_subdir

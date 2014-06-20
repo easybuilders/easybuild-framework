@@ -54,7 +54,7 @@ import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, fetch_parameter_from_easyconfig_file, get_class_for
+from easybuild.framework.easyconfig.easyconfig import det_module_name, det_module_subdir, fetch_parameter_from_easyconfig_file, get_class_for
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -190,8 +190,9 @@ class EasyBlock(object):
         # should we keep quiet?
         self.silent = build_option('silent')
 
-        # full module name to generate
+        # full module name to generate, subdir where it goes
         self.mod_name = None
+        self.mod_subdir = None
 
         # try and use the specified group (if any)
         group = build_option('group')
@@ -667,7 +668,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.mod_name)
+            installdir = os.path.join(basepath, self.mod_subdir, self.mod_name)
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -971,7 +972,7 @@ class EasyBlock(object):
 
     def load_dependency_modules(self):
         """Load dependency modules."""
-        self.modules_tool.load([det_full_module_name(dep) for dep in self.cfg.dependencies()])
+        self.modules_tool.load([det_module_name(dep) for dep in self.cfg.dependencies()])
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -1889,7 +1890,8 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        self.mod_name = det_full_module_name(self.cfg)
+        self.mod_name = det_module_name(self.cfg)
+        self.mod_subdir = det_module_subdir(self.cfg)
         print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
         try:
             for (stop_name, descr, step_methods, skippable) in steps:
@@ -1988,7 +1990,7 @@ def build_and_install_one(module, orig_environ):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % det_full_module_name(app.cfg))
+                repo.commit("Built %s" % det_module_name(app.cfg))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -2102,7 +2104,8 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
-        instance.mod_name = det_full_module_name(instance.cfg)
+        instance.mod_name = det_module_name(instance.cfg)
+        instance.mod_subdir = det_module_subdir(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()

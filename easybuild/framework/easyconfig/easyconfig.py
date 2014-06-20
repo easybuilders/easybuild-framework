@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.module_generator import det_full_module_name_nms
+from easybuild.tools.module_generator import det_full_module_name_nms, det_module_name_nms, det_module_subdir_nms
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -433,7 +433,7 @@ class EasyConfig(object):
             self.log.debug("%s toolchain always exists, setting toolchain module name to True" % DUMMY_TOOLCHAIN_NAME)
             tc.set_module_name(True)
         else:
-            tc_mod_name = det_full_module_name(tc.as_dict())
+            tc_mod_name = det_module_name(tc.as_dict())
             tc.set_module_name(tc_mod_name)
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
@@ -584,7 +584,7 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['mod_name'] = det_full_module_name(dependency)
+        dependency['mod_name'] = det_module_name(dependency)
 
         return dependency
 
@@ -881,7 +881,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'module': det_full_module_name(ec),
+                'mod_name': det_module_name(ec),
+                'full_mod_name': det_full_module_name(ec),
                 'dependencies': [],
                 'builddependencies': [],
             })
@@ -948,32 +949,47 @@ def robot_find_easyconfig(paths, name, version):
     return None
 
 
-def det_full_module_name(ec, eb_ns=False):
+def robust_module_naming_scheme_query(query_function): # FIXME: docstring
     """
     Determine full module name following the currently active module naming scheme.
 
     First try to pass 'parsed' easyconfig as supplied,
     try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
     """
-    try:
-        mod_name = det_full_module_name_nms(ec, eb_ns=eb_ns)
+    def safe(ec, **kwargs):
+        try:
+            mod_name = query_function(ec, **kwargs)
 
-    except KeyError, err:
-        _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
-        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
-        # when a key error occurs, try and find an easyconfig file to parse via the robot,
-        # and retry with the parsed easyconfig file (which will contains a full set of keys)
-        robot = build_option('robot_path')
-        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
-        if eb_file is None:
-            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
-        else:
-            parsed_ec = process_easyconfig(eb_file, parse_only=True)
-            if len(parsed_ec) > 1:
-                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
-            try:
-                mod_name = det_full_module_name_nms(parsed_ec[0]['ec'], eb_ns=eb_ns)
-            except KeyError, err:
-                _log.error("A KeyError '%s' occured when determining a module name for %s." % (err, parsed_ec[0]['ec']))
+        except KeyError, err:
+            _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
+            # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
+            # when a key error occurs, try and find an easyconfig file to parse via the robot,
+            # and retry with the parsed easyconfig file (which will contains a full set of keys)
+            robot = build_option('robot_path')
+            eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+            if eb_file is None:
+                _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+            else:
+                parsed_ec = process_easyconfig(eb_file, parse_only=True)
+                if len(parsed_ec) > 1:
+                    _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+                try:
+                    mod_name = query_function(parsed_ec[0]['ec'], **kwargs)
+                except KeyError, err:
+                    _log.error("A KeyError '%s' occured when determining a module name for %s." % (err, parsed_ec[0]['ec']))
 
-    return mod_name
+        return mod_name
+
+    return safe
+
+@robust_module_naming_scheme_query
+def det_full_module_name(ec, eb_ns=False):
+    return det_full_module_name_nms(ec, eb_ns=eb_ns)
+
+@robust_module_naming_scheme_query
+def det_module_name(ec):
+    return det_module_name_nms(ec)
+
+@robust_module_naming_scheme_query
+def det_module_subdir(ec):
+    return det_module_subdir_nms(ec)
