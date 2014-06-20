@@ -971,7 +971,7 @@ class EasyBlock(object):
 
     def load_dependency_modules(self):
         """Load dependency modules."""
-        self.modules_tool.load([det_module_name(dep) for dep in self.cfg.dependencies()])
+        self.modules_tool.load([det_full_module_name(dep) for dep in self.cfg.dependencies()])
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -1988,7 +1988,7 @@ def build_and_install_one(module, orig_environ):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % det_module_name(app.cfg))
+                repo.commit("Built %s" % det_full_module_name(app.cfg))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -2102,8 +2102,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
-        instance.mod_name = det_module_name(instance.cfg)
-        instance.mod_subdir = det_module_subdir(instance.cfg)
+        instance.mod_name = det_full_module_name(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()
