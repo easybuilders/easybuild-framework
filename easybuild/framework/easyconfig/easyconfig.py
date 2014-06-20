@@ -930,6 +930,8 @@ def robot_find_easyconfig(paths, name, version):
     Find an easyconfig for module in path
     """
     if not isinstance(paths, (list, tuple)):
+        if paths is None:
+            _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
         paths = [paths]
     # candidate easyconfig paths
     for path in paths:
