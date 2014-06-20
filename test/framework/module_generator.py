@@ -153,6 +153,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
         self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
         self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
+    
+    def test_alias(self):
+        """Test setting of alias in modulefiles."""
+        # test set_alias
+        self.assertEqual('set-alias\tkey\t\t"value"\n', self.modgen.set_alias("key", "value"))
+        self.assertEqual("set-alias\tkey\t\t'va\"lue'\n", self.modgen.set_alias("key", 'va"lue'))
+        self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
+        self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
