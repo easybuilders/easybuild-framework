@@ -190,9 +190,8 @@ class EasyBlock(object):
         # should we keep quiet?
         self.silent = build_option('silent')
 
-        # full module name to generate, subdir where it goes
+        # full module name for this software package
         self.mod_name = None
-        self.mod_subdir = None
 
         # try and use the specified group (if any)
         group = build_option('group')
@@ -668,7 +667,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.mod_subdir, self.mod_name)
+            installdir = os.path.join(basepath, self.mod_name)
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -1890,8 +1889,7 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        self.mod_name = det_module_name(self.cfg)
-        self.mod_subdir = det_module_subdir(self.cfg)
+        self.mod_name = det_full_module_name(self.cfg)
         print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
         try:
             for (stop_name, descr, step_methods, skippable) in steps:
