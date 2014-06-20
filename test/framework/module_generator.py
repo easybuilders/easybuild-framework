@@ -42,7 +42,7 @@ import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
-from easybuild.tools.module_generator import det_full_module_name as det_full_module_name_mg
+from easybuild.tools.module_generator import det_full_module_name_nms
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import det_full_module_name as det_full_module_name_ec
@@ -181,7 +181,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ec_fn = os.path.basename(ec_file)
                 if ec_fn in ec2mod_map:
                     # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
-                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']))
+                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_nms(ecs[0]['ec']))
 
         # test default module naming scheme
         default_ec2mod_map = {
