@@ -45,7 +45,7 @@ from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_na
 from easybuild.tools.module_generator import det_full_module_name_nms
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import det_full_module_name as det_full_module_name_ec
+from easybuild.framework.easyconfig.tools import det_full_module_name
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -206,7 +206,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'version': '6.6.6',
             },
         }
-        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name_ec(non_parsed))
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name(non_parsed))
 
         # install custom module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
@@ -275,7 +275,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             }),
         ]:
             # determine full module name
-            self.assertEqual(det_full_module_name_ec(dep_spec), ec2mod_map[dep_ec])
+            self.assertEqual(det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
         # FIXME: also test use of det_module_name() method in toolchain, which is broken under TestModuleNamingSchemeAll
 
