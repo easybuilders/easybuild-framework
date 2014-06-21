@@ -870,8 +870,9 @@ class EasyBlock(object):
         Include prepend-path statements for extending $MODULEPATH.
         """
         modpath_extensions = get_custom_module_naming_scheme().det_modpath_extensions(self.cfg)
+        full_path_modpath_extensions = [os.path.join(install_path('mod'), GENERAL_CLASS, ext) for ext in modpath_extensions]
         txt = '# modulepath extensions\n'
-        txt += ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', modpath_extensions))
+        txt += ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', full_path_modpath_extensions, allow_abs=True))
         return txt
 
     def make_module_req(self):
