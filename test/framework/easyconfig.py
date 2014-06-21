@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyc
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name_nms
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
@@ -574,6 +574,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'toolchain': ec['toolchain'],
                 'dummy': False,
                 'mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
             },
             {
                 'name': 'bar',
@@ -582,6 +583,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
                 'dummy': False,
                 'mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
             },
         ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
@@ -786,7 +788,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         eb.gen_builddir()
-        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        eb.mod_name = det_full_module_name_nms(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()
