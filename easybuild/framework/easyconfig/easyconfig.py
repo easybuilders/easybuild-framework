@@ -584,7 +584,7 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['mod_name'] = det_module_name(dependency)
+        dependency['mod_name'] = det_full_module_name(dependency)
 
         return dependency
 
@@ -881,8 +881,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'mod_name': det_module_name(ec),
-                'full_mod_name': det_full_module_name(ec),
+                'mod_name': det_full_module_name(ec),
                 'dependencies': [],
                 'builddependencies': [],
             })
