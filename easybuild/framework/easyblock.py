@@ -779,15 +779,10 @@ class EasyBlock(object):
         """
         load = unload = ''
 
-        # Load toolchain
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            tc_mod_name = self.toolchain.det_module_name()
-            load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
-            unload += self.moduleGenerator.unload_module(tc_mod_name)
-
-        # Load dependencies
+        # include load statements for dependencies
         recursive_unload = self.recursive_mod_unload
         builddeps = self.cfg.builddependencies()
+        # include 'module load' statements for dependencies in reverse order
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
                 self.log.debug("Adding %s as a module dependency" % dep['short_mod_name'])
@@ -795,6 +790,14 @@ class EasyBlock(object):
                 unload += self.moduleGenerator.unload_module(dep['short_mod_name'])
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
+
+        # include load statements for toolchain
+        # purposely after dependencies which may be critical,
+        # e.g. when unloading a module in a hierarchical naming scheme
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            tc_mod_name = self.toolchain.det_module_name()
+            load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
+            unload += self.moduleGenerator.unload_module(tc_mod_name)
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
@@ -1296,9 +1299,12 @@ class EasyBlock(object):
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
-        pardirs = [os.path.join(install_path(), self.name),
-                   os.path.join(install_path('mod'), GENERAL_CLASS, self.name),
-                   os.path.join(install_path('mod'), self.cfg['moduleclass'], self.name)]
+        parent_subdir = os.path.dirname(self.mod_name)
+        pardirs = [
+            os.path.join(install_path(), parent_subdir),
+            os.path.join(install_path('mod'), GENERAL_CLASS, parent_subdir),
+            os.path.join(install_path('mod'), self.cfg['moduleclass'], parent_subdir),
+        ]
         self.log.info("Checking dirs that need to be created: %s" % pardirs)
         for pardir in pardirs:
             mkdir(pardir, parents=True)
