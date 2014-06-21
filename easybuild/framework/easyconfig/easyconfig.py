@@ -393,14 +393,19 @@ class EasyConfig(object):
         returns an array of parsed dependencies
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
+        #return self['dependencies'] + self.builddependencies()
+        #print self.build_specs
         full_dependencies = self['dependencies'] + self.builddependencies()
 
         # define dependencies we never want because we will use OS packages
-        deps_to_remove = ["zlib", "bzip2", "ncurses", "libpng"]
+        #deps_to_remove = ["zlib", "bzip2", "ncurses", "libpng", "libxslt"]
+        deps_to_remove = build_option('shit').split(",")
+        #deps_to_remove = []
         # remove unwanted deps from full_dependencies[]
-        for i in xrange(len(full_dependencies) -1, -1, -1):
-                #print full_dependencies[i].get('name')
-                if full_dependencies[i].get('name') in deps_to_remove:
+        if deps_to_remove:
+            for i in xrange(len(full_dependencies) -1, -1, -1):
+                    print full_dependencies[i].get('name')
+                    if full_dependencies[i].get('name') in deps_to_remove:
                         self.log.info("%s-%s dependency automatically removed" % \
                         (full_dependencies[i].get('name'), full_dependencies[i].get('version')))
                         del full_dependencies[i]

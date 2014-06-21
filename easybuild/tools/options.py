@@ -161,6 +161,7 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'shit': ("Real shit maaan", None, 'store', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
