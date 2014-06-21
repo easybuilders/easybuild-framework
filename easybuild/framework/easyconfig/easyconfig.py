@@ -584,7 +584,8 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['mod_name'] = det_full_module_name(dependency)
+        dependency['mod_name'] = det_module_name(dependency)
+        dependency['full_mod_name'] = det_full_module_name(dependency)
 
         return dependency
 

@@ -296,8 +296,8 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
-            if not self.modules_tool.exists(dep['mod_name']):
-                tup = (dep['mod_name'], dep)
+            if not self.modules_tool.exists(dep['full_mod_name']):
+                tup = (dep['full_mod_name'], dep)
                 self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
             else:
                 self.dependencies.append(dep)
