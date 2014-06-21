@@ -429,12 +429,8 @@ class EasyConfig(object):
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
         tc = tc(version=self['toolchain']['version'])
-        if tc.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.debug("%s toolchain always exists, setting toolchain module name to True" % DUMMY_TOOLCHAIN_NAME)
-            tc.set_module_name(True)
-        else:
-            tc_mod_name = det_full_module_name(tc.as_dict())
-            tc.set_module_name(tc_mod_name)
+        if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+            tc.set_module_name(det_module_name(tc.as_dict()), det_full_module_name(tc.as_dict()))
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options

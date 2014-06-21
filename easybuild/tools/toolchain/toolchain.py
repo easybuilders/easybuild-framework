@@ -35,7 +35,7 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import det_full_module_name_nms
+from easybuild.tools.module_generator import det_module_name_nms
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -202,7 +202,7 @@ class Toolchain(object):
             'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
             'versionsuffix': '',
             'dummy': True,
-            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_full_module_name
+            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_module_name
         }
 
     def det_module_name(self, name=None, version=None):
@@ -213,23 +213,23 @@ class Toolchain(object):
                 self.log.error("Toolchain module name was not set yet (using set_module_name).")
             return self.mod_name
 
-        return det_full_module_name_nms(self.as_dict(name, version))
+        return det_module_name_nms(self.as_dict(name, version))
 
-    def set_module_name(self, modname):
-        """Set module name for this toolchain."""
-        self.mod_name = modname
+    def set_module_name(self, mod_name, full_mod_name):
+        """Set (full) module name for this toolchain."""
+        self.mod_name = mod_name
+        self.full_mod_name = full_mod_name
 
     def _toolchain_exists(self, name=None, version=None):
         """
         Verify if there exists a toolchain by this name and version
         """
-        # short-circuit to returning module name for this toolchain
-        if name is None and version is None:
+        # short-circuit to returning module name for this (non-dummy) toolchain
+        if name is None and version is None and self.name != DUMMY_TOOLCHAIN_NAME:
             if self.mod_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_name).")
             # check whether a matching module exists if self.mod_name contains a module name
-            if isinstance(self.mod_name, basestring):
-                return self.modules_tool.exists(self.mod_name)
+            return self.modules_tool.exists(self.full_mod_name)
 
         # if a specific name/version is provided, try to determine the module name
         # note: this may fail under a custom module naming scheme when it's using additional easyconfig parameters,
@@ -243,10 +243,10 @@ class Toolchain(object):
             self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
             return True
 
-        # TODO: what about dummy versions ?
-
         mod_name = self.det_module_name(name, version)
-        self.log.debug("_toolchain_exists: checking for name %s version %s (module: %s)" % (name, version, mod_name))
+        tup = (name, version, mod_name)
+        self.log.debug("_toolchain_exists: checking for name %s version %s (module: %s)" % tup)
+        self.log.deprecated("Checking toolchain (%s, %s) using partial module name: %s" % tup, '2.0')
         return self.modules_tool.exists(mod_name)
 
     def set_options(self, options):
