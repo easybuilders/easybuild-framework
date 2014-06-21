@@ -512,7 +512,7 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'mod_name']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -520,7 +520,8 @@ class EasyConfig(object):
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             'dummy': False,
-            'mod_name': None,  # module name
+            'full_mod_name': None,  # full module name
+            'short_mod_name': None,  # short module name
             'name': '',  # software name
             'toolchain': None,
             'version': '',
@@ -580,7 +581,7 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['mod_name'] = det_module_name(dependency)
+        dependency['short_mod_name'] = det_module_name(dependency)
         dependency['full_mod_name'] = det_full_module_name(dependency)
 
         return dependency
@@ -878,7 +879,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'mod_name': det_full_module_name(ec),
+                'short_mod_name': det_module_name(ec),
+                'full_mod_name': det_full_module_name(ec),
                 'dependencies': [],
                 'builddependencies': [],
             })

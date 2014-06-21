@@ -573,7 +573,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'dummy': False,
-                'mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
             },
             {
@@ -582,7 +582,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
                 'dummy': False,
-                'mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
             },
         ]

@@ -786,12 +786,13 @@ class EasyBlock(object):
             unload += self.moduleGenerator.unload_module(tc_mod_name)
 
         # Load dependencies
+        recursive_unload = self.recursive_mod_unload
         builddeps = self.cfg.builddependencies()
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                self.log.debug("Adding %s as a module dependency" % dep['mod_name'])
-                load += self.moduleGenerator.load_module(dep['mod_name'], recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(dep['mod_name'])
+                self.log.debug("Adding %s as a module dependency" % dep['short_mod_name'])
+                load += self.moduleGenerator.load_module(dep['short_mod_name'], recursive_unload=recursive_unload)
+                unload += self.moduleGenerator.unload_module(dep['short_mod_name'])
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
@@ -869,10 +870,10 @@ class EasyBlock(object):
         """
         Include prepend-path statements for extending $MODULEPATH.
         """
-        modpath_extensions = get_custom_module_naming_scheme().det_modpath_extensions(self.cfg)
-        full_path_modpath_extensions = [os.path.join(install_path('mod'), GENERAL_CLASS, ext) for ext in modpath_extensions]
-        txt = '# modulepath extensions\n'
-        txt += ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', full_path_modpath_extensions, allow_abs=True))
+        top_modpath = install_path('mod')
+        modpath_exts = get_custom_module_naming_scheme().det_modpath_extensions(self.cfg)
+        full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
+        txt = ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', full_path_modpath_extensions, allow_abs=True))
         return txt
 
     def make_module_req(self):
