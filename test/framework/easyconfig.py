@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyc
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_module_name_nms
+from easybuild.tools.module_generator import det_full_module_name_mns
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
@@ -788,7 +788,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         eb.gen_builddir()
-        eb.mod_name = det_full_module_name_nms(eb.cfg)  # required by gen_installdir()
+        eb.mod_name = det_full_module_name_mns(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()

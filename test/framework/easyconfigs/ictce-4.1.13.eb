@@ -11,11 +11,11 @@ toolchain = {'name': 'dummy', 'version': 'dummy'}
 compver = '2011.13.367'
 
 # fake ictce toolchain easyconfig, no dependencies (good enough for testing)
-dependencies = [
-    #('icc', compver),
-    #('ifort', compver),
-    #('impi', '4.1.0.027'),
-    #('imkl', '10.3.12.361')
+fake_dependencies = [
+    ('icc', compver),
+    ('ifort', compver),
+    ('impi', '4.1.0.027'),
+    ('imkl', '10.3.12.361')
 ]
 
 moduleclass = 'toolchain'

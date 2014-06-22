@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.module_generator import det_full_module_name_nms, det_module_name_nms, det_module_subdir_nms
+from easybuild.tools.module_generator import det_full_module_name_mns, det_module_name_mns, det_module_subdir_mns
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -947,12 +947,10 @@ def robot_find_easyconfig(paths, name, version):
     return None
 
 
-def robust_module_naming_scheme_query(query_function): # FIXME: docstring
+def robust_module_naming_scheme_query(query_function):
     """
-    Determine full module name following the currently active module naming scheme.
-
-    First try to pass 'parsed' easyconfig as supplied,
-    try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
+    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of a KeyError fall back to
+    try and find a matching easyconfig file, parse it and supply that instead.
     """
     def safe(ec, **kwargs):
         try:
@@ -962,7 +960,7 @@ def robust_module_naming_scheme_query(query_function): # FIXME: docstring
             _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
             # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
             # when a key error occurs, try and find an easyconfig file to parse via the robot,
-            # and retry with the parsed easyconfig file (which will contains a full set of keys)
+            # and retry with the parsed easyconfig file (which will contain a full set of keys)
             robot = build_option('robot_path')
             eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
             if eb_file is None:
@@ -982,12 +980,21 @@ def robust_module_naming_scheme_query(query_function): # FIXME: docstring
 
 @robust_module_naming_scheme_query
 def det_full_module_name(ec, eb_ns=False):
-    return det_full_module_name_nms(ec, eb_ns=eb_ns)
+    """
+    Determine full module name following the currently active module naming scheme.
+    """
+    return det_full_module_name_mns(ec, eb_ns=eb_ns)
 
 @robust_module_naming_scheme_query
 def det_module_name(ec):
-    return det_module_name_nms(ec)
+    """
+    Determine short module name following the currently active module naming scheme (not including subdir).
+    """
+    return det_module_name_mns(ec)
 
 @robust_module_naming_scheme_query
 def det_module_subdir(ec):
-    return det_module_subdir_nms(ec)
+    """
+    Determine module file subdirectory following the currently active module naming scheme.
+    """
+    return det_module_subdir_mns(ec)

@@ -71,7 +71,8 @@ from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_fil
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir, process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 

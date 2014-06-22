@@ -35,7 +35,7 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import det_module_name_nms
+from easybuild.tools.module_generator import det_module_name_mns
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -213,7 +213,7 @@ class Toolchain(object):
                 self.log.error("Toolchain module name was not set yet (using set_module_name).")
             return self.mod_name
 
-        return det_module_name_nms(self.as_dict(name, version))
+        return det_module_name_mns(self.as_dict(name, version))
 
     def set_module_name(self, mod_name, full_mod_name):
         """Set (full) module name for this toolchain."""

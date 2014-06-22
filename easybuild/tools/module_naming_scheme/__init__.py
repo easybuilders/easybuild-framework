@@ -53,7 +53,6 @@ class ModuleNamingScheme(object):
         @return: string with full module name, e.g.: '<compiler>/<mpi_lib>/<name>/<version>'
         """
         raise NotImplementedError
-        #return os.path.join(self.det_module_subdir(ec), self.det_module_name(ec))
 
     def det_module_name(self, ec):
         """

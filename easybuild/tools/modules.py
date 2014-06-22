@@ -48,7 +48,7 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, which
-from easybuild.tools.module_generator import det_full_module_name_nms, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
+from easybuild.tools.module_generator import det_full_module_name_mns, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
@@ -350,11 +350,11 @@ class ModulesTool(object):
                         'version': DUMMY_TOOLCHAIN_VERSION,
                     },
                 }
-                mod_name = det_full_module_name_nms(mod_dict)
+                mod_name = det_full_module_name_mns(mod_dict)
             elif isinstance(mod, basestring):
                 mod_name = mod
             elif isinstance(mod, dict):
-                mod_name = det_full_module_name_nms(mod)
+                mod_name = det_full_module_name_mns(mod)
             else:
                 self.log.error("Can't add module %s: unknown type" % str(mod))
 

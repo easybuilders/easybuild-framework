@@ -64,48 +64,42 @@ class ModuleGenerator(object):
     def __init__(self, application, fake=False):
         self.app = application
         self.fake = fake
-        self.filename = None
         self.tmpdir = None
+        self.mod_name = None
+        self.filename = None
+        self.class_mod_file = None
+        self.module_path = None
 
-    def create_files(self):
+    def prepare(self):
         """
         Creates the absolute filename for the module.
         """
-        module_path = config.install_path('mod')
-
-        # Fake mode: set installpath to temporary dir
-        if self.fake:
-            self.tmpdir = tempfile.mkdtemp()
-            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, module_path))
-            module_path = self.tmpdir
-
         # obtain dict with module name info (which may be more than just the module name)
-        mod_name = det_full_module_name_nms(self.app.cfg)
+        self.mod_name = det_full_module_name_mns(self.app.cfg)
+        # module file goes in general moduleclass category
+        self.filename = os.path.join(self.module_path, GENERAL_CLASS, self.mod_name)
+        # make symlink in moduleclass category
+        self.class_mod_file = os.path.join(self.module_path, self.app.cfg['moduleclass'], self.mod_name)
 
-        # module file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, mod_name)
-
-        # Make symlink in moduleclass category
-        class_mod_file = os.path.join(module_path, self.app.cfg['moduleclass'], mod_name)
-
-        # Create directories and links
-        for path in [os.path.dirname(x) for x in [self.filename, class_mod_file]]:
+        # create directories and links
+        for path in [os.path.dirname(x) for x in [self.filename, self.class_mod_file]]:
             mkdir(path, parents=True)
 
-        # make a symlink from classpathFile to self.filename
-        # FIXME don't create a broken symlink
+        # remove module file if it's there (it'll be recreated), see Application.make_module
+        if os.path.exists(self.filename):
+            os.remove(self.filename)
+
+        return os.path.join(self.module_path, GENERAL_CLASS)
+
+    def create_symlinks(self):
+        """Create moduleclass symlink(s) to actual module file."""
         try:
             # remove symlink if its there (even if it's broken)
-            if os.path.lexists(class_mod_file):
-                os.remove(class_mod_file)
-            # remove module file if it's there (it'll be recreated), see Application.make_module
-            if os.path.exists(self.filename):
-                os.remove(self.filename)
-            os.symlink(self.filename, class_mod_file)
+            if os.path.lexists(self.class_mod_file):
+                os.remove(self.class_mod_file)
+            os.symlink(self.filename, self.class_mod_file)
         except OSError, err:
-            _log.exception("Failed to create symlink from %s to %s: %s" % (class_mod_file, self.filename, err))
-
-        return os.path.join(module_path, GENERAL_CLASS)
+            _log.error("Failed to create symlink from %s to %s: %s" % (self.class_mod_file, self.filename, err))
 
     def get_description(self, conflict=True):
         """
@@ -210,6 +204,13 @@ class ModuleGenerator(object):
         """Determine whether this ModuleGenerator instance should generate fake modules."""
         _log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
         self.fake = fake
+        # fake mode: set installpath to temporary dir
+        if self.fake:
+            self.tmpdir = tempfile.mkdtemp()
+            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
+            self.module_path = self.tmpdir
+        else:
+            self.module_path = config.install_path('mod')
 
     def is_fake(self):
         """Return whether this ModuleGenerator instance generates fake modules or not."""
@@ -273,7 +274,7 @@ def is_valid_module_name(mod_name):
     return True
 
 
-def det_full_module_name_nms(ec, eb_ns=False):
+def det_full_module_name_mns(ec, eb_ns=False):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -299,10 +300,10 @@ def det_full_module_name_nms(ec, eb_ns=False):
 
 def det_devel_module_filename(ec):
     """Determine devel module filename."""
-    return det_full_module_name_nms(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+    return det_full_module_name_mns(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
 
-def det_module_name_nms(ec):
+def det_module_name_mns(ec):
     _log.debug("Determining module name for %s" % ec)
     mod_name = get_custom_module_naming_scheme().det_module_name(ec)
     if not is_valid_module_name(mod_name):
@@ -312,7 +313,7 @@ def det_module_name_nms(ec):
     return mod_name
 
 
-def det_module_subdir_nms(ec):
+def det_module_subdir_mns(ec):
     _log.debug("Determining module subdir for %s" % ec)
     mod_subdir = get_custom_module_naming_scheme().det_module_subdir(ec)
     _log.debug("Obtained subdir %s" % mod_subdir)

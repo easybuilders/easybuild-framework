@@ -93,6 +93,11 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         self.assertTrue(os.path.exists(toy_module), msg)
 
+        # module file is symlinked according to moduleclass
+        toy_module_symlink = os.path.join(installpath, 'modules', 'tools', 'toy', full_version)
+        self.assertTrue(os.path.islink(toy_module_symlink))
+        self.assertTrue(os.path.exists(toy_module_symlink))
+
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', 'toy', full_version)
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
