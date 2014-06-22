@@ -227,6 +227,7 @@ def main(testing_data=(None, None, None)):
         'debug': options.debug,
         'dry_run': options.dry_run,
         'easyblock': options.easyblock,
+        'environment-filter-regex': options.environment_filter_regex,
         'experimental': options.experimental,
         'force': options.force,
         'github_user': options.github_user,

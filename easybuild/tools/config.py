@@ -77,6 +77,7 @@ DEFAULT_BUILD_OPTIONS = {
     'debug': False,
     'dry_run': False,
     'easyblock': None,
+    'environment-filter-regex': None,
     'experimental': False,
     'force': False,
     'github_user': None,
