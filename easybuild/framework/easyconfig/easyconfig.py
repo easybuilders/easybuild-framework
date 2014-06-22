@@ -399,10 +399,11 @@ class EasyConfig(object):
 
         # define dependencies we never want because we will use OS packages
         #deps_to_remove = ["zlib", "bzip2", "ncurses", "libpng", "libxslt"]
-        deps_to_remove = build_option('shit').split(",")
+        #deps_to_remove = build_option('shit').split(",")
         #deps_to_remove = []
         # remove unwanted deps from full_dependencies[]
-        if deps_to_remove:
+        if build_option('shit'):
+            deps_to_remove = build_option('shit').split(",")
             for i in xrange(len(full_dependencies) -1, -1, -1):
                     print full_dependencies[i].get('name')
                     if full_dependencies[i].get('name') in deps_to_remove:
