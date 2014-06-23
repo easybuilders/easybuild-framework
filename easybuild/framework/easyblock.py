@@ -791,13 +791,20 @@ class EasyBlock(object):
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
-        # include load statements for toolchain
+        # include load statements for toolchain, either directly or for toolchain dependencies
         # purposely after dependencies which may be critical,
         # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            tc_mod_name = self.toolchain.det_module_name()
-            load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
-            unload += self.moduleGenerator.unload_module(tc_mod_name)
+            if get_custom_module_naming_scheme().expand_toolchain_load():
+                for mod_name in self.toolchain.toolchain_dependencies:
+                    load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
+                    unload += self.moduleGenerator.unload_module(mod_name)
+            else:
+                tc_mod_name = self.toolchain.det_module_name()
+                load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
+                unload += self.moduleGenerator.unload_module(tc_mod_name)
+
+
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:

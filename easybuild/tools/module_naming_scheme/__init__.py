@@ -86,3 +86,10 @@ class ModuleNamingScheme(object):
         """
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
+
+    def expand_toolchain_load(self):
+        """
+        Return whether the toolchain load statement should be expanded to load statements for toolchain dependencies.
+        """
+        # by default: just include a load statement for the toolchain
+        return False
