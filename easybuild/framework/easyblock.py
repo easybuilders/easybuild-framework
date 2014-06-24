@@ -804,8 +804,6 @@ class EasyBlock(object):
                 load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
                 unload += self.moduleGenerator.unload_module(tc_mod_name)
 
-
-
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
             return unload + load

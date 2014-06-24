@@ -318,3 +318,10 @@ def det_module_subdir_mns(ec):
     mod_subdir = get_custom_module_naming_scheme().det_module_subdir(ec)
     _log.debug("Obtained subdir %s" % mod_subdir)
     return mod_subdir
+
+
+def det_init_modulepaths_mns(ec):
+    _log.debug("Determining initial module paths for %s" % ec)
+    init_modpaths = get_custom_module_naming_scheme().det_init_modulepaths(ec)
+    _log.debug("Obtained initial module paths: %s" % init_modpaths)
+    return init_modpaths

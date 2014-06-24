@@ -87,6 +87,12 @@ class ModuleNamingScheme(object):
         # by default: an empty list of subdirectories to extend $MODULEPATH with
         return []
 
+    def det_init_modulepaths(self, ec):
+        """
+        Determine initial module paths, where the modules that are top of the hierarchy (if any) live.
+        """
+        return []
+
     def expand_toolchain_load(self):
         """
         Return whether the toolchain load statement should be expanded to load statements for toolchain dependencies.

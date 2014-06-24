@@ -48,6 +48,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.module_generator import det_full_module_name_mns, det_module_name_mns, det_module_subdir_mns
+from easybuild.tools.module_generator import det_init_modulepaths_mns
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -431,7 +432,11 @@ class EasyConfig(object):
         tc = tc(version=self['toolchain']['version'])
         if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
             tc_dict = tc.as_dict()
-            tc.set_module_info(det_module_name(tc_dict), det_module_subdir(tc_dict), det_full_module_name(tc_dict))
+            mod_name = det_module_name(tc_dict)
+            mod_subdir = det_module_subdir(tc_dict)
+            full_mod_name = det_full_module_name(tc_dict)
+            init_modpaths = det_init_modulepaths(tc_dict)
+            tc.set_module_info(mod_name, mod_subdir, full_mod_name, init_modpaths)
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options
@@ -999,3 +1004,7 @@ def det_module_subdir(ec):
     Determine module file subdirectory following the currently active module naming scheme.
     """
     return det_module_subdir_mns(ec)
+
+@robust_module_naming_scheme_query
+def det_init_modulepaths(ec):
+    return det_init_modulepaths_mns(ec)

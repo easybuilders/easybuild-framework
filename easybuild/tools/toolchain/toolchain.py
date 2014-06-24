@@ -93,6 +93,7 @@ class Toolchain(object):
         self.mod_name = None
         self.mod_subdir = None
         self.mod_full_name = None
+        self.init_modpaths = None
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -218,11 +219,12 @@ class Toolchain(object):
 
         return det_module_name_mns(self.as_dict(name, version))
 
-    def set_module_info(self, mod_name, mod_subdir, mod_full_name):
+    def set_module_info(self, mod_name, mod_subdir, mod_full_name, init_modpaths):
         """Set (full) module name for this toolchain."""
         self.mod_name = mod_name
         self.mod_subdir = mod_subdir
         self.mod_full_name = mod_full_name
+        self.init_modpaths = init_modpaths
 
     def _toolchain_exists(self, name=None, version=None):
         """
@@ -339,8 +341,9 @@ class Toolchain(object):
         # Load the toolchain and dependencies modules
         self.log.debug("Loading toolchain module and dependencies...")
         # make sure toolchain is available using short module name by running 'module use' on module path subdir
-        if self.mod_subdir:
-            self.modules_tool.use(os.path.join(install_path('mod'), GENERAL_CLASS, self.mod_subdir))
+        if self.init_modpaths:
+            for modpath in self.init_modpaths:
+                self.modules_tool.use(os.path.join(install_path('mod'), GENERAL_CLASS, modpath))
         self.modules_tool.load([self.det_module_name()])
         self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
 
