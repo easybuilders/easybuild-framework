@@ -60,8 +60,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc_class.NAME, name)
         tc = tc_class(version=version)
         tc_mod_name = det_module_name(tc.as_dict())
+        tc_mod_subdir = det_module_name(tc.as_dict())
         tc_full_mod_name = det_full_module_name(tc.as_dict())
-        tc.set_module_name(tc_mod_name, tc_full_mod_name)
+        tc.set_module_info(tc_mod_name, tc_mod_subdir, tc_full_mod_name)
         return tc
 
     def test_toolchain(self):
