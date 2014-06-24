@@ -677,7 +677,7 @@ class Lmod(ModulesTool):
         """Get the module version, and check any requirements"""
 
         # 'lmod python update' needs to be run after changing $MODULEPATH
-        self.run_module('update')
+        #self.run_module('update')
 
         super(Lmod, self).set_and_check_version()
 
@@ -706,7 +706,10 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+        
+	return
+
+	spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
         cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
         self.log.debug("Running command '%s'..." % ' '.join(cmd))
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
