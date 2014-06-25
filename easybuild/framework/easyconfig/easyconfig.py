@@ -47,8 +47,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.module_generator import det_full_module_name_mns, det_module_name_mns, det_module_subdir_mns
-from easybuild.tools.module_generator import det_init_modulepaths_mns
+from easybuild.tools.module_generator import det_full_module_name_mns, det_modpath_extensions_mns
+from easybuild.tools.module_generator import det_module_name_mns, det_module_subdir_mns, det_init_modulepaths_mns
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -1006,5 +1006,15 @@ def det_module_subdir(ec):
     return det_module_subdir_mns(ec)
 
 @robust_module_naming_scheme_query
+def det_modpath_extensions(ec):
+    """
+    Determine list of extensions to module path.
+    """
+    return det_modpath_extensions_mns(ec)
+
+@robust_module_naming_scheme_query
 def det_init_modulepaths(ec):
+    """
+    Determine initial module paths.
+    """
     return det_init_modulepaths_mns(ec)

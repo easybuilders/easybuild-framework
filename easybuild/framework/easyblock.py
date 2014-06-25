@@ -53,7 +53,8 @@ from vsc.utils import fancylogger
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS, det_full_module_name
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_modpath_extensions, det_module_subdir
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
@@ -879,7 +880,10 @@ class EasyBlock(object):
         Include prepend-path statements for extending $MODULEPATH.
         """
         top_modpath = install_path('mod')
-        modpath_exts = get_custom_module_naming_scheme().det_modpath_extensions(self.cfg)
+        modpath_exts = det_modpath_extensions(self.cfg)
+        # filter out module path extension(s) for subdirectory of this module file (might cause loops on loading)
+        mod_subdir = det_module_subdir(self.cfg)
+        modpath_exts = [modpath for modpath in modpath_exts if modpath != mod_subdir]
         full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
         txt = ''.join(self.moduleGenerator.prepend_paths('MODULEPATH', full_path_modpath_extensions, allow_abs=True))
         return txt

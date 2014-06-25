@@ -304,6 +304,7 @@ def det_devel_module_filename(ec):
 
 
 def det_module_name_mns(ec):
+    """Determine module name according to module naming scheme."""
     _log.debug("Determining module name for %s" % ec)
     mod_name = get_custom_module_naming_scheme().det_module_name(ec)
     if not is_valid_module_name(mod_name):
@@ -314,13 +315,23 @@ def det_module_name_mns(ec):
 
 
 def det_module_subdir_mns(ec):
+    """Determine module subdirectory according to module naming scheme."""
     _log.debug("Determining module subdir for %s" % ec)
     mod_subdir = get_custom_module_naming_scheme().det_module_subdir(ec)
     _log.debug("Obtained subdir %s" % mod_subdir)
     return mod_subdir
 
 
+def det_modpath_extensions_mns(ec):
+    """Determine modulepath extensions according to module naming scheme."""
+    _log.debug("Determining modulepath extensions for %s" % ec)
+    modpath_extensions = get_custom_module_naming_scheme().det_modpath_extensions(ec)
+    _log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+    return modpath_extensions
+
+
 def det_init_modulepaths_mns(ec):
+    """Determine initial modulepaths according to module naming scheme."""
     _log.debug("Determining initial module paths for %s" % ec)
     init_modpaths = get_custom_module_naming_scheme().det_init_modulepaths(ec)
     _log.debug("Obtained initial module paths: %s" % init_modpaths)
