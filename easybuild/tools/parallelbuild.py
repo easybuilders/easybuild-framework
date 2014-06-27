@@ -37,7 +37,7 @@ import os
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_easyblock_instance
-from easybuild.framework.easyconfig.tools import det_full_module_name
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
