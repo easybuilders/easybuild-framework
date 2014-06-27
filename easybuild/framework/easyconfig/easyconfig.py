@@ -46,9 +46,9 @@ import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.module_generator import det_full_module_name_mns, det_modpath_extensions_mns
 from easybuild.tools.module_generator import det_module_name_mns, det_module_subdir_mns, det_init_modulepaths_mns
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -79,6 +79,9 @@ DEPRECATED_OPTIONS = {
     'makeopts': ('buildopts', '2.0'),
     'premakeopts': ('prebuildopts', '2.0'),
 }
+
+_initial_toolchain_instances = {}
+_easyconfigs_cache = {}
 
 
 def handle_deprecated_easyconfig_parameter(ec_method):
@@ -425,18 +428,28 @@ class EasyConfig(object):
             return self._toolchain
 
         tcname = self['toolchain']['name']
-        tc, all_tcs = search_toolchain(tcname)
-        if not tc:
-            all_tcs_names = ",".join([x.NAME for x in all_tcs])
-            self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
-        tc = tc(version=self['toolchain']['version'])
-        if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+        tcver = self['toolchain']['version']
+        key = (tcname, tcver)
+        if key in _initial_toolchain_instances:
+            tc = copy.deepcopy(_initial_toolchain_instances[key])
+            self.log.debug("Obtained cached toolchain instance for %s: %s" % (key, tc.as_dict()))
+        else:
+            tc, all_tcs = search_toolchain(tcname)
+            if not tc:
+                all_tcs_names = ",".join([x.NAME for x in all_tcs])
+                self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
+            tc = tc(version=tcver)
             tc_dict = tc.as_dict()
-            mod_name = det_module_name(tc_dict)
-            mod_subdir = det_module_subdir(tc_dict)
-            full_mod_name = det_full_module_name(tc_dict)
-            init_modpaths = det_init_modulepaths(tc_dict)
-            tc.set_module_info(mod_name, mod_subdir, full_mod_name, init_modpaths)
+            self.log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
+            if tcname != DUMMY_TOOLCHAIN_NAME:
+                mod_name = det_module_name(tc_dict)
+                mod_subdir = det_module_subdir(tc_dict)
+                full_mod_name = det_full_module_name(tc_dict)
+                init_modpaths = det_init_modulepaths(tc_dict)
+                tc.set_module_info(mod_name, mod_subdir, full_mod_name, init_modpaths)
+
+            _initial_toolchain_instances[key] = tc
+
         if self['toolchainopts'] is None:
             # set_options should always be called, even if no toolchain options are specified
             # this is required to set the default options
@@ -937,6 +950,10 @@ def robot_find_easyconfig(paths, name, version):
     """
     Find an easyconfig for module in path
     """
+    key = (name, version)
+    if key in _easyconfigs_cache:
+        _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfigs_cache[key]))
+        return _easyconfigs_cache[key]
     if not isinstance(paths, (list, tuple)):
         if paths is None:
             _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
@@ -948,7 +965,8 @@ def robot_find_easyconfig(paths, name, version):
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                return os.path.abspath(easyconfig_path)
+                _easyconfigs_cache[key] = os.path.abspath(easyconfig_path)
+                return _easyconfigs_cache[key]
 
     return None
 
@@ -991,12 +1009,14 @@ def det_full_module_name(ec, eb_ns=False):
     """
     return det_full_module_name_mns(ec, eb_ns=eb_ns)
 
+
 @robust_module_naming_scheme_query
 def det_module_name(ec):
     """
     Determine short module name following the currently active module naming scheme (not including subdir).
     """
     return det_module_name_mns(ec)
+
 
 @robust_module_naming_scheme_query
 def det_module_subdir(ec):
@@ -1005,12 +1025,14 @@ def det_module_subdir(ec):
     """
     return det_module_subdir_mns(ec)
 
+
 @robust_module_naming_scheme_query
 def det_modpath_extensions(ec):
     """
     Determine list of extensions to module path.
     """
     return det_modpath_extensions_mns(ec)
+
 
 @robust_module_naming_scheme_query
 def det_init_modulepaths(ec):
