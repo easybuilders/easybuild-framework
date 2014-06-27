@@ -65,16 +65,21 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_COMPILER, TOOLCHAIN_MPI, det_toolchain_definition
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
+
+
+_toolchain_details_cache = {}
 
 
 def skip_available(easyconfigs, testing=False):
@@ -392,3 +397,72 @@ def stats_to_str(stats):
 
     txt += "}"
     return txt
+
+
+def det_toolchain_element_details(tc, elem):
+    """
+    Determine details of a particular toolchain element, for a given Toolchain instance.
+    """
+    # check for cached version first
+    tc_dict = tc.as_dict()
+    key = (tc_dict['name'], tc_dict['version'] + tc_dict['versionsuffix'], elem)
+    if key in _toolchain_details_cache:
+        _log.debug("Obtained details for '%s' in toolchain '%s' from cache" % (elem, tc_dict))
+        return _toolchain_details_cache[key]
+
+    # grab version from parsed easyconfig file for toolchain
+    robot = build_option('robot_path')
+    eb_file = robot_find_easyconfig(robot, tc_dict['name'], det_full_ec_version(tc.as_dict()))
+    tc_ec = process_easyconfig(eb_file, parse_only=True)
+    tc_ec = tc_ec[0]['ec']
+    tc_deps = tc_ec['dependencies']
+    tc_elem_details = None
+    for tc_dep in tc_deps:
+        if tc_dep['name'] == elem:
+            tc_elem_details = tc_dep
+    if tc_elem_details is None:
+        # for compiler-only toolchains, toolchain and compilers are one-and-the-same
+        if tc_ec['name'] == elem:
+            tc_elem_details = tc_ec
+        else:
+            _log.error("No toolchain element '%s' found for toolchain %s: %s" % (elem, tc.as_dict(), tc_ec))
+    _toolchain_details_cache[key] = tc_elem_details
+    _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
+    return _toolchain_details_cache[key]
+
+
+def det_toolchain_compiler(ec):
+    """
+    Determine compiler of toolchain for given EasyConfig instance.
+    """
+    tc_elems = dict(det_toolchain_definition(ec.toolchain, names_only=False, exclude_toolchain=False))
+    if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
+        # dummy toolchain has no compiler
+        tc_comp = None
+    elif not TOOLCHAIN_COMPILER in tc_elems:
+        # every toolchain should have at least a compiler
+        _log.error("No compiler found in toolchain %s: %s" % (ec.toolchain.as_dict(), tc_elems))
+    elif tc_elems[TOOLCHAIN_COMPILER]:
+        # only consider first compiler, which is considered to be the main compiler
+        tc_comp = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_COMPILER][0])
+    else:
+        _log.error("Empty list of compilers in non-dummy toolchain definition?!")
+    _log.debug("Found compiler %s for toolchain %s (%s)" % (tc_comp, ec.toolchain.name, ec.toolchain.as_dict()))
+
+    return tc_comp
+
+
+def det_toolchain_mpi(ec):
+    """
+    Determine MPI library of toolchain for given EasyConfig instance.
+    """
+    tc_elems = dict(det_toolchain_definition(ec.toolchain, names_only=False))
+    if TOOLCHAIN_MPI in tc_elems:
+        if not tc_elems[TOOLCHAIN_MPI]:
+            _log.error("Empty list of MPI libraries in toolchain definition?!")
+        tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
+    else:
+        # no MPI in this toolchain
+        tc_mpi = None
+
+    return tc_mpi
