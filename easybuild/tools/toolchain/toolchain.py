@@ -43,6 +43,17 @@ from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 
+# different types of toolchain elements
+TOOLCHAIN_COMPILER = 'COMPILER'
+TOOLCHAIN_MPI = 'MPI'
+TOOLCHAIN_BLAS = 'BLAS'
+TOOLCHAIN_LAPACK = 'LAPACK'
+TOOLCHAIN_FFT = 'FFT'
+
+
+_log = fancylogger.getLogger('tools.toolchain', fname=False)
+
+
 class Toolchain(object):
     """General toolchain class"""
 
@@ -302,6 +313,7 @@ class Toolchain(object):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
         for dep in dependencies:
+            self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
             if not self.modules_tool.exists(dep['full_mod_name']):
                 tup = (dep['full_mod_name'], dep)
                 self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
@@ -354,25 +366,23 @@ class Toolchain(object):
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
         toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
-        toolchain_elements_mod_names = set([y for x in dir(self) if x.endswith('_MODULE_NAME') for y in eval("self.%s" % x)])
-        # filter out toolchain name (e.g. 'GCC') from list of toolchain elements
-        toolchain_elements_mod_names = set([x for x in toolchain_elements_mod_names if not x == self.name])
+        toolchain_definition = det_toolchain_definition(self)
 
         # filter out optional toolchain elements if they're not used in the module
-        for mod_name in toolchain_elements_mod_names.copy():
+        for mod_name in toolchain_definition.copy():
             if not self.is_required(mod_name):
                 if not mod_name in toolchain_module_deps:
                     self.log.debug("Removing optional module %s from list of toolchain elements." % mod_name)
-                    toolchain_elements_mod_names.remove(mod_name)
+                    toolchain_definition.remove(mod_name)
 
-        self.log.debug("List of toolchain dependency modules from loaded toolchain module: %s" % toolchain_module_deps)
-        self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_elements_mod_names)
+        self.log.debug("List of toolchain dependencies from toolchain module: %s" % toolchain_module_deps)
+        self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
 
-        if toolchain_module_deps == toolchain_elements_mod_names:
+        if toolchain_module_deps == toolchain_definition:
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
-                           "(%s vs %s)" % (toolchain_module_deps, toolchain_elements_mod_names))
+                           "(%s vs %s)" % (toolchain_module_deps, toolchain_definition))
 
         # Generate the variables to be set
         self.set_variables()
@@ -488,3 +498,21 @@ class Toolchain(object):
     def opts(self):
         """Get value for specified option."""
         self.log.raiseException("opts[x]: legacy code. use options[x].")
+
+
+def det_toolchain_definition(tc, names_only=True, exclude_toolchain=True):
+    """
+    Determine toolchain elements for given Toolchain instance.
+    """
+    var_suff = '_MODULE_NAME'
+    tc_elems = [(var[:-len(var_suff)], eval("tc.%s" % var)) for var in dir(tc) if var.endswith(var_suff)]
+    if names_only:
+        if exclude_toolchain:
+            # filter out toolchain name from list of toolchain elements,
+            # to avoid having 'GCC' as an element of the 'GCC' toolchain
+            tc_elems = set([elem for (_, elems) in tc_elems for elem in elems if not elem == tc.name])
+        else:
+            tc_elems = set([elem for (_, elems) in tc_elems for elem in elems])
+
+    _log.debug("Toolchain definition for %s: %s" % (tc.as_dict(), tc_elems))
+    return tc_elems
