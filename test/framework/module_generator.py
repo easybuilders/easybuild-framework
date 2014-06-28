@@ -237,6 +237,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/1.4.10')
+
         # test module naming scheme using all available easyconfig parameters
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
         init_config(build_options=build_options)
@@ -277,8 +280,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # determine full module name
             self.assertEqual(det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        # FIXME: also test use of det_module_name() method in toolchain, which is broken under TestModuleNamingSchemeAll
-        # FIXME: test determining module name for toolchain (both dummy and not-dummy)
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/85dbd42c5686c75bb8a2917cc2f77e271fa9bc75')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
