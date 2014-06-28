@@ -355,7 +355,7 @@ class Toolchain(object):
         # make sure toolchain is available using short module name by running 'module use' on module path subdir
         if self.init_modpaths:
             for modpath in self.init_modpaths:
-                self.modules_tool.use(os.path.join(install_path('mod'), GENERAL_CLASS, modpath))
+                self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), GENERAL_CLASS, modpath))
         self.modules_tool.load([self.det_module_name()])
         self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
 

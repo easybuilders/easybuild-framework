@@ -54,7 +54,8 @@ import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_modpath_extensions, det_module_subdir
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_modpath_extensions
+from easybuild.framework.easyconfig.easyconfig import det_init_modulepaths
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
@@ -881,9 +882,6 @@ class EasyBlock(object):
         """
         top_modpath = install_path('mod')
         modpath_exts = det_modpath_extensions(self.cfg)
-        # filter out module path extension(s) for subdirectory of this module file (might cause loops on loading)
-        mod_subdir = det_module_subdir(self.cfg)
-        modpath_exts = [modpath for modpath in modpath_exts if modpath != mod_subdir]
         txt = ''
         if modpath_exts:
             full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
@@ -938,18 +936,25 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        modtool = modules_tool()
-        if mod_paths is not None:
-            for mod_path in mod_paths:
-                modtool.prepend_module_path(mod_path)
+        if mod_paths is None:
+            mod_paths = []
         # self.mod_name might not be set (e.g. during unit tests)
+        modtool = modules_tool()
         if self.mod_name is not None:
             # purge all loaded modules if desired
             if purge:
                 modtool.purge()
                 # restore original environment
                 modify_env(os.environ, self.orig_environ)
-            modtool.check_module_path()  # make sure MODULEPATH is set correctly after purging
+
+            # make sure $MODULEPATH is set correctly after purging
+            modtool.check_module_path()
+            # extend $MODULEPATH if needed
+            init_modpaths = det_init_modulepaths(self.cfg)
+            for mod_path in mod_paths + init_modpaths:
+                full_mod_path = os.path.join(install_path('mod'), GENERAL_CLASS, mod_path)
+                modtool.prepend_module_path(full_mod_path)
+
             modtool.load([self.mod_name])
         else:
             self.log.warning("Not loading module, since self.mod_name is not set.")
