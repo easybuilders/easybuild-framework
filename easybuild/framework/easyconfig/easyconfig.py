@@ -980,8 +980,9 @@ def robust_module_naming_scheme_query(query_function):
         try:
             mod_name = query_function(ec, **kwargs)
 
-        except KeyError, err:
-            _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
+        except (AttributeError, KeyError), err:
+            tup = (ec, type(err), err)
+            _log.debug("Error when determining module name for %s (%s: %s), trying fallback procedure..." % tup)
             # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
             # when a key error occurs, try and find an easyconfig file to parse via the robot,
             # and retry with the parsed easyconfig file (which will contain a full set of keys)
@@ -995,8 +996,9 @@ def robust_module_naming_scheme_query(query_function):
                     _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                 try:
                     mod_name = query_function(parsed_ec[0]['ec'], **kwargs)
-                except KeyError, err:
-                    _log.error("A KeyError '%s' occured when determining a module name for %s." % (err, parsed_ec[0]['ec']))
+                except Exception, err:
+                    tup = (parsed_ec[0]['ec'], err, type(err))
+                    _log.error("An error occured when determining a module name for %s: %s (%s)" % tup)
 
         return mod_name
 
