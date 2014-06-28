@@ -431,25 +431,26 @@ def det_toolchain_element_details(tc, elem):
     return _toolchain_details_cache[key]
 
 
-def det_toolchain_compiler(ec):
+def det_toolchain_compilers(ec):
     """
-    Determine compiler of toolchain for given EasyConfig instance.
+    Determine compilers of toolchain for given EasyConfig instance.
     """
     tc_elems = dict(det_toolchain_definition(ec.toolchain, names_only=False, exclude_toolchain=False))
     if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
         # dummy toolchain has no compiler
-        tc_comp = None
+        tc_comps = None
     elif not TOOLCHAIN_COMPILER in tc_elems:
         # every toolchain should have at least a compiler
         _log.error("No compiler found in toolchain %s: %s" % (ec.toolchain.as_dict(), tc_elems))
     elif tc_elems[TOOLCHAIN_COMPILER]:
-        # only consider first compiler, which is considered to be the main compiler
-        tc_comp = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_COMPILER][0])
+        tc_comps = []
+        for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+            tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
     else:
         _log.error("Empty list of compilers in non-dummy toolchain definition?!")
-    _log.debug("Found compiler %s for toolchain %s (%s)" % (tc_comp, ec.toolchain.name, ec.toolchain.as_dict()))
+    _log.debug("Found compilers %s for toolchain %s (%s)" % (tc_comps, ec.toolchain.name, ec.toolchain.as_dict()))
 
-    return tc_comp
+    return tc_comps
 
 
 def det_toolchain_mpi(ec):
@@ -460,6 +461,7 @@ def det_toolchain_mpi(ec):
     if TOOLCHAIN_MPI in tc_elems:
         if not tc_elems[TOOLCHAIN_MPI]:
             _log.error("Empty list of MPI libraries in toolchain definition?!")
+        # assumption: only one MPI toolchain element
         tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
     else:
         # no MPI in this toolchain
