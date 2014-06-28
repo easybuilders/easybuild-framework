@@ -981,6 +981,8 @@ def robust_module_naming_scheme_query(query_function):
             mod_name = query_function(ec, **kwargs)
 
         except (AttributeError, KeyError), err:
+            if isinstance(ec, EasyConfig):
+                ec = ec.asdict()
             tup = (ec, type(err), err)
             _log.debug("Error when determining module name for %s (%s: %s), trying fallback procedure..." % tup)
             # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
@@ -997,8 +999,8 @@ def robust_module_naming_scheme_query(query_function):
                 try:
                     mod_name = query_function(parsed_ec[0]['ec'], **kwargs)
                 except Exception, err:
-                    tup = (parsed_ec[0]['ec'], err, type(err))
-                    _log.error("An error occured when determining a module name for %s: %s (%s)" % tup)
+                    tup = (err, type(err), parsed_ec[0]['ec'].asdict())
+                    _log.error("Error %s (%s) occured when determining module name for %s" % tup)
 
         return mod_name
 
