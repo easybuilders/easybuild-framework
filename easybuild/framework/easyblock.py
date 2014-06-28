@@ -884,9 +884,12 @@ class EasyBlock(object):
         # filter out module path extension(s) for subdirectory of this module file (might cause loops on loading)
         mod_subdir = det_module_subdir(self.cfg)
         modpath_exts = [modpath for modpath in modpath_exts if modpath != mod_subdir]
-        full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
-        all_full_path_modpath_extensions = os.pathsep.join(full_path_modpath_extensions)
-        txt = self.moduleGenerator.prepend_paths('MODULEPATH', all_full_path_modpath_extensions, allow_abs=True)
+        txt = ''
+        if modpath_exts:
+            full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
+            # collapse to a single module path extension statement (requires a non-empty list of extension paths)
+            all_full_path_modpath_extensions = os.pathsep.join(full_path_modpath_extensions)
+            txt = self.moduleGenerator.prepend_paths('MODULEPATH', all_full_path_modpath_extensions, allow_abs=True)
         return txt
 
     def make_module_req(self):
