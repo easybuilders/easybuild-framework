@@ -216,12 +216,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild.tools.module_naming_scheme)
 
         # make sure test module naming schemes are available
-        for test_mns_mod in ['test_module_naming_scheme', 'test_module_naming_scheme_all']:
+        mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_all']
+        for test_mns_mod in mns_mods:
             mns_path = "easybuild.tools.module_naming_scheme.%s" % test_mns_mod
             mns_mod = __import__(mns_path, globals(), locals(), [''])
             test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
             easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
         init_config(build_options=build_options)
+
+        # verify that key errors in module naming scheme are reported properly
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'BrokenModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        err_pattern = '.*KeyError.*occured when determining module name'
+        self.assertErrorRegex(EasyBuildError, err_pattern, det_full_module_name, ec)
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -310,7 +319,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('ictce'))
-
 
 def suite():
     """ returns all the testcases in this module """
