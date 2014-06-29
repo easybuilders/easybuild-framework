@@ -443,7 +443,8 @@ class EasyConfig(object):
             self.log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
             if tcname != DUMMY_TOOLCHAIN_NAME:
                 mod_name = det_module_name(tc_dict)
-                print "module name for toolchain %s: %s" % (tc_dict, mod_name)
+                if tcname == 'goolf':
+                    print "module name for toolchain %s: %s" % (tc_dict, mod_name)
                 mod_subdir = det_module_subdir(tc_dict)
                 full_mod_name = det_full_module_name(tc_dict)
                 init_modpaths = det_init_modulepaths(tc_dict)
@@ -991,11 +992,12 @@ def robust_module_naming_scheme_query(query_function):
             # and retry with the parsed easyconfig file (which will contain a full set of keys)
             robot = build_option('robot_path')
             eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
-            print "Found easyconfig %s for %s" % (eb_file, ec)
             if eb_file is None:
                 _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
             else:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True)
+                if ec['name'] == 'goolf':
+                    print "Found easyconfig %s for %s => %s" % (eb_file, ec, parsed_ec)
                 if len(parsed_ec) > 1:
                     _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                 try:
