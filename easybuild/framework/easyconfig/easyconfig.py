@@ -973,8 +973,9 @@ def robot_find_easyconfig(paths, name, version):
 
 def robust_module_naming_scheme_query(query_function):
     """
-    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of a KeyError fall back to
+    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of an error fall back to
     try and find a matching easyconfig file, parse it and supply that instead.
+    This is required because for toolchains and dependencies a fully parsed easyconfig isn't readily available.
     """
     def safe(ec, **kwargs):
         try:
