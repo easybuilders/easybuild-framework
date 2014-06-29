@@ -216,7 +216,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild.tools.module_naming_scheme)
 
         # make sure test module naming schemes are available
-        mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_all']
+        mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_more']
         for test_mns_mod in mns_mods:
             mns_path = "easybuild.tools.module_naming_scheme.%s" % test_mns_mod
             mns_mod = __import__(mns_path, globals(), locals(), [''])
@@ -250,17 +250,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(ec.toolchain.det_module_name(), 'goolf/1.4.10')
 
         # test module naming scheme using all available easyconfig parameters
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeMore'
         init_config(build_options=build_options)
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/698cacc77167c6824f597f0b6371cad5e6749922',
-            'gzip-1.4.eb': 'gzip/d240a51c643ec42e709d405d958c7b26f5a25d5a',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/cea02d332af7044ae5faf762cea2ef6ffed014d2',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/f1dbb38c4518a15fc8bb1fbf797ceda02f0cacd0',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3ef9ac73b468c989f5a47b30098d340e92c3d0da',
-            'toy-0.0.eb': 'toy/778417f0e140ebbaebd60d0f98c8b2411f980edf',
-            'toy-0.0-multiple.eb': 'toy/2d45f3cde87dedf30662f4a005023d56d2532bf0',
+            'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
+            'gzip-1.4.eb': 'gzip/8805ec3152d2a4a08b6c06d740c23abe1a4d059f',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/863557cc81811f8c3f4426a4b45aa269fa54130b',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/b63c2b8cc518905473ccda023100b2d3cff52d55',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3d49f0e112708a95f79ed38b91b506366c0299ab',
+            'toy-0.0.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
+            'toy-0.0-multiple.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
         }
         test_mns()
 
@@ -290,7 +290,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/c5a50224eab0ec8e3e5062bff3ad3bfa1e11b3e6')
+        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme

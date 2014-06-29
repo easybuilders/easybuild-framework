@@ -42,23 +42,23 @@ except ImportError:
     from sha import sha as sha1
 
 
-_log = fancylogger.getLogger('TestModuleNamingSchemeAll', fname=False)
+_log = fancylogger.getLogger('TestModuleNamingSchemeMore', fname=False)
 
 
-class TestModuleNamingSchemeAll(ModuleNamingScheme):
-    """Class implementing a module naming scheme that uses all available easyconfig parameters, for testing purposes."""
+class TestModuleNamingSchemeMore(ModuleNamingScheme):
+    """Class implementing a test module naming scheme that uses some 'unusual' easyconfig parameters."""
 
     def det_full_module_name(self, ec):
         """
         Determine full module name from given easyconfig, according to a testing module naming scheme,
-        using all available easyconfig parameters.
+        using some 'unusual' easyconfig parameters.
 
         @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
-        @return: string with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
+        @return: string with full module name, e.g.: GCC/068d21a1331fc0295c3cb7e048430fa33a89fe69
         """
         res = ''
-        for key in sorted(DEFAULT_CONFIG.keys()):
+        for key in ['name', 'version', 'toolchain', 'moduleclass', 'sources', 'description']:
             if isinstance(ec[key], dict):
                 res += '%s=>' % key
                 for item_key in sorted(ec[key].keys()):
@@ -67,6 +67,4 @@ class TestModuleNamingSchemeAll(ModuleNamingScheme):
                 res += str(ec[key])
         ec_sha1 = sha1(res).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
-        if ec['name'] in ['OpenMPI']:
-            print("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
         return os.path.join(ec['name'], ec_sha1)
