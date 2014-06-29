@@ -290,7 +290,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/a0e04c9161c932f66b9b7b6f9c1cd81c15e5d9cd')
+        self.assertEqual(ec.toolchain.det_module_name(), 'goolf/c5a50224eab0ec8e3e5062bff3ad3bfa1e11b3e6')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
