@@ -443,6 +443,7 @@ class EasyConfig(object):
             self.log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
             if tcname != DUMMY_TOOLCHAIN_NAME:
                 mod_name = det_module_name(tc_dict)
+                print "module name for toolchain %s: %s" % (tc_dict, mod_name)
                 mod_subdir = det_module_subdir(tc_dict)
                 full_mod_name = det_full_module_name(tc_dict)
                 init_modpaths = det_init_modulepaths(tc_dict)
