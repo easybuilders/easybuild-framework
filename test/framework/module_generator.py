@@ -45,7 +45,7 @@ from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_na
 from easybuild.tools.module_generator import det_full_module_name_mns
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import det_full_module_name
+from easybuild.framework.easyconfig.tools import det_full_module_name, det_module_name, det_module_subdir
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -319,6 +319,27 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('ictce'))
+
+    def test_hierarchical_mns(self):
+        """Test hierarchical module naming scheme."""
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'ExampleHierarchicalModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
+        self.assertEqual(det_module_name(ec), 'gzip/1.5')
+        self.assertEqual(det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
+        init_config(build_options=build_options)
 
 def suite():
     """ returns all the testcases in this module """
