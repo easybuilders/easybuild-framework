@@ -44,7 +44,9 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
+from easybuild.framework.easyconfig.tools import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_generator import det_full_module_name_mns
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -890,6 +892,27 @@ class EasyConfigTest(EnhancedTestCase):
             self.prep()
             ec = EasyConfig(self.eb_file)
             self.assertEqual(ec[depr_opt], ec[new_opt])
+
+    def test_toolchain_inspection(self):
+        """Test whether available toolchain inspection functionality is working."""
+        build_options = {
+            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)], ['GCC/4.7.2'])
+        self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'hwloc-1.6.2-GCC-4.6.4.eb'))
+        tc_comps = det_toolchain_compilers(ec)
+        self.assertEqual(['/'.join([x['name'], x['version']]) for x in tc_comps], ['GCC/4.6.4'])
+        self.assertEqual(det_toolchain_mpi(ec), None)
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'))
+        self.assertEqual(det_toolchain_compilers(ec), None)
+        self.assertEqual(det_toolchain_mpi(ec), None)
 
 def suite():
     """ returns all the testcases in this module """
