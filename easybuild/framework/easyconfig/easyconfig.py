@@ -996,8 +996,6 @@ def robust_module_naming_scheme_query(query_function):
                 _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
             else:
                 parsed_ec = process_easyconfig(eb_file, parse_only=True)
-                if ec['name'] in ['OpenMPI', 'goolf']:
-                    print "Found easyconfig %s for %s => %s" % (eb_file, ec, parsed_ec[0]['ec'].asdict())
                 if len(parsed_ec) > 1:
                     _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                 try:
