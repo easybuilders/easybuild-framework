@@ -47,3 +47,5 @@ sanity_check_paths = {
               'lib/libopenblas.a', 'lib/libopenblas.%s' % shared_lib_ext],
     'dirs': [],
 }
+
+moduleclass = 'numlib'
