@@ -67,6 +67,6 @@ class TestModuleNamingSchemeAll(ModuleNamingScheme):
                 res += str(ec[key])
         ec_sha1 = sha1(res).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
-        if ec['name'] in ['goolf']:
+        if ec['name'] in ['OpenMPI']:
             print("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
         return os.path.join(ec['name'], ec_sha1)
