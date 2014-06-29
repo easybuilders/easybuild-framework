@@ -44,8 +44,8 @@ from easybuild.tools import config
 from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
 from easybuild.tools.module_generator import det_full_module_name_mns
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import det_full_module_name, det_module_name, det_module_subdir
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_modpath_extensions, det_init_modulepaths
+from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_module_name, det_module_subdir
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -333,10 +333,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'ExampleHierarchicalModuleNamingScheme'
         init_config(build_options=build_options)
 
+        ec = EasyConfig(os.path.join(ecs_dir, 'GCC-4.7.2.eb'))
+        self.assertEqual(det_full_module_name(ec), 'Core/GCC/4.7.2')
+        self.assertEqual(det_module_name(ec), 'GCC/4.7.2')
+        self.assertEqual(det_module_subdir(ec), 'Core')
+        self.assertEqual(det_modpath_extensions(ec), ['Compiler/GCC/4.7.2'])
+        self.assertEqual(det_init_modulepaths(ec), ['Core'])
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'))
+        self.assertEqual(det_full_module_name(ec), 'Compiler/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(det_module_name(ec), 'OpenMPI/1.6.4')
+        self.assertEqual(det_module_subdir(ec), 'Compiler/GCC/4.7.2')
+        self.assertEqual(det_modpath_extensions(ec), ['MPI/GCC/4.7.2/OpenMPI/1.6.4'])
+        self.assertEqual(det_init_modulepaths(ec), ['Core'])
+
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
         self.assertEqual(det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
         self.assertEqual(det_module_name(ec), 'gzip/1.5')
         self.assertEqual(det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(det_modpath_extensions(ec), [])
+        self.assertEqual(det_init_modulepaths(ec), ['Core'])
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
