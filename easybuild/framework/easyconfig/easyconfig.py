@@ -991,6 +991,7 @@ def robust_module_naming_scheme_query(query_function):
             # and retry with the parsed easyconfig file (which will contain a full set of keys)
             robot = build_option('robot_path')
             eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+            print "Found easyconfig %s for %s" % (eb_file, ec)
             if eb_file is None:
                 _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
             else:
