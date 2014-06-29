@@ -40,6 +40,7 @@ from unittest import main as unittestmain
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
@@ -593,6 +594,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for ec, mod in ecs_mods:
                 regex = re.compile(r" \* \[.\] \$CFGS\S+%s \(module: %s\)" % (ec, mod), re.M)
                 self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+    def test_dry_run_hierarchical(self):
+        """Test dry run using a hierarchical module naming scheme."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'),
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=ExampleHierarchicalModuleNamingScheme',
+            '--ignore-osdeps',
+        ]
+        errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"
+        self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
+
+        args.append('--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'))
+        outtxt = self.eb_main(args, logfile=dummylogfn)
+
+        ecs_mods = [
+            # easyconfig, module subdir, (short) module name
+            ("GCC-4.7.2.eb", "Core", "GCC/4.7.2"),
+            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2"),
+            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4"),
+            ("gompi-1.4.10.eb", "Core", "gompi/1.4.10"),
+            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2"),
+            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "FFTW/3.3.3"),
+            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2"),
+            ("goolf-1.4.10.eb", "Core", "goolf/1.4.10"),
+            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.8.2/OpenMPI/1.6.5", "gzip/1.5"),
+        ]
+        for ec, mod_subdir, mod_name in ecs_mods:
+            regex = re.compile(r" \* \[.\] \S+%s \(module: %s | %s\)" % (ec, mod_subdir, mod_name), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
