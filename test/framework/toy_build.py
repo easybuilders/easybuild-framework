@@ -27,6 +27,7 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
+import fileinput
 import glob
 import grp
 import os
@@ -487,6 +488,17 @@ class ToyBuildTest(EnhancedTestCase):
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(install_mod_path, mod_subdir))
 
+        # tweak prepend-path statements in GCC/OpenMPI modules to ensure correct paths
+        for modfile in [
+            os.path.join(install_mod_path, 'Core', 'GCC', '4.7.2'),
+            os.path.join(install_mod_path, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+        ]:
+            for line in fileinput.input(modfile, inplace=1):
+                line = re.sub(r"(prepend-path\s*MODULEPATH\s*)/tmp/modules/all",
+                              r"\1%s/modules/all" % self.test_installpath,
+                              line)
+                sys.stdout.write(line)
+
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
@@ -501,12 +513,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module paths/contents with gompi build
         extra_args = [
-            '--try-toolchain=gompi,1.5.14-no-OFED',
+            '--try-toolchain=gompi,1.4.10',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
         # make sure module file is installed in correct path
-        toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.8.2', 'OpenMPI', '1.6.5-no-OFED', 'toy', '0.0')
+        toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
         # check that toolchain load is expanded to loads for toolchain dependencies
@@ -517,12 +529,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module path with GCC/4.8.2 build
         extra_args = [
-            '--try-toolchain=GCC,4.8.2',
+            '--try-toolchain=GCC,4.7.2',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
         # make sure module file is installed in correct path
-        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.8.2', 'toy', '0.0')
+        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
@@ -531,18 +543,18 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module path with GCC/4.8.2 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
-            '--try-toolchain=GCC,4.8.2',
+            '--try-toolchain=GCC,4.7.2',
             '--try-amend=moduleclass=mpi',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
         # make sure module file is installed in correct path
-        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.8.2', 'toy', '0.0')
+        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = open(toy_module_path, 'r').read()
-        modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.8.2', 'toy', '0.0')
+        modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
 
         # test module path with dummy/dummy build

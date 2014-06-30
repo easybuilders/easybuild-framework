@@ -10,10 +10,10 @@ module-whatis {Description: The Open MPI Project is an open source MPI-2 impleme
 set root    /tmp/software/Compiler/GCC/4.8.2/OpenMPI/1.6.5-no-OFED
 
 conflict    OpenMPI
-prepend-path	MODULEPATH		/tmp/modules/all/MPI/GCC/4.8.2/OpenMPI/1.6.5-no-OFED
+prepend-path	MODULEPATH		/tmp/modules/all/MPI/GCC/4.7.2/OpenMPI/1.6.4
 
-if { ![is-loaded hwloc/1.8.1] } {
-    module load hwloc/1.8.1
+if { ![is-loaded hwloc/1.6.2] } {
+    module load hwloc/1.6.2
 }
 
 prepend-path	CPATH		$root/include
@@ -24,8 +24,6 @@ prepend-path	PATH		$root/bin
 prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
 
 setenv	EBROOTOPENMPI		"$root"
-setenv	EBVERSIONOPENMPI		"1.6.5"
-setenv	EBDEVELOPENMPI		"$root/easybuild/Compiler-GCC-4.8.2-OpenMPI-1.6.5-no-OFED-easybuild-devel"
+setenv	EBVERSIONOPENMPI		"1.6.4"
+setenv	EBDEVELOPENMPI		"$root/easybuild/Compiler-GCC-4.7.2-OpenMPI-1.6.4-easybuild-devel"
 
-
-# Built with EasyBuild version 1.14.0dev-r9b1a8bbc108afc5596076243bd5669490f189b73

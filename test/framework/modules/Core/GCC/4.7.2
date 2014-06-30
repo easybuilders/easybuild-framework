@@ -9,21 +9,19 @@ proc ModulesHelp { } {
 module-whatis {Description: The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
  as well as libraries for these languages (libstdc++, libgcj,...). - Homepage: http://gcc.gnu.org/}
 
-set root    /tmp/software/Core/GCC/4.8.2
+set root    /tmp/software/Core/GCC/4.7.2
 
 conflict    GCC
-prepend-path	MODULEPATH		/tmp/modules/all/Compiler/GCC/4.8.2
+prepend-path	MODULEPATH		/tmp/modules/all/Compiler/GCC/4.7.2
 
 prepend-path	CPATH		$root/include
 prepend-path	LD_LIBRARY_PATH		$root/lib
-prepend-path	LD_LIBRARY_PATH		$root/lib/gcc/x86_64-apple-darwin13.2.0/4.8.2
+prepend-path	LD_LIBRARY_PATH		$root/lib/gcc/x86_64-apple-darwin13.2.0/4.7.2
 prepend-path	LIBRARY_PATH		$root/lib
 prepend-path	MANPATH		$root/share/man
 prepend-path	PATH		$root/bin
 
 setenv	EBROOTGCC		"$root"
-setenv	EBVERSIONGCC		"4.8.2"
-setenv	EBDEVELGCC		"$root/easybuild/Core-GCC-4.8.2-easybuild-devel"
+setenv	EBVERSIONGCC		"4.7.2"
+setenv	EBDEVELGCC		"$root/easybuild/Core-GCC-4.7.2-easybuild-devel"
 
-
-# Built with EasyBuild version 1.14.0dev-r9b1a8bbc108afc5596076243bd5669490f189b73
