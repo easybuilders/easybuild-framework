@@ -413,12 +413,17 @@ def det_toolchain_element_details(tc, elem):
     # grab version from parsed easyconfig file for toolchain
     eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
     tc_ec = process_easyconfig(eb_file, parse_only=True)
+    if len(tc_ec) > 1:
+        _log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
+        _log.debug("Full list of toolchain specifications: %s" % tc_ec)
     tc_ec = tc_ec[0]['ec']
     tc_deps = tc_ec['dependencies']
     tc_elem_details = None
     for tc_dep in tc_deps:
         if tc_dep['name'] == elem:
             tc_elem_details = tc_dep
+            _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
+            break
     if tc_elem_details is None:
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
         if tc_ec['name'] == elem:
