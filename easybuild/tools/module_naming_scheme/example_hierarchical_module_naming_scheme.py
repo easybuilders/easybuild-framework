@@ -57,7 +57,7 @@ class ExampleHierarchicalModuleNamingScheme(ModuleNamingScheme):
 
     def det_short_module_name(self, ec):
         """
-        Determine short module name, i.e. the name under which modules will be exposes to users.
+        Determine short module name, i.e. the name under which modules will be exposed to users.
         Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
         """
         return os.path.join(ec['name'], ec['version'] + ec['versionsuffix'])
@@ -73,7 +73,10 @@ class ExampleHierarchicalModuleNamingScheme(ModuleNamingScheme):
             tc_comp_names = [comp['name'] for comp in tc_comps]
             if set(tc_comp_names) == set(['icc', 'ifort']):
                 tc_comp_name = 'intel'
-                tc_comp_ver = tc_comps[0]['version']
+                if tc_comps[0]['version'] == tc_comps[1]['version']:
+                    tc_comp_ver = tc_comps[0]['version']
+                else:
+                    _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
             else:
                 mns = self.__class__.__name__
                 _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
@@ -82,7 +85,7 @@ class ExampleHierarchicalModuleNamingScheme(ModuleNamingScheme):
     def det_module_subdir(self, ec):
         """
         Determine module subdirectory, relative to the top of the module path.
-        This determines the separation between module names exposes to users, and what's part of the $MODULEPATH.
+        This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
         Examples: Core, Compiler/GCC/4.8.3, MPI/GCC/4.8.3/OpenMPI/1.6.5
         """
         # determine prefix based on type of toolchain used

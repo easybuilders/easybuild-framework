@@ -438,8 +438,10 @@ def det_toolchain_element_details(tc, elem):
 def det_toolchain_compilers(ec):
     """
     Determine compilers of toolchain for given EasyConfig instance.
+
+    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
-    tc_elems = dict(det_toolchain_definition(ec.toolchain, names_only=False, exclude_toolchain=False))
+    tc_elems = det_toolchain_definition(ec.toolchain, names_only=False, exclude_toolchain=False)
     if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
         # dummy toolchain has no compiler
         tc_comps = None
@@ -460,8 +462,10 @@ def det_toolchain_compilers(ec):
 def det_toolchain_mpi(ec):
     """
     Determine MPI library of toolchain for given EasyConfig instance.
+
+    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
-    tc_elems = dict(det_toolchain_definition(ec.toolchain, names_only=False))
+    tc_elems = det_toolchain_definition(ec.toolchain, names_only=False)
     if TOOLCHAIN_MPI in tc_elems:
         if not tc_elems[TOOLCHAIN_MPI]:
             _log.error("Empty list of MPI libraries in toolchain definition?!")

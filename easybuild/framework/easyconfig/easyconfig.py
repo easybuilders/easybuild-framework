@@ -946,7 +946,7 @@ def robot_find_easyconfig(name, version):
 
 def robust_module_naming_scheme_query(query_function):
     """
-    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of a KeyError fall back to
+    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of an error fall back to
     try and find a matching easyconfig file, parse it and supply that instead.
     This is required because for toolchains and dependencies a fully parsed easyconfig isn't readily available.
     """
@@ -955,15 +955,16 @@ def robust_module_naming_scheme_query(query_function):
             mod_name = query_function(ec, **kwargs)
 
         # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
-        # when a KeyError occurs, try and find an easyconfig file to parse via the robot,
-        # and retry with the parsed easyconfig file (which will contain a full set of keys)
-        except KeyError, err:
+        # when an error occurs, try and find an easyconfig file to parse, and retry with the parsed easyconfig file
+        # (which contains all easyconfig parameters and provides toolchain details)
+        # - a KeyError will occur when the module naming scheme requires any other easyconfig parameter
+        # - an AttributeError will occur when one of the det_toolchain_* function is used
+        except (AttributeError, KeyError), err:
             if isinstance(ec, EasyConfig):
                 ec = ec.asdict()
             tup = (ec, type(err), err)
             _log.debug("Error when determining module name for %s (%s: %s), trying fallback procedure..." % tup)
-            robot = build_option('robot_path')
-            eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
+            eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             if eb_file is None:
                 _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
             else:

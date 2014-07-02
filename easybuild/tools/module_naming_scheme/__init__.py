@@ -45,7 +45,7 @@ class ModuleNamingScheme(object):
 
     def det_full_module_name(self, ec):
         """
-        Determine full module name from given easyconfig, according to module naming scheme.
+        Determine full module name, relative to the top of the module path.
 
         @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
@@ -56,7 +56,7 @@ class ModuleNamingScheme(object):
 
     def det_short_module_name(self, ec):
         """
-        Determine module name (not including a subdirectory of the $MODULEPATH).
+        Determine short module name, i.e. the name under which modules will be exposed to users.
 
         @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
@@ -68,6 +68,7 @@ class ModuleNamingScheme(object):
     def det_module_subdir(self, ec):
         """
         Determine subdirectory for module file in $MODULEPATH.
+        This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
 
         @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
@@ -78,7 +79,7 @@ class ModuleNamingScheme(object):
 
     def det_modpath_extensions(self, ec):
         """
-        Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded.
+        Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded (if any).
 
         @param ec: dict-like object with easyconfig parameter values; for now only the 'name',
                    'version', 'versionsuffix' and 'toolchain' parameters are guaranteed to be available
@@ -95,7 +96,8 @@ class ModuleNamingScheme(object):
 
     def expand_toolchain_load(self):
         """
-        Return whether the toolchain load statement should be expanded to load statements for toolchain dependencies.
+        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        This is useful when toolchains are not exposed to users.
         """
         # by default: just include a load statement for the toolchain
         return False

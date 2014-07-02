@@ -505,14 +505,18 @@ def det_toolchain_definition(tc, names_only=True, exclude_toolchain=True):
     Determine toolchain elements for given Toolchain instance.
     """
     var_suff = '_MODULE_NAME'
-    tc_elems = [(var[:-len(var_suff)], eval("tc.%s" % var)) for var in dir(tc) if var.endswith(var_suff)]
+    tc_elems = {}
+    for var in dir(tc):
+        if var.endswith(var_suff):
+            tc_elems.update({var[:-len(var_suff)]: getattr(tc, var)})
     if names_only:
         if exclude_toolchain:
             # filter out toolchain name from list of toolchain elements,
             # to avoid having 'GCC' as an element of the 'GCC' toolchain
-            tc_elems = set([elem for (_, elems) in tc_elems for elem in elems if not elem == tc.name])
+            tc_elems = set([elem for elems in tc_elems.values() for elem in elems if not elem == tc.name])
         else:
-            tc_elems = set([elem for (_, elems) in tc_elems for elem in elems])
+            tc_elems = set([elem for elems in tc_elems.values() for elem in elems])
 
-    _log.debug("Toolchain definition for %s: %s" % (tc.as_dict(), tc_elems))
+    tup = (tc.as_dict(), names_only, exclude_toolchain, tc_elems)
+    _log.debug("Toolchain definition for %s (names_only: %s, exclude_toolchain: %s): %s" % tup)
     return tc_elems
