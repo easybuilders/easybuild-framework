@@ -918,7 +918,7 @@ def create_paths(path, name, version):
     return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(paths, name, version):
+def robot_find_easyconfig(name, version):
     """
     Find an easyconfig for module in path
     """
@@ -926,6 +926,7 @@ def robot_find_easyconfig(paths, name, version):
     if key in _easyconfigs_cache:
         _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfigs_cache[key]))
         return _easyconfigs_cache[key]
+    paths = build_option('robot_path')
     if not isinstance(paths, (list, tuple)):
         if paths is None:
             _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")

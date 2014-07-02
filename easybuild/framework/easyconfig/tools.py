@@ -186,7 +186,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+                    path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
@@ -411,8 +411,7 @@ def det_toolchain_element_details(tc, elem):
         return _toolchain_details_cache[key]
 
     # grab version from parsed easyconfig file for toolchain
-    robot = build_option('robot_path')
-    eb_file = robot_find_easyconfig(robot, tc_dict['name'], det_full_ec_version(tc.as_dict()))
+    eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
     tc_ec = process_easyconfig(eb_file, parse_only=True)
     tc_ec = tc_ec[0]['ec']
     tc_deps = tc_ec['dependencies']
