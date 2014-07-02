@@ -47,6 +47,7 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, which
 from easybuild.tools.module_generator import det_full_module_name_mns, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.run import run_cmd
@@ -377,14 +378,36 @@ class ModulesTool(object):
         for mod in modules:
             self._modules = [m for m in self._modules if not m == mod]
 
-    def load(self, modules=None):
+    def load(self, modules=None, mod_paths=None, purge=False, orig_env=None):
         """
         Load all requested modules.
+
+        @param modules: list of modules to load
+        @param mod_paths: list of module paths to activate before loading
+        @param purge: whether or not a 'module purge' should be run before loading
+        @param orig_env: original environment to restore after running 'module purge'
         """
         if modules is None:
             # deprecated behavior if no modules were passed by argument
             self.log.deprecated("Loading modules listed in _modules class variable", '2.0')
             modules = self._modules[:]
+
+        if mod_paths is None:
+            mod_paths = []
+
+        # purge all loaded modules if desired
+        if purge:
+            self.purge()
+            # restore original environment if provided
+            if orig_env is not None:
+                modify_env(os.environ, orig_env)
+
+        # make sure $MODULEPATH is set correctly after purging
+        self.check_module_path()
+        # extend $MODULEPATH if needed
+        for mod_path in mod_paths:
+            full_mod_path = os.path.join(install_path('mod'), GENERAL_CLASS, mod_path)
+            self.prepend_module_path(full_mod_path)
 
         for mod in modules:
             self.run_module('load', mod)

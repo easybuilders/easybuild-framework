@@ -52,7 +52,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
-from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
@@ -80,7 +80,6 @@ DEPRECATED_OPTIONS = {
     'premakeopts': ('prebuildopts', '2.0'),
 }
 
-_initial_toolchain_instances = {}
 _easyconfigs_cache = {}
 
 
@@ -424,40 +423,15 @@ class EasyConfig(object):
         """
         returns the Toolchain used
         """
-        if self._toolchain:
-            return self._toolchain
-
-        tcname = self['toolchain']['name']
-        tcver = self['toolchain']['version']
-        key = (tcname, tcver)
-        if key in _initial_toolchain_instances:
-            tc = copy.deepcopy(_initial_toolchain_instances[key])
-            self.log.debug("Obtained cached toolchain instance for %s: %s" % (key, tc.as_dict()))
-        else:
-            tc, all_tcs = search_toolchain(tcname)
-            if not tc:
-                all_tcs_names = ",".join([x.NAME for x in all_tcs])
-                self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
-            tc = tc(version=tcver)
-            tc_dict = tc.as_dict()
-            self.log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
-            if tcname != DUMMY_TOOLCHAIN_NAME:
+        if self._toolchain is None:
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'])
+            if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
+                tc_dict = self._toolchain.as_dict()
                 mod_name = det_module_name(tc_dict)
                 mod_subdir = det_module_subdir(tc_dict)
                 full_mod_name = det_full_module_name(tc_dict)
                 init_modpaths = det_init_modulepaths(tc_dict)
-                tc.set_module_info(mod_name, mod_subdir, full_mod_name, init_modpaths)
-
-            _initial_toolchain_instances[key] = tc
-
-        if self['toolchainopts'] is None:
-            # set_options should always be called, even if no toolchain options are specified
-            # this is required to set the default options
-            tc.set_options({})
-        else:
-            tc.set_options(self['toolchainopts'])
-
-        self._toolchain = tc
+                self._toolchain.set_module_info(mod_name, mod_subdir, full_mod_name, init_modpaths)
         return self._toolchain
 
     def dump(self, fp):

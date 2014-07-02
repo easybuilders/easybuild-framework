@@ -760,7 +760,7 @@ class EasyBlock(object):
         """
         load = unload = ''
 
-        # include load statements for dependencies
+        # include load/unload statements for dependencies
         recursive_unload = self.recursive_mod_unload
         builddeps = self.cfg.builddependencies()
         # include 'module load' statements for dependencies in reverse order
@@ -777,13 +777,12 @@ class EasyBlock(object):
         # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
             if get_custom_module_naming_scheme().expand_toolchain_load():
-                for mod_name in self.toolchain.toolchain_dependencies:
-                    load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
-                    unload += self.moduleGenerator.unload_module(mod_name)
+                mod_names = self.toolchain.toolchain_dependencies
             else:
-                tc_mod_name = self.toolchain.det_module_name()
-                load += self.moduleGenerator.load_module(tc_mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(tc_mod_name)
+                mod_names = [self.toolchain.det_module_name()]
+            for mod_name in mod_names:
+                load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
+                unload += self.moduleGenerator.unload_module(mod_name)
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
@@ -915,26 +914,12 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        if mod_paths is None:
-            mod_paths = []
         # self.mod_name might not be set (e.g. during unit tests)
-        modtool = modules_tool()
         if self.mod_name is not None:
-            # purge all loaded modules if desired
-            if purge:
-                modtool.purge()
-                # restore original environment
-                modify_env(os.environ, self.orig_environ)
-
-            # make sure $MODULEPATH is set correctly after purging
-            modtool.check_module_path()
-            # extend $MODULEPATH if needed
-            init_modpaths = det_init_modulepaths(self.cfg)
-            for mod_path in mod_paths + init_modpaths:
-                full_mod_path = os.path.join(install_path('mod'), GENERAL_CLASS, mod_path)
-                modtool.prepend_module_path(full_mod_path)
-
-            modtool.load([self.mod_name])
+            if mod_paths is None:
+                mod_paths = []
+            all_mod_paths = mod_paths + det_init_modulepaths(self.cfg)
+            self.modules_tool.load([self.mod_name], mod_paths=all_mod_paths, purge=purge, orig_env=self.orig_environ)
         else:
             self.log.warning("Not loading module, since self.mod_name is not set.")
 

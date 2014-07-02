@@ -37,6 +37,7 @@ from unittest import TestCase
 from vsc.utils import fancylogger
 
 import easybuild.tools.options as eboptions
+import easybuild.tools.toolchain.utilities as tc_utils
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyconfig import tools as easyconfig_tools
 from easybuild.framework.easyblock import EasyBlock
@@ -178,7 +179,7 @@ def cleanup():
     modules.ModulesTool.__metaclass__._instances.clear()
 
     # empty caches
-    easyconfig._initial_toolchain_instances.clear()
+    tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
     easyconfig_tools._toolchain_details_cache.clear()
 
