@@ -54,7 +54,7 @@ class ModuleNamingScheme(object):
         """
         raise NotImplementedError
 
-    def det_module_name(self, ec):
+    def det_short_module_name(self, ec):
         """
         Determine module name (not including a subdirectory of the $MODULEPATH).
 

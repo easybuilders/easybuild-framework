@@ -779,7 +779,7 @@ class EasyBlock(object):
             if get_custom_module_naming_scheme().expand_toolchain_load():
                 mod_names = self.toolchain.toolchain_dependencies
             else:
-                mod_names = [self.toolchain.det_module_name()]
+                mod_names = [self.toolchain.det_short_module_name()]
             for mod_name in mod_names:
                 load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
                 unload += self.moduleGenerator.unload_module(mod_name)

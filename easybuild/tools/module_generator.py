@@ -303,10 +303,10 @@ def det_devel_module_filename(ec):
     return det_full_module_name_mns(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
 
-def det_module_name_mns(ec):
+def det_short_module_name_mns(ec):
     """Determine module name according to module naming scheme."""
     _log.debug("Determining module name for %s" % ec)
-    mod_name = get_custom_module_naming_scheme().det_module_name(ec)
+    mod_name = get_custom_module_naming_scheme().det_short_module_name(ec)
     if not is_valid_module_name(mod_name):
         _log.error("%s is not a valid module name" % str(mod_name))
     else:

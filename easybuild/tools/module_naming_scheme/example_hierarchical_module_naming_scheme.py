@@ -53,9 +53,9 @@ class ExampleHierarchicalModuleNamingScheme(ModuleNamingScheme):
         Determine full module name, relative to the top of the module path.
         Examples: Core/GCC/4.8.3, Compiler/GCC/4.8.3/OpenMPI/1.6.5, MPI/GCC/4.8.3/OpenMPI/1.6.5/HPL/2.1
         """
-        return os.path.join(self.det_module_subdir(ec), self.det_module_name(ec))
+        return os.path.join(self.det_module_subdir(ec), self.det_short_module_name(ec))
 
-    def det_module_name(self, ec):
+    def det_short_module_name(self, ec):
         """
         Determine short module name, i.e. the name under which modules will be exposes to users.
         Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5

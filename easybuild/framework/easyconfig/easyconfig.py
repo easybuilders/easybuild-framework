@@ -46,8 +46,8 @@ import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
-from easybuild.tools.module_generator import det_full_module_name_mns, det_modpath_extensions_mns
-from easybuild.tools.module_generator import det_module_name_mns, det_module_subdir_mns, det_init_modulepaths_mns
+from easybuild.tools.module_generator import (det_full_module_name_mns, det_init_modulepaths_mns,
+    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns)
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
@@ -427,7 +427,7 @@ class EasyConfig(object):
             self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'])
             if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
                 tc_dict = self._toolchain.as_dict()
-                mod_name = det_module_name(tc_dict)
+                mod_name = det_short_module_name(tc_dict)
                 mod_subdir = det_module_subdir(tc_dict)
                 full_mod_name = det_full_module_name(tc_dict)
                 init_modpaths = det_init_modulepaths(tc_dict)
@@ -574,7 +574,7 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['short_mod_name'] = det_module_name(dependency)
+        dependency['short_mod_name'] = det_short_module_name(dependency)
         dependency['full_mod_name'] = det_full_module_name(dependency)
 
         return dependency
@@ -872,7 +872,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'short_mod_name': det_module_name(ec),
+                'short_mod_name': det_short_module_name(ec),
                 'full_mod_name': det_full_module_name(ec),
                 'dependencies': [],
                 'builddependencies': [],
@@ -990,11 +990,11 @@ def det_full_module_name(ec, eb_ns=False):
 
 
 @robust_module_naming_scheme_query
-def det_module_name(ec):
+def det_short_module_name(ec):
     """
     Determine short module name following the currently active module naming scheme (not including subdir).
     """
-    return det_module_name_mns(ec)
+    return det_short_module_name_mns(ec)
 
 
 @robust_module_naming_scheme_query

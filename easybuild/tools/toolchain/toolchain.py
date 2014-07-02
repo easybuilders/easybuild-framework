@@ -36,7 +36,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.config import install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_generator import GENERAL_CLASS, det_module_name_mns
+from easybuild.tools.module_generator import GENERAL_CLASS, det_short_module_name_mns
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -101,9 +101,9 @@ class Toolchain(object):
         self.vars = None
 
         self.modules_tool = modules_tool()
-        self.mod_name = None
         self.mod_subdir = None
         self.mod_full_name = None
+        self.mod_short_name = None
         self.init_modpaths = None
 
     def base_init(self):
@@ -217,22 +217,22 @@ class Toolchain(object):
             'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
             'versionsuffix': '',
             'dummy': True,
-            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_module_name
+            'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
         }
 
-    def det_module_name(self, name=None, version=None):
+    def det_short_module_name(self, name=None, version=None):
         """Determine module name for this toolchain."""
         # short-circuit to returning module name for this toolchain
         if name is None and version is None:
-            if self.mod_name is None:
+            if self.mod_short_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_info).")
-            return self.mod_name
+            return self.mod_short_name
 
-        return det_module_name_mns(self.as_dict(name, version))
+        return det_short_module_name_mns(self.as_dict(name, version))
 
-    def set_module_info(self, mod_name, mod_subdir, mod_full_name, init_modpaths):
+    def set_module_info(self, mod_short_name, mod_subdir, mod_full_name, init_modpaths):
         """Set (full) module name for this toolchain."""
-        self.mod_name = mod_name
+        self.mod_short_name = mod_short_name
         self.mod_subdir = mod_subdir
         self.mod_full_name = mod_full_name
         self.init_modpaths = init_modpaths
@@ -243,9 +243,9 @@ class Toolchain(object):
         """
         # short-circuit to returning module name for this (non-dummy) toolchain
         if name is None and version is None and self.name != DUMMY_TOOLCHAIN_NAME:
-            if self.mod_name is None:
+            if self.mod_short_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_info).")
-            # check whether a matching module exists if self.mod_name contains a module name
+            # check whether a matching module exists if self.mod_short_name contains a module name
             return self.modules_tool.exists(self.mod_full_name)
 
         # if a specific name/version is provided, try to determine the module name
@@ -260,7 +260,7 @@ class Toolchain(object):
             self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
             return True
 
-        mod_name = self.det_module_name(name, version)
+        mod_name = self.det_short_module_name(name, version)
         tup = (name, version, mod_name)
         self.log.debug("_toolchain_exists: checking for name %s version %s (module: %s)" % tup)
         self.log.deprecated("Checking toolchain (%s, %s) using partial module name: %s" % tup, '2.0')
@@ -356,11 +356,11 @@ class Toolchain(object):
         if self.init_modpaths:
             for modpath in self.init_modpaths:
                 self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), GENERAL_CLASS, modpath))
-        self.modules_tool.load([self.det_module_name()])
+        self.modules_tool.load([self.det_short_module_name()])
         self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
 
         # determine direct toolchain dependencies
-        mod_name = self.det_module_name()
+        mod_name = self.det_short_module_name()
         self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
 
