@@ -896,8 +896,6 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
                 _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)
 
-            del ec
-
             # this is used by the parallel builder
             easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
 
@@ -947,7 +945,7 @@ def robot_find_easyconfig(paths, name, version):
 
 def robust_module_naming_scheme_query(query_function):
     """
-    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of an error fall back to
+    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of a KeyError fall back to
     try and find a matching easyconfig file, parse it and supply that instead.
     This is required because for toolchains and dependencies a fully parsed easyconfig isn't readily available.
     """
@@ -955,14 +953,14 @@ def robust_module_naming_scheme_query(query_function):
         try:
             mod_name = query_function(ec, **kwargs)
 
-        except (AttributeError, KeyError), err:
+        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
+        # when a KeyError occurs, try and find an easyconfig file to parse via the robot,
+        # and retry with the parsed easyconfig file (which will contain a full set of keys)
+        except KeyError, err:
             if isinstance(ec, EasyConfig):
                 ec = ec.asdict()
             tup = (ec, type(err), err)
             _log.debug("Error when determining module name for %s (%s: %s), trying fallback procedure..." % tup)
-            # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
-            # when a key error occurs, try and find an easyconfig file to parse via the robot,
-            # and retry with the parsed easyconfig file (which will contain a full set of keys)
             robot = build_option('robot_path')
             eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
             if eb_file is None:
@@ -971,6 +969,7 @@ def robust_module_naming_scheme_query(query_function):
                 parsed_ec = process_easyconfig(eb_file, parse_only=True)
                 if len(parsed_ec) > 1:
                     _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+                    _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 try:
                     mod_name = query_function(parsed_ec[0]['ec'], **kwargs)
                 except Exception, err:
