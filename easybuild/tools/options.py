@@ -161,8 +161,8 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
-            'deps-to-ignore': ("Comma separated list of dependencies that you don't want to install with easybuild \
-                    because equivalent OS packages are installed. e.g --deps-to-ignore=zlib,ncurses", str, 'store', None),
+            'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with easybuild \
+                    because equivalent OS packages are installed. e.g --filter-deps=zlib,ncurses", str, 'store', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),

@@ -395,10 +395,10 @@ class EasyConfig(object):
         """
         full_dependencies = self['dependencies'] + self.builddependencies()
 
-        # if depsToIgnore option is provided we "clean" the list of dependencies for
+        # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
-        if build_option('deps-to-ignore'):
-            deps_to_remove = build_option('deps-to-ignore').split(",")
+        if build_option('filter-deps'):
+            deps_to_remove = build_option('filter-deps').split(",")
             for i in xrange(len(full_dependencies) -1, -1, -1):
                     if full_dependencies[i].get('name') in deps_to_remove:
                         self.log.info("%s-%s dependency automatically removed" % \
