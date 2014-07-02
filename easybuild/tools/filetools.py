@@ -983,3 +983,28 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """Legacy wrapper/placeholder for run.parse_log_for_error"""
     return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
+
+
+def det_size(path):
+    """
+    Determine total size of given filepath (in bytes).
+    """
+    installsize = 0
+    try:
+
+        # walk install dir to determine total size
+        for (dirpath, _, filenames) in os.walk(path):
+            for filename in filenames:
+                fullpath = os.path.join(dirpath, filename)
+                if os.path.exists(fullpath):
+                    installsize += os.path.getsize(fullpath)
+    except OSError, err:
+        _log.warn("Could not determine install size: %s" % err)
+
+    return installsize
+
+
+def check_url(url):
+    """
+    Check whether specified URL is a valid URL.
+    """

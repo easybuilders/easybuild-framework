@@ -38,10 +38,8 @@ The EasyBlock class should serve as a base class for all easyblocks.
 
 import copy
 import glob
-import grp  # @UnresolvedImport
 import re
 import os
-import pwd
 import shutil
 import stat
 import time
@@ -53,11 +51,9 @@ from vsc.utils import fancylogger
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_modpath_extensions
-from easybuild.framework.easyconfig.easyconfig import det_init_modulepaths
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ITERATE_OPTIONS, det_full_module_name,
+    det_modpath_extensions, det_init_modulepaths, fetch_parameter_from_easyconfig_file, get_class_for,
+    get_easyblock_class, get_module_path, resolve_template)
 from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -78,7 +74,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import get_avail_core_count
+from easybuild.tools.systemtools import get_avail_core_count, det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
@@ -196,31 +192,14 @@ class EasyBlock(object):
         self.mod_name = None
 
         # try and use the specified group (if any)
-        group = build_option('group')
+        group_name = build_option('group')
         if self.cfg['group'] is not None:
-            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group))
-            group = self.cfg['group']
+            self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group_name))
+            group_name = self.cfg['group']
 
         self.group = None
-        if group is not None:
-            try:
-                group_id = grp.getgrnam(group).gr_gid
-            except KeyError, err:
-                self.log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group, err))
-
-            self.group = (group, group_id)
-            try:
-                os.setgid(self.group[1])
-            except OSError, err:
-                err_msg = "Failed to use group %s: %s; " % (self.group, err)
-                user = pwd.getpwuid(os.getuid()).pw_name
-                grp_members = grp.getgrgid(self.group[1]).gr_mem
-                if user in grp_members:
-                    err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % self.group[0]
-                else:
-                    err_msg += "current user '%s' is not in group %s (members: %s)" % (user, self.group, grp_members)
-                self.log.error(err_msg)
-            self.log.info("Using group '%s' (gid: %s)" % self.group)
+        if group_name is not None:
+            self.group = use_group(group_name)
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -741,7 +720,7 @@ class EasyBlock(object):
         header = "#%Module\n"
 
         env_txt = ""
-        for (key, val) in env.changes.items():
+        for (key, val) in env.get_changes().items():
             # check if non-empty string
             # TODO: add unset for empty vars?
             if val.strip():
@@ -1071,24 +1050,6 @@ class EasyBlock(object):
     # MISCELLANEOUS UTILITY FUNCTIONS
     #
 
-    def det_installsize(self):
-        """Determine size of installation."""
-        installsize = 0
-        try:
-            # change to home dir, to avoid that cwd no longer exists
-            os.chdir(os.getenv('HOME'))
-
-            # walk install dir to determine total size
-            for (dirpath, _, filenames) in os.walk(self.installdir):
-                for filename in filenames:
-                    fullpath = os.path.join(dirpath, filename)
-                    if os.path.exists(fullpath):
-                        installsize += os.path.getsize(fullpath)
-        except OSError, err:
-            self.log.warn("Could not determine install size: %s" % err)
-
-        return installsize
-
     def guess_start_dir(self):
         """
         Return the directory where to start the whole configure/make/make install cycle from
@@ -1147,97 +1108,6 @@ class EasyBlock(object):
         iter_cnt = max([1] + [len(self.cfg[opt]) for opt in ITERATE_OPTIONS
                               if isinstance(self.cfg[opt], (list, tuple))])
         return iter_cnt
-
-    def print_environ(self):
-        """
-        Prints the environment changes and loaded modules to the debug log
-        - pretty prints the environment for easy copy-pasting
-        """
-        mods = [(mod['name'], mod['version']) for mod in self.modules_tool.loaded_modules()]
-        mods_text = "\n".join(["module load %s/%s" % m for m in mods if m not in self.loaded_modules])
-        self.loaded_modules = mods
-
-        env = copy.deepcopy(os.environ)
-
-        changed = [(k, env[k]) for k in env if k not in self.orig_environ]
-        for k in env:
-            if k in self.orig_environ and env[k] != self.orig_environ[k]:
-                changed.append((k, env[k]))
-
-        unset = [key for key in self.orig_environ if key not in env]
-
-        text = "\n".join(['export %s="%s"' % change for change in changed])
-        unset_text = "\n".join(['unset %s' % key for key in unset])
-
-        if mods:
-            self.log.debug("Loaded modules:\n%s" % mods_text)
-        if changed:
-            self.log.debug("Added to environment:\n%s" % text)
-        if unset:
-            self.log.debug("Removed from environment:\n%s" % unset_text)
-
-        self.orig_environ = env
-
-    def set_parallelism(self, nr=None):
-        """
-        Determines how many processes should be used (default: nr of procs - 1).
-        """
-        if not nr and self.cfg['parallel']:
-            nr = self.cfg['parallel']
-
-        if nr:
-            try:
-                nr = int(nr)
-            except ValueError, err:
-                self.log.error("Parallelism %s not integer: %s" % (nr, err))
-        else:
-            nr = get_avail_core_count()
-            # check ulimit -u
-            out, ec = run_cmd('ulimit -u')
-            try:
-                if out.startswith("unlimited"):
-                    out = 2 ** 32 - 1
-                maxuserproc = int(out)
-                # assume 6 processes per build thread + 15 overhead
-                maxnr = int((maxuserproc - 15) / 6)
-                if maxnr < nr:
-                    nr = maxnr
-                    self.log.info("Limit parallel builds to %s because max user processes is %s" % (nr, out))
-            except ValueError, err:
-                self.log.exception("Failed to determine max user processes (%s,%s): %s" % (ec, out, err))
-
-        maxpar = self.cfg['maxparallel']
-        if maxpar and maxpar < nr:
-            self.log.info("Limiting parallellism from %s to %s" % (nr, maxpar))
-            nr = min(nr, maxpar)
-
-        self.cfg['parallel'] = nr
-        self.log.info("Setting parallelism: %s" % nr)
-
-    def verify_homepage(self):
-        """
-        Download homepage, verify if the name of the software is mentioned
-        """
-        homepage = self.cfg["homepage"]
-
-        try:
-            page = urllib.urlopen(homepage)
-        except IOError:
-            self.log.error("Homepage (%s) is unavailable." % homepage)
-            return False
-
-        regex = re.compile(self.name, re.I)
-
-        # if url contains software name and is available we are satisfied
-        if regex.search(homepage):
-            return True
-
-        # Perform a lowercase compare against the entire contents of the html page
-        # (does not care about html)
-        for line in page:
-            if regex.search(line):
-                return True
-        return False
 
     #
     # STEP FUNCTIONS
@@ -1313,7 +1183,8 @@ class EasyBlock(object):
                 self.log.info("%s checksum for %s: %s" % (DEFAULT_CHECKSUM, fil['path'], fil[DEFAULT_CHECKSUM]))
 
         # set level of parallelism for build
-        self.set_parallelism()
+        self.cfg['parallel'] = det_parallelism(self.cfg['parallel'], self.cfg['maxparallel'])
+        self.log.info("Setting parallelism: %s" % self.cfg['parallel'])
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
@@ -1994,6 +1865,9 @@ def build_and_install_one(module, orig_environ):
 
     ended = "ended"
 
+    # make sure we're back in original directory before we finish up
+    os.chdir(cwd)
+
     # successful build
     if result:
 
@@ -2075,7 +1949,6 @@ def build_and_install_one(module, orig_environ):
     print_msg("Results of the build can be found in the log file %s" % application_log, _log, silent=silent)
 
     del app
-    os.chdir(cwd)
 
     return (success, application_log, errormsg)
 
