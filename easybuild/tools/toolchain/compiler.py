@@ -262,11 +262,13 @@ class Compiler(Toolchain):
         if self.arch is None:
             self.arch = systemtools.get_cpu_vendor()
 
-        if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
-            if build_option('optarch') is not None:
-                optarch = build_option('optarch')
-            else:
-                optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+        optarch = None
+        if build_option('optarch') is not None:
+            optarch = build_option('optarch')
+        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+
+        if optarch is not None:
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 

@@ -170,8 +170,9 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'optarch': ("Set architecture optimization, overriding native architecture optimizations", None, 'store', None),
-		})
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
+        })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
