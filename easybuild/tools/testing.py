@@ -243,7 +243,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
 
     environ_dump = init_session_state['environment']
     environment = []
-    env_filter_regex = build_option('environment-filter-regex')
+    env_filter_regex = build_option('env-filter-regex')
 
     for key in sorted(environ_dump.keys()):
         if env_filter_regex and env_filter_regex.search(key):
