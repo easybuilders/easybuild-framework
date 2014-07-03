@@ -189,7 +189,7 @@ class EasyBlock(object):
         self.silent = build_option('silent')
 
         # full module name for this software package
-        self.mod_name = None
+        self.mod_name = det_full_module_name(self.cfg)
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -1777,7 +1777,6 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        self.mod_name = det_full_module_name(self.cfg)
         print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
         try:
             for (stop_name, descr, step_methods, skippable) in steps:
