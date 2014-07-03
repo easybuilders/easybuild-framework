@@ -459,7 +459,7 @@ class ModulesTool(object):
             args = list(args)
 
         subcmd = args[0]
-        if args[0] in ('available', 'avail', 'list',):
+        if subcmd in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
 
