@@ -52,6 +52,7 @@ class ModulesTest(EnhancedTestCase):
         """set up everything for a unit test."""
         super(ModulesTest, self).setUp()
         self.testmods = modules_tool()
+        self.testmods.testing = True
 
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
@@ -230,11 +231,13 @@ def suite():
 
 if __name__ == '__main__':
     main(exit=False)
-    gt = 0
-    for subcmd in sorted(MODULE_SUBCMD_TIMINGS.keys()):
-        total = sum(MODULE_SUBCMD_TIMINGS[subcmd])
-	gt    += total 
-        cnt = len(MODULE_SUBCMD_TIMINGS[subcmd])
-        if cnt > 0:
-            print "avg time (in secs) for %9s: %8.4f (cnt: %3d, total: %7.3f)" % (subcmd, total/cnt, cnt, total)
-    print "total module time: ", gt
+    if os.environ.get('EASYBUILD_TEST_MODULE_CMD_TIMINGS', False) and MODULE_SUBCMD_TIMINGS:
+        total = 0
+        for subcmd in sorted(MODULE_SUBCMD_TIMINGS.keys()):
+            cmd_total = sum(MODULE_SUBCMD_TIMINGS[subcmd])
+            total += cmd_total
+            cnt = len(MODULE_SUBCMD_TIMINGS[subcmd])
+            if cnt > 0:
+                cmd_avg = cmd_total/cnt
+                print "avg time for %9s: %8.4fs (cnt: %3d, total: %7.3fs)" % (subcmd, cmd_avg, cnt, cmd_total)
+        print "total time in module commands: %8.3fs" % total

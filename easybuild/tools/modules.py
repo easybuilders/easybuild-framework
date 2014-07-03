@@ -117,16 +117,7 @@ output_matchers = {
 
 _log = fancylogger.getLogger('modules', fname=False)
 
-MODULE_SUBCMD_TIMINGS = {
-    'avail': [],
-    'list': [],
-    'load': [],
-    'purge': [],
-    'unuse': [],
-    'update': [],
-    'use': [],
-    '--version': [],
-}
+MODULE_SUBCMD_TIMINGS = {}
 
 
 class ModulesTool(object):
@@ -177,14 +168,14 @@ class ModulesTool(object):
         # version of modules tool
         self.version = None
 
+        # this can/should be set to True during testing
+        self.testing = False
+
         # some initialisation/verification
         self.check_cmd_avail()
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
-
-        # this can/should be set to True during testing
-        self.testing = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -503,13 +494,15 @@ class ModulesTool(object):
         full_cmd = ' '.join(cmdlist + args)
         self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        start = time.time()
+        if self.testing:
+            start = time.time()
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
-        end = time.time()
-        MODULE_SUBCMD_TIMINGS[subcmd].append(end-start)
+        if self.testing:
+            end = time.time()
+            MODULE_SUBCMD_TIMINGS.setdefault(subcmd, []).append(end - start)
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
         if original_module_path is not None:
             os.environ['MODULEPATH'] = original_module_path
