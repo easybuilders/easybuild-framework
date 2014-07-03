@@ -1041,9 +1041,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(test_var_public_regex.search(test_report_txt))
 
         # filter out env vars that match specified regex pattern
-        test_report_txt = toy(extra_args=["--test-report-env-filter='*_SECRET_ENV_VAR_FOR_EASYBUILD"])
-        self.assertFalse(test_var_secret_regex.search(test_report_txt))
+        filter_arg = "--test-report-env-filter=.*_SECRET_ENV_VAR_FOR_EASYBUILD"
+        test_report_txt = toy(extra_args=[filter_arg])
+        res = test_var_secret_regex.search(test_report_txt)
+        self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
+        # make sure that used filter is reported correctly in test report
+        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        tup = (filter_arg_regex.pattern, test_report_txt)
+        self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
 def suite():
     """ returns all the testcases in this module """
