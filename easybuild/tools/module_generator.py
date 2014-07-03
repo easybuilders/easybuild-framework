@@ -37,6 +37,7 @@ import os
 import string
 import sys
 import tempfile
+import textwrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -201,6 +202,19 @@ class ModuleGenerator(object):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
+    
+    def set_modextraloadmsg(self, value):
+        """
+        Add to your modulefile a message you want to show when loading the module.
+        Now it output tcl code. In case we migrate to lua modulefiles in the
+        future this should be extended to generate tcl or lua depending on what
+        we are using
+        """
+        return textwrap.dedent("""
+        if [ module-info mode load ] {
+                puts stderr     "%s"
+        }
+        """ % (value))
     
     def set_extratclfooter(self, value):
         """
