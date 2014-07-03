@@ -68,13 +68,6 @@ class ModulesToolTest(EnhancedTestCase):
         """Testcase setup."""
         super(ModulesToolTest, self).setUp()
 
-        # keep track of original $MODULEPATH, so we can restore it
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        modules_tool().purge()
-
         # keep track of original 'module' function definition so we can restore it
         self.orig_module = os.environ.get('module', None)
 
@@ -106,6 +99,7 @@ class ModulesToolTest(EnhancedTestCase):
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
+        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
         bmmt = BrokenMockModulesTool(mod_paths=[])
         cmd_abspath = which(MockModulesTool.COMMAND)
 
@@ -138,17 +132,19 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
+        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool()
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
+        MockModulesTool._instances.pop(MockModulesTool)
         mt = MockModulesTool()
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
         warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
-        self.assertTrue(warn_regex.search(logtxt))
+        self.assertTrue(warn_regex.search(logtxt), "Pattern %s found in %s" % (warn_regex.pattern, logtxt))
 
         fancylogger.logToFile(self.logfile, enable=False)
 
@@ -189,10 +185,6 @@ class ModulesToolTest(EnhancedTestCase):
     def tearDown(self):
         """Testcase cleanup."""
         super(ModulesToolTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        # reinitialize a modules tool, to trigger 'module use' on module paths
-        modules_tool()
 
         # restore 'module' function
         if self.orig_module is not None:

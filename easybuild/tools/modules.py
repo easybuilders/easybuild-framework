@@ -39,10 +39,12 @@ import os
 import re
 import subprocess
 import sys
+import time
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses, any
+from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
@@ -144,6 +146,8 @@ class ModulesTool(object):
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
 
+    __metaclass__ = Singleton
+
     def __init__(self, mod_paths=None):
         """
         Create a ModulesTool object
@@ -152,16 +156,12 @@ class ModulesTool(object):
         """
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
-        # make sure we don't have the same path twice
-        if mod_paths is None:
-            self.mod_paths = None
-        else:
-            self.mod_paths = nub(mod_paths)
+        self.mod_paths = None
+        if mod_paths is not None:
+            self.set_mod_paths(mod_paths)
 
         # DEPRECATED!
         self._modules = []
-
-        self.check_module_path()
 
         # actual module command (i.e., not the 'module' wrapper function, but the binary)
         self.cmd = self.COMMAND
@@ -179,9 +179,9 @@ class ModulesTool(object):
 
         # some initialisation/verification
         self.check_cmd_avail()
+        self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
-        self.use_module_paths()
 
         # this can/should be set to True during testing
         self.testing = False
@@ -198,7 +198,6 @@ class ModulesTool(object):
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
-        txt = self.run_module(self.VERSION_OPTION, return_output=True)
         if self.VERSION_REGEXP is None:
             self.log.error('No VERSION_REGEXP defined')
 
@@ -260,41 +259,68 @@ class ModulesTool(object):
             # module function may not be defined (weird, but fine)
             self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
 
+    def set_mod_paths(self, mod_paths=None):
+        """Set mod_paths, based on $MODULEPATH unless a list of module paths is specified."""
+        # make sure we don't have the same path twice, using nub
+        if mod_paths is not None:
+            self.mod_paths = nub(mod_paths)
+            for mod_path in self.mod_paths:
+                self.prepend_module_path(mod_path)
+        else:
+            # no paths specified, so grab list of module paths from $MODULEPATH
+            self.mod_paths = [x for x in nub(os.environ.get('MODULEPATH', '').split(':')) if len(x) > 0]
+        self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
+
+    def use(self, path):
+        """Add module path via 'module use'."""
+        # make sure path exists before we add it
+        mkdir(path, parents=True)
+        self.run_module(['use', path])
+
+    def unuse(self, path):
+        """Remove module path via 'module unuse'."""
+        self.run_module(['unuse', path])
+
+    def add_module_path(self, path):
+        """Add specified module path (using 'module use') if it's not there yet."""
+        if not path in self.mod_paths:
+            # add module path via 'module use' and make sure self.mod_paths is synced
+            self.use(path)
+            self.set_mod_paths()
+
+    def remove_module_path(self, path):
+        """Remove specified module path (using 'module unuse')."""
+        # remove module path via 'module unuse' and make sure self.mod_paths is synced
+        self.unuse(path)
+        self.set_mod_paths()
+
+    def prepend_module_path(self, path):
+        """Prepend given module path to list of module paths, or bump it to 1st place."""
+        # generic approach: remove the path first (if it's there), then add it again (to the front)
+        self.remove_module_path(path)
+        self.add_module_path(path)
+
     def check_module_path(self):
         """
         Check if MODULEPATH is set and change it if necessary.
         """
-        # if self.mod_paths is not specified, use $MODULEPATH and make sure the EasyBuild module path is in there (first)
+        # if self.mod_paths is not specified, define it and make sure the EasyBuild module path is in there (first)
         if self.mod_paths is None:
-            # take module path from environment
-            self.mod_paths = [x for x in nub(os.environ.get('MODULEPATH', '').split(':')) if len(x) > 0]
+            # take (unique) module paths from environment
+            self.set_mod_paths()
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
             # determine module path for EasyBuild install path to be included in $MODULEPATH
             eb_modpath = os.path.join(install_path(typ='modules'), GENERAL_CLASS)
 
             # make sure EasyBuild module path is in 1st place
-            self.mod_paths = [x for x in self.mod_paths if not x == eb_modpath]
-            self.mod_paths.insert(0, eb_modpath)
+            self.prepend_module_path(eb_modpath)
             self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
-        os.environ['MODULEPATH'] = ':'.join(self.mod_paths)
-        self.log.info("$MODULEPATH set based on list of module paths: %s" % os.environ['MODULEPATH'])
-
-    def use_module_paths(self):
-        """Run 'module use' on all paths in $MODULEPATH."""
-        # we need to run '<module command> python use <path>' on all paths in $MODULEPATH
-        # not all modules tools follow whatever is in $MODULEPATH, some take extra action for every module path
-        # usually, additional environment variables are set, e.g. $LMOD_DEFAULT_MODULEPATH or $MODULEPATH_modshare
-        # note: we're stepping through the mod_paths in reverse order to preserve order in $MODULEPATH in the end
-        for modpath in self.mod_paths[::-1]:
-            if not os.path.isabs(modpath):
-                modpath = os.path.join(os.getcwd(), modpath)
-            if os.path.exists(modpath):
-                self.run_module(['use', modpath])
-            else:
-                self.log.warning("Ignoring non-existing module path in $MODULEPATH: %s" % modpath)
+        for mod_path in self.mod_paths[::-1]:
+            self.use(mod_path)
+        self.log.info("$MODULEPATH set based on list of module paths (via 'module use'): %s" % os.environ['MODULEPATH'])
 
     def available(self, mod_name=None):
         """
@@ -457,9 +483,7 @@ class ModulesTool(object):
             os.environ['MODULEPATH'] = kwargs[module_path_key]
             self.log.deprecated("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
 
-        # after changing $MODULEPATH, we should adjust self.mod_paths and run use_module_paths(),
-        # but we can't do that here becaue it would yield infinite recursion on run_module
-        self.log.debug('Current MODULEPATH: %s' % os.environ['MODULEPATH'])
+        self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
         # change our LD_LIBRARY_PATH here
         environ = os.environ.copy()
@@ -476,9 +500,9 @@ class ModulesTool(object):
                 self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
             cmdlist = self.COMMAND_SHELL + cmdlist
 
-        self.log.debug("Running module command '%s' from %s" % (' '.join(cmdlist + args), os.getcwd()))
+        full_cmd = ' '.join(cmdlist + args)
+        self.log.debug("Running module command '%s' from %s" % (full_cmd, os.getcwd()))
 
-        import time
         start = time.time()
         proc = subprocess.Popen(cmdlist + args, stdout=PIPE, stderr=PIPE, env=environ)
         # stdout will contain python code (to change environment etc)
@@ -486,11 +510,10 @@ class ModulesTool(object):
         (stdout, stderr) = proc.communicate()
         end = time.time()
         MODULE_SUBCMD_TIMINGS[subcmd].append(end-start)
+        self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
         if original_module_path is not None:
             os.environ['MODULEPATH'] = original_module_path
             self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
-            # after changing $MODULEPATH, we should adjust self.mod_paths and run use_module_paths(),
-            # but we can't do that here becaue it would yield infinite recursion on run_module
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -634,7 +657,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         tweak_stdout_fn = None
         # for 'active' module (sub)commands that yield changes in environment, we need to tweak stdout before exec'ing
-        if args[0] in ['load', 'purge', 'unload', 'use']:
+        if args[0] in ['load', 'purge', 'unload', 'use', 'unuse']:
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
@@ -654,6 +677,15 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         return clean_mods
 
+    def remove_module_path(self, path):
+        """Remove specified module path (using 'module unuse')."""
+        # remove module path via 'module use' and make sure self.mod_paths is synced
+        # modulecmd.tcl keeps track of how often a path was added via 'module use',
+        # so we need to check to make sure it's really removed
+        while path in self.mod_paths:
+            self.unuse(path)
+            self.set_mod_paths()
+
 
 class Lmod(ModulesTool):
     """Interface to Lmod."""
@@ -666,20 +698,14 @@ class Lmod(ModulesTool):
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
-        # $LMOD_EXPERT needs to be set to avoid EasyBuild tripping over fiddly bits in output
+        # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
+        os.environ['LMOD_QUIET'] = '1'
+        # depending on the Lmod version, $LMOD_EXPERT should be set too (should no longer be needed with Lmod 5.6)
         os.environ['LMOD_EXPERT'] = '1'
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
         super(Lmod, self).__init__(*args, **kwargs)
-
-    def set_and_check_version(self):
-        """Get the module version, and check any requirements"""
-
-        # 'lmod python update' needs to be run after changing $MODULEPATH
-        self.run_module('update')
-
-        super(Lmod, self).set_and_check_version()
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
@@ -709,6 +735,7 @@ class Lmod(ModulesTool):
         spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
         cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
         self.log.debug("Running command '%s'..." % ' '.join(cmd))
+
         proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
         (stdout, stderr) = proc.communicate()
 
@@ -736,6 +763,11 @@ class Lmod(ModulesTool):
         # line that specified conflict contains software name
         name_re = re.compile('^conflict\("*(?P<name>[^ "]+)"\).*$', re.M)
         return self.get_value_from_modulefile(mod_name, name_re)
+
+    def prepend_module_path(self, path):
+        # Lmod pushes a path to the front on 'module use'
+        self.use(path)
+        self.set_mod_paths()
 
 
 def get_software_root_env_var_name(name):
