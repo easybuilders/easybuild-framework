@@ -284,7 +284,7 @@ class EasyBuildOptions(GeneralOption):
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
-            'environment-filter-regex': ("Regex to use to filter the environment dump in the test report", None, 'regex', None),
+            'env-filter-regex': ("Regex used to filter out variables in the environment dump of the test report", None, 'regex', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
