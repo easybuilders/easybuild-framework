@@ -592,6 +592,7 @@ class ModulesTool(object):
 class EnvironmentModulesC(ModulesTool):
     """Interface to (C) environment modules (modulecmd)."""
     COMMAND = "modulecmd"
+    REQ_VERSION = '3.2.10'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
     def module_software_name(self, mod_name):
