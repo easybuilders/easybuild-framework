@@ -732,6 +732,7 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
+
         spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
         cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
         self.log.debug("Running command '%s'..." % ' '.join(cmd))

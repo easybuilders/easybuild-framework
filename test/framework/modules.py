@@ -230,8 +230,11 @@ def suite():
 
 if __name__ == '__main__':
     main(exit=False)
+    gt = 0
     for subcmd in sorted(MODULE_SUBCMD_TIMINGS.keys()):
         total = sum(MODULE_SUBCMD_TIMINGS[subcmd])
+	gt    += total 
         cnt = len(MODULE_SUBCMD_TIMINGS[subcmd])
         if cnt > 0:
-            print "avg time (in secs) for %s: %s (cnt: %s)" % (subcmd, total/cnt, cnt)
+            print "avg time (in secs) for %9s: %8.4f (cnt: %3d, total: %7.3f)" % (subcmd, total/cnt, cnt, total)
+    print "total module time: ", gt
