@@ -243,10 +243,10 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
 
     environ_dump = init_session_state['environment']
     environment = []
-    env_filter_regex = build_option('env-filter-regex')
+    env_filter = build_option('test_report_env_filter')
 
     for key in sorted(environ_dump.keys()):
-        if env_filter_regex and env_filter_regex.search(key):
+        if env_filter is not None and env_filter.search(key):
             continue
         else:
             environment += ["%s = %s" % (key, environ_dump[key])]
