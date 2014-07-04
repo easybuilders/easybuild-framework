@@ -65,8 +65,8 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_short_module_name, det_module_subdir
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
+from easybuild.framework.easyconfig.easyconfig import (det_full_module_name, det_module_subdir, det_short_module_name,
+    process_easyconfig, robot_find_easyconfig)
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file

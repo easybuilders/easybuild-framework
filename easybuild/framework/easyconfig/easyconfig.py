@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_generator import (det_full_module_name_mns, det_init_modulepaths_mns,
-    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns)
+    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns, mns_only_requires)
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
@@ -947,79 +947,61 @@ def robot_find_easyconfig(name, version):
     return None
 
 
-def robust_module_naming_scheme_query(query_function):
+def query_mns(query_method, ec, **kwargs):
     """
-    Decorator to first try to pass 'parsed' easyconfig as supplied, and in case of an error fall back to
-    try and find a matching easyconfig file, parse it and supply that instead.
-    This is required because for toolchains and dependencies a fully parsed easyconfig isn't readily available.
+    Query module naming scheme using specified method and (named) arguments.
+
+    Pass a full parsed easyconfig file if provided keys are insufficient.
     """
-    def safe(ec, **kwargs):
-        try:
-            mod_name = query_function(ec, **kwargs)
+    if 'eb_ns' in kwargs:
+        eb_ns = kwargs['eb_ns']
+    else:
+        eb_ns = False
+    if isinstance(ec, EasyConfig) or mns_only_requires(ec.keys(), eb_ns=eb_ns):
+        return query_method(ec, **kwargs)
+    else:
+        eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
+        if eb_file is not None:
+            parsed_ec = process_easyconfig(eb_file, parse_only=True)
+            if len(parsed_ec) > 1:
+                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+                _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
+            full_ec = parsed_ec[0]['ec']
+            return query_method(full_ec, **kwargs)
+        else:
+            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
 
-        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
-        # when an error occurs, try and find an easyconfig file to parse, and retry with the parsed easyconfig file
-        # (which contains all easyconfig parameters and provides toolchain details)
-        # - a KeyError will occur when the module naming scheme requires any other easyconfig parameter
-        # - an AttributeError will occur when one of the det_toolchain_* function is used
-        except (AttributeError, KeyError), err:
-            if isinstance(ec, EasyConfig):
-                ec = ec.asdict()
-            tup = (ec, type(err), err)
-            _log.debug("Error when determining module name for %s (%s: %s), trying fallback procedure..." % tup)
-            eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
-            if eb_file is None:
-                _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
-            else:
-                parsed_ec = process_easyconfig(eb_file, parse_only=True)
-                if len(parsed_ec) > 1:
-                    _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
-                    _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-                try:
-                    mod_name = query_function(parsed_ec[0]['ec'], **kwargs)
-                except Exception, err:
-                    tup = (err, type(err), parsed_ec[0]['ec'].asdict())
-                    _log.error("Error %s (%s) occured when determining module name for %s" % tup)
 
-        return mod_name
-
-    return safe
-
-@robust_module_naming_scheme_query
 def det_full_module_name(ec, eb_ns=False):
     """
     Determine full module name following the currently active module naming scheme.
     """
-    return det_full_module_name_mns(ec, eb_ns=eb_ns)
+    return query_mns(det_full_module_name_mns, ec, eb_ns=eb_ns)
 
 
-@robust_module_naming_scheme_query
 def det_short_module_name(ec):
     """
     Determine short module name following the currently active module naming scheme (not including subdir).
     """
-    return det_short_module_name_mns(ec)
+    return query_mns(det_short_module_name_mns, ec)
 
 
-@robust_module_naming_scheme_query
 def det_module_subdir(ec):
     """
     Determine module file subdirectory following the currently active module naming scheme.
     """
-    return det_module_subdir_mns(ec)
+    return query_mns(det_module_subdir_mns, ec)
 
 
-@robust_module_naming_scheme_query
 def det_modpath_extensions(ec):
     """
     Determine list of extensions to module path.
     """
-    return det_modpath_extensions_mns(ec)
+    return query_mns(det_modpath_extensions_mns, ec)
 
 
-@robust_module_naming_scheme_query
 def det_init_modulepaths(ec):
     """
     Determine initial module paths.
     """
-    return det_init_modulepaths_mns(ec)
+    return query_mns(det_init_modulepaths_mns, ec)

@@ -37,6 +37,8 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 class EasyBuildMNS(ModuleNamingScheme):
     """Class implementing the default EasyBuild module naming scheme."""
 
+    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
+
     def det_full_module_name(self, ec):
         """
         Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.

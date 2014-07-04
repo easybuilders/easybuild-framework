@@ -48,6 +48,8 @@ _log = fancylogger.getLogger('TestModuleNamingSchemeMore', fname=False)
 class TestModuleNamingSchemeMore(ModuleNamingScheme):
     """Class implementing a test module naming scheme that uses some 'unusual' easyconfig parameters."""
 
+    REQUIRED_KEYS = ['name', 'version', 'toolchain', 'moduleclass', 'sources', 'description']
+
     def det_full_module_name(self, ec):
         """
         Determine full module name from given easyconfig, according to a testing module naming scheme,
@@ -58,7 +60,7 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
         @return: string with full module name, e.g.: GCC/068d21a1331fc0295c3cb7e048430fa33a89fe69
         """
         res = ''
-        for key in ['name', 'version', 'toolchain', 'moduleclass', 'sources', 'description']:
+        for key in self.REQUIRED_KEYS:
             if isinstance(ec[key], dict):
                 res += '%s=>' % key
                 for item_key in sorted(ec[key].keys()):

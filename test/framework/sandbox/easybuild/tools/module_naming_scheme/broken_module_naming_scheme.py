@@ -33,8 +33,13 @@ import os
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 
 
+UNKNOWN_KEY = 'nosucheasyconfigparameteravailable'
+
+
 class BrokenModuleNamingScheme(ModuleNamingScheme):
     """Class implementing a simple (but broken) module naming scheme for testing purposes."""
 
+    REQUIRED_KEYS = [UNKNOWN_KEY]
+
     def det_full_module_name(self, ec):
-        return ec['nosucheasyconfigparameteravailable']
+        return ec[UNKNOWN_KEY]

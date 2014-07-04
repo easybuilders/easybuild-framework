@@ -33,7 +33,6 @@ import os
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.tools import det_toolchain_compilers, det_toolchain_mpi
-from easybuild.tools.config import build_option
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 
 
@@ -47,6 +46,8 @@ _log = fancylogger.getLogger('HierarchicalMNS')
 
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
+
+    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
 
     def det_full_module_name(self, ec):
         """

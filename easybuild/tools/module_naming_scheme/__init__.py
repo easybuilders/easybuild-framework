@@ -39,9 +39,18 @@ __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
 
+    REQUIRED_KEYS = None
+
     def __init__(self, *args, **kwargs):
         """Initialize logger."""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+    def is_sufficient(self, keys):
+        """Determine whether specified list of easyconfig parameters is sufficient for this module naming scheme."""
+        if self.REQUIRED_KEYS is not None:
+            return set(keys).issuperset(set(self.REQUIRED_KEYS))
+        else:
+            self.log.error("Constant REQUIRED_KEYS is not defined, should specify required easyconfig parameters.")
 
     def det_full_module_name(self, ec):
         """
