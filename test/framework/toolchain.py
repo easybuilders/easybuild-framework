@@ -294,13 +294,12 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        tc_class, _ = search_toolchain("goalf")
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({'optarch': enable})
                 tc.prepare()
                 flag = None
