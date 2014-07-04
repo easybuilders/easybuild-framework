@@ -115,7 +115,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None):
+                       raise_error=False, test_report=None, versionsuffix=''):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -123,6 +123,7 @@ class ToyBuildTest(EnhancedTestCase):
         if ec_file is None:
             ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
             test_readme = True
+        full_ver = '0.0%s' % versionsuffix
         args = [
             ec_file,
             '--sourcepath=%s' % self.test_sourcepath,
@@ -146,11 +147,11 @@ class ToyBuildTest(EnhancedTestCase):
             myerr = err
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt)
+            self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix)
 
         if test_readme:
             # make sure postinstallcmds were used
-            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', full_ver)
             self.assertEqual(open(os.path.join(toy_install_path, 'README'), 'r').read(), "TOY\n")
 
         # make sure full test report was dumped, and contains sensible information
@@ -600,6 +601,12 @@ class ToyBuildTest(EnhancedTestCase):
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
 
+    def test_toy_advanced(self):
+        """Test toy build with extensions and non-dummy toolchain."""
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
 
 def suite():
     """ return all the tests in this file """

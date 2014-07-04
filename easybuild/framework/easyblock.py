@@ -1384,7 +1384,8 @@ class EasyBlock(object):
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s" % (cls, ext['name']))
                     inst = cls(self, ext)
-                    self.log.debug("Installing extension %s with default class %s" % (ext['name'], default_class))
+                    tup = (ext['name'], default_class, default_class_modpath)
+                    self.log.debug("Installing extension %s with default class %s (from %s)" % tup)
                 except (ImportError, NameError), err:
                     msg = "Also failed to use default class %s from %s for extension %s: %s, giving up" % \
                         (default_class, default_class_modpath, ext['name'], err)
