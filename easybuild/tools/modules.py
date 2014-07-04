@@ -615,6 +615,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     # older versions of modulecmd.tcl don't have a decent hashbang, so we run it under a tclsh shell
     COMMAND_SHELL = ['tclsh']
     VERSION_OPTION = ''
+    REQ_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
     def set_ld_library_path(self, ld_library_paths):
