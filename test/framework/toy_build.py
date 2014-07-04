@@ -212,7 +212,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verify': False,
             'verbose': False,
         }
-        err_regex = r"crashed with an error.*Traceback[\S\s]*global name 'run_cmd'.*not defined"
+        err_regex = r"crashed with an error.*Traceback[\S\s]*toy_buggy.py.*build_step[\S\s]*global name 'run_cmd'"
         self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
 
     def test_toy_build_formatv2(self):
