@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import urllib
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
 
@@ -211,7 +212,7 @@ class EasyConfig(object):
         # perform validations
         self.validation = build_option('validate') and validate
         if self.validation:
-            self.validate(check_osdeps=build_option('check_osdeps'))
+            self.validate()
 
     def copy(self):
         """
@@ -297,7 +298,7 @@ class EasyConfig(object):
             env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
             env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
 
-    def validate(self, check_osdeps=True):
+    def validate(self):
         """
         Validate this EasyConfig
         - check certain variables
@@ -307,11 +308,13 @@ class EasyConfig(object):
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
-        if check_osdeps:
+        if build_option('check_osdeps'):
             self.log.info("Checking OS dependencies")
             self.validate_os_deps()
         else:
             self.log.info("Not checking OS dependencies")
+
+        self.verify_homepage()
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
@@ -391,6 +394,31 @@ class EasyConfig(object):
             self.log.error("Build option lists for iterated build should have same length: %s" % opt_counts)
 
         return True
+
+    def verify_homepage(self):
+        """
+        Download homepage, verify if the name of the software is mentioned
+        """
+        homepage = self['homepage']
+
+        try:
+            page = urllib.urlopen(homepage)
+        except IOError:
+            self.log.error("Homepage (%s) is unavailable." % homepage)
+            return False
+
+        regex = re.compile(self.name, re.I)
+
+        # if url contains software name and is available we are satisfied
+        if regex.search(homepage):
+            return True
+
+        # Perform a lowercase compare against the entire contents of the html page
+        # (does not care about html)
+        for line in page:
+            if regex.search(line):
+                return True
+        return False
 
     def dependencies(self):
         """
