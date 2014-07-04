@@ -853,8 +853,12 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
-    if path in _easyconfigs_cache:
-        return copy.deepcopy(_easyconfigs_cache[path])
+    # only cache when no build specifications are involved (since those can't be part of a dict key)
+    cache_key = None
+    if build_specs is None:
+        cache_key = (path, validate, parse_only)
+        if cache_key in _easyconfigs_cache:
+            return copy.deepcopy(_easyconfigs_cache[cache_key])
 
     easyconfigs = []
     for spec in blocks:
@@ -906,8 +910,10 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # this is used by the parallel builder
             easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
 
-    _easyconfigs_cache[path] = easyconfigs
-    return copy.deepcopy(_easyconfigs_cache[path])
+    if cache_key is not None:
+        _easyconfigs_cache[cache_key] = copy.deepcopy(easyconfigs)
+
+    return easyconfigs
 
 
 def create_paths(path, name, version):
