@@ -953,7 +953,7 @@ class EasyBlock(object):
                 modtool.remove_module_path(fake_mod_path)
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
-                self.log.error("Failed to clean up fake module dir: %s" % err)
+                self.log.error("Failed to clean up fake module dir %s: %s" % (fake_mod_path, err))
         elif self.mod_name is None:
             self.log.warning("Not unloading module, since self.mod_name is not set.")
 
