@@ -274,13 +274,13 @@ def is_valid_module_name(mod_name):
     return True
 
 
-def mns_only_requires(keys, eb_ns=False):
+def mns_requires_full_easyconfig(keys, eb_ns=False):
     """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
-    # FIXME also indicate whether det_toolchain_* functions are required?
     if eb_ns:
-        return EasyBuildMNS().is_sufficient(keys)
+        mns = EasyBuildMNS()
     else:
-        return get_custom_module_naming_scheme().is_sufficient(keys)
+        mns = get_custom_module_naming_scheme()
+    return mns.requires_toolchain_details() or not mns.is_sufficient(keys)
 
 
 def det_full_module_name_mns(ec, eb_ns=False):

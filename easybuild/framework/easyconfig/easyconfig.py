@@ -47,7 +47,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_generator import (det_full_module_name_mns, det_init_modulepaths_mns,
-    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns, mns_only_requires)
+    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns, mns_requires_full_easyconfig)
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
@@ -962,19 +962,20 @@ def query_mns(query_method, ec, **kwargs):
         eb_ns = kwargs['eb_ns']
     else:
         eb_ns = False
-    if isinstance(ec, EasyConfig) or mns_only_requires(ec.keys(), eb_ns=eb_ns):
-        return query_method(ec, **kwargs)
-    else:
+
+    if not isinstance(ec, EasyConfig) and mns_requires_full_easyconfig(ec.keys(), eb_ns=eb_ns):
+        # fetch/parse easyconfig file if deemed necessary
         eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
         if eb_file is not None:
             parsed_ec = process_easyconfig(eb_file, parse_only=True)
             if len(parsed_ec) > 1:
                 _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                 _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-            full_ec = parsed_ec[0]['ec']
-            return query_method(full_ec, **kwargs)
+            ec = parsed_ec[0]['ec']
         else:
             _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+
+    return query_method(ec, **kwargs)
 
 
 def det_full_module_name(ec, eb_ns=False):

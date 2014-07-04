@@ -52,6 +52,13 @@ class ModuleNamingScheme(object):
         else:
             self.log.error("Constant REQUIRED_KEYS is not defined, should specify required easyconfig parameters.")
 
+    def requires_toolchain_details(self):
+        """
+        Determine whether toolchain details are required by this module naming scheme,
+        e.g. whether one of det_toolchain_* functions are relied upon.
+        """
+        return False
+
     def det_full_module_name(self, ec):
         """
         Determine full module name, relative to the top of the module path.

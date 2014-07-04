@@ -49,6 +49,13 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
 
+    def requires_toolchain_details(self):
+        """
+        Determine whether toolchain details are required by this module naming scheme,
+        e.g. whether one of det_toolchain_* functions are relied upon.
+        """
+        return True
+
     def det_full_module_name(self, ec):
         """
         Determine full module name, relative to the top of the module path.
