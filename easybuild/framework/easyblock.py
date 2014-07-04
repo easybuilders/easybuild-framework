@@ -44,22 +44,20 @@ import shutil
 import stat
 import time
 import traceback
-import urllib
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ITERATE_OPTIONS, det_full_module_name,
     det_modpath_extensions, det_init_modulepaths, fetch_parameter_from_easyconfig_file, get_class_for,
     get_easyblock_class, get_module_path, resolve_template)
-from easybuild.framework.easyconfig.tools import get_paths_for, resolve_dependencies
+from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, module_classes, read_only_installdir, source_paths, build_option
+from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -74,7 +72,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.systemtools import get_avail_core_count, det_parallelism, use_group
+from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
