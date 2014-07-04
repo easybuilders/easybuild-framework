@@ -423,7 +423,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         name_items = {
             'modules-tools': ['EnvironmentModulesC', 'Lmod'],
-            'module-naming-schemes': ['EasyBuildModuleNamingScheme'],
+            'module-naming-schemes': ['EasyBuildMNS'],
         }
         for (name, items) in name_items.items():
             args = [
@@ -607,7 +607,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'),
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
-            '--module-naming-scheme=ExampleHierarchicalModuleNamingScheme',
+            '--module-naming-scheme=HierarchicalMNS',
             '--ignore-osdeps',
         ]
         errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"

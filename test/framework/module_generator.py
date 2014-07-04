@@ -330,7 +330,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'valid_stops': all_stops,
             'validate': False,
         }
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'ExampleHierarchicalModuleNamingScheme'
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
         init_config(build_options=build_options)
 
         ec = EasyConfig(os.path.join(ecs_dir, 'GCC-4.7.2.eb'))

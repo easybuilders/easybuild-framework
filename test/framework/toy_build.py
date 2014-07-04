@@ -521,7 +521,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
             '--force',
             '--robot=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
-            '--module-naming-scheme=ExampleHierarchicalModuleNamingScheme',
+            '--module-naming-scheme=HierarchicalMNS',
         ]
 
         # test module paths/contents with gompi build

@@ -43,7 +43,7 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools import config, module_naming_scheme
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
+from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import import_available_modules, quote_str
 
@@ -286,7 +286,7 @@ def det_full_module_name_mns(ec, eb_ns=False):
     _log.debug("Determining full module name for %s (eb_ns: %s)" % (ec, eb_ns))
     if eb_ns:
         # return module name under EasyBuild module naming scheme
-        mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
+        mod_name = EasyBuildMNS().det_full_module_name(ec)
     else:
         mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
 

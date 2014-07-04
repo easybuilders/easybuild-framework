@@ -42,10 +42,10 @@ COMPILER = 'Compiler'
 MPI = 'MPI'
 
 
-_log = fancylogger.getLogger('ExampleHierarchicalModuleNamingScheme')
+_log = fancylogger.getLogger('HierarchicalMNS')
 
 
-class ExampleHierarchicalModuleNamingScheme(ModuleNamingScheme):
+class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
     def det_full_module_name(self, ec):
