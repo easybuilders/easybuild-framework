@@ -80,6 +80,7 @@ DEPRECATED_OPTIONS = {
     'premakeopts': ('prebuildopts', '2.0'),
 }
 
+_easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
 
@@ -852,6 +853,9 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
+    if path in _easyconfigs_cache:
+        return copy.deepcopy(_easyconfigs_cache[path])
+
     easyconfigs = []
     for spec in blocks:
         # process for dependencies and real installversionname
@@ -902,7 +906,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # this is used by the parallel builder
             easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
 
-    return easyconfigs
+    _easyconfigs_cache[path] = easyconfigs
+    return copy.deepcopy(_easyconfigs_cache[path])
 
 
 def create_paths(path, name, version):
@@ -926,9 +931,9 @@ def robot_find_easyconfig(name, version):
     Find an easyconfig for module in path
     """
     key = (name, version)
-    if key in _easyconfigs_cache:
-        _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfigs_cache[key]))
-        return _easyconfigs_cache[key]
+    if key in _easyconfig_files_cache:
+        _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
+        return _easyconfig_files_cache[key]
     paths = build_option('robot_path')
     if not isinstance(paths, (list, tuple)):
         if paths is None:
@@ -941,8 +946,8 @@ def robot_find_easyconfig(name, version):
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                _easyconfigs_cache[key] = os.path.abspath(easyconfig_path)
-                return _easyconfigs_cache[key]
+                _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
+                return _easyconfig_files_cache[key]
 
     return None
 
