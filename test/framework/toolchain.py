@@ -32,7 +32,7 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
@@ -291,6 +291,30 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+
+    def test_override_optarch(self):
+        """Test whether overriding the optarch flag works."""
+        tc_class, _ = search_toolchain("goalf")
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        for optarch_var in ['march=lovelylovelysandybridge', None]:
+            build_options = {'optarch': optarch_var}
+            init_config(build_options=build_options)
+            for enable in [True, False]:
+                tc = tc_class(version="1.1.0-no-OFED")
+                tc.set_options({'optarch': enable})
+                tc.prepare()
+                flag = None
+                if optarch_var is not None:
+                    flag = '-%s' % optarch_var
+                else:
+                    flag = '-march=native'
+
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
+                    else:
+                        self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
