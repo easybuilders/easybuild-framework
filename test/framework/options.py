@@ -614,7 +614,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         args.append('--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'))
-        outtxt = self.eb_main(args, logfile=dummylogfn)
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
 
         ecs_mods = [
             # easyconfig, module subdir, (short) module name
@@ -1000,7 +1000,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--ignore-osdeps',
             '--dry-run',
         ]
-        outtxt = self.eb_main(args, do_build=True, verbose=True)
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
 
         # toolchain gompi/1.4.10 should be listed
         tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
