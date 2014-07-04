@@ -202,6 +202,19 @@ class ToyBuildTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(tmpdir)
 
+    def test_toy_buggy_easyblock(self):
+        """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
+        ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        kwargs = {
+            'ec_file': ec_file,
+            'extra_args': ['--easyblock=EB_toy_buggy'],
+            'raise_error': True,
+            'verify': False,
+            'verbose': False,
+        }
+        err_regex = r"crashed with an error.*Traceback[\S\s]*global name 'run_cmd'.*not defined"
+        self.assertErrorRegex(EasyBuildError, err_regex, self.test_toy_build, **kwargs)
+
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found
