@@ -379,7 +379,7 @@ class EasyBlock(object):
                         exts_sources.append(ext_src)
                     else:
                         ext_source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
-                        src_fn = obtain_file(fn, ext_name, self.cfg.path, self.cfg['source_urls'], extension=True, urls=ext_source_urls)
+                        src_fn = obtain_file(fn, self.name, self.cfg.path, self.cfg['source_urls'], extension=True, urls=ext_source_urls)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
