@@ -170,6 +170,8 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -284,6 +286,8 @@ class EasyBuildOptions(GeneralOption):
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
+                                       None, 'regex', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
