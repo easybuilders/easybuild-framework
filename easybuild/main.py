@@ -354,7 +354,8 @@ def main(testing_data=(None, None, None)):
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
     # tweak obtained easyconfig files, if requested
-    # don't try and tweak anything if easyconfigs were generated, since building a full dep graph is likely to fail
+    # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
+    # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs)
 
