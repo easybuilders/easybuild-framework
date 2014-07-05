@@ -173,27 +173,6 @@ class FileToolsTest(EnhancedTestCase):
         # cleanup
         os.remove(fp)
 
-    def test_common_path_prefix(self):
-        """Test get common path prefix for a list of paths."""
-        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/foo', '/foo/bar/baz', '/foo/bar/bar']), '/foo/bar')
-        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/', '/foo/bar/baz', '/foo/bar']), '/foo/bar')
-        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/foo']), '/foo')
-        self.assertEqual(ft.det_common_path_prefix(['/foo/bar/']), '/foo/bar')
-        self.assertEqual(ft.det_common_path_prefix(['/foo/bar', '/bar', '/foo']), None)
-        self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
-        self.assertEqual(ft.det_common_path_prefix(['foo']), None)
-        self.assertEqual(ft.det_common_path_prefix([]), None)
-
-    def test_download_file(self):
-        """Test download_file function."""
-        fn = 'toy-0.0.tar.gz'
-        target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
-        # provide local file path as source URL
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
-        res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location)
-
     def test_mkdir(self):
         """Test mkdir function."""
         tmpdir = tempfile.mkdtemp()

@@ -33,16 +33,13 @@ Set of file tools.
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-import errno
 import os
 import re
 import shutil
 import stat
 import time
-import urllib
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -216,138 +213,6 @@ def which(cmd):
             return cmd_path
     _log.warning("Could not find command '%s' (with permissions to read/execute it) in $PATH (%s)" % (cmd, paths))
     return None
-
-
-def det_common_path_prefix(paths):
-    """Determine common path prefix for a given list of paths."""
-    if not isinstance(paths, list):
-        _log.error("det_common_path_prefix: argument must be of type list (got %s: %s)" % (type(paths), paths))
-    elif not paths:
-        return None
-
-    # initial guess for common prefix
-    prefix = paths[0]
-    found_common = False
-    while not found_common and prefix != os.path.dirname(prefix):
-        prefix = os.path.dirname(prefix)
-        found_common = all([p.startswith(prefix) for p in paths])
-
-    if found_common:
-        # prefix may be empty string for relative paths with a non-common prefix
-        return prefix.rstrip(os.path.sep) or None
-    else:
-        return None
-
-
-def download_file(filename, url, path):
-    """Download a file from the given URL, to the specified path."""
-
-    _log.debug("Downloading %s from %s to %s" % (filename, url, path))
-
-    # make sure directory exists
-    basedir = os.path.dirname(path)
-    mkdir(basedir, parents=True)
-
-    downloaded = False
-    attempt_cnt = 0
-
-    # try downloading three times max.
-    while not downloaded and attempt_cnt < 3:
-
-        (_, httpmsg) = urllib.urlretrieve(url, path)
-
-        if httpmsg.type == "text/html" and not filename.endswith('.html'):
-            _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
-            _log.debug("removing downloaded file %s from %s" % (filename, path))
-            try:
-                os.remove(path)
-            except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
-        else:
-            _log.info("Downloading file %s from url %s: done" % (filename, url))
-            downloaded = True
-            return path
-
-        attempt_cnt += 1
-        _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
-
-    # failed to download after multiple attempts
-    return None
-
-
-def find_easyconfigs(path, ignore_dirs=None):
-    """
-    Find .eb easyconfig files in path
-    """
-    if os.path.isfile(path):
-        return [path]
-
-    if ignore_dirs is None:
-        ignore_dirs = []
-
-    # walk through the start directory, retain all files that end in .eb
-    files = []
-    path = os.path.abspath(path)
-    for dirpath, dirnames, filenames in os.walk(path, topdown=True):
-        for f in filenames:
-            if not f.endswith('.eb') or f == 'TEMPLATE.eb':
-                continue
-
-            spec = os.path.join(dirpath, f)
-            _log.debug("Found easyconfig %s" % spec)
-            files.append(spec)
-
-        # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
-
-    return files
-
-
-def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
-    """
-    Search for a particular file (only prints)
-    """
-    if ignore_dirs is None:
-        ignore_dirs = ['.git', '.svn']
-    if not isinstance(ignore_dirs, list):
-        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
-
-    var_lines = []
-    hit_lines = []
-    var_index = 1
-    var = None
-    for path in paths:
-        hits = []
-        hit_in_path = False
-        print_msg("Searching (case-insensitive) for '%s' in %s " % (query, path), log=_log, silent=silent)
-
-        query = query.lower()
-        for (dirpath, dirnames, filenames) in os.walk(path, topdown=True):
-            for filename in filenames:
-                filename = os.path.join(dirpath, filename)
-                if filename.lower().find(query) != -1:
-                    if not hit_in_path:
-                        var = "CFGS%d" % var_index
-                        var_index += 1
-                        hit_in_path = True
-                    hits.append(filename)
-
-            # do not consider (certain) hidden directories
-            # note: we still need to consider e.g., .local !
-            # replace list elements using [:], so os.walk doesn't process deleted directories
-            # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
-
-        if hits:
-            common_prefix = det_common_path_prefix(hits)
-            if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
-                var_lines.append("%s=%s" % (var, common_prefix))
-                hit_lines.extend([" * %s" % os.path.join('$%s' % var, fn[len(common_prefix) + 1:]) for fn in hits])
-            else:
-                hit_lines.extend([" * %s" % fn for fn in hits])
-
-    for line in var_lines + hit_lines:
-        print_msg(line, log=_log, silent=silent, prefix=False)
 
 
 def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):

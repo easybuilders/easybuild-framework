@@ -52,15 +52,15 @@ from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ITERATE_OPTIONS, det_full_module_name,
     det_modpath_extensions, det_init_modulepaths, fetch_parameter_from_easyconfig_file, get_class_for,
     get_easyblock_class, get_module_path, resolve_template)
-from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
 from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option
 from easybuild.tools.environment import modify_env
+from easybuild.tools.fetch import download_file, obtain_file
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
+from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
@@ -165,9 +165,6 @@ class EasyBlock(object):
         # list of loaded modules
         self.loaded_modules = []
 
-        # robot path
-        self.robot_path = build_option('robot_path')
-
         # original module path
         self.orig_modulepath = os.getenv('MODULEPATH')
 
@@ -260,7 +257,7 @@ class EasyBlock(object):
                 source = src_entry
 
             # check if the sources can be located
-            path = self.obtain_file(source)
+            path = obtain_file(source, self.name, self.cfg.path, self.cfg['source_urls'])
             if path:
                 self.log.debug('File %s found for source %s' % (path, source))
                 self.src.append({
@@ -306,7 +303,7 @@ class EasyBlock(object):
             else:
                 pf = patch_entry
 
-            path = self.obtain_file(pf, extension=extension)
+            path = obtain_file(pf, self.name, self.cfg.path, self.cfg['source_urls'], extension=extension)
             if path:
                 self.log.debug('File %s found for patch %s' % (path, patch_entry))
                 patchspec = {
@@ -381,8 +378,8 @@ class EasyBlock(object):
                     if ext_options.get('nosource', None):
                         exts_sources.append(ext_src)
                     else:
-                        source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
-                        src_fn = self.obtain_file(fn, extension=True, urls=source_urls)
+                        ext_source_urls = [resolve_template(url, ext_src) for url in ext_options.get('source_urls', [])]
+                        src_fn = obtain_file(fn, ext_name, self.cfg.path, self.cfg['source_urls'], extension=True, urls=ext_source_urls)
 
                         if src_fn:
                             ext_src.update({'src': src_fn})
@@ -422,149 +419,6 @@ class EasyBlock(object):
                 self.log.error("Extension specified in unknown format (not a string/list/tuple)")
 
         return exts_sources
-
-    def obtain_file(self, filename, extension=False, urls=None):
-        """
-        Locate the file with the given name
-        - searches in different subdirectories of source path
-        - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
-        """
-        srcpaths = source_paths()
-
-        # should we download or just try and find it?
-        if filename.startswith("http://") or filename.startswith("ftp://"):
-
-            # URL detected, so let's try and download it
-
-            url = filename
-            filename = url.split('/')[-1]
-
-            # figure out where to download the file to
-            filepath = os.path.join(srcpaths[0], self.name[0].lower(), self.name)
-            if extension:
-                filepath = os.path.join(filepath, "extensions")
-            self.log.info("Creating path %s to download file to" % filepath)
-            mkdir(filepath, parents=True)
-
-            try:
-                fullpath = os.path.join(filepath, filename)
-
-                # only download when it's not there yet
-                if os.path.exists(fullpath):
-                    self.log.info("Found file %s at %s, no need to download it." % (filename, filepath))
-                    return fullpath
-
-                else:
-                    if download_file(filename, url, fullpath):
-                        return fullpath
-
-            except IOError, err:
-                self.log.exception("Downloading file %s from url %s to %s failed: %s" % (filename, url, fullpath, err))
-
-        else:
-            # try and find file in various locations
-            foundfile = None
-            failedpaths = []
-
-            # always look first in the dir of the current eb file
-            ebpath = [os.path.dirname(self.cfg.path)]
-
-            # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
-            common_filepaths = []
-            if self.robot_path is not None:
-                common_filepaths.extend(self.robot_path)
-            common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
-
-            for path in ebpath + common_filepaths + srcpaths:
-                # create list of candidate filepaths
-                namepath = os.path.join(path, self.name)
-                letterpath = os.path.join(path, self.name.lower()[0], self.name)
-
-                # most likely paths
-                candidate_filepaths = [
-                    letterpath,  # easyblocks-style subdir
-                    namepath,  # subdir with software name
-                    path,  # directly in directory
-                ]
-
-                # see if file can be found at that location
-                for cfp in candidate_filepaths:
-
-                    fullpath = os.path.join(cfp, filename)
-
-                    # also check in 'extensions' subdir for extensions
-                    if extension:
-                        fullpaths = [
-                            os.path.join(cfp, "extensions", filename),
-                            os.path.join(cfp, "packages", filename),  # legacy
-                            fullpath
-                        ]
-                    else:
-                        fullpaths = [fullpath]
-
-                    for fp in fullpaths:
-                        if os.path.isfile(fp):
-                            self.log.info("Found file %s at %s" % (filename, fp))
-                            foundfile = os.path.abspath(fp)
-                            break  # no need to try further
-                        else:
-                            failedpaths.append(fp)
-
-                if foundfile:
-                    break  # no need to try other source paths
-
-            if foundfile:
-                return foundfile
-            else:
-                # try and download source files from specified source URLs
-                if urls:
-                    source_urls = urls
-                else:
-                    source_urls = []
-                source_urls.extend(self.cfg['source_urls'])
-
-                targetdir = os.path.join(srcpaths[0], self.name.lower()[0], self.name)
-                mkdir(targetdir, parents=True)
-
-                for url in source_urls:
-
-                    if extension:
-                        targetpath = os.path.join(targetdir, "extensions", filename)
-                    else:
-                        targetpath = os.path.join(targetdir, filename)
-
-                    if isinstance(url, basestring):
-                        if url[-1] in ['=', '/']:
-                            fullurl = "%s%s" % (url, filename)
-                        else:
-                            fullurl = "%s/%s" % (url, filename)
-                    elif isinstance(url, tuple):
-                        # URLs that require a suffix, e.g., SourceForge download links
-                        # e.g. http://sourceforge.net/projects/math-atlas/files/Stable/3.8.4/atlas3.8.4.tar.bz2/download
-                        fullurl = "%s/%s/%s" % (url[0], filename, url[1])
-                    else:
-                        self.log.warning("Source URL %s is of unknown type, so ignoring it." % url)
-                        continue
-
-                    self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
-                    downloaded = False
-                    try:
-                        if download_file(filename, fullurl, targetpath):
-                            downloaded = True
-
-                    except IOError, err:
-                        self.log.debug("Failed to download %s from %s: %s" % (filename, url, err))
-                        failedpaths.append(fullurl)
-                        continue
-
-                    if downloaded:
-                        # if fetching from source URL worked, we're done
-                        self.log.info("Successfully downloaded source file %s from %s" % (filename, fullurl))
-                        return targetpath
-                    else:
-                        failedpaths.append(fullurl)
-
-                self.log.error("Couldn't find file %s anywhere, and downloading it didn't work either...\nPaths attempted (in order): %s " % (filename, ', '.join(failedpaths)))
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS

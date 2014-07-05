@@ -69,7 +69,8 @@ from easybuild.framework.easyconfig.easyconfig import (det_full_module_name, det
     process_easyconfig, robot_find_easyconfig)
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
+from easybuild.tools.fetch import det_common_path_prefix
+from easybuild.tools.filetools import run_cmd, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
@@ -333,46 +334,6 @@ def dep_graph(*args, **kwargs):
         errors = "\n".join(graph_errors)
         msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
         _log.error("%s\nerr: %s" % (msg, err))
-
-
-def get_paths_for(subdir="easyconfigs", robot_path=None):
-    """
-    Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
-    """
-
-    paths = []
-
-    # primary search path is robot path
-    path_list = []
-    if isinstance(robot_path, list):
-        path_list = robot_path[:]
-    elif robot_path is not None:
-        path_list = [robot_path]
-    # consider Python search path, e.g. setuptools install path for easyconfigs
-    path_list.extend(sys.path)
-
-    # figure out installation prefix, e.g. distutils install path for easyconfigs
-    (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
-    if ec:
-        _log.warning("eb not found (%s), failed to determine installation prefix" % out)
-    else:
-        # eb should reside in <install_prefix>/bin/eb
-        install_prefix = os.path.dirname(os.path.dirname(out))
-        path_list.append(install_prefix)
-        _log.debug("Also considering installation prefix %s..." % install_prefix)
-
-    # look for desired subdirs
-    for path in path_list:
-        path = os.path.join(path, "easybuild", subdir)
-        _log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
-        try:
-            if os.path.exists(path):
-                paths.append(os.path.abspath(path))
-                _log.debug("Added %s to list of paths for easybuild/%s" % (path, subdir))
-        except OSError, err:
-            raise EasyBuildError(str(err))
-
-    return paths
 
 
 def stats_to_str(stats):
