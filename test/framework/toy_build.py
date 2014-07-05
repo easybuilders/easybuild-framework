@@ -202,6 +202,41 @@ class ToyBuildTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(tmpdir)
 
+    def test_toy_tweaked(self):
+        """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec_file = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
+        shutil.copy2(os.path.join(test_ecs_dir, 'toy-0.0.eb'), ec_file)
+
+        # tweak easyconfig by appending to it
+        ec_extra = '\n'.join([
+            "versionsuffix = '-tweaked'",
+            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz']}",
+            "modextravars = {'FOO': 'bar'}",
+            "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
+            "modtclfooter = 'puts stderr \"oh hai!\"'",
+        ])
+        open(ec_file, 'a').write(ec_extra)
+
+        args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--force',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.check_toy(self.test_installpath, outtxt, versionsuffix='-tweaked')
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
+        toy_module_txt = open(toy_module, 'r').read()
+
+        self.assertTrue(re.search('setenv\s*FOO\s*"bar"', toy_module_txt))
+        self.assertTrue(re.search('prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
+        self.assertTrue(re.search('prepend-path\s*SOMEPATH\s*\$root/baz', toy_module_txt))
+        self.assertTrue(re.search('module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0', toy_module_txt))
+        self.assertTrue(re.search('puts stderr "oh hai!"', toy_module_txt))
+
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found
