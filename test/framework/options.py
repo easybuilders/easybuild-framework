@@ -27,7 +27,7 @@ Unit tests for eb command line options.
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import re
 import shutil
@@ -1027,6 +1027,56 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
         self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
         self.assertFalse(re.search('module: zlib', outtxt))
+    
+    def test_test_report_env_filter(self):
+        """Test use of --test-report-env-filter."""
+
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        def toy(extra_args=None):
+            """Build & install toy, return contents of test report."""
+            buildpath = tempfile.mkdtemp()
+            installpath = tempfile.mkdtemp()
+            eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--force',
+                '--debug',
+            ]
+            if extra_args is not None:
+                args.extend(extra_args)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+
+            software_path = os.path.join(installpath, 'software', 'toy', '0.0')
+            test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-0.0*test_report.md')
+            return open(glob.glob(test_report_path_pattern)[0], 'r').read()
+
+        # define environment variables that should (not) show up in the test report
+        test_var_secret = 'THIS_IS_JUST_A_SECRET_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_secret] = 'thisshouldremainsecretonrequest'
+        test_var_secret_regex = re.compile(test_var_secret)
+        test_var_public = 'THIS_IS_JUST_A_PUBLIC_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_public] = 'thisshouldalwaysbeincluded'
+        test_var_public_regex = re.compile(test_var_public)
+
+        # default: no filtering
+        test_report_txt = toy()
+        self.assertTrue(test_var_secret_regex.search(test_report_txt))
+        self.assertTrue(test_var_public_regex.search(test_report_txt))
+
+        # filter out env vars that match specified regex pattern
+        filter_arg = "--test-report-env-filter=.*_SECRET_ENV_VAR_FOR_EASYBUILD"
+        test_report_txt = toy(extra_args=[filter_arg])
+        res = test_var_secret_regex.search(test_report_txt)
+        self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
+        self.assertTrue(test_var_public_regex.search(test_report_txt))
+        # make sure that used filter is reported correctly in test report
+        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        tup = (filter_arg_regex.pattern, test_report_txt)
+        self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
 def suite():
     """ returns all the testcases in this module """
