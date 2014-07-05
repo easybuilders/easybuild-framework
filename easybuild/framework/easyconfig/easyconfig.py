@@ -390,25 +390,26 @@ class EasyConfig(object):
 
     def dependencies(self):
         """
-        returns an array of parsed dependencies
+        Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
-        deps_list = self['dependencies'] + self.builddependencies()
+        deps = self['dependencies'] + self.builddependencies()
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
-        if build_option('filter-deps'):
-            self.log.debug("Dependencies BEFORE filtering: %s " % str(deps_list))
-            deps_to_remove = build_option('filter-deps').split(",")
-            for i in xrange(len(deps_list) -1, -1, -1):
-                    if deps_list[i].get('name') in deps_to_remove:
-                        self.log.info("%s-%s dependency automatically removed" % \
-                        (deps_list[i].get('name'), deps_list[i].get('version')))
-                        del deps_list[i]
-            self.log.debug("Dependencies AFTER filtering: %s " % str(deps_list))
+        filter_deps = build_option('filter_deps')
+        if filter_deps:
+            self.log.debug("Dependencies BEFORE filtering: %s" % deps)
+            filtered_deps = []
+            for dep in deps:
+                if dep['name'] not in filter_deps:
+                    filtered_deps.append(dep)
+                else:
+                    self.log.info("filtered out dependency %s" % dep)
+            self.log.debug("Dependencies AFTER filtering: %s" % filtered_deps)
+            deps = filtered_deps
 
-        # return the list of dependencies
-        return deps_list
+        return deps
 
     def builddependencies(self):
         """

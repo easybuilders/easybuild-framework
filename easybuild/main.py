@@ -222,7 +222,7 @@ def main(testing_data=(None, None, None)):
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
-        'filter-deps': options.filter_deps,
+        'filter_deps': options.filter_deps,
         'cleanup_builddir': options.cleanup_builddir,
         'command_line': eb_command_line,
         'debug': options.debug,
