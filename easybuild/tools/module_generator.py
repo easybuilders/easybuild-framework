@@ -32,12 +32,9 @@ Generating module files.
 @author: Jens Timmerman (Ghent University)
 @author: Fotis Georgatos (Uni.Lu)
 """
-import glob
 import os
 import string
-import sys
 import tempfile
-import textwrap
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
@@ -45,7 +42,6 @@ from easybuild.tools import config, module_naming_scheme
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import import_available_modules, quote_str
 
 
@@ -203,24 +199,24 @@ class ModuleGenerator(object):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
     
-    def set_modextraloadmsg(self, value):
+    def msg_on_load(self, msg):
         """
-        Add to your modulefile a message you want to show when loading the module.
-        Now it output tcl code. In case we migrate to lua modulefiles in the
-        future this should be extended to generate tcl or lua depending on what
-        we are using
+        Add a message that should be printed when loading the module.
         """
-        return textwrap.dedent("""
-        if [ module-info mode load ] {
-                puts stderr     "%s"
-        }
-        """ % (value))
+        return '\n'.join([
+            "",
+            "if [ module-info mode load ] {",
+            '        puts stderr     "%s"' % msg,
+            "}",
+            "",
+        ])
     
-    def set_extratclfooter(self, value):
+    def add_tcl_footer(self, tcltxt):
         """
-        Append whatever tcl code you want to your modulefile
+        Append whatever Tcl code you want to your modulefile
         """
-        return value
+        # nothing to do here, but this should fail in the context of generating Lua modules
+        return tcltxt
 
     def set_fake(self, fake):
         """Determine whether this ModuleGenerator instance should generate fake modules."""

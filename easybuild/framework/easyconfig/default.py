@@ -162,8 +162,8 @@ DEFAULT_CONFIG = {
     # MODULES easyconfig parameters
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
-    'modextraloadmsg': [{}, "Extra message you want to show when the module is loaded", MODULES],
-    'modextratclfooter': ["", "Extra tcl code you want to add in your modulefile", MODULES],
+    'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
+    'modtclfooter': ["", "Footer to include in generated module file (Tcl syntax)", MODULES],
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
