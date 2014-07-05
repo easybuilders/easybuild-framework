@@ -1312,6 +1312,9 @@ class GeneralOption(object):
                 self.log.debug("generate_cmd_line adding %s value %s. append action, return as multiple args" %
                                (opt_name, opt_value))
                 args.extend(["--%s=%s" % (opt_name, shell_quote(v)) for v in opt_value])
+            elif action in ("regex",):
+                self.log.debug("generate_cmd_line adding %s regex pattern %s" % (opt_name, opt_value.pattern))
+                args.append("--%s=%s" % (opt_name, shell_quote(opt_value.pattern)))
             else:
                 self.log.debug("generate_cmd_line adding %s value %s" % (opt_name, opt_value))
                 args.append("--%s=%s" % (opt_name, shell_quote(opt_value)))

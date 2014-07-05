@@ -51,20 +51,18 @@ class ModulesTest(EnhancedTestCase):
     def setUp(self):
         """set up everything for a unit test."""
         super(ModulesTest, self).setUp()
-
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-        self.testmods = None
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        modules_tool().purge()
+        self.testmods = modules_tool()
 
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
-
         if test_modules_paths is None:
             test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
-        self.testmods = modules_tool(test_modules_paths)
+        mod_paths = self.testmods.mod_paths[:]
+        for path in test_modules_paths:
+            self.testmods.prepend_module_path(path)
+        for path in mod_paths:
+            if path not in test_modules_paths:
+                self.testmods.remove_module_path(path)
 
     # for Lmod, this test has to run first, to avoid that it fails;
     # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
@@ -225,14 +223,6 @@ class ModulesTest(EnhancedTestCase):
         os.environ.pop('EBROOTFOO')
 
         shutil.rmtree(tmpdir)
-
-    def tearDown(self):
-        """cleanup"""
-        super(ModulesTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        # reinitialize a modules tool, to trigger 'module use' on module paths
-        modules_tool()
 
 def suite():
     """ returns all the testcases in this module """
