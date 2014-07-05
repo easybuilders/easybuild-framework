@@ -1010,7 +1010,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_file,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
-            '--robot',
+            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
             '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
