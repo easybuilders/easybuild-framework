@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
+EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
 @author: Stijn De Weirdt (Ghent University)
@@ -36,9 +36,9 @@ from easybuild.toolchains.mpi.intelmpi import IntelMPI
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Ictce(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
+class Intel(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'ictce'
+    NAME = 'intel'

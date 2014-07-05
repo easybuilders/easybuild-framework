@@ -915,16 +915,19 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
+        modtool = modules_tool()
+        if mod_paths is not None:
+            for mod_path in mod_paths:
+                modtool.prepend_module_path(mod_path)
         # self.mod_name might not be set (e.g. during unit tests)
         if self.mod_name is not None:
-            m = modules_tool(mod_paths=mod_paths)
             # purge all loaded modules if desired
             if purge:
-                m.purge()
+                modtool.purge()
                 # restore original environment
                 modify_env(os.environ, self.orig_environ)
-            m.check_module_path()  # make sure MODULEPATH is set correctly after purging
-            m.load([self.mod_name])
+            modtool.check_module_path()  # make sure MODULEPATH is set correctly after purging
+            modtool.load([self.mod_name])
         else:
             self.log.warning("Not loading module, since self.mod_name is not set.")
 
@@ -940,11 +943,9 @@ class EasyBlock(object):
         fake_mod_path = self.make_module_step(True)
 
         # load fake module
-        mod_paths = [fake_mod_path]
-        mod_paths.extend(self.orig_modulepath.split(':'))
-        self.log.debug("mod_paths: %s" % mod_paths)
-
-        self.load_module(mod_paths=mod_paths, purge=purge)
+        modtool = modules_tool()
+        modtool.prepend_module_path(fake_mod_path)
+        self.load_module(purge=purge)
 
         return (fake_mod_path, orig_env)
 
@@ -952,23 +953,19 @@ class EasyBlock(object):
         """
         Clean up fake module.
         """
-
         fake_mod_path, orig_env = fake_mod_data
-
         # unload module and remove temporary module directory
-        if fake_mod_path:
+        # self.mod_name might not be set (e.g. during unit tests)
+        if fake_mod_path and self.mod_name is not None:
             try:
-                mod_paths = [fake_mod_path]
-                mod_paths.extend(self.modules_tool.mod_paths)
-                m = modules_tool(mod_paths=mod_paths)
-                # self.mod_name might not be set (e.g. during unit tests)
-                if self.mod_name is not None:
-                    m.unload([self.mod_name])
-                else:
-                    self.log.warning("Not unloading module, since self.mod_name is not set.")
+                modtool = modules_tool()
+                modtool.unload([self.mod_name])
+                modtool.remove_module_path(fake_mod_path)
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir: %s" % err)
+        elif self.mod_name is None:
+            self.log.warning("Not unloading module, since self.mod_name is not set.")
 
         # restore original environment
         modify_env(os.environ, orig_env)

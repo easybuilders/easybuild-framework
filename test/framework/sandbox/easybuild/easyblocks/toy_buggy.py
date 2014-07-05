@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,22 +23,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for ictce compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
+(buggy) EasyBuild support for building and installing toy, implemented as an easyblock
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.framework.easyblock import EasyBlock
 
+class EB_toy_buggy(EasyBlock):
+    """Support for building/installing toy."""
 
-class Ictce(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
-    """
-    NAME = 'ictce'
+    def configure_step(self):
+        """Configure build of toy."""
+        pass
+
+    def build_step(self):
+        """Build toy."""
+        # note: import is (purposely) missing, so this will go down hard
+        run_cmd('gcc toy.c -o toy')
+
+    def install_step(self):
+        """Install toy."""
+        pass
