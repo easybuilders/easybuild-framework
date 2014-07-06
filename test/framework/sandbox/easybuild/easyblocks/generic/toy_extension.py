@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,26 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of (default) EasyBuild module naming scheme.
+EasyBuild support for building and installing toy extensions, implemented as an easyblock
 
 @author: Kenneth Hoste (Ghent University)
 """
 
-import os
+from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
+from easybuild.easyblocks.toy import EB_toy
 
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+class Toy_Extension(ExtensionEasyBlock):
+    """Support for building/installing toy."""
 
-
-class EasyBuildModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing the default EasyBuild module naming scheme."""
-
-    def det_full_module_name(self, ec):
-        """
-        Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
-
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
-
-        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
-        """
-        return os.path.join(ec['name'], det_full_ec_version(ec))
+    def run(self):
+        """Build toy extension."""
+        super(Toy_Extension, self).run(unpack_src=True)
+        EB_toy.configure_step(self.master, name=self.name)
+        EB_toy.build_step(self.master, name=self.name)
+        EB_toy.install_step(self.master, name=self.name)

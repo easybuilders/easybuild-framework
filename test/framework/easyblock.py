@@ -44,8 +44,8 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.filetools import write_file
+from easybuild.tools.module_generator import det_full_module_name_mns
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -285,7 +285,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
 
         modpath = os.path.join(eb.make_module_step(), name, version)
-        self.assertTrue(os.path.exists(modpath))
+        self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
 
         # verify contents of module
         f = open(modpath, 'r')
@@ -315,7 +315,7 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
-        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        eb.mod_name = det_full_module_name_mns(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()
@@ -365,62 +365,6 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
-
-    def test_obtain_file(self):
-        """Test obtain_file method."""
-        toy_tarball = 'toy-0.0.tar.gz'
-        testdir = os.path.abspath(os.path.dirname(__file__))
-        sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
-        toy_tarball_path = os.path.join(sandbox_sources, 'toy', toy_tarball)
-        tmpdir = tempfile.mkdtemp()
-        tmpdir_subdir = os.path.join(tmpdir, 'testing')
-        mkdir(tmpdir_subdir, parents=True)
-        del os.environ['EASYBUILD_SOURCEPATH']  # defined by setUp
-
-        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
-        eb = EasyBlock(ec['ec'])
-
-        # 'downloading' a file to (first) sourcepath works
-        init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, testdir)])
-        shutil.copy2(toy_tarball_path, tmpdir_subdir)
-        res = eb.obtain_file(toy_tarball, urls=[os.path.join('file://', tmpdir_subdir)])
-        self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
-
-        # finding a file in sourcepath works
-        init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
-        res = eb.obtain_file(toy_tarball)
-        self.assertEqual(res, toy_tarball_path)
-
-        # sourcepath has preference over downloading
-        res = eb.obtain_file(toy_tarball, urls=[os.path.join('file://', tmpdir_subdir)])
-        self.assertEqual(res, toy_tarball_path)
-
-        # obtain_file yields error for non-existing files
-        fn = 'thisisclearlyanonexistingfile'
-        try:
-            eb.obtain_file(fn, urls=[os.path.join('file://', tmpdir_subdir)])
-        except EasyBuildError, err:
-            fail_regex = re.compile("Couldn't find file %s anywhere, and downloading it didn't work either" % fn)
-            self.assertTrue(fail_regex.search(str(err)))
-
-        # file specifications via URL also work, are downloaded to (first) sourcepath
-        init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
-        file_url = "http://hpcugent.github.io/easybuild/index.html"
-        fn = os.path.basename(file_url)
-        try:
-            res = eb.obtain_file(file_url)
-            loc = os.path.join(tmpdir, 't', 'toy', fn)
-            self.assertEqual(res, loc)
-            self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
-            txt = open(loc, 'r').read()
-            eb_regex = re.compile("EasyBuild: building software with ease")
-            self.assertTrue(eb_regex.search(txt))
-        except EasyBuildError, err:
-            # if this fails, it should be because there's no online access
-            download_fail_regex = re.compile('socket error')
-            self.assertTrue(download_fail_regex.search(str(err)))
-
-        shutil.rmtree(tmpdir)
 
     def test_check_readiness(self):
         """Test check_readiness method."""

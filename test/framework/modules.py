@@ -42,7 +42,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 34
+TEST_MODULES_COUNT = 38
 
 
 class ModulesTest(EnhancedTestCase):
@@ -117,6 +117,7 @@ class ModulesTest(EnhancedTestCase):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
+        ms = [m for m in ms if not m.startswith('Core/') and not m.startswith('Compiler/')]
 
         for m in ms:
             self.testmods.load([m])

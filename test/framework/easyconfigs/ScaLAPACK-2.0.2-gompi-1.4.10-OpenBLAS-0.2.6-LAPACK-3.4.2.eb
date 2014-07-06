@@ -21,3 +21,5 @@ dependencies = [(blaslib, blasver, blassuff)]
 
 ## parallel build tends to fail, so disabling it
 parallel = 1
+
+moduleclass = 'numlib'

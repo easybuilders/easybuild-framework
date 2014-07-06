@@ -290,7 +290,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
         'modules_tool': 'EnvironmentModulesC',
-        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
+        'module_naming_scheme': 'EasyBuildMNS',
     }
 
     # sanity check
@@ -451,7 +451,7 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    Return module naming scheme (EasyBuild, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
 

@@ -52,11 +52,12 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
+from easybuild.framework.easyconfig.tools import dep_graph, print_dry_run
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
-from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file, write_file
+from easybuild.tools.fetch import find_easyconfigs, get_paths_for, search_file
+from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
