@@ -65,15 +65,21 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
+from easybuild.framework.easyconfig.easyconfig import (det_full_module_name, det_module_subdir, det_short_module_name,
+    process_easyconfig, robot_find_easyconfig)
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, process_easyconfig, robot_find_easyconfig
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain.toolchain import TOOLCHAIN_COMPILER, TOOLCHAIN_MPI, det_toolchain_definition
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
+
+
+_toolchain_details_cache = {}
 
 
 def skip_available(easyconfigs, testing=False):
@@ -81,7 +87,7 @@ def skip_available(easyconfigs, testing=False):
     avail_modules = modules_tool().available()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = ec['module']
+        module = ec['full_mod_name']
         if module in avail_modules:
             msg = "%s is already installed (module found), skipping" % module
             print_msg(msg, log=_log, silent=testing)
@@ -107,7 +113,7 @@ def find_resolved_modules(unprocessed, avail_modules):
         if len(new_ec['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            new_avail_modules.append(ec['module'])
+            new_avail_modules.append(ec['full_mod_name'])
 
         else:
             new_unprocessed.append(new_ec)
@@ -138,7 +144,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['module'] for p in unprocessed]
+    being_installed = [p['full_mod_name'] for p in unprocessed]
     avail_modules = [m for m in avail_modules if not m in being_installed]
 
     _log.debug('unprocessed before resolving deps: %s' % unprocessed)
@@ -161,7 +167,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             last_processed_count = len(avail_modules)
             more_ecs, unprocessed, avail_modules = find_resolved_modules(unprocessed, avail_modules)
             for ec in more_ecs:
-                if not ec['module'] in [x['module'] for x in ordered_ecs]:
+                if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
         # robot: look for existing dependencies, add them
@@ -180,7 +186,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+                    path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
@@ -253,7 +259,14 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
             ans = ' '
         else:
             ans = 'x'
-        mod = det_full_module_name(spec['ec'])
+
+        full_mod_name = det_full_module_name(spec['ec'])
+        mod_name = det_short_module_name(spec['ec'])
+        mod_subdir = det_module_subdir(spec['ec'])
+        if mod_name != full_mod_name:
+            mod = "%s | %s" % (mod_subdir, mod_name)
+        else:
+            mod = full_mod_name
 
         if short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
@@ -384,3 +397,82 @@ def stats_to_str(stats):
 
     txt += "}"
     return txt
+
+
+def det_toolchain_element_details(tc, elem):
+    """
+    Determine details of a particular toolchain element, for a given Toolchain instance.
+    """
+    # check for cached version first
+    tc_dict = tc.as_dict()
+    key = (tc_dict['name'], tc_dict['version'] + tc_dict['versionsuffix'], elem)
+    if key in _toolchain_details_cache:
+        _log.debug("Obtained details for '%s' in toolchain '%s' from cache" % (elem, tc_dict))
+        return _toolchain_details_cache[key]
+
+    # grab version from parsed easyconfig file for toolchain
+    eb_file = robot_find_easyconfig(tc_dict['name'], det_full_ec_version(tc_dict))
+    tc_ec = process_easyconfig(eb_file, parse_only=True)
+    if len(tc_ec) > 1:
+        _log.warning("More than one toolchain specification found for %s, only retaining first" % tc_dict)
+        _log.debug("Full list of toolchain specifications: %s" % tc_ec)
+    tc_ec = tc_ec[0]['ec']
+    tc_deps = tc_ec['dependencies']
+    tc_elem_details = None
+    for tc_dep in tc_deps:
+        if tc_dep['name'] == elem:
+            tc_elem_details = tc_dep
+            _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
+            break
+    if tc_elem_details is None:
+        # for compiler-only toolchains, toolchain and compilers are one-and-the-same
+        if tc_ec['name'] == elem:
+            tc_elem_details = tc_ec
+        else:
+            _log.error("No toolchain element '%s' found for toolchain %s: %s" % (elem, tc.as_dict(), tc_ec))
+    _toolchain_details_cache[key] = tc_elem_details
+    _log.debug("Obtained details for '%s' in toolchain '%s', added to cache" % (elem, tc_dict))
+    return _toolchain_details_cache[key]
+
+
+def det_toolchain_compilers(ec):
+    """
+    Determine compilers of toolchain for given EasyConfig instance.
+
+    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    """
+    tc_elems = det_toolchain_definition(ec.toolchain, names_only=False, exclude_toolchain=False)
+    if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
+        # dummy toolchain has no compiler
+        tc_comps = None
+    elif not TOOLCHAIN_COMPILER in tc_elems:
+        # every toolchain should have at least a compiler
+        _log.error("No compiler found in toolchain %s: %s" % (ec.toolchain.as_dict(), tc_elems))
+    elif tc_elems[TOOLCHAIN_COMPILER]:
+        tc_comps = []
+        for comp_elem in tc_elems[TOOLCHAIN_COMPILER]:
+            tc_comps.append(det_toolchain_element_details(ec.toolchain, comp_elem))
+    else:
+        _log.error("Empty list of compilers in non-dummy toolchain definition?!")
+    _log.debug("Found compilers %s for toolchain %s (%s)" % (tc_comps, ec.toolchain.name, ec.toolchain.as_dict()))
+
+    return tc_comps
+
+
+def det_toolchain_mpi(ec):
+    """
+    Determine MPI library of toolchain for given EasyConfig instance.
+
+    @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
+    """
+    tc_elems = det_toolchain_definition(ec.toolchain, names_only=False)
+    if TOOLCHAIN_MPI in tc_elems:
+        if not tc_elems[TOOLCHAIN_MPI]:
+            _log.error("Empty list of MPI libraries in toolchain definition?!")
+        # assumption: only one MPI toolchain element
+        tc_mpi = det_toolchain_element_details(ec.toolchain, tc_elems[TOOLCHAIN_MPI][0])
+    else:
+        # no MPI in this toolchain
+        tc_mpi = None
+
+    return tc_mpi

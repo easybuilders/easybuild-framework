@@ -33,8 +33,7 @@ Based on VSC-tools vsc.mympirun.mpi.mpi and vsc.mympirun.rm.sched
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-import glob
-import os
+import copy
 import re
 import sys
 from vsc.utils import fancylogger
@@ -47,14 +46,16 @@ from easybuild.tools.utilities import import_available_modules
 
 TC_CONST_PREFIX = 'TC_CONSTANT_'
 
+_initial_toolchain_instances = {}
+
+_log = fancylogger.getLogger("toolchain.utilities")
+
 
 def search_toolchain(name):
     """
     Find a toolchain with matching name
     returns toolchain (or None), found_toolchains
     """
-
-    log = fancylogger.getLogger("search_toolchain")
 
     package = easybuild.tools.toolchain
     check_attr_name = '%s_PROCESSED' % TC_CONST_PREFIX
@@ -72,7 +73,7 @@ def search_toolchain(name):
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
-                        log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
+                        _log.debug("Adding %s to list of imported classes used for looking for constants" % elem.__name__)
                         mod_classes.append(elem)
 
             # look for constants in modules of imported classes, and make them available
@@ -82,14 +83,14 @@ def search_toolchain(name):
                     if res:
                         tc_const_name = res.group(1)
                         tc_const_value = getattr(mod_class_mod, elem)
-                        log.debug("Found constant %s ('%s') in module %s, adding it to %s" % (tc_const_name,
+                        _log.debug("Found constant %s ('%s') in module %s, adding it to %s" % (tc_const_name,
                                                                                               tc_const_value,
                                                                                               mod_class_mod.__name__,
                                                                                               package.__name__))
                         if hasattr(package, tc_const_name):
                             cur_value = getattr(package, tc_const_name)
                             if not tc_const_value == cur_value:
-                                log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % (package.__name__,
+                                _log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % (package.__name__,
                                                                                                      tc_const_name,
                                                                                                      cur_value,
                                                                                                      tc_const_value
@@ -100,7 +101,7 @@ def search_toolchain(name):
         # indicate that processing of toolchain constants is done, so it's not done again
         setattr(package, check_attr_name, True)
     else:
-        log.debug("Skipping importing of toolchain modules, processing of toolchain constants is already done.")
+        _log.debug("Skipping importing of toolchain modules, processing of toolchain constants is already done.")
 
     # obtain all subclasses of toolchain
     found_tcs = nub(get_subclasses(Toolchain))
@@ -113,3 +114,33 @@ def search_toolchain(name):
             return tc, found_tcs
 
     return None, found_tcs
+
+
+def get_toolchain(tc, tcopts):
+    """
+    Return an initialized toolchain for the given specifications.
+    If none is available in the toolchain instances cache, a new one is created.
+    """
+
+    key = (tc['name'], tc['version'])
+    if key in _initial_toolchain_instances:
+        tc_inst = copy.deepcopy(_initial_toolchain_instances[key])
+        _log.debug("Obtained cached toolchain instance for %s: %s" % (key, tc_inst.as_dict()))
+    else:
+        tc_class, all_tcs = search_toolchain(tc['name'])
+        if not tc_class:
+            all_tcs_names = ",".join([x.NAME for x in all_tcs])
+            _log.error("Toolchain %s not found, available toolchains: %s" % (tc['name'], all_tcs_names))
+        tc_inst = tc_class(version=tc['version'])
+        tc_dict = tc_inst.as_dict()
+        _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
+
+        _initial_toolchain_instances[key] = copy.deepcopy(tc_inst)
+
+    # set_options should always be called, even if no toolchain options are specified
+    # this is required to set the default options
+    if tcopts is None:
+        tcopts = {}
+    tc_inst.set_options(tcopts)
+
+    return tc_inst

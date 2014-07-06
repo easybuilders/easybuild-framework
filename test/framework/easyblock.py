@@ -45,7 +45,7 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_generator import det_full_module_name_mns
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -285,7 +285,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
 
         modpath = os.path.join(eb.make_module_step(), name, version)
-        self.assertTrue(os.path.exists(modpath))
+        self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
 
         # verify contents of module
         f = open(modpath, 'r')
@@ -315,7 +315,7 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
-        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
+        eb.mod_name = det_full_module_name_mns(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()

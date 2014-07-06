@@ -36,7 +36,8 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_short_module_name, det_full_module_name
+from easybuild.framework.easyconfig.easyconfig import det_init_modulepaths
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -54,6 +55,18 @@ class ToolchainTest(EnhancedTestCase):
         self.orig_modpath = os.environ.get('MODULEPATH', '')
         os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
 
+    def get_toolchain(self, name, version=None):
+        """Get a toolchain object instance to test with."""
+        tc_class, _ = search_toolchain(name)
+        self.assertEqual(tc_class.NAME, name)
+        tc = tc_class(version=version)
+        tc_mod_name = det_short_module_name(tc.as_dict())
+        tc_mod_subdir = det_short_module_name(tc.as_dict())
+        tc_full_mod_name = det_full_module_name(tc.as_dict())
+        tc_init_modpaths = det_init_modulepaths(tc.as_dict())
+        tc.set_module_info(tc_mod_name, tc_mod_subdir, tc_full_mod_name, tc_init_modpaths)
+        return tc
+
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
         ec_file = find_full_path(os.path.join('test', 'framework', 'easyconfigs', 'gzip-1.4.eb'))
@@ -69,15 +82,11 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_goalf_toolchain(self):
         """Test for goalf toolchain."""
-        name = "goalf"
-        tc, _ = search_toolchain(name)
-        self.assertEqual(tc.NAME, name)
-        self.tc = tc(version="1.1.0-no-OFED")
+        self.get_toolchain("goalf", version="1.1.0-no-OFED")
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         cc = tc.get_variable('CC')
@@ -108,8 +117,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -142,8 +150,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -158,8 +165,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
@@ -172,8 +178,7 @@ class ToolchainTest(EnhancedTestCase):
         Check that elements of variables are passed by value, not by reference,
         which is required to ensure correctness.
         """
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         pass_by_value = True
@@ -195,10 +200,9 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether optimization flags are being set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check default optimization flag (e.g. -O2)
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -207,7 +211,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
-            tc = tc_class(version="1.1.0-no-OFED")
+            tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
             for enable in [True, False]:
                 tc.set_options({opt: enable})
                 tc.prepare()
@@ -222,11 +226,10 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether combining optimization levels works as expected."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
@@ -234,7 +237,7 @@ class ToolchainTest(EnhancedTestCase):
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertTrue(flag in flags)
 
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
         tc.prepare()
         for var in flag_vars:
@@ -242,7 +245,7 @@ class ToolchainTest(EnhancedTestCase):
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertTrue(flag in flags)
 
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
@@ -254,12 +257,11 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether shared compiler flags are set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
@@ -275,12 +277,11 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether unique compiler flags are set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -293,13 +294,12 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        tc_class, _ = search_toolchain("goalf")
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
             init_config(build_options=build_options)
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({'optarch': enable})
                 tc.prepare()
                 flag = None
@@ -319,12 +319,11 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether unique Fortran compiler flags are set correctly."""
 
         flag_vars = ['FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -339,10 +338,9 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether precision flags are being set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check default precision flag
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -352,7 +350,7 @@ class ToolchainTest(EnhancedTestCase):
         # check other precision flags
         for opt in ['strict', 'precise', 'loose', 'veryloose']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
@@ -365,10 +363,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_cgoolf_toolchain(self):
         """Test for cgoolf toolchain."""
-        name = "cgoolf"
-        tc_class, _ = search_toolchain(name)
-        self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version="1.1.6")
+        tc = self.get_toolchain("cgoolf", version="1.1.6")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'clang')
@@ -378,18 +373,13 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_comp_family(self):
         """Test determining compiler family."""
-
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
-
         self.assertEqual(tc.comp_family(), "GCC")
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
-
-        tc_class, _ = search_toolchain("goolfc")
-        tc = tc_class(version="1.3.12")
+        tc = self.get_toolchain("goolfc", version="1.3.12")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
@@ -435,10 +425,7 @@ class ToolchainTest(EnhancedTestCase):
             for fftlib in fftw_libs:
                 open(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'w').write('foo')
 
-        name = "ictce"
-        tc_class, _ = search_toolchain(name)
-        self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version="4.1.13")
+        tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'icc')
@@ -446,7 +433,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
 
-        tc = tc_class(version="4.1.13")
+        tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True}
         tc.set_options(opts)
         tc.prepare()
@@ -460,7 +447,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
 
-        tc = tc_class(version="4.1.13")
+        tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True, 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
