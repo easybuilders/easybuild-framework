@@ -72,6 +72,7 @@ DEFAULT_BUILD_OPTIONS = {
     'aggregate_regtest': None,
     'allow_modules_tool_mismatch': False,
     'check_osdeps': True,
+    'filter_deps': None,
     'cleanup_builddir': True,
     'command_line': None,
     'debug': False,

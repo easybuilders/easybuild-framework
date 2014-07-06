@@ -1001,6 +1001,33 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True)
         self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)
 
+    def test_filter_deps(self):
+        """Test use of --filter-deps."""
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'goolf-1.4.10.eb')
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        args = [
+            ec_file,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        # clear log file
+        open(self.logfile, 'w').write('')
+
+        # filter deps (including a non-existing dep, i.e. zlib)
+        args.append('--filter-deps=FFTW,ScaLAPACK,zlib')
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+    
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
 
