@@ -914,13 +914,39 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_toolchain_compilers(ec), None)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
+    def test_filter_deps(self):
+        """Test filtered dependencies."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec_file = os.path.join(test_ecs_dir, 'goolf-1.4.10.eb')
+        ec = EasyConfig(ec_file)
+        deps = sorted([dep['name'] for dep in ec.dependencies()])
+        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+
+        # test filtering multiple deps
+        init_config(build_options={'filter_deps': ['FFTW', 'ScaLAPACK']})
+        deps = sorted([dep['name'] for dep in ec.dependencies()])
+        self.assertEqual(deps, ['GCC', 'OpenBLAS', 'OpenMPI'])
+
+        # test filtering of non-existing dep
+        init_config(build_options={'filter_deps': ['zlib']})
+        deps = sorted([dep['name'] for dep in ec.dependencies()])
+        self.assertEqual(deps, ['FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'])
+
+        # test parsing of value passed to --filter-deps
+        opts = init_config(args=[])
+        self.assertEqual(opts.filter_deps, None)
+        opts = init_config(args=['--filter-deps=zlib'])
+        self.assertEqual(opts.filter_deps, ['zlib'])
+        opts = init_config(args=['--filter-deps=zlib,ncurses'])
+        self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigTest)
 
 
 if __name__ == '__main__':
-    # also chekc the setUp for debug
+    # also check the setUp for debug
     # logToScreen(enable=True)
     # setLogLevelDebug()
     main()
