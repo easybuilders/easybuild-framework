@@ -759,14 +759,14 @@ class EasyBlock(object):
         load = unload = ''
 
         # include load/unload statements for dependencies
-        recursive_unload = self.recursive_mod_unload
         builddeps = self.cfg.builddependencies()
         # include 'module load' statements for dependencies in reverse order
         for dep in self.toolchain.dependencies:
             if not dep in builddeps:
-                self.log.debug("Adding %s as a module dependency" % dep['short_mod_name'])
-                load += self.moduleGenerator.load_module(dep['short_mod_name'], recursive_unload=recursive_unload)
-                unload += self.moduleGenerator.unload_module(dep['short_mod_name'])
+                modname = dep['short_mod_name']
+                self.log.debug("Adding %s as a module dependency" % modname)
+                load += self.moduleGenerator.load_module(modname, recursive_unload=self.recursive_mod_unload)
+                unload += self.moduleGenerator.unload_module(modname)
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 

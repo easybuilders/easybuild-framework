@@ -1002,9 +1002,3 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
-
-
-def check_url(url):
-    """
-    Check whether specified URL is a valid URL.
-    """
