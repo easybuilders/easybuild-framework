@@ -255,8 +255,8 @@ class ModulesTool(object):
             for mod_path in self.mod_paths:
                 self.prepend_module_path(mod_path)
         else:
-            # no paths specified, so grab list of module paths from $MODULEPATH
-            self.mod_paths = [x for x in nub(os.environ.get('MODULEPATH', '').split(':')) if len(x) > 0]
+            # no paths specified, so grab list of (existing) module paths from $MODULEPATH
+            self.mod_paths = [p for p in nub(curr_module_paths()) if os.path.exists(p)]
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
     def use(self, path):

@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
@@ -223,6 +223,18 @@ class ModulesTest(EnhancedTestCase):
         os.environ.pop('EBROOTFOO')
 
         shutil.rmtree(tmpdir)
+
+    def test_wrong_modulepath(self):
+        """Test whether modules tool can deal with a broken $MODULEPATH."""
+        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
+        os.environ['MODULEPATH'] = "/some/non-existing/path:/this/doesnt/exists/anywhere:%s" % test_modules_path
+        init_config()
+        modtool = modules_tool()
+        self.assertEqual(len(modtool.mod_paths), 2)
+        self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
+        self.assertEqual(modtool.mod_paths[1], test_modules_path)
+        self.assertTrue(len(modtool.available()) > 0)
 
 def suite():
     """ returns all the testcases in this module """
