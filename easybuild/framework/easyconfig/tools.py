@@ -70,6 +70,7 @@ from easybuild.framework.easyconfig.easyconfig import (det_full_module_name, det
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
+from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
@@ -173,14 +174,14 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         # robot: look for existing dependencies, add them
         if robot and unprocessed:
 
-            being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
+            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
             additional = []
             for i, entry in enumerate(unprocessed):
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
-                candidates = [d for d in deps if not det_full_module_name(d, eb_ns=True) in being_installed]
+                candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
                 if len(candidates) > 0:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
@@ -213,7 +214,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
-                    mod_name = det_full_module_name(entry['ec'], eb_ns=True)
+                    mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
@@ -225,7 +226,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             break
 
     if irresolvable:
-        irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
+        irresolvable_mod_deps = [(EasyBuildMNS().det_full_module_name(dep), dep) for dep in irresolvable]
         _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)

@@ -974,18 +974,13 @@ def robot_find_easyconfig(name, version):
     return None
 
 
-def query_mns(query_method, ec, **kwargs):
+def query_mns(query_method, ec):
     """
     Query module naming scheme using specified method and (named) arguments.
 
     Pass a full parsed easyconfig file if provided keys are insufficient.
     """
-    if 'eb_ns' in kwargs:
-        eb_ns = kwargs['eb_ns']
-    else:
-        eb_ns = False
-
-    if not isinstance(ec, EasyConfig) and mns_requires_full_easyconfig(ec.keys(), eb_ns=eb_ns):
+    if not isinstance(ec, EasyConfig) and mns_requires_full_easyconfig(ec.keys()):
         # fetch/parse easyconfig file if deemed necessary
         eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
         if eb_file is not None:
@@ -997,14 +992,14 @@ def query_mns(query_method, ec, **kwargs):
         else:
             _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
 
-    return query_method(ec, **kwargs)
+    return query_method(ec)
 
 
-def det_full_module_name(ec, eb_ns=False):
+def det_full_module_name(ec):
     """
     Determine full module name following the currently active module naming scheme.
     """
-    return query_mns(det_full_module_name_mns, ec, eb_ns=eb_ns)
+    return query_mns(det_full_module_name_mns, ec)
 
 
 def det_short_module_name(ec):

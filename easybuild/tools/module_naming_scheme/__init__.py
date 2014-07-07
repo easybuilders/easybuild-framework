@@ -31,6 +31,7 @@ Declares easybuild.tools.module_naming_scheme namespace, in an extendable way.
 import os
 from pkgutil import extend_path
 from vsc.utils import fancylogger
+from vsc.utils.patterns import Singleton
 
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
@@ -38,6 +39,9 @@ __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
 
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
+
+    # singleton metaclass: only one instance is created
+    __metaclass__ = Singleton
 
     REQUIRED_KEYS = None
 

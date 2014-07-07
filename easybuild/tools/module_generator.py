@@ -274,16 +274,13 @@ def is_valid_module_name(mod_name):
     return True
 
 
-def mns_requires_full_easyconfig(keys, eb_ns=False):
+def mns_requires_full_easyconfig(keys):
     """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
-    if eb_ns:
-        mns = EasyBuildMNS()
-    else:
-        mns = get_custom_module_naming_scheme()
+    mns = get_custom_module_naming_scheme()
     return mns.requires_toolchain_details() or not mns.is_sufficient(keys)
 
 
-def det_full_module_name_mns(ec, eb_ns=False):
+def det_full_module_name_mns(ec):
     """
     Determine full module name by selected module naming scheme, based on supplied easyconfig.
     Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -292,12 +289,8 @@ def det_full_module_name_mns(ec, eb_ns=False):
         - string representing module name has length > 0
         - module name only contains printable characters (string.printable, except carriage-control chars)
     """
-    _log.debug("Determining full module name for %s (eb_ns: %s)" % (ec, eb_ns))
-    if eb_ns:
-        # return module name under EasyBuild module naming scheme
-        mod_name = EasyBuildMNS().det_full_module_name(ec)
-    else:
-        mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
+    _log.debug("Determining full module name for %s" % ec)
+    mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
 
     if not is_valid_module_name(mod_name):
         _log.error("%s is not a valid full module name" % str(mod_name))
