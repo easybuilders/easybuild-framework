@@ -44,11 +44,11 @@ from vsc.utils.missing import any, nub
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
-from easybuild.tools.module_generator import (det_full_module_name_mns, det_init_modulepaths_mns,
-    det_modpath_extensions_mns, det_module_subdir_mns, det_short_module_name_mns, mns_requires_full_easyconfig)
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -445,10 +445,10 @@ class EasyConfig(object):
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
             if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
-                mod_name = det_short_module_name(tc_dict)
-                mod_subdir = det_module_subdir(tc_dict)
-                full_mod_name = det_full_module_name(tc_dict)
-                init_modpaths = det_init_modulepaths(tc_dict)
+                mod_name = ActiveMNS().det_short_module_name(tc_dict)
+                mod_subdir = ActiveMNS().det_module_subdir(tc_dict)
+                full_mod_name = ActiveMNS().det_full_module_name(tc_dict)
+                init_modpaths = ActiveMNS().det_init_modulepaths(tc_dict)
                 tup = (mod_name, mod_subdir, full_mod_name, init_modpaths)
                 self._toolchain.set_module_info(*tup)
                 self.log.debug("Provided module info for non-dummy toolchain: %s" % str(tup))
@@ -594,8 +594,8 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['short_mod_name'] = det_short_module_name(dependency)
-        dependency['full_mod_name'] = det_full_module_name(dependency)
+        dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
+        dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
         return dependency
 
@@ -899,8 +899,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'short_mod_name': det_short_module_name(ec),
-                'full_mod_name': det_full_module_name(ec),
+                'short_mod_name': ActiveMNS().det_short_module_name(ec),
+                'full_mod_name': ActiveMNS().det_full_module_name(ec),
                 'dependencies': [],
                 'builddependencies': [],
             })
@@ -974,57 +974,102 @@ def robot_find_easyconfig(name, version):
     return None
 
 
-def query_mns(query_method, ec):
-    """
-    Query module naming scheme using specified method and (named) arguments.
+class ActiveMNS(object):
+    """Wrapper class for active module naming scheme."""
 
-    Pass a full parsed easyconfig file if provided keys are insufficient.
-    """
-    if not isinstance(ec, EasyConfig) and mns_requires_full_easyconfig(ec.keys()):
-        # fetch/parse easyconfig file if deemed necessary
-        eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
-        if eb_file is not None:
-            parsed_ec = process_easyconfig(eb_file, parse_only=True)
-            if len(parsed_ec) > 1:
-                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
-                _log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
-            ec = parsed_ec[0]['ec']
+    def __init__(self, *args, **kwargs):
+        """Initialize logger."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        # determine active module naming scheme
+        avail_mnss = avail_module_naming_schemes()
+        self.log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
+        sel_mns = get_module_naming_scheme()
+        if sel_mns in avail_mnss:
+            self.mns = avail_mnss[sel_mns]()
         else:
-            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+            self.log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
 
-    return query_method(ec)
+    def requires_full_easyconfig(self, keys):
+        """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
+        return self.mns.requires_toolchain_details() or not self.mns.is_sufficient(keys)
 
+    def query_mns(self, query_method, ec):
+        """
+        Query module naming scheme using specified method and argument.
+        Obtain and pass a full parsed easyconfig file if provided keys are insufficient.
+        """
+        if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
+            # fetch/parse easyconfig file if deemed necessary
+            eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
+            if eb_file is not None:
+                parsed_ec = process_easyconfig(eb_file, parse_only=True)
+                if len(parsed_ec) > 1:
+                    self.log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+                    self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
+                ec = parsed_ec[0]['ec']
+            else:
+                self.log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
 
-def det_full_module_name(ec):
-    """
-    Determine full module name following the currently active module naming scheme.
-    """
-    return query_mns(det_full_module_name_mns, ec)
+        return query_method(ec)
 
+    def det_full_module_name(self, ec):
+        """
+        Determine full module name by selected module naming scheme, based on supplied easyconfig.
+        Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
+        with the following requirements:
+            - module name is specified as a relative path
+            - string representing module name has length > 0
+            - module name only contains printable characters (string.printable, except carriage-control chars)
+        """
+        self.log.debug("Determining full module name for %s" % ec)
+        mod_name = self.query_mns(self.mns.det_full_module_name, ec)
 
-def det_short_module_name(ec):
-    """
-    Determine short module name following the currently active module naming scheme (not including subdir).
-    """
-    return query_mns(det_short_module_name_mns, ec)
+        if not is_valid_module_name(mod_name):
+            self.log.error("%s is not a valid full module name" % str(mod_name))
+        else:
+            self.log.debug("Obtained valid full module name %s" % mod_name)
 
+        return mod_name
 
-def det_module_subdir(ec):
-    """
-    Determine module file subdirectory following the currently active module naming scheme.
-    """
-    return query_mns(det_module_subdir_mns, ec)
+    def det_devel_module_filename(self, ec):
+        """Determine devel module filename."""
+        return self.query_mns(self.mns.det_full_module_name, ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
+    def det_short_module_name(self, ec):
+        """Determine module name according to module naming scheme."""
+        self.log.debug("Determining module name for %s" % ec)
+        mod_name = self.query_mns(self.mns.det_short_module_name, ec)
+        if not is_valid_module_name(mod_name):
+            self.log.error("%s is not a valid module name" % str(mod_name))
+        else:
+            self.log.debug("Obtained valid module name %s" % mod_name)
+        return mod_name
 
-def det_modpath_extensions(ec):
-    """
-    Determine list of extensions to module path.
-    """
-    return query_mns(det_modpath_extensions_mns, ec)
+    def det_module_subdir(self, ec):
+        """Determine module subdirectory according to module naming scheme."""
+        self.log.debug("Determining module subdir for %s" % ec)
+        mod_subdir = self.query_mns(self.mns.det_module_subdir, ec)
+        self.log.debug("Obtained subdir %s" % mod_subdir)
+        return mod_subdir
 
+    def det_modpath_extensions(self, ec):
+        """Determine modulepath extensions according to module naming scheme."""
+        self.log.debug("Determining modulepath extensions for %s" % ec)
+        modpath_extensions = self.query_mns(self.mns.det_modpath_extensions, ec)
+        self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+        return modpath_extensions
 
-def det_init_modulepaths(ec):
-    """
-    Determine initial module paths.
-    """
-    return query_mns(det_init_modulepaths_mns, ec)
+    def det_init_modulepaths(self, ec):
+        """Determine initial modulepaths according to module naming scheme."""
+        self.log.debug("Determining initial module paths for %s" % ec)
+        init_modpaths = self.query_mns(self.mns.det_init_modulepaths, ec)
+        self.log.debug("Obtained initial module paths: %s" % init_modpaths)
+        return init_modpaths
+
+    def expand_toolchain_load(self):
+        """
+        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        This is useful when toolchains are not exposed to users.
+        """
+        return self.mns.expand_toolchain_load()

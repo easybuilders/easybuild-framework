@@ -36,6 +36,12 @@ from vsc.utils.patterns import Singleton
 # we're not the only ones in this namespace
 __path__ = extend_path(__path__, __name__)  #@ReservedAssignment
 
+# suffix for devel module filename
+DEVEL_MODULE_SUFFIX = '-easybuild-devel'
+
+# general module class
+GENERAL_CLASS = 'all'
+
 
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""

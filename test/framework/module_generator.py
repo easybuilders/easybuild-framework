@@ -41,11 +41,10 @@ from vsc.utils.missing import get_subclasses
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
-from easybuild.tools.module_generator import det_full_module_name_mns
+from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_modpath_extensions, det_init_modulepaths
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, det_short_module_name, det_module_subdir
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -181,7 +180,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ec_fn = os.path.basename(ec_file)
                 if ec_fn in ec2mod_map:
                     # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
-                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mns(ecs[0]['ec']))
+                    self.assertEqual(ec2mod_map[ec_fn], ActiveMNS().det_full_module_name(ecs[0]['ec']))
 
         # test default module naming scheme
         default_ec2mod_map = {
@@ -206,7 +205,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'version': '6.6.6',
             },
         }
-        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name(non_parsed))
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', ActiveMNS().det_full_module_name(non_parsed))
 
         # install custom module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
@@ -230,7 +229,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
         err_pattern = 'nosucheasyconfigparameteravailable'
-        self.assertErrorRegex(KeyError, err_pattern, det_full_module_name, ec)
+        self.assertErrorRegex(KeyError, err_pattern, ActiveMNS().det_full_module_name, ec)
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -287,7 +286,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             }),
         ]:
             # determine full module name
-            self.assertEqual(det_full_module_name(dep_spec), ec2mod_map[dep_ec])
+            self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
         self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
@@ -334,25 +333,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ec = EasyConfig(os.path.join(ecs_dir, 'GCC-4.7.2.eb'))
-        self.assertEqual(det_full_module_name(ec), 'Core/GCC/4.7.2')
-        self.assertEqual(det_short_module_name(ec), 'GCC/4.7.2')
-        self.assertEqual(det_module_subdir(ec), 'Core')
-        self.assertEqual(det_modpath_extensions(ec), ['Compiler/GCC/4.7.2'])
-        self.assertEqual(det_init_modulepaths(ec), ['Core'])
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Core/GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Core')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['Compiler/GCC/4.7.2'])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
 
         ec = EasyConfig(os.path.join(ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'))
-        self.assertEqual(det_full_module_name(ec), 'Compiler/GCC/4.7.2/OpenMPI/1.6.4')
-        self.assertEqual(det_short_module_name(ec), 'OpenMPI/1.6.4')
-        self.assertEqual(det_module_subdir(ec), 'Compiler/GCC/4.7.2')
-        self.assertEqual(det_modpath_extensions(ec), ['MPI/GCC/4.7.2/OpenMPI/1.6.4'])
-        self.assertEqual(det_init_modulepaths(ec), ['Core'])
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Compiler/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Compiler/GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['MPI/GCC/4.7.2/OpenMPI/1.6.4'])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
 
         ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
-        self.assertEqual(det_short_module_name(ec), 'gzip/1.5')
-        self.assertEqual(det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
-        self.assertEqual(det_modpath_extensions(ec), [])
-        self.assertEqual(det_init_modulepaths(ec), ['Core'])
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'gzip/1.5')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), [])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)

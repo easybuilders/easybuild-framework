@@ -36,8 +36,7 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_short_module_name, det_full_module_name
-from easybuild.framework.easyconfig.easyconfig import det_init_modulepaths
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -60,10 +59,10 @@ class ToolchainTest(EnhancedTestCase):
         tc_class, _ = search_toolchain(name)
         self.assertEqual(tc_class.NAME, name)
         tc = tc_class(version=version)
-        tc_mod_name = det_short_module_name(tc.as_dict())
-        tc_mod_subdir = det_short_module_name(tc.as_dict())
-        tc_full_mod_name = det_full_module_name(tc.as_dict())
-        tc_init_modpaths = det_init_modulepaths(tc.as_dict())
+        tc_mod_name = ActiveMNS().det_short_module_name(tc.as_dict())
+        tc_mod_subdir = ActiveMNS().det_short_module_name(tc.as_dict())
+        tc_full_mod_name = ActiveMNS().det_full_module_name(tc.as_dict())
+        tc_init_modpaths = ActiveMNS().det_init_modulepaths(tc.as_dict())
         tc.set_module_info(tc_mod_name, tc_mod_subdir, tc_full_mod_name, tc_init_modpaths)
         return tc
 

@@ -124,17 +124,6 @@ class ModulesTest(EnhancedTestCase):
             self.assertTrue(m in self.testmods.loaded_modules())
             self.testmods.purge()
 
-        # deprecated version
-        for m in ms:
-            self.testmods.add_module([m])
-            self.testmods.load()
-
-            self.assertTrue(m in self.testmods.loaded_modules())
-
-            # remove module again and purge to avoid conflicts when loading modules
-            self.testmods.remove_module([m])
-            self.testmods.purge()
-
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
         self.init_testmods()
@@ -146,10 +135,6 @@ class ModulesTest(EnhancedTestCase):
         self.testmods.load(['GCC/4.6.3'])
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
         self.testmods.purge()
-
-        # deprecated version
-        self.testmods.add_module([('GCC', '4.6.3')])
-        self.testmods.load()
 
         # check that previous LD_LIBRARY_PATH is still there, at the end
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
@@ -165,11 +150,6 @@ class ModulesTest(EnhancedTestCase):
 
         self.testmods.purge()
         self.assertTrue(len(self.testmods.loaded_modules()) == 0)
-
-        # deprecated version
-        self.testmods.add_module([ms[0]])
-        self.testmods.load()
-        self.assertTrue(len(self.testmods.loaded_modules()) > 0)
 
         self.testmods.purge()
         self.assertTrue(len(self.testmods.loaded_modules()) == 0)

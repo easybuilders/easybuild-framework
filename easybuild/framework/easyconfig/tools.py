@@ -65,8 +65,8 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
-from easybuild.framework.easyconfig.easyconfig import (det_full_module_name, det_module_subdir, det_short_module_name,
-    process_easyconfig, robot_find_easyconfig)
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
@@ -109,7 +109,11 @@ def find_resolved_modules(unprocessed, avail_modules):
 
     for ec in unprocessed:
         new_ec = ec.copy()
-        new_ec['dependencies'] = [d for d in new_ec['dependencies'] if not det_full_module_name(d) in new_avail_modules]
+        deps = []
+        for dep in new_ec['dependencies']:
+            if not ActiveMNS().det_full_module_name(dep) in new_avail_modules:
+                deps.append(dep)
+        new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
@@ -203,8 +207,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
-                        mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
-                        dep_mod_name = det_full_module_name(cand_dep)
+                        mods = [ActiveMNS().det_full_module_name(spec['ec']) for spec in processed_ecs]
+                        dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
                             tup = (path, dep_mod_name, mods)
                             _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
@@ -261,9 +265,9 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
         else:
             ans = 'x'
 
-        full_mod_name = det_full_module_name(spec['ec'])
-        mod_name = det_short_module_name(spec['ec'])
-        mod_subdir = det_module_subdir(spec['ec'])
+        full_mod_name = ActiveMNS().det_full_module_name(spec['ec'])
+        mod_name = ActiveMNS().det_short_module_name(spec['ec'])
+        mod_subdir = ActiveMNS().det_module_subdir(spec['ec'])
         if mod_name != full_mod_name:
             mod = "%s | %s" % (mod_subdir, mod_name)
         else:
@@ -298,7 +302,7 @@ def _dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return det_full_module_name(spec)
+            return ActiveMNS().det_full_module_name(spec)
 
     # enhance list of specs
     for spec in specs:

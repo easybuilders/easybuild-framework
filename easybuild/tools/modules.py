@@ -49,7 +49,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, which
-from easybuild.tools.module_generator import det_full_module_name_mns, DEVEL_MODULE_SUFFIX, GENERAL_CLASS
+from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX, GENERAL_CLASS
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
@@ -335,50 +335,7 @@ class ModulesTool(object):
         """
         return mod_name in self.available(mod_name)
 
-    def add_module(self, modules):
-        """
-        Check if module exist, if so add to list.
-        """
-        self.log.deprecated("Use of add_module function should be replaced by load([<list of modules>])", '2.0')
-        for mod in modules:
-            if isinstance(mod, (list, tuple)):
-                mod_dict = {
-                    'name': mod[0],
-                    'version': mod[1],
-                    'versionsuffix': '',
-                    'toolchain': {
-                        'name': DUMMY_TOOLCHAIN_NAME,
-                        'version': DUMMY_TOOLCHAIN_VERSION,
-                    },
-                }
-                mod_name = det_full_module_name_mns(mod_dict)
-            elif isinstance(mod, basestring):
-                mod_name = mod
-            elif isinstance(mod, dict):
-                mod_name = det_full_module_name_mns(mod)
-            else:
-                self.log.error("Can't add module %s: unknown type" % str(mod))
-
-            mods = self.available(mod_name)
-            if mod_name in mods:
-                # ok
-                self._modules.append(mod_name)
-            else:
-                if len(mods) == 0:
-                    self.log.warning('No module %s available' % str(mod))
-                else:
-                    self.log.warning('More than one module found for %s: %s' % (mod, mods))
-                continue
-
-    def remove_module(self, modules):
-        """
-        Remove modules from list.
-        """
-        self.log.deprecated("remove_module should no longer be used (add_module is deprecated too).", '2.0')
-        for mod in modules:
-            self._modules = [m for m in self._modules if not m == mod]
-
-    def load(self, modules=None, mod_paths=None, purge=False, orig_env=None):
+    def load(self, modules, mod_paths=None, purge=False, orig_env=None):
         """
         Load all requested modules.
 
@@ -387,11 +344,6 @@ class ModulesTool(object):
         @param purge: whether or not a 'module purge' should be run before loading
         @param orig_env: original environment to restore after running 'module purge'
         """
-        if modules is None:
-            # deprecated behavior if no modules were passed by argument
-            self.log.deprecated("Loading modules listed in _modules class variable", '2.0')
-            modules = self._modules[:]
-
         if mod_paths is None:
             mod_paths = []
 

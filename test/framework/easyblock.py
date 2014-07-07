@@ -39,13 +39,12 @@ from unittest import TestLoader, main
 
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.module_generator import det_full_module_name_mns
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -315,7 +314,7 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
-        eb.mod_name = det_full_module_name_mns(eb.cfg)  # required by gen_installdir()
+        eb.mod_name = ActiveMNS().det_full_module_name(eb.cfg)  # required by gen_installdir()
         resi = eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()

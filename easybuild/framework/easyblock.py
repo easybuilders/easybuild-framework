@@ -49,9 +49,8 @@ from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ITERATE_OPTIONS, det_full_module_name,
-    det_modpath_extensions, det_init_modulepaths, fetch_parameter_from_easyconfig_file, get_class_for,
-    get_easyblock_class, get_module_path, resolve_template)
+from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ActiveMNS, ITERATE_OPTIONS,
+    fetch_parameter_from_easyconfig_file, get_class_for, get_easyblock_class, get_module_path, resolve_template)
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -66,7 +65,6 @@ from easybuild.tools.filetools import write_file, compute_checksum, verify_check
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
-from easybuild.tools.module_generator import det_devel_module_filename, get_custom_module_naming_scheme
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -187,7 +185,7 @@ class EasyBlock(object):
         self.silent = build_option('silent')
 
         # full module name for this software package
-        self.mod_name = det_full_module_name(self.cfg)
+        self.mod_name = ActiveMNS().det_full_module_name(self.cfg)
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -744,7 +742,7 @@ class EasyBlock(object):
             output_dir = os.path.join(self.installdir, log_path())
             mkdir(output_dir, parents=True)
 
-        filename = os.path.join(output_dir, det_devel_module_filename(self.cfg))
+        filename = os.path.join(output_dir, ActiveMNS().det_devel_module_filename(self.cfg))
         self.log.debug("Writing devel module to %s" % filename)
 
         write_file(filename, header + load_txt + env_txt)
@@ -774,7 +772,7 @@ class EasyBlock(object):
         # purposely after dependencies which may be critical,
         # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if get_custom_module_naming_scheme().expand_toolchain_load():
+            if ActiveMNS().expand_toolchain_load():
                 mod_names = self.toolchain.toolchain_dependencies
             else:
                 mod_names = [self.toolchain.det_short_module_name()]
@@ -804,7 +802,7 @@ class EasyBlock(object):
         environment_name = convert_name(self.name, upper=True)
         txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
         txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), det_devel_module_filename(self.cfg))
+        devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
@@ -857,7 +855,7 @@ class EasyBlock(object):
         Include prepend-path statements for extending $MODULEPATH.
         """
         top_modpath = install_path('mod')
-        modpath_exts = det_modpath_extensions(self.cfg)
+        modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
         txt = ''
         if modpath_exts:
             full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
@@ -916,7 +914,7 @@ class EasyBlock(object):
         if self.mod_name is not None:
             if mod_paths is None:
                 mod_paths = []
-            all_mod_paths = mod_paths + det_init_modulepaths(self.cfg)
+            all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
             self.modules_tool.load([self.mod_name], mod_paths=all_mod_paths, purge=purge, orig_env=self.orig_environ)
         else:
             self.log.warning("Not loading module, since self.mod_name is not set.")
@@ -962,7 +960,7 @@ class EasyBlock(object):
 
     def load_dependency_modules(self):
         """Load dependency modules."""
-        self.modules_tool.load([det_full_module_name(dep) for dep in self.cfg.dependencies()])
+        self.modules_tool.load([ActiveMNS().det_full_module_name(dep) for dep in self.cfg.dependencies()])
 
     #
     # EXTENSIONS UTILITY FUNCTIONS
@@ -1877,7 +1875,7 @@ def build_and_install_one(module, orig_environ):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % det_full_module_name(app.cfg))
+                repo.commit("Built %s" % ActiveMNS().det_full_module_name(app.cfg))
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -1990,7 +1988,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
-        instance.mod_name = det_full_module_name(instance.cfg)
+        instance.mod_name = ActiveMNS().det_full_module_name(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()
