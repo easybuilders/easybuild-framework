@@ -186,6 +186,25 @@ class ModuleGenerator(object):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
     
+    def msg_on_load(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        return '\n'.join([
+            "",
+            "if [ module-info mode load ] {",
+            '        puts stderr     "%s"' % msg,
+            "}",
+            "",
+        ])
+    
+    def add_tcl_footer(self, tcltxt):
+        """
+        Append whatever Tcl code you want to your modulefile
+        """
+        # nothing to do here, but this should fail in the context of generating Lua modules
+        return tcltxt
+
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.

@@ -161,6 +161,16 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
         self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
 
+    def test_load_msg(self):
+        """Test including a load message in the module file."""
+        tcl_load_msg = '\nif [ module-info mode load ] {\n        puts stderr     "test"\n}\n'
+        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test'))
+
+    def test_tcl_footer(self):
+        """Test including a Tcl footer."""
+        tcltxt = 'puts stderr "foo"'
+        self.assertEqual(tcltxt, self.modgen.add_tcl_footer(tcltxt))
+
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
         all_stops = [x[0] for x in EasyBlock.get_steps()]

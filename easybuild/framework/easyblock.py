@@ -818,6 +818,10 @@ class EasyBlock(object):
             elif not isinstance(value, (tuple, list)):
                 self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
             txt += self.moduleGenerator.prepend_paths(key, value)
+        if self.cfg['modloadmsg']:
+            txt += self.moduleGenerator.msg_on_load(self.cfg['modloadmsg'])
+        if self.cfg['modtclfooter']:
+            txt += self.moduleGenerator.add_tcl_footer(self.cfg['modtclfooter'])
         for (key, value) in self.cfg['modaliases'].items():
             txt += self.moduleGenerator.set_alias(key, value)
 
