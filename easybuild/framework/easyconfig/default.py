@@ -162,6 +162,7 @@ DEFAULT_CONFIG = {
     # MODULES easyconfig parameters
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
+    'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],

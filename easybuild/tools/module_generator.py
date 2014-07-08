@@ -185,6 +185,13 @@ class ModuleGenerator(object):
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
+    
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
+        """
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
     def set_fake(self, fake):
         """Determine whether this ModuleGenerator instance should generate fake modules."""
