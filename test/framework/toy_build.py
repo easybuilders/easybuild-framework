@@ -27,6 +27,7 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
+import fileinput
 import glob
 import grp
 import os
@@ -40,8 +41,8 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.tools.filetools import write_file
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import mkdir, write_file
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -93,6 +94,11 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
         self.assertTrue(os.path.exists(toy_module), msg)
 
+        # module file is symlinked according to moduleclass
+        toy_module_symlink = os.path.join(installpath, 'modules', 'tools', 'toy', full_version)
+        self.assertTrue(os.path.islink(toy_module_symlink))
+        self.assertTrue(os.path.exists(toy_module_symlink))
+
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', 'toy', full_version)
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-%s*.log' % version)
@@ -109,7 +115,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(devel_module_path))
 
     def test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
-                       raise_error=False, test_report=None):
+                       raise_error=False, test_report=None, versionsuffix=''):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -117,6 +123,7 @@ class ToyBuildTest(EnhancedTestCase):
         if ec_file is None:
             ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
             test_readme = True
+        full_ver = '0.0%s' % versionsuffix
         args = [
             ec_file,
             '--sourcepath=%s' % self.test_sourcepath,
@@ -140,11 +147,11 @@ class ToyBuildTest(EnhancedTestCase):
             myerr = err
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt)
+            self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix)
 
         if test_readme:
             # make sure postinstallcmds were used
-            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
+            toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', full_ver)
             self.assertEqual(open(os.path.join(toy_install_path, 'README'), 'r').read(), "TOY\n")
 
         # make sure full test report was dumped, and contains sensible information
@@ -516,6 +523,125 @@ class ToyBuildTest(EnhancedTestCase):
         f.write("\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n")
         f.close()
         self.test_toy_build(ec_file=ec_file)
+
+    def test_toy_hierarchical(self):
+        """Test toy build under example hierarchical module naming scheme."""
+
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+        # simply copy module files under 'Core' and 'Compiler' to test install path
+        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
+        install_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
+        mkdir(install_mod_path, parents=True)
+        for mod_subdir in ['Core', 'Compiler']:
+            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+            shutil.copytree(src_mod_path, os.path.join(install_mod_path, mod_subdir))
+
+        # tweak prepend-path statements in GCC/OpenMPI modules to ensure correct paths
+        for modfile in [
+            os.path.join(install_mod_path, 'Core', 'GCC', '4.7.2'),
+            os.path.join(install_mod_path, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+        ]:
+            for line in fileinput.input(modfile, inplace=1):
+                line = re.sub(r"(prepend-path\s*MODULEPATH\s*)/tmp/modules/all",
+                              r"\1%s/modules/all" % self.test_installpath,
+                              line)
+                sys.stdout.write(line)
+
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--unittest-file=%s' % self.logfile,
+            '--force',
+            '--robot=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            '--module-naming-scheme=HierarchicalMNS',
+        ]
+
+        # test module paths/contents with gompi build
+        extra_args = [
+            '--try-toolchain=gompi,1.4.10',
+        ]
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        # make sure module file is installed in correct path
+        toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module_path))
+
+        # check that toolchain load is expanded to loads for toolchain dependencies
+        modtxt = open(toy_module_path, 'r').read()
+        self.assertFalse(re.search("load gompi", modtxt))
+        self.assertTrue(re.search("load GCC", modtxt))
+        self.assertTrue(re.search("load OpenMPI", modtxt))
+
+        # test module path with GCC/4.8.2 build
+        extra_args = [
+            '--try-toolchain=GCC,4.7.2',
+        ]
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        # make sure module file is installed in correct path
+        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module_path))
+
+        # no dependencies or toolchain => no module load statements in module file
+        modtxt = open(toy_module_path, 'r').read()
+        self.assertFalse(re.search("module load", modtxt))
+
+        # test module path with GCC/4.8.2 build, pretend to be an MPI lib by setting moduleclass
+        extra_args = [
+            '--try-toolchain=GCC,4.7.2',
+            '--try-amend=moduleclass=mpi',
+        ]
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        # make sure module file is installed in correct path
+        toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module_path))
+
+        # no dependencies or toolchain => no module load statements in module file
+        modtxt = open(toy_module_path, 'r').read()
+        modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
+        self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
+
+        # test module path with dummy/dummy build
+        extra_args = [
+            '--try-toolchain=dummy,dummy',
+        ]
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        # make sure module file is installed in correct path
+        toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module_path))
+
+        # no dependencies or toolchain => no module load statements in module file
+        modtxt = open(toy_module_path, 'r').read()
+        self.assertFalse(re.search("module load", modtxt))
+
+        # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
+        extra_args = [
+            '--try-toolchain=dummy,dummy',
+            '--try-amend=moduleclass=compiler',
+        ]
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        # make sure module file is installed in correct path
+        toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
+        self.assertTrue(os.path.exists(toy_module_path))
+
+        # no dependencies or toolchain => no module load statements in module file
+        modtxt = open(toy_module_path, 'r').read()
+        modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
+        self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
+
+    def test_toy_advanced(self):
+        """Test toy build with extensions and non-dummy toolchain."""
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
+        self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
 
 def suite():
     """ return all the tests in this file """

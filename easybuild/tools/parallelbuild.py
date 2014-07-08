@@ -37,7 +37,7 @@ import os
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_easyblock_instance
-from easybuild.framework.easyconfig.tools import det_full_module_name
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -75,7 +75,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
 
     def tokey(dep):
         """Determine key for specified dependency."""
-        return det_full_module_name(dep)
+        return ActiveMNS().det_full_module_name(dep)
 
     for ec in easyconfigs:
         # This is very important, otherwise we might have race conditions
@@ -164,7 +164,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
     job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
-    job.module = det_full_module_name(easyconfig['ec'])
+    job.module = easyconfig['ec'].full_mod_name
 
     return job
 

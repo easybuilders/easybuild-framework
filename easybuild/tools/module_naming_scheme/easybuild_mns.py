@@ -23,48 +23,28 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of a test module naming scheme.
+Implementation of (default) EasyBuild module naming scheme.
 
 @author: Kenneth Hoste (Ghent University)
 """
 
 import os
-from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.ordereddict import OrderedDict
-
-# prefer hashlib.sha1 (only in Python 2.5 and up) over sha.sha
-try:
-    from hashlib import sha1
-except ImportError:
-    from sha import sha as sha1
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 
-_log = fancylogger.getLogger('TestModuleNamingSchemeAll', fname=False)
+class EasyBuildMNS(ModuleNamingScheme):
+    """Class implementing the default EasyBuild module naming scheme."""
 
-
-class TestModuleNamingSchemeAll(ModuleNamingScheme):
-    """Class implementing a module naming scheme that uses all available easyconfig parameters, for testing purposes."""
+    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain']
 
     def det_full_module_name(self, ec):
         """
-        Determine full module name from given easyconfig, according to a testing module naming scheme,
-        using all available easyconfig parameters.
+        Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
 
         @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
 
-        @return: string with full module name, e.g.: ('gzip', '1.5'), ('intel', 'intelmpi', 'gzip', '1.5')
+        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
         """
-        res = ''
-        for key in sorted(DEFAULT_CONFIG.keys()):
-            if isinstance(ec[key], dict):
-                res += '%s=>' % key
-                for item_key in sorted(ec[key].keys()):
-                    res += '%s:%s,' % (item_key, ec[key][item_key])
-            else:
-                res += str(ec[key])
-        ec_sha1 = sha1(res).hexdigest()
-        _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
-        return os.path.join(ec['name'], ec_sha1)
+        return os.path.join(ec['name'], det_full_ec_version(ec))

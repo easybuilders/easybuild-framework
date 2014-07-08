@@ -33,25 +33,17 @@ Generating module files.
 @author: Fotis Georgatos (Uni.Lu)
 """
 import os
-import string
 import tempfile
 from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses
 
-from easybuild.tools import config, module_naming_scheme
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
+from easybuild.tools import config
 from easybuild.tools.filetools import mkdir
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.module_naming_scheme.easybuild_module_naming_scheme import EasyBuildModuleNamingScheme
-from easybuild.tools.utilities import import_available_modules, quote_str
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.utilities import quote_str
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
-
-# general module class
-GENERAL_CLASS = 'all'
-
-# suffix for devel module filename
-DEVEL_MODULE_SUFFIX = '-easybuild-devel'
 
 
 class ModuleGenerator(object):
@@ -61,44 +53,39 @@ class ModuleGenerator(object):
     def __init__(self, application, fake=False):
         self.app = application
         self.fake = fake
-        self.filename = None
         self.tmpdir = None
+        self.filename = None
+        self.class_mod_file = None
+        self.module_path = None
 
-    def create_files(self):
+    def prepare(self):
         """
         Creates the absolute filename for the module.
         """
-        module_path = config.install_path('mod')
+        # module file goes in general moduleclass category
+        self.filename = os.path.join(self.module_path, GENERAL_CLASS, self.app.full_mod_name)
+        # make symlink in moduleclass category
+        self.class_mod_file = os.path.join(self.module_path, self.app.cfg['moduleclass'], self.app.full_mod_name)
 
-        # Fake mode: set installpath to temporary dir
-        if self.fake:
-            self.tmpdir = tempfile.mkdtemp()
-            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, module_path))
-            module_path = self.tmpdir
-
-        # Real file goes in 'all' category
-        self.filename = os.path.join(module_path, GENERAL_CLASS, det_full_module_name(self.app.cfg))
-
-        # Make symlink in moduleclass category
-        classPathFile = os.path.join(module_path, self.app.cfg['moduleclass'], det_full_module_name(self.app.cfg))
-
-        # Create directories and links
-        for path in [os.path.dirname(x) for x in [self.filename, classPathFile]]:
+        # create directories and links
+        for path in [os.path.dirname(x) for x in [self.filename, self.class_mod_file]]:
             mkdir(path, parents=True)
 
-        # Make a symlink from classpathFile to self.filename
+        # remove module file if it's there (it'll be recreated), see Application.make_module
+        if os.path.exists(self.filename):
+            os.remove(self.filename)
+
+        return os.path.join(self.module_path, GENERAL_CLASS)
+
+    def create_symlinks(self):
+        """Create moduleclass symlink(s) to actual module file."""
         try:
             # remove symlink if its there (even if it's broken)
-            if os.path.lexists(classPathFile):
-                os.remove(classPathFile)
-            # remove module file if it's there (it'll be recreated), see Application.make_module
-            if os.path.exists(self.filename):
-                os.remove(self.filename)
-            os.symlink(self.filename, classPathFile)
+            if os.path.lexists(self.class_mod_file):
+                os.remove(self.class_mod_file)
+            os.symlink(self.filename, self.class_mod_file)
         except OSError, err:
-            _log.exception("Failed to create symlink from %s to %s: %s" % (classPathFile, self.filename, err))
-
-        return os.path.join(module_path, GENERAL_CLASS)
+            _log.error("Failed to create symlink from %s to %s: %s" % (self.class_mod_file, self.filename, err))
 
     def get_description(self, conflict=True):
         """
@@ -222,92 +209,14 @@ class ModuleGenerator(object):
         """Determine whether this ModuleGenerator instance should generate fake modules."""
         _log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
         self.fake = fake
+        # fake mode: set installpath to temporary dir
+        if self.fake:
+            self.tmpdir = tempfile.mkdtemp()
+            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
+            self.module_path = self.tmpdir
+        else:
+            self.module_path = config.install_path('mod')
 
     def is_fake(self):
         """Return whether this ModuleGenerator instance generates fake modules or not."""
         return self.fake
-
-
-def avail_module_naming_schemes():
-    """
-    Returns a list of available module naming schemes.
-    """
-    mns_attr = 'AVAIL_MODULE_NAMING_SCHEMES'
-    if not hasattr(module_naming_scheme, mns_attr):
-        # all subclasses of ModuleNamingScheme available in the easybuild.tools.module_naming_scheme namespace are eligible
-        import_available_modules('easybuild.tools.module_naming_scheme')
-
-        # construct name-to-class dict of available module naming scheme
-        avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
-
-        # cache dict of available module naming scheme in module constant
-        setattr(module_naming_scheme, mns_attr, avail_mnss)
-        return avail_mnss
-    else:
-        return getattr(module_naming_scheme, mns_attr)
-
-
-def get_custom_module_naming_scheme():
-    """
-    Get custom module naming scheme as specified in configuration.
-    """
-    avail_mnss = avail_module_naming_schemes()
-    _log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
-    sel_mns = config.get_module_naming_scheme()
-    if sel_mns in avail_mnss:
-        return avail_mnss[sel_mns]()
-    else:
-        _log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
-
-
-def is_valid_module_name(mod_name):
-    """Check whether the specified value is a valid module name."""
-    # module name must be a string
-    if not isinstance(mod_name, basestring):
-        _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
-        return False
-    # module name must be relative path
-    elif mod_name.startswith(os.path.sep):
-        _log.warning("Module name (%s) should be a relative file path" % mod_name)
-        return False
-    # module name should not be empty
-    elif not len(mod_name) > 0:
-        _log.warning("Module name (%s) should have length > 0." % mod_name)
-        return False
-    else:
-        # check whether filename only contains printable characters
-        # (except for carriage-control characters \r, \x0b and \xoc)
-        invalid_chars = [x for x in mod_name if not x in string.printable[:-3]]
-        if len(invalid_chars) > 0:
-            _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
-            return False
-    _log.debug("Module name %s validated" % mod_name)
-    return True
-
-
-def det_full_module_name(ec, eb_ns=False):
-    """
-    Determine full module name by selected module naming scheme, based on supplied easyconfig.
-    Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
-    with the following requirements:
-        - module name is specified as a relative path
-        - string representing module name has length > 0
-        - module name only contains printable characters (string.printable, except carriage-control chars)
-    """
-    _log.debug("Determining module name for %s (eb_ns: %s)" % (ec, eb_ns))
-    if eb_ns:
-        # return module name under EasyBuild module naming scheme
-        mod_name = EasyBuildModuleNamingScheme().det_full_module_name(ec)
-    else:
-        mod_name = get_custom_module_naming_scheme().det_full_module_name(ec)
-
-    if not is_valid_module_name(mod_name):
-        _log.error("%s is not a valid module name" % str(mod_name))
-    else:
-        _log.debug("Obtained module name %s" % mod_name)
-
-    return mod_name
-
-def det_devel_module_filename(ec):
-    """Determine devel module filename."""
-    return det_full_module_name(ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX

@@ -41,11 +41,10 @@ from vsc.utils.missing import get_subclasses
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator, is_valid_module_name
-from easybuild.tools.module_generator import det_full_module_name as det_full_module_name_mg
+from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.tools import det_full_module_name as det_full_module_name_ec
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from test.framework.utilities import find_full_path
 
@@ -191,7 +190,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ec_fn = os.path.basename(ec_file)
                 if ec_fn in ec2mod_map:
                     # only check first, ignore any others (occurs when blocks are used (format v1.0 only))
-                    self.assertEqual(ec2mod_map[ec_fn], det_full_module_name_mg(ecs[0]['ec']))
+                    self.assertEqual(ec2mod_map[ec_fn], ActiveMNS().det_full_module_name(ecs[0]['ec']))
 
         # test default module naming scheme
         default_ec2mod_map = {
@@ -216,7 +215,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'version': '6.6.6',
             },
         }
-        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', det_full_module_name_ec(non_parsed))
+        self.assertEqual('foo/1.2.3-t00ls-6.6.6-bar', ActiveMNS().det_full_module_name(non_parsed))
 
         # install custom module naming scheme dynamically
         test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
@@ -226,12 +225,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
         reload(easybuild.tools.module_naming_scheme)
 
         # make sure test module naming schemes are available
-        for test_mns_mod in ['test_module_naming_scheme', 'test_module_naming_scheme_all']:
+        mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_more']
+        for test_mns_mod in mns_mods:
             mns_path = "easybuild.tools.module_naming_scheme.%s" % test_mns_mod
-            mns_mod = __import__(mns_path, globals(), locals(), [''])
-            test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
-            easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
+            __import__(mns_path, globals(), locals(), [''])
         init_config(build_options=build_options)
+
+        # verify that key errors in module naming scheme are reported properly
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'BrokenModuleNamingScheme'
+        init_config(build_options=build_options)
+
+        err_pattern = 'nosucheasyconfigparameteravailable'
+        self.assertErrorRegex(KeyError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -247,18 +252,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/1.4.10')
+
         # test module naming scheme using all available easyconfig parameters
-        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeAll'
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingSchemeMore'
         init_config(build_options=build_options)
         # note: these checksums will change if another easyconfig parameter is added
         ec2mod_map = {
-            'GCC-4.6.3.eb': 'GCC/698cacc77167c6824f597f0b6371cad5e6749922',
-            'gzip-1.4.eb': 'gzip/d240a51c643ec42e709d405d958c7b26f5a25d5a',
-            'gzip-1.4-GCC-4.6.3.eb': 'gzip/cea02d332af7044ae5faf762cea2ef6ffed014d2',
-            'gzip-1.5-goolf-1.4.10.eb': 'gzip/f1dbb38c4518a15fc8bb1fbf797ceda02f0cacd0',
-            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3ef9ac73b468c989f5a47b30098d340e92c3d0da',
-            'toy-0.0.eb': 'toy/778417f0e140ebbaebd60d0f98c8b2411f980edf',
-            'toy-0.0-multiple.eb': 'toy/2d45f3cde87dedf30662f4a005023d56d2532bf0',
+            'GCC-4.6.3.eb': 'GCC/9e9ab5a1e978f0843b5aedb63ac4f14c51efb859',
+            'gzip-1.4.eb': 'gzip/8805ec3152d2a4a08b6c06d740c23abe1a4d059f',
+            'gzip-1.4-GCC-4.6.3.eb': 'gzip/863557cc81811f8c3f4426a4b45aa269fa54130b',
+            'gzip-1.5-goolf-1.4.10.eb': 'gzip/b63c2b8cc518905473ccda023100b2d3cff52d55',
+            'gzip-1.5-ictce-4.1.13.eb': 'gzip/3d49f0e112708a95f79ed38b91b506366c0299ab',
+            'toy-0.0.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
+            'toy-0.0-multiple.eb': 'toy/44a206d9e8c14130cc9f79e061468303c6e91b53',
         }
         test_mns()
 
@@ -284,7 +292,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
             }),
         ]:
-            self.assertEqual(det_full_module_name_ec(dep_spec), ec2mod_map[dep_ec])
+            # determine full module name
+            self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
 
         # restore default module naming scheme, and retest
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
@@ -314,6 +326,42 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('ictce'))
 
+    def test_hierarchical_mns(self):
+        """Test hierarchical module naming scheme."""
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'GCC-4.7.2.eb'))
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Core/GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Core')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['Compiler/GCC/4.7.2'])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'))
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Compiler/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Compiler/GCC/4.7.2')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['MPI/GCC/4.7.2/OpenMPI/1.6.4'])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
+
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
+        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'gzip/1.5')
+        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
+        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), [])
+        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
+        init_config(build_options=build_options)
 
 def suite():
     """ returns all the testcases in this module """

@@ -65,13 +65,15 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
+from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.framework.easyconfig.easyconfig import det_full_module_name, process_easyconfig, robot_find_easyconfig
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -81,7 +83,7 @@ def skip_available(easyconfigs, testing=False):
     avail_modules = modules_tool().available()
     easyconfigs, check_easyconfigs = [], easyconfigs
     for ec in check_easyconfigs:
-        module = ec['module']
+        module = ec['full_mod_name']
         if module in avail_modules:
             msg = "%s is already installed (module found), skipping" % module
             print_msg(msg, log=_log, silent=testing)
@@ -102,12 +104,16 @@ def find_resolved_modules(unprocessed, avail_modules):
 
     for ec in unprocessed:
         new_ec = ec.copy()
-        new_ec['dependencies'] = [d for d in new_ec['dependencies'] if not det_full_module_name(d) in new_avail_modules]
+        deps = []
+        for dep in new_ec['dependencies']:
+            if not ActiveMNS().det_full_module_name(dep) in new_avail_modules:
+                deps.append(dep)
+        new_ec['dependencies'] = deps
 
         if len(new_ec['dependencies']) == 0:
             _log.debug("Adding easyconfig %s to final list" % new_ec['spec'])
             ordered_ecs.append(new_ec)
-            new_avail_modules.append(ec['module'])
+            new_avail_modules.append(ec['full_mod_name'])
 
         else:
             new_unprocessed.append(new_ec)
@@ -138,7 +144,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
     ordered_ecs = []
     # all available modules can be used for resolving dependencies except those that will be installed
-    being_installed = [p['module'] for p in unprocessed]
+    being_installed = [p['full_mod_name'] for p in unprocessed]
     avail_modules = [m for m in avail_modules if not m in being_installed]
 
     _log.debug('unprocessed before resolving deps: %s' % unprocessed)
@@ -161,26 +167,29 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             last_processed_count = len(avail_modules)
             more_ecs, unprocessed, avail_modules = find_resolved_modules(unprocessed, avail_modules)
             for ec in more_ecs:
-                if not ec['module'] in [x['module'] for x in ordered_ecs]:
+                if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
 
         # robot: look for existing dependencies, add them
         if robot and unprocessed:
 
-            being_installed = [det_full_module_name(p['ec'], eb_ns=True) for p in unprocessed]
+            # rely on EasyBuild module naming scheme when resolving dependencies, since we know that will
+            # generate sensible module names that include the necessary information for the resolution to work
+            # (name, version, toolchain, versionsuffix)
+            being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
             additional = []
             for i, entry in enumerate(unprocessed):
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
-                candidates = [d for d in deps if not det_full_module_name(d, eb_ns=True) in being_installed]
+                candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
                 if len(candidates) > 0:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
                     # note: robot_find_easyconfig may return None
-                    path = robot_find_easyconfig(robot, cand_dep['name'], det_full_ec_version(cand_dep))
+                    path = robot_find_easyconfig(cand_dep['name'], det_full_ec_version(cand_dep))
 
                     if path is None:
                         # no easyconfig found for dependency, add to list of irresolvable dependencies
@@ -196,8 +205,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
-                        mods = [det_full_module_name(spec['ec']) for spec in processed_ecs]
-                        dep_mod_name = det_full_module_name(cand_dep)
+                        mods = [spec['ec'].full_mod_name for spec in processed_ecs]
+                        dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
                             tup = (path, dep_mod_name, mods)
                             _log.error("easyconfig file %s does not contain module %s (mods: %s)" % tup)
@@ -207,7 +216,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                                 additional.append(ec)
                                 _log.debug("Added %s as dependency of %s" % (ec, entry))
                 else:
-                    mod_name = det_full_module_name(entry['ec'], eb_ns=True)
+                    mod_name = EasyBuildMNS().det_full_module_name(entry['ec'])
                     _log.debug("No more candidate dependencies to resolve for %s" % mod_name)
 
             # add additional (new) easyconfigs to list of stuff to process
@@ -219,8 +228,11 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             break
 
     if irresolvable:
-        irresolvable_mod_deps = [(det_full_module_name(dep, eb_ns=True), dep) for dep in irresolvable]
-        _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
+        _log.warning("Irresolvable dependencies (details): %s" % irresolvable)
+        irresolvable_mods_eb = [EasyBuildMNS().det_full_module_name(dep) for dep in irresolvable]
+        _log.warning("Irresolvable dependencies (EasyBuild module names): %s" % ', '.join(irresolvable_mods_eb))
+        irresolvable_mods = [ActiveMNS().det_full_module_name(dep) for dep in irresolvable]
+        _log.error('Irresolvable dependencies encountered: %s' % ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
     return ordered_ecs
@@ -253,7 +265,11 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
             ans = ' '
         else:
             ans = 'x'
-        mod = det_full_module_name(spec['ec'])
+
+        if spec['ec'].short_mod_name != spec['ec'].full_mod_name:
+            mod = "%s | %s" % (spec['ec'].mod_subdir, spec['ec'].short_mod_name)
+        else:
+            mod = spec['ec'].full_mod_name
 
         if short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
@@ -284,7 +300,7 @@ def _dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return det_full_module_name(spec)
+            return ActiveMNS().det_full_module_name(spec)
 
     # enhance list of specs
     for spec in specs:
