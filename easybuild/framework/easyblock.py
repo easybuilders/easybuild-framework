@@ -64,7 +64,7 @@ from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import GENERAL_CLASS, ModuleGenerator
+from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -862,7 +862,8 @@ class EasyBlock(object):
         modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
         txt = ''
         if modpath_exts:
-            full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
+            mod_path_suffix = build_option('suffix_modules_path')
+            full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
             # collapse to a single module path extension statement (requires a non-empty list of extension paths)
             all_full_path_modpath_extensions = os.pathsep.join(full_path_modpath_extensions)
             txt = self.moduleGenerator.prepend_paths('MODULEPATH', all_full_path_modpath_extensions, allow_abs=True)
@@ -1174,12 +1175,16 @@ class EasyBlock(object):
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
+        mod_path_suffix = build_option('suffix_modules_path')
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
         parent_subdir = os.path.dirname(self.full_mod_name)
         pardirs = [
             os.path.join(install_path(), parent_subdir),
-            os.path.join(install_path('mod'), GENERAL_CLASS, parent_subdir),
-            os.path.join(install_path('mod'), self.cfg['moduleclass'], parent_subdir),
+            os.path.join(install_path('mod'), mod_path_suffix, parent_subdir),
         ]
+        for mod_symlink_path in mod_symlink_paths:
+            pardirs.append(os.path.join(install_path('mod'), mod_symlink_path, parent_subdir))
+
         self.log.info("Checking dirs that need to be created: %s" % pardirs)
         for pardir in pardirs:
             mkdir(pardir, parents=True)

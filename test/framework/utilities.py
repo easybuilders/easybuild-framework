@@ -47,6 +47,7 @@ from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 
 
@@ -195,6 +196,7 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
+            'suffix_modules_path': GENERAL_CLASS,
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }
