@@ -38,8 +38,8 @@ from vsc.utils import fancylogger
 
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
+import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.framework.easyconfig import easyconfig
-from easybuild.framework.easyconfig import tools as easyconfig_tools
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config, modules
@@ -181,7 +181,7 @@ def cleanup():
     # empty caches
     tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
-    easyconfig_tools._toolchain_details_cache.clear()
+    mns_toolchain._toolchain_details_cache.clear()
 
 
 def init_config(args=None, build_options=None):

@@ -32,8 +32,8 @@ Implementation of an example hierarchical module naming scheme.
 import os
 from vsc.utils import fancylogger
 
-from easybuild.framework.easyconfig.tools import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 
 
 CORE = 'Core'

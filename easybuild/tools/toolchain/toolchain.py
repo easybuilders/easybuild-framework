@@ -43,14 +43,6 @@ from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
 
-# different types of toolchain elements
-TOOLCHAIN_COMPILER = 'COMPILER'
-TOOLCHAIN_MPI = 'MPI'
-TOOLCHAIN_BLAS = 'BLAS'
-TOOLCHAIN_LAPACK = 'LAPACK'
-TOOLCHAIN_FFT = 'FFT'
-
-
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
 
 
@@ -307,6 +299,27 @@ class Toolchain(object):
         # default: assume every element is required
         return True
 
+    def definition(self, names_only=True, exclude_toolchain=True):
+        """
+        Determine toolchain elements for given Toolchain instance.
+        """
+        var_suff = '_MODULE_NAME'
+        tc_elems = {}
+        for var in dir(self):
+            if var.endswith(var_suff):
+                tc_elems.update({var[:-len(var_suff)]: getattr(self, var)})
+        if names_only:
+            if exclude_toolchain:
+                # filter out toolchain name from list of toolchain elements,
+                # to avoid having 'GCC' as an element of the 'GCC' toolchain
+                tc_elems = set([elem for elems in tc_elems.values() for elem in elems if not elem == self.name])
+            else:
+                tc_elems = set([elem for elems in tc_elems.values() for elem in elems])
+
+        tup = (self.as_dict(), names_only, exclude_toolchain, tc_elems)
+        _log.debug("Toolchain definition for %s (names_only: %s, exclude_toolchain: %s): %s" % tup)
+        return tc_elems
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -347,7 +360,7 @@ class Toolchain(object):
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
         toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
-        toolchain_definition = det_toolchain_definition(self)
+        toolchain_definition = self.definition()
 
         # filter out optional toolchain elements if they're not used in the module
         for mod_name in toolchain_definition.copy():
@@ -479,25 +492,3 @@ class Toolchain(object):
     def opts(self):
         """Get value for specified option."""
         self.log.raiseException("opts[x]: legacy code. use options[x].")
-
-
-def det_toolchain_definition(tc, names_only=True, exclude_toolchain=True):
-    """
-    Determine toolchain elements for given Toolchain instance.
-    """
-    var_suff = '_MODULE_NAME'
-    tc_elems = {}
-    for var in dir(tc):
-        if var.endswith(var_suff):
-            tc_elems.update({var[:-len(var_suff)]: getattr(tc, var)})
-    if names_only:
-        if exclude_toolchain:
-            # filter out toolchain name from list of toolchain elements,
-            # to avoid having 'GCC' as an element of the 'GCC' toolchain
-            tc_elems = set([elem for elems in tc_elems.values() for elem in elems if not elem == tc.name])
-        else:
-            tc_elems = set([elem for elems in tc_elems.values() for elem in elems])
-
-    tup = (tc.as_dict(), names_only, exclude_toolchain, tc_elems)
-    _log.debug("Toolchain definition for %s (names_only: %s, exclude_toolchain: %s): %s" % tup)
-    return tc_elems
