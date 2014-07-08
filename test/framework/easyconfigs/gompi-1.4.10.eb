@@ -21,3 +21,5 @@ dependencies = [
     comp,
     (mpilib, mpiver, '', comp),
 ]
+
+moduleclass = 'toolchain'

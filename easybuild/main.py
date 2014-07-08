@@ -40,6 +40,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import traceback
 from vsc.utils import fancylogger
 from vsc.utils.missing import any
 
@@ -88,6 +89,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             # purposely catch all exceptions
             ec_res['success'] = False
             ec_res['err'] = err
+            ec_res['traceback'] = traceback.format_exc()
 
         # keep track of success/total count
         if ec_res['success']:
@@ -104,7 +106,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             write_file(test_report_fp, test_report_txt)
 
         if not ec_res['success'] and exit_on_failure:
-            _log.error(test_msg)
+            if 'traceback' in ec_res:
+                _log.error(ec_res['traceback'])
+            else:
+                _log.error(test_msg)
 
         res.append((ec, ec_res))
 
@@ -218,14 +223,18 @@ def main(testing_data=(None, None, None)):
         options.force = True
         retain_all_deps = True
 
+    if options.dep_graph or options.dry_run or options.dry_run_short:
+        options.ignore_osdeps = True
+
     config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
         'check_osdeps': not options.ignore_osdeps,
+        'filter_deps': options.filter_deps,
         'cleanup_builddir': options.cleanup_builddir,
         'command_line': eb_command_line,
         'debug': options.debug,
-        'dry_run': options.dry_run,
+        'dry_run': options.dry_run or options.dry_run_short,
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,
@@ -234,6 +243,7 @@ def main(testing_data=(None, None, None)):
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
+        'optarch': options.optarch,
         'recursive_mod_unload': options.recursive_module_unload,
         'regtest_output_dir': options.regtest_output_dir,
         'retain_all_deps': retain_all_deps,
@@ -245,6 +255,7 @@ def main(testing_data=(None, None, None)):
         'skip_test_cases': options.skip_test_cases,
         'sticky_bit': options.sticky_bit,
         'stop': options.stop,
+        'test_report_env_filter': options.test_report_env_filter,
         'umask': options.umask,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
@@ -333,8 +344,11 @@ def main(testing_data=(None, None, None)):
 
     # read easyconfig files
     easyconfigs = []
+    generated_ecs = False
     for (path, generated) in paths:
         path = os.path.abspath(path)
+        # keep track of whether any files were generated
+        generated_ecs |= generated
         if not os.path.exists(path):
             print_error("Can't find path %s" % path)
 
@@ -351,7 +365,9 @@ def main(testing_data=(None, None, None)):
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
 
     # tweak obtained easyconfig files, if requested
-    if try_to_generate and build_specs:
+    # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
+    # if easyconfig files for the dependencies are not available
+    if try_to_generate and build_specs and not generated_ecs:
         easyconfigs = tweak(easyconfigs, build_specs)
 
     # before building starts, take snapshot of environment (watch out -t option!)

@@ -52,33 +52,22 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     tmpdir = None
 
-    def cleanup(self):
-        """Cleanup enviroment"""
-        for envvar in os.environ.keys():
-            if envvar.startswith('EASYBUILD'):
-                del os.environ[envvar]
-
     def setUp(self):
         """Prepare for running a config test."""
         super(EasyBuildConfigTest, self).setUp()
-
         self.tmpdir = tempfile.mkdtemp()
-        self.cleanup()
-        # keep track of original environment to restore
-        self.orig_environ = copy.deepcopy(os.environ)
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
-        for x in os.environ.keys():
-            # oldstyle and newstyle
-            if x.startswith('EASYBUILD'):
-                del os.environ[x]
+        for path in ['buildpath', 'installpath', 'sourcepath']:
+            var = 'EASYBUILD_%s' % path.upper()
+            if var in os.environ:
+                del os.environ[var]
 
     def tearDown(self):
         """Clean up after a config test."""
         super(EasyBuildConfigTest, self).tearDown()
 
-        self.cleanup()
         try:
             shutil.rmtree(self.tmpdir)
         except OSError:
@@ -92,6 +81,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_default_config(self):
         """Test default configuration."""
+        self.purge_environment()
+
         eb_go = eboptions.parse_options(args=[])
         config_options = eb_go.get_options_by_section('config')
 
@@ -454,6 +445,7 @@ modules_install_suffix = '%(modsuffix)s'
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
         self.purge_environment()
+
         for tmpdir in [None, os.path.join(tempfile.gettempdir(), 'foo')]:
             parent = tmpdir
             if parent is None:

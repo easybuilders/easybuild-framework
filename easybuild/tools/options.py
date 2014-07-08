@@ -54,7 +54,7 @@ from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEF
 from easybuild.tools.convert import ListOfStrings
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import avail_module_naming_schemes
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -161,6 +161,9 @@ class EasyBuildOptions(GeneralOption):
                              None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
+                            "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
+                            str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
@@ -170,6 +173,8 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -284,6 +289,8 @@ class EasyBuildOptions(GeneralOption):
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
+                                       None, 'regex', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
@@ -563,8 +570,7 @@ class EasyBuildOptions(GeneralOption):
 
         for (tcname, tcc) in tclist:
             tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
-
+            tc_elems = [e for es in tc.definition().values() for e in es]
             txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
 
         return '\n'.join(txt)

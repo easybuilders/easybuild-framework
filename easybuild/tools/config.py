@@ -72,6 +72,7 @@ DEFAULT_BUILD_OPTIONS = {
     'aggregate_regtest': None,
     'allow_modules_tool_mismatch': False,
     'check_osdeps': True,
+    'filter_deps': None,
     'cleanup_builddir': True,
     'command_line': None,
     'debug': False,
@@ -84,6 +85,7 @@ DEFAULT_BUILD_OPTIONS = {
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,
+    'optarch': None,
     'recursive_mod_unload': False,
     'regtest_output_dir': None,
     'retain_all_deps': False,
@@ -95,6 +97,7 @@ DEFAULT_BUILD_OPTIONS = {
     'skip_test_cases': False,
     'sticky_bit': False,
     'stop': None,
+    'test_report_env_filter': None,
     'umask': None,
     'valid_module_classes': None,
     'valid_stops': None,
@@ -288,7 +291,7 @@ def get_default_oldstyle_configfile_defaults(prefix=None):
         'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
         'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
         'modules_tool': 'EnvironmentModulesC',
-        'module_naming_scheme': 'EasyBuildModuleNamingScheme',
+        'module_naming_scheme': 'EasyBuildMNS',
     }
 
     # sanity check
@@ -449,7 +452,7 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuildModuleNamingScheme, ...)
+    Return module naming scheme (EasyBuild, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
 

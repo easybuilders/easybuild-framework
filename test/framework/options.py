@@ -27,7 +27,7 @@ Unit tests for eb command line options.
 
 @author: Kenneth Hoste (Ghent University)
 """
-
+import glob
 import os
 import re
 import shutil
@@ -40,6 +40,7 @@ from unittest import main as unittestmain
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import modules_tool
@@ -422,7 +423,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         name_items = {
             'modules-tools': ['EnvironmentModulesC', 'Lmod'],
-            'module-naming-schemes': ['EasyBuildModuleNamingScheme'],
+            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS'],
         }
         for (name, items) in name_items.items():
             args = [
@@ -593,6 +594,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for ec, mod in ecs_mods:
                 regex = re.compile(r" \* \[.\] \$CFGS\S+%s \(module: %s\)" % (ec, mod), re.M)
                 self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+    def test_dry_run_hierarchical(self):
+        """Test dry run using a hierarchical module naming scheme."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        args = [
+            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'),
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=HierarchicalMNS',
+            '--ignore-osdeps',
+        ]
+        errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"
+        self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
+
+        args.append('--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'))
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
+
+        ecs_mods = [
+            # easyconfig, module subdir, (short) module name
+            ("GCC-4.7.2.eb", "Core", "GCC/4.7.2"),
+            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2"),
+            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4"),
+            ("gompi-1.4.10.eb", "Core", "gompi/1.4.10"),
+            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2"),
+            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "FFTW/3.3.3"),
+            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2"),
+            ("goolf-1.4.10.eb", "Core", "goolf/1.4.10"),
+            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.8.2/OpenMPI/1.6.5", "gzip/1.5"),
+        ]
+        for ec, mod_subdir, mod_name in ecs_mods:
+            regex = re.compile(r" \* \[.\] \S+%s \(module: %s | %s\)" % (ec, mod_subdir, mod_name), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -780,7 +820,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check whether non-existing OS dependencies result in failure, by default
         args = [
             eb_file,
-            '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True)
 
@@ -806,8 +845,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(eb_file, txt)
         args = [
             eb_file,
-            '--ignore-osdeps',
-            '--dry-run',
+            '--dry-run',  # no explicit --ignore-osdeps, but implied by --dry-run
         ]
         outtxt = self.eb_main(args, do_build=True)
 
@@ -960,7 +998,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--ignore-osdeps',
             '--dry-run',
         ]
-        outtxt = self.eb_main(args, do_build=True, verbose=True)
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
 
         # toolchain gompi/1.4.10 should be listed
         tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
@@ -1000,6 +1038,83 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.eb_main(args, do_build=True)
         self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)
+
+    def test_filter_deps(self):
+        """Test use of --filter-deps."""
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        ec_file = os.path.join(test_dir, 'easyconfigs', 'goolf-1.4.10.eb')
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        args = [
+            ec_file,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertTrue(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertTrue(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+
+        # clear log file
+        open(self.logfile, 'w').write('')
+
+        # filter deps (including a non-existing dep, i.e. zlib)
+        args.append('--filter-deps=FFTW,ScaLAPACK,zlib')
+        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
+        self.assertFalse(re.search('module: FFTW/3.3.3-gompi', outtxt))
+        self.assertFalse(re.search('module: ScaLAPACK/2.0.2-gompi', outtxt))
+        self.assertFalse(re.search('module: zlib', outtxt))
+    
+    def test_test_report_env_filter(self):
+        """Test use of --test-report-env-filter."""
+
+        sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
+
+        def toy(extra_args=None):
+            """Build & install toy, return contents of test report."""
+            buildpath = tempfile.mkdtemp()
+            installpath = tempfile.mkdtemp()
+            eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+            args = [
+                eb_file,
+                '--sourcepath=%s' % sourcepath,
+                '--buildpath=%s' % buildpath,
+                '--installpath=%s' % installpath,
+                '--force',
+                '--debug',
+            ]
+            if extra_args is not None:
+                args.extend(extra_args)
+            self.eb_main(args, do_build=True, raise_error=True, verbose=True)
+
+            software_path = os.path.join(installpath, 'software', 'toy', '0.0')
+            test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-0.0*test_report.md')
+            return open(glob.glob(test_report_path_pattern)[0], 'r').read()
+
+        # define environment variables that should (not) show up in the test report
+        test_var_secret = 'THIS_IS_JUST_A_SECRET_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_secret] = 'thisshouldremainsecretonrequest'
+        test_var_secret_regex = re.compile(test_var_secret)
+        test_var_public = 'THIS_IS_JUST_A_PUBLIC_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_public] = 'thisshouldalwaysbeincluded'
+        test_var_public_regex = re.compile(test_var_public)
+
+        # default: no filtering
+        test_report_txt = toy()
+        self.assertTrue(test_var_secret_regex.search(test_report_txt))
+        self.assertTrue(test_var_public_regex.search(test_report_txt))
+
+        # filter out env vars that match specified regex pattern
+        filter_arg = "--test-report-env-filter=.*_SECRET_ENV_VAR_FOR_EASYBUILD"
+        test_report_txt = toy(extra_args=[filter_arg])
+        res = test_var_secret_regex.search(test_report_txt)
+        self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
+        self.assertTrue(test_var_public_regex.search(test_report_txt))
+        # make sure that used filter is reported correctly in test report
+        filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
+        tup = (filter_arg_regex.pattern, test_report_txt)
+        self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
 def suite():
     """ returns all the testcases in this module """

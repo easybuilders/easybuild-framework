@@ -36,6 +36,8 @@ from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 class TestModuleNamingScheme(ModuleNamingScheme):
     """Class implementing a simple module naming scheme for testing purposes."""
 
+    REQUIRED_KEYS = ['name', 'version', 'toolchain']
+
     def det_full_module_name(self, ec):
         """
         Determine full module name from given easyconfig, according to a simple testing module naming scheme.

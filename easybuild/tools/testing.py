@@ -31,9 +31,11 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
+@author: Ward Poelmans (Ghent University)
 """
 import copy
 import os
+import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
@@ -137,7 +139,7 @@ def regtest(easyconfig_paths, build_specs=None):
 
         leaf_nodes = []
         for job in jobs:
-            if not job.jobid in all_deps:
+            if job.jobid not in all_deps:
                 leaf_nodes.append(str(job.jobid).split('.')[0])
 
         _log.info("Job ids of leaf nodes in dep. graph: %s" % ','.join(leaf_nodes))
@@ -240,7 +242,15 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     test_report.extend(["#### List of loaded modules"] + module_list + [""])
 
     environ_dump = init_session_state['environment']
-    environment = ["%s = %s" % (key, environ_dump[key]) for key in sorted(environ_dump.keys())]
+    environment = []
+    env_filter = build_option('test_report_env_filter')
+
+    for key in sorted(environ_dump.keys()):
+        if env_filter is not None and env_filter.search(key):
+            continue
+        else:
+            environment += ["%s = %s" % (key, environ_dump[key])]
+
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
     return '\n'.join(test_report)
@@ -257,6 +267,7 @@ def upload_test_report_as_gist(test_report, descr=None, fn=None):
 
     gist_url = create_gist(test_report, descr=descr, fn=fn, github_user=user)
     return gist_url
+
 
 def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success):
     """Post test report in a gist, and submit comment in easyconfigs PR."""
