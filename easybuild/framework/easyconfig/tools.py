@@ -300,7 +300,7 @@ def _dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return spec['ec'].full_mod_name
+            return ActiveMNS().det_full_module_name(spec)
 
     # enhance list of specs
     for spec in specs:
