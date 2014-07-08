@@ -92,6 +92,13 @@ class ModuleNamingScheme(object):
         # by default: no subdirectory
         return ''
 
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        # by default: make a symlink from moduleclass subdirectory of $MODULEPATH
+        return [ec['moduleclass']]
+
     def det_modpath_extensions(self, ec):
         """
         Determine list of subdirectories for which to extend $MODULEPATH with when this module is loaded (if any).
