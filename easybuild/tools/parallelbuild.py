@@ -164,7 +164,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
     job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
-    job.module = ActiveMNS().det_full_module_name(easyconfig['ec'])
+    job.module = easyconfig['ec'].full_mod_name
 
     return job
 

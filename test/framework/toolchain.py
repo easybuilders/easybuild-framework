@@ -58,12 +58,7 @@ class ToolchainTest(EnhancedTestCase):
         """Get a toolchain object instance to test with."""
         tc_class, _ = search_toolchain(name)
         self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version=version)
-        tc_mod_name = ActiveMNS().det_short_module_name(tc.as_dict())
-        tc_mod_subdir = ActiveMNS().det_short_module_name(tc.as_dict())
-        tc_full_mod_name = ActiveMNS().det_full_module_name(tc.as_dict())
-        tc_init_modpaths = ActiveMNS().det_init_modulepaths(tc.as_dict())
-        tc.set_module_info(tc_mod_name, tc_mod_subdir, tc_full_mod_name, tc_init_modpaths)
+        tc = tc_class(version=version, mns=ActiveMNS())
         return tc
 
     def test_toolchain(self):

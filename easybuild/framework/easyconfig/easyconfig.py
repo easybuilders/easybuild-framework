@@ -214,9 +214,11 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
-        # set module name
-        self.full_mod_name = ActiveMNS().det_full_module_name(self)
-        self.short_mod_name = ActiveMNS().det_short_module_name(self)
+        # set module info
+        mns = ActiveMNS()
+        self.full_mod_name = mns.det_full_module_name(self)
+        self.short_mod_name = mns.det_short_module_name(self)
+        self.mod_subdir = mns.det_module_subdir(self)
 
     def copy(self):
         """
@@ -446,17 +448,9 @@ class EasyConfig(object):
         returns the Toolchain used
         """
         if self._toolchain is None:
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'])
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], ActiveMNS())
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
-            if self['toolchain']['name'] != DUMMY_TOOLCHAIN_NAME:
-                mod_name = ActiveMNS().det_short_module_name(tc_dict)
-                mod_subdir = ActiveMNS().det_module_subdir(tc_dict)
-                full_mod_name = ActiveMNS().det_full_module_name(tc_dict)
-                init_modpaths = ActiveMNS().det_init_modulepaths(tc_dict)
-                tup = (mod_name, mod_subdir, full_mod_name, init_modpaths)
-                self._toolchain.set_module_info(*tup)
-                self.log.debug("Provided module info for non-dummy toolchain: %s" % str(tup))
         return self._toolchain
 
     def dump(self, fp):

@@ -184,9 +184,6 @@ class EasyBlock(object):
         # should we keep quiet?
         self.silent = build_option('silent')
 
-        # full module name for this software package
-        self.full_mod_name = self.cfg.full_mod_name
-
         # try and use the specified group (if any)
         group_name = build_option('group')
         if self.cfg['group'] is not None:
@@ -587,6 +584,13 @@ class EasyBlock(object):
         Toolchain used to build this easyblock
         """
         return self.cfg.toolchain
+
+    @property
+    def full_mod_name(self):
+        """
+        Toolchain used to build this easyblock
+        """
+        return self.cfg.full_mod_name
 
     #
     # DIRECTORY UTILITY FUNCTIONS

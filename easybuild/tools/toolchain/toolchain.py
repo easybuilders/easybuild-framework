@@ -70,7 +70,7 @@ class Toolchain(object):
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
-    def __init__(self, name=None, version=None):
+    def __init__(self, name=None, version=None, mns=None):
         """Toolchain constructor."""
 
         self.base_init()
@@ -93,10 +93,16 @@ class Toolchain(object):
         self.vars = None
 
         self.modules_tool = modules_tool()
-        self.mod_subdir = None
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
+        if self.name != DUMMY_TOOLCHAIN_NAME:
+            if mns is None:
+                self.log.error("No module naming scheme class instance was provided.")
+            tc_dict = self.as_dict()
+            self.mod_full_name = mns.det_full_module_name(tc_dict)
+            self.mod_short_name = mns.det_short_module_name(tc_dict)
+            self.init_modpaths = mns.det_init_modulepaths(tc_dict)
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -217,13 +223,6 @@ class Toolchain(object):
         if self.mod_short_name is None:
             self.log.error("Toolchain module name was not set yet (using set_module_info).")
         return self.mod_short_name
-
-    def set_module_info(self, mod_short_name, mod_subdir, mod_full_name, init_modpaths):
-        """Set (full) module name for this toolchain."""
-        self.mod_short_name = mod_short_name
-        self.mod_subdir = mod_subdir
-        self.mod_full_name = mod_full_name
-        self.init_modpaths = init_modpaths
 
     def _toolchain_exists(self):
         """

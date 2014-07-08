@@ -205,7 +205,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
 
                         # ensure that selected easyconfig provides required dependency
-                        mods = [ActiveMNS().det_full_module_name(spec['ec']) for spec in processed_ecs]
+                        mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
                             tup = (path, dep_mod_name, mods)
@@ -266,13 +266,10 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
         else:
             ans = 'x'
 
-        full_mod_name = ActiveMNS().det_full_module_name(spec['ec'])
-        mod_name = ActiveMNS().det_short_module_name(spec['ec'])
-        mod_subdir = ActiveMNS().det_module_subdir(spec['ec'])
-        if mod_name != full_mod_name:
-            mod = "%s | %s" % (mod_subdir, mod_name)
+        if spec['ec'].short_mod_name != spec['ec'].full_mod_name:
+            mod = "%s | %s" % (spec['ec'].mod_subdir, spec['ec'].short_mod_name)
         else:
-            mod = full_mod_name
+            mod = spec['ec'].full_mod_name
 
         if short:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
@@ -303,7 +300,7 @@ def _dep_graph(fn, specs, silent=False):
         if omit_versions:
             return spec['name']
         else:
-            return ActiveMNS().det_full_module_name(spec)
+            return spec['ec'].full_mod_name
 
     # enhance list of specs
     for spec in specs:

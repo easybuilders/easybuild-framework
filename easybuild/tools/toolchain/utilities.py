@@ -111,12 +111,11 @@ def search_toolchain(name):
     return None, found_tcs
 
 
-def get_toolchain(tc, tcopts):
+def get_toolchain(tc, tcopts, mns):
     """
     Return an initialized toolchain for the given specifications.
     If none is available in the toolchain instances cache, a new one is created.
     """
-
     key = (tc['name'], tc['version'])
     if key in _initial_toolchain_instances:
         tc_inst = copy.deepcopy(_initial_toolchain_instances[key])
@@ -126,7 +125,7 @@ def get_toolchain(tc, tcopts):
         if not tc_class:
             all_tcs_names = ",".join([x.NAME for x in all_tcs])
             _log.error("Toolchain %s not found, available toolchains: %s" % (tc['name'], all_tcs_names))
-        tc_inst = tc_class(version=tc['version'])
+        tc_inst = tc_class(version=tc['version'], mns=mns)
         tc_dict = tc_inst.as_dict()
         _log.debug("Obtained new toolchain instance for %s: %s" % (key, tc_dict))
 
