@@ -185,7 +185,7 @@ class EasyBlock(object):
         self.silent = build_option('silent')
 
         # full module name for this software package
-        self.full_mod_name = ActiveMNS().det_full_module_name(self.cfg)
+        self.full_mod_name = self.cfg.full_mod_name
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -1876,7 +1876,7 @@ def build_and_install_one(module, orig_environ):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                repo.commit("Built %s" % ActiveMNS().det_full_module_name(app.cfg))
+                repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
@@ -1989,7 +1989,6 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
-        instance.full_mod_name = ActiveMNS().det_full_module_name(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()

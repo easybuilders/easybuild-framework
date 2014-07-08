@@ -41,6 +41,7 @@ import os
 import re
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
+from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
@@ -212,6 +213,10 @@ class EasyConfig(object):
         self.validation = build_option('validate') and validate
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
+
+        # set module name
+        self.full_mod_name = ActiveMNS().det_full_module_name(self)
+        self.short_mod_name = ActiveMNS().det_short_module_name(self)
 
     def copy(self):
         """
@@ -899,8 +904,8 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
                 'spec': spec,
-                'short_mod_name': ActiveMNS().det_short_module_name(ec),
-                'full_mod_name': ActiveMNS().det_full_module_name(ec),
+                'short_mod_name': ec.short_mod_name,
+                'full_mod_name': ec.full_mod_name,
                 'dependencies': [],
                 'builddependencies': [],
             })
@@ -976,6 +981,8 @@ def robot_find_easyconfig(name, version):
 
 class ActiveMNS(object):
     """Wrapper class for active module naming scheme."""
+
+    __metaclass__ = Singleton
 
     def __init__(self, *args, **kwargs):
         """Initialize logger."""

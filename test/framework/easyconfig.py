@@ -41,7 +41,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
@@ -790,7 +790,6 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         eb.gen_builddir()
-        eb.mod_name = ActiveMNS().det_full_module_name(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()
