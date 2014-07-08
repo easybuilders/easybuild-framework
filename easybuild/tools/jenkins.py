@@ -93,14 +93,14 @@ def write_to_xml(succes, failed, filename):
     for (obj, fase, error, _) in failed:
         # try to pretty print
         try:
-            el = create_failure(obj.mod_name, fase, error)
+            el = create_failure(obj.full_mod_name, fase, error)
         except AttributeError:
             el = create_failure(obj, fase, error)
 
         root.firstChild.appendChild(el)
 
     for (obj, stats) in succes:
-        el = create_success(obj.mod_name, stats)
+        el = create_success(obj.full_mod_name, stats)
         root.firstChild.appendChild(el)
 
     try:
