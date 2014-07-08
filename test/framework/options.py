@@ -820,7 +820,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check whether non-existing OS dependencies result in failure, by default
         args = [
             eb_file,
-            '--dry-run',
         ]
         outtxt = self.eb_main(args, do_build=True)
 
@@ -846,8 +845,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(eb_file, txt)
         args = [
             eb_file,
-            '--ignore-osdeps',
-            '--dry-run',
+            '--dry-run',  # no explicit --ignore-osdeps, but implied by --dry-run
         ]
         outtxt = self.eb_main(args, do_build=True)
 
