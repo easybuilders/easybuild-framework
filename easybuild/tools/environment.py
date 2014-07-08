@@ -30,10 +30,13 @@ Utility module for modifying os.environ
 """
 import os
 from vsc.utils import fancylogger
+from vsc.utils.missing import shell_quote
+
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-changes = {}
+_changes = {}
+
 
 def write_changes(filename):
     """
@@ -43,8 +46,8 @@ def write_changes(filename):
     try:
         script = open(filename, 'w')
 
-        for key in changes:
-            script.write('export %s="%s"\n' % (key, changes[key]))
+        for key in _changes:
+            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
     except IOError, err:
@@ -58,9 +61,15 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    global changes
-    changes = {}
+    global _changes
+    _changes = {}
 
+
+def get_changes():
+    """
+    Return tracked changes made in environment.
+    """
+    return _changes
 
 def setvar(key, value):
     """
@@ -69,7 +78,7 @@ def setvar(key, value):
     """
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
-    changes[key] = value
+    _changes[key] = value
     _log.info("Environment variable %s set to %s" % (key, value))
 
 
@@ -141,4 +150,3 @@ def modify_env(old, new):
             _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
             os.unsetenv(key)
             del os.environ[key]
-

@@ -66,11 +66,12 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        self.assertTrue(re.search(r"Supported Packages \(10", out))
+        self.assertTrue(re.search(r"Supported Packages \(11", out))
         per_letter = {
             'F': '1',  # FFTW
             'G': '4',  # GCC, gompi, goolf, gzip
             'H': '1',  # hwloc
+            'I': '1',  # ictce
             'O': '2',  # OpenMPI, OpenBLAS
             'S': '1',  # ScaLAPACK
             'T': '1',  # toy
