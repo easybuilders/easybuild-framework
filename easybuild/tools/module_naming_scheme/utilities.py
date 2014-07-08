@@ -69,19 +69,13 @@ def avail_module_naming_schemes():
     """
     Returns a list of available module naming schemes.
     """
-    mns_attr = 'AVAIL_MODULE_NAMING_SCHEMES'
-    if not hasattr(module_naming_scheme, mns_attr):
-        # all ModuleNamingScheme subclasses available in easybuild.tools.module_naming_scheme namespace are eligible
-        import_available_modules('easybuild.tools.module_naming_scheme')
+    # all ModuleNamingScheme subclasses available in easybuild.tools.module_naming_scheme namespace are eligible
+    import_available_modules('easybuild.tools.module_naming_scheme')
 
-        # construct name-to-class dict of available module naming scheme
-        avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
+    # construct name-to-class dict of available module naming scheme
+    avail_mnss = dict([(x.__name__, x) for x in get_subclasses(ModuleNamingScheme)])
 
-        # cache dict of available module naming scheme in module constant
-        setattr(module_naming_scheme, mns_attr, avail_mnss)
-        return avail_mnss
-    else:
-        return getattr(module_naming_scheme, mns_attr)
+    return avail_mnss
 
 
 def is_valid_module_name(mod_name):
@@ -99,9 +93,9 @@ def is_valid_module_name(mod_name):
         _log.warning("Module name (%s) should have length > 0." % mod_name)
         return False
     else:
-        # check whether filename only contains printable characters
+        # check whether module name only contains printable characters, since it's used as a filename
         # (except for carriage-control characters \r, \x0b and \xoc)
-        invalid_chars = [x for x in mod_name if not x in string.printable[:-3]]
+        invalid_chars = [x for x in mod_name if x not in string.printable or x in '\r\x0b\x0c']
         if len(invalid_chars) > 0:
             _log.warning("Module name %s contains invalid characters: %s" % (mod_name, invalid_chars))
             return False

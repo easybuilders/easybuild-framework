@@ -299,7 +299,7 @@ class Toolchain(object):
         # default: assume every element is required
         return True
 
-    def definition(self, names_only=True, exclude_toolchain=True):
+    def definition(self):
         """
         Determine toolchain elements for given Toolchain instance.
         """
@@ -308,16 +308,8 @@ class Toolchain(object):
         for var in dir(self):
             if var.endswith(var_suff):
                 tc_elems.update({var[:-len(var_suff)]: getattr(self, var)})
-        if names_only:
-            if exclude_toolchain:
-                # filter out toolchain name from list of toolchain elements,
-                # to avoid having 'GCC' as an element of the 'GCC' toolchain
-                tc_elems = set([elem for elems in tc_elems.values() for elem in elems if not elem == self.name])
-            else:
-                tc_elems = set([elem for elems in tc_elems.values() for elem in elems])
 
-        tup = (self.as_dict(), names_only, exclude_toolchain, tc_elems)
-        _log.debug("Toolchain definition for %s (names_only: %s, exclude_toolchain: %s): %s" % tup)
+        _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
         return tc_elems
 
     def prepare(self, onlymod=None):
@@ -360,7 +352,8 @@ class Toolchain(object):
 
         # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
         toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
-        toolchain_definition = self.definition()
+        # only retain names of toolchain elements, excluding toolchain name
+        toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
 
         # filter out optional toolchain elements if they're not used in the module
         for mod_name in toolchain_definition.copy():

@@ -54,7 +54,6 @@ class ModuleGenerator(object):
         self.app = application
         self.fake = fake
         self.tmpdir = None
-        self.full_mod_name = None
         self.filename = None
         self.class_mod_file = None
         self.module_path = None
@@ -63,12 +62,10 @@ class ModuleGenerator(object):
         """
         Creates the absolute filename for the module.
         """
-        # obtain dict with module name info (which may be more than just the module name)
-        self.full_mod_name = ActiveMNS().det_full_module_name(self.app.cfg)
         # module file goes in general moduleclass category
-        self.filename = os.path.join(self.module_path, GENERAL_CLASS, self.full_mod_name)
+        self.filename = os.path.join(self.module_path, GENERAL_CLASS, self.app.full_mod_name)
         # make symlink in moduleclass category
-        self.class_mod_file = os.path.join(self.module_path, self.app.cfg['moduleclass'], self.full_mod_name)
+        self.class_mod_file = os.path.join(self.module_path, self.app.cfg['moduleclass'], self.app.full_mod_name)
 
         # create directories and links
         for path in [os.path.dirname(x) for x in [self.filename, self.class_mod_file]]:

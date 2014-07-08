@@ -53,8 +53,8 @@ _log = fancylogger.getLogger("toolchain.utilities")
 
 def search_toolchain(name):
     """
-    Find a toolchain with matching name
-    returns toolchain (or None), found_toolchains
+    Obtain a Toolchain instance for the toolchain with specified name, next to a list of available toolchains.
+    @return Toolchain instance (or None), found_toolchains
     """
 
     package = easybuild.tools.toolchain
@@ -83,18 +83,13 @@ def search_toolchain(name):
                     if res:
                         tc_const_name = res.group(1)
                         tc_const_value = getattr(mod_class_mod, elem)
-                        _log.debug("Found constant %s ('%s') in module %s, adding it to %s" % (tc_const_name,
-                                                                                              tc_const_value,
-                                                                                              mod_class_mod.__name__,
-                                                                                              package.__name__))
+                        tup = (tc_const_name, tc_const_value, mod_class_mod.__name__, package.__name__)
+                        _log.debug("Found constant %s ('%s') in module %s, adding it to %s" % tup)
                         if hasattr(package, tc_const_name):
                             cur_value = getattr(package, tc_const_name)
                             if not tc_const_value == cur_value:
-                                _log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % (package.__name__,
-                                                                                                     tc_const_name,
-                                                                                                     cur_value,
-                                                                                                     tc_const_value
-                                                                                                    ))
+                                tup = (package.__name__, tc_const_name, cur_value, tc_const_value)
+                                _log.error("Constant %s.%s defined as '%s', can't set it to '%s'." % tup)
                         else:
                             setattr(package, tc_const_name, tc_const_value)
 

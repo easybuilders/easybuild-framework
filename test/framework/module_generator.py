@@ -218,9 +218,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         mns_mods = ['broken_module_naming_scheme', 'test_module_naming_scheme', 'test_module_naming_scheme_more']
         for test_mns_mod in mns_mods:
             mns_path = "easybuild.tools.module_naming_scheme.%s" % test_mns_mod
-            mns_mod = __import__(mns_path, globals(), locals(), [''])
-            test_mnss = dict([(x.__name__, x) for x in get_subclasses(mns_mod.ModuleNamingScheme)])
-            easybuild.tools.module_naming_scheme.AVAIL_MODULE_NAMING_SCHEMES.update(test_mnss)
+            __import__(mns_path, globals(), locals(), [''])
         init_config(build_options=build_options)
 
         # verify that key errors in module naming scheme are reported properly

@@ -30,6 +30,7 @@ Utility module for modifying os.environ
 """
 import os
 from vsc.utils import fancylogger
+from vsc.utils.missing import shell_quote
 
 
 _log = fancylogger.getLogger('environment', fname=False)
@@ -46,7 +47,7 @@ def write_changes(filename):
         script = open(filename, 'w')
 
         for key in _changes:
-            script.write('export %s="%s"\n' % (key, _changes[key]))
+            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
     except IOError, err:

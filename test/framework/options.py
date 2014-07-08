@@ -423,7 +423,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         name_items = {
             'modules-tools': ['EnvironmentModulesC', 'Lmod'],
-            'module-naming-schemes': ['EasyBuildMNS'],
+            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS'],
         }
         for (name, items) in name_items.items():
             args = [
