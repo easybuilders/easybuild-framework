@@ -196,10 +196,11 @@ def init_config(args=None, build_options=None):
     # initialize build options
     if build_options is None:
         build_options = {
-            'suffix_modules_path': GENERAL_CLASS,
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }
+    if 'suffix_modules_path' not in build_options:
+        build_options.update({'suffix_modules_path': GENERAL_CLASS})
     config.init_build_options(build_options)
 
     return eb_go.options
