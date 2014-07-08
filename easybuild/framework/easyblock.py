@@ -822,6 +822,8 @@ class EasyBlock(object):
             txt += self.moduleGenerator.msg_on_load(self.cfg['modloadmsg'])
         if self.cfg['modtclfooter']:
             txt += self.moduleGenerator.add_tcl_footer(self.cfg['modtclfooter'])
+        for (key, value) in self.cfg['modaliases'].items():
+            txt += self.moduleGenerator.set_alias(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
