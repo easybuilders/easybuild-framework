@@ -185,7 +185,7 @@ class EasyBlock(object):
         self.silent = build_option('silent')
 
         # full module name for this software package
-        self.mod_name = ActiveMNS().det_full_module_name(self.cfg)
+        self.full_mod_name = ActiveMNS().det_full_module_name(self.cfg)
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -644,7 +644,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.mod_name)
+            installdir = os.path.join(basepath, self.full_mod_name)
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -910,14 +910,15 @@ class EasyBlock(object):
         """
         Load module for this software package/version, after purging all currently loaded modules.
         """
-        # self.mod_name might not be set (e.g. during unit tests)
-        if self.mod_name is not None:
+        # self.full_mod_name might not be set (e.g. during unit tests)
+        if self.full_mod_name is not None:
             if mod_paths is None:
                 mod_paths = []
             all_mod_paths = mod_paths + ActiveMNS().det_init_modulepaths(self.cfg)
-            self.modules_tool.load([self.mod_name], mod_paths=all_mod_paths, purge=purge, orig_env=self.orig_environ)
+            mods = [self.full_mod_name]
+            self.modules_tool.load(mods, mod_paths=all_mod_paths, purge=purge, orig_env=self.orig_environ)
         else:
-            self.log.warning("Not loading module, since self.mod_name is not set.")
+            self.log.warning("Not loading module, since self.full_mod_name is not set.")
 
     def load_fake_module(self, purge=False):
         """
@@ -943,17 +944,17 @@ class EasyBlock(object):
         """
         fake_mod_path, orig_env = fake_mod_data
         # unload module and remove temporary module directory
-        # self.mod_name might not be set (e.g. during unit tests)
-        if fake_mod_path and self.mod_name is not None:
+        # self.full_mod_name might not be set (e.g. during unit tests)
+        if fake_mod_path and self.full_mod_name is not None:
             try:
                 modtool = modules_tool()
-                modtool.unload([self.mod_name])
+                modtool.unload([self.full_mod_name])
                 modtool.remove_module_path(fake_mod_path)
                 rmtree2(os.path.dirname(fake_mod_path))
             except OSError, err:
                 self.log.error("Failed to clean up fake module dir %s: %s" % (fake_mod_path, err))
-        elif self.mod_name is None:
-            self.log.warning("Not unloading module, since self.mod_name is not set.")
+        elif self.full_mod_name is None:
+            self.log.warning("Not unloading module, since self.full_mod_name is not set.")
 
         # restore original environment
         modify_env(os.environ, orig_env)
@@ -1118,12 +1119,12 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exists(self.mod_name):
+            if self.modules_tool.exists(self.full_mod_name):
                 self.skip = True
-                self.log.info("Module %s found." % self.mod_name)
+                self.log.info("Module %s found." % self.full_mod_name)
                 self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
             else:
-                self.log.info("No module %s found. Not skipping anything." % self.mod_name)
+                self.log.info("No module %s found. Not skipping anything." % self.full_mod_name)
 
     def fetch_step(self, skip_checksums=False):
         """
@@ -1169,7 +1170,7 @@ class EasyBlock(object):
 
         # create parent dirs in install and modules path already
         # this is required when building in parallel
-        parent_subdir = os.path.dirname(self.mod_name)
+        parent_subdir = os.path.dirname(self.full_mod_name)
         pardirs = [
             os.path.join(install_path(), parent_subdir),
             os.path.join(install_path('mod'), GENERAL_CLASS, parent_subdir),
@@ -1774,7 +1775,7 @@ class EasyBlock(object):
 
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
 
-        print_msg("building and installing %s..." % self.mod_name, self.log, silent=self.silent)
+        print_msg("building and installing %s..." % self.full_mod_name, self.log, silent=self.silent)
         try:
             for (stop_name, descr, step_methods, skippable) in steps:
                 print_msg("%s..." % descr, self.log, silent=self.silent)
@@ -1988,7 +1989,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
     apps = []
     for ec in easyconfigs:
         instance = perform_step('initialization', ec, None, _log)
-        instance.mod_name = ActiveMNS().det_full_module_name(instance.cfg)
+        instance.full_mod_name = ActiveMNS().det_full_module_name(instance.cfg)
         apps.append(instance)
 
     base_dir = os.getcwd()
