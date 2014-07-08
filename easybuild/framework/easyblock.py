@@ -863,9 +863,10 @@ class EasyBlock(object):
         txt = ''
         if modpath_exts:
             full_path_modpath_extensions = [os.path.join(top_modpath, GENERAL_CLASS, ext) for ext in modpath_exts]
-            # collapse to a single module path extension statement (requires a non-empty list of extension paths)
-            all_full_path_modpath_extensions = os.pathsep.join(full_path_modpath_extensions)
-            txt = self.moduleGenerator.prepend_paths('MODULEPATH', all_full_path_modpath_extensions, allow_abs=True)
+            # module path extensions must exist, otherwise loading this module file will fail
+            for modpath_extension in full_path_modpath_extensions:
+                mkdir(modpath_extension, parents=True)
+            txt = self.moduleGenerator.use(full_path_modpath_extensions)
         return txt
 
     def make_module_req(self):

@@ -179,6 +179,15 @@ class ModuleGenerator(object):
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
 
+    def use(self, paths):
+        """
+        Generate module use statements for given list of module paths.
+        """
+        use_statements = []
+        for path in paths:
+            use_statements.append("module use %s" % path)
+        return '\n'.join(use_statements)
+
     def set_environment(self, key, value):
         """
         Generate setenv statement for the given key/value pair.

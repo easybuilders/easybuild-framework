@@ -144,6 +144,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
+    def test_use(self):
+        """Test generating module use statements."""
+        expected = '\n'.join([
+            "module use /some/path",
+            "module use /foo/bar/baz",
+        ])
+        self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
     def test_env(self):
         """Test setting of environment variables."""

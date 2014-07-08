@@ -508,7 +508,7 @@ class ToyBuildTest(EnhancedTestCase):
             os.path.join(install_mod_path, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
-                line = re.sub(r"(prepend-path\s*MODULEPATH\s*)/tmp/modules/all",
+                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
@@ -569,7 +569,7 @@ class ToyBuildTest(EnhancedTestCase):
         # no dependencies or toolchain => no module load statements in module file
         modtxt = open(toy_module_path, 'r').read()
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
-        self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
+        self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
 
         # test module path with dummy/dummy build
         extra_args = [
@@ -599,7 +599,7 @@ class ToyBuildTest(EnhancedTestCase):
         # no dependencies or toolchain => no module load statements in module file
         modtxt = open(toy_module_path, 'r').read()
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
-        self.assertTrue(re.search("^prepend-path\s*MODULEPATH\s*%s" % modpath_extension, modtxt, re.M))
+        self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""

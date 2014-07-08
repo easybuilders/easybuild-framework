@@ -10,7 +10,7 @@ module-whatis {Description: The Open MPI Project is an open source MPI-2 impleme
 set root    /tmp/software/Compiler/GCC/4.8.2/OpenMPI/1.6.5-no-OFED
 
 conflict    OpenMPI
-prepend-path	MODULEPATH		/tmp/modules/all/MPI/GCC/4.7.2/OpenMPI/1.6.4
+module use /tmp/modules/all/MPI/GCC/4.7.2/OpenMPI/1.6.4
 
 if { ![is-loaded hwloc/1.6.2] } {
     module load hwloc/1.6.2
