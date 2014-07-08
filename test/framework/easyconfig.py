@@ -45,10 +45,10 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
-from easybuild.framework.easyconfig.tools import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
