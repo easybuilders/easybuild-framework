@@ -97,12 +97,12 @@ class Toolchain(object):
         self.mod_short_name = None
         self.init_modpaths = None
         if self.name != DUMMY_TOOLCHAIN_NAME:
-            if mns is None:
-                self.log.error("No module naming scheme class instance was provided.")
-            tc_dict = self.as_dict()
-            self.mod_full_name = mns.det_full_module_name(tc_dict)
-            self.mod_short_name = mns.det_short_module_name(tc_dict)
-            self.init_modpaths = mns.det_init_modulepaths(tc_dict)
+            # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
+            if mns is not None:
+                tc_dict = self.as_dict()
+                self.mod_full_name = mns.det_full_module_name(tc_dict)
+                self.mod_short_name = mns.det_short_module_name(tc_dict)
+                self.init_modpaths = mns.det_init_modulepaths(tc_dict)
 
     def base_init(self):
         if not hasattr(self, 'log'):

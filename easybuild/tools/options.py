@@ -570,8 +570,7 @@ class EasyBuildOptions(GeneralOption):
 
         for (tcname, tcc) in tclist:
             tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
-
+            tc_elems = [e for es in tc.definition().values() for e in es]
             txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
 
         return '\n'.join(txt)
