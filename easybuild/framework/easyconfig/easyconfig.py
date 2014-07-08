@@ -1001,12 +1001,13 @@ class ActiveMNS(object):
         """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
         return self.mns.requires_toolchain_details() or not self.mns.is_sufficient(keys)
 
-    def query_mns(self, query_method, ec):
+    def check_ec_type(self, ec):
         """
         Query module naming scheme using specified method and argument.
         Obtain and pass a full parsed easyconfig file if provided keys are insufficient.
         """
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
+            self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
             # fetch/parse easyconfig file if deemed necessary
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             if eb_file is not None:
@@ -1018,7 +1019,7 @@ class ActiveMNS(object):
             else:
                 self.log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
 
-        return query_method(ec)
+        return ec
 
     def det_full_module_name(self, ec):
         """
@@ -1030,7 +1031,7 @@ class ActiveMNS(object):
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
         self.log.debug("Determining full module name for %s" % ec)
-        mod_name = self.query_mns(self.mns.det_full_module_name, ec)
+        mod_name = self.mns.det_full_module_name(self.check_ec_type(ec))
 
         if not is_valid_module_name(mod_name):
             self.log.error("%s is not a valid full module name" % str(mod_name))
@@ -1041,12 +1042,12 @@ class ActiveMNS(object):
 
     def det_devel_module_filename(self, ec):
         """Determine devel module filename."""
-        return self.query_mns(self.mns.det_full_module_name, ec).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+        return self.mns.det_full_module_name(self.check_ec_type(ec)).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
     def det_short_module_name(self, ec):
         """Determine module name according to module naming scheme."""
         self.log.debug("Determining module name for %s" % ec)
-        mod_name = self.query_mns(self.mns.det_short_module_name, ec)
+        mod_name = self.mns.det_short_module_name(self.check_ec_type(ec))
         if not is_valid_module_name(mod_name):
             self.log.error("%s is not a valid module name" % str(mod_name))
         else:
@@ -1056,21 +1057,21 @@ class ActiveMNS(object):
     def det_module_subdir(self, ec):
         """Determine module subdirectory according to module naming scheme."""
         self.log.debug("Determining module subdir for %s" % ec)
-        mod_subdir = self.query_mns(self.mns.det_module_subdir, ec)
+        mod_subdir = self.mns.det_module_subdir(self.check_ec_type(ec))
         self.log.debug("Obtained subdir %s" % mod_subdir)
         return mod_subdir
 
     def det_modpath_extensions(self, ec):
         """Determine modulepath extensions according to module naming scheme."""
         self.log.debug("Determining modulepath extensions for %s" % ec)
-        modpath_extensions = self.query_mns(self.mns.det_modpath_extensions, ec)
+        modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
         self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
         return modpath_extensions
 
     def det_init_modulepaths(self, ec):
         """Determine initial modulepaths according to module naming scheme."""
         self.log.debug("Determining initial module paths for %s" % ec)
-        init_modpaths = self.query_mns(self.mns.det_init_modulepaths, ec)
+        init_modpaths = self.mns.det_init_modulepaths(self.check_ec_type(ec))
         self.log.debug("Obtained initial module paths: %s" % init_modpaths)
         return init_modpaths
 
