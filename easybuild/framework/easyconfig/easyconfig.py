@@ -41,17 +41,19 @@ import os
 import re
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, nub
+from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.module_generator import det_full_module_name as _det_full_module_name
+from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
-from easybuild.tools.toolchain.utilities import search_toolchain
+from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
@@ -78,6 +80,9 @@ DEPRECATED_OPTIONS = {
     'makeopts': ('buildopts', '2.0'),
     'premakeopts': ('prebuildopts', '2.0'),
 }
+
+_easyconfig_files_cache = {}
+_easyconfigs_cache = {}
 
 
 def handle_deprecated_easyconfig_parameter(ec_method):
@@ -208,6 +213,12 @@ class EasyConfig(object):
         self.validation = build_option('validate') and validate
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
+
+        # set module info
+        mns = ActiveMNS()
+        self.full_mod_name = mns.det_full_module_name(self)
+        self.short_mod_name = mns.det_short_module_name(self)
+        self.mod_subdir = mns.det_module_subdir(self)
 
     def copy(self):
         """
@@ -436,23 +447,10 @@ class EasyConfig(object):
         """
         returns the Toolchain used
         """
-        if self._toolchain:
-            return self._toolchain
-
-        tcname = self['toolchain']['name']
-        tc, all_tcs = search_toolchain(tcname)
-        if not tc:
-            all_tcs_names = ",".join([x.NAME for x in all_tcs])
-            self.log.error("Toolchain %s not found, available toolchains: %s" % (tcname, all_tcs_names))
-        tc = tc(version=self['toolchain']['version'])
-        if self['toolchainopts'] is None:
-            # set_options should always be called, even if no toolchain options are specified
-            # this is required to set the default options
-            tc.set_options({})
-        else:
-            tc.set_options(self['toolchainopts'])
-
-        self._toolchain = tc
+        if self._toolchain is None:
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], ActiveMNS())
+            tc_dict = self._toolchain.as_dict()
+            self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
 
     def dump(self, fp):
@@ -526,7 +524,7 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'mod_name']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name']
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -534,7 +532,8 @@ class EasyConfig(object):
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
             'dummy': False,
-            'mod_name': None,  # module name
+            'full_mod_name': None,  # full module name
+            'short_mod_name': None,  # short module name
             'name': '',  # software name
             'toolchain': None,
             'version': '',
@@ -594,7 +593,8 @@ class EasyConfig(object):
         if not dependency['version']:
             self.log.error("Dependency specified without version: %s" % dependency)
 
-        dependency['mod_name'] = det_full_module_name(dependency)
+        dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
+        dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
 
         return dependency
 
@@ -859,7 +859,7 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
-def process_easyconfig(path, build_specs=None, validate=True):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
@@ -867,6 +867,13 @@ def process_easyconfig(path, build_specs=None, validate=True):
     @param validate: whether or not to perform validation
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
+
+    # only cache when no build specifications are involved (since those can't be part of a dict key)
+    cache_key = None
+    if build_specs is None:
+        cache_key = (path, validate, parse_only)
+        if cache_key in _easyconfigs_cache:
+            return copy.deepcopy(_easyconfigs_cache[cache_key])
 
     easyconfigs = []
     for spec in blocks:
@@ -882,39 +889,44 @@ def process_easyconfig(path, build_specs=None, validate=True):
 
         name = ec['name']
 
-        # this app will appear as following module in the list
         easyconfig = {
             'ec': ec,
-            'spec': spec,
-            'module': det_full_module_name(ec),
-            'dependencies': [],
-            'builddependencies': [],
         }
-        if len(blocks) > 1:
-            easyconfig['original_spec'] = path
-
-        # add build dependencies
-        for dep in ec.builddependencies():
-            _log.debug("Adding build dependency %s for app %s." % (dep, name))
-            easyconfig['builddependencies'].append(dep)
-
-        # add dependencies (including build dependencies)
-        for dep in ec.dependencies():
-            _log.debug("Adding dependency %s for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        # add toolchain as dependency too
-        if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            dep = ec.toolchain.as_dict()
-            _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
-            easyconfig['dependencies'].append(dep)
-
-        del ec
-
-        # this is used by the parallel builder
-        easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
-
         easyconfigs.append(easyconfig)
+
+        if not parse_only:
+            # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
+            easyconfig.update({
+                'spec': spec,
+                'short_mod_name': ec.short_mod_name,
+                'full_mod_name': ec.full_mod_name,
+                'dependencies': [],
+                'builddependencies': [],
+            })
+            if len(blocks) > 1:
+                easyconfig['original_spec'] = path
+
+            # add build dependencies
+            for dep in ec.builddependencies():
+                _log.debug("Adding build dependency %s for app %s." % (dep, name))
+                easyconfig['builddependencies'].append(dep)
+
+            # add dependencies (including build dependencies)
+            for dep in ec.dependencies():
+                _log.debug("Adding dependency %s for app %s." % (dep, name))
+                easyconfig['dependencies'].append(dep)
+
+            # add toolchain as dependency too
+            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+                dep = ec.toolchain.as_dict()
+                _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
+                easyconfig['dependencies'].append(dep)
+
+            # this is used by the parallel builder
+            easyconfig['unresolved_deps'] = copy.deepcopy(easyconfig['dependencies'])
+
+    if cache_key is not None:
+        _easyconfigs_cache[cache_key] = copy.deepcopy(easyconfigs)
 
     return easyconfigs
 
@@ -935,11 +947,18 @@ def create_paths(path, name, version):
     return ["%s.eb" % os.path.join(path, *cand_path) for cand_path in cand_paths]
 
 
-def robot_find_easyconfig(paths, name, version):
+def robot_find_easyconfig(name, version):
     """
     Find an easyconfig for module in path
     """
+    key = (name, version)
+    if key in _easyconfig_files_cache:
+        _log.debug("Obtained easyconfig path from cache for %s: %s" % (key, _easyconfig_files_cache[key]))
+        return _easyconfig_files_cache[key]
+    paths = build_option('robot_path')
     if not isinstance(paths, (list, tuple)):
+        if paths is None:
+            _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
         paths = [paths]
     # candidate easyconfig paths
     for path in paths:
@@ -948,37 +967,111 @@ def robot_find_easyconfig(paths, name, version):
             _log.debug("Checking easyconfig path %s" % easyconfig_path)
             if os.path.isfile(easyconfig_path):
                 _log.debug("Found easyconfig file for name %s, version %s at %s" % (name, version, easyconfig_path))
-                return os.path.abspath(easyconfig_path)
+                _easyconfig_files_cache[key] = os.path.abspath(easyconfig_path)
+                return _easyconfig_files_cache[key]
 
     return None
 
 
-def det_full_module_name(ec, eb_ns=False):
-    """
-    Determine full module name following the currently active module naming scheme.
+class ActiveMNS(object):
+    """Wrapper class for active module naming scheme."""
 
-    First try to pass 'parsed' easyconfig as supplied,
-    try and find a matching easyconfig file, parse it and supply it in case of a KeyError.
-    """
-    try:
-        mod_name = _det_full_module_name(ec, eb_ns=eb_ns)
+    __metaclass__ = Singleton
 
-    except KeyError, err:
-        _log.debug("KeyError '%s' when determining module name for %s, trying fallback procedure..." % (err, ec))
-        # for dependencies, only name/version/versionsuffix/toolchain easyconfig parameters are available;
-        # when a key error occurs, try and find an easyconfig file to parse via the robot,
-        # and retry with the parsed easyconfig file (which will contains a full set of keys)
-        robot = build_option('robot_path')
-        eb_file = robot_find_easyconfig(robot, ec['name'], det_full_ec_version(ec))
-        if eb_file is None:
-            _log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+    def __init__(self, *args, **kwargs):
+        """Initialize logger."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        # determine active module naming scheme
+        avail_mnss = avail_module_naming_schemes()
+        self.log.debug("List of available module naming schemes: %s" % avail_mnss.keys())
+        sel_mns = get_module_naming_scheme()
+        if sel_mns in avail_mnss:
+            self.mns = avail_mnss[sel_mns]()
         else:
-            parsed_ec = process_easyconfig(eb_file)
-            if len(parsed_ec) > 1:
-                _log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
-            try:
-                mod_name = _det_full_module_name(parsed_ec[0]['ec'], eb_ns=eb_ns)
-            except KeyError, err:
-                _log.error("A KeyError '%s' occured when determining a module name for %s." % parsed_ec['ec'])
+            self.log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
 
-    return mod_name
+    def requires_full_easyconfig(self, keys):
+        """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
+        return self.mns.requires_toolchain_details() or not self.mns.is_sufficient(keys)
+
+    def check_ec_type(self, ec):
+        """
+        Query module naming scheme using specified method and argument.
+        Obtain and pass a full parsed easyconfig file if provided keys are insufficient.
+        """
+        if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
+            self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
+            # fetch/parse easyconfig file if deemed necessary
+            eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
+            if eb_file is not None:
+                parsed_ec = process_easyconfig(eb_file, parse_only=True)
+                if len(parsed_ec) > 1:
+                    self.log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
+                    self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
+                ec = parsed_ec[0]['ec']
+            else:
+                self.log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+
+        return ec
+
+    def det_full_module_name(self, ec):
+        """
+        Determine full module name by selected module naming scheme, based on supplied easyconfig.
+        Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
+        with the following requirements:
+            - module name is specified as a relative path
+            - string representing module name has length > 0
+            - module name only contains printable characters (string.printable, except carriage-control chars)
+        """
+        self.log.debug("Determining full module name for %s" % ec)
+        mod_name = self.mns.det_full_module_name(self.check_ec_type(ec))
+
+        if not is_valid_module_name(mod_name):
+            self.log.error("%s is not a valid full module name" % str(mod_name))
+        else:
+            self.log.debug("Obtained valid full module name %s" % mod_name)
+
+        return mod_name
+
+    def det_devel_module_filename(self, ec):
+        """Determine devel module filename."""
+        return self.mns.det_full_module_name(self.check_ec_type(ec)).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+
+    def det_short_module_name(self, ec):
+        """Determine module name according to module naming scheme."""
+        self.log.debug("Determining module name for %s" % ec)
+        mod_name = self.mns.det_short_module_name(self.check_ec_type(ec))
+        if not is_valid_module_name(mod_name):
+            self.log.error("%s is not a valid module name" % str(mod_name))
+        else:
+            self.log.debug("Obtained valid module name %s" % mod_name)
+        return mod_name
+
+    def det_module_subdir(self, ec):
+        """Determine module subdirectory according to module naming scheme."""
+        self.log.debug("Determining module subdir for %s" % ec)
+        mod_subdir = self.mns.det_module_subdir(self.check_ec_type(ec))
+        self.log.debug("Obtained subdir %s" % mod_subdir)
+        return mod_subdir
+
+    def det_modpath_extensions(self, ec):
+        """Determine modulepath extensions according to module naming scheme."""
+        self.log.debug("Determining modulepath extensions for %s" % ec)
+        modpath_extensions = self.mns.det_modpath_extensions(self.check_ec_type(ec))
+        self.log.debug("Obtained modulepath extensions: %s" % modpath_extensions)
+        return modpath_extensions
+
+    def det_init_modulepaths(self, ec):
+        """Determine initial modulepaths according to module naming scheme."""
+        self.log.debug("Determining initial module paths for %s" % ec)
+        init_modpaths = self.mns.det_init_modulepaths(self.check_ec_type(ec))
+        self.log.debug("Obtained initial module paths: %s" % init_modpaths)
+        return init_modpaths
+
+    def expand_toolchain_load(self):
+        """
+        Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
+        This is useful when toolchains are not exposed to users.
+        """
+        return self.mns.expand_toolchain_load()

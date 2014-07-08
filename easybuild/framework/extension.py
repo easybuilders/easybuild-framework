@@ -122,7 +122,7 @@ class Extension(object):
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
-            return
+            return True
 
         if 'modulename' in self.options:
             modname = self.options['modulename']

@@ -223,6 +223,9 @@ def main(testing_data=(None, None, None)):
         options.force = True
         retain_all_deps = True
 
+    if options.dep_graph or options.dry_run or options.dry_run_short:
+        options.ignore_osdeps = True
+
     config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
@@ -231,7 +234,7 @@ def main(testing_data=(None, None, None)):
         'cleanup_builddir': options.cleanup_builddir,
         'command_line': eb_command_line,
         'debug': options.debug,
-        'dry_run': options.dry_run,
+        'dry_run': options.dry_run or options.dry_run_short,
         'easyblock': options.easyblock,
         'experimental': options.experimental,
         'force': options.force,

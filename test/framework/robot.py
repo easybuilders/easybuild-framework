@@ -83,7 +83,8 @@ class RobotTest(EnhancedTestCase):
         """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
             'spec': '_',
-            'module': 'name/version',
+            'full_mod_name': 'name/version',
+            'short_mod_name': 'name/version',
             'dependencies': []
         }
         build_options = {
@@ -103,7 +104,8 @@ class RobotTest(EnhancedTestCase):
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
             },
             'spec': '_',
-            'module': 'foo/1.2.3',
+            'short_mod_name': 'foo/1.2.3',
+            'full_mod_name': 'foo/1.2.3',
             'dependencies': [{
                 'name': 'gzip',
                 'version': '1.4',
@@ -118,11 +120,11 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct
         self.assertEqual(len(res), 2)
-        self.assertEqual('gzip/1.4', res[0]['module'])
-        self.assertEqual('foo/1.2.3', res[-1]['module'])
+        self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
         # here we have include a Dependency in the easyconfig list
-        easyconfig['module'] = 'gzip/1.4'
+        easyconfig['full_mod_name'] = 'gzip/1.4'
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         build_options.update({'robot_path': None})
@@ -150,8 +152,8 @@ class RobotTest(EnhancedTestCase):
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
 
         # GCC should be first (required by gzip dependency)
-        self.assertEqual('GCC/4.6.3', res[0]['module'])
-        self.assertEqual('foo/1.2.3', res[-1]['module'])
+        self.assertEqual('GCC/4.6.3', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
         # make sure that only missing stuff is built, and that available modules are not rebuilt
         # monkey patch MockModule to pretend that all ingredients required for goolf-1.4.10 toolchain are present
@@ -176,13 +178,13 @@ class RobotTest(EnhancedTestCase):
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 2)
         # goolf should be first, the software itself second
-        self.assertEqual('goolf/1.4.10', res[0]['module'])
-        self.assertEqual('foo/1.2.3', res[1]['module'])
+        self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[1]['full_mod_name'])
 
         # force doesn't trigger rebuild of all deps, but listed easyconfigs for which a module is available are rebuilt
         build_options.update({'force': True})
         init_config(build_options=build_options)
-        easyconfig['module'] = 'this/is/already/there'
+        easyconfig['full_mod_name'] = 'this/is/already/there'
         MockModule.avail_modules.append('this/is/already/there')
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
         res = resolve_dependencies(ecs)
@@ -190,9 +192,9 @@ class RobotTest(EnhancedTestCase):
         # there should only be three retained builds, foo + goolf dep and the additional build (even though a module is available)
         self.assertEqual(len(res), 3)
         # goolf should be first, the software itself second
-        self.assertEqual('this/is/already/there', res[0]['module'])
-        self.assertEqual('goolf/1.4.10', res[1]['module'])
-        self.assertEqual('foo/1.2.3', res[2]['module'])
+        self.assertEqual('this/is/already/there', res[0]['full_mod_name'])
+        self.assertEqual('goolf/1.4.10', res[1]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[2]['full_mod_name'])
 
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
@@ -200,8 +202,8 @@ class RobotTest(EnhancedTestCase):
         newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 2)
-        self.assertEqual('goolf/1.4.10', res[0]['module'])
-        self.assertEqual('foo/1.2.3', res[1]['module'])
+        self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[1]['full_mod_name'])
 
         # with retain_all_deps enabled, all dependencies ae retained
         build_options.update({'retain_all_deps': True})
@@ -210,9 +212,9 @@ class RobotTest(EnhancedTestCase):
         newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 9)
-        self.assertEqual('GCC/4.7.2', res[0]['module'])
-        self.assertEqual('goolf/1.4.10', res[-2]['module'])
-        self.assertEqual('foo/1.2.3', res[-1]['module'])
+        self.assertEqual('GCC/4.7.2', res[0]['full_mod_name'])
+        self.assertEqual('goolf/1.4.10', res[-2]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
         build_options.update({'retain_all_deps': False})
         init_config(build_options=build_options)
@@ -238,10 +240,10 @@ class RobotTest(EnhancedTestCase):
         # there should only be two retained builds, i.e. the software itself and the goolf toolchain as dep
         self.assertEqual(len(res), 4)
         # goolf should be first, the software itself second
-        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['module'])
-        self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['module'])
-        self.assertEqual('goolf/1.4.10', res[2]['module'])
-        self.assertEqual('foo/1.2.3', res[3]['module'])
+        self.assertEqual('OpenBLAS/0.2.6-gompi-1.4.10-LAPACK-3.4.2', res[0]['full_mod_name'])
+        self.assertEqual('ScaLAPACK/2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2', res[1]['full_mod_name'])
+        self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
 
     def tearDown(self):
         """ reset the Modules back to its original """

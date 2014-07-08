@@ -54,7 +54,7 @@ from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEF
 from easybuild.tools.convert import ListOfStrings
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import avail_module_naming_schemes
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -570,8 +570,7 @@ class EasyBuildOptions(GeneralOption):
 
         for (tcname, tcc) in tclist:
             tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
-
+            tc_elems = [e for es in tc.definition().values() for e in es]
             txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
 
         return '\n'.join(txt)

@@ -41,12 +41,14 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, det_installversion
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import create_paths, det_installversion
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import module_classes
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.module_generator import det_full_module_name
+from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.utilities import quote_str
@@ -573,7 +575,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': ec['toolchain'],
                 'dummy': False,
-                'mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
             },
             {
                 'name': 'bar',
@@ -581,7 +584,8 @@ class EasyConfigTest(EnhancedTestCase):
                 'versionsuffix': '-bleh',
                 'toolchain': {'name': 'gompi', 'version': '1.4.10'},
                 'dummy': False,
-                'mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
             },
         ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
@@ -786,7 +790,6 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         eb.gen_builddir()
-        eb.mod_name = det_full_module_name(eb.cfg)  # required by gen_installdir()
         eb.gen_installdir()
         eb.make_builddir()
         eb.make_installdir()
@@ -888,6 +891,27 @@ class EasyConfigTest(EnhancedTestCase):
             self.prep()
             ec = EasyConfig(self.eb_file)
             self.assertEqual(ec[depr_opt], ec[new_opt])
+
+    def test_toolchain_inspection(self):
+        """Test whether available toolchain inspection functionality is working."""
+        build_options = {
+            'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            'valid_module_classes': module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertEqual(['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)], ['GCC/4.7.2'])
+        self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'hwloc-1.6.2-GCC-4.6.4.eb'))
+        tc_comps = det_toolchain_compilers(ec)
+        self.assertEqual(['/'.join([x['name'], x['version']]) for x in tc_comps], ['GCC/4.6.4'])
+        self.assertEqual(det_toolchain_mpi(ec), None)
+
+        ec = EasyConfig(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'))
+        self.assertEqual(det_toolchain_compilers(ec), None)
+        self.assertEqual(det_toolchain_mpi(ec), None)
 
     def test_filter_deps(self):
         """Test filtered dependencies."""
