@@ -178,6 +178,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         # robot: look for existing dependencies, add them
         if robot and unprocessed:
 
+            # rely on EasyBuild module naming scheme when resolving dependencies, since we know that will
+            # generate sensible module names that include the necessary information for the resolution to work
+            # (name, version, toolchain, versionsuffix)
             being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
             additional = []
@@ -230,8 +233,11 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             break
 
     if irresolvable:
-        irresolvable_mod_deps = [(EasyBuildMNS().det_full_module_name(dep), dep) for dep in irresolvable]
-        _log.error('Irresolvable dependencies encountered: %s' % irresolvable_mod_deps)
+        _log.warning("Irresolvable dependencies (details): %s" % irresolvable)
+        irresolvable_mods_eb = [EasyBuildMNS().det_full_module_name(dep) for dep in irresolvable]
+        _log.warning("Irresolvable dependencies (EasyBuild module names): %s" % ', '.join(irresolvable_mods_eb))
+        irresolvable_mods = [ActiveMNS().det_full_module_name(dep) for dep in irresolvable]
+        _log.error('Irresolvable dependencies encountered: %s' % ', '.join(irresolvable_mods))
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
     return ordered_ecs
