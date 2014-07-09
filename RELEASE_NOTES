@@ -7,7 +7,8 @@ v1.14.0 (July 9th 2014)
 feature + bugfix release
 - important changes
     - required Lmod version bumped to v5.6.3 (#944)
-        mostly required due to Lmod bug fixes in relation to support for hierarchical module naming schemes
+        required due to enhancements and bug fixes in Lmod, e.g. making "--terse avail" significantly faster, and
+        correctly handling a prepend-path statement that includes multiple directories at once
     - required Tcl/C environment modules version set to 3.2.10 (
         - hard requirement due to fixed modulecmd segmentation fault bug, that only tends manifests itself
           when making a large amount of changes in the environment (e.g. module load <toolchain>)
