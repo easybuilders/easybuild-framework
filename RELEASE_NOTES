@@ -1,6 +1,54 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.14.0 (July 9th 2014)
+-----------------------
+
+feature + bugfix release
+- important changes
+    - required Lmod version bumped to v5.6.3 (#944)
+        mostly required due to Lmod bug fixes in relation to support for hierarchical module naming schemes
+    - required Tcl/C environment modules version set to 3.2.10 (
+        - hard requirement due to fixed modulecmd segmentation fault bug, that only tends manifests itself
+          when making a large amount of changes in the environment (e.g. module load <toolchain>)
+    - renamed EasyBuildModuleNamingScheme to EasyBuildMNS
+- enhanced custom module naming schemes functionality to support hierarchical module naming schemes (#953, #971, #975)
+    - extended API for custom module naming schemes to allow tweaking different aspects of module naming
+        - see easybuild/tools/module_naming_scheme/mns.py for abstract ModuleNamingScheme class
+        - an example hierarchical module naming scheme is included, see HierarchicalMNS
+    - split up full module names into a module subdirectory part, which becomes part of $MODULEPATH),
+      and a 'short' module name (is exposed to end-users)
+        - example: 'GCC/4.7.2' in 'Core' subdir, 'OpenMPI/1.6.5' in 'Compiler/GCC/4.7.2' subdir
+    - make ModuleNamingScheme class a singleton, move it into easybuild.tools.module_naming_scheme.mns module
+    - implement ActiveMNS wrapper class for quering active module naming scheme
+    - implement toolchain inspection functions that can be used in a custom module naming scheme
+        - det_toolchain_compilers, det_toolchain_mpi in easybuild.tools.module_naming_scheme.toolchain
+    - significant code cleanup & enhanced unit tests
+- enhance & clean up tools/modules.py (#944, #953, #963, #964, #969)
+    - make ModulesTool a singleton to avoid repeating module commands over & over again needlessly
+    - use 'module use', 'module unuse' rather than fiddling with $MODULEPATH directly
+    - improve debug logging (include full stdout/stderr output of module commands)
+    - remove deprecated functionality (add_module, remove_module, indirect module load)
+- various other enhancements, including:
+    - added toolchain definitions for 'common' toolchains: 'intel' and 'foss' (#956)
+    - implement caching for easyconfig files, parsed easyconfigs and toolchains (#953)
+    - enable --ignore-osdeps implicitely when -D, --dry-run or --dep-graph are used (#953)
+    - flesh out use_group and det_parallelism function, include them in easybuild.tools.systemtools (#953)
+    - make symlinking of module files part of module naming scheme API (#973)
+        - list of symlinks paths can be controlled using det_module_symlink_paths() method
+    - added support for new configuration options:
+        - tweaking compiler flags triggered by 'optarch' toolchain options using --optarch (#949)
+        - filtering out dependencies from easyconfig files using --filter-deps (#957)
+        - filtering environment included in test reports with --test-report-env-filter (#959)
+        - made suffix used for module files install path configurable, using --suffix-modules-path (#973)
+    - added support for additional easyconfig parameters:
+        - define aliases in module files ('modaliases') (#952)
+        - add print message on module load ('modloadmsg') and Tcl footer ('modtclfooter') in module files (#954, #974) 
+- various bug fixes, including:
+    - don't try to tweak generated easyconfigs when using --try-X (#942)
+    - currently create symlinks to module files modules/all under a custom module naming scheme (#953)
+    - restore traceback error reporting on hard crashes (#965)
+
 v1.13.0 (May 29th 2014)
 -----------------------
 
