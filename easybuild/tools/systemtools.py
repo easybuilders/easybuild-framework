@@ -28,8 +28,10 @@ Module with useful functions for getting system information
 @author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import grp  # @UnresolvedImport
 import os
 import platform
+import pwd
 import re
 import sys
 from socket import gethostname
@@ -261,7 +263,7 @@ def get_kernel_name():
 
     e.g., 'Linux', 'Darwin', ...
     """
-    _log.deprecated("get_kernel_name() (replaced by os_type())", "2.0")
+    _log.deprecated("get_kernel_name() (replaced by get_os_type())", "2.0")
     try:
         kernel_name = os.uname()[0]
         return kernel_name
@@ -471,3 +473,61 @@ def get_system_info():
         'system_python_path': which('python'),
         'system_gcc_path': which('gcc'),
     }
+
+
+def use_group(group_name):
+    """Use group with specified name."""
+    try:
+        group_id = grp.getgrnam(group_name).gr_gid
+    except KeyError, err:
+        _log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group_name, err))
+
+    group = (group_name, group_id)
+    try:
+        os.setgid(group_id)
+    except OSError, err:
+        err_msg = "Failed to use group %s: %s; " % (group, err)
+        user = pwd.getpwuid(os.getuid()).pw_name
+        grp_members = grp.getgrgid(group_id).gr_mem
+        if user in grp_members:
+            err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % group_name
+        else:
+            err_msg += "current user '%s' is not in group %s (members: %s)" % (user, group, grp_members)
+        _log.error(err_msg)
+    _log.info("Using group '%s' (gid: %s)" % group)
+
+    return group
+
+
+def det_parallelism(par, maxpar):
+    """
+    Determine level of parallelism that should be used.
+    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
+    """
+    if par is not None:
+        if not isinstance(par, int):
+            try:
+                par = int(par)
+            except ValueError, err:
+                _log.error("Specified level of parallelism '%s' is not an integer value: %s" % (par, err))
+    else:
+        par = get_avail_core_count()
+        # check ulimit -u
+        out, ec = run_cmd('ulimit -u')
+        try:
+            if out.startswith("unlimited"):
+                out = 2 ** 32 - 1
+            maxuserproc = int(out)
+            # assume 6 processes per build thread + 15 overhead
+            par_guess = int((maxuserproc - 15) / 6)
+            if par_guess < par:
+                par = par_guess
+                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+        except ValueError, err:
+            _log.exception("Failed to determine max user processes (%s, %s): %s" % (ec, out, err))
+
+    if maxpar is not None and maxpar < par:
+        _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
+        par = min(par, maxpar)
+
+    return par

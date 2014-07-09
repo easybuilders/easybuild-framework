@@ -34,7 +34,7 @@ import os
 import re
 import tempfile
 import shutil
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 from easybuild.tools.build_log import EasyBuildError
@@ -42,7 +42,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 34
+TEST_MODULES_COUNT = 38
 
 
 class ModulesTest(EnhancedTestCase):
@@ -51,20 +51,18 @@ class ModulesTest(EnhancedTestCase):
     def setUp(self):
         """set up everything for a unit test."""
         super(ModulesTest, self).setUp()
-
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-        self.testmods = None
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        modules_tool().purge()
+        self.testmods = modules_tool()
 
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
-
         if test_modules_paths is None:
             test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
-        self.testmods = modules_tool(test_modules_paths)
+        mod_paths = self.testmods.mod_paths[:]
+        for path in test_modules_paths:
+            self.testmods.prepend_module_path(path)
+        for path in mod_paths:
+            if path not in test_modules_paths:
+                self.testmods.remove_module_path(path)
 
     # for Lmod, this test has to run first, to avoid that it fails;
     # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
@@ -119,21 +117,11 @@ class ModulesTest(EnhancedTestCase):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
+        ms = [m for m in ms if not m.startswith('Core/') and not m.startswith('Compiler/')]
 
         for m in ms:
             self.testmods.load([m])
             self.assertTrue(m in self.testmods.loaded_modules())
-            self.testmods.purge()
-
-        # deprecated version
-        for m in ms:
-            self.testmods.add_module([m])
-            self.testmods.load()
-
-            self.assertTrue(m in self.testmods.loaded_modules())
-
-            # remove module again and purge to avoid conflicts when loading modules
-            self.testmods.remove_module([m])
             self.testmods.purge()
 
     def test_ld_library_path(self):
@@ -147,10 +135,6 @@ class ModulesTest(EnhancedTestCase):
         self.testmods.load(['GCC/4.6.3'])
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
         self.testmods.purge()
-
-        # deprecated version
-        self.testmods.add_module([('GCC', '4.6.3')])
-        self.testmods.load()
 
         # check that previous LD_LIBRARY_PATH is still there, at the end
         self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
@@ -166,11 +150,6 @@ class ModulesTest(EnhancedTestCase):
 
         self.testmods.purge()
         self.assertTrue(len(self.testmods.loaded_modules()) == 0)
-
-        # deprecated version
-        self.testmods.add_module([ms[0]])
-        self.testmods.load()
-        self.assertTrue(len(self.testmods.loaded_modules()) > 0)
 
         self.testmods.purge()
         self.assertTrue(len(self.testmods.loaded_modules()) == 0)
@@ -226,13 +205,17 @@ class ModulesTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
-    def tearDown(self):
-        """cleanup"""
-        super(ModulesTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        # reinitialize a modules tool, to trigger 'module use' on module paths
-        modules_tool()
+    def test_wrong_modulepath(self):
+        """Test whether modules tool can deal with a broken $MODULEPATH."""
+        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
+        os.environ['MODULEPATH'] = "/some/non-existing/path:/this/doesnt/exists/anywhere:%s" % test_modules_path
+        init_config()
+        modtool = modules_tool()
+        self.assertEqual(len(modtool.mod_paths), 2)
+        self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
+        self.assertEqual(modtool.mod_paths[1], test_modules_path)
+        self.assertTrue(len(modtool.available()) > 0)
 
 def suite():
     """ returns all the testcases in this module """

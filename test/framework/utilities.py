@@ -35,14 +35,20 @@ import sys
 import tempfile
 from unittest import TestCase
 from vsc.utils import fancylogger
+from vsc.utils.patterns import Singleton
 
 import easybuild.tools.options as eboptions
+import easybuild.tools.toolchain.utilities as tc_utils
+import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
+from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.modules import modules_tool
 
 
 class EnhancedTestCase(TestCase):
@@ -111,9 +117,11 @@ class EnhancedTestCase(TestCase):
         # set MODULEPATH to included test modules
         os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
 
+        # purge out any loaded modules with original $MODULEPATH before running each test
+        modules_tool().purge()
+
     def tearDown(self):
         """Clean up after running testcase."""
-        os.remove(self.logfile)
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
@@ -137,9 +145,8 @@ class EnhancedTestCase(TestCase):
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
-        # clear instance of BuildOptions and ConfigurationVariables to ensure configuration is reinitialized
-        config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
-        config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
+        cleanup()
+
         myerr = False
         if logfile is None:
             logfile = self.logfile
@@ -166,12 +173,21 @@ class EnhancedTestCase(TestCase):
             return read_file(self.logfile)
 
 
+def cleanup():
+    """Perform cleanup of singletons and caches."""
+    # clear Singelton instances, to start afresh
+    Singleton._instances.clear()
+
+    # empty caches
+    tc_utils._initial_toolchain_instances.clear()
+    easyconfig._easyconfigs_cache.clear()
+    mns_toolchain._toolchain_details_cache.clear()
+
+
 def init_config(args=None, build_options=None):
     """(re)initialize configuration"""
 
-    # clean up any instances of BuildOptions and ConfigurationVariables before reinitializing configuration
-    config.ConfigurationVariables.__metaclass__._instances.pop(config.ConfigurationVariables, None)
-    config.BuildOptions.__metaclass__._instances.pop(config.BuildOptions, None)
+    cleanup()
 
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args)
@@ -183,6 +199,8 @@ def init_config(args=None, build_options=None):
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }
+    if 'suffix_modules_path' not in build_options:
+        build_options.update({'suffix_modules_path': GENERAL_CLASS})
     config.init_build_options(build_options)
 
     return eb_go.options

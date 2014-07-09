@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,26 +23,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Implementation of (default) EasyBuild module naming scheme.
+(buggy) EasyBuild support for building and installing toy, implemented as an easyblock
 
 @author: Kenneth Hoste (Ghent University)
 """
 
-import os
+from easybuild.framework.easyblock import EasyBlock
 
-from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+class EB_toy_buggy(EasyBlock):
+    """Support for building/installing toy."""
 
+    def configure_step(self):
+        """Configure build of toy."""
+        pass
 
-class EasyBuildModuleNamingScheme(ModuleNamingScheme):
-    """Class implementing the default EasyBuild module naming scheme."""
+    def build_step(self):
+        """Build toy."""
+        # note: import is (purposely) missing, so this will go down hard
+        run_cmd('gcc toy.c -o toy')
 
-    def det_full_module_name(self, ec):
-        """
-        Determine full module name from given easyconfig, according to the EasyBuild module naming scheme.
-
-        @param ec: dict-like object with easyconfig parameter values (e.g. 'name', 'version', etc.)
-
-        @return: string with full module name <name>/<installversion>, e.g.: 'gzip/1.5-goolf-1.4.10'
-        """
-        return os.path.join(ec['name'], det_full_ec_version(ec))
+    def install_step(self):
+        """Install toy."""
+        pass
