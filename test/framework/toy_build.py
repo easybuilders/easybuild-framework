@@ -41,6 +41,7 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
+import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
 
@@ -642,6 +643,36 @@ class ToyBuildTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
+
+    def test_module_filepath_tweaking(self):
+        """Test using --suffix-modules-path."""
+        # install test module naming scheme dynamically
+        test_mns_parent_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
+        sys.path.append(test_mns_parent_dir)
+        reload(easybuild)
+        reload(easybuild.tools)
+        reload(easybuild.tools.module_naming_scheme)
+        mns_path = "easybuild.tools.module_naming_scheme.test_module_naming_scheme"
+        __import__(mns_path, globals(), locals(), [''])
+
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            eb_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--force',
+            '--debug',
+            '--suffix-modules-path=foobarbaz',
+            '--module-naming-scheme=TestModuleNamingScheme',
+        ]
+        self.eb_main(args, do_build=True, verbose=True)
+        mod_file_prefix = os.path.join(self.test_installpath, 'modules')
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'foobarbaz', 'toy', '0.0')))
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0')))
+        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0')))
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
+        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
 
 def suite():
     """ return all the tests in this file """

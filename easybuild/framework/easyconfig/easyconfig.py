@@ -1055,6 +1055,12 @@ class ActiveMNS(object):
         self.log.debug("Obtained subdir %s" % mod_subdir)
         return mod_subdir
 
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        return self.mns.det_module_symlink_paths(ec)
+
     def det_modpath_extensions(self, ec):
         """Determine modulepath extensions according to module naming scheme."""
         self.log.debug("Determining modulepath extensions for %s" % ec)

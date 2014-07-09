@@ -54,6 +54,7 @@ from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEF
 from easybuild.tools.convert import ListOfStrings
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
@@ -231,6 +232,7 @@ class EasyBuildOptions(GeneralOption):
                            None, 'store', oldstyle_defaults['sourcepath']),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', oldstyle_defaults['subdir_modules']),
             'subdir-software': ("Installpath subdir for software", None, 'store', oldstyle_defaults['subdir_software']),
+            'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
             'testoutput': ("Path to where a job should place the output (to be set within jobscript)",

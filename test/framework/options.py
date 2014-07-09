@@ -1090,7 +1090,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             software_path = os.path.join(installpath, 'software', 'toy', '0.0')
             test_report_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-toy-0.0*test_report.md')
-            return open(glob.glob(test_report_path_pattern)[0], 'r').read()
+            f = open(glob.glob(test_report_path_pattern)[0], 'r')
+            test_report_txt = f.read()
+            f.close()
+            return test_report_txt
 
         # define environment variables that should (not) show up in the test report
         test_var_secret = 'THIS_IS_JUST_A_SECRET_ENV_VAR_FOR_EASYBUILD'

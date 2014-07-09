@@ -34,9 +34,8 @@ Creating a new toolchain should be as simple as possible.
 import os
 from vsc.utils import fancylogger
 
-from easybuild.tools.config import install_path
+from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -339,8 +338,9 @@ class Toolchain(object):
         self.log.debug("Loading toolchain module and dependencies...")
         # make sure toolchain is available using short module name by running 'module use' on module path subdir
         if self.init_modpaths:
+            mod_path_suffix = build_option('suffix_modules_path')
             for modpath in self.init_modpaths:
-                self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), GENERAL_CLASS, modpath))
+                self.modules_tool.prepend_module_path(os.path.join(install_path('mod'), mod_path_suffix, modpath))
         self.modules_tool.load([self.det_short_module_name()])
         self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
 

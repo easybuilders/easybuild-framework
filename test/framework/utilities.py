@@ -47,6 +47,7 @@ from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import read_file
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 
 
@@ -198,6 +199,8 @@ def init_config(args=None, build_options=None):
             'valid_module_classes': module_classes(),
             'valid_stops': [x[0] for x in EasyBlock.get_steps()],
         }
+    if 'suffix_modules_path' not in build_options:
+        build_options.update({'suffix_modules_path': GENERAL_CLASS})
     config.init_build_options(build_options)
 
     return eb_go.options
