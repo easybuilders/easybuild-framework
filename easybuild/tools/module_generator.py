@@ -38,8 +38,8 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
-from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.utilities import quote_str
 
 
@@ -62,30 +62,33 @@ class ModuleGenerator(object):
         """
         Creates the absolute filename for the module.
         """
+        mod_path_suffix = build_option('suffix_modules_path')
         # module file goes in general moduleclass category
-        self.filename = os.path.join(self.module_path, GENERAL_CLASS, self.app.full_mod_name)
+        self.filename = os.path.join(self.module_path, mod_path_suffix, self.app.full_mod_name)
         # make symlink in moduleclass category
-        self.class_mod_file = os.path.join(self.module_path, self.app.cfg['moduleclass'], self.app.full_mod_name)
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.app.cfg)
+        self.class_mod_files = [os.path.join(self.module_path, p, self.app.full_mod_name) for p in mod_symlink_paths]
 
         # create directories and links
-        for path in [os.path.dirname(x) for x in [self.filename, self.class_mod_file]]:
+        for path in [os.path.dirname(x) for x in [self.filename] + self.class_mod_files]:
             mkdir(path, parents=True)
 
         # remove module file if it's there (it'll be recreated), see Application.make_module
         if os.path.exists(self.filename):
             os.remove(self.filename)
 
-        return os.path.join(self.module_path, GENERAL_CLASS)
+        return os.path.join(self.module_path, mod_path_suffix)
 
     def create_symlinks(self):
         """Create moduleclass symlink(s) to actual module file."""
         try:
             # remove symlink if its there (even if it's broken)
-            if os.path.lexists(self.class_mod_file):
-                os.remove(self.class_mod_file)
-            os.symlink(self.filename, self.class_mod_file)
+            for class_mod_file in self.class_mod_files:
+                if os.path.lexists(class_mod_file):
+                    os.remove(class_mod_file)
+                os.symlink(self.filename, class_mod_file)
         except OSError, err:
-            _log.error("Failed to create symlink from %s to %s: %s" % (self.class_mod_file, self.filename, err))
+            _log.error("Failed to create symlinks from %s to %s: %s" % (self.class_mod_files, self.filename, err))
 
     def get_description(self, conflict=True):
         """

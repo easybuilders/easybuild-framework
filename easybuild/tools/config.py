@@ -97,6 +97,7 @@ DEFAULT_BUILD_OPTIONS = {
     'skip_test_cases': False,
     'sticky_bit': False,
     'stop': None,
+    'suffix_modules_path': None,
     'test_report_env_filter': None,
     'umask': None,
     'valid_module_classes': None,

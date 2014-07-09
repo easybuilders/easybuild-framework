@@ -255,6 +255,7 @@ def main(testing_data=(None, None, None)):
         'skip_test_cases': options.skip_test_cases,
         'sticky_bit': options.sticky_bit,
         'stop': options.stop,
+        'suffix_modules_path': options.suffix_modules_path,
         'test_report_env_filter': options.test_report_env_filter,
         'umask': options.umask,
         'valid_module_classes': module_classes(),

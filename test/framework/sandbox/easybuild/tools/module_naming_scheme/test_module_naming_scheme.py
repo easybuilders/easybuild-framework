@@ -55,3 +55,9 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         else:
             mod_name = os.path.join(ec['name'], ec['version'])
         return mod_name
+
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        return [ec['moduleclass'].upper(), ec['name'].lower()[0]]

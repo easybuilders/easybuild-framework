@@ -49,7 +49,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, which
-from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX, GENERAL_CLASS
+from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
@@ -300,7 +300,7 @@ class ModulesTool(object):
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
             # determine module path for EasyBuild install path to be included in $MODULEPATH
-            eb_modpath = os.path.join(install_path(typ='modules'), GENERAL_CLASS)
+            eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
 
             # make sure EasyBuild module path is in 1st place
             self.prepend_module_path(eb_modpath)
@@ -358,7 +358,7 @@ class ModulesTool(object):
         self.check_module_path()
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
-            full_mod_path = os.path.join(install_path('mod'), GENERAL_CLASS, mod_path)
+            full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             self.prepend_module_path(full_mod_path)
 
         for mod in modules:
