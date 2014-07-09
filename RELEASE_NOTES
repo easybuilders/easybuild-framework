@@ -41,6 +41,7 @@ feature + bugfix release
         - tweaking compiler flags triggered by 'optarch' toolchain options using --optarch (#949)
         - filtering out dependencies from easyconfig files using --filter-deps (#957)
         - filtering environment included in test reports with --test-report-env-filter (#959)
+            e.g. --test-report-env-filter='^SSH|USER|HOSTNAME|UID|.*COOKIE.*'
         - made suffix used for module files install path configurable, using --suffix-modules-path (#973)
     - added support for additional easyconfig parameters:
         - define aliases in module files ('modaliases') (#952)
