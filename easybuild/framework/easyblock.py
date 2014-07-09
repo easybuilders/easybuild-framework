@@ -818,6 +818,12 @@ class EasyBlock(object):
             elif not isinstance(value, (tuple, list)):
                 self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
             txt += self.moduleGenerator.prepend_paths(key, value)
+        if self.cfg['modloadmsg']:
+            txt += self.moduleGenerator.msg_on_load(self.cfg['modloadmsg'])
+        if self.cfg['modtclfooter']:
+            txt += self.moduleGenerator.add_tcl_footer(self.cfg['modtclfooter'])
+        for (key, value) in self.cfg['modaliases'].items():
+            txt += self.moduleGenerator.set_alias(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
@@ -864,9 +870,10 @@ class EasyBlock(object):
         if modpath_exts:
             mod_path_suffix = build_option('suffix_modules_path')
             full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
-            # collapse to a single module path extension statement (requires a non-empty list of extension paths)
-            all_full_path_modpath_extensions = os.pathsep.join(full_path_modpath_extensions)
-            txt = self.moduleGenerator.prepend_paths('MODULEPATH', all_full_path_modpath_extensions, allow_abs=True)
+            # module path extensions must exist, otherwise loading this module file will fail
+            for modpath_extension in full_path_modpath_extensions:
+                mkdir(modpath_extension, parents=True)
+            txt = self.moduleGenerator.use(full_path_modpath_extensions)
         return txt
 
     def make_module_req(self):

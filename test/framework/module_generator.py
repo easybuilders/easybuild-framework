@@ -144,6 +144,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                               "which only expects relative paths." % self.modgen.app.installdir,
                               self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
+    def test_use(self):
+        """Test generating module use statements."""
+        expected = '\n'.join([
+            "module use /some/path",
+            "module use /foo/bar/baz",
+        ])
+        self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
     def test_env(self):
         """Test setting of environment variables."""
@@ -152,6 +159,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
         self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
         self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
+    
+    def test_alias(self):
+        """Test setting of alias in modulefiles."""
+        # test set_alias
+        self.assertEqual('set-alias\tkey\t\t"value"\n', self.modgen.set_alias("key", "value"))
+        self.assertEqual("set-alias\tkey\t\t'va\"lue'\n", self.modgen.set_alias("key", 'va"lue'))
+        self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
+        self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
+
+    def test_load_msg(self):
+        """Test including a load message in the module file."""
+        tcl_load_msg = '\nif [ module-info mode load ] {\n        puts stderr     "test"\n}\n'
+        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test'))
+
+    def test_tcl_footer(self):
+        """Test including a Tcl footer."""
+        tcltxt = 'puts stderr "foo"'
+        self.assertEqual(tcltxt, self.modgen.add_tcl_footer(tcltxt))
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""

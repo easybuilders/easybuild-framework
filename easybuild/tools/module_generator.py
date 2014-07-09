@@ -182,12 +182,47 @@ class ModuleGenerator(object):
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
 
+    def use(self, paths):
+        """
+        Generate module use statements for given list of module paths.
+        """
+        use_statements = []
+        for path in paths:
+            use_statements.append("module use %s" % path)
+        return '\n'.join(use_statements)
+
     def set_environment(self, key, value):
         """
         Generate setenv statement for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
+    
+    def msg_on_load(self, msg):
+        """
+        Add a message that should be printed when loading the module.
+        """
+        return '\n'.join([
+            "",
+            "if [ module-info mode load ] {",
+            '        puts stderr     "%s"' % msg,
+            "}",
+            "",
+        ])
+    
+    def add_tcl_footer(self, tcltxt):
+        """
+        Append whatever Tcl code you want to your modulefile
+        """
+        # nothing to do here, but this should fail in the context of generating Lua modules
+        return tcltxt
+
+    def set_alias(self, key, value):
+        """
+        Generate set-alias statement in modulefile for the given key/value pair.
+        """
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
     def set_fake(self, fake):
         """Determine whether this ModuleGenerator instance should generate fake modules."""
