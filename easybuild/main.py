@@ -52,7 +52,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
+from easybuild.framework.easyconfig.tools import dep_graph, download_source_only, get_paths_for, print_dry_run
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
@@ -234,6 +234,7 @@ def main(testing_data=(None, None, None)):
         'cleanup_builddir': options.cleanup_builddir,
         'command_line': eb_command_line,
         'debug': options.debug,
+        'download_only': options.download_only,
         'dry_run': options.dry_run or options.dry_run_short,
         'easyblock': options.easyblock,
         'experimental': options.experimental,
@@ -374,11 +375,15 @@ def main(testing_data=(None, None, None)):
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])
 
+    # Download only
+    if options.download_only:
+        download_source_only(easyconfigs, build_specs=build_specs)
+
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
         print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
 
-    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
+    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short, options.download_only]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 

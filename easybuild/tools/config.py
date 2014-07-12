@@ -76,6 +76,7 @@ DEFAULT_BUILD_OPTIONS = {
     'cleanup_builddir': True,
     'command_line': None,
     'debug': False,
+    'download_only': False,
     'dry_run': False,
     'easyblock': None,
     'experimental': False,
