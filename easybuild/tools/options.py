@@ -88,7 +88,6 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
-            'download-only': ("Only download sources and extensions, don't build", None, 'store_true', False),
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",

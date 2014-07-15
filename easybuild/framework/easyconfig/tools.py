@@ -66,7 +66,6 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
@@ -237,48 +236,6 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
     _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
     return ordered_ecs
-
-
-def download_source_only(easyconfigs, build_specs=None):
-    """
-    Download sources and extensions only
-    @param easyconfigs: list of easyconfig files
-    @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    """
-    silent = build_option('silent')
-
-    if build_option('robot_path') is None:
-        print_msg("Download sources and extensions", log=_log, silent=silent)
-        ecs = easyconfigs
-    else:
-        print_msg("Download sources and extensions with dependencies", log=_log, silent=silent)
-        ecs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
-
-    for ec in ecs:
-        spec = ec['spec']
-
-        print_msg("[*] processing %s" % spec, log=_log, silent=silent, prefix=False)
-
-        easyblock = build_option('easyblock')
-        if not easyblock:
-            easyblock = fetch_parameter_from_easyconfig_file(spec, 'easyblock')
-
-        name = ec['ec']['name']
-        try: 
-            app_class = get_easyblock_class(easyblock, name=name)
-            app = app_class(ec['ec'])
-            _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
-        except EasyBuildError, err: 
-            tup = (name, easyblock, err.msg)
-            print_error("Failed to get application instance for %s (easyblock: %s): %s" % tup, silent=silent)
-
-        sources = app.cfg['sources']
-        if sources:
-            app.fetch_sources(sources, checksums=app.cfg['checksums'])
-        else:
-            app.log.info('no sources provided')
-
-        app.fetch_extension_sources()
 
 
 def print_dry_run(easyconfigs, short=False, build_specs=None):

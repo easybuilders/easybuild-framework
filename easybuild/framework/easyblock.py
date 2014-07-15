@@ -1158,6 +1158,10 @@ class EasyBlock(object):
         else:
             self.log.info('no sources provided')
 
+        # fetch extensions
+        if len(self.cfg['exts_list']) > 0:
+            self.exts = self.fetch_extension_sources()
+ 
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1300,7 +1304,6 @@ class EasyBlock(object):
 
         self.prepare_for_extensions()
 
-        self.exts = self.fetch_extension_sources()
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
