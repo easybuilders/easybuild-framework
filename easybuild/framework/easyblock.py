@@ -1304,7 +1304,10 @@ class EasyBlock(object):
 
         self.prepare_for_extensions()
 
-        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
+        if self.exts:
+            self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
+        else:
+            self.exts = []
 
         if self.skip:
             self.skip_extensions()
