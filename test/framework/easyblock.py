@@ -212,8 +212,8 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertRaises(EasyBuildError, eb.extensions_step)
-        self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
+        self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
+        self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
         self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
@@ -221,7 +221,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
-        eb.extensions_step()
+        eb.extensions_step(fetch=True)
 
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
@@ -250,7 +250,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
         eb.skip = True
-        eb.extensions_step()
+        eb.extensions_step(fetch=True)
         # 'ext1' should be in eb.exts
         self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
         # 'ext2' should not

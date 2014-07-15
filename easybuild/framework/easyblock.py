@@ -1287,7 +1287,7 @@ class EasyBlock(object):
         """Install built software (abstract method)."""
         raise NotImplementedError
 
-    def extensions_step(self):
+    def extensions_step(self, fetch=False):
         """
         After make install, run this.
         - only if variable len(exts_list) > 0
@@ -1304,10 +1304,10 @@ class EasyBlock(object):
 
         self.prepare_for_extensions()
 
-        if self.exts:
-            self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
-        else:
-            self.exts = []
+        if fetch:
+            self.exts = self.fetch_extension_sources()
+            
+        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
             self.skip_extensions()
