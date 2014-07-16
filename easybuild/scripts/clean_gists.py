@@ -40,30 +40,33 @@ HTTP_DELETE_OK = 204
 
 def main():
     """the main function"""
-    fancylogger.setLogLevelInfo()
     fancylogger.logToScreen(enable=True, stdout=True)
+    fancylogger.setLogLevelInfo()
     log = fancylogger.getLogger()
 
     options = {
         'github-user': ('Your github username to use', None, 'store', None, 'g'),
-        'closed-pr': ('Delete all gists from closed pull-requests', None, 'store_true', True, 'p'),
+        'closed-pr': ('Delete all gists from closed pull-requests', None, 'store_true', False, 'p'),
         'all': ('Delete all gists from Easybuild ', None, 'store_true', False, 'a'),
         'orphans': ('Delete all gists without a pull-request', None, 'store_true', False, 'o'),
     }
 
     go = simple_option(options)
 
+    if not (go.options.all or go.options.closed_pr or go.options.orphans):
+        log.error("Please tell me what to do?")
+
     if go.options.github_user is None:
         eb_go = EasyBuildOptions(envvar_prefix='EASYBUILD', go_args=[])
         username = eb_go.options.github_user
-        log.debug("Fetch github username from easybuild, found: %s" % username)
+        log.debug("Fetch github username from easybuild, found: %s", username)
     else:
         username = go.options.github_user
 
     if username is None:
         log.error("Could not find a github username")
     else:
-        log.info("Using username = %s" % username)
+        log.info("Using username = %s", username)
 
     token = fetch_github_token(username)
 
@@ -72,34 +75,54 @@ def main():
     status, gists = gh.gists.get(per_page=100)
 
     if status != HTTP_STATUS_OK:
-        log.error("Failed to get a lists of gists for user %s: error code %s, message = %s" %
-                  (username, status, gists))
+        log.error("Failed to get a lists of gists for user %s: error code %s, message = %s",
+                  username, status, gists)
     else:
-        log.info("Found %s gists" % len(gists))
+        log.info("Found %s gists", len(gists))
 
-    regex = re.compile(r"(EasyBuild test report|EasyBuild log for failed build).+?(?:PR #(?P<PR>[0-9]+))?\)?$")
+    regex = re.compile(r"(EasyBuild test report|EasyBuild log for failed build).*?(?:PR #(?P<PR>[0-9]+))?\)?$")
+
+    pr_cache = {}
+    num_deleted = 0
 
     for gist in gists:
         re_pr_num = regex.search(gist["description"])
-        if re_pr_num and re_pr_num.group("PR"):
+        delete_gist = False
+
+        if re_pr_num:
+            log.debug("Found a Easybuild gist (id=%s)", gist["id"])
             pr_num = re_pr_num.group("PR")
-            log.info("Found Easybuild test report for PR #%s" % pr_num)
-            status, pr = gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr_num].get()
+            if go.options.all:
+                delete_gist = True
+            elif pr_num and go.options.closed_pr:
+                log.debug("Found Easybuild test report for PR #%s", pr_num)
 
-            if status != HTTP_STATUS_OK:
-                log.error("Failed to get pull-request #%s: error code %s, message = %s" %
-                          (pr_num, status, pr))
+                if pr_num not in pr_cache:
+                    status, pr = gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr_num].get()
+                    if status != HTTP_STATUS_OK:
+                        log.error("Failed to get pull-request #%s: error code %s, message = %s",
+                                  pr_num, status, pr)
+                    pr_cache[pr_num] = pr["state"]
 
-            if pr["state"] == "closed" and (go.options.closed_pr or go.options.all):
-                log.debug("Found report from closed PR #%s" % pr_num)
+                if pr_cache[pr_num] == "closed":
+                    log.debug("Found report from closed PR #%s (id=%s)", pr_num, gist["id"])
+                    delete_gist = True
 
-                status, del_gist = gh.gists[gist["id"]].delete()
+            elif not pr_num and go.options.orphans:
+                log.debug("Found Easybuild test report without PR (id=%s)", gist["id"])
+                delete_gist = True
 
-                if status != HTTP_DELETE_OK:
-                    log.error("Unable to remove gist (id=%s): error code %s, message = %s" %
-                              (gist["id"], status, del_gist))
-                else:
-                    log.info("Delete gist from closed PR #%s" % pr_num)
+        if delete_gist:
+            status, del_gist = gh.gists[gist["id"]].delete()
+
+            if status != HTTP_DELETE_OK:
+                log.error("Unable to remove gist (id=%s): error code %s, message = %s",
+                          gist["id"], status, del_gist)
+            else:
+                log.info("Delete gist with id=%s", gist["id"])
+                num_deleted += 1
+
+    log.info("Deleted %s gists", num_deleted)
 
 
 if __name__ == '__main__':
