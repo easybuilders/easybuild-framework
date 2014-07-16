@@ -22,33 +22,43 @@ created from a pull-request and if that PR is closed/merged, it will delete the 
 You need a github token for this. The script uses the same username and token
 as easybuild. Optionally, you can specify a different github username.
 
-Usage: ./clean_gists.py [<git username>]
-
-
 @author: Ward Poelmans
 """
 
 
 import re
-import sys
 
 from vsc.utils import fancylogger
+from vsc.utils.generaloption import simple_option
 from vsc.utils.rest import RestClient
-from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO, GITHUB_EB_MAIN, fetch_github_token
+from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token
 from easybuild.tools.options import EasyBuildOptions
 
 HTTP_DELETE_OK = 204
 
 
-def main(username=None):
+def main():
     """the main function"""
     fancylogger.setLogLevelInfo()
     fancylogger.logToScreen(enable=True, stdout=True)
     log = fancylogger.getLogger()
 
-    if username is None:
+    options = {
+        'github-user': ('Your github username to use', None, 'store', None, 'g'),
+        'closed-pr': ('Delete all gists from closed pull-requests', None, 'store_true', True, 'p'),
+        'all': ('Delete all gists from Easybuild ', None, 'store_true', False, 'a'),
+        'orphans': ('Delete all gists without a pull-request', None, 'store_true', False, 'o'),
+    }
+
+    go = simple_option(options)
+
+    if go.options.github_user is None:
         eb_go = EasyBuildOptions(envvar_prefix='EASYBUILD', go_args=[])
         username = eb_go.options.github_user
+        log.debug("Fetch github username from easybuild, found: %s" % username)
+    else:
+        username = go.options.github_user
 
     if username is None:
         log.error("Could not find a github username")
@@ -67,12 +77,12 @@ def main(username=None):
     else:
         log.info("Found %s gists" % len(gists))
 
-    regex = re.compile("(EasyBuild test report for easyconfigs|EasyBuild log for failed build of).*PR #([0-9]+)")
+    regex = re.compile(r"(EasyBuild test report|EasyBuild log for failed build).+?(?:PR #(?P<PR>[0-9]+))?\)?$")
 
     for gist in gists:
         re_pr_num = regex.search(gist["description"])
-        if re_pr_num:
-            pr_num = re_pr_num.group(2)
+        if re_pr_num and re_pr_num.group("PR"):
+            pr_num = re_pr_num.group("PR")
             log.info("Found Easybuild test report for PR #%s" % pr_num)
             status, pr = gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr_num].get()
 
@@ -80,8 +90,8 @@ def main(username=None):
                 log.error("Failed to get pull-request #%s: error code %s, message = %s" %
                           (pr_num, status, pr))
 
-            if pr["state"] == "closed":
-                log.debug("Found gist of closed PR #%s" % pr_num)
+            if pr["state"] == "closed" and (go.options.closed_pr or go.options.all):
+                log.debug("Found report from closed PR #%s" % pr_num)
 
                 status, del_gist = gh.gists[gist["id"]].delete()
 
@@ -93,7 +103,4 @@ def main(username=None):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 2:
-        main(username=sys.argv[1])
-    else:
-        main()
+    main()
