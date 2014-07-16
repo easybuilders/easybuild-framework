@@ -74,20 +74,24 @@ class HierarchicalMNS(ModuleNamingScheme):
         """
         Determine toolchain compiler tag, for given list of compilers.
         """
-        if len(tc_comps) == 1:
-            tc_comp_name = tc_comps[0]['name']
-            tc_comp_ver = tc_comps[0]['version']
+        # no compiler in toolchain, dummy toolchain
+        if tc_comps is None:
+            tc_comp_name = tc_comp_ver = 'dummy'
         else:
-            tc_comp_names = [comp['name'] for comp in tc_comps]
-            if set(tc_comp_names) == set(['icc', 'ifort']):
-                tc_comp_name = 'intel'
-                if tc_comps[0]['version'] == tc_comps[1]['version']:
-                    tc_comp_ver = tc_comps[0]['version']
-                else:
-                    _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+            if len(tc_comps) == 1:
+                tc_comp_name = tc_comps[0]['name']
+                tc_comp_ver = tc_comps[0]['version']
             else:
-                mns = self.__class__.__name__
-                _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
+                tc_comp_names = [comp['name'] for comp in tc_comps]
+                if set(tc_comp_names) == set(['icc', 'ifort']):
+                    tc_comp_name = 'intel'
+                    if tc_comps[0]['version'] == tc_comps[1]['version']:
+                        tc_comp_ver = tc_comps[0]['version']
+                    else:
+                        _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+                else:
+                    mns = self.__class__.__name__
+                    _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
         return tc_comp_name, tc_comp_ver
 
     def det_module_subdir(self, ec):
