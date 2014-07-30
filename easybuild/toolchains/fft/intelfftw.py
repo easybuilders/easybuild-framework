@@ -52,6 +52,19 @@ class IntelFFTW(Fftw):
         fftwsuff = ""
         if self.options.get('pic', None):
             fftwsuff = "_pic"
+        fftw_bitness = "_lp64_intel"
+        if self.options.get('i8', None):
+            # ilp64/i8
+            fftw_bitness = "_ilp64_intel"
+        # can't use toolchain.mpi_family, because of dummy toolchain
+        mpi_name_in_lib = ''
+        if get_software_root('MPICH2'):
+            mpi_name_in_lib = '_MPICH2'
+        if get_software_root('MVAPICH2'):
+            mpi_name_in_lib = '_MVAPICH2'
+        if get_software_root('OpenMPI'):
+            mpi_name_in_lib = '_OpenMPI'
+   
         fftw_libs = ["fftw3xc_intel%s" % fftwsuff]
         if self.options['usempi']:
             # add cluster interface
@@ -60,8 +73,10 @@ class IntelFFTW(Fftw):
                     fftw_libs.append("fftw3x_cdft_lp64%s" % fftwsuff)
                 elif LooseVersion(imklver) >= LooseVersion("10.3"):
                     fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
-                fftw_libs.append("mkl_cdft_core")  # add cluster dft
-                fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
+            else:
+                fftw_libs.append("fftw3x_cdft%s%s%s" % (fftw_bitness, fftwsuff, mpi_name_in_lib))
+            fftw_libs.append("mkl_cdft_core")  # add cluster dft
+            fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
 
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
         fftw_libs.extend(self.variables['LIBBLAS'].flatten()) ## add core (contains dft) ; use flatten because ListOfList
