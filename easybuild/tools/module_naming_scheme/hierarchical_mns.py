@@ -74,25 +74,25 @@ class HierarchicalMNS(ModuleNamingScheme):
         """
         Determine toolchain compiler tag, for given list of compilers.
         """
-        # no compiler in toolchain, dummy toolchain
         if tc_comps is None:
-            tc_comp_name = tc_comp_ver = 'dummy'
+            # no compiler in toolchain, dummy toolchain
+            res = None
+        elif len(tc_comps) == 1:
+            res = (tc_comps[0]['name'], tc_comps[0]['version'])
         else:
-            if len(tc_comps) == 1:
-                tc_comp_name = tc_comps[0]['name']
-                tc_comp_ver = tc_comps[0]['version']
-            else:
-                tc_comp_names = [comp['name'] for comp in tc_comps]
-                if set(tc_comp_names) == set(['icc', 'ifort']):
-                    tc_comp_name = 'intel'
-                    if tc_comps[0]['version'] == tc_comps[1]['version']:
-                        tc_comp_ver = tc_comps[0]['version']
-                    else:
-                        _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+            tc_comp_names = [comp['name'] for comp in tc_comps]
+            if set(tc_comp_names) == set(['icc', 'ifort']):
+                tc_comp_name = 'intel'
+                if tc_comps[0]['version'] == tc_comps[1]['version']:
+                    tc_comp_ver = tc_comps[0]['version']
                 else:
-                    mns = self.__class__.__name__
-                    _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
-        return tc_comp_name, tc_comp_ver
+                    _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+            else:
+                mns = self.__class__.__name__
+                _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
+            res = (tc_comp_name, tc_comp_ver)
+
+        return res
 
     def det_module_subdir(self, ec):
         """
@@ -130,9 +130,15 @@ class HierarchicalMNS(ModuleNamingScheme):
             paths.append(os.path.join(COMPILER, ec['name'], ec['version']))
         elif modclass == 'mpi':
             tc_comps = det_toolchain_compilers(ec)
-            tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
-            fullver = ec['version'] + ec['versionsuffix']
-            paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+            tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
+            if tc_comp_info is None:
+                # MPI installed with a dummy toolchain
+                # FIXME: how do we determine the correct module path extension?
+                raise NotImplementedError
+            else:
+                tc_comp_name, tc_comp_ver = tc_comp_info
+                fullver = ec['version'] + ec['versionsuffix']
+                paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
         return paths
 
