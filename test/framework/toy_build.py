@@ -520,10 +520,7 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
-        # use a local test install path rather than self.test_installpath purposely,
-        # to avoid garbage collection in Python 2.6 cleaning up the install path prematurely
-        local_test_installpath = tempfile.mkdtemp()
-        mod_prefix = os.path.join(local_test_installpath, 'modules', 'all')
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
@@ -539,7 +536,7 @@ class ToyBuildTest(EnhancedTestCase):
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % local_test_installpath,
+                              r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
 
@@ -547,7 +544,7 @@ class ToyBuildTest(EnhancedTestCase):
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % local_test_installpath,
+            '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -570,6 +567,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(re.search("load gompi", modtxt))
         self.assertTrue(re.search("load GCC", modtxt))
         self.assertTrue(re.search("load OpenMPI", modtxt))
+        os.remove(toy_module_path)
 
         # test module path with GCC/4.7.2 build
         extra_args = [
@@ -601,6 +599,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
 
         # test module path with dummy/dummy build
         extra_args = [
@@ -615,6 +614,7 @@ class ToyBuildTest(EnhancedTestCase):
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
+        os.remove(toy_module_path)
 
         # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
         extra_args = [
@@ -631,6 +631,7 @@ class ToyBuildTest(EnhancedTestCase):
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
