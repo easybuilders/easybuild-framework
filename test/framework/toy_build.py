@@ -70,10 +70,6 @@ class ToyBuildTest(EnhancedTestCase):
         # clear log
         write_file(self.logfile, '')
 
-        self.test_buildpath = tempfile.mkdtemp()
-        self.test_installpath = tempfile.mkdtemp()
-        self.test_sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
-
     def tearDown(self):
         """Cleanup."""
         super(ToyBuildTest, self).tearDown()
@@ -516,6 +512,7 @@ class ToyBuildTest(EnhancedTestCase):
         ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
         write_file(ec_file, "\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n", append=True)
         self.test_toy_build(ec_file=ec_file)
+        shutil.rmtree(tmpdir)
 
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
