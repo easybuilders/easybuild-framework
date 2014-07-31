@@ -66,7 +66,7 @@ class IntelFFTW(Fftw):
         if self.options['usempi']:
             # add cluster interface
             if LooseVersion(imklver) >= LooseVersion("11.1"):
-                fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, compsuff, picsuff))
+                fftw_libs.append("fftw3x_cdft%s%s%s" % (bitsuff, compsuff, picsuff))
             else:
                 if LooseVersion(imklver) >= LooseVersion("11.0.2"):
                     fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, picsuff))
