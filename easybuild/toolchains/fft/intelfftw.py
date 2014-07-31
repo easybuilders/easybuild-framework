@@ -56,7 +56,6 @@ class IntelFFTW(Fftw):
         if self.options.get('i8', None):
             # ilp64/i8
             fftw_bitness = "_ilp64_intel"
-        if self.options['usempi']:
 
         fftw_libs = ["fftw3xc_intel%s" % fftwsuff]
         if self.options['usempi']:
