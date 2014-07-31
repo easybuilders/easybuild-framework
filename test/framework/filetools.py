@@ -243,6 +243,21 @@ class FileToolsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_read_write_file(self):
+        """Test reading/writing files."""
+        tmpdir = tempfile.mkdtemp()
+
+        fp = os.path.join(tmpdir, 'test.txt')
+        txt = "test123"
+        ft.write_file(fp, txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        txt2 = '\n'.join(['test', '123'])
+        ft.write_file(fp, txt2, append=True)
+        self.assertEqual(ft.read_file(fp), txt+txt2)
+
+        shutil.rmtree(tmpdir)
+
     def test_det_patched_files(self):
         """Test det_patched_files function."""
         pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
