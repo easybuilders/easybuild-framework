@@ -520,24 +520,26 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
-        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        # use a local test install path rather than self.test_installpath purposely,
+        # to avoid garbage collection in Python 2.6 cleaning up the install path prematurely
+        local_test_installpath = tempfile.mkdtemp()
+        mod_prefix = os.path.join(local_test_installpath, 'modules', 'all')
 
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
-        install_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
-        mkdir(install_mod_path, parents=True)
+        mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(install_mod_path, mod_subdir))
+            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # tweak prepend-path statements in GCC/OpenMPI modules to ensure correct paths
         for modfile in [
-            os.path.join(install_mod_path, 'Core', 'GCC', '4.7.2'),
-            os.path.join(install_mod_path, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % self.test_installpath,
+                              r"\1%s/modules/all" % local_test_installpath,
                               line)
                 sys.stdout.write(line)
 
@@ -545,7 +547,7 @@ class ToyBuildTest(EnhancedTestCase):
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
-            '--installpath=%s' % self.test_installpath,
+            '--installpath=%s' % local_test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
