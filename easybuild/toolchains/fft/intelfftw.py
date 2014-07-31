@@ -49,29 +49,34 @@ class IntelFFTW(Fftw):
 
         imklver = get_software_version(self.FFT_MODULE_NAME[0])
 
-        fftwsuff = ""
+        picsuff = ''
         if self.options.get('pic', None):
-            fftwsuff = "_pic"
-        fftw_bitness = "_lp64_intel"
+            picsuff = '_pic'
+        bitsuff = '_lp64'
         if self.options.get('i8', None):
-            # ilp64/i8
-            fftw_bitness = "_ilp64_intel"
+            bitsuff = '_ilp64'
+        compsuff = '_intel'
+        if get_software_root('icc') is None:
+            if get_software_root('GCC'):
+                compsuff = '_gnu'
+            else:
+                self.log.error("Not using Intel compilers or GCC, don't know compiler suffix for FFTW libraries.")
 
-        fftw_libs = ["fftw3xc_intel%s" % fftwsuff]
+        fftw_libs = ["fftw3xc%s%s" % (compsuff, picsuff)]
         if self.options['usempi']:
             # add cluster interface
-            if LooseVersion(imklver) < LooseVersion("11.1"):
-                if LooseVersion(imklver) >= LooseVersion("11.0"):
-                    fftw_libs.append("fftw3x_cdft_lp64%s" % fftwsuff)
-                elif LooseVersion(imklver) >= LooseVersion("10.3"):
-                    fftw_libs.append("fftw3x_cdft%s" % fftwsuff)
+            if LooseVersion(imklver) >= LooseVersion("11.1"):
+                fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, compsuff, picsuff))
             else:
-                fftw_libs.append("fftw3x_cdft%s%s" % (fftw_bitness, fftwsuff))
+                if LooseVersion(imklver) >= LooseVersion("11.0.2"):
+                    fftw_libs.append("fftw3x_cdft%s%s" % (bitsuff, picsuff))
+                elif LooseVersion(imklver) >= LooseVersion("10.3"):
+                    fftw_libs.append("fftw3x_cdft%s" % picsuff)
             fftw_libs.append("mkl_cdft_core")  # add cluster dft
-            fftw_libs.extend(self.variables['LIBBLACS'].flatten()) ## add BLACS; use flatten because ListOfList
+            fftw_libs.extend(self.variables['LIBBLACS'].flatten()) # add BLACS; use flatten because ListOfList
 
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
-        fftw_libs.extend(self.variables['LIBBLAS'].flatten()) ## add core (contains dft) ; use flatten because ListOfList
+        fftw_libs.extend(self.variables['LIBBLAS'].flatten())  # add BLAS libs (contains dft)
         self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
 
         self.FFT_LIB_DIR = self.BLAS_LIB_DIR
