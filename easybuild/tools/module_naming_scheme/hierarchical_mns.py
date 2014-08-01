@@ -41,9 +41,6 @@ COMPILER = 'Compiler'
 MPI = 'MPI'
 
 
-_log = fancylogger.getLogger('HierarchicalMNS')
-
-
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
@@ -86,10 +83,10 @@ class HierarchicalMNS(ModuleNamingScheme):
                 if tc_comps[0]['version'] == tc_comps[1]['version']:
                     tc_comp_ver = tc_comps[0]['version']
                 else:
-                    _log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+                    self.log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
             else:
                 mns = self.__class__.__name__
-                _log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
+                self.log.error("Unknown set of toolchain compilers, %s needs to be enhanced first." % mns)
             res = (tc_comp_name, tc_comp_ver)
 
         return res
@@ -131,14 +128,15 @@ class HierarchicalMNS(ModuleNamingScheme):
         elif modclass == 'mpi':
             tc_comps = det_toolchain_compilers(ec)
             tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
-            if tc_comp_info is None:
-                # MPI installed with a dummy toolchain
-                # FIXME: how do we determine the correct module path extension?
-                raise NotImplementedError
-            else:
+            if not tc_comp_info is None:
                 tc_comp_name, tc_comp_ver = tc_comp_info
                 fullver = ec['version'] + ec['versionsuffix']
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+            else:
+                tup = (ec['toolchain'], ec['name'], ec['version'])
+                error_msg = "No compiler available in toolchain %s used to install MPI library %s v%s, " % tup
+                error_msg += "which is required by the active module naming scheme %s." % self.__class__.__name__
+                self.log.error(error_msg)
 
         return paths
 
