@@ -89,5 +89,6 @@ class IntelFFTW(Fftw):
         if all([fftw_lib_exists(lib) for lib in check_fftw_libs]):
             self.FFT_LIB = fftw_libs
         else:
-            msg = "Not all FFTW interface libraries %s are found in %s, can't set FFT_LIB." % (fftw_libs, fft_lib_dirs)
+            tup = (check_fftw_libs, fft_lib_dirs)
+            msg = "Not all FFTW interface libraries %s are found in %s, can't set FFT_LIB." % tup
             self.log.error(msg)
