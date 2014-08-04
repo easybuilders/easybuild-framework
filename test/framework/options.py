@@ -396,12 +396,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
-        for tc in ["dummy", "goalf", "ictce"]:
-            res = re.findall("^\s*%s: " % tc, outtxt, re.M)
+        tcs = {
+            'dummy': [],
+            'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
+            'ictce': ['icc', 'ifort', 'imkl', 'impi'],
+        }
+        for tc, tcelems in tcs.items():
+            res = re.findall("^\s*%s: .*" % tc, outtxt, re.M)
             self.assertTrue(res, "Toolchain %s is included in list of known compiler toolchains" % tc)
             # every toolchain should only be mentioned once
             n = len(res)
             self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
+            # make sure definition is correct
+            self.assertEqual("\t%s: %s" % (tc, ', '.join(tcelems)), res[0])
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
