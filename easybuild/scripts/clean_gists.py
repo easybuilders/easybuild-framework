@@ -46,7 +46,7 @@ def main():
 
     options = {
         'github-user': ('Your github username to use', None, 'store', None, 'g'),
-        'closed-pr': ('Delete all gists from closed pull-requests', None, 'store_true', False, 'p'),
+        'closed-pr': ('Delete all gists from closed pull-requests', None, 'store_true', True, 'p'),
         'all': ('Delete all gists from Easybuild ', None, 'store_true', False, 'a'),
         'orphans': ('Delete all gists without a pull-request', None, 'store_true', False, 'o'),
     }
