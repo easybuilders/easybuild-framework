@@ -396,6 +396,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         info_msg = r"INFO List of known toolchains \(toolchainname: module\[,module\.\.\.\]\):"
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
+        # toolchain elements should be in alphabetical order
         tcs = {
             'dummy': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
@@ -407,7 +408,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # every toolchain should only be mentioned once
             n = len(res)
             self.assertEqual(n, 1, "Toolchain %s is only mentioned once (count: %d)" % (tc, n))
-            # make sure definition is correct
+            # make sure definition is correct (each element only named once, in alphabetical order)
             self.assertEqual("\t%s: %s" % (tc, ', '.join(tcelems)), res[0])
 
         if os.path.exists(dummylogfn):

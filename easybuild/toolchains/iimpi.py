@@ -35,7 +35,7 @@ from easybuild.toolchains.mpi.intelmpi import IntelMPI
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Intel(IntelIccIfort, IntelMPI):
+class Iimpi(IntelIccIfort, IntelMPI):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Intel MPI.
     """
