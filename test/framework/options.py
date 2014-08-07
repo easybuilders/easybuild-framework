@@ -641,13 +641,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        tmpdir = tempfile.mkdtemp()
         args = [
             # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
             '--from-pr=726',
             '--dry-run',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
             '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--tmpdir=%s' % tmpdir,
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
 
@@ -663,6 +666,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
             regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr726')
+        regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
+        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+        shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
