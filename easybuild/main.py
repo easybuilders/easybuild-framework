@@ -226,6 +226,13 @@ def main(testing_data=(None, None, None)):
     if options.dep_graph or options.dry_run or options.dry_run_short:
         options.ignore_osdeps = True
 
+    pr_path = None
+    if options.from_pr:
+        # extend robot search path with location where files touch in PR will be downloaded to
+        pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
+        robot_path.insert(0, pr_path)
+        _log.info("Prepended list of robot search paths with %s: %s" % (pr_path, robot_path))
+
     config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
@@ -281,7 +288,6 @@ def main(testing_data=(None, None, None)):
     paths = []
     if len(orig_paths) == 0:
         if options.from_pr:
-            pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
             pr_files = fetch_easyconfigs_from_pr(options.from_pr, path=pr_path, github_user=options.github_user)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
