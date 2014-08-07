@@ -646,7 +646,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
             '--from-pr=726',
             '--dry-run',
-            '--robot',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
             '--github-user=easybuild_test',  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
