@@ -124,7 +124,11 @@ class HierarchicalMNS(ModuleNamingScheme):
 
         paths = []
         if modclass == 'compiler':
-            paths.append(os.path.join(COMPILER, ec['name'], ec['version']))
+            if ec['name'] in ['icc', 'ifort']:
+                compdir = 'intel'
+            else:
+                compdir = ec['name']
+            paths.append(os.path.join(COMPILER, compdir, ec['version']))
         elif modclass == 'mpi':
             tc_comps = det_toolchain_compilers(ec)
             tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
