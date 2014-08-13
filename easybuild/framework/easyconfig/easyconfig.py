@@ -877,7 +877,7 @@ def find_relevant_easyconfigs(path, ec):
         # Same version, any toolchain
         (name.lower()[0], name, "%s-%s-*" % (name, version)),
         # any version, same toolchain
-        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain)),
+        (name.lower()[0], name, "%s*%s-*" % (name, toolchain)),
         # any version, same toolchain name
         (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain_name)),
         # any version, any toolchain

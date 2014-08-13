@@ -3,16 +3,18 @@ import os
 import sys
 from collections import defaultdict
 from pprint import pprint
-
 import collections
 
+import easybuild.tools.terminal as terminal
+
 class bcolors:
-        HEADER = '\033[95m'
-        OKBLUE = '\033[94m'
-        OKGREEN = '\033[92m'
-        WARNING = '\033[93m'
-        FAIL = '\033[91m'
-        ENDC = '\033[0m'
+        HEADER = "\033[95m"
+        OKBLUE = "\033[94m"
+        GREEN = "\033[92m"
+        PURPLE = "\033[0;35m"
+        GRAY = "\033[1;37m"
+        RED = "\033[91m"
+        ENDC = "\033[0m"
 
 class OrderedSet(collections.MutableSet):
     '''Set that remembers original insertion order.'''
@@ -96,15 +98,26 @@ class Diff:
             self._remove_diff(line_no, diff_line.rstrip(), meta, squigly_line)
 
     def write_out(self):
-        print "Comparing %s with %s" % (os.path.basename(self.base), ", ".join(map(os.path.basename,self.files)))
+        def limit(text, length):
+            if len(text) > length:
+                return text[0:length-3] + '...'
+            else:
+                return text
+
+        w,h = terminal.get_terminal_size()
+        print " ".join(["Comparing", bcolors.PURPLE, os.path.basename(self.base), bcolors.ENDC, "with", bcolors.GRAY, ", ".join(map(os.path.basename,self.files)), bcolors.ENDC])
+
         for i in range(len(self.base_lines)):
-            self.get_line(i)
+            lines = self.get_line(i)
+            if filter(None,lines):
+                print "\n".join(map(lambda line: limit(line,w),lines))
 
     def get_line(self, line_no):
         removal_dict = dict()
         addition_dict = dict()
         squigly_dict = dict()
         order = OrderedSet([])
+        output = []
         if 'removal' in self.diff_info[line_no]:
             for (diff_line, meta, squigly_line) in self.diff_info[line_no]['removal']:
                 if squigly_line:
@@ -116,11 +129,11 @@ class Diff:
                     removal_dict[diff_line].add(meta)
 
         for diff_line in order:
-            print line_no, self._colorize(diff_line, squigly_dict.get(diff_line)),
-            if len(removal_dict[diff_line]) != self.num_files:
-                print bcolors.OKBLUE, ', '.join(removal_dict[diff_line]), bcolors.ENDC
-            else:
-                print
+            line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
+            files = removal_dict[diff_line]
+            if files != self.num_files:
+                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
+            output.append(" ".join(line))
 
         squigly_dict = dict()
         order = OrderedSet([])
@@ -134,16 +147,21 @@ class Diff:
                     addition_dict[diff_line] = set([meta])
                 else:
                     addition_dict[diff_line].add(meta)
+
         for diff_line in order:
-            print line_no, self._colorize(diff_line, squigly_dict.get(diff_line)),
-            if len(addition_dict[diff_line]) != self.num_files:
-                print bcolors.OKBLUE, ', '.join(addition_dict[diff_line]), bcolors.ENDC
-            else:
-                print
+            line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
+            files = addition_dict[diff_line]
+            if files != self.num_files:
+                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
+            output.append(" ".join(line))
 
         # print seperator
         if self.diff_info[line_no] and 'addition' not in self.diff_info[line_no+1] and 'removal' not in self.diff_info[line_no + 1]:
-            print '-----'
+            output.append('')
+            output.append('-----')
+            output.append('')
+
+        return output
 
 
     def _remove_diff(self,line_no, diff_line, meta, squigly_line=None):
@@ -164,21 +182,22 @@ class Diff:
         compensator = 0
         if not squigly:
             if line.startswith('+'):
-                chars.insert(0, bcolors.OKGREEN)
+                chars.insert(0, bcolors.GREEN)
             elif line.startswith('-'):
-                chars.insert(0, bcolors.FAIL)
+                chars.insert(0, bcolors.RED)
         else:
             for i in range(len(squigly)):
                 if squigly[i] == '+' and flag != '+':
-                    chars.insert(i+compensator, bcolors.OKGREEN)
+                    chars.insert(i+compensator, bcolors.GREEN)
                     compensator += 1
                     flag = '+'
                 if squigly[i] == '^' and flag != '^':
-                    chars.insert(i+compensator, bcolors.WARNING)
+                    color = bcolors.GREEN if line.startswith('+') else bcolors.RED
+                    chars.insert(i+compensator, color)
                     compensator += 1
                     flag = '^'
                 if squigly[i] == '-' and flag != '-':
-                    chars.insert(i+compensator, bcolors.FAIL)
+                    chars.insert(i+compensator, bcolors.RED)
                     compensator += 1
                     flag = '-'
                 if squigly[i] != flag:

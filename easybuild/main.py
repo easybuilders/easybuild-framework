@@ -291,7 +291,6 @@ def main(testing_data=(None, None, None)):
         repo_path = os.path.join(download_easyconfig_repo('develop'),'easybuild','easyconfigs')
         pr_files = [path for path in fetch_easyconfigs_from_pr(options.review_pr)
                         if path.endswith('.eb')]
-        _log.info(pr_files)
 
         for easyconfig in pr_files:
             most, second, third, last = find_relevant_easyconfigs(repo_path, easyconfig)
