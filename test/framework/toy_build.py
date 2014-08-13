@@ -592,10 +592,18 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
-        # no dependencies or toolchain => no module load statements in module file
+        # 'module use' statements to extend $MODULEPATH are present
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
+
+        # ... unless they shouldn't be
+        extra_args.append('--try-amend=include_modpath_extensions=')  # pass empty string as equivalent to False
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        modtxt = read_file(toy_module_path)
+        modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
+        self.assertFalse(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
         os.remove(toy_module_path)
 
         # test module path with dummy/dummy build
