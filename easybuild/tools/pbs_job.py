@@ -62,9 +62,10 @@ except ImportError:
         @wraps(fn)
         def instead(*args, **kwargs):
             """This is a no-op since `pbs_python` is not available."""
-            _log.error("PBSQuery or pbs modules not available."
-                       " Please make sure `pbs_python` is installed and usable.")
-            return None
+            errmsg = ("PBSQuery or pbs modules not available."
+                      " Please make sure `pbs_python` is installed and usable.")
+            _log.error(errmsg)
+            raise RuntimeError(errmsg)
         return instead
 
 
