@@ -71,7 +71,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version, det_hidden_modname
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 
@@ -202,7 +202,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
                         # build specs should not be passed down to resolved dependencies,
                         # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
-                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
+                        hidden = cand_dep.get('hidden', False)
+                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]

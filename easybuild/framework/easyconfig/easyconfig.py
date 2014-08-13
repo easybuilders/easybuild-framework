@@ -49,7 +49,7 @@ from easybuild.tools.config import build_option, get_module_naming_scheme
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
-from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
+from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -127,7 +127,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed
@@ -215,6 +215,9 @@ class EasyConfig(object):
             self.validate(check_osdeps=build_option('check_osdeps'))
 
         # set module info
+        if hidden is None:
+            hidden = build_option('hidden')
+        self.hidden = hidden
         mns = ActiveMNS()
         self.full_mod_name = mns.det_full_module_name(self)
         self.short_mod_name = mns.det_short_module_name(self)
@@ -225,7 +228,7 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation)
+        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -284,6 +287,8 @@ class EasyConfig(object):
             if key in self._config.keys() + DEPRECATED_OPTIONS.keys():
                 if key in ['builddependencies', 'dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
+                elif key in ['hiddendependencies']:
+                    self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
                     self[key] = local_vars[key]
                 tup = (key, self[key], type(self[key]))
@@ -404,7 +409,7 @@ class EasyConfig(object):
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
-        deps = self['dependencies'] + self.builddependencies()
+        deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
@@ -473,15 +478,15 @@ class EasyConfig(object):
 
         # ordered groups of keys to obtain a nice looking easyconfig file
         grouped_keys = [
-                        ["name", "version", "versionprefix", "versionsuffix"],
-                        ["homepage", "description"],
-                        ["toolchain", "toolchainopts"],
-                        ["source_urls", "sources"],
-                        ["patches"],
-                        ["dependencies"],
-                        ["parallel", "maxparallel"],
-                        ["osdependencies"]
-                        ]
+            ['name', 'version', 'versionprefix', 'versionsuffix'],
+            ['homepage', 'description'],
+            ['toolchain', 'toolchainopts'],
+            ['source_urls', 'sources'],
+            ['patches'],
+            ['builddependencies', 'dependencies', 'hiddendependencies'],
+            ['parallel', 'maxparallel'],
+            ['osdependencies']
+        ]
 
         # print easyconfig parameters ordered and in groups specified above
         ebtxt = []
@@ -515,7 +520,7 @@ class EasyConfig(object):
             self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
 
     # private method
-    def _parse_dependency(self, dep):
+    def _parse_dependency(self, dep, hidden=False):
         """
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
@@ -538,6 +543,7 @@ class EasyConfig(object):
             'toolchain': None,
             'version': '',
             'versionsuffix': '',
+            'hidden': hidden,
         }
         if isinstance(dep, dict):
             dependency.update(dep)
@@ -859,7 +865,7 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
-def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
+def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
     @param path: path to easyconfig file
@@ -867,6 +873,9 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
     @param validate: whether or not to perform validation
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
+
+    if hidden is None:
+        hidden = build_option('hidden')
 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
@@ -882,7 +891,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
 
         # create easyconfig
         try:
-            ec = EasyConfig(spec, build_specs=build_specs, validate=validate)
+            ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError, err:
             msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
             _log.exception(msg)
@@ -902,16 +911,28 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
                 'full_mod_name': ec.full_mod_name,
                 'dependencies': [],
                 'builddependencies': [],
+                'hiddendependencies': [],
+                'hidden': hidden,
             })
+            if hidden:
+                easyconfig.update({
+                    'short_mod_name': ec.short_mod_name,
+                    'full_mod_name': ec.full_mod_name,
+                })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path
 
-            # add build dependencies
-            for dep in ec.builddependencies():
+            # add build/hidden dependencies
+            for dep in ec['builddependencies']:
                 _log.debug("Adding build dependency %s for app %s." % (dep, name))
                 easyconfig['builddependencies'].append(dep)
 
-            # add dependencies (including build dependencies)
+            # add build/hidden dependencies
+            for dep in ec['hiddendependencies']:
+                _log.debug("Adding hidden dependency %s for app %s." % (dep, name))
+                easyconfig['hiddendependencies'].append(dep)
+
+            # add dependencies (including build & hidden dependencies)
             for dep in ec.dependencies():
                 _log.debug("Adding dependency %s for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)
@@ -1032,6 +1053,9 @@ class ActiveMNS(object):
         else:
             self.log.debug("Obtained valid full module name %s" % mod_name)
 
+        if getattr(ec, 'hidden', False) or ec.get('hidden', False):
+            mod_name = det_hidden_modname(mod_name)
+
         return mod_name
 
     def det_devel_module_filename(self, ec):
@@ -1042,10 +1066,15 @@ class ActiveMNS(object):
         """Determine module name according to module naming scheme."""
         self.log.debug("Determining module name for %s" % ec)
         mod_name = self.mns.det_short_module_name(self.check_ec_type(ec))
+
         if not is_valid_module_name(mod_name):
             self.log.error("%s is not a valid module name" % str(mod_name))
         else:
             self.log.debug("Obtained valid module name %s" % mod_name)
+
+        if getattr(ec, 'hidden', False) or ec.get('hidden', False):
+            mod_name = det_hidden_modname(mod_name)
+
         return mod_name
 
     def det_module_subdir(self, ec):

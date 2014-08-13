@@ -143,6 +143,7 @@ DEFAULT_CONFIG = {
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
+    'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
