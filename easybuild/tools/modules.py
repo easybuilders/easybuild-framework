@@ -333,7 +333,13 @@ class ModulesTool(object):
         """
         Check if module with specified name exists.
         """
-        return mod_name in self.available(mod_name)
+        # implemented via 'show' subcommand, since obtaining list of available modules can be very slow
+        # also, it doesn't include hidden modules
+        txt = self.show(mod_name)
+        # 'show' output always contains full path to existing module file
+        # enforce that only True is returned via ':' at the end of the regex
+        exists_re = re.compile('^\s*\S*/%s:\s*$' % mod_name, re.M)
+        return bool(exists_re.search(txt))
 
     def load(self, modules, mod_paths=None, purge=False, orig_env=None):
         """
@@ -404,7 +410,7 @@ class ModulesTool(object):
             else:
                 self.log.error("Failed to determine value from 'show' (pattern: '%s') in %s" % (regex.pattern, modinfo))
         else:
-            raise EasyBuildError("Can't get module file path for non-existing module %s" % mod_name)
+            raise EasyBuildError("Can't get value from a non-existing module %s" % mod_name)
 
     def modulefile_path(self, mod_name):
         """Get the path of the module file for the specified module."""
