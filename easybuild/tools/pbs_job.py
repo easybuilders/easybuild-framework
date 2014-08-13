@@ -90,9 +90,8 @@ class PbsJobFactory(object):
         pbs.pbs_disconnect(self.conn)
         self.conn = None
 
-    @property
-    def ppn(self):
-        """PBS' `ppn` value for a full node."""
+    def _get_ppn(self):
+        """Guess PBS' `ppn` value for a full node."""
         # cache this value as it's not likely going to change over the
         # `eb` script runtime ...
         if not self._ppn:
@@ -113,6 +112,8 @@ class PbsJobFactory(object):
             self._ppn = freq_np
 
         return self._ppn
+
+    ppn = property(_get_ppn)
 
 
     def make_job(self, script, name, env_vars=None, resources={}):
