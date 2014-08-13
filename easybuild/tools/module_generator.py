@@ -40,6 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
+from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
 from easybuild.tools.utilities import quote_str
 
 
@@ -66,7 +67,7 @@ class ModuleGenerator(object):
         hidden = build_option('hidden')
         full_mod_name = self.app.full_mod_name
         if build_option('hidden'):
-            full_mod_name = os.path.join(os.path.dirname(full_mod_name), '.%s' % os.path.basename(full_mod_name))
+            full_mod_name = det_hidden_modname(full_mod_name)
             _log.debug("Prefixed module filename with '.' to make it hidden: %s" % full_mod_name)
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
