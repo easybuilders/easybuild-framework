@@ -25,6 +25,8 @@ sources = ['%s-%s.tar.gz'%(name,version)]
 # download location for source files
 source_urls = [GNU_SOURCE]
 
+hiddendependencies = [('toy', '0.0', '-deps', True)]
+
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {
     'files': ["bin/gunzip", "bin/gzip"],

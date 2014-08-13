@@ -112,6 +112,8 @@ class ModulesTest(EnhancedTestCase):
         self.init_testmods()
         self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
         self.assertTrue(not self.testmods.exists(mod_name='foo/1.2.3'))
+        # exists should not return True for incomplete module names
+        self.assertFalse(self.testmods.exists('GCC'))
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
