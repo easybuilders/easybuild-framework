@@ -37,6 +37,7 @@ import os
 import re
 import sys
 from distutils.version import LooseVersion
+from vsc.utils.missing import nub
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import constant_documentation
@@ -141,6 +142,7 @@ class EasyBuildOptions(GeneralOption):
         # additional options that don't need a --try equivalent
         opts.update({
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
         })
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
@@ -572,8 +574,8 @@ class EasyBuildOptions(GeneralOption):
 
         for (tcname, tcc) in tclist:
             tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = [e for es in tc.definition().values() for e in es]
-            txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
+            tc_elems = nub(sorted([e for es in tc.definition().values() for e in es]))
+            txt.append("\t%s: %s" % (tcname, ', '.join(tc_elems)))
 
         return '\n'.join(txt)
 

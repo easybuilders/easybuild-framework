@@ -153,13 +153,16 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt):
+def write_file(path, txt, append=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        f = open(path, 'w')
+        if append:
+            f = open(path, 'a')
+        else:
+            f = open(path, 'w')
         f.write(txt)
         f.close()
     except IOError, err:

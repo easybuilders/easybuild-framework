@@ -37,6 +37,7 @@ Easyconfig module that contains the EasyConfig class.
 
 import copy
 import difflib
+import glob
 import os
 import re
 from vsc.utils import fancylogger
@@ -857,6 +858,39 @@ def resolve_template(value, tmpl_dict):
             value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
 
     return value
+
+def find_relevant_easyconfigs(path, ec):
+    """
+    Find relevant easyconfigs for ec in path based on a simple heuristic
+    """
+    # make sure we are working with an EasyConfig object
+    if not isinstance(ec, EasyConfig):
+        # we can safely only take the first one
+        ec = process_easyconfig(ec, parse_only=True)[0]['ec']
+
+    name = ec.name
+    version = ec.version
+    toolchain_name = ec['toolchain']['name']
+    toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
+    exact_name = det_full_ec_version(ec)
+
+    cand_paths = [
+        # exact match
+        (name.lower()[0], name, exact_name),
+        # same version, same toolchain name
+        (name.lower()[0], name, "%s-%s-%s-*" % (name, version, toolchain_name)),
+        # Same version, any toolchain
+        (name.lower()[0], name, "%s-%s-*" % (name, version)),
+        # any version, same toolchain
+        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain)),
+        # any version, same toolchain name
+        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain_name)),
+        # any version, any toolchain
+        (name.lower()[0], name, "%s-*" % (name)),
+    ]
+    relevant_files = [glob.glob("%s.eb" % os.path.join(path, *cand_path)) for cand_path in cand_paths]
+
+    return relevant_files
 
 
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):

@@ -153,5 +153,8 @@ class IntelMKL(LinAlg):
             # ilp64/i8
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_ilp64'})
 
+        self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
+        self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
+
         super(IntelMKL, self)._set_scalapack_variables()
 

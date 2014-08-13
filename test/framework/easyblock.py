@@ -455,6 +455,7 @@ class EasyBlockTest(EnhancedTestCase):
         os.remove(self.eb_file)
         if self.orig_tmp_logdir is not None:
             os.environ['EASYBUILD_TMP_LOGDIR'] = self.orig_tmp_logdir
+            shutil.rmtree(self.test_tmp_logdir, True)
 
 
 def suite():

@@ -381,7 +381,7 @@ class ToolchainTest(EnhancedTestCase):
         nvcc_flags = r' '.join([
             r'-Xcompiler="-O2 -march=native"',
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
-            r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
+            r'-Xlinker=".* -lm -lrt -lcudart -lgomp -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
         ])
 
