@@ -1626,7 +1626,7 @@ class EasyBlock(object):
 
         write_file(self.moduleGenerator.filename, txt)
 
-        self.log.info("Added modulefile: %s" % (self.moduleGenerator.filename))
+        self.log.info("Module file %s written" % self.moduleGenerator.filename)
 
         self.modules_tool.update()
         self.moduleGenerator.create_symlinks()

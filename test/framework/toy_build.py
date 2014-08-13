@@ -637,6 +637,12 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
 
+    def test_toy_hidden(self):
+        """Test installing a hidden module."""
+        self.test_toy_build(extra_args=['--hidden'], verify=False)
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
+        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
         # install test module naming scheme dynamically
