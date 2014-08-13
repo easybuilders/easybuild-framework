@@ -27,6 +27,7 @@ Utility module for working with github
 
 @author: Jens Timmerman (Ghent University)
 @author: Kenneth Hoste (Ghent University)
+@author: Toon Willems (Ghent University)
 """
 import base64
 import os
@@ -56,7 +57,7 @@ except ImportError, err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
-from easybuild.tools.filetools import det_patched_files, mkdir
+from easybuild.tools.filetools import det_patched_files, mkdir, extract_file
 
 
 GITHUB_API_URL = 'https://api.github.com'
@@ -188,26 +189,54 @@ class GithubError(Exception):
     """Error raised by the Githubfs"""
     pass
 
+def download_repo(branch='master', path=None):
+    """Download entire easyconfigs repo"""
+    if path is None:
+        path = tempfile.mkdtemp()
+    else:
+        # make sure path exists, create it if necessary
+        mkdir(path, parents=True)
+
+    extracted_dir_name = "%s-%s" % (GITHUB_EASYCONFIGS_REPO, branch)
+    base_name = ("%s.tar.gz" % branch)
+
+    url = URL_SEPARATOR.join(["https://github.com",GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, 'archive', base_name])
+    _log.debug("download from %s" % url)
+    _download(url, os.path.join(path,base_name))
+    _log.debug("archive downloaded to %s, extracting now" % path)
+
+    extracted_path = extract_file(os.path.join(path, base_name), path)
+    extracted_path = os.path.join(extracted_path, extracted_dir_name)
+    # check if extracted_path exists
+    if not os.path.isdir(extracted_path):
+        _log.error("We expected %s to exists and contain the repo" % extracted_path)
+
+    _log.debug("Repo extracted into %s" % extracted_path)
+    return extracted_path
+
+def _download(url, path=None):
+    """Download file from specified URL to specified path."""
+    if path is not None:
+        try:
+            _, httpmsg = urllib.urlretrieve(url, path)
+            _log.debug("Downloaded %s to %s" % (url, path))
+        except IOError, err:
+            _log.error("Failed to download %s to %s: %s" % (url, path, err))
+
+        '''
+        if httpmsg.type != 'text/plain' or httpmsg.type != 'application/x-gzip' :
+            _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
+        '''
+    else:
+        try:
+            return urllib2.urlopen(url).read()
+        except urllib2.URLError, err:
+            _log.error("Failed to open %s for reading: %s" % (url, err))
+
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
 
-    def download(url, path=None):
-        """Download file from specified URL to specified path."""
-        if path is not None:
-            try:
-                _, httpmsg = urllib.urlretrieve(url, path)
-                _log.debug("Downloaded %s to %s" % (url, path))
-            except IOError, err:
-                _log.error("Failed to download %s to %s: %s" % (url, path, err))
-
-            if not httpmsg.type == 'text/plain':
-                _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
-        else:
-            try:
-                return urllib2.urlopen(url).read()
-            except urllib2.URLError, err:
-                _log.error("Failed to open %s for reading: %s" % (url, err))
 
     # a GitHub token is optional here, but can be used if available in order to be less susceptible to rate limiting
     github_token = fetch_github_token(github_user)
@@ -242,7 +271,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # determine list of changed files via diff
-    diff_txt = download(pr_data['diff_url'])
+    diff_txt = _download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
     _log.debug("List of patches files: %s" % patched_files)
@@ -258,7 +287,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
-        download(full_url, path=os.path.join(path, fn))
+        _download(full_url, path=os.path.join(path, fn))
 
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)
