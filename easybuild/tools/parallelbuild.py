@@ -56,6 +56,10 @@ _job_submission_backends = {
     'pbs': PbsJobFactory,
 }
 
+def _to_key(dep):
+    """Determine key for specified dependency."""
+    return ActiveMNS().det_full_module_name(dep)
+
 def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_dir=None):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
@@ -71,10 +75,6 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
     @param output_dir: output directory
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
-    job_ids = {}
-    # dependencies have already been resolved,
-    # so one can linearly walk over the list and use previous job id's
-    jobs = []
 
     assert backend in _job_submission_backends
     try:
@@ -85,9 +85,10 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
                    % (err.__class__.__name__, err))
         return None # XXX: should this `raise` instead?
 
-    def tokey(dep):
-        """Determine key for specified dependency."""
-        return ActiveMNS().det_full_module_name(dep)
+    job_ids = {}
+    # dependencies have already been resolved,
+    # so one can linearly walk over the list and use previous job id's
+    jobs = []
 
     for ec in easyconfigs:
         # this is very important, otherwise we might have race conditions
@@ -101,7 +102,7 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
         new_job = create_job(job_factory, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
-        job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
+        job_deps = [job_ids[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
 
         # place user hold on job to prevent it from starting too quickly,
