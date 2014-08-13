@@ -293,16 +293,13 @@ def main(testing_data=(None, None, None)):
                         if path.endswith('.eb')]
 
         for easyconfig in pr_files:
-            most, second, third, last = find_relevant_easyconfigs(repo_path, easyconfig)
-            if most:
-                diff = multi_diff(easyconfig, most)
-            elif second:
-                diff = multi_diff(easyconfig, second)
-            elif third:
-                diff = multi_diff(easyconfig, third)
-            elif last:
-                diff = multi_diff(easyconfig, last)
-            diff.write_out()
+            files = find_relevant_easyconfigs(repo_path, easyconfig)
+            for listing in files:
+                if listing:
+                    diff = multi_diff(easyconfig, listing)
+                    diff.write_out()
+                    break
+
 
         os.sys.exit()
 

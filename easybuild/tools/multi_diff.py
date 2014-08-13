@@ -44,51 +44,36 @@ class Diff:
                 print "\n".join(map(lambda line: limit(line,w),lines))
 
     def get_line(self, line_no):
-        removal_dict = dict()
-        addition_dict = dict()
-        squigly_dict = dict()
-        order = set()
         output = []
-        if 'removal' in self.diff_info[line_no]:
-            for (diff_line, meta, squigly_line) in self.diff_info[line_no]['removal']:
-                if squigly_line:
-                    squigly_dict[diff_line] = squigly_line
-                order.add(diff_line)
-                if diff_line not in removal_dict:
-                    removal_dict[diff_line] = set([meta])
+        for key in ['removal','addition']:
+            lines = set()
+            changes_dict = dict()
+            squigly_dict = dict()
+            if key in self.diff_info[line_no]:
+                for (diff_line, meta, squigly_line) in self.diff_info[line_no][key]:
+                    if squigly_line:
+                        squigly_dict[diff_line] = squigly_line
+                    lines.add(diff_line)
+                    if diff_line not in changes_dict:
+                        changes_dict[diff_line] = set([meta])
+                    else:
+                        changes_dict[diff_line].add(meta)
+
+            # restrict displaying of removals to 3 groups
+            if len(lines) > 2:
+                lines = (sorted([(len(changes_dict[line]), line) for line in lines],
+                                key=lambda (l, line): l))
+                lines.reverse()
+                lines = map(lambda (l,x): x,lines[0:1])
+
+            for diff_line in lines:
+                line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
+                files = changes_dict[diff_line]
+                if len(files) != self.num_files:
+                    line.extend([bcolors.GRAY, "\t(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
                 else:
-                    removal_dict[diff_line].add(meta)
-
-        for diff_line in order:
-            line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
-            files = removal_dict[diff_line]
-            if len(files) != self.num_files:
-                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
-            else:
-                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), bcolors.ENDC])
-            output.append(" ".join(line))
-
-        squigly_dict = dict()
-        order = set()
-
-        if 'addition' in self.diff_info[line_no]:
-            for (diff_line, meta, squigly_line) in self.diff_info[line_no]['addition']:
-                if squigly_line:
-                    squigly_dict[diff_line] = self._merge_squigly(squigly_dict.get(diff_line, squigly_line), squigly_line)
-                order.add(diff_line)
-                if diff_line not in addition_dict:
-                    addition_dict[diff_line] = set([meta])
-                else:
-                    addition_dict[diff_line].add(meta)
-
-        for diff_line in order:
-            line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
-            files = addition_dict[diff_line]
-            if len(files) != self.num_files:
-                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
-            else:
-                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), bcolors.ENDC])
-            output.append(" ".join(line))
+                    line.extend([bcolors.GRAY, "\t(%d/%d)" % (len(files), self.num_files), bcolors.ENDC])
+                output.append(" ".join(line))
 
         # print seperator
         if self.diff_info[line_no] and 'addition' not in self.diff_info[line_no+1] and 'removal' not in self.diff_info[line_no + 1]:

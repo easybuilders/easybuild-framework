@@ -872,12 +872,17 @@ def find_relevant_easyconfigs(path, ec):
     version = ec.version
     toolchain_name = ec['toolchain']['name']
     toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
+    exact_name = det_full_ec_version(ec)
 
     cand_paths = [
+        # exact match
+        (name.lower()[0], name, exact_name),
+        # same version, same toolchain name
+        (name.lower()[0], name, "%s-%s-%s-*" % (name, version, toolchain_name)),
         # Same version, any toolchain
         (name.lower()[0], name, "%s-%s-*" % (name, version)),
         # any version, same toolchain
-        (name.lower()[0], name, "%s*%s-*" % (name, toolchain)),
+        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain)),
         # any version, same toolchain name
         (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain_name)),
         # any version, any toolchain
