@@ -8,80 +8,11 @@ import collections
 import easybuild.tools.terminal as terminal
 
 class bcolors:
-        HEADER = "\033[95m"
-        OKBLUE = "\033[94m"
         GREEN = "\033[92m"
         PURPLE = "\033[0;35m"
         GRAY = "\033[1;37m"
         RED = "\033[91m"
         ENDC = "\033[0m"
-
-class OrderedSet(collections.MutableSet):
-    '''Set that remembers original insertion order.'''
-
-    KEY, PREV, NEXT = range(3)
-
-    def __init__(self, iterable=None):
-        self.end = end = []
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.map = {}                   # key --> [key, prev, next]
-        if iterable is not None:
-            self |= iterable
-
-    ### Collection Methods
-    def __contains__(self, key):
-        return key in self.map
-
-    def __eq__(self, other):
-        if isinstance(other, OrderedSet):
-            return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
-
-    def __iter__(self):
-        end = self.end
-        curr = end[self.NEXT]
-        while curr is not end:
-            yield curr[self.KEY]
-            curr = curr[self.NEXT]
-
-    def __len__(self):
-        return len(self.map)
-
-    def __reversed__(self):
-        end = self.end
-        curr = end[self.PREV]
-        while curr is not end:
-            yield curr[self.KEY]
-            curr = curr[self.PREV]
-
-    def add(self, key):
-        if key not in self.map:
-            end = self.end
-            curr = end[self.PREV]
-            curr[self.NEXT] = end[self.PREV] = self.map[key] = [key, curr, end]
-
-    def discard(self, key):
-        if key in self.map:
-            key, prev, next = self.map.pop(key)
-            prev[self.NEXT] = next
-            next[self.PREV] = prev
-
-    def pop(self, last=True):
-        if not self:
-            raise KeyError('set is empty')
-        key = next(reversed(self)) if last else next(iter(self))
-        self.discard(key)
-        return key
-
-    ### General Methods
-    def __del__(self):
-        self.clear()                    # remove circular references
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        if not self:
-            return '{0!s}()'.format(class_name)
-        return '{0!s}({1!r})'.format(class_name, list(self))
 
 class Diff:
     def __init__(self, base, files):
@@ -116,7 +47,7 @@ class Diff:
         removal_dict = dict()
         addition_dict = dict()
         squigly_dict = dict()
-        order = OrderedSet([])
+        order = set()
         output = []
         if 'removal' in self.diff_info[line_no]:
             for (diff_line, meta, squigly_line) in self.diff_info[line_no]['removal']:
@@ -131,12 +62,14 @@ class Diff:
         for diff_line in order:
             line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
             files = removal_dict[diff_line]
-            if files != self.num_files:
+            if len(files) != self.num_files:
                 line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
+            else:
+                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), bcolors.ENDC])
             output.append(" ".join(line))
 
         squigly_dict = dict()
-        order = OrderedSet([])
+        order = set()
 
         if 'addition' in self.diff_info[line_no]:
             for (diff_line, meta, squigly_line) in self.diff_info[line_no]['addition']:
@@ -151,8 +84,10 @@ class Diff:
         for diff_line in order:
             line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
             files = addition_dict[diff_line]
-            if files != self.num_files:
+            if len(files) != self.num_files:
                 line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), ', '.join(files), bcolors.ENDC])
+            else:
+                line.extend([bcolors.GRAY, "(%d/%d)" % (len(files), self.num_files), bcolors.ENDC])
             output.append(" ".join(line))
 
         # print seperator
