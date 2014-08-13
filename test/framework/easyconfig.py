@@ -567,6 +567,7 @@ class EasyConfigTest(EnhancedTestCase):
         specs.update({
             'patches': new_patches[:],
             'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
+            'hiddendependencies': [('test', '3.2.1')],
         })
         parsed_deps = [
             {
@@ -577,6 +578,7 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'foo/1.2.3-GCC-4.4.5',
                 'full_mod_name': 'foo/1.2.3-GCC-4.4.5',
+                'hidden': False,
             },
             {
                 'name': 'bar',
@@ -586,13 +588,24 @@ class EasyConfigTest(EnhancedTestCase):
                 'dummy': False,
                 'short_mod_name': 'bar/666-gompi-1.4.10-bleh',
                 'full_mod_name': 'bar/666-gompi-1.4.10-bleh',
+                'hidden': False,
+            },
+            {
+                'name': 'test',
+                'version': '3.2.1',
+                'versionsuffix': '',
+                'toolchain': ec['toolchain'],
+                'dummy': False,
+                'short_mod_name': 'test/.3.2.1-GCC-4.4.5',
+                'full_mod_name': 'test/.3.2.1-GCC-4.4.5',
+                'hidden': True,
             },
         ]
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], specs['patches'])
-        self.assertEqual(ec['dependencies'], parsed_deps)
+        self.assertEqual(ec.dependencies(), parsed_deps)
         os.remove(res[1])
 
         # verify append functionality for lists
