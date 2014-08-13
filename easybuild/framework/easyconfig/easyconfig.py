@@ -876,7 +876,7 @@ def find_relevant_easyconfigs(path, ec):
 
     cand_paths = [
         # exact match
-        (name.lower()[0], name, exact_name),
+        (name.lower()[0], name, "%s-%s" % (name, exact_name)),
         # same version, same toolchain name
         (name.lower()[0], name, "%s-%s-%s-*" % (name, version, toolchain_name)),
         # Same version, any toolchain

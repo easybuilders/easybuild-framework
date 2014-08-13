@@ -300,7 +300,6 @@ def main(testing_data=(None, None, None)):
                     diff.write_out()
                     break
 
-
         os.sys.exit()
 
     paths = []
