@@ -124,7 +124,7 @@ def regtest(easyconfig_paths, build_specs=None):
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
 
-        jobs = build_easyconfigs_in_parallel(command, resolved, output_dir=output_dir)
+        jobs = build_easyconfigs_in_parallel('pbs', command, resolved, output_dir=output_dir)
 
         print "List of submitted jobs:"
         for job in jobs:

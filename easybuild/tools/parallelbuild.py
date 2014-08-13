@@ -42,22 +42,33 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.pbs_job import PbsJob, connect_to_server, disconnect_from_server, get_ppn
+from easybuild.tools.pbs_job import PbsJobFactory
+#from easybuild.tools.gc3pie_job import GC3PieJobFactory
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
+# map `--job=name` to a Python class we can use
+_job_submission_backends = {
+#    'gc3pie': GC3PieJobFactory,
+    'pbs': PbsJobFactory,
+}
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, prepare_first=True):
+def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_dir=None):
     """
-    easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
-    this function will build them in parallel by submitting jobs
+    Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
+    Return list of jobs submitted.
+
+    Argument `easyconfigs` is a list of easyconfigs which can be
+    built: e.g. they have no unresolved dependencies.  This function
+    will build them in parallel by submitting jobs.
+
+    @param backend: name of the job processing backend to use (currently 'pbs' only)
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
-    returns the jobs
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
     job_ids = {}
@@ -65,14 +76,14 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, p
     # so one can linearly walk over the list and use previous job id's
     jobs = []
 
-    # create a single connection, and reuse it
-    conn = connect_to_server()
-    if conn is None:
-        _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
-
-    # determine ppn once, and pass is to each job being created
-    # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
-    ppn = get_ppn()
+    assert backend in _job_submission_backends
+    try:
+        job_factory = _job_submission_backends[backend]()
+        job_factory.connect_to_server()
+    except RuntimeError, err:
+        _log.error("connection to server failed (%s: %s), can't submit jobs."
+                   % (err.__class__.__name__, err))
+        return None # XXX: should this `raise` instead?
 
     def tokey(dep):
         """Determine key for specified dependency."""
@@ -87,7 +98,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, p
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(build_command, ec, output_dir=output_dir, conn=conn, ppn=ppn)
+        new_job = create_job(job_factory, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [job_ids[dep] for dep in map(tokey, ec['unresolved_deps']) if dep in job_ids]
@@ -115,16 +126,18 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, p
             _log.info("releasing hold on job %s" % job.jobid)
             job.release_hold()
 
-    disconnect_from_server(conn)
+    job_factory.disconnect_from_server()
 
     return jobs
 
 
-def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
+def submit_jobs(ordered_ecs, cmd_line_opts, backend='pbs', testing=False):
     """
     Submit jobs.
     @param ordered_ecs: list of easyconfigs, in the order they should be processed
     @param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    @param backend: job submission backend to use (either 'pbs' or 'gc3pie')
+    @param testing: If `True`, skip actual job submission
     """
     curdir = os.getcwd()
 
@@ -143,16 +156,18 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
-        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
+        jobs = build_easyconfigs_in_parallel(backend, command, ordered_ecs)
         job_info_lines = ["List of submitted jobs:"]
         job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
         job_info_lines.append("(%d jobs submitted)" % len(jobs))
         return '\n'.join(job_info_lines)
 
 
-def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
+def create_job(job_factory, build_command, easyconfig, output_dir=None):
     """
-    Creates a job, to build a *single* easyconfig
+    Creates a job to build a *single* easyconfig.
+
+    @param job_factory: A factory object for querying server parameters and creating actual job objects
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
     @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
@@ -195,7 +210,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
+    job = job_factory.make_job(command, name, easybuild_vars, resources)
     job.module = easyconfig['ec'].full_mod_name
 
     return job

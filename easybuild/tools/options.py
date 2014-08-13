@@ -116,7 +116,7 @@ class EasyBuildOptions(GeneralOption):
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
                       None, 'store_true', False, 'f'),
-            'job': ("Submit the build as a job", None, 'store_true', False),
+            'job': ("Submit the build as a job", 'choice', 'store_or_None', 'pbs', ['pbs']),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",

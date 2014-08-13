@@ -30,6 +30,7 @@ Interface module to TORQUE (PBS).
 @author: Kenneth Hoste (Ghent University)
 """
 
+from functools import wraps
 import os
 import tempfile
 import time
@@ -50,50 +51,75 @@ try:
     from PBSQuery import PBSQuery
     import pbs
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
+    # `pbs_python` available, no need guard against import errors
+    def only_if_pbs_import_successful(fn):
+        return fn
 except ImportError:
-    _log.debug("Failed to import pbs from pbs_python. Silently ignoring, is only a real issue with --job")
-    pbs_import_failed = ("PBSQuery or pbs modules not available. "
-                         "Please make sure pbs_python is installed and usable.")
+    _log.debug("Failed to import pbs from pbs_python."
+               " Silently ignoring, this is a real issue only with --job=pbs")
+    # no `pbs_python` available, turn function into a no-op
+    def only_if_pbs_import_successful(fn):
+        @wraps(fn)
+        def instead(*args, **kwargs):
+            """This is a no-op since `pbs_python` is not available."""
+            _log.error("PBSQuery or pbs modules not available."
+                       " Please make sure `pbs_python` is installed and usable.")
+            return None
+        return instead
 
 
-def connect_to_server(pbs_server=None):
-    """Connect to PBS server and return connection."""
-    if pbs_import_failed:
-        _log.error(pbs_import_failed)
-        return None
+class PbsJobFactory(object):
+    """
+    Manage PBS server communication and create `PbsJob` objects.
+    """
 
-    if not pbs_server:
-        pbs_server = pbs.pbs_default()
-    return pbs.pbs_connect(pbs_server)
+    def __init__(self, pbs_server=None):
+        self.pbs_server = pbs_server or pbs.pbs_default()
+        self.conn = None
+        self._ppn = None
+
+    @only_if_pbs_import_successful
+    def connect_to_server(self):
+        """Connect to PBS server, set and return connection."""
+        if not self.conn:
+            self.conn = pbs.pbs_connect(self.pbs_server)
+        return self.conn
+
+    @only_if_pbs_import_successful
+    def disconnect_from_server(self):
+        """Disconnect current connection."""
+        pbs.pbs_disconnect(self.conn)
+        self.conn = None
+
+    @property
+    def ppn(self):
+        """PBS' `ppn` value for a full node."""
+        # cache this value as it's not likely going to change over the
+        # `eb` script runtime ...
+        if not self._ppn:
+            log = fancylogger.getLogger('pbs_job.PbsJobFactory.ppn')
+
+            pq = PBSQuery()
+            node_vals = pq.getnodes().values()  # only the values, not the names
+            interesting_nodes = ('free', 'job-exclusive',)
+            res = {}
+            for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
+                res.setdefault(np, 0)
+                res[np] += 1
+
+            # return most frequent
+            freq_count, freq_np = max([(j, i) for i, j in res.items()])
+            log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+
+            self._ppn = freq_np
+
+        return self._ppn
 
 
-def disconnect_from_server(conn):
-    """Disconnect a given connection."""
-    if pbs_import_failed:
-        _log.error(pbs_import_failed)
-        return None
-
-    pbs.pbs_disconnect(conn)
-
-
-def get_ppn():
-    """Guess the ppn for full node"""
-
-    log = fancylogger.getLogger('pbs_job.get_ppn')
-
-    pq = PBSQuery()
-    node_vals = pq.getnodes().values()  # only the values, not the names
-    interesting_nodes = ('free', 'job-exclusive',)
-    res = {}
-    for np in [int(x['np'][0]) for x in node_vals if x['state'][0] in interesting_nodes]:
-        res.setdefault(np, 0)
-        res[np] += 1
-
-    # return most frequent
-    freq_count, freq_np = max([(j, i) for i, j in res.items()])
-    log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
-
-    return freq_np
+    def make_job(self, script, name, env_vars=None, resources={}):
+        """Create and return a `PbsJob` object with the given parameters."""
+        return PbsJob(script, name, env_vars, resources,
+                      conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(object):
