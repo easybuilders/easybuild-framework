@@ -30,7 +30,6 @@ Interface module to TORQUE (PBS).
 @author: Kenneth Hoste (Ghent University)
 """
 
-from functools import wraps
 import os
 import tempfile
 import time
@@ -59,7 +58,6 @@ except ImportError:
                " Silently ignoring, this is a real issue only with --job=pbs")
     # no `pbs_python` available, turn function into a no-op
     def only_if_pbs_import_successful(fn):
-        @wraps(fn)
         def instead(*args, **kwargs):
             """This is a no-op since `pbs_python` is not available."""
             errmsg = ("PBSQuery or pbs modules not available."
