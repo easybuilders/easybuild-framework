@@ -189,7 +189,7 @@ class GithubError(Exception):
     """Error raised by the Githubfs"""
     pass
 
-def download_repo(branch='master', path=None):
+def download_easyconfig_repo(branch='master', path=None):
     """Download entire easyconfigs repo"""
     if path is None:
         path = tempfile.mkdtemp()

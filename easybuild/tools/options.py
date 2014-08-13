@@ -142,6 +142,7 @@ class EasyBuildOptions(GeneralOption):
         # additional options that don't need a --try equivalent
         opts.update({
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
         })
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))

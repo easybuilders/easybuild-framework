@@ -51,13 +51,14 @@ from easybuild.tools.build_log import EasyBuildError, print_msg, print_error
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, find_relevant_easyconfigs
 from easybuild.framework.easyconfig.tools import dep_graph, get_paths_for, print_dry_run
 from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, module_classes, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, find_easyconfigs, search_file, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_easyconfig_repo
+from easybuild.tools.multi_diff import multi_diff
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.repository.repository import init_repository
@@ -226,6 +227,7 @@ def main(testing_data=(None, None, None)):
     if options.dep_graph or options.dry_run or options.dry_run_short:
         options.ignore_osdeps = True
 
+
     pr_path = None
     if options.from_pr:
         # extend robot search path with location where files touch in PR will be downloaded to
@@ -284,6 +286,26 @@ def main(testing_data=(None, None, None)):
         ignore_dirs = config.build_option('ignore_dirs')
         silent = config.build_option('silent')
         search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
+
+    if options.review_pr:
+        repo_path = os.path.join(download_easyconfig_repo('develop'),'easybuild','easyconfigs')
+        pr_files = [path for path in fetch_easyconfigs_from_pr(options.review_pr)
+                        if path.endswith('.eb')]
+        _log.info(pr_files)
+
+        for easyconfig in pr_files:
+            most, second, third, last = find_relevant_easyconfigs(repo_path, easyconfig)
+            if most:
+                diff = multi_diff(easyconfig, most)
+            elif second:
+                diff = multi_diff(easyconfig, second)
+            elif third:
+                diff = multi_diff(easyconfig, third)
+            elif last:
+                diff = multi_diff(easyconfig, last)
+            diff.write_out()
+
+        os.sys.exit()
 
     paths = []
     if len(orig_paths) == 0:
@@ -348,6 +370,7 @@ def main(testing_data=(None, None, None)):
         if not regtest_ok:
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
+
 
     # read easyconfig files
     easyconfigs = []
