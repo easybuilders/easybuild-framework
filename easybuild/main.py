@@ -289,7 +289,7 @@ def main(testing_data=(None, None, None)):
 
     if options.review_pr:
         review_pr(options.review_pr)
-        os.sys.exit()
+        sys.exit()
 
     paths = []
     if len(orig_paths) == 0:

@@ -39,6 +39,8 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+from easybuild.tools.filetools import download_file
+
 
 _log = fancylogger.getLogger('github', fname=False)
 
@@ -208,7 +210,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     url = URL_SEPARATOR.join(["https://github.com",account, repo, 'archive', base_name])
 
     _log.debug("download repo %s/%s as archive from %s" % (account,repo, url))
-    _download(url, os.path.join(path,base_name))
+    download_file(base_name, url, os.path.join(path,base_name))
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = extract_file(os.path.join(path, base_name), path)
@@ -291,7 +293,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         sha = last_commit['sha']
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, sha, patched_file])
         _log.info("Downloading %s from %s" % (fn, full_url))
-        _download(full_url, path=os.path.join(path, fn))
+        download_file(fn, full_url, path=os.path.join(path, fn))
 
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)

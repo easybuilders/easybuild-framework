@@ -85,7 +85,7 @@ class MultiDiff(object):
 
         for i in range(len(self.base_lines)):
             lines = self.get_line(i)
-            if filter(None,lines):
+            if lines:
                 output.append("\n".join([limit(line,w) for line in lines]))
 
         return "\n".join(output)
@@ -99,14 +99,16 @@ class MultiDiff(object):
             lines = set()
             changes_dict = dict()
             squigly_dict = dict()
-            if key in self.diff_info.get(line_no, []):
+
+            if key in self.diff_info.get(line_no, {}):
                 for (diff_line, meta, squigly_line) in self.diff_info[line_no][key]:
                     if squigly_line:
-                        squigly_dict[diff_line] = squigly_line
+                        squigly_line2 = squigly_dict.get(diff_line, squigly_line)
+                        squigly_dict[diff_line] = self._merge_squigly(squigly_line, squigly_line2)
                     lines.add(diff_line)
                     changes_dict.setdefault(diff_line,set()).add(meta)
 
-            # restrict displaying of removals to 3 groups
+            # restrict displaying of removals to max_groups
             max_groups = 2
             if len(lines) > max_groups:
                 # find number of occurences
