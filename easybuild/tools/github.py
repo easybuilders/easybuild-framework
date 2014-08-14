@@ -227,7 +227,7 @@ def fetch_latest_commit_sha(repo, account, branch='master'):
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
     """Download entire repo as a tar.gz archive and extract it into path"""
     # make sure path exists, create it if necessary
-    if path = None:
+    if path == None:
         path = tempfile.mkdtemp()
 
     # add account subdir
