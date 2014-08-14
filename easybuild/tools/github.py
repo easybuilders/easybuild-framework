@@ -189,8 +189,8 @@ class GithubError(Exception):
     """Error raised by the Githubfs"""
     pass
 
-def download_easyconfig_repo(branch='master', path=None):
-    """Download entire easyconfigs repo"""
+def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
+    """Download entire repo as a tar.gz archive and extract it into path"""
     if path is None:
         path = tempfile.mkdtemp()
     else:
@@ -198,20 +198,26 @@ def download_easyconfig_repo(branch='master', path=None):
         mkdir(path, parents=True)
 
     extracted_dir_name = "%s-%s" % (GITHUB_EASYCONFIGS_REPO, branch)
-    base_name = ("%s.tar.gz" % branch)
+    base_name = "%s.tar.gz" % branch
 
-    url = URL_SEPARATOR.join(["https://github.com",GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, 'archive', base_name])
-    _log.debug("download from %s" % url)
+    # check if directory already exists, and don't download if it does
+    expected_path = os.path.join(path, extracted_dir_name)
+    if os.path.isdir(expected_path):
+        return expected_path
+
+    url = URL_SEPARATOR.join(["https://github.com",account, repo, 'archive', base_name])
+
+    _log.debug("download repo %s/%s as archive from %s" % (account,repo, url))
     _download(url, os.path.join(path,base_name))
-    _log.debug("archive downloaded to %s, extracting now" % path)
+    _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
     extracted_path = extract_file(os.path.join(path, base_name), path)
     extracted_path = os.path.join(extracted_path, extracted_dir_name)
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
-        _log.error("We expected %s to exists and contain the repo" % extracted_path)
+        _log.error("We expected %s to exists and contain the repo %s at branch %s" % (extracted_path, repo, branch))
 
-    _log.debug("Repo extracted into %s" % extracted_path)
+    _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path
 
 def _download(url, path=None):
@@ -223,10 +229,8 @@ def _download(url, path=None):
         except IOError, err:
             _log.error("Failed to download %s to %s: %s" % (url, path, err))
 
-        '''
-        if httpmsg.type != 'text/plain' or httpmsg.type != 'application/x-gzip' :
+        if httpmsg.type != 'text/plain' and httpmsg.type != 'application/x-gzip' :
             _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
-        '''
     else:
         try:
             return urllib2.urlopen(url).read()
