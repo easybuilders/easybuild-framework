@@ -864,16 +864,19 @@ class EasyBlock(object):
         """
         Include prepend-path statements for extending $MODULEPATH.
         """
-        top_modpath = install_path('mod')
-        modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
         txt = ''
-        if modpath_exts:
+        if self.cfg['include_modpath_extensions']:
+            top_modpath = install_path('mod')
             mod_path_suffix = build_option('suffix_modules_path')
+            modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
+            self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
             full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
             txt = self.moduleGenerator.use(full_path_modpath_extensions)
+        else:
+            self.log.debug("Not including module path extensions, as specified.")
         return txt
 
     def make_module_req(self):
