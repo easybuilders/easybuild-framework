@@ -862,7 +862,7 @@ def resolve_template(value, tmpl_dict):
 def find_related_easyconfigs(path, ec):
     """
     Find related easyconfigs for ec in path based on a simple heuristic
-    - It first tries to match easyconfigs the exact same name.
+    - It first returns those that matches easyconfigs with the exact same name.
     - Then it matches those with the same version and same toolchain name
     - Then it takes those with the same version and any toolchain name
     - Then it takes the ones with any version and same toolchain (including version)
