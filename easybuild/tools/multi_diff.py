@@ -80,7 +80,8 @@ class MultiDiff(object):
         output = []
 
         w,h = terminal.get_terminal_size()
-        output.append(" ".join(["Comparing", PURPLE, os.path.basename(self.base), ENDC, "with", GRAY, ", ".join(map(os.path.basename,self.files)), ENDC]))
+        output.append(" ".join(["Comparing", PURPLE, os.path.basename(self.base), ENDC, "with",
+                                GRAY, ", ".join(map(os.path.basename,self.files)), ENDC]))
 
         for i in range(len(self.base_lines)):
             lines = self.get_line(i)
