@@ -222,7 +222,12 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
 
 def _download(url, path=None):
     """Download file from specified URL to specified path."""
-    if path is not None:
+    if path is None:
+        try:
+            return urllib2.urlopen(url).read()
+        except urllib2.URLError, err:
+            _log.error("Failed to open %s for reading: %s" % (url, err))
+    else:
         try:
             _, httpmsg = urllib.urlretrieve(url, path)
             _log.debug("Downloaded %s to %s" % (url, path))
@@ -231,11 +236,6 @@ def _download(url, path=None):
 
         if httpmsg.type != 'text/plain' and httpmsg.type != 'application/x-gzip' :
             _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
-    else:
-        try:
-            return urllib2.urlopen(url).read()
-        except urllib2.URLError, err:
-            _log.error("Failed to open %s for reading: %s" % (url, err))
 
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
