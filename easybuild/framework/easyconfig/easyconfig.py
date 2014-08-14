@@ -859,38 +859,46 @@ def resolve_template(value, tmpl_dict):
 
     return value
 
-def find_relevant_easyconfigs(path, ec):
+def find_related_easyconfigs(path, ec):
     """
-    Find relevant easyconfigs for ec in path based on a simple heuristic
+    Find related easyconfigs for ec in path based on a simple heuristic
+    - It first tries to match easyconfigs the exact same name.
+    - Then it matches those with the same version and same toolchain name
+    - Then it takes those with the same version and any toolchain name
+    - Then it takes the ones with any version and same toolchain (including version)
+    - Then it takes the ones with any version and same toolchain name
+    - Then it takes those with any version and any toolchain
     """
     # make sure we are working with an EasyConfig object
     if not isinstance(ec, EasyConfig):
         # we can safely only take the first one
-        ec = process_easyconfig(ec, parse_only=True)[0]['ec']
+        easyconfigs = process_easyconfig(ec, parse_only=True)
+        if len(easyconfigs) > 1:
+            _log.error("Expected only one easyconfig to be found, exiting!")
+        ec = easyconfigs[0]['ec']
 
     name = ec.name
     version = ec.version
     toolchain_name = ec['toolchain']['name']
     toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
-    exact_name = det_full_ec_version(ec)
+    full_version = det_full_ec_version(ec)
 
-    cand_paths = [
+    patterns = [
         # exact match
-        (name.lower()[0], name, "%s-%s" % (name, exact_name)),
+        ("%s-%s" % (name, full_version)),
         # same version, same toolchain name
-        (name.lower()[0], name, "%s-%s-%s-*" % (name, version, toolchain_name)),
+        ("%s-%s-%s-*" % (name, version, toolchain_name)),
         # Same version, any toolchain
-        (name.lower()[0], name, "%s-%s-*" % (name, version)),
+        ("%s-%s-*" % (name, version)),
         # any version, same toolchain
-        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain)),
+        ("%s-*-%s-*" % (name, toolchain)),
         # any version, same toolchain name
-        (name.lower()[0], name, "%s-*-%s-*" % (name, toolchain_name)),
+        ("%s-*-%s-*" % (name, toolchain_name)),
         # any version, any toolchain
-        (name.lower()[0], name, "%s-*" % (name)),
+        ("*"),
     ]
-    relevant_files = [glob.glob("%s.eb" % os.path.join(path, *cand_path)) for cand_path in cand_paths]
 
-    return relevant_files
+    return [glob.glob("%s.eb" % os.path.join(path, name.lower()[0], name, *cand_path)) for cand_path in patterns]
 
 
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
