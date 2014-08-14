@@ -95,13 +95,14 @@ class MultiDiff(object):
         Return the line information for a specific line
         """
         output = []
+        diff_dict = self.diff_info.get(line_no, {})
         for key in [self.REMOVED_KEY, self.ADDED_KEY]:
             lines = set()
             changes_dict = dict()
             squigly_dict = dict()
 
-            if key in self.diff_info.get(line_no, {}):
-                for (diff_line, meta, squigly_line) in self.diff_info[line_no][key]:
+            if key in diff_dict:
+                for (diff_line, meta, squigly_line) in diff_dict[key]:
                     if squigly_line:
                         squigly_line2 = squigly_dict.get(diff_line, squigly_line)
                         squigly_dict[diff_line] = self._merge_squigly(squigly_line, squigly_line2)
@@ -119,14 +120,14 @@ class MultiDiff(object):
                 line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
                 files = changes_dict[diff_line]
                 num_files = len(self.files)
+                line.extend([GRAY, "\t(%d/%d)" % (len(files), num_files)])
                 if len(files) != num_files:
-                    line.extend([GRAY, "\t(%d/%d)" % (len(files), num_files), ', '.join(files), ENDC])
-                else:
-                    line.extend([GRAY, "\t(%d/%d)" % (len(files), num_files), ENDC])
+                        line.append(', '.join(files))
+                line.append(ENDC)
                 output.append(" ".join(line))
 
         # print seperator only if needed
-        if self.diff_info.get(line_no, None) and self.diff_info.get(line_no + 1, {}):
+        if diff_dict and not self.diff_info.get(line_no + 1, {}):
             output.extend(['', '-----', ''])
 
         return output
@@ -135,30 +136,16 @@ class MultiDiff(object):
         chars = list(line)
         flag = ' '
         compensator = 0
-        if not squigly:
-            if line.startswith('+'):
-                chars.insert(0, GREEN)
-            elif line.startswith('-'):
-                chars.insert(0, RED)
+        cmap = {'-': RED, '+' : GREEN, '^': GREEN if line.startswith('+') else RED}
+        if squigly:
+            for i,s in enumerate(squigly):
+                if s == flag: continue
+                chars.insert(i + compensator, ENDC)
+                compensator += 1
+                flag = s
+                chars.insert(i + compensator, cmap.get(s, ''))
         else:
-            for i in range(len(squigly)):
-                if squigly[i] == '+' and flag != '+':
-                    chars.insert(i+compensator, GREEN)
-                    compensator += 1
-                    flag = '+'
-                if squigly[i] == '^' and flag != '^':
-                    color = GREEN if line.startswith('+') else RED
-                    chars.insert(i+compensator, color)
-                    compensator += 1
-                    flag = '^'
-                if squigly[i] == '-' and flag != '-':
-                    chars.insert(i+compensator, RED)
-                    compensator += 1
-                    flag = '-'
-                if squigly[i] != flag:
-                    chars.insert(i+compensator, ENDC)
-                    compensator += 1
-                    flag = squigly[i]
+            chars.insert(0, cmap.get(line[0],''))
 
         chars.append(ENDC)
         return ''.join(chars)
