@@ -288,7 +288,7 @@ def main(testing_data=(None, None, None)):
         search_file(search_path, query, short=not options.search, ignore_dirs=ignore_dirs, silent=silent)
 
     if options.review_pr:
-        review_pr(options.review_pr)
+        review_pr(options.review_pr, options.color)
         sys.exit()
 
     paths = []

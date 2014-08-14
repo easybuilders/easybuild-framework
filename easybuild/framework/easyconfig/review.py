@@ -38,7 +38,7 @@ from easybuild.tools.multi_diff import multi_diff
 
 _log = fancylogger.getLogger('easyconfig.review', fname=False)
 
-def review_pr(pull_request):
+def review_pr(pull_request, colored):
     repo_path = os.path.join(download_repo(branch='develop'),'easybuild','easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
 
@@ -47,6 +47,6 @@ def review_pr(pull_request):
         _log.debug("File in pull request %s has these related easyconfigs: %s" % (easyconfig, files))
         for listing in files:
             if listing:
-                diff = multi_diff(easyconfig, listing)
+                diff = multi_diff(easyconfig, listing, colored)
                 print diff
                 break

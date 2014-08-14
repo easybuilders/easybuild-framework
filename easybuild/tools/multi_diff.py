@@ -30,16 +30,18 @@ Module which allows the diffing of multiple files
 """
 
 import difflib
+import math
 import os
 import sys
 
 import easybuild.tools.terminal as terminal
 
-GREEN = "\033[92m"
+GREEN = "\033[0;32m"
 PURPLE = "\033[0;35m"
-GRAY = "\033[1;37m"
-RED = "\033[91m"
+RED = "\033[0;21m"
 ENDC = "\033[0m"
+B_GREEN = "\033[0;42m"
+B_RED = "\033[0;41m"
 
 class MultiDiff(object):
     """
@@ -49,11 +51,12 @@ class MultiDiff(object):
     REMOVED_KEY = 'removed'
     ADDED_KEY = 'added'
 
-    def __init__(self, base, files):
+    def __init__(self, base, files, colored=True):
         self.base = base
         self.base_lines = open(base).readlines()
         self.diff_info = dict()
         self.files = files
+        self.colored = colored
 
     def parse_line(self,line_no, diff_line, meta, squigly_line=None):
         """
@@ -71,20 +74,21 @@ class MultiDiff(object):
         Create a string representation of this multi diff
         """
         def limit(text, length):
-            """ limit text to certain length """
+            """ limit text to certain length, add ENDC if needd """
             if len(text) > length:
-                return text[0:length-3] + '...'
+                return text[0:length-3] + ENDC + '...'
             else:
                 return text
 
         output = []
 
         w,h = terminal.get_terminal_size()
-        output.append(" ".join(["Comparing", PURPLE, os.path.basename(self.base), ENDC, "with",
-                                GRAY, ", ".join(map(os.path.basename,self.files)), ENDC]))
+        output.append(" ".join(["Comparing", self._color(os.path.basename(self.base), PURPLE), "with",
+                                ", ".join(map(os.path.basename,self.files))]))
 
         for i in range(len(self.base_lines)):
-            lines = self.get_line(i)
+            lines = filter(None,self.get_line(i))
+
             if lines:
                 output.append("\n".join([limit(line,w) for line in lines]))
 
@@ -117,38 +121,61 @@ class MultiDiff(object):
             lines = lines[::-1][:max_groups]
 
             for diff_line in lines:
-                line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
+                line = [str(line_no)]
+                squigly_line = squigly_dict.get(diff_line,'')
+                line.append(self._colorize(diff_line, squigly_line))
+
                 files = changes_dict[diff_line]
                 num_files = len(self.files)
-                line.extend([GRAY, "\t(%d/%d)" % (len(files), num_files)])
+
+                line.append("(%d/%d)" % (len(files), num_files))
                 if len(files) != num_files:
                         line.append(', '.join(files))
-                line.append(ENDC)
+
                 output.append(" ".join(line))
+                # prepend spaces to match line number length
+                if not self.colored and squigly_line:
+                    prepend = ' ' * (2 + int(math.log10(line_no)))
+                    output.append(''.join([prepend,squigly_line]))
 
         # print seperator only if needed
         if diff_dict and not self.diff_info.get(line_no + 1, {}):
-            output.extend(['', '-----', ''])
+            output.extend([' ', '-----', ' '])
 
         return output
 
     def _colorize(self, line, squigly):
+        """Add colors to the diff line based on the squiqly line"""
+        if not self.colored:
+            return line
+
         chars = list(line)
         flag = ' '
         compensator = 0
-        cmap = {'-': RED, '+' : GREEN, '^': GREEN if line.startswith('+') else RED}
+        color_map = {'-': B_RED, '+': B_GREEN, '^': B_GREEN if line.startswith('+') else B_RED}
         if squigly:
             for i,s in enumerate(squigly):
-                if s == flag: continue
-                chars.insert(i + compensator, ENDC)
-                compensator += 1
-                flag = s
-                chars.insert(i + compensator, cmap.get(s, ''))
+                if s != flag:
+                    chars.insert(i + compensator, ENDC)
+                    compensator += 1
+                    if s in ('+','-','^'):
+                        chars.insert(i + compensator, color_map.get(s, ''))
+                        compensator += 1
+                    flag = s
+            chars.insert(len(squigly)+compensator, ENDC)
         else:
-            chars.insert(0, cmap.get(line[0],''))
+            chars.insert(0, color_map.get(line[0],''))
+            chars.append(ENDC)
 
-        chars.append(ENDC)
+
+
         return ''.join(chars)
+
+    def _color(self, line, color):
+        if self.colored:
+            return ''.join([color, line, ENDC])
+        else:
+            return line
 
     def _merge_squigly(self, squigly1, squigly2):
         """Combine 2 diff lines into 1 """
@@ -156,22 +183,20 @@ class MultiDiff(object):
         sq2 = list(squigly2)
         base,other = (sq1, sq2) if len(sq1) > len(sq2) else (sq2,sq1)
 
-        for i in range(len(other)):
-            if base[i] != other[i] and base[i] == ' ':
-                base[i] = other[i]
-            if base[i] != other[i] and base[i] == '^':
-                base[i] = other[i]
+        for i,o in enumerate(other):
+            if base[i] in (' ', '^') and base[i] != o:
+                base[i]=o
 
         return ''.join(base)
 
-def multi_diff(base,files):
+def multi_diff(base,files, colored=True):
     """
     generate a Diff for multiple files, all compared to base
     """
     d = difflib.Differ()
-    base_lines = open(base).readlines()
+    differ = MultiDiff(base, files, colored)
 
-    differ = MultiDiff(base, files)
+    base_lines = differ.base_lines
 
     # use the Diff class to store the information
     for file_name in files:
@@ -197,6 +222,6 @@ def multi_diff(base,files):
         # construct the Diff based on the above dict
         for line_no in local_diff:
             for (line, file_name) in local_diff[line_no]:
-                differ.parse_line(line_no, line, file_name, squigly_dict.get(line, None))
+                differ.parse_line(line_no, line, file_name, squigly_dict.get(line, '').rstrip())
 
     return differ

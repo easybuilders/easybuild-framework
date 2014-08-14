@@ -143,6 +143,7 @@ class EasyBuildOptions(GeneralOption):
         opts.update({
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
             'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
+            'color': ("Allow color output", None, 'store_true', True),
         })
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
