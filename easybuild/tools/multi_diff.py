@@ -126,9 +126,7 @@ class MultiDiff(object):
                 output.append(" ".join(line))
 
         # print seperator only if needed
-        if self.diff_info.get(line_no, None) \
-           and self.ADDED_KEY not in self.diff_info.get(line_no+1, {}) \
-           and self.REMOVED_KEY not in self.diff_info.get(line_no + 1, {}):
+        if self.diff_info.get(line_no, None) and self.diff_info.get(line_no + 1, {}):
             output.extend(['', '-----', ''])
 
         return output
