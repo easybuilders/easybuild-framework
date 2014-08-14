@@ -64,14 +64,11 @@ class MultiDiff(object):
         elif diff_line.startswith('-'):
             key = self.REMOVED_KEY
 
-        if key not in self.diff_info.setdefault(line_no, {}):
-            self.diff_info[line_no][key] = []
-
-        self.diff_info[line_no][key].append((diff_line.rstrip(), meta, squigly_line))
+        self.diff_info.setdefault(line_no, {}).setdefault(key,[]).append((diff_line.rstrip(), meta, squigly_line))
 
     def __str__(self):
         """
-        Write the entire diff to the terminal
+        Create a string representation of this multi diff
         """
         def limit(text, length):
             """ limit text to certain length """
