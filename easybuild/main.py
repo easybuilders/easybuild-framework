@@ -355,7 +355,6 @@ def main(testing_data=(None, None, None)):
             _log.info("Regression test failed (partially)!")
             sys.exit(31)  # exit -> 3x1t -> 31
 
-
     # read easyconfig files
     easyconfigs = []
     generated_ecs = False
