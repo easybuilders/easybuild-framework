@@ -64,11 +64,7 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
-        hidden = build_option('hidden')
         full_mod_name = self.app.full_mod_name
-        if build_option('hidden'):
-            full_mod_name = det_hidden_modname(full_mod_name)
-            _log.debug("Prefixed module filename with '.' to make it hidden: %s" % full_mod_name)
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category

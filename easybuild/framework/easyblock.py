@@ -148,6 +148,9 @@ class EasyBlock(object):
         else:
             _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
 
+        # determine install subdirectory, based on module name
+        self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, hidden=False)
+
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
 
@@ -648,7 +651,7 @@ class EasyBlock(object):
         basepath = install_path()
 
         if basepath:
-            installdir = os.path.join(basepath, self.full_mod_name)
+            installdir = os.path.join(basepath, self.install_subdir)
             self.installdir = os.path.abspath(installdir)
         else:
             self.log.error("Can't set installation directory")
@@ -1184,7 +1187,7 @@ class EasyBlock(object):
         # this is required when building in parallel
         mod_path_suffix = build_option('suffix_modules_path')
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        parent_subdir = os.path.dirname(self.full_mod_name)
+        parent_subdir = os.path.dirname(self.install_subdir)
         pardirs = [
             os.path.join(install_path(), parent_subdir),
             os.path.join(install_path('mod'), mod_path_suffix, parent_subdir),

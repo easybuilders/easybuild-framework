@@ -215,6 +215,7 @@ class Toolchain(object):
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
+            'hidden': False,
         }
 
     def det_short_module_name(self):

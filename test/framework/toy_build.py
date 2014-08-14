@@ -176,6 +176,8 @@ class ToyBuildTest(EnhancedTestCase):
         if raise_error and (myerr is not None):
             raise myerr
 
+        return outtxt
+
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
@@ -639,9 +641,14 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_hidden(self):
         """Test installing a hidden module."""
-        self.test_toy_build(extra_args=['--hidden'], verify=False)
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
+        # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
         self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        # installed software is not hidden
+        toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
+        self.assertTrue(os.path.exists(toybin))
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""

@@ -214,11 +214,14 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
-        # set module info
+        # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
         self.hidden = hidden
+
+        # set installdir/module info
         mns = ActiveMNS()
+        self.install_subdir = mns.det_full_module_name(self, hidden=False)
         self.full_mod_name = mns.det_full_module_name(self)
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
@@ -1018,15 +1021,14 @@ class ActiveMNS(object):
 
     def check_ec_type(self, ec):
         """
-        Query module naming scheme using specified method and argument.
-        Obtain and pass a full parsed easyconfig file if provided keys are insufficient.
+        Obtain a full parsed easyconfig file to pass to naming scheme methods if provided keys are insufficient.
         """
         if not isinstance(ec, EasyConfig) and self.requires_full_easyconfig(ec.keys()):
             self.log.debug("A parsed easyconfig is required by the module naming scheme, so finding one for %s" % ec)
             # fetch/parse easyconfig file if deemed necessary
             eb_file = robot_find_easyconfig(ec['name'], det_full_ec_version(ec))
             if eb_file is not None:
-                parsed_ec = process_easyconfig(eb_file, parse_only=True)
+                parsed_ec = process_easyconfig(eb_file, parse_only=True, hidden=ec['hidden'])
                 if len(parsed_ec) > 1:
                     self.log.warning("More than one parsed easyconfig obtained from %s, only retaining first" % eb_file)
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
@@ -1036,45 +1038,51 @@ class ActiveMNS(object):
 
         return ec
 
-    def det_full_module_name(self, ec):
+    def det_module_name_with(self, mns_method, ec, hidden=None):
         """
-        Determine full module name by selected module naming scheme, based on supplied easyconfig.
+        Determine module name using specified module naming scheme method, based on supplied easyconfig.
         Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
         with the following requirements:
             - module name is specified as a relative path
             - string representing module name has length > 0
             - module name only contains printable characters (string.printable, except carriage-control chars)
         """
-        self.log.debug("Determining full module name for %s" % ec)
-        mod_name = self.mns.det_full_module_name(self.check_ec_type(ec))
+        """
+        Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
+        with the following requirements:
+            - module name is specified as a relative path
+            - string representing module name has length > 0
+            - module name only contains printable characters (string.printable, except carriage-control chars)
+        """
+        mod_name = mns_method(self.check_ec_type(ec))
 
         if not is_valid_module_name(mod_name):
-            self.log.error("%s is not a valid full module name" % str(mod_name))
-        else:
-            self.log.debug("Obtained valid full module name %s" % mod_name)
+            self.log.error("%s is not a valid module name" % str(mod_name))
 
-        if getattr(ec, 'hidden', False) or ec.get('hidden', False):
+        # check whether module name should be hidden or not
+        # ec may be either a dict or an EasyConfig instance, 'hidden' argument overrules if set
+        if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and (hidden is None or hidden):
             mod_name = det_hidden_modname(mod_name)
 
         return mod_name
 
-    def det_devel_module_filename(self, ec):
+    def det_full_module_name(self, ec, hidden=None):
+        """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
+        self.log.debug("Determining full module name for %s (hidden: %s)" % (ec, hidden))
+        mod_name = self.det_module_name_with(self.mns.det_full_module_name, ec, hidden=hidden)
+        self.log.debug("Obtained valid full module name %s" % mod_name)
+        return mod_name
+
+    def det_devel_module_filename(self, ec, hidden=None):
         """Determine devel module filename."""
-        return self.mns.det_full_module_name(self.check_ec_type(ec)).replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
+        modname = self.det_full_module_name(ec, hidden=hidden)
+        return modname.replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
-    def det_short_module_name(self, ec):
-        """Determine module name according to module naming scheme."""
-        self.log.debug("Determining module name for %s" % ec)
-        mod_name = self.mns.det_short_module_name(self.check_ec_type(ec))
-
-        if not is_valid_module_name(mod_name):
-            self.log.error("%s is not a valid module name" % str(mod_name))
-        else:
-            self.log.debug("Obtained valid module name %s" % mod_name)
-
-        if getattr(ec, 'hidden', False) or ec.get('hidden', False):
-            mod_name = det_hidden_modname(mod_name)
-
+    def det_short_module_name(self, ec, hidden=None):
+        """Determine short module name according to module naming scheme."""
+        self.log.debug("Determining short module name for %s (hidden: %s)" % (ec, hidden))
+        mod_name = self.det_module_name_with(self.mns.det_short_module_name, ec, hidden=hidden)
+        self.log.debug("Obtained valid short module name %s" % mod_name)
         return mod_name
 
     def det_module_subdir(self, ec):
