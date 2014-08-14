@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # #
 # Copyright 2014 Ghent University
 #
@@ -166,8 +165,6 @@ class MultiDiff(object):
         else:
             chars.insert(0, color_map.get(line[0],''))
             chars.append(ENDC)
-
-
 
         return ''.join(chars)
 

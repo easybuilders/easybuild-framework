@@ -883,22 +883,35 @@ def find_related_easyconfigs(path, ec):
     toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
     full_version = det_full_ec_version(ec)
 
-    patterns = [
-        # exact match
-        ("%s-%s" % (name, full_version)),
-        # same version, same toolchain name
-        ("%s-%s-%s-*" % (name, version, toolchain_name)),
-        # Same version, any toolchain
-        ("%s-%s-*" % (name, version)),
-        # any version, same toolchain
-        ("%s-*-%s-*" % (name, toolchain)),
-        # any version, same toolchain name
-        ("%s-*-%s-*" % (name, toolchain_name)),
-        # any version, any toolchain
-        ("*"),
-    ]
+    potential_paths = [os.path.dirname(path) for path in create_paths(path, name, version)]
+    result_potential_paths = []
 
-    return [glob.glob("%s.eb" % os.path.join(path, name.lower()[0], name, *cand_path)) for cand_path in patterns]
+    for pot in potential_paths:
+        try:
+            result_potential_paths.append([os.path.join(pot,base) for base in os.listdir(pot) if os.path.isfile(os.path.join(pot,base))])
+        except:
+            None
+
+    # flatten
+    result_potential_paths = sum(result_potential_paths, [])
+
+    regexes = [
+        # exact match
+        re.compile(("^\S*/%s-%s.eb$" % (name, full_version))),
+        # same version, same toolchain name
+        re.compile(("^\S*/%s-%s-%s-\S*.eb$" % (name, version, toolchain_name))),
+        # Same version, any toolchain
+        re.compile(("^\S*/%s-%s-\S*.eb$" % (name, version))),
+        # any version, same toolchain
+        re.compile(("^\S*/%s-\S*-%s-\S*.eb$" % (name, toolchain))),
+        # any version, same toolchain name
+        re.compile(("^\S*/%s-\S*-%s-\S*.eb$" % (name, toolchain_name))),
+    ]
+    _log.debug("found these potential paths: %s" % result_potential_paths)
+
+    result = [filter(lambda path: regex.match(path),result_potential_paths) for regex in regexes]
+    result.append(result_potential_paths)
+    return result
 
 
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False):
