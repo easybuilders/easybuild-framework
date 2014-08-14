@@ -34,12 +34,14 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.easyconfig import find_related_easyconfigs
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.multi_diff import multi_diff
+from easybuild.tools.config import build_path
 
 
 _log = fancylogger.getLogger('easyconfig.review', fname=False)
 
 def review_pr(pull_request, colored):
-    repo_path = os.path.join(download_repo(branch='develop'),'easybuild','easyconfigs')
+    download_repo_path = download_repo(branch='develop', path=build_path())
+    repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
 
     for easyconfig in pr_files:

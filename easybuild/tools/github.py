@@ -191,23 +191,62 @@ class GithubError(Exception):
     """Error raised by the Githubfs"""
     pass
 
+
+def _do_request(lmb, github_user=None):
+    token = fetch_github_token(github_user)
+    g = RestClient(GITHUB_API_URL, username=github_user, token=token)
+
+    # call our lambda
+    url = lmb(g)
+
+    try:
+        status, data = url.get()
+    except socket.gaierror, err:
+        status, data = 0, None
+    _log.debug("status: %d, data: %s" % (status, data))
+
+    return (status, data)
+
+def fetch_latest_commit_sha(repo, account, branch='master'):
+    """fetches the latest sha for a specified branch"""
+
+    status, data = _do_request(lambda x: x.repos[account][repo].branches)
+    if not status == HTTP_STATUS_OK:
+        tup = (branch, account, repo, status, data)
+        _log.error("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)" % tup)
+
+    branch = [br for br in data if br[u'name'] == branch]
+    if len(branch) != 1:
+        _log.error('no branch with name %s found in repo %s/%s' % (branch, account, repo))
+
+    branch = branch[0]
+
+    return branch['commit']['sha']
+
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
     """Download entire repo as a tar.gz archive and extract it into path"""
-    if path is None:
+    # make sure path exists, create it if necessary
+    if path = None:
         path = tempfile.mkdtemp()
-    else:
-        # make sure path exists, create it if necessary
-        mkdir(path, parents=True)
+
+    # add account subdir
+    path = os.path.join(path, account)
+    mkdir(path, parents=True)
 
     extracted_dir_name = "%s-%s" % (GITHUB_EASYCONFIGS_REPO, branch)
     base_name = "%s.tar.gz" % branch
 
+    latest_commit_sha = fetch_latest_commit_sha(repo, account, branch)
+
     # check if directory already exists, and don't download if it does
     expected_path = os.path.join(path, extracted_dir_name)
     if os.path.isdir(expected_path):
-        return expected_path
+        sha = open(os.path.join(expected_path, "latest-sha")).readlines()[0]
+        if latest_commit_sha == sha.rstrip():
+            _log.debug("Not redownloading %s/%s as it already exists" % (account, repo))
+            return expected_path
 
-    url = URL_SEPARATOR.join(["https://github.com",account, repo, 'archive', base_name])
+    url = URL_SEPARATOR.join(["https://github.com", account, repo, 'archive', base_name])
 
     _log.debug("download repo %s/%s as archive from %s" % (account,repo, url))
     download_file(base_name, url, os.path.join(path,base_name))
@@ -218,6 +257,9 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
         _log.error("We expected %s to exists and contain the repo %s at branch %s" % (extracted_path, repo, branch))
+
+    f = open(os.path.join(extracted_path, 'latest-sha'), 'w')
+    f.write(latest_commit_sha)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path
@@ -243,10 +285,6 @@ def _download(url, path=None):
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
 
-
-    # a GitHub token is optional here, but can be used if available in order to be less susceptible to rate limiting
-    github_token = fetch_github_token(github_user)
-
     if path is None:
         path = tempfile.mkdtemp()
     else:
@@ -254,15 +292,9 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         mkdir(path, parents=True)
 
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
+    pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
 
-    # fetch data for specified PR
-    g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-    pr_url = g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
-    try:
-        status, pr_data = pr_url.get()
-    except socket.gaierror, err:
-        status, pr_data = 0, None
-    _log.debug("status: %d, data: %s" % (status, pr_data))
+    status, pr_data = _do_request(pr_url, github_user)
     if not status == HTTP_STATUS_OK:
         tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
         _log.error("Failed to get data for PR #%d from %s/%s (status: %d %s)" % tup)
@@ -283,7 +315,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.debug("List of patches files: %s" % patched_files)
 
     # obtain last commit
-    status, commits_data = pr_url.commits.get()
+    status, commits_data = _do_request(lambda g: pr_url(g).commits, github_user)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s" % commits_data)
 
