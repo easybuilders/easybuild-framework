@@ -48,5 +48,5 @@ def review_pr(pull_request):
         for listing in files:
             if listing:
                 diff = multi_diff(easyconfig, listing)
-                diff.write_out()
+                print diff
                 break

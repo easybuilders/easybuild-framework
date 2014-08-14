@@ -62,23 +62,28 @@ class MultiDiff(object):
             action = self._remove_diff
         action(line_no, diff_line.rstrip(), meta, squigly_line)
 
-    def write_out(self):
+    def __str__(self):
         """
         Write the entire diff to the terminal
         """
         def limit(text, length):
+            """ limit text to certain length """
             if len(text) > length:
                 return text[0:length-3] + '...'
             else:
                 return text
 
+        output = []
+
         w,h = terminal.get_terminal_size()
-        print " ".join(["Comparing", PURPLE, os.path.basename(self.base), ENDC, "with", GRAY, ", ".join(map(os.path.basename,self.files)), ENDC])
+        output.append(" ".join(["Comparing", PURPLE, os.path.basename(self.base), ENDC, "with", GRAY, ", ".join(map(os.path.basename,self.files)), ENDC]))
 
         for i in range(len(self.base_lines)):
             lines = self.get_line(i)
             if filter(None,lines):
-                print "\n".join(map(lambda line: limit(line,w),lines))
+                output.append("\n".join([limit(line,w) for line in lines]))
+
+        return "\n".join(output)
 
     def get_line(self, line_no):
         """
@@ -94,10 +99,7 @@ class MultiDiff(object):
                     if squigly_line:
                         squigly_dict[diff_line] = squigly_line
                     lines.add(diff_line)
-                    if diff_line not in changes_dict:
-                        changes_dict[diff_line] = set([meta])
-                    else:
-                        changes_dict[diff_line].add(meta)
+                    changes_dict.setdefault(diff_line,set()).add(meta)
 
             # restrict displaying of removals to 3 groups
             max_groups = 2
