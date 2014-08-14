@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Review module for pull requests on the easyconfigs repo"
+Review module for pull requests on the easyconfigs repo
 
 @author: Toon Willems (Ghent University)
 """
