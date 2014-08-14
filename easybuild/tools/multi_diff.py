@@ -110,14 +110,10 @@ class MultiDiff(object):
 
             # restrict displaying of removals to max_groups
             max_groups = 2
-            if len(lines) > max_groups:
-                # find number of occurences
-                count = [(len(changes_dict[line]), line) for line in lines]
-                # sort highest first
-                lines = sorted(count, key=lambda (length, line): length)
-                lines.reverse()
-                # limit to max_groups
-                lines = [ x for (l,x) in lines][0:max_groups-1]
+            # sort highest first
+            lines = sorted(lines, key=lambda line: len(changes_dict[line]))
+            # limit to max_groups
+            lines = lines[::-1][:max_groups]
 
             for diff_line in lines:
                 line = [str(line_no), self._colorize(diff_line, squigly_dict.get(diff_line))]
