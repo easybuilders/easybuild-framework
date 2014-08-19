@@ -338,7 +338,7 @@ class ModulesTool(object):
         txt = self.show(mod_name)
         # 'show' output always contains full path to existing module file
         # enforce that only True is returned via ':' at the end of the regex
-        exists_re = re.compile('^\s*\S*/%s:\s*$' % mod_name, re.M)
+        exists_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
         return bool(exists_re.search(txt))
 
     def load(self, modules, mod_paths=None, purge=False, orig_env=None):
