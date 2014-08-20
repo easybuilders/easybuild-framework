@@ -81,17 +81,18 @@ _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 def skip_available(easyconfigs, testing=False):
     """Skip building easyconfigs for existing modules."""
     modtool = modules_tool()
-    easyconfigs, check_easyconfigs = [], easyconfigs
-    for ec in check_easyconfigs:
-        module = ec['full_mod_name']
-        if modtool.exists(module):
-            msg = "%s is already installed (module found), skipping" % module
+    module_names = [ec['full_mod_name'] for ec in easyconfigs]
+    modules_exist = modtool.exist(module_names)
+    retained_easyconfigs = []
+    for ec, mod_name, mod_exists in zip(easyconfigs, module_names, modules_exist):
+        if mod_exists:
+            msg = "%s is already installed (module found), skipping" % mod_name
             print_msg(msg, log=_log, silent=testing)
             _log.info(msg)
         else:
-            _log.debug("%s is not installed yet, so retaining it" % module)
-            easyconfigs.append(ec)
-    return easyconfigs
+            _log.debug("%s is not installed yet, so retaining it" % mod_name)
+            retained_easyconfigs.append(ec)
+    return retained_easyconfigs
 
 
 def find_resolved_modules(unprocessed, avail_modules):

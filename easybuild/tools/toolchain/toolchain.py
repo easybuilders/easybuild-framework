@@ -236,7 +236,7 @@ class Toolchain(object):
             if self.mod_short_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_info).")
             # check whether a matching module exists if self.mod_short_name contains a module name
-            return self.modules_tool.exists(self.mod_full_name)
+            return self.modules_tool.exist([self.mod_full_name])[0]
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -284,10 +284,12 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
-        for dep in dependencies:
+        dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
+        deps_exist = self.modules_tool.exist(dep_mod_names)
+        for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
             self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
-            if not self.modules_tool.exists(dep['full_mod_name']):
-                tup = (dep['full_mod_name'], dep)
+            if not dep_exists:
+                tup = (dep_mod_name, dep)
                 self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
             else:
                 self.dependencies.append(dep)

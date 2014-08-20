@@ -149,7 +149,7 @@ class EasyBlock(object):
             _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
 
         # determine install subdirectory, based on module name
-        self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, hidden=False)
+        self.install_subdir = None
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -196,6 +196,10 @@ class EasyBlock(object):
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
+
+        # generate build/install directories
+        self.gen_builddir()
+        self.gen_installdir()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -649,10 +653,11 @@ class EasyBlock(object):
         Generate the name of the installation directory.
         """
         basepath = install_path()
-
         if basepath:
+            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, hidden=False)
             installdir = os.path.join(basepath, self.install_subdir)
             self.installdir = os.path.abspath(installdir)
+            self.log.info("Install dir set to %s" % self.installdir)
         else:
             self.log.error("Can't set installation directory")
 
@@ -1134,7 +1139,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exists(self.full_mod_name):
+            if self.modules_tool.exist([self.full_mod_name])[0]:
                 self.skip = True
                 self.log.info("Module %s found." % self.full_mod_name)
                 self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
@@ -1700,8 +1705,6 @@ class EasyBlock(object):
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
             (False, lambda x: x.check_readiness_step()),
-            (False, lambda x: x.gen_builddir()),
-            (False, lambda x: x.gen_installdir()),
             (True, lambda x: x.make_builddir()),
             (True, lambda x: env.reset_changes()),
             (True, lambda x: x.handle_iterate_opts()),

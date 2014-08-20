@@ -206,8 +206,12 @@ class ModulesTool(object):
         if self.REQ_VERSION is None:
             self.log.debug('No version requirement defined.')
         else:
-            # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-            if StrictVersion(self.version.replace('rc', 'b')) < StrictVersion(self.REQ_VERSION):
+            # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
+            # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+            check_ver = self.version.replace('rc', 'b')
+            if len(check_ver.split('.')) > 3:
+                check_ver = '.'.join(check_ver.split('.')[:3])
+            if StrictVersion(check_ver) < StrictVersion(self.REQ_VERSION):
                 msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
                 self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
             else:
@@ -329,17 +333,39 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
+    def exist(self, mod_names):
+        """
+        Check if modules with specified names exists.
+        """
+        # resort to use 'show' for short lists of module names (3 or less)
+        use_show = False
+        avail_mod_names = None
+        if len(mod_names) <= 3:
+            use_show = True
+        else:
+            avail_mod_names = self.available()
+
+        # differentiate between hidden and visible modules
+        mod_names = [(mod_name, not os.path.basename(mod_name).startswith('.')) for mod_name in mod_names]
+
+        mods_exist = []
+        for (mod_name, visible) in mod_names:
+            if visible and not use_show:
+                mods_exist.append(mod_name in avail_mod_names)
+            else:
+                # hidden modules are not visible in 'avail', need to use 'show' instead
+                modtype = ('hidden', 'visible (not hidden)')[visible]
+                self.log.debug("checking whether %s module %s exists via 'show'..." % (modtype, mod_name))
+                txt = self.show(mod_name)
+                mods_exist_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
+                mods_exist.append(bool(mods_exist_re.search(txt)))
+
+        return mods_exist
+
     def exists(self, mod_name):
-        """
-        Check if module with specified name exists.
-        """
-        # implemented via 'show' subcommand, since obtaining list of available modules can be very slow
-        # also, it doesn't include hidden modules
-        txt = self.show(mod_name)
-        # 'show' output always contains full path to existing module file
-        # enforce that only True is returned via ':' at the end of the regex
-        exists_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
-        return bool(exists_re.search(txt))
+        """Check if a module with the specified name exists."""
+        self.log.deprecated("exists(<mod_name>) is deprecated, use exist([<mod_name>]) instead", '2.0')
+        return self.exist([mod_name])[0]
 
     def load(self, modules, mod_paths=None, purge=False, orig_env=None):
         """
@@ -401,7 +427,7 @@ class ModulesTool(object):
         @param mod_name: module name
         @param regex: (compiled) regular expression, with one group
         """
-        if self.exists(mod_name):
+        if self.exist([mod_name])[0]:
             modinfo = self.show(mod_name)
             self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)

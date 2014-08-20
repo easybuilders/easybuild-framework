@@ -110,8 +110,25 @@ class ModulesTest(EnhancedTestCase):
     def test_exists(self):
         """Test if testing for module existence works."""
         self.init_testmods()
+        self.assertEqual(self.testmods.exist(['OpenMPI/1.6.4-GCC-4.6.4']), [True])
+        self.assertEqual(self.testmods.exist(['foo/1.2.3']), [False])
+        # exists should not return True for incomplete module names
+        self.assertEqual(self.testmods.exist(['GCC']), [False])
+
+        # exists works on hidden modules
+        self.assertEqual(self.testmods.exist(['toy/.0.0-deps']), [True])
+
+        # exists also works on lists of module names
+        # list should be sufficiently long, since for short lists 'show' is always used
+        mod_names = ['OpenMPI/1.6.4-GCC-4.6.4', 'foo/1.2.3', 'GCC',
+                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED',
+                     'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
+                     'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
+        self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
+
+        # test deprecated functionality
         self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
-        self.assertTrue(not self.testmods.exists(mod_name='foo/1.2.3'))
+        self.assertFalse(self.testmods.exists('foo/1.2.3'))
         # exists should not return True for incomplete module names
         self.assertFalse(self.testmods.exists('GCC'))
 
