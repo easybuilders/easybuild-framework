@@ -134,6 +134,7 @@ class EasyConfig(object):
         @param extra_options: dictionary with extra variables that can be set for this specific instance
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
+        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -532,7 +533,9 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name']
+        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden']
+
+        @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -874,6 +877,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     @param path: path to easyconfig file
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     @param validate: whether or not to perform validation
+    @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
     """
     blocks = retrieve_blocks_in_spec(path, build_option('only_blocks'))
 
@@ -917,20 +921,15 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 'hiddendependencies': [],
                 'hidden': hidden,
             })
-            if hidden:
-                easyconfig.update({
-                    'short_mod_name': ec.short_mod_name,
-                    'full_mod_name': ec.full_mod_name,
-                })
             if len(blocks) > 1:
                 easyconfig['original_spec'] = path
 
-            # add build/hidden dependencies
+            # add build dependencies
             for dep in ec['builddependencies']:
                 _log.debug("Adding build dependency %s for app %s." % (dep, name))
                 easyconfig['builddependencies'].append(dep)
 
-            # add build/hidden dependencies
+            # add hidden dependencies
             for dep in ec['hiddendependencies']:
                 _log.debug("Adding hidden dependency %s for app %s." % (dep, name))
                 easyconfig['hiddendependencies'].append(dep)
