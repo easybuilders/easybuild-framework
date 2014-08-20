@@ -40,6 +40,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
+from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
 from easybuild.tools.utilities import quote_str
 
 
@@ -63,11 +64,12 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
+        full_mod_name = self.app.full_mod_name
         # module file goes in general moduleclass category
-        self.filename = os.path.join(self.module_path, mod_path_suffix, self.app.full_mod_name)
+        self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.app.cfg)
-        self.class_mod_files = [os.path.join(self.module_path, p, self.app.full_mod_name) for p in mod_symlink_paths]
+        self.class_mod_files = [os.path.join(self.module_path, p, full_mod_name) for p in mod_symlink_paths]
 
         # create directories and links
         for path in [os.path.dirname(x) for x in [self.filename] + self.class_mod_files]:

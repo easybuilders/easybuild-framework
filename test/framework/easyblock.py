@@ -264,6 +264,8 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the make_module_step"""
         name = "pi"
         version = "3.14"
+        deps = [('GCC', '4.6.4')]
+        hiddendeps = [('toy', '0.0-deps')]
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -272,16 +274,23 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = [('foo', '1.2.3')]",
-            "builddependencies = [('bar', '9.8.7')]",
+            "dependencies = %s" % str(deps),
+            "hiddendependencies = %s" % str(hiddendeps),
+            "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
 
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+
         # test if module is generated correctly
         self.writeEC()
-        eb = EasyBlock(EasyConfig(self.eb_file))
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        #eb.builddir = self.test_buildpath
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
@@ -296,9 +305,17 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(re.search('^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper(), txt, re.M))
         self.assertTrue(re.search('^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
         for (key, val) in modextravars.items():
-            self.assertTrue(re.search('^setenv\s+%s\s+"%s"$' % (key, val), txt, re.M))
+            regex = re.compile('^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
         for (key, val) in modextrapaths.items():
-            self.assertTrue(re.search('^prepend-path\s+%s\s+\$root/%s$' % (key, val), txt, re.M))
+            regex = re.compile('^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (name, ver) in deps:
+            regex = re.compile('^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (name, ver) in hiddendeps:
+            regex = re.compile('^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""

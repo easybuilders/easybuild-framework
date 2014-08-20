@@ -247,6 +247,7 @@ def main(testing_data=(None, None, None)):
         'force': options.force,
         'github_user': options.github_user,
         'group': options.group,
+        'hidden': options.hidden,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,

@@ -287,30 +287,35 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # test determining module name for dependencies (i.e. non-parsed easyconfigs)
         # using a module naming scheme that requires all easyconfig parameters
+        ec2mod_map['gzip-1.5-goolf-1.4.10.eb'] = 'gzip/.b63c2b8cc518905473ccda023100b2d3cff52d55'
         for dep_ec, dep_spec in [
             ('GCC-4.6.3.eb', {
                 'name': 'GCC',
                 'version': '4.6.3',
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'hidden': False,
             }),
             ('gzip-1.5-goolf-1.4.10.eb', {
                 'name': 'gzip',
                 'version': '1.5',
                 'versionsuffix': '',
                 'toolchain': {'name': 'goolf', 'version': '1.4.10'},
+                'hidden': True,
             }),
             ('toy-0.0-multiple.eb', {
                 'name': 'toy',
                 'version': '0.0',
                 'versionsuffix': '-multiple',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'hidden': False,
             }),
         ]:
             # determine full module name
             self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'), hidden=True)
+        self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-goolf-1.4.10.eb'])
         self.assertEqual(ec.toolchain.det_short_module_name(), 'goolf/b7515d0efd346970f55e7aa8522e239a70007021')
 
         # restore default module naming scheme, and retest
