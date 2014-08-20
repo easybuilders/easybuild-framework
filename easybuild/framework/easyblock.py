@@ -654,7 +654,7 @@ class EasyBlock(object):
         """
         basepath = install_path()
         if basepath:
-            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, hidden=False)
+            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
             installdir = os.path.join(basepath, self.install_subdir)
             self.installdir = os.path.abspath(installdir)
             self.log.info("Install dir set to %s" % self.installdir)

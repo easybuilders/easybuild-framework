@@ -222,7 +222,6 @@ class EasyConfig(object):
 
         # set installdir/module info
         mns = ActiveMNS()
-        self.install_subdir = mns.det_full_module_name(self, hidden=False)
         self.full_mod_name = mns.det_full_module_name(self)
         self.short_mod_name = mns.det_short_module_name(self)
         self.mod_subdir = mns.det_module_subdir(self)
@@ -1037,7 +1036,7 @@ class ActiveMNS(object):
 
         return ec
 
-    def det_module_name_with(self, mns_method, ec, hidden=None):
+    def _det_module_name_with(self, mns_method, ec, force_visible=False):
         """
         Determine module name using specified module naming scheme method, based on supplied easyconfig.
         Returns a string representing the module name, e.g. 'GCC/4.6.3', 'Python/2.7.5-ictce-4.1.13',
@@ -1059,28 +1058,28 @@ class ActiveMNS(object):
             self.log.error("%s is not a valid module name" % str(mod_name))
 
         # check whether module name should be hidden or not
-        # ec may be either a dict or an EasyConfig instance, 'hidden' argument overrules if set
-        if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and (hidden is None or hidden):
+        # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
+        if (ec.get('hidden', False) or getattr(ec, 'hidden', False)) and not force_visible:
             mod_name = det_hidden_modname(mod_name)
 
         return mod_name
 
-    def det_full_module_name(self, ec, hidden=None):
+    def det_full_module_name(self, ec, force_visible=False):
         """Determine full module name by selected module naming scheme, based on supplied easyconfig."""
-        self.log.debug("Determining full module name for %s (hidden: %s)" % (ec, hidden))
-        mod_name = self.det_module_name_with(self.mns.det_full_module_name, ec, hidden=hidden)
+        self.log.debug("Determining full module name for %s (force_visible: %s)" % (ec, force_visible))
+        mod_name = self._det_module_name_with(self.mns.det_full_module_name, ec, force_visible=force_visible)
         self.log.debug("Obtained valid full module name %s" % mod_name)
         return mod_name
 
-    def det_devel_module_filename(self, ec, hidden=None):
+    def det_devel_module_filename(self, ec, force_visible=False):
         """Determine devel module filename."""
-        modname = self.det_full_module_name(ec, hidden=hidden)
+        modname = self.det_full_module_name(ec, force_visible=force_visible)
         return modname.replace(os.path.sep, '-') + DEVEL_MODULE_SUFFIX
 
-    def det_short_module_name(self, ec, hidden=None):
+    def det_short_module_name(self, ec, force_visible=False):
         """Determine short module name according to module naming scheme."""
-        self.log.debug("Determining short module name for %s (hidden: %s)" % (ec, hidden))
-        mod_name = self.det_module_name_with(self.mns.det_short_module_name, ec, hidden=hidden)
+        self.log.debug("Determining short module name for %s (force_visible: %s)" % (ec, force_visible))
+        mod_name = self._det_module_name_with(self.mns.det_short_module_name, ec, force_visible=force_visible)
         self.log.debug("Obtained valid short module name %s" % mod_name)
         return mod_name
 
