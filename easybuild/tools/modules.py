@@ -563,16 +563,21 @@ class ModulesTool(object):
 
         return loaded_modules
 
+    def read_module_file(self, mod_name):
+        """
+        Read module file with specified name.
+        """
+        modfilepath = self.modulefile_path(mod_name)
+        self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
+
+        return read_file(modfilepath)
+
     # depth=sys.maxint should be equivalent to infinite recursion depth
     def dependencies_for(self, mod_name, depth=sys.maxint):
         """
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
         """
-        modfilepath = self.modulefile_path(mod_name)
-        self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
-
-        modtxt = read_file(modfilepath)
-
+        modtxt = self.read_module_file(mod_name)
         loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
         mods = loadregex.findall(modtxt)
 
@@ -590,6 +595,16 @@ class ModulesTool(object):
                     mods.append(dep)
 
         return mods
+
+    def modpath_extensions_for(self, mod_name):
+        """
+        Determine list of $MODULEPATH extensions for specified module.
+        """
+        modtxt = self.read_module_file(mod_name)
+        useregex = re.compile(r"^\s*module use\s+(.*)$", re.M)
+        exts = useregex.findall(modtxt)
+
+        return exts
 
     def update(self):
         """Update after new modules were added."""

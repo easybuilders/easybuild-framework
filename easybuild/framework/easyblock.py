@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option
+from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option, install_path
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -766,7 +766,20 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
         """
-        load = unload = ''
+        deps = []
+
+        # include load statements for toolchain, either directly or for toolchain dependencies
+        # purposely after dependencies which may be critical,
+        # e.g. when unloading a module in a hierarchical naming scheme
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            mns = ActiveMNS()
+            if mns.expand_toolchain_load():
+                mod_names = self.toolchain.toolchain_dependencies
+                deps.extend(mod_names)
+                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
+            else:
+                deps.append(self.toolchain.det_short_module_name())
+                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
         builddeps = self.cfg.builddependencies()
@@ -775,28 +788,57 @@ class EasyBlock(object):
             if not dep in builddeps:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
-                load += self.moduleGenerator.load_module(modname, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(modname)
+                deps.append(modname)
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
-        # purposely after dependencies which may be critical,
-        # e.g. when unloading a module in a hierarchical naming scheme
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if ActiveMNS().expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dependencies
-            else:
-                mod_names = [self.toolchain.det_short_module_name()]
-            for mod_name in mod_names:
-                load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(mod_name)
+        self.log.debug("Full list of dependencies: %s" % deps)
+
+        # determine full module path extensions for each of the modules
+        modpaths = os.environ['MODULEPATH'].split(os.pathsep)
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path')).rstrip(os.path.sep)
+        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir).rstrip(os.path.sep)
+        all_modpath_exts = {}
+        if full_mod_subdir != mod_install_path:
+            for dep in deps:
+                all_modpath_exts.update({dep: []})
+                for full_modpath_ext in self.modules_tool.modpath_extensions_for(dep):
+                    for modpath in modpaths:
+                        if full_modpath_ext.startswith(modpath):
+                            modpath_ext = full_modpath_ext[len(modpath)+1:]
+                            if modpath_ext:
+                                all_modpath_exts[dep].append(modpath_ext)
+            self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
+
+        # determine dependencies to exclude based on their $MODULEPATH extensions, recursively
+        excluded_deps = []
+        extended = True
+        while full_mod_subdir != mod_install_path and extended:
+            extended = False
+            self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
+            for dep, modpath_exts in all_modpath_exts.items():
+                # if $MODULEPATH extension is identical to where this module will be installed, we have a hit
+                full_modpath_exts = [os.path.join(mod_install_path, e).rstrip(os.path.sep) for e in modpath_exts]
+                if full_mod_subdir in full_modpath_exts:
+                    # figure out module subdir for this dep, so we can recurse
+                    modfile_path = self.modules_tool.modulefile_path(dep)
+                    full_mod_subdir = modfile_path[:-len(dep)].rstrip(os.path.sep)
+                    excluded_deps.append(dep)
+                    extended = True
+                    tup = (dep, full_mod_subdir, all_modpath_exts.pop(dep))
+                    self.log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
+                    break
+
+        deps = [d for d in deps if d not in excluded_deps]
+        self.log.debug("List of retained dependencies: %s" % deps)
+        loads = [self.moduleGenerator.load_module(d, recursive_unload=self.recursive_mod_unload) for d in deps]
+        unloads = [self.moduleGenerator.unload_module(d) for d in deps]
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
-            return unload + load
+            return ''.join(unloads) + ''.join(loads)
         else:
-            return load
+            return ''.join(loads)
 
     def make_module_description(self):
         """
