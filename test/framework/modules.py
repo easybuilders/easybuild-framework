@@ -42,7 +42,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 38
+TEST_MODULES_COUNT = 42
 
 
 class ModulesTest(EnhancedTestCase):
@@ -136,12 +136,22 @@ class ModulesTest(EnhancedTestCase):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
-        ms = [m for m in ms if not m.startswith('Core/') and not m.startswith('Compiler/')]
+        # exclude modules not on the top level of a hierarchy
+        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/'))]
 
         for m in ms:
             self.testmods.load([m])
             self.assertTrue(m in self.testmods.loaded_modules())
             self.testmods.purge()
+
+        # trying to load a module not on the top level of a hierarchy should fail
+        mods = [
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent directory
+            'Core/GCC/4.7.2',  # module use on non-existent directory
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing deps
+        ]
+        for mod in mods:
+            self.assertErrorRegex(EasyBuildError, '.*', self.testmods.load, [mod])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""

@@ -524,14 +524,18 @@ class ToyBuildTest(EnhancedTestCase):
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
-        for mod_subdir in ['Core', 'Compiler']:
+        for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
-        # tweak prepend-path statements in GCC/OpenMPI modules to ensure correct paths
+        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         for modfile in [
             os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
             os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mpi_pref, 'FFTW', '3.3.3'),
+            os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
+            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
@@ -553,7 +557,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module paths/contents with gompi build
         extra_args = [
-            '--try-toolchain=gompi,1.4.10',
+            '--try-toolchain=goolf,1.4.10',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -561,11 +565,16 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
-        # check that toolchain load is expanded to loads for toolchain dependencies
+        # check that toolchain load is expanded to loads for toolchain dependencies,
+        # except for the ones that extend $MODULEPATH to make the toy module available
         modtxt = read_file(toy_module_path)
-        self.assertFalse(re.search("load gompi", modtxt))
-        self.assertTrue(re.search("load GCC", modtxt))
-        self.assertTrue(re.search("load OpenMPI", modtxt))
+        for dep in ['goolf', 'GCC', 'OpenMPI']:
+            load_regex = re.compile("load %s" % dep)
+            self.assertFalse(load_regex.search(modtxt), "Pattern '%s' not found in %s" % (load_regex.pattern, modtxt))
+        for dep in ['OpenBLAS', 'FFTW', 'ScaLAPACK']:
+            load_regex = re.compile("load %s" % dep)
+            self.assertTrue(load_regex.search(modtxt), "Pattern '%s' found in %s" % (load_regex.pattern, modtxt))
+
         os.remove(toy_module_path)
 
         # test module path with GCC/4.7.2 build
