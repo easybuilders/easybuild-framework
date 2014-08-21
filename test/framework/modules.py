@@ -146,9 +146,8 @@ class ModulesTest(EnhancedTestCase):
 
         # trying to load a module not on the top level of a hierarchy should fail
         mods = [
-            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent directory
-            'Core/GCC/4.7.2',  # module use on non-existent directory
-            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing deps
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing dep
         ]
         for mod in mods:
             self.assertErrorRegex(EasyBuildError, '.*', self.testmods.load, [mod])
