@@ -97,13 +97,14 @@ class HierarchicalMNS(ModuleNamingScheme):
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
         Examples: Core, Compiler/GCC/4.8.3, MPI/GCC/4.8.3/OpenMPI/1.6.5
         """
-        # determine prefix based on type of toolchain used
         tc_comps = det_toolchain_compilers(ec)
-        if tc_comps is None:
+        tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
+        # determine prefix based on type of toolchain used
+        if tc_comp_info is None:
             # no compiler in toolchain, dummy toolchain => Core module
             subdir = CORE
         else:
-            tc_comp_name, tc_comp_ver = self.det_toolchain_compilers_name_version(tc_comps)
+            tc_comp_name, tc_comp_ver = tc_comp_info
             tc_mpi = det_toolchain_mpi(ec)
             if tc_mpi is None:
                 # compiler-only toolchain => Compiler/<compiler_name>/<compiler_version> namespace
