@@ -89,7 +89,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             "",
             "set root    %s" % self.modgen.app.installdir,
             "",
-            "conflict    gzip",
+            "conflict gzip",
             "",
         ]) 
 
