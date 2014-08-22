@@ -1032,7 +1032,8 @@ class ActiveMNS(object):
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 ec = parsed_ec[0]['ec']
             else:
-                self.log.error("Failed to find an easyconfig file when determining module name for: %s" % ec)
+                tup = (ec['name'], det_full_ec_version(ec), ec)
+                self.log.error("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s" % tup)
 
         return ec
 
