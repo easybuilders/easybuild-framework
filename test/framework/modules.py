@@ -42,7 +42,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 38
+TEST_MODULES_COUNT = 40
 
 
 class ModulesTest(EnhancedTestCase):

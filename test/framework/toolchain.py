@@ -37,6 +37,7 @@ from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -215,6 +216,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
                     else:
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+                modules.modules_tool().purge()
 
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
@@ -230,6 +232,7 @@ class ToolchainTest(EnhancedTestCase):
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertTrue(flag in flags)
+        modules.modules_tool().purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
@@ -238,6 +241,7 @@ class ToolchainTest(EnhancedTestCase):
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertTrue(flag in flags)
+        modules.modules_tool().purge()
 
         tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
@@ -266,6 +270,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
 
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
@@ -285,6 +290,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
@@ -308,6 +314,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
                     else:
                         self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
+                modules.modules_tool().purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
@@ -327,6 +334,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
 
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
@@ -354,6 +362,7 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(val in flags)
                     else:
                         self.assertTrue(val not in flags)
+                modules.modules_tool().purge()
 
     def test_cgoolf_toolchain(self):
         """Test for cgoolf toolchain."""
@@ -426,6 +435,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CXX'), 'icpc')
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
+        modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True}
@@ -440,6 +450,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        modules.modules_tool().purge()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True, 'openmp': True}
@@ -462,6 +473,28 @@ class ToolchainTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(tmpdir)
         open(imkl_module_path, 'w').write(imkl_module_txt)
+
+    def test_toolchain_verification(self):
+        """Test verification of toolchain definition."""
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.prepare()
+        modules.modules_tool().purge()
+
+        # toolchain modules missing a toolchain element should fail verification
+        error_msg = "List of toolchain dependency modules and toolchain definition do not match"
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
+        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        modules.modules_tool().purge()
+
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
+        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        modules.modules_tool().purge()
+
+        # missing optional toolchain elements are fine
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
+        tc.set_options(opts)
+        tc.prepare()
 
     def tearDown(self):
         """Cleanup."""
