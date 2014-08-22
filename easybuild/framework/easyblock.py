@@ -595,9 +595,16 @@ class EasyBlock(object):
     @property
     def full_mod_name(self):
         """
-        Toolchain used to build this easyblock
+        Full module name (including subdirectory in module install path)
         """
         return self.cfg.full_mod_name
+
+    @property
+    def short_mod_name(self):
+        """
+        Short module name (not including subdirectory in module install path)
+        """
+        return self.cfg.short_mod_name
 
     #
     # DIRECTORY UTILITY FUNCTIONS
