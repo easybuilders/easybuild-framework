@@ -792,7 +792,7 @@ class EasyBlock(object):
         # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
             if ActiveMNS().expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dependencies
+                mod_names = self.toolchain.toolchain_dep_mods
             else:
                 mod_names = [self.toolchain.det_short_module_name()]
             for mod_name in mod_names:

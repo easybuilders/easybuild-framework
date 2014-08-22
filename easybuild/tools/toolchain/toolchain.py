@@ -32,7 +32,9 @@ Creating a new toolchain should be as simple as possible.
 """
 
 import os
+import re
 from vsc.utils import fancylogger
+from vsc.utils.missing import all, any
 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -75,7 +77,7 @@ class Toolchain(object):
         self.base_init()
 
         self.dependencies = []
-        self.toolchain_dependencies = []
+        self.toolchain_dep_mods = []
 
         if name is None:
             name = self.NAME
@@ -349,29 +351,41 @@ class Toolchain(object):
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
-        self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
-        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
+        self.toolchain_dep_mods = self.modules_tool.dependencies_for(mod_name, depth=0)
+        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
 
-        # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
-        toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
         # only retain names of toolchain elements, excluding toolchain name
         toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
 
-        # filter out optional toolchain elements if they're not used in the module
-        for mod_name in toolchain_definition.copy():
-            if not self.is_required(mod_name):
-                if not mod_name in toolchain_module_deps:
-                    self.log.debug("Removing optional module %s from list of toolchain elements." % mod_name)
-                    toolchain_definition.remove(mod_name)
+        def tc_elem_present(name):
+            """Check whether the specified toolchain element is present in the loaded toolchain module."""
+            # check whether a module for the toolchain element with specified name is present
+            # assumption: the software name is a prefix for either one of the module filepath subdirs, or its filename
+            # for example, when looking for 'BLACS', to following modules are considered to be BLACS modules:
+            # - BLACS/1.1-gompi-1.1.0-no-OFED
+            # - apps/blacs/1.1
+            # - lib/math/BLACS-stable/1.1
+            # the following ones are NOT consider BLACS modules, even though the substring 'blacs' is included in the module name
+            # - ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1
+            # - apps/math-blacs/1.1
+            modname_regex = re.compile('(?:^|/)%s' % name.lower())
+            return any([modname_regex.search(m.lower()) for m in self.toolchain_dep_mods])
 
-        self.log.debug("List of toolchain dependencies from toolchain module: %s" % toolchain_module_deps)
+        # filter out optional toolchain elements if they're not used in the module
+        for elem_name in toolchain_definition.copy():
+            if not self.is_required(elem_name):
+                if not tc_elem_present(elem_name):
+                    self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
+                    toolchain_definition.remove(elem_name)
+
+        self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
         self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
 
-        if toolchain_module_deps == toolchain_definition:
+        if all([tc_elem_present(e) for e in toolchain_definition]):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
-                           "(%s vs %s)" % (toolchain_module_deps, toolchain_definition))
+                           "(%s vs %s)" % (self.toolchain_dep_mods, toolchain_definition))
 
         # Generate the variables to be set
         self.set_variables()

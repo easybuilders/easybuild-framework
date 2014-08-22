@@ -445,10 +445,6 @@ class ModulesTool(object):
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
         return self.get_value_from_modulefile(mod_name, modpath_re)
 
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        raise NotImplementedError
-
     def set_ld_library_path(self, ld_library_paths):
         """Set $LD_LIBRARY_PATH to the given list of paths."""
         os.environ['LD_LIBRARY_PATH'] = ':'.join(ld_library_paths)
@@ -602,12 +598,6 @@ class EnvironmentModulesC(ModulesTool):
     REQ_VERSION = '3.2.10'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
 
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        # line that specified conflict contains software name
-        name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
-        return self.get_value_from_modulefile(mod_name, name_re)
-
     def update(self):
         """Update after new modules were added."""
         pass
@@ -747,12 +737,6 @@ class Lmod(ModulesTool):
                 cache_file.close()
             except (IOError, OSError), err:
                 self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
-
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        # line that specified conflict contains software name
-        name_re = re.compile('^conflict\("*(?P<name>[^ "]+)"\).*$', re.M)
-        return self.get_value_from_modulefile(mod_name, name_re)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'
