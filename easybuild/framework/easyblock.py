@@ -1687,9 +1687,20 @@ class EasyBlock(object):
         """
         Run step, returns false when execution should be stopped
         """
-        if skippable and (self.skip or step in self.cfg['skipsteps']):
+        skip = False
+        # skip step if specified, either as individual (skippable) step, or when only generating module file
+        # still run sanity check when only generating module
+        skip_individual_step = skippable and (self.skip or step in self.cfg['skipsteps'])
+        only_module_skip = build_option('only_module') and not step in ['sanitycheck', 'module']
+        if skip_individual_step or only_module_skip:
             self.log.info("Skipping %s step" % step)
-        else:
+            skip = True
+        # allow skipping sanity check too when only generating module via --force
+        elif build_option('only_module') and step == 'sanitycheck' and build_option('force'):
+            self.log.info("Skipping %s step, due to combo of --only-module and --force" in ['sanitycheck'])
+            skip = True
+
+        if not skip:
             self.log.info("Starting %s step" % step)
             # update the config templates
             self.update_config_template_run_step()

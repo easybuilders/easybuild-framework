@@ -169,6 +169,7 @@ class EasyBuildOptions(GeneralOption):
                             str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
+            'only-module': ("Only (re)generate module file", None, 'store_true', False),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),

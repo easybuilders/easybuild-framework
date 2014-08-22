@@ -251,6 +251,7 @@ def main(testing_data=(None, None, None)):
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
+        'only_module': options.only_module,
         'optarch': options.optarch,
         'recursive_mod_unload': options.recursive_module_unload,
         'regtest_output_dir': options.regtest_output_dir,
