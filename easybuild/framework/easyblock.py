@@ -46,6 +46,7 @@ import time
 import traceback
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+from vsc.utils.missing import any
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
@@ -795,34 +796,35 @@ class EasyBlock(object):
         self.log.debug("Full list of dependencies: %s" % deps)
 
         # determine full module path extensions for each of the modules
-        modpaths = os.environ['MODULEPATH'].split(os.pathsep)
-        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path')).rstrip(os.path.sep)
-        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir).rstrip(os.path.sep)
+        modpaths = [os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep) if os.path.exists(p)]
+        mod_install_path = os.path.realpath(os.path.join(install_path('mod'), build_option('suffix_modules_path')))
+        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
         all_modpath_exts = {}
-        if full_mod_subdir != mod_install_path:
+        if not os.path.samefile(full_mod_subdir, mod_install_path):
             for dep in deps:
                 all_modpath_exts.update({dep: []})
-                for full_modpath_ext in self.modules_tool.modpath_extensions_for(dep):
+                full_modpath_exts = [os.path.realpath(p) for p in self.modules_tool.modpath_extensions_for(dep)]
+                for full_modpath_ext in full_modpath_exts:
                     for modpath in modpaths:
-                        if full_modpath_ext.startswith(modpath):
+                        trimmed_modpath_ext = full_modpath_ext[:len(modpath)+1]
+                        if os.path.exists(trimmed_modpath_ext) and os.path.samefile(trimmed_modpath_ext, modpath):
                             modpath_ext = full_modpath_ext[len(modpath)+1:]
                             if modpath_ext:
                                 all_modpath_exts[dep].append(modpath_ext)
-            self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
+        self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
 
         # determine dependencies to exclude based on their $MODULEPATH extensions, recursively
         excluded_deps = []
         extended = True
-        while full_mod_subdir != mod_install_path and extended:
+        while extended and not os.path.samefile(full_mod_subdir, mod_install_path):
             extended = False
             self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
             for dep, modpath_exts in all_modpath_exts.items():
-                # if $MODULEPATH extension is identical to where this module will be installed, we have a hit
-                full_modpath_exts = [os.path.join(mod_install_path, e).rstrip(os.path.sep) for e in modpath_exts]
-                if full_mod_subdir in full_modpath_exts:
+                # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+                if any([os.path.samefile(full_mod_subdir, os.path.join(mod_install_path, e)) for e in modpath_exts]):
                     # figure out module subdir for this dep, so we can recurse
                     modfile_path = self.modules_tool.modulefile_path(dep)
-                    full_mod_subdir = modfile_path[:-len(dep)].rstrip(os.path.sep)
+                    full_mod_subdir = modfile_path[:-len(dep)]
                     excluded_deps.append(dep)
                     extended = True
                     tup = (dep, full_mod_subdir, all_modpath_exts.pop(dep))
