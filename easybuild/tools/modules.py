@@ -337,20 +337,13 @@ class ModulesTool(object):
         """
         Check if modules with specified names exists.
         """
-        # resort to use 'show' for short lists of module names (3 or less)
-        use_show = False
-        avail_mod_names = None
-        if len(mod_names) <= 3:
-            use_show = True
-        else:
-            avail_mod_names = self.available()
-
+        avail_mod_names = self.available()
         # differentiate between hidden and visible modules
         mod_names = [(mod_name, not os.path.basename(mod_name).startswith('.')) for mod_name in mod_names]
 
         mods_exist = []
         for (mod_name, visible) in mod_names:
-            if visible and not use_show:
+            if visible:
                 mods_exist.append(mod_name in avail_mod_names)
             else:
                 # hidden modules are not visible in 'avail', need to use 'show' instead
