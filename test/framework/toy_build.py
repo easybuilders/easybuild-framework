@@ -44,6 +44,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import modules_tool
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -521,6 +522,10 @@ class ToyBuildTest(EnhancedTestCase):
 
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
+        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
+        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
+        os.environ['MODULEPATH'] = os.path.join(mod_prefix, 'Core')
+
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
@@ -648,6 +653,11 @@ class ToyBuildTest(EnhancedTestCase):
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
         os.remove(toy_module_path)
+
+        # building a toolchain module should also work
+        args = ['gompi-1.4.10.eb'] + args[1:]
+        modules_tool().purge()
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
