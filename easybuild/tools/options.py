@@ -84,7 +84,7 @@ class EasyBuildOptions(GeneralOption):
             default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
+            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 

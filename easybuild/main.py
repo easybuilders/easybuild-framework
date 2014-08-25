@@ -188,7 +188,7 @@ def main(testing_data=(None, None, None)):
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
-    robot_path = None
+    robot_path = []
     if options.robot:
         robot_path = list(options.robot)
 
@@ -206,8 +206,6 @@ def main(testing_data=(None, None, None)):
     # specified robot paths are preferred over installed easyconfig files
     # --try-X and --dep-graph both require --robot, so enable it with path of installed easyconfigs
     if robot_path or try_to_generate or options.dep_graph:
-        if robot_path is None:
-            robot_path = []
         robot_path.extend(easyconfigs_paths)
         easyconfigs_paths = robot_path[:]
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
