@@ -578,7 +578,7 @@ class ModulesTool(object):
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
+        loadregex = re.compile(r"^\s*module load\s+(.*)$", re.M)
         mods = loadregex.findall(modtxt)
 
         if depth > 0:

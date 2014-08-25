@@ -813,6 +813,14 @@ class EasyBlock(object):
         self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
 
         # determine dependencies to exclude based on their $MODULEPATH extensions, recursively
+        # example, when building HPL/2.1 with gompi toolchain in a Core/Compiler/MPI hierarchy:
+        # before start of while loop: full_mod_subdir for HPL/2.1 == 'MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4'
+        # 1st iteration: find & exclude module that extends $MODULEPATH with MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4,
+        #                => OpenMPI/1.6.4 (in 'Compiler/GCC/4.8.2' subdir);
+        #                recurse with full_mod_subdir = 'Compiler/GCC/4.8.2'
+        # 2nd iteration: find & exclude module that extends $MODULEPATH with Compiler/GCC/4.8.2
+        #                => GCC/4.8.2 (in 'Core' subdir; recurse with full_mod_subdir = 'Core'
+        # 3rd iteration: try to find module that extends $MODULEPATH with Core => no such module, so exit while loop
         excluded_deps = []
         extended = True
         while extended and not os.path.samefile(full_mod_subdir, mod_install_path):
@@ -823,10 +831,15 @@ class EasyBlock(object):
                 if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
                     # figure out module subdir for this dep, so we can recurse
                     modfile_path = self.modules_tool.modulefile_path(dep)
+                    # full path to module subdir is simply path to module file without (short) module name
                     full_mod_subdir = modfile_path[:-len(dep)]
+
+                    # mark dep as to-be-exlucded, and remove it from dict with all modpath exts, no longer relevant
                     excluded_deps.append(dep)
                     extended = True
-                    tup = (dep, full_mod_subdir, all_modpath_exts.pop(dep))
+                    dep_modpath_exts = all_modpath_exts.pop(dep)
+
+                    tup = (dep, full_mod_subdir, dep_modpath_exts)
                     self.log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
                     break
 
