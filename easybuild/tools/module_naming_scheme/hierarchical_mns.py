@@ -40,6 +40,9 @@ CORE = 'Core'
 COMPILER = 'Compiler'
 MPI = 'MPI'
 
+MODULECLASS_COMPILER = 'compiler'
+MODULECLASS_MPI = 'mpi'
+
 
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
@@ -124,24 +127,24 @@ class HierarchicalMNS(ModuleNamingScheme):
         modclass = ec['moduleclass']
 
         paths = []
-        if modclass == 'compiler':
+        if modclass == MODULECLASS_COMPILER:
             if ec['name'] in ['icc', 'ifort']:
                 compdir = 'intel'
             else:
                 compdir = ec['name']
             paths.append(os.path.join(COMPILER, compdir, ec['version']))
-        elif modclass == 'mpi':
+        elif modclass == MODULECLASS_MPI:
             tc_comps = det_toolchain_compilers(ec)
             tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
-            if not tc_comp_info is None:
+            if tc_comp_info is None:
+                tup = (ec['toolchain'], ec['name'], ec['version'])
+                error_msg = ("No compiler available in toolchain %s used to install MPI library %s v%s, "
+                             "which is required by the active module naming scheme.") % tup
+                self.log.error(error_msg)
+            else:
                 tc_comp_name, tc_comp_ver = tc_comp_info
                 fullver = ec['version'] + ec['versionsuffix']
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
-            else:
-                tup = (ec['toolchain'], ec['name'], ec['version'])
-                error_msg = "No compiler available in toolchain %s used to install MPI library %s v%s, " % tup
-                error_msg += "which is required by the active module naming scheme %s." % self.__class__.__name__
-                self.log.error(error_msg)
 
         return paths
 
