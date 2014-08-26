@@ -251,11 +251,11 @@ class ModulesTest(EnhancedTestCase):
 
         modtool = modules_tool()
 
-        path = modtool.path_to_top_of_module_tree('gompi/1.3.12', '', ['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
+        path = modtool.path_to_top_of_module_tree([], 'gompi/1.3.12', '', ['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
         self.assertEqual(path, [])
-        path = modtool.path_to_top_of_module_tree('toy/.0.0-deps', '', ['gompi/1.3.12'])
+        path = modtool.path_to_top_of_module_tree([], 'toy/.0.0-deps', '', ['gompi/1.3.12'])
         self.assertEqual(path, [])
-        path = modtool.path_to_top_of_module_tree('toy/0.0', '', [])
+        path = modtool.path_to_top_of_module_tree([], 'toy/0.0', '', [])
         self.assertEqual(path, [])
 
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
@@ -271,20 +271,21 @@ class ModulesTest(EnhancedTestCase):
         self.setup_hierarchical_modules()
         modtool = modules_tool()
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        init_modpaths = [os.path.join(mod_prefix, 'Core')]
 
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3', 'OpenBLAS/0.2.6-LAPACK-3.4.2',
                 'ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2']
-        path = modtool.path_to_top_of_module_tree('goolf/1.4.10', os.path.join(mod_prefix, 'Core'), deps)
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'goolf/1.4.10', os.path.join(mod_prefix, 'Core'), deps)
         self.assertEqual(path, [])
-        path = modtool.path_to_top_of_module_tree('GCC/4.7.2', os.path.join(mod_prefix, 'Core'), [])
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/4.7.2', os.path.join(mod_prefix, 'Core'), [])
         self.assertEqual(path, [])
         full_mod_subdir = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2')
         deps = ['GCC/4.7.2', 'hwloc/1.6.2']
-        path = modtool.path_to_top_of_module_tree('OpenMPI/1.6.4', full_mod_subdir, deps) 
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
         self.assertEqual(path, ['GCC/4.7.2'])
         full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
-        path = modtool.path_to_top_of_module_tree('FFTW/3.3.3', full_mod_subdir, deps) 
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
 def suite():
