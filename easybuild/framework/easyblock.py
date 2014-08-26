@@ -795,7 +795,10 @@ class EasyBlock(object):
         # exclude dependencies that form the path to the top of the module tree (if any)
         mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
         full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
-        excluded_deps = self.modules_tool.path_to_top_of_module_tree(self.cfg.short_mod_name, full_mod_subdir, deps)
+        init_modpaths = mns.det_init_modulepaths(self.cfg)
+        top_paths = [mod_install_path] + [os.path.join(mod_install_path, p) for p in init_modpaths]
+        excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
+                                                                     full_mod_subdir, deps)
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)

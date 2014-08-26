@@ -621,7 +621,7 @@ class ModulesTool(object):
 
         return modpath_exts
 
-    def path_to_top_of_module_tree(self, mod_name, full_mod_subdir, deps, modpath_exts=None):
+    def path_to_top_of_module_tree(self, top_paths, mod_name, full_mod_subdir, deps, modpath_exts=None):
         """
         Recursively determine path to the top of the module tree,
         for given module, module subdir and list of $MODULEPATH extensions per dependency module.
@@ -644,35 +644,40 @@ class ModulesTool(object):
 
         _log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
 
-        for dep in deps:
-            # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
-            # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
-            full_modpath_exts = modpath_exts[dep]
-            if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
-                # figure out module subdir for this dep, so we can recurse
-                modfile_path = self.modulefile_path(dep)
-                # full path to module subdir is simply path to module file without (short) module name
-                full_mod_subdir = modfile_path[:-len(dep)-1]
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
+        if any([os.path.samefile(full_mod_subdir, p) for p in top_paths]):
+            self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
+        else:
+            for dep in deps:
+                # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+                # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
+                full_modpath_exts = modpath_exts[dep]
+                if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
+                    # figure out module subdir for this dep, so we can recurse
+                    modfile_path = self.modulefile_path(dep)
+                    # full path to module subdir is simply path to module file without (short) module name
+                    full_mod_subdir = modfile_path[:-len(dep)-1]
 
-                path.append(dep)
-                tup = (dep, full_mod_subdir, modpath_exts[dep])
-                _log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
+                    path.append(dep)
+                    tup = (dep, full_mod_subdir, modpath_exts[dep])
+                    _log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
 
-                break
+                    break
 
-            # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
-            # this is required to obtain the corresponding module file paths (via 'module show')
-            self.load([dep])
+                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
+                # this is required to obtain the corresponding module file paths (via 'module show')
+                self.load([dep])
+
+            self.purge()
+            modify_env(os.environ, orig_env)
 
         # recurse if we've found another step up to the top; if not, we must have reached the top
         if path:
             _log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, path))
-            path.extend(self.path_to_top_of_module_tree(path[-1], full_mod_subdir, deps, modpath_exts=modpath_exts))
+            path.extend(self.path_to_top_of_module_tree(top_paths, path[-1], full_mod_subdir, deps,
+                                                        modpath_exts=modpath_exts))
         else:
             _log.debug("Path not extended, we must have reached the top of the module tree")
-
-        self.purge()
-        modify_env(os.environ, orig_env)
 
         _log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
