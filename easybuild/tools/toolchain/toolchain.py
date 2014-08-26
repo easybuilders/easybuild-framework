@@ -315,6 +315,20 @@ class Toolchain(object):
         _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
         return tc_elems
 
+    def is_dep_in_toolchain_module(self, name):
+        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
+        # check whether a module for the toolchain element with specified name is present
+        # assumption: the software name is a prefix for either one of the module filepath subdirs, or its filename
+        # for example, when looking for 'BLACS', to following modules are considered to be BLACS modules:
+        # - BLACS/1.1-gompi-1.1.0-no-OFED
+        # - apps/blacs/1.1
+        # - lib/math/BLACS-stable/1.1
+        # the following ones are NOT consider BLACS modules, even though the substring 'blacs' is included in the module name
+        # - ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1
+        # - apps/math-blacs/1.1
+        modname_regex = re.compile('(?:^|/)%s' % name, re.I)
+        return any(map(modname_regex.search, self.toolchain_dep_mods))
+
     def prepare(self, onlymod=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
@@ -357,31 +371,18 @@ class Toolchain(object):
         # only retain names of toolchain elements, excluding toolchain name
         toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
 
-        def tc_elem_present(name):
-            """Check whether the specified toolchain element is present in the loaded toolchain module."""
-            # check whether a module for the toolchain element with specified name is present
-            # assumption: the software name is a prefix for either one of the module filepath subdirs, or its filename
-            # for example, when looking for 'BLACS', to following modules are considered to be BLACS modules:
-            # - BLACS/1.1-gompi-1.1.0-no-OFED
-            # - apps/blacs/1.1
-            # - lib/math/BLACS-stable/1.1
-            # the following ones are NOT consider BLACS modules, even though the substring 'blacs' is included in the module name
-            # - ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1
-            # - apps/math-blacs/1.1
-            modname_regex = re.compile('(?:^|/)%s' % name.lower())
-            return any([modname_regex.search(m.lower()) for m in self.toolchain_dep_mods])
-
         # filter out optional toolchain elements if they're not used in the module
         for elem_name in toolchain_definition.copy():
-            if not self.is_required(elem_name):
-                if not tc_elem_present(elem_name):
-                    self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
-                    toolchain_definition.remove(elem_name)
+            if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
+                continue
+            # not required and missing: remove from toolchain definition
+            self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
+            toolchain_definition.remove(elem_name)
 
         self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
         self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
 
-        if all([tc_elem_present(e) for e in toolchain_definition]):
+        if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
