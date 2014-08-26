@@ -27,7 +27,6 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
-import fileinput
 import glob
 import grp
 import os
@@ -520,33 +519,8 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
+        self.setup_hierarchical_modules()
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
-
-        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
-        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        os.environ['MODULEPATH'] = os.path.join(mod_prefix, 'Core')
-
-        # simply copy module files under 'Core' and 'Compiler' to test install path
-        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
-        mkdir(mod_prefix, parents=True)
-        for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
-
-        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
-        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
-        for modfile in [
-            os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
-            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
-            os.path.join(mpi_pref, 'FFTW', '3.3.3'),
-            os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
-            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
-        ]:
-            for line in fileinput.input(modfile, inplace=1):
-                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % self.test_installpath,
-                              line)
-                sys.stdout.write(line)
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
