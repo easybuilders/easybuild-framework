@@ -140,9 +140,6 @@ class EasyBlock(object):
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
 
-        # recursive unloading in modules
-        self.recursive_mod_unload = build_option('recursive_mod_unload')
-
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
             self.cfg = ec
@@ -747,7 +744,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
+                        load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -796,20 +793,11 @@ class EasyBlock(object):
         self.log.debug("Full list of dependencies: %s" % deps)
 
         # determine full module path extensions for each of the dependency modules
-        modpaths = [os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep) if os.path.exists(p)]
-        mod_install_path = os.path.realpath(os.path.join(install_path('mod'), build_option('suffix_modules_path')))
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
         full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
-        all_modpath_exts = {}
+        all_modpath_exts = None
         if not os.path.samefile(full_mod_subdir, mod_install_path):
-            modtool = modules_tool()
-            for dep in deps:
-                full_modpath_exts = [os.path.realpath(p) for p in self.modules_tool.modpath_extensions_for(dep)]
-                all_modpath_exts.update({dep: full_modpath_exts})
-
-                # load this dependency, since it may extend $MODULEPATH to make other dependencies available,
-                # which is required to obtain the list of $MODULEPATH extensions they make (via 'show')
-                modtool.load([dep])
-
+            all_modpath_exts = self.modules_tool.modpath_extensions_for(deps)
         self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
 
         # determine dependencies to exclude based on their $MODULEPATH extensions, recursively
@@ -828,6 +816,7 @@ class EasyBlock(object):
             self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
             for dep, full_modpath_exts in all_modpath_exts.items():
                 # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+                # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
                 if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
                     # figure out module subdir for this dep, so we can recurse
                     modfile_path = self.modules_tool.modulefile_path(dep)
@@ -845,8 +834,8 @@ class EasyBlock(object):
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
-        loads = [self.moduleGenerator.load_module(d, recursive_unload=self.recursive_mod_unload) for d in deps]
-        unloads = [self.moduleGenerator.unload_module(d) for d in deps]
+        loads = [self.moduleGenerator.load_module(d) for d in deps]
+        unloads = [self.moduleGenerator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:

@@ -46,7 +46,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from test.framework.utilities import find_full_path
+from test.framework.utilities import find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
@@ -108,12 +108,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
         # with recursive unloading: no if is-loaded guard
+        init_config(build_options={'recursive_mod_unload': True})
         expected = [
             "",
             "module load mod_name",
             "",
         ]
-        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name", recursive_unload=True))
+        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
     def test_unload(self):
         """Test unload part in generated module file."""

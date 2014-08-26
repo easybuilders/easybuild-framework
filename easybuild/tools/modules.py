@@ -572,10 +572,10 @@ class ModulesTool(object):
 
         return read_file(modfilepath)
 
-    # depth=sys.maxint should be equivalent to infinite recursion depth
     def dependencies_for(self, mod_name, depth=sys.maxint):
         """
         Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+        @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
         loadregex = re.compile(r"^\s*module load\s+(.*)$", re.M)
@@ -596,15 +596,30 @@ class ModulesTool(object):
 
         return mods
 
-    def modpath_extensions_for(self, mod_name):
+    def modpath_extensions_for(self, mod_names):
         """
-        Determine list of $MODULEPATH extensions for specified module.
+        Determine dictionary with $MODULEPATH extensions for specified modules.
         """
-        modtxt = self.read_module_file(mod_name)
-        useregex = re.compile(r"^\s*module use\s+(.*)$", re.M)
-        exts = useregex.findall(modtxt)
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
 
-        return exts
+        modpath_exts = {}
+        for mod_name in mod_names:
+            modtxt = self.read_module_file(mod_name)
+            useregex = re.compile(r"^\s*module use\s+(.*)$", re.M)
+            exts = useregex.findall(modtxt)
+
+            modpath_exts.update({mod_name: exts})
+
+            # load this module, since it may extend $MODULEPATH to make other modules available
+            # this is required to obtain the list of $MODULEPATH extensions they make (via 'show')
+            self.load([mod_name])
+
+        # purge loaded modules and restore original environment
+        self.purge()
+        modify_env(os.environ, orig_env)
+
+        return modpath_exts
 
     def update(self):
         """Update after new modules were added."""
