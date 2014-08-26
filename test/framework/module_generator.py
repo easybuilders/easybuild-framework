@@ -348,7 +348,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_hierarchical_mns(self):
         """Test hierarchical module naming scheme."""
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+
+        ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
@@ -356,32 +357,45 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'valid_stops': all_stops,
             'validate': False,
         }
+
+        def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, init_modpaths):
+            """Test whether active module naming scheme returns expected values."""
+            ec = EasyConfig(os.path.join(ecs_dir, ecfile))
+            self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
+            self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
+            self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
+            self.assertEqual(ActiveMNS().det_modpath_extensions(ec), modpath_exts)
+            self.assertEqual(ActiveMNS().det_init_modulepaths(ec), init_modpaths)
+
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
         init_config(build_options=build_options)
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'GCC-4.7.2.eb'))
-        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Core/GCC/4.7.2')
-        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'GCC/4.7.2')
-        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Core')
-        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['Compiler/GCC/4.7.2'])
-        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions)
+        test_ecs = {
+            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'], ['Core']),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [], ['Core']),
+            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [], ['Core']),
+        }
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'OpenMPI-1.6.4-GCC-4.7.2.eb'))
-        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'Compiler/GCC/4.7.2/OpenMPI/1.6.4')
-        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'OpenMPI/1.6.4')
-        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'Compiler/GCC/4.7.2')
-        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), ['MPI/GCC/4.7.2/OpenMPI/1.6.4'])
-        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
-
-        ec = EasyConfig(os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
-        self.assertEqual(ActiveMNS().det_full_module_name(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4/gzip/1.5')
-        self.assertEqual(ActiveMNS().det_short_module_name(ec), 'gzip/1.5')
-        self.assertEqual(ActiveMNS().det_module_subdir(ec), 'MPI/GCC/4.7.2/OpenMPI/1.6.4')
-        self.assertEqual(ActiveMNS().det_modpath_extensions(ec), [])
-        self.assertEqual(ActiveMNS().det_init_modulepaths(ec), ['Core'])
+        # impi with dummy toolchain, which doesn't make sense in a hierarchical context
+        ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
+        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
+
+        test_ecs = {
+            'GCC-4.7.2.eb': ('GCC/4.7.2', '', [], []),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4-GCC-4.7.2', '', [], []),
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5-goolf-1.4.10', '', [], []),
+            'goolf-1.4.10.eb': ('goolf/1.4.10', '', [], []),
+            'impi-4.1.3.049.eb': ('impi/4.1.3.049', '', [], []),
+        }
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals)
 
 def suite():
     """ returns all the testcases in this module """
