@@ -765,12 +765,12 @@ class EasyBlock(object):
         Make the dependencies for the module file.
         """
         deps = []
+        mns = ActiveMNS()
 
         # include load statements for toolchain, either directly or for toolchain dependencies
         # purposely after dependencies which may be critical,
         # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            mns = ActiveMNS()
             if mns.expand_toolchain_load():
                 mod_names = self.toolchain.toolchain_dependencies
                 deps.extend(mod_names)
@@ -792,45 +792,10 @@ class EasyBlock(object):
 
         self.log.debug("Full list of dependencies: %s" % deps)
 
-        # determine full module path extensions for each of the dependency modules
+        # exclude dependencies that form the path to the top of the module tree (if any)
         mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
         full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
-        all_modpath_exts = None
-        if not os.path.samefile(full_mod_subdir, mod_install_path):
-            all_modpath_exts = self.modules_tool.modpath_extensions_for(deps)
-        self.log.debug("Module path extensions for dependencies: %s" % all_modpath_exts)
-
-        # determine dependencies to exclude based on their $MODULEPATH extensions, recursively
-        # example, when building HPL/2.1 with gompi toolchain in a Core/Compiler/MPI hierarchy:
-        # before start of while loop: full_mod_subdir for HPL/2.1 == 'MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4'
-        # 1st iteration: find & exclude module that extends $MODULEPATH with MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.4,
-        #                => OpenMPI/1.6.4 (in 'Compiler/GCC/4.8.2' subdir);
-        #                recurse with full_mod_subdir = 'Compiler/GCC/4.8.2'
-        # 2nd iteration: find & exclude module that extends $MODULEPATH with Compiler/GCC/4.8.2
-        #                => GCC/4.8.2 (in 'Core' subdir; recurse with full_mod_subdir = 'Core'
-        # 3rd iteration: try to find module that extends $MODULEPATH with Core => no such module, so exit while loop
-        excluded_deps = []
-        extended = True
-        while extended and not os.path.samefile(full_mod_subdir, mod_install_path):
-            extended = False
-            self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
-            for dep, full_modpath_exts in all_modpath_exts.items():
-                # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
-                # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
-                if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
-                    # figure out module subdir for this dep, so we can recurse
-                    modfile_path = self.modules_tool.modulefile_path(dep)
-                    # full path to module subdir is simply path to module file without (short) module name
-                    full_mod_subdir = modfile_path[:-len(dep)]
-
-                    # mark dep as to-be-exlucded, and remove it from dict with all modpath exts, no longer relevant
-                    excluded_deps.append(dep)
-                    extended = True
-                    dep_modpath_exts = all_modpath_exts.pop(dep)
-
-                    tup = (dep, full_mod_subdir, dep_modpath_exts)
-                    self.log.debug("Excluded dependency %s (subdir: %s) with module path extensions %s" % tup)
-                    break
+        excluded_deps = self.modules_tool.path_to_top_of_module_tree(self.cfg.short_mod_name, full_mod_subdir, deps)
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
