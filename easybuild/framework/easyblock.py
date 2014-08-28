@@ -1042,7 +1042,7 @@ class EasyBlock(object):
                 stdin = cmdinputtmpl % tmpldict
                 (cmdstdouterr, ec) = run_cmd_legacy(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             else:
-                (cmdstdouterr, ec) = run_cmd(cmd)#, log_all=False, log_ok=False, simple=False, regexp=False)
+                (cmdstdouterr, ec) = run_cmd_legacy(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
                 self.log.info("Not skipping %s" % name)
@@ -1173,7 +1173,7 @@ class EasyBlock(object):
         # fetch extensions
         if len(self.cfg['exts_list']) > 0:
             self.exts = self.fetch_extension_sources()
- 
+
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1285,7 +1285,7 @@ class EasyBlock(object):
         if self.cfg['runtest']:
 
             self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest']) #, log_all=True, simple=False)
+            (out, _) = run_cmd(self.cfg['runtest'])
 
             return out
 
@@ -1318,7 +1318,7 @@ class EasyBlock(object):
 
         if fetch:
             self.exts = self.fetch_extension_sources()
-            
+
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
@@ -1455,7 +1455,7 @@ class EasyBlock(object):
             for cmd in self.cfg['postinstallcmds']:
                 if not isinstance(cmd, basestring):
                     self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
-                run_cmd(cmd) #, simple=True, log_ok=False, log_all=False)
+                run_cmd(cmd)
 
         if self.group is not None:
             # remove permissions for others, and set group ID
@@ -1573,7 +1573,7 @@ class EasyBlock(object):
 
             cmd = "%(name)s %(options)s" % check_cmd
 
-            out, ec = run_cmd(cmd) #, simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd(cmd)
             if ec != 0:
                 self.sanity_check_fail_msgs.append("sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out))
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
@@ -1673,7 +1673,7 @@ class EasyBlock(object):
 
             try:
                 self.log.debug("Running test %s" % path)
-                run_cmd(path) #, log_all=True, simple=True)
+                run_cmd(path)
             except EasyBuildError, err:
                 self.log.exception("Running test %s failed: %s" % (path, err))
 
