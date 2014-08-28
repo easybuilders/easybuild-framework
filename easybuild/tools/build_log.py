@@ -80,6 +80,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 filepath_dirs.remove(dirName)
             else:
                 break
+        if not filepath_dirs:
+            filepath_dirs = ['?']
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
     def experimental(self, msg, *args, **kwargs):

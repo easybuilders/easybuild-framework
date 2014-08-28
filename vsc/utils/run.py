@@ -114,7 +114,7 @@ class Run(object):
             @param input: set "simple" input
             @param startpath: directory to change to before executing command
             @param disable_log: use fake logger (won't log anything)
-            @param use_shell: use the subshell 
+            @param use_shell: use the subshell
             @param shell: change the shell
         """
         self.input = kwargs.pop('input', None)
@@ -822,6 +822,11 @@ class RunAsyncLoopStdout(RunLoopStdout, RunAsync):
     pass
 
 
+class RunAsyncLoopLogNoWorries(RunNoWorries, RunLoopLog, RunAsync):
+    """Async read, flush to stdout"""
+    pass
+
+
 # convenient names
 # eg: from vsc.utils.run import trivial
 
@@ -834,6 +839,7 @@ run_timeout = RunTimeout.run
 
 run_to_file = RunFile.run
 run_async_to_stdout = RunAsyncLoopStdout.run
+run_async_to_log_no_worries = RunAsyncLoopLogNoWorries.run
 
 run_qa = RunQA.run
 run_qalog = RunQALog.run

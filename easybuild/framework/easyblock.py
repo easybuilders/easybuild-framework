@@ -62,7 +62,8 @@ from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_cmd as run_cmd_legacy
+from vsc.utils.run import run_async_to_log_no_worries as run_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -1039,9 +1040,9 @@ class EasyBlock(object):
             cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
+                (cmdstdouterr, ec) = run_cmd_legacy(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
             else:
-                (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, regexp=False)
+                (cmdstdouterr, ec) = run_cmd(cmd)#, log_all=False, log_ok=False, simple=False, regexp=False)
             self.log.info("exts_filter result %s %s", cmdstdouterr, ec)
             if ec:
                 self.log.info("Not skipping %s" % name)
@@ -1284,7 +1285,7 @@ class EasyBlock(object):
         if self.cfg['runtest']:
 
             self.log.debug("Trying to execute %s as a command for running unit tests...")
-            (out, _) = run_cmd(self.cfg['runtest'], log_all=True, simple=False)
+            (out, _) = run_cmd(self.cfg['runtest']) #, log_all=True, simple=False)
 
             return out
 
@@ -1454,7 +1455,7 @@ class EasyBlock(object):
             for cmd in self.cfg['postinstallcmds']:
                 if not isinstance(cmd, basestring):
                     self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
-                run_cmd(cmd, simple=True, log_ok=False, log_all=False)
+                run_cmd(cmd) #, simple=True, log_ok=False, log_all=False)
 
         if self.group is not None:
             # remove permissions for others, and set group ID
@@ -1572,7 +1573,7 @@ class EasyBlock(object):
 
             cmd = "%(name)s %(options)s" % check_cmd
 
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False)
+            out, ec = run_cmd(cmd) #, simple=False, log_ok=False, log_all=False)
             if ec != 0:
                 self.sanity_check_fail_msgs.append("sanity check command %s exited with code %s (output: %s)" % (cmd, ec, out))
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
@@ -1672,7 +1673,7 @@ class EasyBlock(object):
 
             try:
                 self.log.debug("Running test %s" % path)
-                run_cmd(path, log_all=True, simple=True)
+                run_cmd(path) #, log_all=True, simple=True)
             except EasyBuildError, err:
                 self.log.exception("Running test %s failed: %s" % (path, err))
 
