@@ -569,7 +569,7 @@ class ModulesTool(object):
 
         modtxt = read_file(modfilepath)
 
-        loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
+        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
