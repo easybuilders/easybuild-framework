@@ -792,7 +792,7 @@ class EasyBlock(object):
 
         self.log.debug("Full list of dependencies: %s" % deps)
 
-        # exclude dependencies that form the path to the top of the module tree (if any)
+        # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
         mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
         full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)

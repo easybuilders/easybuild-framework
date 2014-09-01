@@ -48,7 +48,7 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, which
+from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -617,8 +617,7 @@ class ModulesTool(object):
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
                 self.load([mod_name])
 
-        # purge loaded modules and restore original environment
-        self.purge()
+        # restore original environment (modules may have been loaded above)
         modify_env(os.environ, orig_env)
 
         return modpath_exts
@@ -654,45 +653,39 @@ class ModulesTool(object):
         @param deps: list of dependency modules for module at starting point
         @param modpath_exts: list of module path extensions for each of the dependency modules
         """
-        path = []
-        if modpath_exts is None:
-            modpath_exts = self.modpath_extensions_for(deps)
-            # only retain dependencies that have a non-empty lists of $MODULEPATH extensions
-            for dep in modpath_exts.keys():
-                if not modpath_exts[dep]:
-                    modpath_exts.pop(dep)
-            self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
+
+        if path_matches(full_mod_subdir, top_paths):
+            self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
+            return []
 
         self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
 
-        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
-        if any([os.path.samefile(full_mod_subdir, p) for p in top_paths]):
-            self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
-        else:
-            # copy environment so we can restore it
-            orig_env = os.environ.copy()
+        if modpath_exts is None:
+            # only retain dependencies that have a non-empty lists of $MODULEPATH extensions
+            modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
+            self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
-            for dep in modpath_exts:
-                # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
-                # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
-                full_modpath_exts = modpath_exts[dep]
-                if any([os.path.samefile(full_mod_subdir, e) for e in full_modpath_exts]):
-                    # full path to module subdir of dependency is simply path to module file without (short) module name
-                    full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+        path = []
+        for dep in modpath_exts:
+            # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+            # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
+            full_modpath_exts = modpath_exts[dep]
+            if path_matches(full_mod_subdir, full_modpath_exts):
+                # full path to module subdir of dependency is simply path to module file without (short) module name
+                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
 
-                    path.append(dep)
-                    tup = (dep, full_mod_subdir, full_modpath_exts)
-                    self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
+                path.append(dep)
+                tup = (dep, full_mod_subdir, full_modpath_exts)
+                self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
 
-                    # no need to continue further, we found the module that extends $MODULEPATH with module subdir
-                    break
+                # no need to continue further, we found the module that extends $MODULEPATH with module subdir
+                break
 
-                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
-                # this is required to obtain the corresponding module file paths (via 'module show')
-                self.load([dep])
-
-            self.purge()
-            modify_env(os.environ, orig_env)
+            # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
+            # this is required to obtain the corresponding module file paths (via 'module show')
+            self.load([dep])
 
         if path:
             # remove retained dependency from the list, since we're climbing up the module tree
@@ -703,6 +696,9 @@ class ModulesTool(object):
                                                         modpath_exts=modpath_exts))
         else:
             self.log.debug("Path not extended, we must have reached the top of the module tree")
+
+        # restore original environment (modules may have been loaded above)
+        modify_env(os.environ, orig_env)
 
         self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
