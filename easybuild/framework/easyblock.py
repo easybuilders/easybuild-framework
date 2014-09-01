@@ -46,7 +46,6 @@ import time
 import traceback
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
-from vsc.utils.missing import any
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
