@@ -683,9 +683,10 @@ class ModulesTool(object):
                 # no need to continue further, we found the module that extends $MODULEPATH with module subdir
                 break
 
-            # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
-            # this is required to obtain the corresponding module file paths (via 'module show')
-            self.load([dep])
+            if full_modpath_exts:
+                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
+                # this is required to obtain the corresponding module file paths (via 'module show')
+                self.load([dep])
 
         if path:
             # remove retained dependency from the list, since we're climbing up the module tree
