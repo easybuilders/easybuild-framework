@@ -89,7 +89,8 @@ class HierarchicalMNS(ModuleNamingScheme):
                     self.log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
             else:
                 self.log.error("Unknown set of toolchain compilers, module naming scheme needs to be enhanced first.")
-        return tc_comp_name, tc_comp_ver
+            res = (tc_comp_name, tc_comp_ver)
+        return res
 
     def det_module_subdir(self, ec):
         """
