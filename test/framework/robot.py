@@ -144,7 +144,7 @@ class RobotTest(EnhancedTestCase):
         easyconfig_moredeps['dependencies'].append(hidden_dep)
         easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
-        self.assertEqual(len(res), 7)  # hidden dep toy/.0.0-deps (+1) depends on gompi (+4)
+        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
         self.assertTrue('toy/.0.0-deps' in [ec['full_mod_name'] for ec in res])

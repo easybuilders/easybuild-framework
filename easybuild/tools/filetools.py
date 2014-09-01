@@ -42,7 +42,7 @@ import time
 import urllib
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all
+from vsc.utils.missing import all, any
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -817,6 +817,11 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 _log.error("Failed to set groud ID/sticky bit: %s" % err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def path_matches(path, paths):
+    """Check whether given path matches any of the provided paths."""
+    return any([os.path.samefile(path, p) for p in paths])
 
 
 def rmtree2(path, n=3):
