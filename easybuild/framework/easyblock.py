@@ -768,8 +768,6 @@ class EasyBlock(object):
         mns = ActiveMNS()
 
         # include load statements for toolchain, either directly or for toolchain dependencies
-        # purposely after dependencies which may be critical,
-        # e.g. when unloading a module in a hierarchical naming scheme
         if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
             if mns.expand_toolchain_load():
                 mod_names = self.toolchain.toolchain_dependencies
