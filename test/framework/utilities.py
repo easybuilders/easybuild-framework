@@ -28,6 +28,7 @@ Various test utility functions.
 @author: Kenneth Hoste (Ghent University)
 """
 import copy
+import fileinput
 import os
 import re
 import shutil
@@ -46,7 +47,7 @@ from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 
@@ -172,6 +173,36 @@ class EnhancedTestCase(TestCase):
         else:
             return read_file(self.logfile)
 
+    def setup_hierarchical_modules(self):
+        """Setup hierarchical modules to run tests on."""
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
+        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
+        os.environ['MODULEPATH'] = os.path.join(mod_prefix, 'Core')
+
+        # simply copy module files under 'Core' and 'Compiler' to test install path
+        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
+        mkdir(mod_prefix, parents=True)
+        for mod_subdir in ['Core', 'Compiler', 'MPI']:
+            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+
+        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        for modfile in [
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mpi_pref, 'FFTW', '3.3.3'),
+            os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
+            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
+        ]:
+            for line in fileinput.input(modfile, inplace=1):
+                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
+                              r"\1%s/modules/all" % self.test_installpath,
+                              line)
+                sys.stdout.write(line)
+
 
 def cleanup():
     """Perform cleanup of singletons and caches."""
@@ -204,6 +235,7 @@ def init_config(args=None, build_options=None):
     config.init_build_options(build_options)
 
     return eb_go.options
+
 
 def find_full_path(base_path, trim=(lambda x: x)):
     """

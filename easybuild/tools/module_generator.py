@@ -139,11 +139,11 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, mod_name, recursive_unload=False):
+    def load_module(self, mod_name):
         """
         Generate load statements for module.
         """
-        if recursive_unload:
+        if build_option('recursive_mod_unload'):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"

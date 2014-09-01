@@ -37,12 +37,13 @@ import shutil
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 40
+TEST_MODULES_COUNT = 44
 
 
 class ModulesTest(EnhancedTestCase):
@@ -136,12 +137,21 @@ class ModulesTest(EnhancedTestCase):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
-        ms = [m for m in ms if not m.startswith('Core/') and not m.startswith('Compiler/')]
+        # exclude modules not on the top level of a hierarchy
+        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/'))]
 
         for m in ms:
             self.testmods.load([m])
             self.assertTrue(m in self.testmods.loaded_modules())
             self.testmods.purge()
+
+        # trying to load a module not on the top level of a hierarchy should fail
+        mods = [
+            'Compiler/GCC/4.7.2/OpenMPI/1.6.4',  # module use on non-existent dir (Tcl-based env mods), or missing dep (Lmod)
+            'MPI/GCC/4.7.2/OpenMPI/1.6.4/ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2',  # missing dep
+        ]
+        for mod in mods:
+            self.assertErrorRegex(EasyBuildError, '.*', self.testmods.load, [mod])
 
     def test_ld_library_path(self):
         """Make sure LD_LIBRARY_PATH is what it should be when loaded multiple modules."""
@@ -235,6 +245,48 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
         self.assertEqual(modtool.mod_paths[1], test_modules_path)
         self.assertTrue(len(modtool.available()) > 0)
+
+    def test_path_to_top_of_module_tree(self):
+        """Test function to determine path to top of the module tree."""
+
+        modtool = modules_tool()
+
+        path = modtool.path_to_top_of_module_tree([], 'gompi/1.3.12', '', ['GCC/4.6.4', 'OpenMPI/1.6.4-GCC-4.6.4'])
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree([], 'toy/.0.0-deps', '', ['gompi/1.3.12'])
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree([], 'toy/0.0', '', [])
+        self.assertEqual(path, [])
+
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+        modtool = modules_tool()
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        init_modpaths = [os.path.join(mod_prefix, 'Core')]
+
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3', 'OpenBLAS/0.2.6-LAPACK-3.4.2',
+                'ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'goolf/1.4.10', os.path.join(mod_prefix, 'Core'), deps)
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/4.7.2', os.path.join(mod_prefix, 'Core'), [])
+        self.assertEqual(path, [])
+        full_mod_subdir = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2')
+        deps = ['GCC/4.7.2', 'hwloc/1.6.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
+        self.assertEqual(path, ['GCC/4.7.2'])
+        full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
+        self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
 def suite():
     """ returns all the testcases in this module """
