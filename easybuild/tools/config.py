@@ -47,7 +47,7 @@ import easybuild.tools.build_log  # this import is required to obtain a correct 
 import easybuild.tools.environment as env
 from easybuild.tools.environment import read_environment as _read_environment
 from easybuild.tools.run import run_cmd
-from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.repository.repository import Repository, init_repository
 
 
 _log = fancylogger.getLogger('config', fname=False)
@@ -359,7 +359,7 @@ def init(options, config_options_dict):
         repositorypath = tmpdict['repositorypath'][0]
     else:
         repositoryspecs = [repositoryspecs]
-    if repositorypath != tmpdict['repository'].repo:
+    if isinstance(tmpdict['repository'], Repository) and repositorypath != tmpdict['repository'].repo:
         tup = (tmpdict['repository'].repo, tmpdict['repositorypath'])
         _log.debug("Reinitialising 'repository' since repository path has changed from %s to %s" % tup)
         # we can't use init_repository yet, since we're not done configuring
