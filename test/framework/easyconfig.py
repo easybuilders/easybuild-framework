@@ -952,6 +952,7 @@ class EasyConfigTest(EnhancedTestCase):
         opts = init_config(args=['--filter-deps=zlib,ncurses'])
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(EasyConfigTest)

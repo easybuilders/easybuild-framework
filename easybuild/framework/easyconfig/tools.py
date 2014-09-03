@@ -74,6 +74,7 @@ from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version, det_hidden_modname
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.utilities import quote_str
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
@@ -388,17 +389,8 @@ def stats_to_str(stats):
         _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
 
     txt = "{\n"
-
     pref = "    "
-
-    def tostr(x):
-        if isinstance(x, basestring):
-            return "'%s'" % x
-        else:
-            return str(x)
-
     for (k, v) in stats.items():
-        txt += "%s%s: %s,\n" % (pref, tostr(k), tostr(v))
-
+        txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt
