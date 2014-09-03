@@ -99,6 +99,8 @@ class EnhancedTestCase(TestCase):
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        self.test_prefix = tempfile.mkdtemp()
+        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
@@ -130,7 +132,7 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        for path in [self.test_buildpath, self.test_installpath]:
+        for path in [self.test_buildpath, self.test_installpath, self.test_prefix]:
             try:
                 shutil.rmtree(path)
             except OSError, err:
