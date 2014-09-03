@@ -77,7 +77,7 @@ class Gcc(Compiler):
     COMPILER_F90 = 'gfortran'
     COMPILER_F_UNIQUE_FLAGS = ['f2c']
 
-    LIB_MULTITHREAD = ['gomp', 'pthread']
+    LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
