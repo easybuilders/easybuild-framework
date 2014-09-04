@@ -982,18 +982,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--ignore-osdeps',
             '--dry-run',
         ]
-        outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
 
-        # toolchain gompi/1.4.10 should be listed
-        tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
-        self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
+        for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
 
-        # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
-        for ec_name in ['gzip-1.4', 'toy-0.0']:
-            ec = '%s-gompi-1.4.10.eb' % ec_name
-            mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
-            mod_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/easybuild-\S*/%s\s\(module: %s\)\s*$" % (ec, mod), re.M)
-            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+            outtxt = self.eb_main(args + extra_args, do_build=True, verbose=True, raise_error=True)
+
+            # toolchain gompi/1.4.10 should be listed
+            tc_regex = re.compile("^\s*\*\s*\[.\]\s*\S*%s/gompi-1.4.10.eb\s\(module: gompi/1.4.10\)\s*$" % ecs_path, re.M)
+            self.assertTrue(tc_regex.search(outtxt), "Pattern %s found in %s" % (tc_regex.pattern, outtxt))
+
+            # both toy and gzip dependency should be listed with gompi/1.4.10 toolchain
+            for ec_name in ['gzip-1.4', 'toy-0.0']:
+                ec = '%s-gompi-1.4.10.eb' % ec_name
+                mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
+                mod_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/easybuild-\S*/%s\s\(module: %s\)\s*$" % (ec, mod), re.M)
+                self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""
