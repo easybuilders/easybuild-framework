@@ -197,7 +197,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
-        del os.environ['EASYBUILDPREFIX']
+        # purposely not unsetting $EASYBUILDPREFIX yet here
 
         # build/source/install path overrides prefix
         init_config()
@@ -237,6 +237,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
+        del os.environ['EASYBUILDPREFIX']
         del os.environ['EASYBUILDINSTALLPATH']
 
     def test_legacy_config_file(self):
