@@ -211,6 +211,7 @@ def main(testing_data=(None, None, None)):
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
 
     # prepend robot path with location where tweaked easyconfigs will be placed
+    tweaked_ecs_path = None
     if try_to_generate and build_specs:
         tweaked_ecs_path = os.path.join(eb_tmpdir, 'tweaked_easyconfigs')
         robot_path.insert(0, tweaked_ecs_path)
