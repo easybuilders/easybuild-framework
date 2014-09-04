@@ -374,7 +374,7 @@ def main(testing_data=(None, None, None)):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs)
+        easyconfigs = tweak(easyconfigs, build_specs, targetdir=os.path.join(eb_tmpdir, 'tweak'))
 
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])
