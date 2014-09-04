@@ -683,9 +683,14 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_archived_easyconfig(self):
         """Test archived easyconfig for a succesful build."""
-        self.test_toy_build(raise_error=True, extra_args=['--prefix=%s' % self.test_prefix])
+        repositorypath = os.path.join(self.test_installpath, 'easyconfigs_archive')
+        extra_args = [
+            '--repository=FileRepository',
+            '--repositorypath=%s' % repositorypath,
+        ]
+        self.test_toy_build(raise_error=True, extra_args=extra_args)
 
-        archived_ec = os.path.join(self.test_prefix, 'ebfiles_repo', 'toy', 'toy-0.0.eb')
+        archived_ec = os.path.join(repositorypath, 'toy', 'toy-0.0.eb')
         self.assertTrue(os.path.exists(archived_ec))
         ec = EasyConfig(archived_ec)
         self.assertEqual(ec.name, 'toy')
