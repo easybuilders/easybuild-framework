@@ -107,6 +107,36 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(config_options['logfile_format'][1], "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
         self.assertEqual(config_options['tmp_logdir'], tempfile.gettempdir())
 
+    def test_generaloption_overrides_legacy(self):
+        """Test whether generaloption overrides legacy configuration."""
+        self.purge_environment()
+        # if both legacy and generaloption style configuration is mixed, generaloption wins
+        legacy_prefix = os.path.join(self.tmpdir, 'legacy')
+        go_prefix = os.path.join(self.tmpdir, 'generaloption')
+
+        # legacy env vars
+        os.environ['EASYBUILDPREFIX'] = legacy_prefix
+        os.environ['EASYBUILDBUILDPATH'] = os.path.join(legacy_prefix, 'build')
+        # generaloption env vars
+        os.environ['EASYBUILD_INSTALLPATH'] = go_prefix
+        init_config()
+        self.assertEqual(build_path(), os.path.join(legacy_prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(go_prefix, 'software'))
+        repo = init_repository(get_repository(), get_repositorypath())
+        self.assertEqual(repo.repo, os.path.join(legacy_prefix, 'ebfiles_repo'))
+        del os.environ['EASYBUILDPREFIX']
+
+        # legacy env vars
+        os.environ['EASYBUILDBUILDPATH'] = os.path.join(legacy_prefix, 'buildagain')
+        # generaloption env vars
+        os.environ['EASYBUILD_PREFIX'] = go_prefix
+        init_config()
+        self.assertEqual(build_path(), os.path.join(go_prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(go_prefix, 'software'))
+        repo = init_repository(get_repository(), get_repositorypath())
+        self.assertEqual(repo.repo, os.path.join(go_prefix, 'ebfiles_repo'))
+        del os.environ['EASYBUILDBUILDPATH']
+
     def test_legacy_env_vars(self):
         """Test legacy environment variables."""
         self.purge_environment()
@@ -167,6 +197,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
+        del os.environ['EASYBUILDPREFIX']
 
         # build/source/install path overrides prefix
         init_config()
@@ -206,6 +237,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
+        del os.environ['EASYBUILDINSTALLPATH']
 
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
