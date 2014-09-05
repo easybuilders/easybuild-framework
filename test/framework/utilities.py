@@ -118,10 +118,7 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
         modtool = modules_tool()
-
-        # set MODULEPATH to included test modules
-        modtool.use(os.path.join(testdir, 'modules'))
-
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
         # purge out any loaded modules with original $MODULEPATH before running each test
         modtool.purge()
 
@@ -147,6 +144,14 @@ class EnhancedTestCase(TestCase):
                 if 'EASYBUILD_%s' % path.upper() in os.environ:
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
+
+    def reset_modulepath(self, modpaths):
+        """Reset $MODULEPATH with specified paths."""
+        modtool = modules_tool()
+        for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
+            modtool.remove_module_path(modpath)
+        for modpath in modpaths:
+            modtool.add_module_path(modpath)
 
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
@@ -190,7 +195,7 @@ class EnhancedTestCase(TestCase):
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        modules_tool().use(os.path.join(mod_prefix, 'Core'))
+        self.reset_modulepath([os.path.join(mod_prefix, 'Core')])
 
         # tweak use statements in GCC/OpenMPI modules to ensure correct paths
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
