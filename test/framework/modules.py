@@ -58,12 +58,7 @@ class ModulesTest(EnhancedTestCase):
         """Initialize set of test modules for test."""
         if test_modules_paths is None:
             test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
-        mod_paths = self.testmods.mod_paths[:]
-        for path in test_modules_paths:
-            self.testmods.prepend_module_path(path)
-        for path in mod_paths:
-            if path not in test_modules_paths:
-                self.testmods.remove_module_path(path)
+        self.reset_modulepath(test_modules_paths)
 
     # for Lmod, this test has to run first, to avoid that it fails;
     # no modules are found if another test ran before it, but using a (very) long module path works fine interactively
