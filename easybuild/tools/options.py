@@ -74,11 +74,6 @@ class EasyBuildOptions(GeneralOption):
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
-    def __init__(self, *args, **kwargs):
-        """EasyBuildOptions constructor."""
-        super(EasyBuildOptions, self).__init__(*args, **kwargs)
-        self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
-
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
@@ -349,7 +344,7 @@ class EasyBuildOptions(GeneralOption):
                 error_cnt += 1
 
         if error_cnt > 0:
-            self.log.error("Found %s problems validating the options, treating warnings as fatal." % error_cnt)
+            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
