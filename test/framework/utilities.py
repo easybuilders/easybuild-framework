@@ -99,6 +99,8 @@ class EnhancedTestCase(TestCase):
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        self.test_prefix = tempfile.mkdtemp()
+        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
@@ -115,11 +117,10 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.easyblocks.generic)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
-        # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
-
+        modtool = modules_tool()
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
         # purge out any loaded modules with original $MODULEPATH before running each test
-        modules_tool().purge()
+        modtool.purge()
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -130,7 +131,7 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        for path in [self.test_buildpath, self.test_installpath]:
+        for path in [self.test_buildpath, self.test_installpath, self.test_prefix]:
             try:
                 shutil.rmtree(path)
             except OSError, err:
@@ -144,6 +145,18 @@ class EnhancedTestCase(TestCase):
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
+    def reset_modulepath(self, modpaths):
+        """Reset $MODULEPATH with specified paths."""
+        modtool = modules_tool()
+        for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
+            modtool.remove_module_path(modpath)
+        # make very sure $MODULEPATH is totally empty
+        # some paths may be left behind, e.g. when they contain environment variables
+        # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
+        os.environ['MODULEPATH'] = ''
+        for modpath in modpaths:
+            modtool.add_module_path(modpath)
+
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
         cleanup()
@@ -151,6 +164,9 @@ class EnhancedTestCase(TestCase):
         myerr = False
         if logfile is None:
             logfile = self.logfile
+        # clear log file
+        open(logfile, 'w').write('')
+
         try:
             main((args, logfile, do_build))
         except SystemExit:
@@ -177,16 +193,16 @@ class EnhancedTestCase(TestCase):
         """Setup hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
-        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
-        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        os.environ['MODULEPATH'] = os.path.join(mod_prefix, 'Core')
-
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+
+        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
+        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
+        self.reset_modulepath([os.path.join(mod_prefix, 'Core')])
 
         # tweak use statements in GCC/OpenMPI modules to ensure correct paths
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')

@@ -1,21 +1,21 @@
 We'd love you to contribute back to EasyBuild, and here's how you can do it: the branch - hack - pull request cycle.
 
 # License
-Contributions can be made under the MIT or 
+Contributions can be made under the MIT or
 BSD licenses (in the three-clause and two-clause forms, though not the original four-clause form).
 
 Or alteratively the contributor must agree with following contributor agreement:
 
 ## Contributor Agreement.
-In this case the contributor must agree that Ghent University shall have the irrevocable and perpetual right to make and 
+In this case the contributor must agree that Ghent University shall have the irrevocable and perpetual right to make and
 distribute copies of any Contribution, as well as to create and distribute collective works and derivative works of
-any Contribution, under the Initial License or under any other open source license. 
+any Contribution, under the Initial License or under any other open source license.
 (as defined by The Open Source Initiative (OSI) http://opensource.org/).
-Contributor shall identify each Contribution by placing the following notice in its source code adjacent to 
-Contributor's valid copyright notice: "Licensed to Ghent University under a Contributor Agreement." 
+Contributor shall identify each Contribution by placing the following notice in its source code adjacent to
+Contributor's valid copyright notice: "Licensed to Ghent University under a Contributor Agreement."
 The currently acceptable license is GPLv2 or any other GPLv2 compatible license.
 
-Ghent University understands and agrees that Contributor retains copyright in its Contributions. 
+Ghent University understands and agrees that Contributor retains copyright in its Contributions.
 Nothing in this Contributor Agreement shall be interpreted to prohibit Contributor from licensing its Contributions
 under different terms from the Initial License or this Contributor Agreement.
 
@@ -31,7 +31,7 @@ You should also register an SSH public key, so you can easily clone, push to and
 
 ### Clone the easybuild-framework repository
 
-Clone your fork of the easybuild-framework repository to your favorite workstation. 
+Clone your fork of the easybuild-framework repository to your favorite workstation.
 
 ```bash
 git clone git@github.com:YOUR\_GITHUB\_LOGIN/easybuild-framework.git
@@ -51,7 +51,7 @@ git pull github_hpcugent develop
 
 ### Keep develop up-to-date
 
-The _develop_ branch hosts the latest bleeding-edge version of easybuild-framework, and is merged into _master_ regularly (after thorough testing). 
+The _develop_ branch hosts the latest bleeding-edge version of easybuild-framework, and is merged into _master_ regularly (after thorough testing).
 
 Make sure you update it every time you create a feature branch (see below):
 
@@ -82,7 +82,7 @@ git checkout <BRANCH_NAME>
 
 Make sure to always base your features branches on _develop_, not on _master_!
 
- 
+
 
 ## Hack
 
@@ -108,7 +108,7 @@ When you've finished the implementation of a particular contribution, here's how
 ### Push your branch
 
 Push your branch to your easybuild-framework repository on GitHub:
- 
+
 ```bash
 git push origin <BRANCH_NAME>
 ```
@@ -127,7 +127,7 @@ Issue a pull request for your branch into the mair easybuild-framework repositor
 ### Issue pull request for existing ticket (from command line)
 
 If you're contributing code to an existing issue you can also convert the issue to a pull request by running
-``` 
+```
 GITHUBUSER=your_username && PASSWD=your_password && BRANCH=branch_name && ISSUE=issue_number && \
 curl --user "$GITHUBUSER:$PASSWD" --request POST \
 --data "{\"issue\": \"$ISSUE\", \"head\": \"$GITHUBUSER:$BRANCH\", \"base\": \"develop\"}" \
@@ -138,7 +138,7 @@ You might also want to look into [hub](https://github.com/defunkt/hub) for more 
 
 ### Review process
 
-A member of the EasyBuild team will then review your pull request, paying attention to what you're contributing, how you implemented it and [code style](https://github.com/hpcugent/easybuild/wiki/Code-style).
+A member of the EasyBuild team will then review your pull request, paying attention to what you're contributing, how you implemented it and [Code style](https://github.com/hpcugent/easybuild/wiki/Code-style).
 
 Most likely, some remarks will be made on your pull request. Note that this is nothing personal, we're just trying to keep the EasyBuild codebase as high quality as possible. Even when an EasyBuild team member makes changes, the same public review process is followed.
 
