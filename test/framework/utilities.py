@@ -164,6 +164,9 @@ class EnhancedTestCase(TestCase):
         myerr = False
         if logfile is None:
             logfile = self.logfile
+        # clear log file
+        open(logfile, 'w').write('')
+
         try:
             main((args, logfile, do_build))
         except SystemExit:
