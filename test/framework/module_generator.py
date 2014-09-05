@@ -89,7 +89,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             "",
             "set root    %s" % self.modgen.app.installdir,
             "",
-            "conflict    gzip",
+            "conflict gzip",
             "",
         ]) 
 
@@ -346,6 +346,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('GCC/4.7.2'))
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('ictce'))
+
+    def test_is_short_modname_for(self):
+        """Test is_short_modname_for method of module naming schemes."""
+        test_cases = [
+            ('GCC/4.7.2', 'GCC', True),
+            ('gzip/1.6-gompi-1.4.10', 'gzip', True),
+            ('OpenMPI/1.6.4-GCC-4.7.2-no-OFED', 'OpenMPI', True),
+            ('BLACS/1.1-gompi-1.1.0-no-OFED', 'BLACS', True),
+            ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'ScaLAPACK', True),
+            ('gcc/4.7.2', 'GCC', False),
+            ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
+            ('apps/blacs/1.1', 'BLACS', False),
+            ('lib/math/BLACS-stable/1.1', 'BLACS', False),
+        ]
+        for modname, softname, res in test_cases:
+            if res:
+                errormsg = "%s is recognised as a module for '%s'" % (modname, softname)
+            else:
+                errormsg = "%s is NOT recognised as a module for '%s'" % (modname, softname)
+            self.assertEqual(ActiveMNS().is_short_modname_for(modname, softname), res, errormsg)
 
     def test_hierarchical_mns(self):
         """Test hierarchical module naming scheme."""

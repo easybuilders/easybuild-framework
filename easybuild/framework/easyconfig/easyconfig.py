@@ -456,7 +456,7 @@ class EasyConfig(object):
         returns the Toolchain used
         """
         if self._toolchain is None:
-            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], ActiveMNS())
+            self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'], mns=ActiveMNS())
             tc_dict = self._toolchain.as_dict()
             self.log.debug("Initialized toolchain: %s (opts: %s)" % (tc_dict, self['toolchainopts']))
         return self._toolchain
@@ -1082,6 +1082,12 @@ class ActiveMNS(object):
         self.log.debug("Determining short module name for %s (force_visible: %s)" % (ec, force_visible))
         mod_name = self._det_module_name_with(self.mns.det_short_module_name, ec, force_visible=force_visible)
         self.log.debug("Obtained valid short module name %s" % mod_name)
+
+        # sanity check: obtained module name should pass the 'is_short_modname_for' check
+        if not self.is_short_modname_for(mod_name, ec['name']):
+            tup = (mod_name, ec['name'])
+            self.log.error("is_short_modname_for('%s', '%s') for active module naming scheme returns False" % tup)
+
         return mod_name
 
     def det_module_subdir(self, ec):
@@ -1117,3 +1123,9 @@ class ActiveMNS(object):
         This is useful when toolchains are not exposed to users.
         """
         return self.mns.expand_toolchain_load()
+
+    def is_short_modname_for(self, short_modname, name):
+        """
+        Determine whether the specified (short) module name is a module for software with the specified name.
+        """
+        return self.mns.is_short_modname_for(short_modname, name)
