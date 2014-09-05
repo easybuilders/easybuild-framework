@@ -117,11 +117,13 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.easyblocks.generic)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
+        modtool = modules_tool()
+
         # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
+        modtool.use(os.path.join(testdir, 'modules'))
 
         # purge out any loaded modules with original $MODULEPATH before running each test
-        modules_tool().purge()
+        modtool.purge()
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -179,16 +181,16 @@ class EnhancedTestCase(TestCase):
         """Setup hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
-        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
-        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        os.environ['MODULEPATH'] = os.path.join(mod_prefix, 'Core')
-
         # simply copy module files under 'Core' and 'Compiler' to test install path
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+
+        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
+        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
+        modules_tool().use(os.path.join(mod_prefix, 'Core'))
 
         # tweak use statements in GCC/OpenMPI modules to ensure correct paths
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
