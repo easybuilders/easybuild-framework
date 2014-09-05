@@ -597,6 +597,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_try_robot_force(self):
+        """
+        Test correct behavior for combination of --try-toolchain --robot --force.
+        Only the listed easyconfigs should be forced, resolved dependencies should not (even if tweaked).
+        """
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        eb_file1 = os.path.join(test_ecs_dir, 'FFTW-3.3.3-gompi-1.4.10.eb')
+        eb_file2 = os.path.join(test_ecs_dir, 'ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb')
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file1,
+            eb_file2,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--force',
+            '--robot=%s' % test_ecs_dir,
+            '--try-toolchain=gompi,1.3.12',
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn)
+
+        scalapack_ver = '2.0.2-gompi-1.3.12-OpenBLAS-0.2.6-LAPACK-3.4.2'
+        ecs_mods = [
+            # GCC/OpenMPI dependencies are there, but part of toolchain => 'x'
+            ("GCC-4.6.4.eb", "GCC/4.6.4", 'x'),
+            ("OpenMPI-1.6.4-GCC-4.6.4.eb", "OpenMPI/1.6.4-GCC-4.6.4", 'x'),
+            # OpenBLAS dependency is there, but not listed => 'x'
+            ("OpenBLAS-0.2.6-gompi-1.3.12-LAPACK-3.4.2.eb", "OpenBLAS/0.2.6-gompi-1.3.12-LAPACK-3.4.2", 'x'),
+            # both FFTW and ScaLAPACK are listed => 'F'
+            ("ScaLAPACK-%s.eb" % scalapack_ver, "ScaLAPACK/%s" % scalapack_ver, 'F'),
+            ("FFTW-3.3.3-gompi-1.3.12.eb", "FFTW/3.3.3-gompi-1.3.12", 'F'),
+        ]
+        for ec, mod, mark in ecs_mods:
+            regex = re.compile("^ \* \[%s\] \S+%s \(module: %s\)$" % (mark, ec, mod), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
     def test_dry_run_hierarchical(self):
         """Test dry run using a hierarchical module naming scheme."""
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
