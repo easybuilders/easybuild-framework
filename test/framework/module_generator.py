@@ -355,6 +355,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ('OpenMPI/1.6.4-GCC-4.7.2-no-OFED', 'OpenMPI', True),
             ('BLACS/1.1-gompi-1.1.0-no-OFED', 'BLACS', True),
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'ScaLAPACK', True),
+            ('netCDF-C++/4.2-goolf-1.4.10', 'netCDF-C++', True),
             ('gcc/4.7.2', 'GCC', False),
             ('ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1', 'BLACS', False),
             ('apps/blacs/1.1', 'BLACS', False),
