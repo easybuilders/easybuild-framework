@@ -216,7 +216,6 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', oldstyle_defaults['modules_tool'],
                              sorted(avail_modules_tools().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
-                        "(repositorypath prefix is only relevant in case of FileRepository repository) "
                         "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
                         None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -398,7 +397,9 @@ class EasyBuildOptions(GeneralOption):
         """Postprocessing of configuration options"""
         if self.options.prefix is not None:
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
-            for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
+            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath into account
+            # in the legacy-style configuration, repository is initialised in configuration file itself
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
                 if not self.options._action_taken.get(dest, False):
                     new_def = changed_defaults[dest]
                     if dest == 'repositorypath':
