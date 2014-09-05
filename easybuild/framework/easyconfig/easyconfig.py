@@ -1083,10 +1083,10 @@ class ActiveMNS(object):
         mod_name = self._det_module_name_with(self.mns.det_short_module_name, ec, force_visible=force_visible)
         self.log.debug("Obtained valid short module name %s" % mod_name)
 
-        # sanity check: obtained module name should pass the 'is_module_for' check
-        if not self.is_module_for(mod_name, ec['name']):
+        # sanity check: obtained module name should pass the 'is_short_modname_for' check
+        if not self.is_short_modname_for(mod_name, ec['name']):
             tup = (mod_name, ec['name'])
-            self.log.error("is_module_for('%s', '%s') for active module naming scheme returns False" % tup)
+            self.log.error("is_short_modname_for('%s', '%s') for active module naming scheme returns False" % tup)
 
         return mod_name
 
@@ -1124,8 +1124,8 @@ class ActiveMNS(object):
         """
         return self.mns.expand_toolchain_load()
 
-    def is_module_for(self, modname, name):
+    def is_short_modname_for(self, short_modname, name):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
-        return self.mns.is_module_for(modname, name)
+        return self.mns.is_short_modname_for(short_modname, name)

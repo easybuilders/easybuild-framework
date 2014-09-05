@@ -125,16 +125,16 @@ class ModuleNamingScheme(object):
         # by default: just include a load statement for the toolchain
         return False
 
-    def is_module_for(self, modname, name):
+    def is_short_modname_for(self, short_modname, name):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         Default implementation checks via a strict regex pattern, and assumes short module names are of the form:
             <name>/<version>[-<toolchain>]
         """
         modname_regex = re.compile('^%s/\S+$' % name)
-        res = bool(modname_regex.match(modname))
+        res = bool(modname_regex.match(short_modname))
 
-        tup = (modname, name, modname_regex.pattern, res)
+        tup = (short_modname, name, modname_regex.pattern, res)
         self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s" % tup)
 
         return res

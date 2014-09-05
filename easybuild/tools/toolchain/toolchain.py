@@ -318,7 +318,7 @@ class Toolchain(object):
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        return any(map(lambda m: self.mns.is_module_for(m, name), self.toolchain_dep_mods))
+        return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
     def prepare(self, onlymod=None):
         """
