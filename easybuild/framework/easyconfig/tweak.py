@@ -69,7 +69,7 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs):
+def tweak(easyconfigs, build_specs, targetdir=None):
     """Tweak list of easyconfigs according to provided build specifications."""
 
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
@@ -93,14 +93,14 @@ def tweak(easyconfigs, build_specs):
     # generate tweaked easyconfigs, and continue with those instead
     easyconfigs = []
     for orig_ec in orig_ecs:
-        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs)
+        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
         new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
         easyconfigs.extend(new_ecs)
 
     return easyconfigs
 
 
-def tweak_one(src_fn, target_fn, tweaks):
+def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
@@ -222,7 +222,9 @@ def tweak_one(src_fn, target_fn, tweaks):
         except OSError, err:
             _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
 
-        target_fn = os.path.join(tempfile.gettempdir(), fn)
+        if targetdir is None:
+            targetdir = tempfile.gettempdir()
+        target_fn = os.path.join(targetdir, fn)
         _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
 
     # write out tweaked easyconfig file

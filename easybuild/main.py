@@ -210,6 +210,12 @@ def main(testing_data=(None, None, None)):
         easyconfigs_paths = robot_path[:]
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
 
+    # prepend robot path with location where tweaked easyconfigs will be placed
+    tweaked_ecs_path = None
+    if try_to_generate and build_specs:
+        tweaked_ecs_path = os.path.join(eb_tmpdir, 'tweaked_easyconfigs')
+        robot_path.insert(0, tweaked_ecs_path)
+
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
 
@@ -374,7 +380,7 @@ def main(testing_data=(None, None, None)):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs)
+        easyconfigs = tweak(easyconfigs, build_specs, targetdir=tweaked_ecs_path)
 
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])

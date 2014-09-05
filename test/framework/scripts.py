@@ -30,7 +30,6 @@ Unit tests for scripts
 import os
 import re
 import shutil
-import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -46,7 +45,7 @@ class ScriptsTest(EnhancedTestCase):
 
         # adjust $PYTHONPATH such that test easyblocks are found by the script
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        pythonpath = os.environ['PYTHONPATH']
+        pythonpath = os.environ.get('PYTHONPATH', '.')
         os.environ['PYTHONPATH'] = "%s:%s" % (pythonpath, eb_blocks_path)
 
         testdir = os.path.dirname(__file__)
@@ -89,6 +88,7 @@ class ScriptsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
         os.environ['PYTHONPATH'] = pythonpath
+
 
 def suite():
     """ returns all the testcases in this module """
