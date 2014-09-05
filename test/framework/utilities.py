@@ -150,6 +150,10 @@ class EnhancedTestCase(TestCase):
         modtool = modules_tool()
         for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
             modtool.remove_module_path(modpath)
+        # make very sure $MODULEPATH is totally empty
+        # some paths may be left behind, e.g. when they contain environment variables
+        # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
+        os.environ['MODULEPATH'] = ''
         for modpath in modpaths:
             modtool.add_module_path(modpath)
 
