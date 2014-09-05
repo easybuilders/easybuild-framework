@@ -1010,7 +1010,45 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             del os.environ['module']
 
-    def test_recursive_try_toolchain(self):
+    def test_try(self):
+        """Test whether --try options are taken into account."""
+        ec_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        args = [
+            ec_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--dry-run',
+        ]
+
+        test_cases = [
+            ([], 'toy/0.0'),
+            (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
+            (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
+            (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            # only --try causes other build specs to be included too
+            (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
+            (['--software=foo,1.2.3', '--try-amend=versionsuffix=-test'], 'foo/1.2.3-test'),
+        ]
+
+        for extra_args, mod in test_cases:
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
+            mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
+        for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,1.4.10,-no-OFED']:
+            allargs = args + [extra_arg]
+            self.assertErrorRegex(EasyBuildError, "problems validating the options", self.eb_main, allargs, raise_error=True)
+
+        # no --try used, so no tweaked easyconfig files are generated
+        allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,1.4.10']
+        self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
+
+    def test_recursive_try(self):
         """Test whether recursive --try-X works."""
         ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
@@ -1033,7 +1071,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
 
-            outtxt = self.eb_main(args + extra_args, do_build=True, verbose=False, raise_error=True)
+            outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
 
             # toolchain gompi/1.4.10 should be listed (but not present yet)
             if extra_args:
@@ -1053,6 +1091,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 mod_regex = re.compile("^ \* \[ \] \S+/easybuild-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+
+        # no recursive try if --(try-)software(-X) is involved
+        for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
+            outtxt = self.eb_main(args + extra_args, raise_error=True)
+            for mod in ['toy/1.2.3-gompi-1.4.10', 'gzip/1.4-gompi-1.4.10', 'gompi/1.4.10', 'GCC/4.7.2']:
+                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+            for mod in ['gzip/1.2.3-gompi-1.4.10']:
+                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                self.assertFalse(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""
