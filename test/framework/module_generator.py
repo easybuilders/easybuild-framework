@@ -347,8 +347,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertTrue(is_valid_module_name('foo-bar/1.2.3'))
         self.assertTrue(is_valid_module_name('ictce'))
 
-    def test_is_module_for(self):
-        """Test is_module_for method of module naming schemes."""
+    def test_is_short_modname_for(self):
+        """Test is_short_modname_for method of module naming schemes."""
         test_cases = [
             ('GCC/4.7.2', 'GCC', True),
             ('gzip/1.6-gompi-1.4.10', 'gzip', True),
@@ -365,7 +365,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 errormsg = "%s is recognised as a module for '%s'" % (modname, softname)
             else:
                 errormsg = "%s is NOT recognised as a module for '%s'" % (modname, softname)
-            self.assertEqual(ActiveMNS().is_module_for(modname, softname), res, errormsg)
+            self.assertEqual(ActiveMNS().is_short_modname_for(modname, softname), res, errormsg)
 
     def test_hierarchical_mns(self):
         """Test hierarchical module naming scheme."""

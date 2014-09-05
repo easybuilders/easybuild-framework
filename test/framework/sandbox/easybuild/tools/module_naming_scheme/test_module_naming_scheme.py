@@ -62,7 +62,7 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         """
         return [ec['moduleclass'].upper(), ec['name'].lower()[0]]
 
-    def is_module_for(self, modname, name):
+    def is_short_modname_for(self, modname, name):
         """
         Determine whether the specified (short) module name is a module for software with the specified name.
         """
