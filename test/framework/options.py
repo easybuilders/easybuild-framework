@@ -605,12 +605,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         args = [
             os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
-            os.path.join(test_ecs, 'GCC-4.7.2.eb'),
+            os.path.join(test_ecs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
             '--module-naming-scheme=HierarchicalMNS',
             '--ignore-osdeps',
             '--force',
+            '--debug',
         ]
         errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"
         self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
@@ -620,9 +621,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ecs_mods = [
             # easyconfig, module subdir, (short) module name
-            ("GCC-4.7.2.eb", "Core", "GCC/4.7.2", 'F'),  # already present and listed, so 'F'
+            ("GCC-4.7.2.eb", "Core", "GCC/4.7.2", 'x'),  # already present but not listed, so 'x'
             ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "hwloc/1.6.2", 'x'),
-            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4", 'x'),
+            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
             ("gompi-1.4.10.eb", "Core", "gompi/1.4.10", 'x'),
             ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4",
              "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
