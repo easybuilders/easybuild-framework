@@ -77,15 +77,16 @@ def tweak(easyconfigs, build_specs, targetdir=None):
     if len(toolchains) > 1:
         _log.error("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s" % toolchains)
 
-
     if 'name' in build_specs or 'version' in build_specs:
         # no recursion if software name/version build specification are included
         # in that case, do not construct full dependency graph
         orig_ecs = easyconfigs
+        _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
     else:
         # build specifications should be applied to the whole dependency graph
         # obtain full dependency graph for specified easyconfigs
         # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
+        _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
         orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
 
     # determine toolchain based on last easyconfigs

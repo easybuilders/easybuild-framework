@@ -65,9 +65,6 @@ from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import any
 
 
-_log = fancylogger.getLogger('tools.options', fname=False)
-
-
 class EasyBuildOptions(GeneralOption):
     """Easybuild generaloption class"""
     VERSION = this_is_easybuild()
@@ -76,6 +73,11 @@ class EasyBuildOptions(GeneralOption):
     DEFAULT_CONFIGFILES = get_default_configfiles()
 
     ALLOPTSMANDATORY = False  # allow more than one argument
+
+    def __init__(self, *args, **kwargs):
+        """EasyBuildOptions constructor."""
+        super(EasyBuildOptions, self).__init__(*args, **kwargs)
+        self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
 
     def basic_options(self):
         """basic runtime options"""
@@ -332,23 +334,22 @@ class EasyBuildOptions(GeneralOption):
 
     def validate(self):
         """Additional validation of options"""
-        stop_msg = []
+        error_cnt = 0
 
         for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
             val = getattr(self.options, opt.replace('-', '_'))
             if val and len(val) != 2:
-                stop_msg.append('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
+                self.log.warning('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
+                error_cnt += 1
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
             if not umask_regex.match(self.options.umask):
-                stop_msg.append("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
+                self.log.warning("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
+                error_cnt += 1
 
-        if len(stop_msg) > 0:
-            indent = " "*2
-            stop_msg = ['%s%s' % (indent, x) for x in stop_msg]
-            stop_msg.insert(0, 'ERROR: Found %s problems validating the options:' % len(stop_msg))
-            _log.error('\n'.join(stop_msg))
+        if error_cnt > 0:
+            self.log.error("Found %s problems validating the options, treating warnings as fatal." % error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
@@ -678,7 +679,7 @@ def process_software_build_specs(options):
         tryval = getattr(options, 'try_%s' % opt)
         if val or tryval:
             if val and tryval:
-                _log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
+                self.log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
             elif tryval:
                 try_to_generate = True
             val = val or tryval  # --try-X value is overridden by --X
@@ -704,7 +705,7 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                _log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+                self.log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
         if options.try_amend:
             amends += options.try_amend
             try_to_generate = True

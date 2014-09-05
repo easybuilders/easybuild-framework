@@ -998,7 +998,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,1.4.10,-no-OFED']:
             allargs = args + [extra_arg]
-            self.assertErrorRegex(EasyBuildError, "requires NAME,VERSION", self.eb_main, allargs, raise_error=True)
+            self.assertErrorRegex(EasyBuildError, "problems validating the options", self.eb_main, allargs, raise_error=True)
 
         # no --try used, so no tweaked easyconfig files are generated
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,1.4.10']
