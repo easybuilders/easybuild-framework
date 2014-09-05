@@ -94,16 +94,17 @@ class Toolchain(object):
         self.vars = None
 
         self.modules_tool = modules_tool()
+        self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
         if self.name != DUMMY_TOOLCHAIN_NAME:
             # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
-            if mns is not None:
+            if self.mns is not None:
                 tc_dict = self.as_dict()
-                self.mod_full_name = mns.det_full_module_name(tc_dict)
-                self.mod_short_name = mns.det_short_module_name(tc_dict)
-                self.init_modpaths = mns.det_init_modulepaths(tc_dict)
+                self.mod_full_name = self.mns.det_full_module_name(tc_dict)
+                self.mod_short_name = self.mns.det_short_module_name(tc_dict)
+                self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -317,17 +318,7 @@ class Toolchain(object):
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        # check whether a module for the toolchain element with specified name is present
-        # assumption: the software name is a prefix for either one of the module filepath subdirs, or its filename
-        # for example, when looking for 'BLACS', to following modules are considered to be BLACS modules:
-        # - BLACS/1.1-gompi-1.1.0-no-OFED
-        # - apps/blacs/1.1
-        # - lib/math/BLACS-stable/1.1
-        # the following ones are NOT consider BLACS modules, even though the substring 'blacs' is included in the module name
-        # - ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1
-        # - apps/math-blacs/1.1
-        modname_regex = re.compile('(?:^|/)%s' % name, re.I)
-        return any(map(modname_regex.search, self.toolchain_dep_mods))
+        return any(map(lambda m: self.mns.is_module_for(m, name), self.toolchain_dep_mods))
 
     def prepare(self, onlymod=None):
         """
