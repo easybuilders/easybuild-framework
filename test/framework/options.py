@@ -1036,14 +1036,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 mod_regex = re.compile("^\s*\*\s*\[.\]\s*\S*/easybuild-\S*/%s\s\(module: %s\)\s*$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
-        # no recursive try for --try-software(-X)
-        outtxt = self.eb_main(args + ['--try-software-version=1.2.3'], raise_error=True)
-        for mod in ['toy/1.2.3-gompi-1.4.10', 'gzip/1.4-gompi-1.4.10', 'gompi/1.4.10', 'GCC/4.7.2']:
-            mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
-            self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
-        for mod in ['gzip/1.2.3-gompi-1.4.10']:
-            mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
-            self.assertFalse(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+        # no recursive try if --(try-)software(-X) is involved
+        for extra_args in [['--try-software-version=1.2.3'], ['--software-version=1.2.3']]:
+            outtxt = self.eb_main(args + extra_args, raise_error=True)
+            for mod in ['toy/1.2.3-gompi-1.4.10', 'gzip/1.4-gompi-1.4.10', 'gompi/1.4.10', 'GCC/4.7.2']:
+                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
+            for mod in ['gzip/1.2.3-gompi-1.4.10']:
+                mod_regex = re.compile("\(module: %s\)$" % mod, re.M)
+                self.assertFalse(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
     def test_cleanup_builddir(self):
         """Test cleaning up of build dir and --disable-cleanup-builddir."""
