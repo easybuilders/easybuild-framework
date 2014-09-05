@@ -77,6 +77,9 @@ def tweak(easyconfigs, build_specs, targetdir=None):
     if len(toolchains) > 1:
         _log.error("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s" % toolchains)
 
+    # keep track of originally listed easyconfigs (via their path)
+    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
+
     # obtain full dependency graph for specified easyconfigs
     # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
     orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
@@ -91,13 +94,16 @@ def tweak(easyconfigs, build_specs, targetdir=None):
             orig_ecs = orig_ecs[1:]
 
     # generate tweaked easyconfigs, and continue with those instead
-    easyconfigs = []
+    tweaked_easyconfigs = []
     for orig_ec in orig_ecs:
         new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
-        new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
-        easyconfigs.extend(new_ecs)
+        # only return tweaked easyconfigs for easyconfigs which were listed originally
+        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot
+        if orig_ec['spec'] in listed_ec_paths:
+            new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
+            tweaked_easyconfigs.extend(new_ecs)
 
-    return easyconfigs
+    return tweaked_easyconfigs
 
 
 def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
