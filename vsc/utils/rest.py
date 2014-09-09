@@ -65,7 +65,7 @@ class Client(object):
 
     USER_AGENT = 'vsc-rest-client'
 
-    def __init__(self, url, username=None, password=None, token=None, token_type='Token', user_agent=None):
+    def __init__(self, url, username=None, password=None, token=None, token_type='Token', user_agent=None, append_slash=False):
         """
         Create a Client object,
         this client can consume a REST api hosted at host/endpoint
@@ -78,6 +78,7 @@ class Client(object):
         self.auth_header = None
         self.username = username
         self.url = url
+        self.append_slash = append_slash
 
         if not user_agent:
             self.user_agent = self.USER_AGENT
@@ -103,6 +104,8 @@ class Client(object):
         Do a http get request on the given url with given headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
         return self.request(self.GET, url, None, headers)
 
@@ -111,6 +114,8 @@ class Client(object):
         Do a http head request on the given url with given headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
         return self.request(self.HEAD, url, None, headers)
 
@@ -119,6 +124,8 @@ class Client(object):
         Do a http delete request on the given url with given headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
         return self.request(self.DELETE, url, None, headers)
 
@@ -127,7 +134,10 @@ class Client(object):
         Do a http post request on the given url with given body, headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
+        headers['Content-Type'] = 'application/json'
         return self.request(self.POST, url, json.dumps(body), headers)
 
     def put(self, url, body=None, headers={}, **params):
@@ -135,7 +145,10 @@ class Client(object):
         Do a http put request on the given url with given body, headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
+        headers['Content-Type'] = 'application/json'
         return self.request(self.PUT, url, json.dumps(body), headers)
 
     def patch(self, url, body=None, headers={}, **params):
@@ -143,7 +156,10 @@ class Client(object):
         Do a http patch request on the given url with given body, headers and parameters
         Parameters is a dictionary that will will be urlencoded
         """
+        if self.append_slash:
+            url += '/'
         url += self.urlencode(params)
+        headers['Content-Type'] = 'application/json'
         return self.request(self.PATCH, url, json.dumps(body), headers)
 
     def request(self, method, url, body, headers):
