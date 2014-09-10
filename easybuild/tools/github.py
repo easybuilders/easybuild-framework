@@ -248,7 +248,8 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.debug("List of patches files: %s" % patched_files)
 
     # obtain last commit
-    status, commits_data = pr_url.commits.get()
+    # get all commits, increase to (max of) 100 per page
+    status, commits_data = pr_url.commits.get(per_page=100)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s" % commits_data)
 
