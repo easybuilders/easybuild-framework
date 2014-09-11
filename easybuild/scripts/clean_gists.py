@@ -86,6 +86,8 @@ def main():
     num_deleted = 0
 
     for gist in gists:
+        if not gist["description"]:
+            continue
         re_pr_num = regex.search(gist["description"])
         delete_gist = False
 
