@@ -222,30 +222,40 @@ def get_cpu_speed():
         try:
             # Linux with cpu scaling
             max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
+            _log.debug("Trying to determine CPU frequency via %s" % max_freq_fp)
             try:
                 f = open(max_freq_fp, 'r')
                 cpu_freq = float(f.read())/1000
                 f.close()
                 return cpu_freq
             except IOError, err:
-                _log.warning("Failed to read %s to determine max. CPU clock frequency with CPU scaling: %s" % (max_freq_fp, err))
+                _log.debug("Failed to read %s to determine max. CPU clock frequency with CPU scaling: %s" % (max_freq_fp, err))
 
             # Linux without cpu scaling
             cpuinfo_fp = '/proc/cpuinfo'
+            _log.debug("Trying to determine CPU frequency via %s" % cpuinfo_fp)
             try:
                 cpu_freq = None
-                f = open(cpuinfo_fp, 'r')
-                for line in f:
-                    cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)
-                    if cpu_freq is not None:
+                cpuinfo_txt = open(cpuinfo_fp, 'r').read()
+                cpu_freq_patterns = [
+                    r"^cpu MHz\s*:\s*(?P<cpu_freq>[0-9.]+)",  # Linux x86 & more
+                    r"^clock\s*:\s*(?P<cpu_freq>[0-9.]+)",  # Linux on POWER
+                ]
+                for cpu_freq_pattern in cpu_freq_patterns:
+                    cpu_freq_re = re.compile(cpu_freq_pattern, re.M)
+                    res = cpu_freq_re.search(cpuinfo_txt)
+                    if res:
+                        cpu_freq = res.group('cpu_freq')
+                        _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_pattern, cpu_freq))
                         break
-                f.close()
+                    else:
+                        _log.debug("Failed to determine CPU frequency using regex '%s'" % cpu_freq_re.pattern)
                 if cpu_freq is None:
                     raise SystemToolsException("Failed to determine CPU frequency from %s" % cpuinfo_fp)
                 else:
-                    return float(cpu_freq.group(1))
+                    return float(cpu_freq)
             except IOError, err:
-                _log.warning("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
+                _log.debug("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
 
         except (IOError, OSError), err:
             raise SystemToolsException("Determining CPU speed failed, exception occured: %s" % err)
