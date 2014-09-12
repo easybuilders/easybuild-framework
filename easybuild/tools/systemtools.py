@@ -190,13 +190,16 @@ def get_cpu_model():
     returns cpu model
     f.ex Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
+    model = UNKNOWN
     os_type = get_os_type()
     if os_type == LINUX:
         regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
         try:
             txt = read_file('/proc/cpuinfo', log_error=False)
             if txt is not None:
-                return regexp.search(txt).groupdict()['modelname'].strip()
+                res = regexp.search(txt)
+                if res is not None:
+                    model = res.group('modelname').strip()
         except IOError, err:
             raise SystemToolsException("An error occured when determining CPU model: %s" % err)
 
@@ -204,9 +207,9 @@ def get_cpu_model():
         out, exitcode = run_cmd("sysctl -n machdep.cpu.brand_string")
         out = out.strip()
         if not exitcode:
-            return out
+            model = out
 
-    return UNKNOWN
+    return model
 
 
 def get_cpu_speed():
