@@ -534,7 +534,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--module-naming-scheme=HierarchicalMNS',
         ]
 
-        # test module paths/contents with gompi build
+        # test module paths/contents with goolf build
         extra_args = [
             '--try-toolchain=goolf,1.4.10',
         ]
@@ -629,7 +629,7 @@ class ToyBuildTest(EnhancedTestCase):
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
-        args = ['gompi-1.4.10.eb'] + args[1:]
+        args = [os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gompi-1.4.10.eb')] + args[1:]
         modules_tool().purge()
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
