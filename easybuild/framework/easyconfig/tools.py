@@ -71,27 +71,29 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, run_cmd, write_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
-from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version, det_hidden_modname
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.utilities import quote_str
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
 
 def skip_available(easyconfigs, testing=False):
-    """Skip building easyconfigs for which a module is already available."""
-    avail_modules = modules_tool().available()
-    easyconfigs, check_easyconfigs = [], easyconfigs
-    for ec in check_easyconfigs:
-        module = ec['full_mod_name']
-        if module in avail_modules:
-            msg = "%s is already installed (module found), skipping" % module
+    """Skip building easyconfigs for existing modules."""
+    modtool = modules_tool()
+    module_names = [ec['full_mod_name'] for ec in easyconfigs]
+    modules_exist = modtool.exist(module_names)
+    retained_easyconfigs = []
+    for ec, mod_name, mod_exists in zip(easyconfigs, module_names, modules_exist):
+        if mod_exists:
+            msg = "%s is already installed (module found), skipping" % mod_name
             print_msg(msg, log=_log, silent=testing)
             _log.info(msg)
         else:
-            _log.debug("%s is not installed yet, so retaining it" % module)
-            easyconfigs.append(ec)
-    return easyconfigs
+            _log.debug("%s is not installed yet, so retaining it" % mod_name)
+            retained_easyconfigs.append(ec)
+    return retained_easyconfigs
 
 
 def find_resolved_modules(unprocessed, avail_modules):
@@ -202,7 +204,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         _log.info("Robot: resolving dependency %s with %s" % (cand_dep, path))
                         # build specs should not be passed down to resolved dependencies,
                         # to avoid that e.g. --try-toolchain trickles down into the used toolchain itself
-                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps)
+                        hidden = cand_dep.get('hidden', False)
+                        processed_ecs = process_easyconfig(path, validate=not retain_all_deps, hidden=hidden)
 
                         # ensure that selected easyconfig provides required dependency
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
@@ -256,6 +259,8 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
     unbuilt_specs = skip_available(all_specs, testing=True)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
+    listed_ec_paths = [spec['spec'] for spec in easyconfigs]
+
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs])
     # only allow short if common prefix is long enough
@@ -263,6 +268,8 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
     for spec in all_specs:
         if spec in unbuilt_specs:
             ans = ' '
+        elif build_option('force') and spec['spec'] in listed_ec_paths:
+            ans = 'F'
         else:
             ans = 'x'
 
@@ -386,17 +393,8 @@ def stats_to_str(stats):
         _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
 
     txt = "{\n"
-
     pref = "    "
-
-    def tostr(x):
-        if isinstance(x, basestring):
-            return "'%s'" % x
-        else:
-            return str(x)
-
     for (k, v) in stats.items():
-        txt += "%s%s: %s,\n" % (pref, tostr(k), tostr(v))
-
+        txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt

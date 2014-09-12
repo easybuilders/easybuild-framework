@@ -70,3 +70,9 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
         ec_sha1 = sha1(res).hexdigest()
         _log.debug("SHA1 for string '%s' obtained for %s: %s" % (res, ec, ec_sha1))
         return os.path.join(ec['name'], ec_sha1)
+
+    def is_short_modname_for(self, modname, name):
+        """
+        Determine whether the specified (short) module name is a module for software with the specified name.
+        """
+        return modname.startswith(name)

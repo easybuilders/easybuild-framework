@@ -46,9 +46,10 @@ from optparse import BadOptionError, SUPPRESS_USAGE, NO_DEFAULT, OptionValueErro
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import _ as _gettext  # this is gettext normally
 from vsc.utils.dateandtime import date_parser, datetime_parser
-from vsc.utils.fancylogger import getLogger, setLogLevel
+from vsc.utils.fancylogger import getLogger, setLogLevel, getDetailsLogLevels
 from vsc.utils.missing import shell_quote, nub
 from vsc.utils.optcomplete import autocomplete, CompleterOption
+
 
 def set_columns(cols=None):
     """Set os.environ COLUMNS variable
@@ -126,6 +127,11 @@ class ExtOption(CompleterOption):
     TYPES = tuple(['strlist', 'strtuple'] + list(Option.TYPES))
     BOOLEAN_ACTIONS = ('store_true', 'store_false',) + EXTOPTION_LOG
 
+    def __init__(self, *args, **kwargs):
+        """Add logger to init"""
+        CompleterOption.__init__(self, *args, **kwargs)
+        self.log = getLogger(self.__class__.__name__)
+
     def _set_attrs(self, attrs):
         """overwrite _set_attrs to allow store_or callbacks"""
         Option._set_attrs(self, attrs)
@@ -184,9 +190,16 @@ class ExtOption(CompleterOption):
                     action = 'store_true'
 
             if orig_action in self.EXTOPTION_LOG and action == 'store_true':
-                setLogLevel(orig_action.split('_')[1][:-3].upper())
+                newloglevel = orig_action.split('_')[1][:-3].upper()
+                logstate = ", ".join(["(%s, %s)" % (n, l) for n, l in getDetailsLogLevels()])
+                self.log.debug("changing loglevel to %s, current state: %s" % (newloglevel, logstate))
+                setLogLevel(newloglevel)
+                self.log.debug("changed loglevel to %s, previous state: %s" % (newloglevel, logstate))
+                if hasattr(values, '_logaction_taken'):
+                    values._logaction_taken[dest] = True
 
             Option.take_action(self, action, dest, opt, value, values, parser)
+
         elif action in self.EXTOPTION_EXTRA_OPTIONS:
             if action == "extend":
                 # comma separated list convert in list
@@ -324,6 +337,7 @@ class ExtOptionParser(OptionParser):
         self.help_to_string = kwargs.pop('help_to_string', None)
         self.help_to_file = kwargs.pop('help_to_file', None)
         self.envvar_prefix = kwargs.pop('envvar_prefix', None)
+        self.process_env_options = kwargs.pop('process_env_options', True)
 
         # py2.4 epilog compatibilty with py2.7 / optparse 1.5.3
         self.epilog = kwargs.pop('epilog', None)
@@ -343,6 +357,9 @@ class ExtOptionParser(OptionParser):
             epilogtxt = 'Boolean options support %(disable)s prefix to do the inverse of the action,'
             epilogtxt += ' e.g. option --someopt also supports --disable-someopt.'
             self.epilog.append(epilogtxt % {'disable': self.option_class.DISABLE})
+
+        self.environment_arguments = None
+        self.commandline_arguments = None
 
     def set_description_docstring(self):
         """Try to find the main docstring and add it if description is not None"""
@@ -400,12 +417,15 @@ class ExtOptionParser(OptionParser):
     def get_default_values(self):
         """Introduce the ExtValues class with class constant
             - make it dynamic, otherwise the class constant is shared between multiple instances
-            - class constant is used to avoid _taken_action as option in the __dict__
+            - class constant is used to avoid _action_taken as option in the __dict__ 
+                - only works by using reference to object
+                - same for _logaction_taken
         """
         values = OptionParser.get_default_values(self)
 
         class ExtValues(self.VALUES_CLASS):
             _action_taken = {}
+            _logaction_taken = {}
 
         newvalues = ExtValues()
         newvalues.__dict__ = values.__dict__.copy()
@@ -524,9 +544,9 @@ class ExtOptionParser(OptionParser):
 
     def _get_args(self, args):
         """Prepend the options set through the environment"""
-        regular_args = OptionParser._get_args(self, args)
-        env_args = self.get_env_options()
-        return env_args + regular_args  # prepend the environment options as longopts
+        self.commandline_arguments = OptionParser._get_args(self, args)
+        self.get_env_options()
+        return self.environment_arguments + self.commandline_arguments  # prepend the environment options as longopts
 
     def get_env_options_prefix(self):
         """Return the prefix to use for options passed through the environment"""
@@ -537,7 +557,12 @@ class ExtOptionParser(OptionParser):
 
     def get_env_options(self):
         """Retrieve options from the environment: prefix_longopt.upper()"""
-        env_long_opts = []
+        self.environment_arguments = []
+
+        if not self.process_env_options:
+            self.log.debug("Not processing environment for options")
+            return
+
         if self.envvar_prefix is None:
             self.get_env_options_prefix()
 
@@ -556,16 +581,16 @@ class ExtOptionParser(OptionParser):
                 val = os.environ.get(env_opt_name, None)
                 if not val is None:
                     if opt.action in opt.TYPED_ACTIONS:  # not all typed actions are mandatory, but let's assume so
-                        env_long_opts.append("%s=%s" % (lo, val))
+                        self.environment_arguments.append("%s=%s" % (lo, val))
                     else:
                         # interpretation of values: 0/no/false means: don't set it
                         if not ("%s" % val).lower() in ("0", "no", "false",):
-                            env_long_opts.append("%s" % lo)
+                            self.environment_arguments.append("%s" % lo)
                 else:
                     self.log.debug("Environment variable %s is not set" % env_opt_name)
 
-        self.log.debug("Environment variable options with prefix %s: %s" % (self.envvar_prefix, env_long_opts))
-        return env_long_opts
+        self.log.debug("Environment variable options with prefix %s: %s" % (self.envvar_prefix, self.environment_arguments))
+        return self.environment_arguments
 
     def get_option_by_long_name(self, name):
         """Return the option matching the long option name"""
@@ -719,7 +744,7 @@ class GeneralOption(object):
         self._logopts = {
             'debug': ("Enable debug log mode", None, "store_debuglog", False, 'd'),
             'info': ("Enable info log mode", None, "store_infolog", False),
-            'quiet': ("Enable info quiet/warning mode", None, "store_warninglog", False),
+            'quiet': ("Enable quiet/warning log mode", None, "store_warninglog", False),
         }
 
         descr = ['Debug and logging options', '']
@@ -970,6 +995,9 @@ class GeneralOption(object):
             else:
                 sys.exit(err.code)
 
+        self.log.debug("parseoptions: options from environment %s" % (self.parser.environment_arguments))
+        self.log.debug("parseoptions: options from commandline %s" % (self.parser.commandline_arguments))
+
         # args should be empty, since everything is optional
         if len(self.args) > 1:
             self.log.debug("Found remaining args %s" % self.args)
@@ -1045,8 +1073,8 @@ class GeneralOption(object):
             if section not in cfg_sections_flat:
                 self.log.debug("parseconfigfiles: found section %s, adding to remainder" % section)
                 remainder = self.configfile_remainder.setdefault(section, {})
-                # parse te remaining options, sections starting with 'raw_' as their name will be considered raw sections
-
+                # parse te remaining options, sections starting with 'raw_'
+                # as their name will be considered raw sections
                 for opt, val in self.configfile_parser.items(section, raw=(section.startswith('raw_'))):
                     remainder[opt] = val
 
@@ -1075,7 +1103,17 @@ class GeneralOption(object):
 
                     configfile_options_default[opt_dest] = actual_option.default
 
-                    if actual_option.action in ExtOption.BOOLEAN_ACTIONS:
+                    # log actions require special care
+                    # if any log action was already taken before, it would precede the one from the configfile
+                    # however, multiple logactions in a configfile (or environment for that matter) have
+                    # undefined behaviour
+                    is_log_action = actual_option.action in ExtOption.EXTOPTION_LOG
+                    log_action_taken = getattr(self.options, '_logaction_taken', False)
+                    if is_log_action and log_action_taken:
+                        # value set through take_action. do not modify by configfile
+                        self.log.debug(('parseconfigfiles: log action %s (value %s) found,'
+                                        ' but log action already taken. Ignoring.') % (opt_dest, val))
+                    elif actual_option.action in ExtOption.BOOLEAN_ACTIONS:
                         try:
                             newval = self.configfile_parser.getboolean(section, opt)
                             self.log.debug(('parseconfigfiles: getboolean for option %s value %s '
@@ -1102,10 +1140,16 @@ class GeneralOption(object):
         # reparse
         self.log.debug('parseconfigfiles: going to parse options through cmdline %s' % configfile_cmdline)
         try:
+            # can't reprocress the environment, since we are not reporcessing the commandline either
+            self.parser.process_env_options = False
             (parsed_configfile_options, parsed_configfile_args) = self.parser.parse_args(configfile_cmdline)
+            self.parser.process_env_options = True
         except:
             self.log.raiseException('parseconfigfiles: failed to parse options through cmdline %s' %
                                     configfile_cmdline)
+
+        # re-report the options as parsed via parser
+        self.log.debug("parseconfigfiles: options from configfile %s" % (self.parser.commandline_arguments))
 
         if len(parsed_configfile_args) > 0:
             self.log.raiseException('parseconfigfiles: not all options were parsed: %s' % parsed_configfile_args)

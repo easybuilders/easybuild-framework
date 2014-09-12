@@ -1,6 +1,40 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.15.0 (September 12th 2014)
+-----------------------------
+
+feature + bugfix release
+- various other enhancements, including:
+    - fetch extension sources in fetch_step to enhance --stop=fetch (#978)
+    - add iimpi toolchain definition (#993)
+    - prepend robot path with download location of files when --from-pr is used (#995)
+    - add support for excluding module path extensions from generated modules (#1003)
+        - see 'include_modpath_extensions' easyconfig parameter
+    - add support for installing hidden modules and using them as dependencies (#1009, #1021, #1023)
+        - see --hidden and 'hiddendependencies' easyconfig parameter
+    - stop relying on 'conflict' statement in module files to determine software name of toolchain components (#1017, #1037)
+        - instead, the 'is_short_modname_for' method defined by the module naming scheme implementation is queried
+    - improve error message generated for a missing easyconfig file (#1019)
+    - include path where tweaked easyconfigs are placed in robot path (#1032)
+    - indicate forced builds in --dry-run output (#1034)
+    - fix interaction between --force and --try-toolchain --robot (#1035)
+    - add --software option, disable recursion for --try-software(-X) (#1036)
+- various bug fixes, including:
+    - fix HierarchicalMNS crashing when MPI library is installed with a dummy toolchain (#986)
+    - fix list of FFTW wrapper libraries for Intel MKL (#987)
+    - fix stability of unit tests (#988, #1027, #1033)
+    - make sure $SCALAPACK_INC_DIR (and $SCALAPACK_LIB_DIR) are defined when using imkl (#990)
+    - fix error message on missing FFTW wrapper libs (#992)
+    - fix duplicate toolchain elements in --list-toolchains output (#993)
+    - filter out load statements that extend the $MODULEPATH to make the module being installed available (#1016)
+    - fix conflict specification included in module files (#1017)
+    - avoid --from-pr crashing hard unless --robot is used (#1022)
+    - properly quote GCC version string in archived easyconfig (#1028)
+    - fix issue with --repositorypath not honoring --prefix (#1031)
+    - sync with latest vsc-base version to fix log order (#1039)
+    - increase # commits per page for --from-pr (#1040)
+
 v1.14.0 (July 9th 2014)
 -----------------------
 

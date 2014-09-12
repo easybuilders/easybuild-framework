@@ -42,7 +42,7 @@ import time
 import urllib
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all
+from vsc.utils.missing import all, any
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -153,13 +153,16 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt):
+def write_file(path, txt, append=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        f = open(path, 'w')
+        if append:
+            f = open(path, 'a')
+        else:
+            f = open(path, 'w')
         f.write(txt)
         f.close()
     except IOError, err:
@@ -814,6 +817,11 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
                 _log.error("Failed to set groud ID/sticky bit: %s" % err)
     else:
         _log.debug("Not creating existing path %s" % path)
+
+
+def path_matches(path, paths):
+    """Check whether given path matches any of the provided paths."""
+    return any([os.path.samefile(path, p) for p in paths])
 
 
 def rmtree2(path, n=3):

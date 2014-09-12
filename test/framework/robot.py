@@ -56,8 +56,16 @@ class MockModule(modules.ModulesTool):
     avail_modules = []
 
     def available(self, *args):
-        """ no module should be available """
+        """Dummy implementation of available."""
         return self.avail_modules
+
+    def show(self, modname):
+        """Dummy implementation of show, which includes full path to (existing) module files."""
+        if modname in self.avail_modules:
+            txt =  '  %s:' % os.path.join('/tmp', modname)
+        else:
+            txt = 'Module %s not found' % modname
+        return txt
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
@@ -123,7 +131,25 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
-        # here we have include a Dependency in the easyconfig list
+        # hidden dependencies are found too
+        hidden_dep = {
+            'name': 'toy',
+            'version': '0.0',
+            'versionsuffix': '-deps',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'dummy': True,
+            'hidden': True,
+        }
+        easyconfig_moredeps = deepcopy(easyconfig_dep)
+        easyconfig_moredeps['dependencies'].append(hidden_dep)
+        easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
+        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
+        self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
+        self.assertTrue('toy/.0.0-deps' in [ec['full_mod_name'] for ec in res])
+
+        # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]

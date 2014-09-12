@@ -143,6 +143,7 @@ DEFAULT_CONFIG = {
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
+    'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
@@ -168,6 +169,7 @@ DEFAULT_CONFIG = {
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
+    'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],

@@ -27,7 +27,6 @@ Toy build unit test
 
 @author: Kenneth Hoste (Ghent University)
 """
-import fileinput
 import glob
 import grp
 import os
@@ -42,8 +41,10 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import modules_tool
 
 
 class ToyBuildTest(EnhancedTestCase):
@@ -69,10 +70,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         # clear log
         write_file(self.logfile, '')
-
-        self.test_buildpath = tempfile.mkdtemp()
-        self.test_installpath = tempfile.mkdtemp()
-        self.test_sourcepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'sources')
 
     def tearDown(self):
         """Cleanup."""
@@ -146,6 +143,8 @@ class ToyBuildTest(EnhancedTestCase):
                                   raise_error=raise_error)
         except Exception, err:
             myerr = err
+            if raise_error:
+                raise myerr
 
         if verify:
             self.check_toy(self.test_installpath, outtxt, versionsuffix=versionsuffix)
@@ -153,7 +152,7 @@ class ToyBuildTest(EnhancedTestCase):
         if test_readme:
             # make sure postinstallcmds were used
             toy_install_path = os.path.join(self.test_installpath, 'software', 'toy', full_ver)
-            self.assertEqual(open(os.path.join(toy_install_path, 'README'), 'r').read(), "TOY\n")
+            self.assertEqual(read_file(os.path.join(toy_install_path, 'README')), "TOY\n")
 
         # make sure full test report was dumped, and contains sensible information
         if test_report is not None:
@@ -171,25 +170,22 @@ class ToyBuildTest(EnhancedTestCase):
                 r"List of loaded modules",
                 r"Environment",
             ]
-            test_report_txt = open(test_report).read()
+            test_report_txt = read_file(test_report)
             for regex_pattern in regex_patterns:
                 regex = re.compile(regex_pattern, re.M)
                 msg = "Pattern %s found in full test report: %s" % (regex.pattern, test_report_txt)
                 self.assertTrue(regex.search(test_report_txt), msg)
 
-        if raise_error and (myerr is not None):
-            raise myerr
+        return outtxt
 
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
         tmpdir = tempfile.mkdtemp()
         broken_toy_ec = os.path.join(tmpdir, "toy-broken.eb")
         toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
-        broken_toy_ec_txt = open(toy_ec_file, 'r').read()
+        broken_toy_ec_txt = read_file(toy_ec_file)
         broken_toy_ec_txt += "checksums = ['clearywrongchecksum']"
-        f = open(broken_toy_ec, 'w')
-        f.write(broken_toy_ec_txt)
-        f.close()
+        write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
         self.assertErrorRegex(EasyBuildError, error_regex, self.test_toy_build, ec_file=broken_toy_ec, tmpdir=tmpdir,
                               verify=False, fails=True, verbose=False, raise_error=True)
@@ -224,7 +220,7 @@ class ToyBuildTest(EnhancedTestCase):
             "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
             "modtclfooter = 'puts stderr \"oh hai!\"'",
         ])
-        open(ec_file, 'a').write(ec_extra)
+        write_file(ec_file, ec_extra, append=True)
 
         args = [
             ec_file,
@@ -237,7 +233,7 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.check_toy(self.test_installpath, outtxt, versionsuffix='-tweaked')
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
-        toy_module_txt = open(toy_module, 'r').read()
+        toy_module_txt = read_file(toy_module)
 
         self.assertTrue(re.search('setenv\s*FOO\s*"bar"', toy_module_txt))
         self.assertTrue(re.search('prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
@@ -357,11 +353,9 @@ class ToyBuildTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         # copy toy easyconfig file, and append source_urls to it
         shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
-        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
-        f = open(ec_file, 'a')
         source_url = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'sandbox', 'sources', 'toy')
-        f.write('\nsource_urls = ["file://%s"]\n' % source_url)
-        f.close()
+        ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
+        write_file(ec_file, '\nsource_urls = ["file://%s"]\n' % source_url, append=True)
 
         # unset $EASYBUILD_XPATH env vars, to make sure --prefix is picked up
         for cfg_opt in ['build', 'install', 'source']:
@@ -423,9 +417,7 @@ class ToyBuildTest(EnhancedTestCase):
             elif ec_group is not None:
                 shutil.copy2(toy_ec_file, self.test_buildpath)
                 tmp_ec_file = os.path.join(self.test_buildpath, os.path.basename(toy_ec_file))
-                f = open(tmp_ec_file, 'a')
-                f.write("\ngroup = '%s'" % ec_group)
-                f.close()
+                write_file(tmp_ec_file, "\ngroup = '%s'" % ec_group, append=True)
                 allargs = [tmp_ec_file]
             allargs.extend(args)
             if umask is not None:
@@ -520,34 +512,15 @@ class ToyBuildTest(EnhancedTestCase):
         # copy toy easyconfig file, and append source_urls to it
         shutil.copy2(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'), tmpdir)
         ec_file = os.path.join(tmpdir, 'toy-0.0.eb')
-        f = open(ec_file, 'a')
-        f.write("\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n")
-        f.close()
+        write_file(ec_file, "\nallow_system_deps = [('Python', SYS_PYTHON_VERSION)]\n", append=True)
         self.test_toy_build(ec_file=ec_file)
+        shutil.rmtree(tmpdir)
 
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
+        self.setup_hierarchical_modules()
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
-
-        # simply copy module files under 'Core' and 'Compiler' to test install path
-        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
-        install_mod_path = os.path.join(self.test_installpath, 'modules', 'all')
-        mkdir(install_mod_path, parents=True)
-        for mod_subdir in ['Core', 'Compiler']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
-            shutil.copytree(src_mod_path, os.path.join(install_mod_path, mod_subdir))
-
-        # tweak prepend-path statements in GCC/OpenMPI modules to ensure correct paths
-        for modfile in [
-            os.path.join(install_mod_path, 'Core', 'GCC', '4.7.2'),
-            os.path.join(install_mod_path, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
-        ]:
-            for line in fileinput.input(modfile, inplace=1):
-                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
-                              r"\1%s/modules/all" % self.test_installpath,
-                              line)
-                sys.stdout.write(line)
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
@@ -563,7 +536,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module paths/contents with gompi build
         extra_args = [
-            '--try-toolchain=gompi,1.4.10',
+            '--try-toolchain=goolf,1.4.10',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -571,13 +544,19 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
-        # check that toolchain load is expanded to loads for toolchain dependencies
-        modtxt = open(toy_module_path, 'r').read()
-        self.assertFalse(re.search("load gompi", modtxt))
-        self.assertTrue(re.search("load GCC", modtxt))
-        self.assertTrue(re.search("load OpenMPI", modtxt))
+        # check that toolchain load is expanded to loads for toolchain dependencies,
+        # except for the ones that extend $MODULEPATH to make the toy module available
+        modtxt = read_file(toy_module_path)
+        for dep in ['goolf', 'GCC', 'OpenMPI']:
+            load_regex = re.compile("load %s" % dep)
+            self.assertFalse(load_regex.search(modtxt), "Pattern '%s' not found in %s" % (load_regex.pattern, modtxt))
+        for dep in ['OpenBLAS', 'FFTW', 'ScaLAPACK']:
+            load_regex = re.compile("load %s" % dep)
+            self.assertTrue(load_regex.search(modtxt), "Pattern '%s' found in %s" % (load_regex.pattern, modtxt))
 
-        # test module path with GCC/4.8.2 build
+        os.remove(toy_module_path)
+
+        # test module path with GCC/4.7.2 build
         extra_args = [
             '--try-toolchain=GCC,4.7.2',
         ]
@@ -588,10 +567,11 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
-        modtxt = open(toy_module_path, 'r').read()
+        modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
+        os.remove(toy_module_path)
 
-        # test module path with GCC/4.8.2 build, pretend to be an MPI lib by setting moduleclass
+        # test module path with GCC/4.7.2 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
             '--try-toolchain=GCC,4.7.2',
             '--try-amend=moduleclass=mpi',
@@ -602,10 +582,19 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(os.path.exists(toy_module_path))
 
-        # no dependencies or toolchain => no module load statements in module file
-        modtxt = open(toy_module_path, 'r').read()
+        # 'module use' statements to extend $MODULEPATH are present
+        modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
+
+        # ... unless they shouldn't be
+        extra_args.append('--try-amend=include_modpath_extensions=')  # pass empty string as equivalent to False
+        self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        modtxt = read_file(toy_module_path)
+        modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
+        self.assertFalse(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
 
         # test module path with dummy/dummy build
         extra_args = [
@@ -618,8 +607,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
-        modtxt = open(toy_module_path, 'r').read()
+        modtxt = read_file(toy_module_path)
         self.assertFalse(re.search("module load", modtxt))
+        os.remove(toy_module_path)
 
         # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
         extra_args = [
@@ -633,9 +623,15 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
-        modtxt = open(toy_module_path, 'r').read()
+        modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
         self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        os.remove(toy_module_path)
+
+        # building a toolchain module should also work
+        args = ['gompi-1.4.10.eb'] + args[1:]
+        modules_tool().purge()
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
@@ -643,6 +639,17 @@ class ToyBuildTest(EnhancedTestCase):
         os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         test_ec = os.path.join(test_dir, 'easyconfigs', 'toy-0.0-gompi-1.3.12.eb')
         self.test_toy_build(ec_file=test_ec, versionsuffix='-gompi-1.3.12')
+
+    def test_toy_hidden(self):
+        """Test installing a hidden module."""
+        ec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'toy-0.0.eb')
+        self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
+        # module file is hidden
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
+        self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
+        # installed software is not hidden
+        toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
+        self.assertTrue(os.path.exists(toybin))
 
     def test_module_filepath_tweaking(self):
         """Test using --suffix-modules-path."""
@@ -673,6 +680,21 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0')))
         self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
         self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
+
+    def test_toy_archived_easyconfig(self):
+        """Test archived easyconfig for a succesful build."""
+        repositorypath = os.path.join(self.test_installpath, 'easyconfigs_archive')
+        extra_args = [
+            '--repository=FileRepository',
+            '--repositorypath=%s' % repositorypath,
+        ]
+        self.test_toy_build(raise_error=True, extra_args=extra_args)
+
+        archived_ec = os.path.join(repositorypath, 'toy', 'toy-0.0.eb')
+        self.assertTrue(os.path.exists(archived_ec))
+        ec = EasyConfig(archived_ec)
+        self.assertEqual(ec.name, 'toy')
+        self.assertEqual(ec.version, '0.0')
 
 def suite():
     """ return all the tests in this file """

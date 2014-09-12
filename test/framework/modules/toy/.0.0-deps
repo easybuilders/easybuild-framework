@@ -1,0 +1,25 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Toy C program. - Homepage: http://hpcugent.github.com/easybuild
+    }
+}
+
+module-whatis {Toy C program. - Homepage: http://hpcugent.github.com/easybuild}
+
+set root    /var/folders/6y/x4gmwgjn5qz63b7ftg4j_40m0000gn/T/tmpviG1OT/software/toy/0.0-deps
+
+conflict    toy
+
+if { ![is-loaded gompi/1.3.12] } {
+    module load gompi/1.3.12
+}
+
+prepend-path	PATH		$root/bin
+
+setenv	EBROOTTOY		"$root"
+setenv	EBVERSIONTOY		"0.0-deps"
+setenv	EBDEVELTOY		"$root/easybuild/toy-0.0-deps-easybuild-devel"
+
+
+# built with EasyBuild version 1.8.0dev

@@ -55,8 +55,8 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
-from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option
+from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
+from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -139,14 +139,14 @@ class EasyBlock(object):
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
 
-        # recursive unloading in modules
-        self.recursive_mod_unload = build_option('recursive_mod_unload')
-
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
             self.cfg = ec
         else:
             _log.error("Value of incorrect type passed to EasyBlock constructor: %s ('%s')" % (type(ec), ec))
+
+        # determine install subdirectory, based on module name
+        self.install_subdir = None
 
         # indicates whether build should be performed in installation dir
         self.build_in_installdir = self.cfg['buildininstalldir']
@@ -193,6 +193,10 @@ class EasyBlock(object):
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
+
+        # generate build/install directories
+        self.gen_builddir()
+        self.gen_installdir()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
 
@@ -466,7 +470,7 @@ class EasyBlock(object):
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
-            if self.robot_path is not None:
+            if self.robot_path:
                 common_filepaths.extend(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
@@ -588,9 +592,16 @@ class EasyBlock(object):
     @property
     def full_mod_name(self):
         """
-        Toolchain used to build this easyblock
+        Full module name (including subdirectory in module install path)
         """
         return self.cfg.full_mod_name
+
+    @property
+    def short_mod_name(self):
+        """
+        Short module name (not including subdirectory in module install path)
+        """
+        return self.cfg.short_mod_name
 
     #
     # DIRECTORY UTILITY FUNCTIONS
@@ -646,10 +657,11 @@ class EasyBlock(object):
         Generate the name of the installation directory.
         """
         basepath = install_path()
-
         if basepath:
-            installdir = os.path.join(basepath, self.full_mod_name)
+            self.install_subdir = ActiveMNS().det_full_module_name(self.cfg, force_visible=True)
+            installdir = os.path.join(basepath, self.install_subdir)
             self.installdir = os.path.abspath(installdir)
+            self.log.info("Install dir set to %s" % self.installdir)
         else:
             self.log.error("Can't set installation directory")
 
@@ -738,7 +750,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
+                        load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -758,7 +770,18 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
         """
-        load = unload = ''
+        deps = []
+        mns = ActiveMNS()
+
+        # include load statements for toolchain, either directly or for toolchain dependencies
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if mns.expand_toolchain_load():
+                mod_names = self.toolchain.toolchain_dep_mods
+                deps.extend(mod_names)
+                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
+            else:
+                deps.append(self.toolchain.det_short_module_name())
+                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
         builddeps = self.cfg.builddependencies()
@@ -767,28 +790,30 @@ class EasyBlock(object):
             if not dep in builddeps:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
-                load += self.moduleGenerator.load_module(modname, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(modname)
+                deps.append(modname)
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
-        # purposely after dependencies which may be critical,
-        # e.g. when unloading a module in a hierarchical naming scheme
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if ActiveMNS().expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dependencies
-            else:
-                mod_names = [self.toolchain.det_short_module_name()]
-            for mod_name in mod_names:
-                load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(mod_name)
+        self.log.debug("Full list of dependencies: %s" % deps)
+
+        # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
+        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
+        init_modpaths = mns.det_init_modulepaths(self.cfg)
+        top_paths = [mod_install_path] + [os.path.join(mod_install_path, p) for p in init_modpaths]
+        excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
+                                                                     full_mod_subdir, deps)
+
+        deps = [d for d in deps if d not in excluded_deps]
+        self.log.debug("List of retained dependencies: %s" % deps)
+        loads = [self.moduleGenerator.load_module(d) for d in deps]
+        unloads = [self.moduleGenerator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
-            return unload + load
+            return ''.join(unloads) + ''.join(loads)
         else:
-            return load
+            return ''.join(loads)
 
     def make_module_description(self):
         """
@@ -864,16 +889,19 @@ class EasyBlock(object):
         """
         Include prepend-path statements for extending $MODULEPATH.
         """
-        top_modpath = install_path('mod')
-        modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
         txt = ''
-        if modpath_exts:
+        if self.cfg['include_modpath_extensions']:
+            top_modpath = install_path('mod')
             mod_path_suffix = build_option('suffix_modules_path')
+            modpath_exts = ActiveMNS().det_modpath_extensions(self.cfg)
+            self.log.debug("Including module path extensions returned by module naming scheme: %s" % modpath_exts)
             full_path_modpath_extensions = [os.path.join(top_modpath, mod_path_suffix, ext) for ext in modpath_exts]
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
             txt = self.moduleGenerator.use(full_path_modpath_extensions)
+        else:
+            self.log.debug("Not including module path extensions, as specified.")
         return txt
 
     def make_module_req(self):
@@ -1131,7 +1159,7 @@ class EasyBlock(object):
         # - if a current module can be found, skip is ok
         # -- this is potentially very dangerous
         if self.cfg['skip']:
-            if self.modules_tool.exists(self.full_mod_name):
+            if self.modules_tool.exist([self.full_mod_name])[0]:
                 self.skip = True
                 self.log.info("Module %s found." % self.full_mod_name)
                 self.log.info("Going to skip actual main build and potential existing extensions. Expert only.")
@@ -1158,6 +1186,10 @@ class EasyBlock(object):
         else:
             self.log.info('no sources provided')
 
+        # fetch extensions
+        if len(self.cfg['exts_list']) > 0:
+            self.exts = self.fetch_extension_sources()
+ 
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1184,7 +1216,7 @@ class EasyBlock(object):
         # this is required when building in parallel
         mod_path_suffix = build_option('suffix_modules_path')
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
-        parent_subdir = os.path.dirname(self.full_mod_name)
+        parent_subdir = os.path.dirname(self.install_subdir)
         pardirs = [
             os.path.join(install_path(), parent_subdir),
             os.path.join(install_path('mod'), mod_path_suffix, parent_subdir),
@@ -1283,7 +1315,7 @@ class EasyBlock(object):
         """Install built software (abstract method)."""
         raise NotImplementedError
 
-    def extensions_step(self):
+    def extensions_step(self, fetch=False):
         """
         After make install, run this.
         - only if variable len(exts_list) > 0
@@ -1300,7 +1332,9 @@ class EasyBlock(object):
 
         self.prepare_for_extensions()
 
-        self.exts = self.fetch_extension_sources()
+        if fetch:
+            self.exts = self.fetch_extension_sources()
+            
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
@@ -1320,7 +1354,7 @@ class EasyBlock(object):
         legacy = False
         if hasattr(exts_defaultclass, '__iter__'):
             # LEGACY: module path is explicitely specified
-            self.log.warning("LEGACY: using specified module path for default class (will be deprecated soon)")
+            self.log.deprecated("Using specified module path for default class", "2.0")
             default_class_modpath = exts_defaultclass[0]
             default_class = exts_defaultclass[1]
             derived_mod_path = get_module_path(default_class, generic=True)
@@ -1626,7 +1660,7 @@ class EasyBlock(object):
 
         write_file(self.moduleGenerator.filename, txt)
 
-        self.log.info("Added modulefile: %s" % (self.moduleGenerator.filename))
+        self.log.info("Module file %s written" % self.moduleGenerator.filename)
 
         self.modules_tool.update()
         self.moduleGenerator.create_symlinks()
@@ -1697,8 +1731,6 @@ class EasyBlock(object):
         # list of substeps for steps that are slightly different from 2nd iteration onwards
         ready_substeps = [
             (False, lambda x: x.check_readiness_step()),
-            (False, lambda x: x.gen_builddir()),
-            (False, lambda x: x.gen_installdir()),
             (True, lambda x: x.make_builddir()),
             (True, lambda x: env.reset_changes()),
             (True, lambda x: x.handle_iterate_opts()),

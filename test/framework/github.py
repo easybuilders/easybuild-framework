@@ -29,12 +29,17 @@ Unit tests for talking to GitHub.
 """
 
 import os
+import shutil
+import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.tools.github import Githubfs, fetch_github_token
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.github import Githubfs, fetch_github_token, fetch_easyconfigs_from_pr
 
 
+# test account, for which a token is available
+GITHUB_TEST_ACCOUNT = 'easybuild_test'
 # the user who's repo to test
 GITHUB_USER = "hpcugent"
 # the repo of this user to use in this test
@@ -50,7 +55,7 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
-        github_user = 'easybuild_test'
+        github_user = GITHUB_TEST_ACCOUNT
         github_token = fetch_github_token(github_user)
         if github_token is None:
             self.ghfs = None
@@ -92,6 +97,22 @@ class GithubTest(EnhancedTestCase):
                 pass
         else:
             print "Skipping test_read, no GitHub token available?"
+
+    def test_fetch_easyconfigs_from_pr(self):
+        """Test fetch_easyconfigs_from_pr function."""
+        tmpdir = tempfile.mkdtemp()
+        # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
+        all_ecs = ['gzip-1.6-ictce-6.2.5.eb', 'icc-2013_sp1.2.144.eb', 'ictce-6.2.5.eb', 'ifort-2013_sp1.2.144.eb',
+                   'imkl-11.1.2.144.eb', 'impi-4.1.3.049.eb']
+        ec_files = fetch_easyconfigs_from_pr(726, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(all_ecs, sorted([os.path.basename(f) for f in ec_files]))
+        self.assertEqual(all_ecs, sorted(os.listdir(tmpdir)))
+        shutil.rmtree(tmpdir)
+
+        # PR for EasyBuild v1.13.0 release (250+ commits, 218 files changed)
+        err_msg = "PR #897 contains more than .* commits, can't obtain last commit"
+        self.assertErrorRegex(EasyBuildError, err_msg, fetch_easyconfigs_from_pr, 897, github_user=GITHUB_TEST_ACCOUNT)
+
 
 def suite():
     """ returns all the testcases in this module """

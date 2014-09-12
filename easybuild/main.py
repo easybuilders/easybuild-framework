@@ -188,7 +188,7 @@ def main(testing_data=(None, None, None)):
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
     # do not pass options.robot, it's not a list instance (and it shouldn't be modified)
-    robot_path = None
+    robot_path = []
     if options.robot:
         robot_path = list(options.robot)
 
@@ -206,11 +206,15 @@ def main(testing_data=(None, None, None)):
     # specified robot paths are preferred over installed easyconfig files
     # --try-X and --dep-graph both require --robot, so enable it with path of installed easyconfigs
     if robot_path or try_to_generate or options.dep_graph:
-        if robot_path is None:
-            robot_path = []
         robot_path.extend(easyconfigs_paths)
         easyconfigs_paths = robot_path[:]
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
+
+    # prepend robot path with location where tweaked easyconfigs will be placed
+    tweaked_ecs_path = None
+    if try_to_generate and build_specs:
+        tweaked_ecs_path = os.path.join(eb_tmpdir, 'tweaked_easyconfigs')
+        robot_path.insert(0, tweaked_ecs_path)
 
     # initialise the easybuild configuration
     config.init(options, eb_go.get_options_by_section('config'))
@@ -226,6 +230,13 @@ def main(testing_data=(None, None, None)):
     if options.dep_graph or options.dry_run or options.dry_run_short:
         options.ignore_osdeps = True
 
+    pr_path = None
+    if options.from_pr:
+        # extend robot search path with location where files touch in PR will be downloaded to
+        pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
+        robot_path.insert(0, pr_path)
+        _log.info("Prepended list of robot search paths with %s: %s" % (pr_path, robot_path))
+
     config.init_build_options({
         'aggregate_regtest': options.aggregate_regtest,
         'allow_modules_tool_mismatch': options.allow_modules_tool_mismatch,
@@ -240,6 +251,7 @@ def main(testing_data=(None, None, None)):
         'force': options.force,
         'github_user': options.github_user,
         'group': options.group,
+        'hidden': options.hidden,
         'ignore_dirs': options.ignore_dirs,
         'modules_footer': options.modules_footer,
         'only_blocks': options.only_blocks,
@@ -281,7 +293,6 @@ def main(testing_data=(None, None, None)):
     paths = []
     if len(orig_paths) == 0:
         if options.from_pr:
-            pr_path = os.path.join(eb_tmpdir, "files_pr%s" % options.from_pr)
             pr_files = fetch_easyconfigs_from_pr(options.from_pr, path=pr_path, github_user=options.github_user)
             paths = [(path, False) for path in pr_files if path.endswith('.eb')]
         elif 'name' in build_specs:
@@ -369,7 +380,7 @@ def main(testing_data=(None, None, None)):
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs)
+        easyconfigs = tweak(easyconfigs, build_specs, targetdir=tweaked_ecs_path)
 
     # before building starts, take snapshot of environment (watch out -t option!)
     os.chdir(os.environ['PWD'])

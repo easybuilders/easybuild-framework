@@ -82,6 +82,7 @@ DEFAULT_BUILD_OPTIONS = {
     'force': False,
     'github_user': None,
     'group': None,
+    'hidden': False,
     'ignore_dirs': None,
     'modules_footer': None,
     'only_blocks': None,

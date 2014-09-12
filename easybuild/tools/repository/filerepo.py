@@ -78,7 +78,7 @@ class FileRepository(Repository):
         mkdir(full_path, parents=True)
 
         # destination
-        dest = os.path.join(full_path, "%s.eb" % version)
+        dest = os.path.join(full_path, "%s-%s.eb" % (name, version))
 
         txt = "# Built with EasyBuild version %s on %s\n" % (VERBOSE_VERSION, time.strftime("%Y-%m-%d_%H-%M-%S"))
 

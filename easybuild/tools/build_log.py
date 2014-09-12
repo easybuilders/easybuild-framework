@@ -80,6 +80,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 filepath_dirs.remove(dirName)
             else:
                 break
+            if not filepath_dirs:
+                filepath_dirs = ['?']
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
 
     def experimental(self, msg, *args, **kwargs):
@@ -155,6 +157,7 @@ def print_msg(msg, log=None, silent=False, prefix=True):
         else:
             print msg
 
+
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
     Print error message and exit EasyBuild
@@ -169,10 +172,9 @@ def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=Tr
     elif log is not None:
         log.error(message)
 
+
 def print_warning(message, silent=False):
     """
     Print warning message.
     """
     print_msg("WARNING: %s\n" % message, silent=silent)
-
-
