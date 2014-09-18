@@ -28,6 +28,7 @@ Various test utility functions.
 @author: Kenneth Hoste (Ghent University)
 """
 import copy
+import fileinput
 import os
 import re
 import shutil
@@ -46,7 +47,7 @@ from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import module_classes
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import read_file
+from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
 
@@ -98,6 +99,8 @@ class EnhancedTestCase(TestCase):
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        self.test_prefix = tempfile.mkdtemp()
+        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
@@ -114,11 +117,10 @@ class EnhancedTestCase(TestCase):
         reload(easybuild.easyblocks.generic)
         reload(easybuild.tools.module_naming_scheme)  # required to run options unit tests stand-alone
 
-        # set MODULEPATH to included test modules
-        os.environ['MODULEPATH'] = os.path.join(testdir, 'modules')
-
+        modtool = modules_tool()
+        self.reset_modulepath([os.path.join(testdir, 'modules')])
         # purge out any loaded modules with original $MODULEPATH before running each test
-        modules_tool().purge()
+        modtool.purge()
 
     def tearDown(self):
         """Clean up after running testcase."""
@@ -129,7 +131,7 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        for path in [self.test_buildpath, self.test_installpath]:
+        for path in [self.test_buildpath, self.test_installpath, self.test_prefix]:
             try:
                 shutil.rmtree(path)
             except OSError, err:
@@ -143,6 +145,18 @@ class EnhancedTestCase(TestCase):
                     del os.environ['EASYBUILD_%s' % path.upper()]
         init_config()
 
+    def reset_modulepath(self, modpaths):
+        """Reset $MODULEPATH with specified paths."""
+        modtool = modules_tool()
+        for modpath in os.environ.get('MODULEPATH', '').split(os.pathsep):
+            modtool.remove_module_path(modpath)
+        # make very sure $MODULEPATH is totally empty
+        # some paths may be left behind, e.g. when they contain environment variables
+        # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
+        os.environ['MODULEPATH'] = ''
+        for modpath in modpaths:
+            modtool.add_module_path(modpath)
+
     def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False):
         """Helper method to call EasyBuild main function."""
         cleanup()
@@ -150,6 +164,9 @@ class EnhancedTestCase(TestCase):
         myerr = False
         if logfile is None:
             logfile = self.logfile
+        # clear log file
+        open(logfile, 'w').write('')
+
         try:
             main((args, logfile, do_build))
         except SystemExit:
@@ -171,6 +188,36 @@ class EnhancedTestCase(TestCase):
             return read_file(self.logfile), myerr
         else:
             return read_file(self.logfile)
+
+    def setup_hierarchical_modules(self):
+        """Setup hierarchical modules to run tests on."""
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+        # simply copy module files under 'Core' and 'Compiler' to test install path
+        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
+        mkdir(mod_prefix, parents=True)
+        for mod_subdir in ['Core', 'Compiler', 'MPI']:
+            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+
+        # make sure only modules in a hierarchical scheme are available, mixing modules installed with
+        # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
+        self.reset_modulepath([os.path.join(mod_prefix, 'Core')])
+
+        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        for modfile in [
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mpi_pref, 'FFTW', '3.3.3'),
+            os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
+            os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
+        ]:
+            for line in fileinput.input(modfile, inplace=1):
+                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
+                              r"\1%s/modules/all" % self.test_installpath,
+                              line)
+                sys.stdout.write(line)
 
 
 def cleanup():
@@ -204,6 +251,7 @@ def init_config(args=None, build_options=None):
     config.init_build_options(build_options)
 
     return eb_go.options
+
 
 def find_full_path(base_path, trim=(lambda x: x)):
     """

@@ -123,7 +123,12 @@ class ModuleGenerator(object):
             ])
 
         elif conflict:
-            lines.append("conflict    %s\n" % self.app.name)
+            # conflict on 'name' part of module name (excluding version part at the end)
+            # examples:
+            # - 'conflict GCC' for 'GCC/4.8.3'
+            # - 'conflict Core/GCC' for 'Core/GCC/4.8.2'
+            # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
+            lines.append("conflict %s\n" % os.path.dirname(self.app.short_mod_name))
 
         txt = '\n'.join(lines) % {
             'name': self.app.name,
@@ -134,11 +139,11 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, mod_name, recursive_unload=False):
+    def load_module(self, mod_name):
         """
         Generate load statements for module.
         """
-        if recursive_unload:
+        if build_option('recursive_mod_unload'):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"

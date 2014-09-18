@@ -64,6 +64,7 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
@@ -248,9 +249,12 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.debug("List of patches files: %s" % patched_files)
 
     # obtain last commit
-    status, commits_data = pr_url.commits.get()
+    # get all commits, increase to (max of) 100 per page
+    if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
+        _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
+    status, commits_data = pr_url.commits.get(per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
-    _log.debug("Commits: %s" % commits_data)
+    _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
     # obtain most recent version of patched files
     for patched_file in patched_files:

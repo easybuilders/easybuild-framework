@@ -55,8 +55,8 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
-from easybuild.tools.config import build_path, get_log_filename, get_repository, get_repositorypath, install_path
-from easybuild.tools.config import log_path, read_only_installdir, source_paths, build_option
+from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
+from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -138,9 +138,6 @@ class EasyBlock(object):
         modules_footer_path = build_option('modules_footer')
         if modules_footer_path is not None:
             self.modules_footer = read_file(modules_footer_path)
-
-        # recursive unloading in modules
-        self.recursive_mod_unload = build_option('recursive_mod_unload')
 
         # easyconfig for this application
         if isinstance(ec, EasyConfig):
@@ -473,7 +470,7 @@ class EasyBlock(object):
 
             # always consider robot + easyconfigs install paths as a fall back (e.g. for patch files, test cases, ...)
             common_filepaths = []
-            if self.robot_path is not None:
+            if self.robot_path:
                 common_filepaths.extend(self.robot_path)
             common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
 
@@ -595,9 +592,16 @@ class EasyBlock(object):
     @property
     def full_mod_name(self):
         """
-        Toolchain used to build this easyblock
+        Full module name (including subdirectory in module install path)
         """
         return self.cfg.full_mod_name
+
+    @property
+    def short_mod_name(self):
+        """
+        Short module name (not including subdirectory in module install path)
+        """
+        return self.cfg.short_mod_name
 
     #
     # DIRECTORY UTILITY FUNCTIONS
@@ -746,7 +750,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
+                        load_txt += mod_gen.load_module(mod_name)
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -766,7 +770,18 @@ class EasyBlock(object):
         """
         Make the dependencies for the module file.
         """
-        load = unload = ''
+        deps = []
+        mns = ActiveMNS()
+
+        # include load statements for toolchain, either directly or for toolchain dependencies
+        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if mns.expand_toolchain_load():
+                mod_names = self.toolchain.toolchain_dep_mods
+                deps.extend(mod_names)
+                self.log.debug("Adding toolchain components as module dependencies: %s" % mod_names)
+            else:
+                deps.append(self.toolchain.det_short_module_name())
+                self.log.debug("Adding toolchain %s as a module dependency" % deps[-1])
 
         # include load/unload statements for dependencies
         builddeps = self.cfg.builddependencies()
@@ -775,28 +790,30 @@ class EasyBlock(object):
             if not dep in builddeps:
                 modname = dep['short_mod_name']
                 self.log.debug("Adding %s as a module dependency" % modname)
-                load += self.moduleGenerator.load_module(modname, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(modname)
+                deps.append(modname)
             else:
                 self.log.debug("Skipping build dependency %s" % str(dep))
 
-        # include load statements for toolchain, either directly or for toolchain dependencies
-        # purposely after dependencies which may be critical,
-        # e.g. when unloading a module in a hierarchical naming scheme
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-            if ActiveMNS().expand_toolchain_load():
-                mod_names = self.toolchain.toolchain_dependencies
-            else:
-                mod_names = [self.toolchain.det_short_module_name()]
-            for mod_name in mod_names:
-                load += self.moduleGenerator.load_module(mod_name, recursive_unload=self.recursive_mod_unload)
-                unload += self.moduleGenerator.unload_module(mod_name)
+        self.log.debug("Full list of dependencies: %s" % deps)
+
+        # exclude dependencies that extend $MODULEPATH and form the path to the top of the module tree (if any)
+        mod_install_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'))
+        full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
+        init_modpaths = mns.det_init_modulepaths(self.cfg)
+        top_paths = [mod_install_path] + [os.path.join(mod_install_path, p) for p in init_modpaths]
+        excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
+                                                                     full_mod_subdir, deps)
+
+        deps = [d for d in deps if d not in excluded_deps]
+        self.log.debug("List of retained dependencies: %s" % deps)
+        loads = [self.moduleGenerator.load_module(d) for d in deps]
+        unloads = [self.moduleGenerator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
-            return unload + load
+            return ''.join(unloads) + ''.join(loads)
         else:
-            return load
+            return ''.join(loads)
 
     def make_module_description(self):
         """

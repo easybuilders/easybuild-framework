@@ -49,7 +49,6 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
-from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
 from easybuild.tools.convert import ListOfStrings
@@ -84,7 +83,7 @@ class EasyBuildOptions(GeneralOption):
             default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
+            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -121,15 +120,17 @@ class EasyBuildOptions(GeneralOption):
             'amend':(("Specify additional search and build parameters (can be used multiple times); "
                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
-            'software-name': ("Search and build software with name",
+            'software': ("Search and build software with given name and version",
+                              None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+            'software-name': ("Search and build software with given name",
                               None, 'store', None, {'metavar': 'NAME'}),
-            'software-version': ("Search and build software with version",
+            'software-version': ("Search and build software with given version",
                                  None, 'store', None, {'metavar': 'VERSION'}),
-            'toolchain': ("Search and build with toolchain (name and version)",
+            'toolchain': ("Search and build with given toolchain (name and version)",
                           None, 'extend', None, {'metavar': 'NAME,VERSION'}),
-            'toolchain-name': ("Search and build with toolchain name",
+            'toolchain-name': ("Search and build with given toolchain name",
                                None, 'store', None, {'metavar': 'NAME'}),
-            'toolchain-version': ("Search and build with toolchain version",
+            'toolchain-version': ("Search and build with given toolchain version",
                                   None, 'store', None, {'metavar': 'VERSION'}),
         })
 
@@ -217,7 +218,6 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', oldstyle_defaults['modules_tool'],
                              sorted(avail_modules_tools().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
-                        "(repositorypath prefix is only relevant in case of FileRepository repository) "
                         "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
                         None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -330,26 +330,22 @@ class EasyBuildOptions(GeneralOption):
 
     def validate(self):
         """Additional validation of options"""
-        stop_msg = []
+        error_cnt = 0
 
-        if self.options.toolchain and not len(self.options.toolchain) == 2:
-            stop_msg.append('--toolchain requires NAME,VERSION (given %s)' %
-                            (','.join(self.options.toolchain)))
-        if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
-            stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' %
-                            (','.join(self.options.try_toolchain)))
+        for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
+            val = getattr(self.options, opt.replace('-', '_'))
+            if val and len(val) != 2:
+                self.log.warning('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
+                error_cnt += 1
 
         if self.options.umask:
             umask_regex = re.compile('^[0-7]{3}$')
             if not umask_regex.match(self.options.umask):
-                stop_msg.append("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
+                self.log.warning("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
+                error_cnt += 1
 
-        if len(stop_msg) > 0:
-            indent = " "*2
-            stop_msg = ['%s%s' % (indent, x) for x in stop_msg]
-            stop_msg.insert(0, 'ERROR: Found %s problems validating the options:' % len(stop_msg))
-            print "\n".join(stop_msg)
-            sys.exit(1)
+        if error_cnt > 0:
+            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
@@ -399,7 +395,9 @@ class EasyBuildOptions(GeneralOption):
         """Postprocessing of configuration options"""
         if self.options.prefix is not None:
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
-            for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
+            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath into account
+            # in the legacy-style configuration, repository is initialised in configuration file itself
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
                 if not self.options._action_taken.get(dest, False):
                     new_def = changed_defaults[dest]
                     if dest == 'repositorypath':
@@ -671,17 +669,23 @@ def process_software_build_specs(options):
             # only when a try option is set do we enable generating easyconfigs
             try_to_generate = True
 
-    # process --toolchain --try-toolchain (sanity check done in tools.options)
-    tc = options.toolchain or options.try_toolchain
-    if tc:
-        if options.toolchain and options.try_toolchain:
-            print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
-        elif options.try_toolchain:
-            try_to_generate = True
-        build_specs.update({
-            'toolchain_name': tc[0],
-            'toolchain_version': tc[1],
-        })
+    # process --(try-)software/toolchain
+    for opt in ['software', 'toolchain']:
+        val = getattr(options, opt)
+        tryval = getattr(options, 'try_%s' % opt)
+        if val or tryval:
+            if val and tryval:
+                self.log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
+            elif tryval:
+                try_to_generate = True
+            val = val or tryval  # --try-X value is overridden by --X
+            key_prefix = ''
+            if opt == 'toolchain':
+                key_prefix = 'toolchain_'
+            build_specs.update({
+                '%sname' % key_prefix: val[0],
+                '%sversion' % key_prefix: val[1],
+            })
 
     # provide both toolchain and toolchain_name/toolchain_version keys
     if 'toolchain_name' in build_specs:
@@ -697,7 +701,7 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                print_warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+                self.log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
         if options.try_amend:
             amends += options.try_amend
             try_to_generate = True
