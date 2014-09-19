@@ -283,6 +283,7 @@ class ModulesTest(EnhancedTestCase):
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(ModulesTest)
