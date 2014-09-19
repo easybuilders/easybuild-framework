@@ -590,6 +590,8 @@ class ModulesTool(object):
         Determine dictionary with $MODULEPATH extensions for specified modules.
         Modules with an empty list of $MODULEPATH extensions are included.
         """
+        self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
+
         # copy environment so we can restore it
         orig_env = os.environ.copy()
 
@@ -599,6 +601,7 @@ class ModulesTool(object):
             useregex = re.compile(r"^\s*module\s+use\s+(\S+)", re.M)
             exts = useregex.findall(modtxt)
 
+            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
             modpath_exts.update({mod_name: exts})
 
             if exts:
