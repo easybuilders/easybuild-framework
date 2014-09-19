@@ -659,39 +659,39 @@ class ModulesTool(object):
             modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
             self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
-        path = []
+        mods_to_top = []
+        full_mod_subdirs = []
         for dep in modpath_exts:
             # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(self.modulefile_path(dep)[:-len(dep)-1])
 
-                path.append(dep)
-                tup = (dep, full_mod_subdir, full_modpath_exts)
+                mods_to_top.append(dep)
+                tup = (dep, full_mod_subdirs[-1], full_modpath_exts)
                 self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
-
-                # no need to continue further, we found the module that extends $MODULEPATH with module subdir
-                break
 
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
                 self.load([dep])
 
-        if path:
-            # remove retained dependency from the list, since we're climbing up the module tree
-            modpath_exts.pop(path[-1])
-
-            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, path))
-            path.extend(self.path_to_top_of_module_tree(top_paths, path[-1], full_mod_subdir, None,
-                                                        modpath_exts=modpath_exts))
-        else:
-            self.log.debug("Path not extended, we must have reached the top of the module tree")
-
         # restore original environment (modules may have been loaded above)
         modify_env(os.environ, orig_env)
+
+        path = mods_to_top[:]
+        if mods_to_top:
+            # remove retained dependencies from the list, since we're climbing up the module tree
+            remaining_modpath_exts = dict([(m, modpath_exts[m]) for m in modpath_exts if not m in mods_to_top])
+
+            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
+            for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
+                path.extend(self.path_to_top_of_module_tree(top_paths, mod_name, full_mod_subdir, None,
+                                                            modpath_exts=remaining_modpath_exts))
+        else:
+            self.log.debug("Path not extended, we must have reached the top of the module tree")
 
         self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
