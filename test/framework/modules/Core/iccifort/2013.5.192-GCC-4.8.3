@@ -11,9 +11,13 @@ set root    /tmp/software/Core/iccifort/2013.5.192-GCC-4.8.3
 
 conflict iccifort
 
-module load icc/2013.5.192-GCC-4.8.3
+if { ![is-loaded icc/2013.5.192-GCC-4.8.3] } {
+    module load icc/2013.5.192-GCC-4.8.3
+}
 
-module load ifort/2013.5.192-GCC-4.8.3
+if { ![is-loaded ifort/2013.5.192-GCC-4.8.3] } {
+    module load ifort/2013.5.192-GCC-4.8.3
+}
 
 
 setenv	EBROOTICCIFORT		"$root"

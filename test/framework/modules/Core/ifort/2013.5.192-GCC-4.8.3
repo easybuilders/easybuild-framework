@@ -11,7 +11,10 @@ set root    /tmp/software/Core/ifort/2013.5.192-GCC-4.8.3
 
 conflict ifort
 module use /tmp/modules/all/Compiler/intel/2013.5.192
-module load GCC/4.8.3
+
+if { ![is-loaded GCC/4.8.3] } {
+    module load GCC/4.8.3
+}
 
 prepend-path	IDB_HOME		$root/bin/intel64
 prepend-path	LD_LIBRARY_PATH		$root/compiler/lib
