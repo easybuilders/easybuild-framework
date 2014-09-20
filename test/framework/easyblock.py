@@ -489,8 +489,9 @@ class EasyBlockTest(EnhancedTestCase):
         ec = EasyConfig(os.path.join(test_ecs_path, 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'))
         eb = EasyBlock(ec)
 
-        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all', 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049')
-        mkdir(modfile_prefix, parents=True)
+        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
+        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'), parents=True)
         eb.toolchain.prepare()
         modpath = eb.make_module_step()
         modfile_path = os.path.join(modpath, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
