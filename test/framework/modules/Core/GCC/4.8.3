@@ -9,10 +9,10 @@ proc ModulesHelp { } {
 module-whatis {Description: The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
  as well as libraries for these languages (libstdc++, libgcj,...). - Homepage: http://gcc.gnu.org/}
 
-set root    /tmp/gsoftware/Core/GCC/4.8.3
+set root    /tmp/software/Core/GCC/4.8.3
 
 conflict GCC
-module use /tmp/gmodules/all/Compiler/GCC/4.8.3
+module use /tmp/modules/all/Compiler/GCC/4.8.3
 prepend-path	CPATH		$root/include
 prepend-path	LD_LIBRARY_PATH		$root/lib
 prepend-path	LD_LIBRARY_PATH		$root/lib64
