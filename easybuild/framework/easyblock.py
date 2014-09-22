@@ -57,7 +57,7 @@ from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
-from easybuild.tools.environment import modify_env
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
@@ -997,7 +997,7 @@ class EasyBlock(object):
             self.log.warning("Not unloading module, since self.full_mod_name is not set.")
 
         # restore original environment
-        modify_env(os.environ, orig_env)
+        restore_env(orig_env)
 
     def load_dependency_modules(self):
         """Load dependency modules."""
@@ -1851,7 +1851,7 @@ def build_and_install_one(module, orig_environ):
     # restore original environment
     _log.info("Resetting environment")
     filetools.errors_found_in_log = 0
-    modify_env(os.environ, orig_environ)
+    restore_env(orig_environ)
 
     cwd = os.getcwd()
 
@@ -2054,7 +2054,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
             # start with a clean slate
             os.chdir(base_dir)
-            modify_env(os.environ, base_env)
+            restore_env(base_env)
 
             steps = EasyBlock.get_steps(iteration_count=app.det_iter_cnt())
 

@@ -202,13 +202,17 @@ class EnhancedTestCase(TestCase):
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        self.reset_modulepath([os.path.join(mod_prefix, 'Core')])
+        self.reset_modulepath([mod_prefix, os.path.join(mod_prefix, 'Core')])
 
-        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
+        # tweak use statements in modules to ensure correct paths
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         for modfile in [
             os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.8.3'),
+            os.path.join(mod_prefix, 'Core', 'icc', '2013.5.192-GCC-4.8.3'),
+            os.path.join(mod_prefix, 'Core', 'ifort', '2013.5.192-GCC-4.8.3'),
             os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
             os.path.join(mpi_pref, 'FFTW', '3.3.3'),
             os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
             os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),

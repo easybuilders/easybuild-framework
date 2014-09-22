@@ -419,6 +419,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(ModuleGeneratorTest)
