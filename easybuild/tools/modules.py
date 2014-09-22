@@ -47,7 +47,7 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import modify_env
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -377,7 +377,7 @@ class ModulesTool(object):
             self.purge()
             # restore original environment if provided
             if orig_env is not None:
-                modify_env(os.environ, orig_env)
+                restore_env(orig_env)
 
         # make sure $MODULEPATH is set correctly after purging
         self.check_module_path()
@@ -610,7 +610,7 @@ class ModulesTool(object):
                 self.load([mod_name])
 
         # restore original environment (modules may have been loaded above)
-        modify_env(os.environ, orig_env)
+        restore_env(orig_env)
 
         return modpath_exts
 
@@ -667,10 +667,11 @@ class ModulesTool(object):
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                full_mod_subdirs.append(self.modulefile_path(dep)[:-len(dep)-1])
+                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(full_mod_subdir)
 
                 mods_to_top.append(dep)
-                tup = (dep, full_mod_subdirs[-1], full_modpath_exts)
+                tup = (dep, full_mod_subdir, full_modpath_exts)
                 self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
 
             if full_modpath_exts:
@@ -679,12 +680,12 @@ class ModulesTool(object):
                 self.load([dep])
 
         # restore original environment (modules may have been loaded above)
-        modify_env(os.environ, orig_env)
+        restore_env(orig_env)
 
         path = mods_to_top[:]
         if mods_to_top:
             # remove retained dependencies from the list, since we're climbing up the module tree
-            remaining_modpath_exts = dict([(m, modpath_exts[m]) for m in modpath_exts if not m in mods_to_top])
+            remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
 
             self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
             for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
