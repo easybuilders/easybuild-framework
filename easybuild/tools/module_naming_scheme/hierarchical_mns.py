@@ -82,18 +82,15 @@ class HierarchicalMNS(ModuleNamingScheme):
         else:
             comp_versions = dict([(comp['name'], comp['version']) for comp in tc_comps])
             comp_names = comp_versions.keys()
-            if set(comp_names) == set(['icc', 'ifort']):
-                tc_comp_name = 'intel'
-                if tc_comps[0]['version'] == tc_comps[1]['version']:
-                    tc_comp_ver = tc_comps[0]['version']
-                else:
-                    self.log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
-            elif set(comp_names) == set(['Clang', 'GCC']):
-                tc_comp_name = 'ClangGCC'
-                tc_comp_ver = '%s-%s' % (comp_versions['Clang'], comp_versions['GCC'])
-            elif set(comp_names) == set(['GCC', 'CUDA']):
-                tc_comp_name = 'GCC-CUDA'
-                tc_comp_ver = '%s-%s' % (comp_versions['GCC'], comp_versions['CUDA'])
+            name_version_templates = {
+                'icc,ifort': ('intel', '%(icc)s'),
+                'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
+                'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+            }
+            key = ','.join(sorted(comp_names))
+            if key in name_version_templates:
+                tc_comp_name, tc_comp_ver_tmpl = name_version_templates[key]
+                tc_comp_ver = tc_comp_ver_tmpl % comp_versions
             else:
                 self.log.error("Unknown set of toolchain compilers, module naming scheme needs work: %s" % comp_names)
             res = (tc_comp_name, tc_comp_ver)
