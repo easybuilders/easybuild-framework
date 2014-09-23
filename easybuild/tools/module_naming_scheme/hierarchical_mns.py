@@ -43,6 +43,13 @@ MPI = 'MPI'
 MODULECLASS_COMPILER = 'compiler'
 MODULECLASS_MPI = 'mpi'
 
+# note: names in keys are ordered alphabetically
+COMP_NAME_VERSION_TEMPLATES = {
+    'icc,ifort': ('intel', '%(icc)s'),
+    'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
+    'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+}
+
 
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
@@ -82,15 +89,14 @@ class HierarchicalMNS(ModuleNamingScheme):
         else:
             comp_versions = dict([(comp['name'], comp['version']) for comp in tc_comps])
             comp_names = comp_versions.keys()
-            name_version_templates = {
-                'icc,ifort': ('intel', '%(icc)s'),
-                'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
-                'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
-            }
             key = ','.join(sorted(comp_names))
-            if key in name_version_templates:
-                tc_comp_name, tc_comp_ver_tmpl = name_version_templates[key]
+            if key in COMP_NAME_VERSION_TEMPLATES:
+                tc_comp_name, tc_comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
                 tc_comp_ver = tc_comp_ver_tmpl % comp_versions
+                # make sure that icc/ifort versions match
+                if tc_comp_name == 'intel':
+                    if comp_versions['icc'] != comp_versions['ifort']:
+                        self.log.error("Bumped into different versions for Intel compilers: %s" % comp_versions)
             else:
                 self.log.error("Unknown set of toolchain compilers, module naming scheme needs work: %s" % comp_names)
             res = (tc_comp_name, tc_comp_ver)
