@@ -80,15 +80,22 @@ class HierarchicalMNS(ModuleNamingScheme):
         elif len(tc_comps) == 1:
             res = (tc_comps[0]['name'], tc_comps[0]['version'])
         else:
-            tc_comp_names = [comp['name'] for comp in tc_comps]
-            if set(tc_comp_names) == set(['icc', 'ifort']):
+            comp_versions = dict([(comp['name'], comp['version']) for comp in tc_comps])
+            comp_names = comp_versions.keys()
+            if set(comp_names) == set(['icc', 'ifort']):
                 tc_comp_name = 'intel'
                 if tc_comps[0]['version'] == tc_comps[1]['version']:
                     tc_comp_ver = tc_comps[0]['version']
                 else:
                     self.log.error("Bumped into different versions for toolchain compilers: %s" % tc_comps)
+            elif set(comp_names) == set(['Clang', 'GCC']):
+                tc_comp_name = 'ClangGCC'
+                tc_comp_ver = '%s-%s' % (comp_versions['Clang'], comp_versions['GCC'])
+            elif set(comp_names) == set(['GCC', 'CUDA']):
+                tc_comp_name = 'GCC-CUDA'
+                tc_comp_ver = '%s-%s' % (comp_versions['GCC'], comp_versions['CUDA'])
             else:
-                self.log.error("Unknown set of toolchain compilers, module naming scheme needs to be enhanced first.")
+                self.log.error("Unknown set of toolchain compilers, module naming scheme needs work: %s" % comp_names)
             res = (tc_comp_name, tc_comp_ver)
         return res
 
