@@ -9,6 +9,8 @@ bugfix release
   when determining path to top of module tree (see #1047)
         - this bug caused a load statement for either icc or ifort to be included in higher-level
           modules installed with an Intel-based compiler toolchain, under the HierarchicalMNS module naming scheme
+- make HierarchicalMNS module naming scheme compatible with cgoolf and goolfc toolchain (#1049)
+- add definition of iompi (sub)toolchain to make iomkl toolchain compatible with HierarchicalMNS (#1049)
 
 v1.15.0 (September 12th 2014)
 -----------------------------
