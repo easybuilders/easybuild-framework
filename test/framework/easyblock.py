@@ -44,7 +44,9 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import modules_tool
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -464,6 +466,47 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
+
+    def test_exclude_path_to_top_of_module_tree(self):
+        """
+        Make sure that modules under the HierarchicalMNS are correct,
+        w.r.t. not including any load statements for modules that build up the path to the top of the module tree.
+        """
+        self.orig_module_naming_scheme = config.get_module_naming_scheme()
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+        modtool = modules_tool()
+
+        ec = EasyConfig(os.path.join(test_ecs_path, 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'))
+        eb = EasyBlock(ec)
+
+        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
+        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'), parents=True)
+        eb.toolchain.prepare()
+        modpath = eb.make_module_step()
+        modfile_path = os.path.join(modpath, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        modtxt = read_file(modfile_path)
+
+        # for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included at all
+        # not for the toolchain or any of the toolchain components,
+        # since both icc/ifort and impi form the path to the top of the module tree
+        for imkl_dep in ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']:
+            tup = (imkl_dep, modfile_path, modtxt)
+            failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
+            self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
+        init_config(build_options=build_options)
 
     def tearDown(self):
         """ make sure to remove the temporary file """

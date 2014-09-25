@@ -1,0 +1,28 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   Intel C, C++ and Fortran compilers - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/
+    }
+}
+
+module-whatis {Description: Intel C, C++ and Fortran compilers - Homepage: http://software.intel.com/en-us/intel-cluster-toolkit-compiler/}
+
+set root    /tmp/software/Core/iccifort/2013.5.192-GCC-4.8.3
+
+conflict iccifort
+
+if { ![is-loaded icc/2013.5.192-GCC-4.8.3] } {
+    module load icc/2013.5.192-GCC-4.8.3
+}
+
+if { ![is-loaded ifort/2013.5.192-GCC-4.8.3] } {
+    module load ifort/2013.5.192-GCC-4.8.3
+}
+
+
+setenv	EBROOTICCIFORT		"$root"
+setenv	EBVERSIONICCIFORT		"2013.5.192"
+setenv	EBDEVELICCIFORT		"$root/easybuild/Core-iccifort-2013.5.192-GCC-4.8.3-easybuild-devel"
+
+
+# Built with EasyBuild version 1.16.0dev

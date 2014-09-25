@@ -43,7 +43,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 44
+TEST_MODULES_COUNT = 50
 
 
 class ModulesTest(EnhancedTestCase):
@@ -282,6 +282,7 @@ class ModulesTest(EnhancedTestCase):
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
 
 def suite():
     """ returns all the testcases in this module """

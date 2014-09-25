@@ -102,7 +102,6 @@ def restore_env_vars(env_keys):
     """
     Restore the environment by setting the keys in the env_keys dict again with their old value
     """
-
     for key in env_keys:
         if env_keys[key] is not None:
             _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
@@ -150,3 +149,10 @@ def modify_env(old, new):
             _log.debug("Key in old environment found that is not in new one: %s (%s)" % (key, old[key]))
             os.unsetenv(key)
             del os.environ[key]
+
+
+def restore_env(env):
+    """
+    Restore active environment based on specified dictionary.
+    """
+    modify_env(os.environ, env)
