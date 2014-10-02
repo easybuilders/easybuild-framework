@@ -157,6 +157,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                         if tc_comp_info is not None:
                             # also provide toolchain version for non-dummy toolchains
                             comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
+
                         comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
                         break
             else:
