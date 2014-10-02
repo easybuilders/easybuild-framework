@@ -973,7 +973,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None):
+def modules_tool(mod_paths=None, testing=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -981,7 +981,7 @@ def modules_tool(mod_paths=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths)
+        return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
 
