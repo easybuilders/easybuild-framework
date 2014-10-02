@@ -137,12 +137,14 @@ class ModulesTool(object):
 
     __metaclass__ = Singleton
 
-    def __init__(self, mod_paths=None):
+    def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+        # this can/should be set to True during testing
+        self.testing = testing
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.mod_paths = None
@@ -171,9 +173,6 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
-
-        # this can/should be set to True during testing
-        self.testing = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -229,11 +228,20 @@ class ModulesTool(object):
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
-        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if self.testing:
+            # grab 'module' function definition from environment if it's there; only during testing
+            if 'module' in os.environ:
+                out, ec = os.environ['module'], 0
+            else:
+                out, ec = None, 1
+        else:
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+
         if ec == 0:
             if mod_cmd_re.search(out):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
