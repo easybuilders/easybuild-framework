@@ -157,9 +157,9 @@ def session_state():
     }
 
 
-def session_module_list():
+def session_module_list(testing=False):
     """Get list of loaded modules ('module list')."""
-    modtool = modules_tool()
+    modtool = modules_tool(testing=testing)
     return modtool.list()
 
 
