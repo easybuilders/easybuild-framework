@@ -276,7 +276,7 @@ def main(testing_data=(None, None, None)):
     })
 
     # obtain list of loaded modules, build options must be initialized first
-    modlist = session_module_list()
+    modlist = session_module_list(testing=testing)
     init_session_state.update({'module_list': modlist})
     _log.debug("Initial session state: %s" % init_session_state)
 
