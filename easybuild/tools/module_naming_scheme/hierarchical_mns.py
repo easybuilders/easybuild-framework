@@ -148,7 +148,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             comp_name_ver = None
             if ec['name'] in extend_comps:
                 for key in COMP_NAME_VERSION_TEMPLATES:
-                    if re.search(".*%s.*" % ec['name'], key):
+                    if ec['name'] in key.split(','):
                         comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
                         comp_versions = {ec['name']: ec['version'] + ec['versionsuffix']}
                         if ec['name'] == 'ifort':
