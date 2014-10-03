@@ -38,4 +38,3 @@ from easybuild.toolchains.mpi.mvapich2 import Mvapich2
 class Cgmvapich2(ClangGcc, Mvapich2):
     """Compiler toolchain with Clang, GFortran and MVAPICH2."""
     NAME = 'cgmvapich2'
-    COMPILER_MODULE_NAME = ['ClangGCC']
