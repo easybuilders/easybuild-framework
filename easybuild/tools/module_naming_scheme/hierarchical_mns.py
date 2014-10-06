@@ -30,6 +30,7 @@ Implementation of an example hierarchical module naming scheme.
 """
 
 import os
+import re
 from vsc.utils import fancylogger
 
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
@@ -132,17 +133,39 @@ class HierarchicalMNS(ModuleNamingScheme):
         Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
         """
         modclass = ec['moduleclass']
+        tc_comps = det_toolchain_compilers(ec)
+        tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
 
         paths = []
-        if modclass == MODULECLASS_COMPILER:
-            if ec['name'] in ['icc', 'ifort']:
-                compdir = 'intel'
+        if modclass == MODULECLASS_COMPILER or ec['name'] in ['CUDA']:
+            # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
+            extend_comps = []
+            # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
+            excluded_comps = ['GCC']
+            for comps in COMP_NAME_VERSION_TEMPLATES.keys():
+                extend_comps.extend([comp for comp in comps.split(',') if comp not in excluded_comps])
+
+            comp_name_ver = None
+            if ec['name'] in extend_comps:
+                for key in COMP_NAME_VERSION_TEMPLATES:
+                    if ec['name'] in key.split(','):
+                        comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+                        comp_versions = {ec['name']: ec['version'] + ec['versionsuffix']}
+                        if ec['name'] == 'ifort':
+                            # 'icc' key should be provided since it's the only one used in the template
+                            comp_versions.update({'icc': ec['version'] + ec['versionsuffix']})
+                        if tc_comp_info is not None:
+                            # also provide toolchain version for non-dummy toolchains
+                            comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
+
+                        comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
+                        break
             else:
-                compdir = ec['name']
-            paths.append(os.path.join(COMPILER, compdir, ec['version']))
+                comp_name_ver = [ec['name'], ec['version'] + ec['versionsuffix']]
+
+            paths.append(os.path.join(COMPILER, *comp_name_ver))
+
         elif modclass == MODULECLASS_MPI:
-            tc_comps = det_toolchain_compilers(ec)
-            tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
             if tc_comp_info is None:
                 tup = (ec['toolchain'], ec['name'], ec['version'])
                 error_msg = ("No compiler available in toolchain %s used to install MPI library %s v%s, "
