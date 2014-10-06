@@ -675,11 +675,11 @@ class ModulesTool(object):
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
-                full_mod_subdirs.append(full_mod_subdir)
+                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
-                tup = (dep, full_mod_subdir, full_modpath_exts)
+                tup = (dep, dep_full_mod_subdir, full_modpath_exts)
                 self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
 
             if full_modpath_exts:
