@@ -212,7 +212,7 @@ class EnhancedTestCase(TestCase):
             os.path.join(mod_prefix, 'Core', 'icc', '2013.5.192-GCC-4.8.3'),
             os.path.join(mod_prefix, 'Core', 'ifort', '2013.5.192-GCC-4.8.3'),
             os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
-            os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192', 'impi', '4.1.3.049'),
+            os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'),
             os.path.join(mpi_pref, 'FFTW', '3.3.3'),
             os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
             os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),

@@ -488,10 +488,10 @@ class EasyBlockTest(EnhancedTestCase):
 
         modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
         mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
-        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'), parents=True)
+        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'), parents=True)
 
-        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192', 'impi', '4.1.3.049')
-        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
+        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
 
         # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
         # not for the toolchain or any of the toolchain components,
