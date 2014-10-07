@@ -10,7 +10,7 @@ module-whatis {Description: C and C++ compiler from Intel - Homepage: http://sof
 set root    /tmp/software/Core/icc/2013.5.192-GCC-4.8.3
 
 conflict icc
-module use /tmp/modules/all/Compiler/intel/2013.5.192
+module use /tmp/modules/all/Compiler/intel/2013.5.192-GCC-4.8.3
 
 if { ![is-loaded GCC/4.8.3] } {
     module load GCC/4.8.3

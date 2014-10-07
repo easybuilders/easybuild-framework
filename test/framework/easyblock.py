@@ -486,24 +486,32 @@ class EasyBlockTest(EnhancedTestCase):
         self.setup_hierarchical_modules()
         modtool = modules_tool()
 
-        ec = EasyConfig(os.path.join(test_ecs_path, 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'))
-        eb = EasyBlock(ec)
-
         modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
         mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
-        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049'), parents=True)
-        eb.toolchain.prepare()
-        modpath = eb.make_module_step()
-        modfile_path = os.path.join(modpath, 'MPI', 'intel', '2013.5.192', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
-        modtxt = read_file(modfile_path)
+        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'), parents=True)
 
-        # for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included at all
+        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
+        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+
+        # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
         # not for the toolchain or any of the toolchain components,
         # since both icc/ifort and impi form the path to the top of the module tree
-        for imkl_dep in ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']:
-            tup = (imkl_dep, modfile_path, modtxt)
-            failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
-            self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+        tests = [
+            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, ['icc', 'ifort', 'iccifort']),
+            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']),
+        ]
+        for ec_file, modfile_path, excluded_deps in tests:
+            ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
+            eb = EasyBlock(ec)
+            eb.toolchain.prepare()
+            modpath = eb.make_module_step()
+            modfile_path = os.path.join(modpath, modfile_path)
+            modtxt = read_file(modfile_path)
+
+            for imkl_dep in excluded_deps:
+                tup = (imkl_dep, modfile_path, modtxt)
+                failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
+                self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)

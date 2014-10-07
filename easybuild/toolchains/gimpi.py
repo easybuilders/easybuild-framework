@@ -1,8 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
-#
-# This file is triple-licensed under GPLv2 (see below), MIT, and
-# BSD three-clause licenses.
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,15 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for cgmvapich2 compiler toolchain (includes Clang, GFortran and MVAPICH2).
+EasyBuild support for gimpi compiler toolchain (includes GCC and Intel MPI).
 
-@author: Dmitri Gribenko (National Technical University of Ukraine "KPI")
+@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.clanggcc import ClangGcc
-from easybuild.toolchains.mpi.mvapich2 import Mvapich2
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.mpi.intelmpi import IntelMPI
 
 
-class Cgmvapich2(ClangGcc, Mvapich2):
-    """Compiler toolchain with Clang, GFortran and MVAPICH2."""
-    NAME = 'cgmvapich2'
+class Gimpi(Gcc, IntelMPI):
+    """Compiler toolchain with GCC and Intel MPI."""
+    NAME = 'gimpi'

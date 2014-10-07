@@ -137,12 +137,14 @@ class ModulesTool(object):
 
     __metaclass__ = Singleton
 
-    def __init__(self, mod_paths=None):
+    def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+        # this can/should be set to True during testing
+        self.testing = testing
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.mod_paths = None
@@ -171,9 +173,6 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
-
-        # this can/should be set to True during testing
-        self.testing = False
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -229,11 +228,20 @@ class ModulesTool(object):
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
-        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if self.testing:
+            # grab 'module' function definition from environment if it's there; only during testing
+            if 'module' in os.environ:
+                out, ec = os.environ['module'], 0
+            else:
+                out, ec = None, 1
+        else:
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+
         if ec == 0:
             if mod_cmd_re.search(out):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
@@ -667,11 +675,11 @@ class ModulesTool(object):
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
-                full_mod_subdirs.append(full_mod_subdir)
+                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
-                tup = (dep, full_mod_subdir, full_modpath_exts)
+                tup = (dep, dep_full_mod_subdir, full_modpath_exts)
                 self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
 
             if full_modpath_exts:
@@ -965,7 +973,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None):
+def modules_tool(mod_paths=None, testing=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -973,7 +981,7 @@ def modules_tool(mod_paths=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths)
+        return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
 

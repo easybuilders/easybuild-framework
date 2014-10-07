@@ -13,8 +13,12 @@ set root    /user/scratch/gent/vsc400/vsc40023/easybuild_REGTEST/SL6/sandybridge
 
 conflict    cgoolf
 
-if { ![is-loaded ClangGCC/1.1.2] } {
-    module load ClangGCC/1.1.2
+if { ![is-loaded GCC/4.7.2] } {
+    module load GCC/4.7.2
+}
+
+if { ![is-loaded Clang/3.2-GCC-4.7.2] } {
+    module load Clang/3.2-GCC-4.7.2
 }
 
 if { ![is-loaded OpenMPI/1.6.4-ClangGCC-1.1.2] } {
