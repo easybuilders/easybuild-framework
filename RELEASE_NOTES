@@ -1,6 +1,18 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+v1.15.2 (October 7th 2014)
+--------------------------
+
+bugfix release
+- fix $MODULEPATH extensions for Clang/CUDA, to make goolfc/cgoolf compatible with HierarchicalMNS (#1050)
+- include versionsuffix in module subdirectory with HierarchicalMNS (#1050, #1055)
+- fix unit tests which were broken with bash patched for ShellShock bug (#1051)
+- add definition of gimpi toolchain, required to make gimkl toolchain compatible with HierarchicalMNS (#1052)
+- don't override COMPILER_MODULE_NAME obtained from ClangGCC in Clang-based toolchains (#1053)
+- fix wrong code in path_to_top_of_module_tree function (#1054)
+    - because of this, load statements for compilers were potentially included in higher-level modules under HierarchicalMNS
+
 v1.15.1 (September 23rd 2014)
 -----------------------------
 
