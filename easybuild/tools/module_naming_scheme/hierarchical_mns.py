@@ -88,7 +88,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         elif len(tc_comps) == 1:
             res = (tc_comps[0]['name'], tc_comps[0]['version'])
         else:
-            comp_versions = dict([(comp['name'], comp['versionsuffix'] + comp['version'] + comp['versionsuffix']) for comp in tc_comps])
+            comp_versions = dict([(comp['name'], comp['versionprefix'] + comp['version'] + comp['versionsuffix']) for comp in tc_comps])
             comp_names = comp_versions.keys()
             key = ','.join(sorted(comp_names))
             if key in COMP_NAME_VERSION_TEMPLATES:
