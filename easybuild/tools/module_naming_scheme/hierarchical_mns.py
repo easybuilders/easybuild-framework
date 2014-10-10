@@ -76,7 +76,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         Determine short module name, i.e. the name under which modules will be exposed to users.
         Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
         """
-        return os.path.join(ec['name'], ec['version'] + ec['versionsuffix'])
+        return os.path.join(ec['name'], ec['versionprefix'] + ec['version'] + ec['versionsuffix'])
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
