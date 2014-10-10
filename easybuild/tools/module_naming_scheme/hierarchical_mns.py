@@ -55,7 +55,7 @@ COMP_NAME_VERSION_TEMPLATES = {
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'versionprefix', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
 
     def requires_toolchain_details(self):
         """
@@ -80,9 +80,9 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     def det_full_version(self, ec):
         """Determine full version, taking into account version prefix/suffix."""
-        
-        return ec['versionprefix'] + ec['version'] + ec['versionsuffix']
- 
+        # versionprefix is not always available (e.g., for toolchains)
+        versionprefix = ec.get('versionprefix', '')
+        return versionprefix + ec['version'] + ec['versionsuffix']
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
