@@ -80,9 +80,9 @@ class HierarchicalMNS(ModuleNamingScheme):
 
     def det_full_version(self, ec):
         """Determine full version, taking into account version prefix/suffix."""
-        
-        return ec['versionprefix'] + ec['version'] + ec['versionsuffix']
- 
+        # versionprefix is not always available (e.g., for toolchains)
+        versionprefix = ec.get('versionprefix', '')
+        return versionprefix + ec['version'] + ec['versionsuffix']
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
