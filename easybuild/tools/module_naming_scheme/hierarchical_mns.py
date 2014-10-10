@@ -55,7 +55,7 @@ COMP_NAME_VERSION_TEMPLATES = {
 class HierarchicalMNS(ModuleNamingScheme):
     """Class implementing an example hierarchical module naming scheme."""
 
-    REQUIRED_KEYS = ['name', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
+    REQUIRED_KEYS = ['name', 'versionprefix', 'version', 'versionsuffix', 'toolchain', 'moduleclass']
 
     def requires_toolchain_details(self):
         """
@@ -76,7 +76,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         Determine short module name, i.e. the name under which modules will be exposed to users.
         Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
         """
-        return os.path.join(ec['name'], ec['version'] + ec['versionsuffix'])
+        return os.path.join(ec['name'], ec['versionprefix'] + ec['version'] + ec['versionsuffix'])
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
@@ -88,7 +88,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         elif len(tc_comps) == 1:
             res = (tc_comps[0]['name'], tc_comps[0]['version'])
         else:
-            comp_versions = dict([(comp['name'], comp['version'] + comp['versionsuffix']) for comp in tc_comps])
+            comp_versions = dict([(comp['name'], comp['versionsuffix'] + comp['version'] + comp['versionsuffix']) for comp in tc_comps])
             comp_names = comp_versions.keys()
             key = ','.join(sorted(comp_names))
             if key in COMP_NAME_VERSION_TEMPLATES:
@@ -122,7 +122,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                 subdir = os.path.join(COMPILER, tc_comp_name, tc_comp_ver)
             else:
                 # compiler-MPI toolchain => MPI/<comp_name>/<comp_version>/<MPI_name>/<MPI_version> namespace
-                tc_mpi_fullver = tc_mpi['version'] + tc_mpi['versionsuffix']
+                tc_mpi_fullver = tc_mpi['versionprefix'] + tc_mpi['version'] + tc_mpi['versionsuffix']
                 subdir = os.path.join(MPI, tc_comp_name, tc_comp_ver, tc_mpi['name'], tc_mpi_fullver)
 
         return subdir
@@ -150,10 +150,10 @@ class HierarchicalMNS(ModuleNamingScheme):
                 for key in COMP_NAME_VERSION_TEMPLATES:
                     if ec['name'] in key.split(','):
                         comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                        comp_versions = {ec['name']: ec['version'] + ec['versionsuffix']}
+                        comp_versions = {ec['name']: ec['versionprefix'] + ec['version'] + ec['versionsuffix']}
                         if ec['name'] == 'ifort':
                             # 'icc' key should be provided since it's the only one used in the template
-                            comp_versions.update({'icc': ec['version'] + ec['versionsuffix']})
+                            comp_versions.update({'icc': ec['versionprefix'] + ec['version'] + ec['versionsuffix']})
                         if tc_comp_info is not None:
                             # also provide toolchain version for non-dummy toolchains
                             comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
@@ -161,7 +161,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                         comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
                         break
             else:
-                comp_name_ver = [ec['name'], ec['version'] + ec['versionsuffix']]
+                comp_name_ver = [ec['name'], ec['versionprefix'] + ec['version'] + ec['versionsuffix']]
 
             paths.append(os.path.join(COMPILER, *comp_name_ver))
 
@@ -173,7 +173,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                 self.log.error(error_msg)
             else:
                 tc_comp_name, tc_comp_ver = tc_comp_info
-                fullver = ec['version'] + ec['versionsuffix']
+                fullver = ec['versionprefix'] + ec['version'] + ec['versionsuffix']
                 paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
         return paths
