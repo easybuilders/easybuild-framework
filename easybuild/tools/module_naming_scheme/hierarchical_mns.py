@@ -64,10 +64,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         """
         return True
 
-    def det_full_version(self, ec):
-        """Determine full version, taking into account version prefix/suffix."""
-        return ec['versionprefix'] + ec['version'] + ec['versionsuffix']
-        def det_full_module_name(self, ec):
+    def det_full_module_name(self, ec):
         """
         Determine full module name, relative to the top of the module path.
         Examples: Core/GCC/4.8.3, Compiler/GCC/4.8.3/OpenMPI/1.6.5, MPI/GCC/4.8.3/OpenMPI/1.6.5/HPL/2.1
@@ -80,6 +77,12 @@ class HierarchicalMNS(ModuleNamingScheme):
         Examples: GCC/4.8.3, OpenMPI/1.6.5, OpenBLAS/0.2.9, HPL/2.1, Python/2.7.5
         """
         return os.path.join(ec['name'], self.det_full_version(ec))
+
+    def det_full_version(self, ec):
+        """Determine full version, taking into account version prefix/suffix."""
+        
+        return ec['versionprefix'] + ec['version'] + ec['versionsuffix']
+ 
 
     def det_toolchain_compilers_name_version(self, tc_comps):
         """
