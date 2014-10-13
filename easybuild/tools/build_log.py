@@ -33,6 +33,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 import os
 import sys
+import tempfile
 from copy import copy
 from vsc.utils import fancylogger
 
@@ -132,6 +133,31 @@ fancylogger.logToFile(filename=os.devnull)
 
 # EasyBuildLog
 _init_easybuildlog = fancylogger.getLogger(fname=False)
+
+
+def init_logging(logfile, logtostdout=False, testing=False):
+    """Initialize logging."""
+    if logtostdout:
+        fancylogger.logToScreen(enable=True, stdout=True)
+    else:
+        if logfile is None:
+            # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            os.close(fd)
+
+        fancylogger.logToFile(logfile)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
+
+    log = fancylogger.getLogger(fname=False)
+
+    return log, logfile
+
+
+def stop_logging(logfile, logtostdout=False):
+    """Stop logging."""
+    if logtostdout:
+        fancylogger.logToScreen(enable=False, stdout=True)
+    fancylogger.logToFile(logfile, enable=False)
 
 
 def get_log(name=None):

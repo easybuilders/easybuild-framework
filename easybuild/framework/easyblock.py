@@ -38,7 +38,6 @@ The EasyBlock class should serve as a base class for all easyblocks.
 
 import copy
 import glob
-import re
 import os
 import shutil
 import stat
@@ -73,6 +72,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
+
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -1981,6 +1981,7 @@ def build_and_install_one(module, orig_environ):
     del app
 
     return (success, application_log, errormsg)
+
 
 def get_easyblock_instance(easyconfig):
     """
