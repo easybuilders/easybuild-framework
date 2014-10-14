@@ -67,49 +67,64 @@ DEFAULT_PATH_SUBDIRS = {
     'subdir_software': 'software',
 }
 
-
-DEFAULT_BUILD_OPTIONS = {
-    'aggregate_regtest': None,
-    'allow_modules_tool_mismatch': False,
-    'build_specs': None,
-    'check_osdeps': True,
-    'filter_deps': None,
-    'cleanup_builddir': True,
-    'command_line': None,
-    'debug': False,
-    'dry_run': False,
-    'dump_test_report': None,
-    'easyblock': None,
-    'experimental': False,
-    'force': False,
-    'from_pr': None,
-    'github_user': None,
-    'group': None,
-    'hidden': False,
-    'ignore_dirs': None,
-    'modules_footer': None,
-    'only_blocks': None,
-    'optarch': None,
-    'pr_path': None,
-    'recursive_mod_unload': False,
-    'regtest_output_dir': None,
-    'retain_all_deps': False,
-    'robot_path': None,
-    'sequential': False,
-    'set_gid_bit': False,
-    'silent': False,
-    'skip': None,
-    'skip_test_cases': False,
-    'sticky_bit': False,
-    'stop': None,
-    'suffix_modules_path': None,
-    'test_report_env_filter': None,
-    'try_to_generate': False,
-    'umask': None,
-    'upload_test_report': False,
-    'valid_module_classes': None,
-    'valid_stops': None,
-    'validate': True,
+# build options that have a perfectly matching command line option, listed by default value
+BUILD_OPTIONS_CMDLINE = {
+    None: [
+        'aggregate_regtest',
+        'dump_test_report',
+        'easyblock',
+        'filter_deps',
+        'from_pr',
+        'github_user',
+        'group',
+        'ignore_dirs',
+        'modules_footer',
+        'only_blocks',
+        'optarch',
+        'regtest_output_dir',
+        'skip',
+        'stop',
+        'suffix_modules_path',
+        'test_report_env_filter',
+        'umask',
+    ],
+    False: [
+        'allow_modules_tool_mismatch',
+        'debug',
+        'experimental',
+        'force',
+        'hidden',
+        'recursive_mod_unload',
+        'sequential',
+        'set_gid_bit',
+        'skip_test_cases',
+        'sticky_bit',
+        'upload_test_report',
+    ],
+    True: [
+        'cleanup_builddir',
+    ],
+}
+# build option that do not have a perfectly matching command line option
+BUILD_OPTIONS_OTHER = {
+    None: [
+        'build_specs',
+        'command_line',
+        'pr_path',
+        'robot_path',
+        'valid_module_classes',
+        'valid_stops',
+    ],
+    False: [
+        'dry_run',
+        'retain_all_deps',
+        'silent',
+        'try_to_generate',
+    ],
+    True: [
+        'check_osdeps',
+        'validate',
+    ],
 }
 
 
@@ -226,7 +241,7 @@ class BuildOptions(FrozenDictKnownKeys):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    KNOWN_KEYS = DEFAULT_BUILD_OPTIONS.keys()
+    KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
 
 def get_user_easybuild_dir():
@@ -387,38 +402,13 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
             cmdline_options.ignore_osdeps = True
 
+        cmdline_build_option_names = [k for k in ks for ks in BUILD_OPTIONS_CMDLINE.values()]
+        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
-            'aggregate_regtest': cmdline_options.aggregate_regtest,
-            'allow_modules_tool_mismatch': cmdline_options.allow_modules_tool_mismatch,
             'check_osdeps': not cmdline_options.ignore_osdeps,
-            'filter_deps': cmdline_options.filter_deps,
-            'cleanup_builddir': cmdline_options.cleanup_builddir,
-            'debug': cmdline_options.debug,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
-            'dump_test_report': cmdline_options.dump_test_report,
-            'easyblock': cmdline_options.easyblock,
-            'experimental': cmdline_options.experimental,
-            'force': cmdline_options.force,
-            'github_user': cmdline_options.github_user,
-            'group': cmdline_options.group,
-            'hidden': cmdline_options.hidden,
-            'ignore_dirs': cmdline_options.ignore_dirs,
-            'modules_footer': cmdline_options.modules_footer,
-            'only_blocks': cmdline_options.only_blocks,
-            'optarch': cmdline_options.optarch,
-            'recursive_mod_unload': cmdline_options.recursive_module_unload,
-            'regtest_output_dir': cmdline_options.regtest_output_dir,
             'retain_all_deps': retain_all_deps,
-            'sequential': cmdline_options.sequential,
-            'set_gid_bit': cmdline_options.set_gid_bit,
-            'skip': cmdline_options.skip,
-            'skip_test_cases': cmdline_options.skip_test_cases,
-            'sticky_bit': cmdline_options.sticky_bit,
-            'stop': cmdline_options.stop,
-            'suffix_modules_path': cmdline_options.suffix_modules_path,
-            'test_report_env_filter': cmdline_options.test_report_env_filter,
-            'umask': cmdline_options.umask,
-            'upload_test_report': cmdline_options.upload_test_report,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),
         })
@@ -427,7 +417,10 @@ def init_build_options(build_options=None, cmdline_options=None):
         active_build_options.update(build_options)
 
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
-    bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
+    bo = {}
+    for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
+        for default in build_options_by_default:
+            bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
