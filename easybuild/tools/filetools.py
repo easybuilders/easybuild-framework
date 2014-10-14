@@ -33,7 +33,6 @@ Set of file tools.
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-import errno
 import os
 import re
 import shutil

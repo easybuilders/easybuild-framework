@@ -174,7 +174,6 @@ class EasyBuildOptions(GeneralOption):
                          None, 'store_true', False, 'p'),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
-            'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
@@ -275,6 +274,20 @@ class EasyBuildOptions(GeneralOption):
         })
 
         self.log.debug("informative_options: descr %s opts %s" % (descr, opts))
+        self.add_group_parser(opts, descr)
+
+    def testing_options(self):
+        # testing options
+        descr = ("Testing options", "Run application-specific test cases known to EasyBuild")
+
+        opts = OrderedDict({
+            'list-test-cases': ("List known test cases", None, 'store_true', False),
+            'run-test-cases': ("Run (specified) test cases (note: requires module to be available already)",
+                               None, 'store_or_None', False, 't'),
+            'skip-test-cases': ("Skip running test cases after build/install", None, 'store_true', False),
+        })
+
+        self.log.debug("testing_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
     def regtest_options(self):

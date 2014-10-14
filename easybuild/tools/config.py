@@ -104,9 +104,7 @@ DEFAULT_BUILD_OPTIONS = {
     'stop': None,
     'suffix_modules_path': None,
     'test_report_env_filter': None,
-    'testing': False,
     'try_to_generate': False,
-    'tweaked_ecs_path': None,
     'umask': None,
     'upload_test_report': False,
     'valid_module_classes': None,
@@ -329,9 +327,7 @@ def init(options, config_options_dict):
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
     tmpdict = {}
-
     if SUPPORT_OLDSTYLE:
-
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
@@ -373,12 +369,67 @@ def init(options, config_options_dict):
     _log.debug("Config variables: %s" % variables)
 
 
-def init_build_options(build_options=None):
+def init_build_options(build_options=None, cmdline_options=None):
     """Initialize build options."""
+    # building a dependency graph implies force, so that all dependencies are retained
+    # and also skips validation of easyconfigs (e.g. checking os dependencies)
+
+    active_build_options = {}
+
+    if cmdline_options is not None:
+        retain_all_deps = False
+        if cmdline_options.dep_graph:
+            _log.info("Enabling force to generate dependency graph.")
+            cmdline_options.force = True
+            retain_all_deps = True
+
+        if cmdline_options.dep_graph or cmdline_options.dry_run or cmdline_options.dry_run_short:
+            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            cmdline_options.ignore_osdeps = True
+
+        active_build_options.update({
+            'aggregate_regtest': cmdline_options.aggregate_regtest,
+            'allow_modules_tool_mismatch': cmdline_options.allow_modules_tool_mismatch,
+            'check_osdeps': not cmdline_options.ignore_osdeps,
+            'filter_deps': cmdline_options.filter_deps,
+            'cleanup_builddir': cmdline_options.cleanup_builddir,
+            'debug': cmdline_options.debug,
+            'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
+            'dump_test_report': cmdline_options.dump_test_report,
+            'easyblock': cmdline_options.easyblock,
+            'experimental': cmdline_options.experimental,
+            'force': cmdline_options.force,
+            'github_user': cmdline_options.github_user,
+            'group': cmdline_options.group,
+            'hidden': cmdline_options.hidden,
+            'ignore_dirs': cmdline_options.ignore_dirs,
+            'modules_footer': cmdline_options.modules_footer,
+            'only_blocks': cmdline_options.only_blocks,
+            'optarch': cmdline_options.optarch,
+            'recursive_mod_unload': cmdline_options.recursive_module_unload,
+            'regtest_output_dir': cmdline_options.regtest_output_dir,
+            'retain_all_deps': retain_all_deps,
+            'sequential': cmdline_options.sequential,
+            'set_gid_bit': cmdline_options.set_gid_bit,
+            'skip': cmdline_options.skip,
+            'skip_test_cases': cmdline_options.skip_test_cases,
+            'sticky_bit': cmdline_options.sticky_bit,
+            'stop': cmdline_options.stop,
+            'suffix_modules_path': cmdline_options.suffix_modules_path,
+            'test_report_env_filter': cmdline_options.test_report_env_filter,
+            'umask': cmdline_options.umask,
+            'upload_test_report': cmdline_options.upload_test_report,
+            'validate': not cmdline_options.force,
+            'valid_module_classes': module_classes(),
+        })
+
+    if build_options is not None:
+        active_build_options.update(build_options)
+
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
-    if build_options is not None:
-        bo.update(build_options)
+    bo.update(active_build_options)
+
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
     return BuildOptions(bo)
 

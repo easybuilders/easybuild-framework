@@ -190,10 +190,9 @@ def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=Tr
     """
     if exit_on_error:
         if not silent:
-            print_msg("ERROR: %s\n" % message)
             if opt_parser:
                 opt_parser.print_shorthelp()
-                print_msg("ERROR: %s\n" % message)
+            sys.stderr.write("ERROR: %s\n" % message)
         sys.exit(exitCode)
     elif log is not None:
         log.error(message)
