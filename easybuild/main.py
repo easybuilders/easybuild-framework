@@ -49,8 +49,7 @@ import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
-from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs
-from easybuild.framework.easyconfig.tools import skip_available
+from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, write_file
