@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.tweak import obtain_path, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
-from easybuild.tools.robot import det_robot_path, print_dry_run, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_module_list, session_state
@@ -236,7 +236,8 @@ def main(testing_data=(None, None, None)):
 
     # dry_run: print all easyconfigs and dependencies, and whether they are already built
     if options.dry_run or options.dry_run_short:
-        print_dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        txt = dry_run(easyconfigs, short=not options.dry_run, build_specs=build_specs)
+        print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
@@ -263,8 +264,9 @@ def main(testing_data=(None, None, None)):
 
     # submit build as job(s), clean up and exit
     if options.job:
-        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
+            print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
             cleanup(logfile, eb_tmpdir, testing)
             sys.exit(0)
 
@@ -283,7 +285,9 @@ def main(testing_data=(None, None, None)):
     repo.cleanup()
 
     # dump/upload overall test report
-    overall_test_report(ecs_with_res, len(paths), overall_success, success_msg, init_session_state)
+    test_report_msg = overall_test_report(ecs_with_res, len(paths), overall_success, success_msg, init_session_state)
+    if test_report_msg is not None:
+        print_msg(test_report_msg)
 
     print_msg(success_msg, log=_log, silent=testing)
 

@@ -38,7 +38,6 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, process_easyconfig, robot_find_easyconfig
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
-from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_common_path_prefix, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
@@ -53,7 +52,7 @@ def det_robot_path(robot_option, easyconfigs_paths, tweaked_ecs_path, pr_path, a
     """Determine robot path."""
     # do not use robot option directly, it's not a list instance (and it shouldn't be modified)
     robot_path = []
-    if not robot_option is None:
+    if robot_option is not None:
         if robot_option:
             robot_path = list(robot_option)
             _log.info("Using robot path(s): %s" % robot_path)
@@ -76,7 +75,7 @@ def det_robot_path(robot_option, easyconfigs_paths, tweaked_ecs_path, pr_path, a
     return robot_path
 
 
-def print_dry_run(easyconfigs, short=False, build_specs=None):
+def dry_run(easyconfigs, short=False, build_specs=None):
     """
     Print dry run information
     @param easyconfigs: list of easyconfig files
@@ -122,8 +121,7 @@ def print_dry_run(easyconfigs, short=False, build_specs=None):
     if short:
         # insert after 'Dry run:' message
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
-    silent = build_option('silent')
-    print_msg('\n'.join(lines), log=_log, silent=silent, prefix=False)
+    return '\n'.join(lines)
 
 
 def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
@@ -131,6 +129,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
+    @param retain_all_deps: boolean indicating whether all dependencies should be retained, regardless of availability
     """
 
     robot = build_option('robot_path')

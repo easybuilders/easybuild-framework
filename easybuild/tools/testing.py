@@ -44,7 +44,7 @@ import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
@@ -320,15 +320,18 @@ def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state
         test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
         if pr_nr:
             # upload test report to gist and issue a comment in the PR to notify
-            msg = post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success)
-            print_msg(msg)
+            txt = post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success)
         else:
             # only upload test report as a gist
             gist_url = upload_test_report_as_gist(test_report)
-            print_msg("Test report uploaded to %s" % gist_url)
+            txt = "Test report uploaded to %s" % gist_url
     else:
         test_report = create_test_report(msg, ecs_with_res, init_session_state)
+        txt = None
     _log.debug("Test report: %s" % test_report)
+
     if dump_path is not None:
         write_file(dump_path, test_report)
         _log.info("Test report dumped to %s" % dump_path)
+
+    return txt

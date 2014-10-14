@@ -94,7 +94,6 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
-        'recursive_mod_unload',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',
@@ -117,6 +116,7 @@ BUILD_OPTIONS_OTHER = {
     ],
     False: [
         'dry_run',
+        'recursive_mod_unload',
         'retain_all_deps',
         'silent',
         'try_to_generate',
@@ -402,12 +402,13 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
             cmdline_options.ignore_osdeps = True
 
-        cmdline_build_option_names = [k for k in ks for ks in BUILD_OPTIONS_CMDLINE.values()]
+        cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
         # other options which can be derived but have no perfectly matching cmdline option
         active_build_options.update({
             'check_osdeps': not cmdline_options.ignore_osdeps,
             'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
+            'recursive_mod_unload': cmdline_options.recursive_module_unload,
             'retain_all_deps': retain_all_deps,
             'validate': not cmdline_options.force,
             'valid_module_classes': module_classes(),
