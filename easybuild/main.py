@@ -302,4 +302,4 @@ if __name__ == "__main__":
     try:
         main()
     except EasyBuildError, e:
-        print_error("ERROR: %s\n" % e.msg)
+        print_error(e.msg)
