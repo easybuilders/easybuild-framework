@@ -231,7 +231,7 @@ class RobotTest(EnhancedTestCase):
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
         init_config(build_options=build_options)
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 2)
         self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
@@ -241,7 +241,7 @@ class RobotTest(EnhancedTestCase):
         build_options.update({'retain_all_deps': True})
         init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 9)
         self.assertEqual('GCC/4.7.2', res[0]['full_mod_name'])
