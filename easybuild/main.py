@@ -51,7 +51,7 @@ from easybuild.framework.easyblock import EasyBlock, build_and_install_one
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
-from easybuild.framework.easyconfig.tweak import obtain_path, tweak
+from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, write_file
 from easybuild.tools.options import process_software_build_specs
@@ -73,6 +73,27 @@ def log_start(eb_command_line, eb_tmpdir):
     _log.info("Command line: %s" % (' '.join(eb_command_line)))
 
     _log.info("Using %s as temporary directory" % eb_tmpdir)
+
+
+def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
+    """Find easyconfigs by build specifications."""
+    generated, ec_file = obtain_ec_for(build_specs, robot_path, None)
+    if generated:
+        if try_to_generate:
+            print_msg("Generated an easyconfig file %s, going to use it now..." % ec_file, silent=testing)
+        else:
+            # (try to) cleanup
+            try:
+                os.remove(ec_file)
+            except OSError, err:
+                _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
+
+            # don't use a generated easyconfig unless generation was requested (using a --try-X option)
+            print_error(("Unable to find an easyconfig for the given specifications: %s; "
+                         "to make EasyBuild try to generate a matching easyconfig, "
+                         "use the --try-X options ") % build_specs, log=_log)
+
+    return [(ec_file, generated)]
 
 
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
@@ -209,8 +230,8 @@ def main(testing_data=(None, None, None)):
     paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
     if not paths:
         if 'name' in build_specs:
-            paths = [obtain_path(build_specs, robot_path, try_to_generate=try_to_generate,
-                                 exit_on_error=not testing)]
+            # try to obtain or generate an easyconfig file via build specifications if a software name is provided
+            paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
         elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),

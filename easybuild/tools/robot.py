@@ -77,9 +77,9 @@ def det_robot_path(robot_option, easyconfigs_paths, tweaked_ecs_path, pr_path, a
 
 def dry_run(easyconfigs, short=False, build_specs=None):
     """
-    Print dry run information
-    @param easyconfigs: list of easyconfig files
-    @param short: print short output (use a variable for the common prefix)
+    Compose dry run overview for supplied easyconfigs ([ ] for unavailable, [x] for available, [F] for forced)
+    @param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
+    @param short: use short format for overview: use a variable for common prefixes
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
     lines = []
@@ -129,7 +129,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     Work through the list of easyconfigs to determine an optimal order
     @param unprocessed: list of easyconfigs
     @param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
-    @param retain_all_deps: boolean indicating whether all dependencies should be retained, regardless of availability
+    @param retain_all_deps: boolean indicating whether all dependencies must be retained, regardless of availability;
+                            retain all deps when True, check matching build option when False
     """
 
     robot = build_option('robot_path')
@@ -184,12 +185,12 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
             being_installed = [EasyBuildMNS().det_full_module_name(p['ec']) for p in unprocessed]
 
             additional = []
-            for i, entry in enumerate(unprocessed):
+            for entry in unprocessed:
                 # do not choose an entry that is being installed in the current run
                 # if they depend, you probably want to rebuild them using the new dependency
                 deps = entry['dependencies']
                 candidates = [d for d in deps if not EasyBuildMNS().det_full_module_name(d) in being_installed]
-                if len(candidates) > 0:
+                if candidates:
                     cand_dep = candidates[0]
                     # find easyconfig, might not find any
                     _log.debug("Looking for easyconfig for %s" % str(cand_dep))
@@ -246,10 +247,11 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
 
 def search_easyconfigs(query, short=False):
     """Search for easyconfigs, if a query is provided."""
-    search_path = [os.getcwd()]
     robot_path = build_option('robot_path')
     if robot_path:
         search_path = robot_path
+    else:
+        search_path = [os.getcwd()]
     ignore_dirs = build_option('ignore_dirs')
     silent = build_option('silent')
     search_file(search_path, query, short=short, ignore_dirs=ignore_dirs, silent=silent)

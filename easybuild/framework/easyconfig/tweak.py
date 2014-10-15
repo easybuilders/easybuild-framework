@@ -42,7 +42,6 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -222,7 +221,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
-    if not target_fn:
+    if target_fn is None:
         fn = None
         try:
             # obtain temporary filename
@@ -525,7 +524,7 @@ def select_or_generate_ec(fp, paths, specs):
         # GENERATE
 
         # if no file path was specified, generate a file name
-        if not fp:
+        if fp is None:
             cfg = {
                 'version': ver,
                 'toolchain': {'name': tcname, 'version': tcver},
@@ -543,7 +542,7 @@ def select_or_generate_ec(fp, paths, specs):
         return (True, fp)
 
 
-def obtain_ec_for(specs, paths, fp):
+def obtain_ec_for(specs, paths, fp=None):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -595,26 +594,3 @@ def obtain_ec_for(specs, paths, fp):
         return res
     else:
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
-
-
-def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
-    """Obtain a path for an easyconfig that matches the given specifications."""
-
-    # if no easyconfig files/paths were provided, but we did get a software name,
-    # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = obtain_ec_for(specs, paths, None)
-    if not generated:
-        return (fn, generated)
-    else:
-        # if an easyconfig was generated, make sure we're allowed to use it
-        if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
-            return (fn, generated)
-        else:
-            try:
-                os.remove(fn)
-            except OSError, err:
-                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
-            print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                         "to make EasyBuild try to generate a matching easyconfig, "
-                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
