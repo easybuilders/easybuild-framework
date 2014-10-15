@@ -40,6 +40,7 @@ from distutils.version import LooseVersion
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
@@ -80,7 +81,7 @@ class EasyBuildOptions(GeneralOption):
         strictness_options = [run.IGNORE, run.WARN, run.ERROR]
 
         try:
-            default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
+            default_robot_path = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
             default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used

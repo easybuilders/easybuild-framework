@@ -48,6 +48,7 @@ from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, p
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyblock import EasyBlock, build_and_install_one
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, dep_graph, det_easyconfig_paths
 from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfigs, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_path, tweak
@@ -161,7 +162,7 @@ def main(testing_data=(None, None, None)):
         _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
     # determine easybuild-easyconfigs package install path
-    easyconfigs_pkg_paths = get_paths_for("easyconfigs")
+    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 

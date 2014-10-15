@@ -65,6 +65,7 @@ try:
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
@@ -175,7 +176,7 @@ def dep_graph(*args, **kwargs):
         _log.error("%s\nerr: %s" % (msg, err))
 
 
-def get_paths_for(subdir="easyconfigs", robot_path=None):
+def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     """
     Return a list of absolute paths where the specified subdir can be found, determined by the PYTHONPATH
     """
