@@ -90,7 +90,7 @@ def dry_run(easyconfigs, short=False, build_specs=None):
         lines.append("Dry run: printing build status of easyconfigs and dependencies")
         all_specs = resolve_dependencies(easyconfigs, build_specs=build_specs, retain_all_deps=True)
 
-    unbuilt_specs = skip_available(all_specs, testing=True)
+    unbuilt_specs = skip_available(all_specs)
     dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
 
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
@@ -133,8 +133,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
     """
 
     robot = build_option('robot_path')
-
+    # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
+
     if retain_all_deps:
         # assume that no modules are available when forced, to retain all dependencies
         avail_modules = []

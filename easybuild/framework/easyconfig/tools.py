@@ -67,7 +67,7 @@ except ImportError, err:
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, run_cmd, search_file, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
@@ -75,10 +75,11 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
 
+
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
 
 
-def skip_available(easyconfigs, testing=False):
+def skip_available(easyconfigs):
     """Skip building easyconfigs for existing modules."""
     modtool = modules_tool()
     module_names = [ec['full_mod_name'] for ec in easyconfigs]
@@ -86,9 +87,7 @@ def skip_available(easyconfigs, testing=False):
     retained_easyconfigs = []
     for ec, mod_name, mod_exists in zip(easyconfigs, module_names, modules_exist):
         if mod_exists:
-            msg = "%s is already installed (module found), skipping" % mod_name
-            print_msg(msg, log=_log, silent=testing)
-            _log.info(msg)
+            _log.info("%s is already installed (module found), skipping" % mod_name)
         else:
             _log.debug("%s is not installed yet, so retaining it" % mod_name)
             retained_easyconfigs.append(ec)
@@ -302,7 +301,7 @@ def parse_easyconfigs(paths):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            print_error("Can't find path %s" % path)
+            _log.error("Can't find path %s" % path)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=ignore_dirs)
             for ec_file in ec_files:

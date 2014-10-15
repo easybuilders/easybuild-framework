@@ -246,7 +246,11 @@ def main(testing_data=(None, None, None)):
 
     # skip modules that are already installed unless forced
     if not options.force:
-        easyconfigs = skip_available(easyconfigs, testing=testing)
+        retained_ecs = skip_available(easyconfigs)
+        if not testing:
+            for skipped_ec in [ec for ec in easyconfigs if ec not in retained_ecs]:
+                print_msg("%s is already installed (module found), skipping" % skipped_ec['full_mod_name'])
+        easyconfigs = retained_ecs
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
