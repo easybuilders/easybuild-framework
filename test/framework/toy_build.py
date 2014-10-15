@@ -632,7 +632,9 @@ class ToyBuildTest(EnhancedTestCase):
         # building a toolchain module should also work
         args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
         modules_tool().purge()
-        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
+        gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+        self.assertTrue(os.path.exists(gompi_module_path))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
