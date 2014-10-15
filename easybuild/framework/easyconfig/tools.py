@@ -240,7 +240,6 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
     """
     if easyconfigs_pkg_paths is None:
         easyconfigs_pkg_paths = []
-    ignore_dirs = build_option('ignore_dirs')
 
     ec_files = orig_paths[:]
 
@@ -276,7 +275,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
                     break
 
                 # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-                dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+                dirnames[:] = [d for d in dirnames if not d in build_option('ignore_dirs')]
 
             # stop os.walk insanity as soon as we have all we need (outer loop)
             if not ecs_to_find:
@@ -291,10 +290,6 @@ def parse_easyconfigs(paths):
     Parse easyconfig files
     @params paths: paths to easyconfigs
     """
-    build_specs = build_option('build_specs')
-    ignore_dirs = build_option('ignore_dirs')
-    try_to_generate = build_option('try_to_generate')
-
     easyconfigs = []
     generated_ecs = False
     for (path, generated) in paths:
@@ -304,13 +299,13 @@ def parse_easyconfigs(paths):
         if not os.path.exists(path):
             _log.error("Can't find path %s" % path)
         try:
-            ec_files = find_easyconfigs(path, ignore_dirs=ignore_dirs)
+            ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
                 # only pass build specs when not generating easyconfig files
-                if try_to_generate:
-                    ecs = process_easyconfig(ec_file)
-                else:
-                    ecs = process_easyconfig(ec_file, build_specs=build_specs)
+                kwargs = {}
+                if not build_option('try_to_generate'):
+                    kwargs['build_specs'] = build_option('build_specs')
+                ecs = process_easyconfig(ec_file, **kwargs)
                 easyconfigs.extend(ecs)
         except IOError, err:
             _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
