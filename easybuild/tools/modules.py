@@ -567,7 +567,9 @@ class ModulesTool(object):
         @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
+        #@todo: this was removed for Lmod
+        #loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
+        loadregex = re.compile(r"load\(\"(\S*)\"", re.M)
         mods = loadregex.findall(modtxt)
 
         if depth > 0:

@@ -64,7 +64,7 @@ from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_generator import ModuleGeneratorLua
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -131,7 +131,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.moduleGenerator = ModuleGenerator(self, fake=True)
+        self.moduleGenerator = ModuleGeneratorLua(self, fake=True)
 
         # modules footer
         self.modules_footer = None
@@ -728,7 +728,7 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        mod_gen = ModuleGenerator(self)
+        mod_gen = ModuleGeneratorLua(self)
         header = "#%Module\n"
 
         env_txt = ""
@@ -829,9 +829,12 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+        #todo this is only valid for Lua now
+        # This is a bit different in Lua due to string quoting rules in Lua and in Tcl - so $root cannot be used easily.
+        # so we resort to rendering our internal variables and quote them in the set_environment() like all other values.
+        txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, self.installdir)
         txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        devel_path = os.path.join(self.installdir, log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
@@ -872,7 +875,8 @@ class EasyBlock(object):
         """
         Insert a footer section in the modulefile, primarily meant for contextual information
         """
-        txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
+        #@todo fix this as it is lua specific
+        txt = '\n -- Built with EasyBuild version %s\n' % VERBOSE_VERSION
 
         # add extra stuff for extensions (if any)
         if self.cfg['exts_list']:
@@ -1658,7 +1662,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-        write_file(self.moduleGenerator.filename, txt)
+        write_file(self.moduleGenerator.filename+".lua", txt)
 
         self.log.info("Module file %s written" % self.moduleGenerator.filename)
 

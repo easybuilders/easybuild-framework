@@ -41,7 +41,7 @@ from vsc.utils.missing import get_subclasses
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -50,10 +50,10 @@ from test.framework.utilities import find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
-    """ testcase for ModuleGenerator """
+    """ testcase for ModuleGeneratorTcl """
 
     def setUp(self):
-        """ initialize ModuleGenerator with test Application """
+        """ initialize ModuleGeneratorTcl with test Application """
         super(ModuleGeneratorTest, self).setUp()
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
@@ -62,7 +62,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(eb_full_path)
         self.eb = EasyBlock(ec)
-        self.modgen = ModuleGenerator(self.eb)
+        self.modgen = ModuleGeneratorTcl(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
         
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
