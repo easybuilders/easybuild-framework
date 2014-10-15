@@ -242,14 +242,15 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
         easyconfigs_pkg_paths = []
     ignore_dirs = build_option('ignore_dirs')
 
-    ec_files = []
-    if not orig_paths and from_pr:
+    ec_files = orig_paths[:]
+
+    if not ec_files and from_pr:
         pr_files = fetch_easyconfigs_from_pr(from_pr)
         ec_files = [path for path in pr_files if path.endswith('.eb')]
-    elif orig_paths and easyconfigs_pkg_paths:
+
+    elif ec_files and easyconfigs_pkg_paths:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they were found at the given relative paths
-        ec_files = orig_paths[:]
 
         # determine which easyconfigs files need to be found, if any
         ecs_to_find = []
