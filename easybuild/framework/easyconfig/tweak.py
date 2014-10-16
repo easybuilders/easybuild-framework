@@ -254,11 +254,14 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 def pick_version(req_ver, avail_vers):
     """Pick version based on an optionally desired version and available versions.
 
-    If a desired version is specifed, the most recent version that is less recent
-    than the desired version will be picked; else, the most recent version will be picked.
+    If a desired version is specifed, the most recent version that is less recent than or equal to
+    the desired version will be picked; else, the most recent version will be picked.
 
-    This function returns both the version to be used, which is equal to the desired version
+    This function returns both the version to be used, which is equal to the required version
     if it was specified, and the version picked that matches that closest.
+
+    @param req_ver: required version
+    @param avail_vers: list of available versions
     """
 
     if not avail_vers:
@@ -267,26 +270,38 @@ def pick_version(req_ver, avail_vers):
     selected_ver = None
     if req_ver:
         # if a desired version is specified,
-        # retain the most recent version that's less recent than the desired version
-
+        # retain the most recent version that's less recent or equal than the desired version
         ver = req_ver
 
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v < LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
             if retained_vers:
                 selected_ver = retained_vers[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
                 selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
-
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
         selected_ver = ver
 
     return (ver, selected_ver)
+
+
+def find_matching_easyconfigs(name, installver, paths):
+    """Find easyconfigs that match specified name/installversion in specified list of paths."""
+    ec_files = []
+    for path in paths:
+        patterns = create_paths(path, name, installver)
+        for pattern in patterns:
+            more_ec_files = glob.glob(pattern)
+            _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
+            ec_files.extend(more_ec_files)
+
+    # only retain unique easyconfig paths
+    return nub(ec_files)
 
 
 def select_or_generate_ec(fp, paths, specs):
@@ -318,7 +333,6 @@ def select_or_generate_ec(fp, paths, specs):
     handled_params = ['name']
 
     # find ALL available easyconfig files for specified software
-    ec_files = []
     cfg = {
         'version': '*',
         'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
@@ -326,10 +340,8 @@ def select_or_generate_ec(fp, paths, specs):
         'versionsuffix': '*',
     }
     installver = det_full_ec_version(cfg)
-    for path in paths:
-        patterns = create_paths(path, name, installver)
-        for pattern in patterns:
-            ec_files.extend(glob.glob(pattern))
+    ec_files = find_matching_easyconfigs(name, installver, paths)
+    _log.debug("Unique ec_files: %s" % ec_files)
 
     # we need at least one config file to start from
     if len(ec_files) == 0:
@@ -345,10 +357,6 @@ def select_or_generate_ec(fp, paths, specs):
 
         if len(ec_files) == 0:
             _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
-
-    # only retain unique easyconfig files
-    ec_files = nub(ec_files)
-    _log.debug("Unique ec_files: %s" % ec_files)
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
@@ -561,31 +569,6 @@ def obtain_ec_for(specs, paths, fp=None):
     # collect paths to search in
     if not paths:
         _log.error("No paths to look for easyconfig files, specify a path with --robot.")
-
-    # create glob patterns based on supplied info
-
-    # figure out the install version
-    cfg = {
-        'version': specs.get('version', '*'),
-        'toolchain': {
-            'name': specs.get('toolchain_name', '*'),
-            'version': specs.get('toolchain_version', '*'),
-        },
-        'versionprefix': specs.get('versionprefix', '*'),
-        'versionsuffix': specs.get('versionsuffix', '*'),
-    }
-    installver = det_full_ec_version(cfg)
-
-    # find easyconfigs that match a pattern
-    easyconfig_files = []
-    for path in paths:
-        patterns = create_paths(path, specs['name'], installver)
-        for pattern in patterns:
-            easyconfig_files.extend(glob.glob(pattern))
-
-    cnt = len(easyconfig_files)
-
-    _log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
 
     # select best easyconfig, or try to generate one that fits the requirements
     res = select_or_generate_ec(fp, paths, specs)
