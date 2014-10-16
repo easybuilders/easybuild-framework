@@ -252,7 +252,7 @@ def init_config(args=None, build_options=None):
         }
     if 'suffix_modules_path' not in build_options:
         build_options.update({'suffix_modules_path': GENERAL_CLASS})
-    config.init_build_options(build_options)
+    config.init_build_options(build_options=build_options)
 
     return eb_go.options
 

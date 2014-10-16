@@ -519,18 +519,19 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         self.setup_hierarchical_modules()
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            os.path.join(test_easyconfigs, 'toy-0.0.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
-            '--robot=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            '--robot=%s' % test_easyconfigs,
             '--module-naming-scheme=HierarchicalMNS',
         ]
 
@@ -625,13 +626,15 @@ class ToyBuildTest(EnhancedTestCase):
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
-        self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        self.assertTrue(re.search(r"^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
-        args = ['gompi-1.4.10.eb'] + args[1:]
+        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
         modules_tool().purge()
-        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
+        gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+        self.assertTrue(os.path.exists(gompi_module_path))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""
