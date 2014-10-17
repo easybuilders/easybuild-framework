@@ -232,6 +232,7 @@ def cleanup():
     # empty caches
     tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
+    easyconfig._easyconfig_files_cache.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
 
