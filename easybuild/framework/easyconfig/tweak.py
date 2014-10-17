@@ -291,12 +291,18 @@ def pick_version(req_ver, avail_vers):
 
 
 def find_matching_easyconfigs(name, installver, paths):
-    """Find easyconfigs that match specified name/installversion in specified list of paths."""
+    """
+    Find easyconfigs that match specified name/installversion in specified list of paths.
+
+    @param name: software name
+    @param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
+    @param paths: list of paths to search easyconfigs in
+    """
     ec_files = []
     for path in paths:
         patterns = create_paths(path, name, installver)
         for pattern in patterns:
-            more_ec_files = glob.glob(pattern)
+            more_ec_files = filter(os.path.isfile, glob.glob(pattern))
             _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
             ec_files.extend(more_ec_files)
 
