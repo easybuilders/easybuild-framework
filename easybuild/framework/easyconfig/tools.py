@@ -205,7 +205,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     # look for desired subdirs
     for path in path_list:
         path = os.path.join(path, "easybuild", subdir)
-        _log.debug("Looking for easybuild/%s in path %s" % (subdir, path))
+        _log.debug("Checking for easybuild/%s at %s" % (subdir, path))
         try:
             if os.path.exists(path):
                 paths.append(os.path.abspath(path))
