@@ -171,7 +171,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         last_processed_count = -1
         while len(avail_modules) > last_processed_count:
             last_processed_count = len(avail_modules)
-            more_ecs, unprocessed, avail_modules = find_resolved_modules(unprocessed, avail_modules)
+            res = find_resolved_modules(unprocessed, avail_modules, retain_all_deps=retain_all_deps)
+            more_ecs, unprocessed, avail_modules = res
             for ec in more_ecs:
                 if not ec['full_mod_name'] in [x['full_mod_name'] for x in ordered_ecs]:
                     ordered_ecs.append(ec)
