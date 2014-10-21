@@ -253,10 +253,44 @@ def download_file(filename, url, path):
     downloaded = False
     attempt_cnt = 0
 
+    # use this functions's scope for the variable we share with our inner function
+    download_file.last_time = time.time()
+    download_file.last_block = 0
+    # internal function to report on download progress
+    def report(block, blocksize, bytesize):
+        """
+        This is a reporthook for urlretrieve, it takes 3 integers as arguments
+        the current downloaded block, the total ammount of blocks, and the blocksize
+        logs the download progress every 10 seconds
+        """
+        if download_file.last_time + 10 < time.time():
+            newblocks = block - download_file.last_block
+            download_file.last_block = block
+
+            _log.info('download report: %d kb of %d kb (%d %%, %d kbps)', block * blocksize, bytesize, int(block * blocksize * 100 / bytesize),
+                      (blocksize * newblocks) / 1024  // (time.time() - download_file.last_time))
+
+            download_file.last_time = time.time()
+
+
     # try downloading three times max.
     while not downloaded and attempt_cnt < 3:
+        # get http response code first before downloading file
+        urlfile = urllib.urlopen(url)
+        response_code = urlfile.getcode()
+        urlfile.close()
 
-        (_, httpmsg) = urllib.urlretrieve(url, path)
+        _log.debug('http response code for given url: %d', response_code)
+        if response_code == 404:
+            _log.warning('url %s was not found (404), not trying again', url)
+            return None
+
+        download_file.last_time = time.time()
+        download_file.last_block = 0
+
+        (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
+        _log.debug('headers of download: %s', httpmsg)
+
 
         if httpmsg.type == "text/html" and not filename.endswith('.html'):
             _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
@@ -272,6 +306,7 @@ def download_file(filename, url, path):
 
         attempt_cnt += 1
         _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
+
 
     # failed to download after multiple attempts
     return None
