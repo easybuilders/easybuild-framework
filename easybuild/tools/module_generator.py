@@ -33,6 +33,7 @@ Generating module files.
 @author: Fotis Georgatos (Uni.Lu)
 """
 import os
+import re
 import tempfile
 from vsc.utils import fancylogger
 
@@ -209,6 +210,7 @@ class ModuleGenerator(object):
         """
         Add a message that should be printed when loading the module.
         """
+        msg = re.escape(msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",
