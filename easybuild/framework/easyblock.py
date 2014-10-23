@@ -1271,8 +1271,13 @@ class EasyBlock(object):
                 srcpathsuffix = patch['copy']
                 copy = True
 
-            if not beginpath:
-                beginpath = self.src[srcind]['finalpath']
+            if beginpath is None:
+                src_cnt = len(self.src)
+                if srcind < src_cnt:
+                    beginpath = self.src[srcind]['finalpath']
+                else:
+                    tup = (patch['name'], srcind, src_cnt, self.src)
+                    self.log.error("Can't apply patch %s to source at index %s, only %s sources listed: %s" % tup)
 
             src = os.path.abspath("%s/%s" % (beginpath, srcpathsuffix))
 
