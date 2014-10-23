@@ -115,6 +115,12 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
 
+        # check whether 'This is easyblock' log message is there
+        tup = ('EasyBlock', 'easybuild.framework.easyblock', 'easybuild/framework/easyblock.pyc')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s at <module '%s' from '%s'>" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
+
         # test extensioneasyblock, as extension
         exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
         self.assertEqual(exeb1.cfg['name'], 'foo')
@@ -382,6 +388,12 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
+
+        # check whether 'This is easyblock' log message is there
+        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s at <module '%s' from '%s'>" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
     def test_obtain_file(self):
         """Test obtain_file method."""
