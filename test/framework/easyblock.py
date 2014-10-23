@@ -516,6 +516,25 @@ class EasyBlockTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
 
+    def test_patch_step(self):
+        """Test patch step."""
+        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        orig_sources = ec['ec']['sources'][:]
+
+        # test applying patches without sources
+        ec['ec']['sources'] = []
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+
+        # test actual patching of unpacked sources
+        ec['ec']['sources'] = orig_sources
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        eb.patch_step()
+
     def tearDown(self):
         """ make sure to remove the temporary file """
         super(EasyBlockTest, self).tearDown()
