@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,18 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Parastation MPICH).
+EasyBuild support for impich compiler toolchain (includes Intel compilers (icc, ifort), MPICH.
 
 """
 
-from easybuild.toolchains.impich import Impich
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-
-class Ipsmpi(Impich):
+class Impich(IntelIccIfort, Mpich):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
+    Compiler toolchain with Intel compilers (icc/ifort), MPICH.
     """
-    NAME = 'ipsmpi'
-    # Use Parastation naming
-    MPI_MODULE_NAME = ["psmpi"]
+    NAME = 'impich'
