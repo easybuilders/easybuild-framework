@@ -28,17 +28,17 @@ Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.ipsmpi import Ipsmpi
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.mpich import Mpich
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class IntelPara(IntelIccIfort, Mpich, IntelMKL, IntelFFTW):
+class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'intel-para'
+    # Parastation MPI needs to be matched with the IntelMPI blacs library
     BLACS_LIB = ["mkl_blacs_intelmpi%(lp64)s"]
     
