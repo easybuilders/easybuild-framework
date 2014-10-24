@@ -1,8 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
-#
-# This file is triple-licensed under GPLv2 (see below), MIT, and
-# BSD three-clause licenses.
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,16 +23,14 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gmpolf compiler toolchain (includes GCC, Parastation MPICH, OpenBLAS, LAPACK, ScaLAPACK and FFTW).
+EasyBuild support for gmpich compiler toolchain (includes GCC and MPICH).
 
 """
 
-from easybuild.toolchains.gpsmpi import Gpsmpi
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.openblas import OpenBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gpsolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
-    NAME = 'gpsolf'
+class Gmpich(Gcc, Mpich):
+    """Compiler toolchain with GCC and MPICH."""
+    NAME = 'gmpich'
