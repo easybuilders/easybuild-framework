@@ -30,7 +30,6 @@ EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, i
 from easybuild.toolchains.impich import Impich
 
 
-
 class Ipsmpi(Impich):
     """
     Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
