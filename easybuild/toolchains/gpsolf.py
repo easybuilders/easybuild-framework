@@ -38,6 +38,6 @@ from easybuild.toolchains.mpi.mpich import Mpich
 
 
 class Gpsolf(Gcc, Mpich, OpenBLAS, ScaLAPACK, Fftw):
-@author: Bart Verleye (University of Auckland)
+
     """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gpsolf'
