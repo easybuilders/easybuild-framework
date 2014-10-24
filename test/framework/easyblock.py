@@ -116,7 +116,7 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout = stdoutorig
 
         # check whether 'This is easyblock' log message is there
-        tup = ('EasyBlock', 'easybuild.framework.easyblock', 'easybuild/framework/easyblock.pyc')
+        tup = ('EasyBlock', 'easybuild.framework.easyblock', 'easybuild/framework/easyblock.pyc*')
         eb_log_msg_re = re.compile(r"INFO This is easyblock %s at <module '%s' from '%s'>" % tup, re.M)
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
@@ -390,7 +390,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(isinstance(eb, EB_toy))
 
         # check whether 'This is easyblock' log message is there
-        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc')
+        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc*')
         eb_log_msg_re = re.compile(r"INFO This is easyblock %s at <module '%s' from '%s'>" % tup, re.M)
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
