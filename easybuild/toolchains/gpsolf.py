@@ -36,6 +36,6 @@ from easybuild.toolchains.linalg.openblas import OpenBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 
 
-class Gpsolf(Gmpich, OpenBLAS, ScaLAPACK, Fftw):
+class Gpsolf(Gpsmpi, OpenBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, Parastation MPICH, OpenBLAS, ScaLAPACK and FFTW."""
     NAME = 'gpsolf'
