@@ -186,7 +186,6 @@ class EasyBlock(object):
 
         # initialize logger
         self._init_log()
-        self.log.info("This is easyblock %s at %s" % (self.__class__.__name__, inspect.getmodule(self)))
 
         # should we keep quiet?
         self.silent = build_option('silent')
@@ -221,6 +220,10 @@ class EasyBlock(object):
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
 
         self.log.info(this_is_easybuild())
+
+        this_module = inspect.getmodule(self)
+        tup = (self.__class__.__name__, this_module.__name__, this_module.__file__)
+        self.log.info("This is easyblock %s from module %s (%s)" % tup)
 
     def close_log(self):
         """
