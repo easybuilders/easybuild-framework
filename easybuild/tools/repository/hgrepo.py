@@ -38,7 +38,6 @@ Mercurial repository
 @author: Cedric Clerget (University of Franche-Comte)
 """
 import getpass
-import os
 import socket
 import tempfile
 import time
@@ -79,7 +78,7 @@ class HgRepository(FileRepository):
     def __init__(self, *args):
         """
         Initialize mercurial client to None (will be set later)
-        All the real logic is in the setupRepo and createWorkingCopy methods
+        All the real logic is in the setup_repo and create_working_copy methods
         """
         self.client = None
         FileRepository.__init__(self, *args)
@@ -88,10 +87,8 @@ class HgRepository(FileRepository):
         """
         Set up mercurial repository.
         """
-        try:
-            HgCommandError
-        except NameError, err:
-            self.log.exception("It seems like python-hglib is not available: %s" % err)
+        if not HAVE_HG:
+            self.log.error("The python-hglib Python module is not available, which is required for Mercurial support.")
 
         self.wc = tempfile.mkdtemp(prefix='hg-wc-')
 
@@ -112,8 +109,8 @@ class HgRepository(FileRepository):
         try:
             self.log.debug("connection to mercurial repo in %s" % self.wc)
             self.client = hglib.open(self.wc)
-        except HgServerError:
-            self.log.error("Could not connect to local mercurial repo")
+        except HgServerError, err:
+            self.log.error("Could not connect to local mercurial repo: %s" % err)
         except (HgCapabilityError, HgResponseError), err:
             self.log.error("Server response: %s", err)
         except (OSError, ValueError), err:
@@ -124,7 +121,7 @@ class HgRepository(FileRepository):
             self.client.pull()
             self.log.debug("pulled succesfully in %s" % self.wc)
         except (HgCommandError, HgServerError, HgResponseError, OSError, ValueError), err:
-            self.log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
+            self.log.error("pull in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -136,26 +133,23 @@ class HgRepository(FileRepository):
             try:
                 self.client.add(dest)
             except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
-                self.log.warning("adding %s to mercurial failed: %s" % (dest, err))
+                self.log.warning("adding %s to mercurial repository failed: %s" % (dest, err))
 
     def commit(self, msg=None):
         """
         Commit working copy to mercurial repository
         """
         user = getpass.getuser()
-        self.log.debug("%s committing in mercurial: %s" % (user, msg))
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              user,
-                                                                              msg)
+        self.log.debug("%s committing in mercurial repository: %s" % (user, msg))
+        tup = (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), user, msg)
+        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % tup
+
         self.log.debug("hg status: %s" % self.client.status())
         try:
             self.client.commit('"%s"' % completemsg, user=user)
             self.log.debug("succesfull commit")
         except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
-            self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc,
-                                                                                                  msg,
-                                                                                                  err))
+            self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
         try:
             if self.client.push():
                 info = "pushed"
@@ -163,10 +157,8 @@ class HgRepository(FileRepository):
                 info = "nothing to push"
             self.log.debug("push info: %s " % info)
         except (HgCommandError, HgServerError, HgResponseError, ValueError), err:
-            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc,
-                                                                                              self.repo,
-                                                                                              msg,
-                                                                                              err))
+            tup = (self.wc, self.repo, msg, err)
+            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % tup)
 
     def cleanup(self):
         """
@@ -175,4 +167,4 @@ class HgRepository(FileRepository):
         try:
             rmtree2(self.wc)
         except IOError, err:
-            self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+            self.log.error("Can't remove working copy %s: %s" % (self.wc, err))

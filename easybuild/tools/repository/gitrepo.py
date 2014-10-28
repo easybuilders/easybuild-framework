@@ -75,7 +75,7 @@ class GitRepository(FileRepository):
     def __init__(self, *args):
         """
         Initialize git client to None (will be set later)
-        All the real logic is in the setupRepo and createWorkingCopy methods
+        All the real logic is in the setup_repo and create_wroking_copy methods
         """
         self.client = None
         FileRepository.__init__(self, *args)
@@ -84,10 +84,8 @@ class GitRepository(FileRepository):
         """
         Set up git repository.
         """
-        try:
-            git.GitCommandError
-        except NameError, err:
-            self.log.exception("It seems like GitPython is not available: %s" % err)
+        if not HAVE_GIT:
+            self.log.error("It seems like GitPython is not available, which is required for Git support.")
 
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
@@ -120,7 +118,7 @@ class GitRepository(FileRepository):
             res = self.client.pull()
             self.log.debug("pulled succesfully to %s in %s" % (res, self.wc))
         except (git.GitCommandError, OSError), err:
-            self.log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
+            self.log.error("pull in working copy %s went wrong: %s" % (self.wc, err))
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -139,10 +137,9 @@ class GitRepository(FileRepository):
         Commit working copy to git repository
         """
         self.log.debug("committing in git: %s" % msg)
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(),
-                                                                              msg)
+        tup = (socket.gethostname(), time.strftime("%Y-%m-%d_%H-%M-%S"), getpass.getuser(), msg)
+        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % tup
+
         self.log.debug("git status: %s" % self.client.status())
         try:
             self.client.commit('-am "%s"' % completemsg)
@@ -153,10 +150,8 @@ class GitRepository(FileRepository):
             info = self.client.push()
             self.log.debug("push info: %s " % info)
         except GitCommandError, err:
-            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc,
-                                                                                              self.repo,
-                                                                                              msg,
-                                                                                              err))
+            tup = (self.wc, self.repo, msg, err)
+            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % tup)
 
     def cleanup(self):
         """
@@ -166,4 +161,4 @@ class GitRepository(FileRepository):
             self.wc = os.path.dirname(self.wc)
             rmtree2(self.wc)
         except IOError, err:
-            self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+            self.log.error("Can't remove working copy %s: %s" % (self.wc, err))
