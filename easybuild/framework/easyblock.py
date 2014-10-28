@@ -1259,28 +1259,32 @@ class EasyBlock(object):
         for patch in self.patches:
             self.log.info("Applying patch %s" % patch['name'])
 
-            copy = False
-            # default: patch first source
-            srcind = 0
-            if 'source' in patch:
-                srcind = patch['source']
-            srcpathsuffix = ''
-            if 'sourcepath' in patch:
-                srcpathsuffix = patch['sourcepath']
-            elif 'copy' in patch:
-                srcpathsuffix = patch['copy']
-                copy = True
+            # patch source at specified index (first source if not specified)
+            srcind = patch.get('source', 0)
+            # if patch level is specified, use that (otherwise let apply_patch derive patch level)
+            level = patch.get('level', None)
+            # determine suffix of source path to apply patch in (if any)
+            srcpathsuffix = patch.get('sourcepath', patch.get('copy', ''))
+            # determine whether 'patch' file should be copied rather than applied
+            copy_patch = 'copy' in patch and not 'sourcepath' in patch
 
-            if not beginpath:
-                beginpath = self.src[srcind]['finalpath']
+            tup = (srcind, level, srcpathsuffix, copy)
+            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s" % tup)
+
+            if beginpath is None:
+                try:
+                    beginpath = self.src[srcind]['finalpath']
+                    self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
+                except IndexError, err:
+                    tup = (patch['name'], srcind, self.src, err)
+                    self.log.error("Can't apply patch %s to source at index %s of list %s: %s" % tup)
+            else:
+                self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
             src = os.path.abspath("%s/%s" % (beginpath, srcpathsuffix))
+            self.log.debug("Applying patch %s in path %s" % (patch, src))
 
-            level = None
-            if 'level' in patch:
-                level = patch['level']
-
-            if not apply_patch(patch['path'], src, copy=copy, level=level):
+            if not apply_patch(patch['path'], src, copy=copy_patch, level=level):
                 self.log.error("Applying patch %s failed" % patch['name'])
 
     def prepare_step(self):
