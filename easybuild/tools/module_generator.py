@@ -214,7 +214,8 @@ class ModuleGenerator(object):
         """
         Add a message that should be printed when loading the module.
         """
-        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE),r'\\\1',msg)
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",
