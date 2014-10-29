@@ -89,9 +89,9 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
-            print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                         "to make EasyBuild try to generate a matching easyconfig, "
-                         "use the --try-X options ") % build_specs, log=_log)
+            _log.error(("Unable to find an easyconfig for the given specifications: %s; "
+                        "to make EasyBuild try to generate a matching easyconfig, "
+                        "use the --try-X options ") % build_specs)
 
     return [(ec_file, generated)]
 

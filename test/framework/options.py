@@ -578,7 +578,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
-        # to check with easyconfigs install path is auto-included in robot path
+        # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
@@ -586,7 +586,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
-        sys.path.append(tmpdir)
+        sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         for dry_run_arg in ['-D', '--dry-run-short']:
             open(self.logfile, 'w').write('')
