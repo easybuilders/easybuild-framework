@@ -274,6 +274,7 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         deps = [('GCC', '4.6.4')]
         hiddendeps = [('toy', '0.0-deps')]
+        alldeps = deps + hiddendeps  # hidden deps must be included in list of deps
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -282,7 +283,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = %s" % str(deps),
+            "dependencies = %s" % str(alldeps),
             "hiddendependencies = %s" % str(hiddendeps),
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),

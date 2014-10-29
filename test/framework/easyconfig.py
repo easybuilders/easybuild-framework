@@ -566,7 +566,7 @@ class EasyConfigTest(EnhancedTestCase):
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
-            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
+            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10')), ('test', '3.2.1')],
             'hiddendependencies': [('test', '3.2.1')],
         })
         parsed_deps = [
