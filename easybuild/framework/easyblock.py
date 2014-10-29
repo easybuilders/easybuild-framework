@@ -38,6 +38,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 
 import copy
 import glob
+import inspect
 import os
 import shutil
 import stat
@@ -113,6 +114,7 @@ class EasyBlock(object):
         Initialize the EasyBlock instance.
         @param ec: a parsed easyconfig file (EasyConfig instance)
         """
+
         # keep track of original working directory, so we can go back there
         self.orig_workdir = os.getcwd()
 
@@ -167,6 +169,12 @@ class EasyBlock(object):
         # list of loaded modules
         self.loaded_modules = []
 
+        # iterate configure/build/options
+        self.iter_opts = {}
+
+        # sanity check fail error messages to report (if any)
+        self.sanity_check_fail_msgs = []
+
         # robot path
         self.robot_path = build_option('robot_path')
 
@@ -176,14 +184,8 @@ class EasyBlock(object):
         # keep track of original environment, so we restore it if needed
         self.orig_environ = copy.deepcopy(os.environ)
 
-        # at the end of __init__, initialise the logging
+        # initialize logger
         self._init_log()
-
-        # iterate configure/build/options
-        self.iter_opts = {}
-
-        # sanity check fail error messages to report (if any)
-        self.sanity_check_fail_msgs = []
 
         # should we keep quiet?
         self.silent = build_option('silent')
@@ -218,6 +220,10 @@ class EasyBlock(object):
         self.log = fancylogger.getLogger(name=self.__class__.__name__, fname=False)
 
         self.log.info(this_is_easybuild())
+
+        this_module = inspect.getmodule(self)
+        tup = (self.__class__.__name__, this_module.__name__, this_module.__file__)
+        self.log.info("This is easyblock %s from module %s (%s)" % tup)
 
     def close_log(self):
         """
