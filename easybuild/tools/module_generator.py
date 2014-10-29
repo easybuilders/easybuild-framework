@@ -47,13 +47,15 @@ from easybuild.tools.utilities import quote_str
 
 _log = fancylogger.getLogger('module_generator', fname=False)
 
-# chars we want to escape in the generated modulefiles
-CHARS_TO_ESCAPE = ["$"]
 
 class ModuleGenerator(object):
     """
     Class for generating module files.
     """
+
+    # chars we want to escape in the generated modulefiles
+    CHARS_TO_ESCAPE = ["$"]
+
     def __init__(self, application, fake=False):
         self.app = application
         self.fake = fake
@@ -212,8 +214,7 @@ class ModuleGenerator(object):
         """
         Add a message that should be printed when loading the module.
         """
-        for element in CHARS_TO_ESCAPE:
-            msg = re.sub(r'((?<!\\)[%s])'%element,r'\\\1',msg)
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE),r'\\\1',msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",
