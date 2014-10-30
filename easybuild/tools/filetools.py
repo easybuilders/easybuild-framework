@@ -273,8 +273,6 @@ def download_file(filename, url, path):
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
-    downloaded = False
-    attempt_cnt = 0
 
     protocol = url.split(':')[0] 
     try:
@@ -285,6 +283,9 @@ def download_file(filename, url, path):
         _log.exception("can't handle url: %s, unknown protocol" % url)
 
 def download_http(filename, url, path):
+    downloaded = False
+    attempt_cnt = 0
+
     # use this functions's scope for the variable we share with our inner function
     download_http.last_time = time.time()
     download_http.last_block = 0
