@@ -285,8 +285,8 @@ def download_file(filename, url, path):
         urlfile = urllib.urlopen(url)
         response_code = urlfile.getcode()
         urlfile.close()
-
-        _log.debug('http response code for given url: %d', response_code)
+        if response_code:
+            _log.debug('http response code for given url: %d', response_code)
         if response_code == 404:
             _log.warning('url %s was not found (404), not trying again', url)
             return None
