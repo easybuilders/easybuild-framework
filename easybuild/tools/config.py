@@ -67,43 +67,64 @@ DEFAULT_PATH_SUBDIRS = {
     'subdir_software': 'software',
 }
 
-
-DEFAULT_BUILD_OPTIONS = {
-    'aggregate_regtest': None,
-    'allow_modules_tool_mismatch': False,
-    'check_osdeps': True,
-    'filter_deps': None,
-    'cleanup_builddir': True,
-    'command_line': None,
-    'debug': False,
-    'dry_run': False,
-    'easyblock': None,
-    'experimental': False,
-    'force': False,
-    'github_user': None,
-    'group': None,
-    'hidden': False,
-    'ignore_dirs': None,
-    'modules_footer': None,
-    'only_blocks': None,
-    'optarch': None,
-    'recursive_mod_unload': False,
-    'regtest_output_dir': None,
-    'retain_all_deps': False,
-    'robot_path': None,
-    'sequential': False,
-    'set_gid_bit': False,
-    'silent': False,
-    'skip': None,
-    'skip_test_cases': False,
-    'sticky_bit': False,
-    'stop': None,
-    'suffix_modules_path': None,
-    'test_report_env_filter': None,
-    'umask': None,
-    'valid_module_classes': None,
-    'valid_stops': None,
-    'validate': True,
+# build options that have a perfectly matching command line option, listed by default value
+BUILD_OPTIONS_CMDLINE = {
+    None: [
+        'aggregate_regtest',
+        'dump_test_report',
+        'easyblock',
+        'filter_deps',
+        'from_pr',
+        'github_user',
+        'group',
+        'ignore_dirs',
+        'modules_footer',
+        'only_blocks',
+        'optarch',
+        'regtest_output_dir',
+        'skip',
+        'stop',
+        'suffix_modules_path',
+        'test_report_env_filter',
+        'umask',
+    ],
+    False: [
+        'allow_modules_tool_mismatch',
+        'debug',
+        'experimental',
+        'force',
+        'hidden',
+        'sequential',
+        'set_gid_bit',
+        'skip_test_cases',
+        'sticky_bit',
+        'upload_test_report',
+    ],
+    True: [
+        'cleanup_builddir',
+    ],
+}
+# build option that do not have a perfectly matching command line option
+BUILD_OPTIONS_OTHER = {
+    None: [
+        'build_specs',
+        'command_line',
+        'pr_path',
+        'robot_path',
+        'valid_module_classes',
+        'valid_stops',
+    ],
+    False: [
+        'dry_run',
+        'recursive_mod_unload',
+        'retain_all_deps',
+        'silent',
+        'try_to_generate',
+    ],
+    True: [
+        'check_osdeps',
+        'validate',
+    ],
 }
 
 
@@ -220,7 +241,7 @@ class BuildOptions(FrozenDictKnownKeys):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    KNOWN_KEYS = DEFAULT_BUILD_OPTIONS.keys()
+    KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
 
 def get_user_easybuild_dir():
@@ -321,9 +342,7 @@ def init(options, config_options_dict):
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
     """
     tmpdict = {}
-
     if SUPPORT_OLDSTYLE:
-
         _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
@@ -365,12 +384,46 @@ def init(options, config_options_dict):
     _log.debug("Config variables: %s" % variables)
 
 
-def init_build_options(build_options=None):
+def init_build_options(build_options=None, cmdline_options=None):
     """Initialize build options."""
-    # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
-    bo = copy.deepcopy(DEFAULT_BUILD_OPTIONS)
+    # building a dependency graph implies force, so that all dependencies are retained
+    # and also skips validation of easyconfigs (e.g. checking os dependencies)
+
+    active_build_options = {}
+
+    if cmdline_options is not None:
+        retain_all_deps = False
+        if cmdline_options.dep_graph:
+            _log.info("Enabling force to generate dependency graph.")
+            cmdline_options.force = True
+            retain_all_deps = True
+
+        if cmdline_options.dep_graph or cmdline_options.dry_run or cmdline_options.dry_run_short:
+            _log.info("Ignoring OS dependencies for --dep-graph/--dry-run")
+            cmdline_options.ignore_osdeps = True
+
+        cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
+        active_build_options.update(dict([(key, getattr(cmdline_options, key)) for key in cmdline_build_option_names]))
+        # other options which can be derived but have no perfectly matching cmdline option
+        active_build_options.update({
+            'check_osdeps': not cmdline_options.ignore_osdeps,
+            'dry_run': cmdline_options.dry_run or cmdline_options.dry_run_short,
+            'recursive_mod_unload': cmdline_options.recursive_module_unload,
+            'retain_all_deps': retain_all_deps,
+            'validate': not cmdline_options.force,
+            'valid_module_classes': module_classes(),
+        })
+
     if build_options is not None:
-        bo.update(build_options)
+        active_build_options.update(build_options)
+
+    # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
+    bo = {}
+    for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
+        for default in build_options_by_default:
+            bo.update(dict([(opt, default) for opt in build_options_by_default[default]]))
+    bo.update(active_build_options)
+
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
     return BuildOptions(bo)
 

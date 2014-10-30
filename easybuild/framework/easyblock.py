@@ -38,7 +38,6 @@ The EasyBlock class should serve as a base class for all easyblocks.
 
 import copy
 import glob
-import re
 import os
 import shutil
 import stat
@@ -49,8 +48,10 @@ from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
-from easybuild.framework.easyconfig.easyconfig import (EasyConfig, ActiveMNS, ITERATE_OPTIONS,
-    fetch_parameter_from_easyconfig_file, get_class_for, get_easyblock_class, get_module_path, resolve_template)
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -73,6 +74,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
+
 
 _log = fancylogger.getLogger('easyblock')
 
@@ -111,6 +113,8 @@ class EasyBlock(object):
         Initialize the EasyBlock instance.
         @param ec: a parsed easyconfig file (EasyConfig instance)
         """
+        # keep track of original working directory, so we can go back there
+        self.orig_workdir = os.getcwd()
 
         # list of patch/source files, along with checksums
         self.patches = []
@@ -472,7 +476,7 @@ class EasyBlock(object):
             common_filepaths = []
             if self.robot_path:
                 common_filepaths.extend(self.robot_path)
-            common_filepaths.extend(get_paths_for("easyconfigs", robot_path=self.robot_path))
+            common_filepaths.extend(get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=self.robot_path))
 
             for path in ebpath + common_filepaths + srcpaths:
                 # create list of candidate filepaths
@@ -912,7 +916,6 @@ class EasyBlock(object):
 
         if os.path.exists(self.installdir):
             try:
-                cwd = os.getcwd()
                 os.chdir(self.installdir)
             except OSError, err:
                 self.log.error("Failed to change to %s: %s" % (self.installdir, err))
@@ -924,9 +927,9 @@ class EasyBlock(object):
                     if paths:
                         txt += self.moduleGenerator.prepend_paths(key, paths)
             try:
-                os.chdir(cwd)
+                os.chdir(self.orig_workdir)
             except OSError, err:
-                self.log.error("Failed to change back to %s: %s" % (cwd, err))
+                self.log.error("Failed to change back to %s: %s" % (self.orig_workdir, err))
         else:
             txt = ""
         return txt
@@ -1376,8 +1379,8 @@ class EasyBlock(object):
         for ext in self.exts:
             self.log.debug("Starting extension %s" % ext['name'])
 
-            # always go back to build dir to avoid running stuff from a dir that no longer exists
-            os.chdir(self.builddir)
+            # always go back to original work dir to avoid running stuff from a dir that no longer exists
+            os.chdir(self.orig_workdir)
 
             inst = None
 
@@ -1622,7 +1625,7 @@ class EasyBlock(object):
         """
         if not self.build_in_installdir and build_option('cleanup_builddir'):
             try:
-                os.chdir(build_path())  # make sure we're out of the dir we're removing
+                os.chdir(self.orig_workdir)  # make sure we're out of the dir we're removing
 
                 self.log.info("Cleaning up builddir %s (in %s)" % (self.builddir, os.getcwd()))
 
@@ -1675,8 +1678,7 @@ class EasyBlock(object):
         Run provided test cases.
         """
         for test in self.cfg['tests']:
-            # Current working dir no longer exists
-            os.chdir(self.installdir)
+            os.chdir(self.orig_workdir)
             if os.path.isabs(test):
                 path = test
             else:
@@ -1981,6 +1983,7 @@ def build_and_install_one(module, orig_environ):
     del app
 
     return (success, application_log, errormsg)
+
 
 def get_easyblock_instance(easyconfig):
     """
