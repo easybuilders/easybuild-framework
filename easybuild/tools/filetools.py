@@ -37,6 +37,7 @@ import os
 import re
 import shutil
 import stat
+import sys
 import time
 import urllib
 import zlib
@@ -53,6 +54,22 @@ _log = fancylogger.getLogger('filetools', fname=False)
 
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
+
+# things we know how to download
+HTTP = 'http'
+GIT = 'git'
+SVN = 'svn'
+BZR = 'bzr'
+
+# map protocols to things we know how to download
+PROTOCOL_MAP = {
+    'http': HTTP,
+    'http+git': GIT,
+    'git': GIT,
+    'bzr': BZR,
+    'svn': SVN,
+    'svn+http': SVN,
+}
 
 # character map for encoding strings
 STRING_ENCODING_CHARMAP = {
@@ -242,7 +259,13 @@ def det_common_path_prefix(paths):
 
 
 def download_file(filename, url, path):
-    """Download a file from the given URL, to the specified path."""
+    """
+    Download a file from the given URL, to the specified path.
+    This function will parse the url and try to use the protcol that best matches the url to download it
+    if the protocol is a versioning control system it will do a checkout of the repo and use filename as the 
+    revision to check out instead of the file.
+    it will save this to the path as a tarball
+    """
 
     _log.debug("Downloading %s from %s to %s" % (filename, url, path))
 
@@ -253,9 +276,18 @@ def download_file(filename, url, path):
     downloaded = False
     attempt_cnt = 0
 
+    protocol = url.split(':')[0] 
+    try:
+        PROTOCOL_MAP[protocol]
+        # call the download_XXX function
+        return getattr(sys.modules[__name__], "download_%s" % PROTOCOL_MAP[protocol])(filename, url, path)
+    except AttributeError:
+        _log.exception("can't handle url: %s, unknown protocol" % url)
+
+def download_http(filename, url, path):
     # use this functions's scope for the variable we share with our inner function
-    download_file.last_time = time.time()
-    download_file.last_block = 0
+    download_http.last_time = time.time()
+    download_http.last_block = 0
     # internal function to report on download progress
     def report(block, blocksize, filesize):
         """
@@ -263,12 +295,12 @@ def download_file(filename, url, path):
         the current downloaded block, the size in bytes of one block and the total size of the downlad.
         This efectively logs the download progress every 10 seconds with loglevel info.
         """
-        if download_file.last_time + 10 < time.time():
-            newblocks = block - download_file.last_block
-            download_file.last_block = block
+        if download_http.last_time + 10 < time.time():
+            newblocks = block - download_http.last_block
+            download_http.last_block = block
             total_download = block * blocksize
             percentage = int(block * blocksize * 100 / filesize)
-            kbps = (blocksize * newblocks) / 1024  // (time.time() - download_file.last_time)
+            kbps = (blocksize * newblocks) / 1024  // (time.time() - download_http.last_time)
 
             if filesize <= 0:
                 # content length isn't always set
@@ -276,7 +308,7 @@ def download_file(filename, url, path):
             else:
                 _log.info('download report: %d kb of %d kb (%d %%, %d kbps)', total_download, filesize, percentage, kbps)
                           
-            download_file.last_time = time.time()
+            download_http.last_time = time.time()
 
 
     # try downloading three times max.
@@ -291,8 +323,8 @@ def download_file(filename, url, path):
             _log.warning('url %s was not found (404), not trying again', url)
             return None
 
-        download_file.last_time = time.time()
-        download_file.last_block = 0
+        download_http.last_time = time.time()
+        download_http.last_block = 0
 
         try:
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
@@ -329,6 +361,33 @@ def download_file(filename, url, path):
     return None
 
 
+def download_svn(revision, url, path):
+    # import here to avoid circular import 
+    from easybuild.tools.repository.svnrepo import SvnRepository
+    # transform url into something SvnRepository understands
+    if url.startswith('svn+'):
+        url = url[4:]
+    # revision could already be a part of the url, we don't want that
+    if url.endswith(str(revision)):
+        url = url[:-len(revision)]
+    # same for path
+    if path.endswith(str(revision)):
+        path = path[:-len(revision)]
+    path = os.path.join(path, 'repo')
+    # svn revisions are digit's so only get these, some packages have version='r1234'
+    revision = ''.join([x for x in revision if x.isdigit()])
+
+    try:
+        svnrepo = SvnRepository(url)
+    except AttributeError, err:
+        _log.debug('error checkout out svn repo %s', err)
+        raise err
+    svnrepo.export(path, revision)
+    # path will always have '/repo' in it, so the rm should be file
+    cmd = ('cd %s && tar -acvf ../%s.tar.gz *; rm %s -rf; cd -' % (path, revision, path))
+    run.run_cmd(cmd, simple=True)
+    return "%s/%s.tar.gz" % (path, revision)
+
 def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
@@ -348,7 +407,7 @@ def find_easyconfigs(path, ignore_dirs=None):
                 continue
 
             spec = os.path.join(dirpath, f)
-            _log.debug("Found easyconfig %s" % spec)
+            _log.debug("Found easyconfig %s", spec)
             files.append(spec)
 
         # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
@@ -364,7 +423,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     if ignore_dirs is None:
         ignore_dirs = ['.git', '.svn']
     if not isinstance(ignore_dirs, list):
-        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
+        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s", ignore_dirs, type(ignore_dirs))
 
     var_lines = []
     hit_lines = []
@@ -412,14 +471,14 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
     if not checksum_type in CHECKSUM_FUNCTIONS:
-        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
+        _log.error("Unknown checksum type (%s), supported types are: %s", checksum_type, CHECKSUM_FUNCTIONS.keys())
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
-        _log.error("Failed to read %s: %s" % (path, err))
+        _log.error("Failed to read %s: %s", path, err)
     except MemoryError, err:
-        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        _log.warning("A memory error occured when computing the checksum for %s: %s", path, err)
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
@@ -434,7 +493,7 @@ def calc_block_checksum(path, algorithm):
         blocksize = algorithm.blocksize * 262144  # 2^18
     except AttributeError, err:
         blocksize = 16777216  # 2^24
-    _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
+    _log.debug("Using blocksize %s for calculating the checksum", blocksize)
 
     try:
         f = open(path, 'rb')
@@ -442,7 +501,7 @@ def calc_block_checksum(path, algorithm):
             algorithm.update(block)
         f.close()
     except IOError, err:
-        _log.error("Failed to read %s: %s" % (path, err))
+        _log.error("Failed to read %s: %s", path, err)
 
     return algorithm.hexdigest()
 
