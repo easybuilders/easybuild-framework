@@ -183,7 +183,7 @@ class SvnRepository(FileRepository):
         if not revision:
             revision = pysvn.Revision(pysvn.opt_revision_kind.head)
         else:
-            pysvn.Revision(pysvn.opt_revision_kind.number, revision)
+            revision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
 
         self.client.export(self.repo, to_path, revision=revision)
          
