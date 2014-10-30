@@ -95,19 +95,25 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(unprocessed, avail_modules):
+def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
     """
     ordered_ecs = []
     new_avail_modules = avail_modules[:]
     new_unprocessed = []
+    modtool = modules_tool()
 
     for ec in unprocessed:
         new_ec = ec.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            if not ActiveMNS().det_full_module_name(dep) in new_avail_modules:
+            full_mod_name = ActiveMNS().det_full_module_name(dep)
+            dep_resolved = full_mod_name in new_avail_modules
+            if not retain_all_deps:
+                # hidden modules need special care, since they may not be included in list of available modules
+                dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+            if not dep_resolved:
                 deps.append(dep)
         new_ec['dependencies'] = deps
 
