@@ -80,11 +80,12 @@ class EasyBuildOptions(GeneralOption):
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         strictness_options = [run.IGNORE, run.WARN, run.ERROR]
 
-        try:
-            default_robot_path = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)[0]
-        except:
+        easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)
+        if easyconfigs_pkg_paths:
+            default_robot_paths = easyconfigs_pkg_paths
+        else:
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used
+            default_robot_paths = []
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -98,7 +99,7 @@ class EasyBuildOptions(GeneralOption):
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution", None, 'store_or_None', None, {'metavar': 'PATH[:PATH][,PATH]'}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                           None, 'store', [default_robot_path], {'metavar': 'PATH[,PATH]'}),
+                           None, 'store', default_robot_paths, {'metavar': 'PATH[,PATH]'}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
