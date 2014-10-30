@@ -48,7 +48,7 @@ from easybuild.tools.modules import modules_tool
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_option, easyconfigs_pkg_paths, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_option, robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
     # do not use robot option directly, it's not a list instance (and it shouldn't be modified)
     robot_path = []
@@ -61,7 +61,7 @@ def det_robot_path(robot_option, easyconfigs_pkg_paths, tweaked_ecs_path, pr_pat
             _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
 
     if robot_path or auto_robot:
-        robot_path.extend(easyconfigs_pkg_paths)
+        robot_path.extend(robot_paths_option)
         _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
 
     if tweaked_ecs_path is not None:
