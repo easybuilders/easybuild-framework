@@ -566,7 +566,7 @@ class EasyConfigTest(EnhancedTestCase):
         new_patches = ['two.patch', 'three.patch']
         specs.update({
             'patches': new_patches[:],
-            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10')), ('test', '3.2.1')],
+            'dependencies': [('foo', '1.2.3'), ('bar', '666', '-bleh', ('gompi', '1.4.10'))],
             'hiddendependencies': [('test', '3.2.1')],
         })
         parsed_deps = [
@@ -601,6 +601,15 @@ class EasyConfigTest(EnhancedTestCase):
                 'hidden': True,
             },
         ]
+
+        # hidden dependencies must be included in list of dependencies
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        self.assertEqual(res[0], True)
+        error_pattern = "Hidden dependencies with visible module names .* not in list of dependencies: .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
+
+        specs['dependencies'].append(('test', '3.2.1'))
+
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])

@@ -417,6 +417,7 @@ class EasyConfig(object):
         """
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
+        faulty_deps = []
         for hidden_dep in self['hiddendependencies']:
             # check whether hidden dep is a listed dep using *visible* module name, not hidden one
             visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
@@ -427,8 +428,11 @@ class EasyConfig(object):
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
-                tup = (visible_mod_name, dep_mod_names)
-                self.log.error("Hidden dependency with visible module name %s not in list of dependencies: %s" % tup)
+                faulty_deps.append(visible_mod_name)
+
+        if faulty_deps:
+            tup = (faulty_deps, dep_mod_names)
+            self.log.error("Hidden dependencies with visible module names %s not in list of dependencies: %s" % tup)
 
     def dependencies(self):
         """
