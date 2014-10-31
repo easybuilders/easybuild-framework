@@ -101,7 +101,7 @@ class HgRepository(FileRepository):
         try:
             client = hglib.clone(self.repo, self.wc)
             self.log.debug("repo %s cloned in %s" % (self.repo, self.wc))
-        except HgCommandError, err:
+        except (HgCommandError, OSError), err:
             # it might already have existed
             self.log.warning("Mercurial local repo initialization failed, it might already exist: %s" % err)
 

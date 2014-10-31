@@ -101,7 +101,7 @@ class GitRepository(FileRepository):
             client.clone(self.repo)
             reponame = os.listdir(self.wc)[0]
             self.log.debug("rep name is %s" % reponame)
-        except git.GitCommandError, err:
+        except (git.GitCommandError, OSError), err:
             # it might already have existed
             self.log.warning("Git local repo initialization failed, it might already exist: %s" % err)
 
