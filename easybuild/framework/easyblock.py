@@ -59,7 +59,7 @@ from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import DEFAULT_CHECKSUM
+from easybuild.tools.filetools import DEFAULT_CHECKSUM, PROTOCOL_MAP
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
 from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
@@ -433,11 +433,12 @@ class EasyBlock(object):
         - supports fetching file from the web if path is specified as an url (i.e. starts with "http://:")
         """
         srcpaths = source_paths()
+        protocol = filename.split(':')[0]
 
         # should we download or just try and find it?
-        if filename.startswith("http://") or filename.startswith("ftp://"):
+        if protocol in PROTOCOL_MAP:
 
-            # URL detected, so let's try and download it
+            # supported URL scheme detected, so let's try and download it
 
             url = filename
             filename = url.split('/')[-1]
@@ -1192,7 +1193,7 @@ class EasyBlock(object):
         # fetch extensions
         if len(self.cfg['exts_list']) > 0:
             self.exts = self.fetch_extension_sources()
- 
+
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1337,7 +1338,7 @@ class EasyBlock(object):
 
         if fetch:
             self.exts = self.fetch_extension_sources()
-            
+
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:

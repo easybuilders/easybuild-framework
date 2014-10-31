@@ -55,20 +55,23 @@ _log = fancylogger.getLogger('filetools', fname=False)
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
 
-# things we know how to download
+# list of possible protocols we should know how to download
 HTTP = 'http'
 GIT = 'git'
 SVN = 'svn'
 BZR = 'bzr'
+FILE = 'local_file'
 
 # map protocols to things we know how to download
 PROTOCOL_MAP = {
     'http': HTTP,
-    'http+git': GIT,
-    'git': GIT,
-    'bzr': BZR,
+    'https': HTTP,
+    #'http+git': GIT,
+    #'git': GIT,
+    #'bzr': BZR,
     'svn': SVN,
     'svn+http': SVN,
+    'file': FILE,
 }
 
 # character map for encoding strings
@@ -262,25 +265,36 @@ def download_file(filename, url, path):
     """
     Download a file from the given URL, to the specified path.
     This function will parse the url and try to use the protcol that best matches the url to download it
-    if the protocol is a versioning control system it will do a checkout of the repo and use filename as the 
+    if the protocol is a versioning control system it will do a checkout of the repo and use filename as the
     revision to check out instead of the file.
     it will save this to the path as a tarball
     """
 
-    _log.debug("Downloading %s from %s to %s" % (filename, url, path))
+    _log.debug("Downloading %s from %s to %s", filename, url, path)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
+    protocol = url.split(':')[0]
+    if protocol not in PROTOCOL_MAP:
+        _log.exception("can't handle url: %s, unsupported protocol %s currently only %s are supported" %
+                       (url, protocol, PROTOCOL_MAP.keys()))
+    _log.debug("Downloading %s from %s to %s using protocol %s", filename, url, path, protocol)
+    # call the download_XXX function
+    return getattr(sys.modules[__name__], "download_%s" % PROTOCOL_MAP[protocol])(filename, url, path)
 
-    protocol = url.split(':')[0] 
-    try:
-        PROTOCOL_MAP[protocol]
-        # call the download_XXX function
-        return getattr(sys.modules[__name__], "download_%s" % PROTOCOL_MAP[protocol])(filename, url, path)
-    except AttributeError:
-        _log.exception("can't handle url: %s, unknown protocol" % url)
+
+def download_local_file(filename, url, path):
+    """Dowloading a local file is just copying it"""
+    if not url.endswith(filename):
+        url = os.path.join(filename)
+    if url.startswith('file://'):
+        url = url[7:]
+    _log.debug("copyting %s to %s", url, path)
+    shutil.copy2(url, path)
+    return path
+
 
 def download_http(filename, url, path):
     downloaded = False
@@ -305,10 +319,10 @@ def download_http(filename, url, path):
 
             if filesize <= 0:
                 # content length isn't always set
-                _log.info('download report: %d kb downloaded (%d kbps)', total_download, kbps) 
+                _log.info('download report: %d kb downloaded (%d kbps)', total_download, kbps)
             else:
                 _log.info('download report: %d kb of %d kb (%d %%, %d kbps)', total_download, filesize, percentage, kbps)
-                          
+
             download_http.last_time = time.time()
 
 
@@ -331,7 +345,7 @@ def download_http(filename, url, path):
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
         except ContentTooShortError:
             _log.warning(
-                "Expected file of %d bytes, but download size dit not match, removing file and retrying", 
+                "Expected file of %d bytes, but download size dit not match, removing file and retrying",
                 int(httpmsg.dict['content-length']),
             )
             try:
@@ -363,7 +377,7 @@ def download_http(filename, url, path):
 
 
 def download_svn(revision, url, path):
-    # import here to avoid circular import 
+    # import here to avoid circular import
     from easybuild.tools.repository.svnrepo import SvnRepository
     # transform url into something SvnRepository understands
     if url.startswith('svn+'):
