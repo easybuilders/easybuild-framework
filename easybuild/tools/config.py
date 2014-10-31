@@ -82,6 +82,7 @@ BUILD_OPTIONS_CMDLINE = {
         'only_blocks',
         'optarch',
         'regtest_output_dir',
+        'robot',
         'skip',
         'stop',
         'suffix_modules_path',

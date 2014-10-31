@@ -420,11 +420,13 @@ class EasyBuildOptions(GeneralOption):
             # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
             __str__ = ListOfStrings.__str__
 
-        if self.options.robot is not None:
+        if self.options.robot is None:
+            all_robot_paths = self.options.robot_paths
+        else:
             # paths specified to --robot have preference over --robot-paths
             all_robot_paths = os.pathsep.join([self.options.robot, self.options.robot_paths])
-        else:
-            all_robot_paths = self.options.robot_paths
+            # avoid that options.robot is used for paths (since not everything is there)
+            self.options.robot = True
         # convert to a regular list, exclude empty strings
         self.options.robot_paths = nub([x for x in RobotPath(all_robot_paths) if x])
 

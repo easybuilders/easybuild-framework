@@ -1238,6 +1238,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy' as a dependency
 
+        # dependency resolution is disabled by default, even if required paths are available
+        args = [
+            eb_file,
+            '--robot-paths=%s' % test_ecs_path,
+            '--dry-run',
+        ]
+        self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
+
         # enable robot, but without passing path required to resolve toy dependency => FAIL
         args = [
             eb_file,
