@@ -420,14 +420,13 @@ class EasyBuildOptions(GeneralOption):
             # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
             __str__ = ListOfStrings.__str__
 
-        # split supplied list of robot paths to obtain a list
         if self.options.robot:
-            self.options.robot = RobotPath(self.options.robot)
-        if self.options.robot is not None:
-            self.options.robot = list(self.options.robot)
-        if self.options.robot_paths:
-            self.options.robot_paths = RobotPath(self.options.robot_paths)
-        self.options.robot_paths = list(self.options.robot_paths)
+            # paths specified to --robot have preference over --robot-paths
+            all_robot_paths = os.pathsep.join([self.options.robot, self.options.robot_paths])
+        else:
+            all_robot_paths = self.options.robot_paths
+        # convert to a regular list, exclude empty strings
+        self.options.robot_paths = nub([x for x in list(RobotPath(all_robot_paths)) if x])
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

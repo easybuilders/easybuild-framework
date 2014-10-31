@@ -48,19 +48,11 @@ from easybuild.tools.modules import modules_tool
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_option, robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
-    robot_path = []
-
-    # if --robot is enabled, use any paths specified to it
-    if robot_option is not None:
-        robot_path = robot_option
-        _log.info("Using robot path(s): %s" % robot_path)
-
-    # if --robot is specified or should be enabled automagically, include --robot-paths too
-    if robot_option is not None or auto_robot:
-        robot_path.extend(robot_paths_option)
-        _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
+    # always include all robot paths (combo of --robot and --robot-paths, in that order)
+    robot_path = robot_paths_option
+    _log.info("Using robot path(s): %s" % robot_path)
 
     # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
     if tweaked_ecs_path is not None:

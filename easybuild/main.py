@@ -191,7 +191,7 @@ def main(testing_data=(None, None, None)):
     tweaked_ecs = try_to_generate and build_specs
     tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
     auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
-    robot_path = det_robot_path(options.robot, options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
 
     # configure & initialize build options
