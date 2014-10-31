@@ -186,7 +186,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     build_overview = []
     for (ec, ec_res) in ecs_with_res:
         test_log = ''
-        if ec_res['success']:
+        if ec_res.get('success', False):
             test_result = 'SUCCESS'
         else:
             # compose test result string

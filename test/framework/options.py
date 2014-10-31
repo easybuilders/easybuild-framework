@@ -556,9 +556,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
-            '--dry-run',
+            '--dry-run',  # implies enabling dependency resolution
             '--unittest-file=%s' % self.logfile,
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot-paths=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn)
 
@@ -1236,15 +1236,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy' as a dependency
+        eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
+
+        # hide test modules
+        self.reset_modulepath([])
 
         # dependency resolution is disabled by default, even if required paths are available
         args = [
             eb_file,
             '--robot-paths=%s' % test_ecs_path,
-            '--dry-run',
         ]
-        self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
+        error_regex ='no module .* found for dependency'
+        self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL
         args = [

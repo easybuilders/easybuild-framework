@@ -122,7 +122,7 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                             retain all deps when True, check matching build option when False
     """
 
-    robot = build_option('robot') and build_option('robot_path')
+    robot = build_option('robot_path')
     # retain all dependencies if specified by either the resp. build option or the dedicated named argument
     retain_all_deps = build_option('retain_all_deps') or retain_all_deps
 

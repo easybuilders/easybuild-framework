@@ -276,8 +276,11 @@ def main(testing_data=(None, None, None)):
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        print_msg("resolving dependencies ...", log=_log, silent=testing)
-        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        if options.robot:
+            print_msg("resolving dependencies ...", log=_log, silent=testing)
+            ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        else:
+            ordered_ecs = easyconfigs
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []
