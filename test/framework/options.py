@@ -1233,6 +1233,50 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
+    def test_robot(self):
+        """Test --robot and --robot-paths command line options."""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy' as a dependency
+
+        # enable robot, but without passing path required to resolve toy dependency => FAIL
+        args = [
+            eb_file,
+            '--robot',
+            '--dry-run',
+        ]
+        self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
+
+        # add path to test easyconfigs to robot paths, so dependencies can be resolved
+        self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+        shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+
+        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)
+        self.eb_main(args, raise_error=True)
+
+        shutil.rmtree(tmpdir)
+        sys.path[:] = orig_sys_path
+
+        # make sure that paths specified to --robot get preference over --robot-paths
+        args = [
+            eb_file,
+            '--robot=%s' % test_ecs_path,
+            '--robot-paths=%s' % os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, raise_error=True)
+
+        for ec in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
+            ec_regex = re.compile('^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ec), re.M)
+            self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(CommandLineOptionsTest)
