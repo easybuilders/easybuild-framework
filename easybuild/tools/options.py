@@ -84,7 +84,7 @@ class EasyBuildOptions(GeneralOption):
         if easyconfigs_pkg_paths:
             default_robot_paths = os.pathsep.join(easyconfigs_pkg_paths)
         else:
-            self.log.warning("basic_options: unable to determine default easyconfig path")
+            self.log.warning("basic_options: unable to determine easyconfigs pkg path for --robot-paths default")
             default_robot_paths = ''
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
@@ -420,13 +420,13 @@ class EasyBuildOptions(GeneralOption):
             # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
             __str__ = ListOfStrings.__str__
 
-        if self.options.robot:
+        if self.options.robot is not None:
             # paths specified to --robot have preference over --robot-paths
             all_robot_paths = os.pathsep.join([self.options.robot, self.options.robot_paths])
         else:
             all_robot_paths = self.options.robot_paths
         # convert to a regular list, exclude empty strings
-        self.options.robot_paths = nub([x for x in list(RobotPath(all_robot_paths)) if x])
+        self.options.robot_paths = nub([x for x in RobotPath(all_robot_paths) if x])
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
