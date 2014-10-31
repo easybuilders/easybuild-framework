@@ -182,11 +182,6 @@ def main(testing_data=(None, None, None)):
     if options.umask is not None:
         _log.info("umask set to '%s' (used to be '%s')" % (oct(new_umask), oct(old_umask)))
 
-    # determine easybuild-easyconfigs package install path
-    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
-    if not easyconfigs_pkg_paths:
-        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
-
     # process software build specifications (if any), i.e.
     # software name/version, toolchain name/version, extra patches, ...
     (try_to_generate, build_specs) = process_software_build_specs(options)
@@ -196,7 +191,7 @@ def main(testing_data=(None, None, None)):
     tweaked_ecs = try_to_generate and build_specs
     tweaked_ecs_path, pr_path = alt_easyconfig_paths(eb_tmpdir, tweaked_ecs=tweaked_ecs, from_pr=options.from_pr)
     auto_robot = try_to_generate or options.dep_graph or options.search or options.search_short
-    robot_path = det_robot_path(options.robot, easyconfigs_pkg_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
+    robot_path = det_robot_path(options.robot_paths, tweaked_ecs_path, pr_path, auto_robot=auto_robot)
     _log.debug("Full robot path: %s" % robot_path)
 
     # configure & initialize build options
@@ -225,6 +220,11 @@ def main(testing_data=(None, None, None)):
     query = options.search or options.search_short
     if query:
         search_easyconfigs(query, short=not options.search)
+
+    # determine easybuild-easyconfigs package install path
+    easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
+    if not easyconfigs_pkg_paths:
+        _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
@@ -276,8 +276,11 @@ def main(testing_data=(None, None, None)):
 
     # determine an order that will allow all specs in the set to build
     if len(easyconfigs) > 0:
-        print_msg("resolving dependencies ...", log=_log, silent=testing)
-        ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        if options.robot:
+            print_msg("resolving dependencies ...", log=_log, silent=testing)
+            ordered_ecs = resolve_dependencies(easyconfigs, build_specs=build_specs)
+        else:
+            ordered_ecs = easyconfigs
     else:
         print_msg("No easyconfigs left to be built.", log=_log, silent=testing)
         ordered_ecs = []

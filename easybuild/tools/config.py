@@ -94,6 +94,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'force',
         'hidden',
+        'robot',
         'sequential',
         'set_gid_bit',
         'skip_test_cases',

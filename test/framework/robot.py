@@ -128,7 +128,7 @@ class RobotTest(EnhancedTestCase):
             }],
             'parsed': True,
         }
-        build_options.update({'robot_path': self.base_easyconfig_dir})
+        build_options.update({'robot': True, 'robot_path': self.base_easyconfig_dir})
         init_config(build_options=build_options)
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct

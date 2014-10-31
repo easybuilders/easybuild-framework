@@ -48,26 +48,15 @@ from easybuild.tools.modules import modules_tool
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_option, easyconfigs_pkg_paths, tweaked_ecs_path, pr_path, auto_robot=False):
+def det_robot_path(robot_paths_option, tweaked_ecs_path, pr_path, auto_robot=False):
     """Determine robot path."""
-    # do not use robot option directly, it's not a list instance (and it shouldn't be modified)
-    robot_path = []
-    if robot_option is not None:
-        if robot_option:
-            robot_path = list(robot_option)
-            _log.info("Using robot path(s): %s" % robot_path)
-        else:
-            # if options.robot is not None and False, easyconfigs pkg install path could not be found (see options.py)
-            _log.error("No robot paths specified, and unable to determine easybuild-easyconfigs install path.")
+    robot_path = robot_paths_option[:]
+    _log.info("Using robot path(s): %s" % robot_path)
 
-    if robot_path or auto_robot:
-        robot_path.extend(easyconfigs_pkg_paths)
-        _log.info("Extended list of robot paths with paths for installed easyconfigs: %s" % robot_path)
-
+    # paths to tweaked easyconfigs or easyconfigs downloaded from a PR have priority
     if tweaked_ecs_path is not None:
         robot_path.insert(0, tweaked_ecs_path)
         _log.info("Prepended list of robot search paths with %s: %s" % (tweaked_ecs_path, robot_path))
-
     if pr_path is not None:
         robot_path.insert(0, pr_path)
         _log.info("Prepended list of robot search paths with %s: %s" % (pr_path, robot_path))
