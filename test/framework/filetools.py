@@ -190,7 +190,7 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        source_url = "file://%s" % os.path.join(test_dir, 'sandbox', 'sources', 'toy', fn)  # not a path, an url
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location)
 
