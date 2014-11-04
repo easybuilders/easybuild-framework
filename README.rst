@@ -19,10 +19,10 @@ The EasyBuild framework source code is hosted on GitHub, along
 with an issue tracker for bug reports and feature requests, see
 http://github.com/hpcugent/easybuild-framework.
 
-Related packages:
+Related repositories:
 
-* `easybuild-easyblocks <http://pypi.python.org/pypi/easybuild-easyblocks>`_: a collection of easyblocks that implement support for building and installing (groups of) software packages.
-* `easybuild-easyconfigs <http://pypi.python.org/pypi/easybuild-easyconfigs>`_: a collection of example easyconfig files that specify which software to build, and using which build options; these easyconfigs will be well tested with the latest compatible versions of the easybuild-framework and easybuild-easyblocks packages.
+* `easybuild-easyblocks <http://github.com/hpcugent/easybuild-easyblocks>`_: a collection of easyblocks that implement support for building and installing (groups of) software packages.
+* `easybuild-easyconfigs <http://github.com/hpcugent/easybuild-easyconfigs>`_: a collection of example easyconfig files that specify which software to build, and using which build options; these easyconfigs will be well tested with the latest compatible versions of the easybuild-framework and easybuild-easyblocks packages.
 
 The code in the ``vsc`` directory originally comes from the *vsc-base* package
 (https://github.com/hpcugent/vsc-base).
