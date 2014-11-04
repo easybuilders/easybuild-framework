@@ -19,7 +19,18 @@ The EasyBuild framework source code is hosted on GitHub, along
 with an issue tracker for bug reports and feature requests, see
 http://github.com/hpcugent/easybuild-framework.
 
-* build status - **master** branch *(Python 2.4, Python 2.6, Python 2.7)*
+Related packages:
+
+* `easybuild-easyblocks <http://pypi.python.org/pypi/easybuild-easyblocks>`_: a collection of easyblocks that implement support for building and installing (groups of) software packages.
+* `easybuild-easyconfigs <http://pypi.python.org/pypi/easybuild-easyconfigs>`_: a collection of example easyconfig files that specify which software to build, and using which build options; these easyconfigs will be well tested with the latest compatible versions of the easybuild-framework and easybuild-easyblocks packages.
+
+The code in the ``vsc`` directory originally comes from the *vsc-base* package
+(https://github.com/hpcugent/vsc-base).
+
+
+*Build status overview:*
+
+* **master** branch *(Python 2.4, Python 2.6, Python 2.7)*
 
   .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python24/badge/icon
       :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python24/
@@ -28,7 +39,7 @@ http://github.com/hpcugent/easybuild-framework.
   .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python27/badge/icon
       :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_master-python27/
 
-* build status - **develop** branch *(Python 2.4, Python 2.6, Python 2.7)*
+* **develop** branch *(Python 2.4, Python 2.6, Python 2.7)*
 
   .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python24/badge/icon
       :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python24/
@@ -36,11 +47,3 @@ http://github.com/hpcugent/easybuild-framework.
       :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop/
   .. image:: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python27/badge/icon
       :target: https://jenkins1.ugent.be/view/EasyBuild/job/easybuild-framework_unit-test_hpcugent_develop-python27/
-
-Related packages:
-
-* `easybuild-easyblocks <http://pypi.python.org/pypi/easybuild-easyblocks>`_: a collection of easyblocks that implement support for building and installing (groups of) software packages.
-* `easybuild-easyconfigs <http://pypi.python.org/pypi/easybuild-easyconfigs>`_: a collection of example easyconfig files that specify which software to build, and using which build options; these easyconfigs will be well tested with the latest compatible versions of the easybuild-framework and easybuild-easyblocks packages.
-
-The code in the ``vsc`` directory originally comes from the *vsc-base* package
-(https://github.com/hpcugent/vsc-base).
