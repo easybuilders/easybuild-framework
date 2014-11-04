@@ -70,7 +70,7 @@ class IntelIccIfort(Compiler):
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'xHOST',
-        systemtools.AMD : 'msse3',
+        systemtools.AMD : 'xHost',
     }
 
     COMPILER_CC = 'icc'
