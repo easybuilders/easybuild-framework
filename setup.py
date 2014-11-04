@@ -82,9 +82,7 @@ setup(
     version = str(VERSION),
     author = "EasyBuild community",
     author_email = "easybuild@lists.ugent.be",
-    description = """EasyBuild is a software build and installation framework that allows you to \
-manage (scientific) software on High Performance Computing (HPC) systems in an efficient way.
-This package contains the EasyBuild framework, which supports the creation of custom easyblocks that \
+    description = """The EasyBuild framework supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",
     license = "GPLv2",
     keywords = "software build building installation installing compilation HPC scientific",
