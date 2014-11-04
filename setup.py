@@ -82,8 +82,8 @@ setup(
     version = str(VERSION),
     author = "EasyBuild community",
     author_email = "easybuild@lists.ugent.be",
-    description = """EasyBuild is a software installation framework in Python that allows you to \
-install software in a structured and robust way.
+    description = """EasyBuild is a software build and installation framework that allows you to \
+manage (scientific) software on High Performance Computing (HPC) systems in an efficient way.
 This package contains the EasyBuild framework, which supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",
     license = "GPLv2",
@@ -96,12 +96,7 @@ implement support for installing particular (groups of) software packages.""",
     data_files = [
         ('easybuild', ["easybuild/easybuild_config.py"]),
     ],
-    long_description = """This package contains the EasyBuild
-framework, which supports the creation of custom easyblocks that
-implement support for installing particular (groups of) software
-packages.
-
-""" + read("README.rst"),
+    long_description = read('README.rst'),
     classifiers = [
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
