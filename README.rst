@@ -8,7 +8,7 @@ EasyBuild: building software with ease
 and installation framework that allows you to manage (scientific) software
 on High Performance Computing (HPC) systems in an efficient way.
 
-The *easybuild-framework* package is the core of EasyBuild. It
+The **easybuild-framework** package is the core of EasyBuild. It
 supports the implementation and use of so-called easyblocks which
 implement the software install procedure for a particular (group of) software
 package(s).
