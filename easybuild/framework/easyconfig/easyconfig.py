@@ -788,9 +788,23 @@ def get_easyblock_class(easyblock, name=None):
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)
             modulepath = get_module_path(class_name)
-            if not os.path.exists("%s.py" % modulepath):
-                _log.deprecated("Determine module path based on software name", "2.0")
-                modulepath = get_module_path(name, decode=False)
+            modulepath_imported = False
+            try:
+                __import__(modulepath, globals(), locals(), [''])
+                modulepath_imported = True
+            except ImportError, err:
+                _log.debug("Failed to import module '%s': %s" % (modulepath, err))
+
+            # check if determining module path based on software name would have resulted in a different module path
+            if modulepath_imported:
+                _log.debug("Module path '%s' found" % modulepath)
+            else:
+                _log.debug("No module path '%s' found" % modulepath)
+                modulepath_bis = get_module_path(name, decode=False)
+                _log.debug("Module path determined based on software name: %s" % modulepath_bis)
+                if modulepath_bis != modulepath:
+                    _log.deprecated("Determine module path based on software name", "2.0")
+                    modulepath = modulepath_bis
 
             # try and find easyblock
             try:

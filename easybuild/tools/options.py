@@ -205,7 +205,7 @@ class EasyBuildOptions(GeneralOption):
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules", None, 'store', oldstyle_defaults['installpath']),
-            'config': ("Path to EasyBuild config file",
+            'config': ("Path to EasyBuild config file (DEPRECATED, use --configfiles instead!)",
                        None, 'store', oldstyle_defaults['config'], 'C'),
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),

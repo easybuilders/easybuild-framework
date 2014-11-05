@@ -53,6 +53,7 @@ _log = fancylogger.getLogger('config', fname=False)
 
 # class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
 SUPPORT_OLDSTYLE = True
+DEFAULT_OLDSTYLE_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'easybuild_config.py')
 
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
@@ -157,14 +158,15 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
+# note: keys are new style option names
 OLDSTYLE_ENVIRONMENT_VARIABLES = {
-    'build_path': 'EASYBUILDBUILDPATH',
-    'config_file': 'EASYBUILDCONFIG',
-    'install_path': 'EASYBUILDINSTALLPATH',
-    'log_format': 'EASYBUILDLOGFORMAT',
-    'log_dir': 'EASYBUILDLOGDIR',
-    'source_path': 'EASYBUILDSOURCEPATH',
-    'test_output_path': 'EASYBUILDTESTOUTPUT',
+    'buildpath': 'EASYBUILDBUILDPATH',
+    'config': 'EASYBUILDCONFIG',
+    'installpath': 'EASYBUILDINSTALLPATH',
+    'logfile_format': 'EASYBUILDLOGFORMAT',
+    'tmp_logdir': 'EASYBUILDLOGDIR',
+    'sourcepath': 'EASYBUILDSOURCEPATH',
+    'testoutput': 'EASYBUILDTESTOUTPUT',
 }
 
 
@@ -188,9 +190,7 @@ def map_to_newstyle(adict):
     res = {}
     for key, val in adict.items():
         if key in OLDSTYLE_NEWSTYLE_MAP:
-            newkey = OLDSTYLE_NEWSTYLE_MAP.get(key)
-            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
-            key = newkey
+            key = OLDSTYLE_NEWSTYLE_MAP[key]
         res[key] = val
     return res
 
@@ -264,7 +264,7 @@ def get_default_oldstyle_configfile():
     # - check environment variable EASYBUILDCONFIG
     # - next, check for an EasyBuild config in $HOME/.easybuild/config.py
     # - last, use default config file easybuild_config.py in main.py directory
-    config_env_var = OLDSTYLE_ENVIRONMENT_VARIABLES['config_file']
+    config_env_var = OLDSTYLE_ENVIRONMENT_VARIABLES['config']
     home_config_file = os.path.join(get_user_easybuild_dir(), "config.py")
     if os.getenv(config_env_var):
         _log.debug("Environment variable %s, so using that as config file." % config_env_var)
@@ -275,11 +275,11 @@ def get_default_oldstyle_configfile():
     else:
         # this should be easybuild.tools.config, the default config file is
         # part of framework in easybuild (ie in tool/..)
-        appPath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        config_file = os.path.join(appPath, "easybuild_config.py")
-        _log.debug("Falling back to default config: %s" % config_file)
-
-    _log.deprecated("get_default_oldstyle_configfile oldstyle configfile %s used" % config_file, "2.0")
+        if os.path.exists(DEFAULT_OLDSTYLE_CONFIG_FILE):
+            config_file = DEFAULT_OLDSTYLE_CONFIG_FILE
+            _log.debug("Falling back to default config: %s" % config_file)
+        else:
+            config_file = None
 
     return config_file
 
@@ -344,7 +344,10 @@ def init(options, config_options_dict):
     """
     tmpdict = {}
     if SUPPORT_OLDSTYLE:
-        _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
+        if not os.path.samefile(options.config, DEFAULT_OLDSTYLE_CONFIG_FILE):
+            # only trip if an oldstyle config other than the default is used (via $EASYBUILDCONFIG or --config)
+            # we still need the oldstyle default config file to ensure legacy behavior, for now
+            _log.deprecated('use of oldstyle configuration file %s' % options.config, '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
         # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the default list)
@@ -623,7 +626,6 @@ def oldstyle_init(filename, **kwargs):
     Variables are read in this order of preference: CLI option > environment > config file
     """
     res = {}
-    _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
 
     _log.debug('variables before oldstyle_init %s' % res)
     res.update(oldstyle_read_configuration(filename))  # config file
@@ -641,8 +643,6 @@ def oldstyle_read_configuration(filename):
     """
     Read variables from the config file
     """
-    _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
-
     # import avail_repositories here to avoid cyclic dependencies
     # this block of code is going to be removed in EB v2.0
     from easybuild.tools.repository.repository import avail_repositories
@@ -660,8 +660,6 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
-    _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
-                     'and do not use oldstyle environment variables'), '2.0')
     if env_vars is None:
         env_vars = OLDSTYLE_ENVIRONMENT_VARIABLES
     result = {}
@@ -669,7 +667,7 @@ def oldstyle_read_environment(env_vars=None, strict=False):
         env_var = env_vars[key]
         if env_var in os.environ:
             result[key] = os.environ[env_var]
-            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
+            _log.deprecated("Use of oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
         elif strict:
             _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, env_var))
         else:
