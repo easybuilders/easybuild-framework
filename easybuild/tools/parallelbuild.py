@@ -34,6 +34,7 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import math
 import os
+import subprocess
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_easyblock_instance
@@ -116,6 +117,35 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     disconnect_from_server(conn)
 
     return jobs
+
+
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
+    """
+    Submit jobs.
+    @param ordered_ecs: list of easyconfigs, in the order they should be processed
+    @param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    """
+    curdir = os.getcwd()
+
+    # the options to ignore (help options can't reach here)
+    ignore_opts = ['robot', 'job']
+
+    # generate_cmd_line returns the options in form --longopt=value
+    opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
+
+    quoted_opts = subprocess.list2cmdline(opts)
+
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
+    _log.info("Command template for jobs: %s" % command)
+    job_info_lines = []
+    if testing:
+        _log.debug("Skipping actual submission of jobs since testing mode is enabled")
+    else:
+        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
+        job_info_lines = ["List of submitted jobs:"]
+        job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
+        job_info_lines.append("(%d jobs submitted)" % len(jobs))
+        return '\n'.join(job_info_lines)
 
 
 def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):

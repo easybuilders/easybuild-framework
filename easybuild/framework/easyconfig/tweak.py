@@ -42,11 +42,10 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.tools import resolve_dependencies
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
@@ -222,7 +221,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
-    if not target_fn:
+    if target_fn is None:
         fn = None
         try:
             # obtain temporary filename
@@ -255,11 +254,14 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
 def pick_version(req_ver, avail_vers):
     """Pick version based on an optionally desired version and available versions.
 
-    If a desired version is specifed, the most recent version that is less recent
-    than the desired version will be picked; else, the most recent version will be picked.
+    If a desired version is specifed, the most recent version that is less recent than or equal to
+    the desired version will be picked; else, the most recent version will be picked.
 
-    This function returns both the version to be used, which is equal to the desired version
+    This function returns both the version to be used, which is equal to the required version
     if it was specified, and the version picked that matches that closest.
+
+    @param req_ver: required version
+    @param avail_vers: list of available versions
     """
 
     if not avail_vers:
@@ -268,26 +270,44 @@ def pick_version(req_ver, avail_vers):
     selected_ver = None
     if req_ver:
         # if a desired version is specified,
-        # retain the most recent version that's less recent than the desired version
-
+        # retain the most recent version that's less recent or equal than the desired version
         ver = req_ver
 
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v < LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
             if retained_vers:
                 selected_ver = retained_vers[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
                 selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
-
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
         selected_ver = ver
 
     return (ver, selected_ver)
+
+
+def find_matching_easyconfigs(name, installver, paths):
+    """
+    Find easyconfigs that match specified name/installversion in specified list of paths.
+
+    @param name: software name
+    @param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
+    @param paths: list of paths to search easyconfigs in
+    """
+    ec_files = []
+    for path in paths:
+        patterns = create_paths(path, name, installver)
+        for pattern in patterns:
+            more_ec_files = filter(os.path.isfile, glob.glob(pattern))
+            _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
+            ec_files.extend(more_ec_files)
+
+    # only retain unique easyconfig paths
+    return nub(ec_files)
 
 
 def select_or_generate_ec(fp, paths, specs):
@@ -319,7 +339,6 @@ def select_or_generate_ec(fp, paths, specs):
     handled_params = ['name']
 
     # find ALL available easyconfig files for specified software
-    ec_files = []
     cfg = {
         'version': '*',
         'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
@@ -327,10 +346,8 @@ def select_or_generate_ec(fp, paths, specs):
         'versionsuffix': '*',
     }
     installver = det_full_ec_version(cfg)
-    for path in paths:
-        patterns = create_paths(path, name, installver)
-        for pattern in patterns:
-            ec_files.extend(glob.glob(pattern))
+    ec_files = find_matching_easyconfigs(name, installver, paths)
+    _log.debug("Unique ec_files: %s" % ec_files)
 
     # we need at least one config file to start from
     if len(ec_files) == 0:
@@ -346,10 +363,6 @@ def select_or_generate_ec(fp, paths, specs):
 
         if len(ec_files) == 0:
             _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
-
-    # only retain unique easyconfig files
-    ec_files = nub(ec_files)
-    _log.debug("Unique ec_files: %s" % ec_files)
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
@@ -525,7 +538,7 @@ def select_or_generate_ec(fp, paths, specs):
         # GENERATE
 
         # if no file path was specified, generate a file name
-        if not fp:
+        if fp is None:
             cfg = {
                 'version': ver,
                 'toolchain': {'name': tcname, 'version': tcver},
@@ -543,7 +556,7 @@ def select_or_generate_ec(fp, paths, specs):
         return (True, fp)
 
 
-def obtain_ec_for(specs, paths, fp):
+def obtain_ec_for(specs, paths, fp=None):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -563,31 +576,6 @@ def obtain_ec_for(specs, paths, fp):
     if not paths:
         _log.error("No paths to look for easyconfig files, specify a path with --robot.")
 
-    # create glob patterns based on supplied info
-
-    # figure out the install version
-    cfg = {
-        'version': specs.get('version', '*'),
-        'toolchain': {
-            'name': specs.get('toolchain_name', '*'),
-            'version': specs.get('toolchain_version', '*'),
-        },
-        'versionprefix': specs.get('versionprefix', '*'),
-        'versionsuffix': specs.get('versionsuffix', '*'),
-    }
-    installver = det_full_ec_version(cfg)
-
-    # find easyconfigs that match a pattern
-    easyconfig_files = []
-    for path in paths:
-        patterns = create_paths(path, specs['name'], installver)
-        for pattern in patterns:
-            easyconfig_files.extend(glob.glob(pattern))
-
-    cnt = len(easyconfig_files)
-
-    _log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
-
     # select best easyconfig, or try to generate one that fits the requirements
     res = select_or_generate_ec(fp, paths, specs)
 
@@ -595,26 +583,3 @@ def obtain_ec_for(specs, paths, fp):
         return res
     else:
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
-
-
-def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
-    """Obtain a path for an easyconfig that matches the given specifications."""
-
-    # if no easyconfig files/paths were provided, but we did get a software name,
-    # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = obtain_ec_for(specs, paths, None)
-    if not generated:
-        return (fn, generated)
-    else:
-        # if an easyconfig was generated, make sure we're allowed to use it
-        if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
-            return (fn, generated)
-        else:
-            try:
-                os.remove(fn)
-            except OSError, err:
-                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
-            print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                         "to make EasyBuild try to generate a matching easyconfig, "
-                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)

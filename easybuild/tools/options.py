@@ -40,6 +40,7 @@ from distutils.version import LooseVersion
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
@@ -79,11 +80,12 @@ class EasyBuildOptions(GeneralOption):
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         strictness_options = [run.IGNORE, run.WARN, run.ERROR]
 
-        try:
-            default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
-        except:
-            self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used
+        easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)
+        if easyconfigs_pkg_paths:
+            default_robot_paths = os.pathsep.join(easyconfigs_pkg_paths)
+        else:
+            self.log.warning("basic_options: unable to determine easyconfigs pkg path for --robot-paths default")
+            default_robot_paths = ''
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -95,8 +97,10 @@ class EasyBuildOptions(GeneralOption):
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
-            'robot': ("Path(s) to search for easyconfigs for missing dependencies (colon-separated)" ,
-                      None, 'store_or_None', default_robot_path, 'r', {'metavar': 'PATH'}),
+            'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
+                      None, 'store_or_None', '', {'metavar': 'PATH[:PATH]'}),
+            'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
+                            None, 'store', default_robot_paths, {'metavar': 'PATH[:PATH]'}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -410,13 +414,21 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
-        # split supplied list of robot paths to obtain a list
-        if self.options.robot:
-            class RobotPath(ListOfStrings):
-                SEPARATOR_LIST = os.pathsep
-                # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
-                __str__ = ListOfStrings.__str__
-            self.options.robot = RobotPath(self.options.robot)
+        # helper class to convert a string with colon-separated robot paths into a list of robot paths
+        class RobotPath(ListOfStrings):
+            SEPARATOR_LIST = os.pathsep
+            # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
+            __str__ = ListOfStrings.__str__
+
+        if self.options.robot is None:
+            all_robot_paths = self.options.robot_paths
+        else:
+            # paths specified to --robot have preference over --robot-paths
+            all_robot_paths = os.pathsep.join([self.options.robot, self.options.robot_paths])
+            # avoid that options.robot is used for paths (since not everything is there)
+            self.options.robot = True
+        # convert to a regular list, exclude empty strings
+        self.options.robot_paths = nub([x for x in RobotPath(all_robot_paths) if x])
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
