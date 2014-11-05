@@ -33,6 +33,7 @@ Generating module files.
 @author: Fotis Georgatos (Uni.Lu)
 """
 import os
+import re
 import tempfile
 from vsc.utils import fancylogger
 
@@ -51,6 +52,10 @@ class ModuleGenerator(object):
     """
     Class for generating module files.
     """
+
+    # chars we want to escape in the generated modulefiles
+    CHARS_TO_ESCAPE = ["$"]
+
     def __init__(self, application, fake=False):
         self.app = application
         self.fake = fake
@@ -209,6 +214,8 @@ class ModuleGenerator(object):
         """
         Add a message that should be printed when loading the module.
         """
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",

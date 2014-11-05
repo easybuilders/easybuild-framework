@@ -171,8 +171,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
-        tcl_load_msg = '\nif [ module-info mode load ] {\n        puts stderr     "test"\n}\n'
-        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test'))
+        tcl_load_msg = '\n'.join([
+            '',
+            "if [ module-info mode load ] {",
+            "        puts stderr     \"test \\$test \\$test",
+            "test \\$foo \\$bar\"",
+            "}",
+            '',
+        ])
+        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_tcl_footer(self):
         """Test including a Tcl footer."""

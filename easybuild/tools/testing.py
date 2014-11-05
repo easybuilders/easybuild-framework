@@ -42,15 +42,16 @@ from time import gmtime, strftime
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import build_easyconfigs
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies
+from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file
+from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
 from easybuild.tools.github import create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 from vsc.utils import fancylogger
@@ -185,7 +186,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nr=None, gist_l
     build_overview = []
     for (ec, ec_res) in ecs_with_res:
         test_log = ''
-        if ec_res['success']:
+        if ec_res.get('success', False):
             test_result = 'SUCCESS'
         else:
             # compose test result string
@@ -299,3 +300,38 @@ def post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state,
 
     msg = "Test report uploaded to %s and mentioned in a comment in easyconfigs PR#%s" % (gist_url, pr_nr)
     return msg
+
+
+def overall_test_report(ecs_with_res, orig_cnt, success, msg, init_session_state):
+    """
+    Upload/dump overall test report
+    @param ecs_with_res: processed easyconfigs with build result (success/failure)
+    @param orig_cnt: number of original easyconfig paths
+    @param success: boolean indicating whether all builds were successful
+    @param msg: message to be included in test report
+    @param init_session_state: initial session state info to include in test report
+    """
+    dump_path = build_option('dump_test_report')
+    pr_nr = build_option('from_pr')
+    upload = build_option('upload_test_report')
+
+    if upload:
+        msg = msg + " (%d easyconfigs in this PR)" % orig_cnt
+        test_report = create_test_report(msg, ecs_with_res, init_session_state, pr_nr=pr_nr, gist_log=True)
+        if pr_nr:
+            # upload test report to gist and issue a comment in the PR to notify
+            txt = post_easyconfigs_pr_test_report(pr_nr, test_report, msg, init_session_state, success)
+        else:
+            # only upload test report as a gist
+            gist_url = upload_test_report_as_gist(test_report)
+            txt = "Test report uploaded to %s" % gist_url
+    else:
+        test_report = create_test_report(msg, ecs_with_res, init_session_state)
+        txt = None
+    _log.debug("Test report: %s" % test_report)
+
+    if dump_path is not None:
+        write_file(dump_path, test_report)
+        _log.info("Test report dumped to %s" % dump_path)
+
+    return txt

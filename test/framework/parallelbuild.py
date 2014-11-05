@@ -32,9 +32,10 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
-from easybuild.framework.easyconfig.tools import process_easyconfig, resolve_dependencies
+from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config, parallelbuild
 from easybuild.tools.parallelbuild import PbsJob, build_easyconfigs_in_parallel
+from easybuild.tools.robot import resolve_dependencies
 
 
 def mock(*args, **kwargs):
