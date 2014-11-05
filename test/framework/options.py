@@ -676,11 +676,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--ignore-osdeps',
             '--force',
             '--debug',
+            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
         ]
-        errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"
-        self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
-
-        args.append('--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'))
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
 
         ecs_mods = [
