@@ -49,6 +49,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     'icc,ifort': ('intel', '%(icc)s'),
     'Clang,GCC': ('Clang-GCC', '%(Clang)s-%(GCC)s'),
     'CUDA,GCC': ('GCC-CUDA', '%(GCC)s-%(CUDA)s'),
+    'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
 }
 
 
@@ -153,21 +154,30 @@ class HierarchicalMNS(ModuleNamingScheme):
 
             comp_name_ver = None
             if ec['name'] in extend_comps:
+                comp_versions = {ec['name']: self.det_full_version(ec)}
+                if ec['name'] == 'ifort':
+                    # 'icc' key should be provided since it's the only one used in the template
+                    comp_versions.update({'icc': self.det_full_version(ec)})
+                if tc_comp_info is not None:
+                    # also provide toolchain version for non-dummy toolchains
+                    comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
+                self.log.debug("Toolchain compiler versions: %s" % comp_versions)
+
                 for key in COMP_NAME_VERSION_TEMPLATES:
                     if ec['name'] in key.split(','):
                         comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
-                        comp_versions = {ec['name']: self.det_full_version(ec)}
-                        if ec['name'] == 'ifort':
-                            # 'icc' key should be provided since it's the only one used in the template
-                            comp_versions.update({'icc': self.det_full_version(ec)})
-                        if tc_comp_info is not None:
-                            # also provide toolchain version for non-dummy toolchains
-                            comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
-
-                        comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
-                        break
+                        # try to complete $MODULEPATH extension template, ignore any KeyErrors
+                        try:
+                            comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
+                            # only break out of for loop if completing template worked (no KeyErrors)
+                            break
+                        except KeyError:
+                            pass
             else:
                 comp_name_ver = [ec['name'], self.det_full_version(ec)]
+
+            if comp_name_ver is None:
+                self.log.error("Failed to determine $MODULEPATH extension for %s" % ec['name'])
 
             paths.append(os.path.join(COMPILER, *comp_name_ver))
 
