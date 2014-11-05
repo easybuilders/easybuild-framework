@@ -56,7 +56,7 @@ class IntelIccIfort(Compiler):
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': 'xHOST',
+        'optarch': 'xHost',
         'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
@@ -69,7 +69,7 @@ class IntelIccIfort(Compiler):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHOST',
+        systemtools.INTEL : 'xHost',
         systemtools.AMD : 'xHost',
     }
 
