@@ -171,6 +171,15 @@ def write_file(path, txt, append=False):
         _log.error("Failed to write to %s: %s" % (path, err))
 
 
+def remove_file(path):
+    """Remove file at specified path."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError, err:
+          _log.error("Failed to remove downloaded file: %s", err)
+
+
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
     Given filename fn, try to extract in directory dest
@@ -276,17 +285,6 @@ def download_file(filename, url, path):
 
             download_file.last_time = time.time()
 
-    def cleanup_faulty_download():
-        """
-        Clean up faulty download.
-        """
-        _log.debug("removing faulty downloaded file %s from %s", filename, path)
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-        except OSError, err:
-              _log.error("Failed to remove downloaded file: %s", err)
-
     # try downloading, three times max.
     downloaded = False
     attempt_cnt = 0
@@ -317,14 +315,14 @@ def download_file(filename, url, path):
             _log.info("Downloaded file %s from url %s to %s", filename, url, path)
 
             if httpmsg.type == "text/html" and not filename.endswith('.html'):
-                _log.warning("HTML file downloaded but not expecting it, so assuming invalid download, retrying.")
-                cleanup_faulty_download()
+                _log.warning("HTML file downloaded to %s, so assuming invalid download, retrying.", path)
+                remove_file(path)
             else:
                 # successful download
                 downloaded = True
         except IOError, err:
-            _log.warning("Error when downloading %s from %s (%s), removing file and retrying", filename, url, err)
-            cleanup_faulty_download()
+            _log.warning("Error when downloading from %s to %s (%s), removing it and retrying", url, path, err)
+            remove_file(path)
 
         if not downloaded:
             attempt_cnt += 1
