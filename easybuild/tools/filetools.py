@@ -280,12 +280,13 @@ def download_file(filename, url, path):
     downloaded = False
     attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
-        # get http response code first before downloading file
+        # get HTTP response code first before downloading file
         try:
             urlfile = urllib.urlopen(url)
             response_code = urlfile.getcode()
             urlfile.close()
         except IOError, err:
+            _log.warning("Failed to get HTTP response code for %s: %s", url, err)
             response_code = None
 
         if response_code:
