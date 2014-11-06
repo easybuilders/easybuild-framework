@@ -305,8 +305,7 @@ def download_file(filename, url, path):
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
             _log.info("Downloaded file %s from url %s to %s", filename, url, path)
         except IOError, err:
-            tup = (filename, url, err)
-            _log.warning("An error occured when downloadeding %s from %s (%s), removing file and retrying", *tup)
+            _log.warning("Error when downloading %s from %s (%s), removing file and retrying", filename, url, err)
 
         if httpmsg:
             if httpmsg.type == "text/html" and not filename.endswith('.html'):
