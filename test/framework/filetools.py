@@ -194,6 +194,9 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location)
 
+        # non-existing files result in None return value
+        self.assertEqual(ft.download_file(fn, 'file://nosuchfile', target_location), None)
+
     def test_mkdir(self):
         """Test mkdir function."""
         tmpdir = tempfile.mkdtemp()

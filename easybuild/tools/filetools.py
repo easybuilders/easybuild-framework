@@ -244,89 +244,94 @@ def det_common_path_prefix(paths):
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
-    _log.debug("Downloading %s from %s to %s" % (filename, url, path))
+    _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
-    downloaded = False
-    attempt_cnt = 0
-
-    # use this functions's scope for the variable we share with our inner function
-    download_file.last_time = time.time()
-    download_file.last_block = 0
     # internal function to report on download progress
-    def report(block, blocksize, filesize):
+    def report(blocks_read, blocksize, filesize):
         """
-        This is a reporthook for urlretrieve, it takes 3 integers as arguments:
-        the current downloaded block, the size in bytes of one block and the total size of the downlad.
-        This efectively logs the download progress every 10 seconds with loglevel info.
+        Report hook for urlretrieve, which logs the download progress every 10 seconds with log level info.
+        @param blocks_read: number of blocks already read
+        @param blocksize: size of one block, in bytes
+        @param filesize: total size of the download (in number of blocks blocks)
         """
         if download_file.last_time + 10 < time.time():
-            newblocks = block - download_file.last_block
-            download_file.last_block = block
-            total_download = block * blocksize
-            percentage = int(block * blocksize * 100 / filesize)
-            kbps = (blocksize * newblocks) / 1024  // (time.time() - download_file.last_time)
+            newblocks = blocks_read - download_file.last_block
+            download_file.last_block = blocks_read
+            tot_time = time.time() - download_file.last_time
 
             if filesize <= 0:
                 # content length isn't always set
-                _log.info('download report: %d kb downloaded (%d kbps)', total_download, kbps) 
+                report_msg = "downloaded in %ss" % tot_time
             else:
-                _log.info('download report: %d kb of %d kb (%d %%, %d kbps)', total_download, filesize, percentage, kbps)
-                          
+                percent = blocks_read * blocksize * 100 // filesize
+                report_msg = "of %d kb downloaded in %ss [%d %%]" % (filesize / 1024.0, tot_time, percent)
+
+            downloaded_kbs = (blocks_read * blocksize) / 1024.0
+            kbps = (blocksize * newblocks) / 1024  // tot_time
+            _log.info("Download report: %d kb %s (%d kbps)", downloaded_kbs, report_msg, kbps)
+
             download_file.last_time = time.time()
 
-
-    # try downloading three times max.
+    # try downloading, three times max.
+    downloaded = False
+    attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
         # get http response code first before downloading file
-        urlfile = urllib.urlopen(url)
-        response_code = urlfile.getcode()
-        urlfile.close()
+        try:
+            urlfile = urllib.urlopen(url)
+            response_code = urlfile.getcode()
+            urlfile.close()
+        except IOError, err:
+            response_code = None
+
         if response_code:
             _log.debug('http response code for given url: %d', response_code)
-        if response_code == 404:
-            _log.warning('url %s was not found (404), not trying again', url)
-            return None
+            # check for a 4xx response code which indicates a non-existing URL
+            if response_code // 100 == 4:
+                _log.warning('url %s was not found (%d), not trying again', response_code, url)
+                return None
 
+        # use this functions's scope for variables we share with inner function used as report hook for urlretrieve
         download_file.last_time = time.time()
         download_file.last_block = 0
 
+        httpmsg = None
         try:
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
-        except ContentTooShortError:
-            _log.warning(
-                "Expected file of %d bytes, but download size dit not match, removing file and retrying", 
-                int(httpmsg.dict['content-length']),
-            )
+            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
+        except IOError, err:
+            tup = (filename, url, err)
+            _log.warning("An error occured when downloadeding %s from %s (%s), removing file and retrying", *tup)
+
+        if httpmsg:
+            if httpmsg.type == "text/html" and not filename.endswith('.html'):
+                _log.warning("HTML file downloaded but not expecting it, so assuming invalid download, retrying.")
+            else:
+                # successful download
+                downloaded = True
+
+        if not downloaded:
+            _log.debug("removing faulty downloaded file %s from %s", filename, path)
             try:
-                os.remove(path)
+                if os.path.exists(path):
+                    os.remove(path)
             except OSError, err:
-                  _log.error("Failed to remove downloaded file:" % err)
-            # try again
+                  _log.error("Failed to remove downloaded file: %s", err)
+
             attempt_cnt += 1
-            continue
+            _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
 
-        if httpmsg.type == "text/html" and not filename.endswith('.html'):
-            _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
-            _log.debug("removing downloaded file %s from %s" % (filename, path))
-            try:
-                os.remove(path)
-            except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
-        else:
-            _log.info("Downloading file %s from url %s: done" % (filename, url))
-            downloaded = True
-            return path
-
-        attempt_cnt += 1
-        _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
-
-
-    # failed to download after multiple attempts
-    return None
+    if downloaded:
+        _log.info("Successful download of file %s from url %s to path %s", filename, url, path)
+        return path
+    else:
+        # failed to download after multiple attempts
+        _log.warning("Too many failed download attempts, giving up")
+        return None
 
 
 def find_easyconfigs(path, ignore_dirs=None):
