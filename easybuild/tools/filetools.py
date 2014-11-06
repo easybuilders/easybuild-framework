@@ -177,7 +177,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-          _log.error("Failed to remove downloaded file: %s", err)
+          _log.error("Failed to remove %s: %s", path, err)
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
