@@ -276,6 +276,17 @@ def download_file(filename, url, path):
 
             download_file.last_time = time.time()
 
+    def cleanup_faulty_download():
+        """
+        Clean up faulty download.
+        """
+        _log.debug("removing faulty downloaded file %s from %s", filename, path)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except OSError, err:
+              _log.error("Failed to remove downloaded file: %s", err)
+
     # try downloading, three times max.
     downloaded = False
     attempt_cnt = 0
@@ -304,22 +315,16 @@ def download_file(filename, url, path):
         try:
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
             _log.info("Downloaded file %s from url %s to %s", filename, url, path)
-        except IOError, err:
-            _log.warning("Error when downloading %s from %s (%s), removing file and retrying", filename, url, err)
 
-        if httpmsg:
             if httpmsg.type == "text/html" and not filename.endswith('.html'):
                 _log.warning("HTML file downloaded but not expecting it, so assuming invalid download, retrying.")
-
-                _log.debug("removing faulty downloaded file %s from %s", filename, path)
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except OSError, err:
-                      _log.error("Failed to remove downloaded file: %s", err)
+                cleanup_faulty_download()
             else:
                 # successful download
                 downloaded = True
+        except IOError, err:
+            _log.warning("Error when downloading %s from %s (%s), removing file and retrying", filename, url, err)
+            cleanup_faulty_download()
 
         if not downloaded:
             attempt_cnt += 1
