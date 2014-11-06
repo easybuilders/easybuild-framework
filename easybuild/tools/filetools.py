@@ -286,14 +286,14 @@ def download_file(filename, url, path):
             response_code = urlfile.getcode()
             urlfile.close()
         except IOError, err:
-            _log.warning("Failed to get HTTP response code for %s: %s", url, err)
+            _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
             response_code = None
 
         if response_code:
-            _log.debug('http response code for given url: %d', response_code)
+            _log.debug('HTTP response code for given url: %d', response_code)
             # check for a 4xx response code which indicates a non-existing URL
             if response_code // 100 == 4:
-                _log.warning('url %s was not found (%d), not trying again', response_code, url)
+                _log.warning('url %s was not found (HTTP response %d), not trying again', url, response_code)
                 return None
 
         # use this functions's scope for variables we share with inner function used as report hook for urlretrieve
@@ -310,18 +310,18 @@ def download_file(filename, url, path):
         if httpmsg:
             if httpmsg.type == "text/html" and not filename.endswith('.html'):
                 _log.warning("HTML file downloaded but not expecting it, so assuming invalid download, retrying.")
+
+                _log.debug("removing faulty downloaded file %s from %s", filename, path)
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except OSError, err:
+                      _log.error("Failed to remove downloaded file: %s", err)
             else:
                 # successful download
                 downloaded = True
 
         if not downloaded:
-            _log.debug("removing faulty downloaded file %s from %s", filename, path)
-            try:
-                if os.path.exists(path):
-                    os.remove(path)
-            except OSError, err:
-                  _log.error("Failed to remove downloaded file: %s", err)
-
             attempt_cnt += 1
             _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
 
