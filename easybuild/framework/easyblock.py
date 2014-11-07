@@ -618,7 +618,7 @@ class EasyBlock(object):
         """
         Module generator (DEPRECATED, use self.module_generator instead).
         """
-        _log.deprecated("Environment variable SOFTDEVEL* being relied on", "2.0")
+        self.log.deprecated("self.moduleGenerator is replaced by self.module_generator", "2.0")
         return self.module_generator
 
     #
