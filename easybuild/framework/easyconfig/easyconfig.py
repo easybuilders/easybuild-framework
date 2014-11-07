@@ -165,7 +165,8 @@ class EasyConfig(object):
         if not isinstance(self.extra_options, dict):
             if isinstance(self.extra_options, (list, tuple,)):
                 typ = type(self.extra_options)
-                self.log.deprecated("Specified extra_options should be of type 'dict', found type '%s'" % typ, '2.0')
+                if extra_options:
+                    self.log.deprecated("extra_options return value should be of type 'dict', found '%s'" % typ, '2.0')
                 tup = (self.extra_options, type(self.extra_options))
                 self.log.debug("Converting extra_options value '%s' of type '%s' to a dict" % tup)
                 self.extra_options = dict(self.extra_options)
