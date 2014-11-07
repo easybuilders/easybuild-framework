@@ -290,15 +290,16 @@ def download_file(filename, url, path):
     attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
         # get HTTP response code first before downloading file
+        response_code = None
         try:
             urlfile = urllib.urlopen(url)
-            response_code = urlfile.getcode()
+            if hasattr(urlfile, 'getcode'):  # no getcode() in Py2.4 yet
+                response_code = urlfile.getcode()
             urlfile.close()
         except IOError, err:
             _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
-            response_code = None
 
-        if response_code:
+        if response_code is not None:
             _log.debug('HTTP response code for given url: %d', response_code)
             # check for a 4xx response code which indicates a non-existing URL
             if response_code // 100 == 4:
