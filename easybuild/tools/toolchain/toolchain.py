@@ -33,6 +33,7 @@ Creating a new toolchain should be as simple as possible.
 
 import os
 import re
+import sys
 from vsc.utils import fancylogger
 from vsc.utils.missing import all, any
 
@@ -381,6 +382,9 @@ class Toolchain(object):
 
         # Generate the variables to be set
         self.set_variables()
+        if build_option('dump_toolchain_env'):
+            print("# Build environment for toolchain %s:\n%s" % (mod_name, self.show_variables()))
+            sys.exit(0)
 
         # set the variables
         # onlymod can be comma-separated string of variables not to be set
