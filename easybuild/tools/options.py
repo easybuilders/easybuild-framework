@@ -98,7 +98,7 @@ class EasyBuildOptions(GeneralOption):
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
-                      None, 'store_or_None', '', {'metavar': 'PATH[:PATH]'}),
+                      None, 'store_or_None', '', 'r', {'metavar': 'PATH[:PATH]'}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             None, 'store', default_robot_paths, {'metavar': 'PATH[:PATH]'}),
             'skip': ("Skip existing software (useful for installing additional packages)",

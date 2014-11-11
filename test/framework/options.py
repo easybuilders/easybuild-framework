@@ -535,10 +535,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = [
                 search_arg,
                 'toy-0.0',
-                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '-r',
+                os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
             self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
