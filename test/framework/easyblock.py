@@ -115,6 +115,12 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
 
+        # check whether 'This is easyblock' log message is there
+        tup = ('EasyBlock', 'easybuild.framework.easyblock', '.*easybuild/framework/easyblock.pyc*')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
+
         # test extensioneasyblock, as extension
         exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
         self.assertEqual(exeb1.cfg['name'], 'foo')
@@ -268,6 +274,7 @@ class EasyBlockTest(EnhancedTestCase):
         version = "3.14"
         deps = [('GCC', '4.6.4')]
         hiddendeps = [('toy', '0.0-deps')]
+        alldeps = deps + hiddendeps  # hidden deps must be included in list of deps
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
@@ -276,7 +283,7 @@ class EasyBlockTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = %s" % str(deps),
+            "dependencies = %s" % str(alldeps),
             "hiddendependencies = %s" % str(hiddendeps),
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),
@@ -382,6 +389,12 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
+
+        # check whether 'This is easyblock' log message is there
+        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc*')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
     def test_obtain_file(self):
         """Test obtain_file method."""
@@ -515,6 +528,25 @@ class EasyBlockTest(EnhancedTestCase):
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
         init_config(build_options=build_options)
+
+    def test_patch_step(self):
+        """Test patch step."""
+        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        orig_sources = ec['ec']['sources'][:]
+
+        # test applying patches without sources
+        ec['ec']['sources'] = []
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+
+        # test actual patching of unpacked sources
+        ec['ec']['sources'] = orig_sources
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        eb.patch_step()
 
     def tearDown(self):
         """ make sure to remove the temporary file """

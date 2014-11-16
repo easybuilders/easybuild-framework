@@ -208,8 +208,8 @@ class %(class_name)s(%(parent)s):
 
         txt = super(%(class_name)s, self).make_module_extra()
 
-        txt += self.moduleGenerator.set_environment("VARIABLE", 'value')
-        txt += self.moduleGenerator.prepend_paths("PATH_VAR", ['path1', 'path2'])
+        txt += self.module_generator.set_environment("VARIABLE", 'value')
+        txt += self.module_generator.prepend_paths("PATH_VAR", ['path1', 'path2'])
 
         return txt
 """

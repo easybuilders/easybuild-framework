@@ -190,9 +190,12 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location)
+
+        # non-existing files result in None return value
+        self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
 
     def test_mkdir(self):
         """Test mkdir function."""
