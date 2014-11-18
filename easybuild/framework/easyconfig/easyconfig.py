@@ -698,7 +698,7 @@ def fetch_parameter_from_easyconfig_file(path, param):
     """Fetch parameter specification from given easyconfig file."""
     # check whether easyblock is specified in easyconfig file
     # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*)\s*$" % param, re.M)
+    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
     txt = read_file(path)
     res = reg.search(txt)
     if res:
