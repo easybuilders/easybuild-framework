@@ -82,10 +82,10 @@ class EasyBuildOptions(GeneralOption):
 
         easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)
         if easyconfigs_pkg_paths:
-            default_robot_paths = os.pathsep.join(easyconfigs_pkg_paths)
+            default_robot_paths = easyconfigs_pkg_paths
         else:
             self.log.warning("basic_options: unable to determine easyconfigs pkg path for --robot-paths default")
-            default_robot_paths = ''
+            default_robot_paths = []
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -98,9 +98,9 @@ class EasyBuildOptions(GeneralOption):
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
-                      None, 'store_or_None', '', 'r', {'metavar': 'PATH[:PATH]'}),
+                      'pathlist', 'store_or_None', [], 'r'),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                            None, 'store', default_robot_paths, {'metavar': 'PATH[:PATH]'}),
+                            'pathlist', 'store', default_robot_paths),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -414,21 +414,11 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
-        # helper class to convert a string with colon-separated robot paths into a list of robot paths
-        class RobotPath(ListOfStrings):
-            SEPARATOR_LIST = os.pathsep
-            # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
-            __str__ = ListOfStrings.__str__
-
-        if self.options.robot is None:
-            all_robot_paths = self.options.robot_paths
-        else:
+        if self.options.robot is not None:
             # paths specified to --robot have preference over --robot-paths
-            all_robot_paths = os.pathsep.join([self.options.robot, self.options.robot_paths])
-            # avoid that options.robot is used for paths (since not everything is there)
-            self.options.robot = True
-        # convert to a regular list, exclude empty strings
-        self.options.robot_paths = nub([x for x in RobotPath(all_robot_paths) if x])
+            # keep both values in sync if robot is enabled, which implies enabling dependency resolver
+            self.options.robot_paths = self.options.robot + self.options.robot_paths
+            self.options.robot = self.options.robot_paths
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""

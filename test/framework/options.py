@@ -261,11 +261,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
 
-        # check log message with --job
-        for job_args in [  # options passed are reordered, so order here matters to make tests pass
-                         ['--debug'],
-                         ['--debug', '--stop=configure', '--try-software-name=foo'],
-                        ]:
+        def check_args(job_args, passed_args=None):
+            """Check whether specified args yield expected result."""
+            if passed_args is None:
+                passed_args = job_args[:]
 
             # clear log file
             write_file(self.logfile, '')
@@ -276,12 +275,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
                    ] + job_args
             outtxt = self.eb_main(args)
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(job_args)
-            assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(passed_args)
+            assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+        # options passed are reordered, so order here matters to make tests pass
+        check_args(['--debug'])
+        check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
+        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
+        # --robot has preference over --robot-paths, --robot is not passed down
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'], passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
