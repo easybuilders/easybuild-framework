@@ -46,12 +46,13 @@ import time
 import traceback
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+from vsc.utils.missing import get_class_for
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
+from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
