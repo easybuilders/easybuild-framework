@@ -40,7 +40,7 @@ import difflib
 import os
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import any, nub
+from vsc.utils.missing import any, get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
@@ -732,23 +732,6 @@ def fetch_parameter_from_easyconfig_file(path, param):
         return res.group('param').strip("'\"")
     else:
         return None
-
-
-def get_class_for(modulepath, class_name):
-    """
-    Get class for a given class name and easyblock module path.
-    """
-    # try to import specified module path, reraise ImportError if it occurs
-    try:
-        m = __import__(modulepath, globals(), locals(), [''])
-    except ImportError, err:
-        raise ImportError(err)
-    # try to import specified class name from specified module path, throw ImportError if this fails
-    try:
-        c = getattr(m, class_name)
-    except AttributeError, err:
-        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
-    return c
 
 
 def get_easyblock_class(easyblock, name=None):
