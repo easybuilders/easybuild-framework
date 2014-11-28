@@ -31,6 +31,7 @@ Unit tests for EasyBuild configuration.
 import copy
 import os
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
@@ -42,7 +43,7 @@ from easybuild.tools.config import build_path, source_paths, install_path, get_r
 from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.repository import init_repository
 
@@ -443,10 +444,22 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
         self.assertEqual(install_path(), os.path.join(testpath2, 'software'))  # via config file
 
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
+
         # test with config file passed via environment variable
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
+            'robot-paths = /tmp/foo:%(DEFAULT_ROBOT_PATHS)s',
         ])
         write_file(config_file, cfgtxt)
 
@@ -460,6 +473,8 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
+        self.assertTrue('/tmp/foo' in options.robot_paths)
+        self.assertTrue(os.path.join(tmpdir, 'easybuild', 'easyconfigs') in options.robot_paths)
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2
@@ -474,6 +489,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']
+        sys.path[:] = orig_sys_path
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""

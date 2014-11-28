@@ -75,17 +75,24 @@ class EasyBuildOptions(GeneralOption):
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
+    def __init__(self, *args, **kwargs):
+        """Constructor."""
+
+        self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
+
+        # set up constants to seed into config files parser
+        go_cfg_initenv = {
+            'DEFAULT': {
+                'DEFAULT_ROBOT_PATHS': os.pathsep.join(self.default_robot_paths),
+            }
+        }
+        kwargs.setdefault('go_configfiles_initenv', {}).update(go_cfg_initenv)
+        super(EasyBuildOptions, self).__init__(*args, **kwargs)
+
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         strictness_options = [run.IGNORE, run.WARN, run.ERROR]
-
-        easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)
-        if easyconfigs_pkg_paths:
-            default_robot_paths = easyconfigs_pkg_paths
-        else:
-            self.log.warning("basic_options: unable to determine easyconfigs pkg path for --robot-paths default")
-            default_robot_paths = []
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -100,7 +107,7 @@ class EasyBuildOptions(GeneralOption):
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                            'pathlist', 'store', default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+                            'pathlist', 'store', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
