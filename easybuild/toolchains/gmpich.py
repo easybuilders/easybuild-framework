@@ -23,15 +23,15 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gmpich2 compiler toolchain (includes GCC and MPICH2).
+EasyBuild support for gmpich compiler toolchain (includes GCC and MPICH).
 
 @author: Kenneth Hoste (Ghent University)
 """
 
 from easybuild.toolchains.compiler.gcc import Gcc
-from easybuild.toolchains.mpi.mpich2 import Mpich2
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gmpich2(Gcc, Mpich2):
-    """Compiler toolchain with GCC and MPICH2."""
-    NAME = 'gmpich2'
+class Gmpich(Gcc, Mpich):
+    """Compiler toolchain with GCC and MPICH."""
+    NAME = 'gmpich'
