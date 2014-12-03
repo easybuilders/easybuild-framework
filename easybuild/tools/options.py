@@ -80,13 +80,18 @@ class EasyBuildOptions(GeneralOption):
 
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
 
-        # set up constants to seed into config files parser
-        go_cfg_initenv = {
-            'DEFAULT': {
+        # set up constants to seed into config files parser, by section
+        go_cfg_constants = {
+            GeneralOption.DEFAULTSECT: {
                 'DEFAULT_ROBOT_PATHS': os.pathsep.join(self.default_robot_paths),
             }
         }
-        kwargs.setdefault('go_configfiles_initenv', {}).update(go_cfg_initenv)
+
+        # update or define go_configfiles_initenv in named arguments to pass to parent constructor
+        go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
+        for section, constants in go_cfg_constants.items():
+            go_cfg_initenv.setdefault(section, {}).update(constants)
+
         super(EasyBuildOptions, self).__init__(*args, **kwargs)
 
     def basic_options(self):
