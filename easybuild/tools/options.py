@@ -82,7 +82,7 @@ class EasyBuildOptions(GeneralOption):
 
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
-            GeneralOption.DEFAULTSECT: {
+            self.DEFAULTSECT: {
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
             }
@@ -500,7 +500,7 @@ class EasyBuildOptions(GeneralOption):
         ]
         for section in self.go_cfg_constants:
             lines.append('')
-            if section != GeneralOption.DEFAULTSECT:
+            if section != self.DEFAULTSECT:
                 section_title = "only in '%s' section:" % section
                 lines.append(section_title)
             for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
