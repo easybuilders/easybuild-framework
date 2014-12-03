@@ -699,6 +699,7 @@ class GeneralOption(object):
 
     VERSION = None  # set the version (will add --version)
 
+    DEFAULTSECT = ConfigParser.DEFAULTSECT
     DEFAULT_LOGLEVEL = None
     DEFAULT_CONFIGFILES = None
     DEFAULT_IGNORECONFIGFILES = None
@@ -1073,7 +1074,7 @@ class GeneralOption(object):
 
         for name, section in initenv.items():
             name = str(name)
-            if name == ConfigParser.DEFAULTSECT:
+            if name == self.DEFAULTSECT:
                 # is protected/reserved (and hidden)
                 pass
             elif not self.configfile_parser.has_section(name):
@@ -1128,7 +1129,7 @@ class GeneralOption(object):
         self.log.debug("parseconfigfiles: following files were NOT parsed %s" %
                        [x for x in configfiles if not x in parsed_files])
         self.log.debug("parseconfigfiles: sections (w/o %s) %s" %
-                       (ConfigParser.DEFAULTSECT, self.configfile_parser.sections()))
+                       (self.DEFAULTSECT, self.configfile_parser.sections()))
 
         # walk through list of section names
         # - look for options set though config files
@@ -1176,7 +1177,7 @@ class GeneralOption(object):
                     actual_option = self.parser.get_option_by_long_name(opt_name)
                     if actual_option is None:
                         # don't fail on DEFAULT UPPERCASE options in case-sensitive mode.
-                        in_def = self.configfile_parser.has_option(ConfigParser.DEFAULTSECT, opt)
+                        in_def = self.configfile_parser.has_option(self.DEFAULTSECT, opt)
                         if in_def and self.CONFIGFILE_CASESENSITIVE and opt == opt.upper():
                             self.log.debug(('parseconfigfiles: no option corresponding with '
                                             'opt %s dest %s in section %s but found all uppercase '
