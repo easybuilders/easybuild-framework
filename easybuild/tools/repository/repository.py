@@ -32,7 +32,7 @@ Generic support for dealing with repositories
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
