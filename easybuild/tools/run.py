@@ -276,6 +276,9 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
             _log.debug("run_cmd_qa cmd %s: read failed: %s" % (cmd, err))
             tmpOut = None
 
+        if not stdoutErr:
+            continue
+
         hit = False
         for question, answers in newQA.items():
             res = question.search(stdoutErr)
@@ -314,6 +317,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                             _log.debug("runqanda: noQandA found for out %s" % stdoutErr[-50:])
                             noqa = True
                     if not noqa:
+                        _log.debug("runqanda: no noQandA found for out %s" % stdoutErr[-50:])
                         hitCount += 1
             else:
                 hitCount = 0
