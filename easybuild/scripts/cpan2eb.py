@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,10 +29,7 @@ and all it's dependencies
 
 @author: Jens Timmerman
 """
-import sys
-
-from easybuild.tools.agithub import Client
-
+from vsc.utils.rest import RestClient
 from vsc.utils.generaloption import simple_option
 from vsc.utils import fancylogger
 
@@ -51,12 +48,13 @@ class CpanMeta(object):
                  'modulename': 'ExtUtils::MakeMaker'}
         self.cache = {'ExtUtils::MakeMaker': dummy,  'perl': dummy}
         self.graph = {'ExtUtils::MakeMaker': [], 'perl': []}
-        self.client = Client('api.metacpan.org')
+        self.client = RestClient('http://api.metacpan.org')
 
     def get_module_data(self, modulename):
         """Get some metadata about the current version of the module"""
-        json = self.client.get("/v0/module/%s" % modulename)[1]
-        depsjson = self.client.get("/v0/release/%(author)s/%(release)s" % json)
+        json = self.client.v0.module[modulename].get()[1]
+        #depsjson = self.client.get("/v0/release/%(author)s/%(release)s" % json)
+        depsjson = self.client.v0.release[json['author']][json['release']].get()
         depsjson = depsjson[1]
         depsjson.update(json)
         depsjson.update({'modulename': modulename})
@@ -80,9 +78,10 @@ class CpanMeta(object):
         for dep in data['dependency']:
             if "requires" in dep["relationship"]:
                 self.get_recursive_data(dep['module'])
-                # if for some reason you get to many hits here, you might want to filter on build and confirure in phase: (To be further tested)
-                # if "build" in dep["phase"] or "configure" in dep["phase"]:
-                dependencies.add(dep['module'])
+                # we filter on dependendencies for the build and configure phase, otherwise we end up with circular
+                # dependencies
+                if "build" in dep["phase"] or "configure" in dep["phase"]:
+                    dependencies.add(dep['module'])
         self.graph[modulename] = dependencies
         return self.graph
 
