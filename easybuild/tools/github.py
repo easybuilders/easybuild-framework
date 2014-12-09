@@ -268,7 +268,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     if not sorted(tmp_files) == sorted(all_files):
         _log.error("Not all patched files were downloaded to %s: %s vs %s" % (path, tmp_files, all_files))
 
-    ec_files = [os.path.join(path, fnanme) for fname in tmp_files]
+    ec_files = [os.path.join(path, fname) for fname in tmp_files]
 
     return ec_files
 
