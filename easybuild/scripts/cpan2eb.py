@@ -29,6 +29,7 @@ and all it's dependencies
 
 @author: Jens Timmerman
 """
+from urllib2 import HTTPError
 from vsc.utils.rest import RestClient
 from vsc.utils.generaloption import simple_option
 from vsc.utils import fancylogger
@@ -52,9 +53,12 @@ class CpanMeta(object):
 
     def get_module_data(self, modulename):
         """Get some metadata about the current version of the module"""
-        json = self.client.v0.module[modulename].get()[1]
-        #depsjson = self.client.get("/v0/release/%(author)s/%(release)s" % json)
-        depsjson = self.client.v0.release[json['author']][json['release']].get()
+        try:
+            json = self.client.v0.module[modulename].get()[1]
+            depsjson = self.client.v0.release[json['author']][json['release']].get()
+        except HTTPError:
+            logger.error("API error for getting %s this will have to be resolved manually", modulename)
+            return {'release': '0', 'dependency': [] }
         depsjson = depsjson[1]
         depsjson.update(json)
         depsjson.update({'modulename': modulename})
@@ -77,10 +81,10 @@ class CpanMeta(object):
         # do the recursive thing
         for dep in data['dependency']:
             if "requires" in dep["relationship"]:
-                self.get_recursive_data(dep['module'])
                 # we filter on dependendencies for the build and configure phase, otherwise we end up with circular
                 # dependencies
-                if "build" in dep["phase"] or "configure" in dep["phase"]:
+                if dep['phase'] in ('build', 'configure') :
+                    self.get_recursive_data(dep['module'])
                     dependencies.add(dep['module'])
         self.graph[modulename] = dependencies
         return self.graph
