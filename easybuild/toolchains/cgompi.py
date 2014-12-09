@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -38,4 +38,3 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 class Cgompi(ClangGcc, OpenMPI):
     """Compiler toolchain with Clang, GFortran and OpenMPI."""
     NAME = 'cgompi'
-    COMPILER_MODULE_NAME = ['ClangGCC']

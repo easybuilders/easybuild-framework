@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,20 +31,19 @@ be used within an Easyconfig file.
 @author: Kenneth Hoste (Ghent University)
 """
 import platform
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.tools.systemtools import get_shared_lib_ext, get_os_name, get_os_type, get_os_version
 
 _log = fancylogger.getLogger('easyconfig.constants', fname=False)
 
 # constants that can be used in easyconfig
-EASYCONFIG_CONSTANTS = [
-                        ('SYS_PYTHON_VERSION', platform.python_version(),
-                         "System Python version (platform.python_version())"),
-                        ('OS_TYPE', get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
-                        ('OS_NAME', get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
-                        ('OS_VERSION', get_os_version(), "System version"),
-                       ]
+EASYCONFIG_CONSTANTS = {
+    'SYS_PYTHON_VERSION': (platform.python_version(), "System Python version (platform.python_version())"),
+    'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
+    'OS_NAME': (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
+    'OS_VERSION': (get_os_version(), "System version"),
+}
 
 
 def constant_documentation():
@@ -54,8 +53,8 @@ def constant_documentation():
     doc = []
 
     doc.append("Constants that can be used in easyconfigs")
-    for cst in EASYCONFIG_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+    for cst, (val, descr) in EASYCONFIG_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (indent_l1, cst, val, descr))
 
     return "\n".join(doc)
 

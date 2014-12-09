@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,7 +31,7 @@ import glob
 import os
 import string
 import sys
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
 import easybuild.tools.environment as env

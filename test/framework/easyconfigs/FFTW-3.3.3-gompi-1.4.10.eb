@@ -28,3 +28,5 @@ sanity_check_paths = {
                                                'l', 'l_mpi', 'l_omp', 'q', 'q_omp']],
     'dirs': ['lib/pkgconfig'],
 }
+
+moduleclass = 'numlib'

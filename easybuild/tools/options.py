@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,25 +36,31 @@ Command line options for eb
 import os
 import re
 import sys
-from easybuild.framework.easyblock import EasyBlock, get_class
+from distutils.version import LooseVersion
+from vsc.utils.missing import nub
+
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import constant_documentation
 from easybuild.framework.easyconfig.default import convert_to_help
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
-from easybuild.tools import config, filetools  # @UnusedImport make sure config is always initialized!
-from easybuild.tools.build_log import print_warning
+from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
+from easybuild.tools.convert import ListOfStrings
+from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import avail_module_naming_schemes
+from easybuild.tools.module_naming_scheme import GENERAL_CLASS
+from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
-from easybuild.tools.repository import avail_repositories
+from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import any
 
@@ -71,13 +77,13 @@ class EasyBuildOptions(GeneralOption):
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
-        strictness_options = [filetools.IGNORE, filetools.WARN, filetools.ERROR]
+        strictness_options = [run.IGNORE, run.WARN, run.ERROR]
 
         try:
             default_robot_path = get_paths_for("easyconfigs", robot_path=None)[0]
         except:
             self.log.warning("basic_options: unable to determine default easyconfig path")
-            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was not used
+            default_robot_path = False  # False as opposed to None, since None is used for indicating that --robot was used
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -85,7 +91,7 @@ class EasyBuildOptions(GeneralOption):
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
-                       None, 'store_true', False, 'f'),
+                      None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
@@ -94,7 +100,7 @@ class EasyBuildOptions(GeneralOption):
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
-            'strict': ("Set strictness level", 'choice', 'store', filetools.WARN, strictness_options),
+            'strict': ("Set strictness level", 'choice', 'store', run.WARN, strictness_options),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -114,15 +120,17 @@ class EasyBuildOptions(GeneralOption):
             'amend':(("Specify additional search and build parameters (can be used multiple times); "
                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
-            'software-name': ("Search and build software with name",
+            'software': ("Search and build software with given name and version",
+                              None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+            'software-name': ("Search and build software with given name",
                               None, 'store', None, {'metavar': 'NAME'}),
-            'software-version': ("Search and build software with version",
+            'software-version': ("Search and build software with given version",
                                  None, 'store', None, {'metavar': 'VERSION'}),
-            'toolchain': ("Search and build with toolchain (name and version)",
+            'toolchain': ("Search and build with given toolchain (name and version)",
                           None, 'extend', None, {'metavar': 'NAME,VERSION'}),
-            'toolchain-name': ("Search and build with toolchain name",
+            'toolchain-name': ("Search and build with given toolchain name",
                                None, 'store', None, {'metavar': 'NAME'}),
-            'toolchain-version': ("Search and build with toolchain version",
+            'toolchain-version': ("Search and build with given toolchain version",
                                   None, 'store', None, {'metavar': 'VERSION'}),
         })
 
@@ -132,6 +140,11 @@ class EasyBuildOptions(GeneralOption):
             hlp = "Try to %s (USE WITH CARE!)" % (hlp[0].lower() + hlp[1:])
             opts["try-%s" % longopt] = (hlp,) + opts[longopt][1:]
 
+        # additional options that don't need a --try equivalent
+        opts.update({
+            'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
+        })
+
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
         self.add_group_parser(opts, descr)
 
@@ -140,12 +153,32 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Override options", "Override default EasyBuild behavior.")
 
         opts = OrderedDict({
+            'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
+                                            None, 'store_true', False),
+            'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
+            'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
+                           None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
+            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+                             None, 'store_true', False),
+            'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
+            'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
+            'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
+                            "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
+                            str, 'extend', None),
+            'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
+                                 None, 'store_true', True),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
+            'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
+            'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
+            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
+                      None, 'store', None),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -178,13 +211,16 @@ class EasyBuildOptions(GeneralOption):
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                                None, 'extend', oldstyle_defaults['moduleclasses']),
+            'modules-footer': ("Path to file containing footer to be added to all generated module files",
+                               None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', oldstyle_defaults['modules_tool'],
                              sorted(avail_modules_tools().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
-                        "(repositorypath prefix is only relevant in case of FileRepository repository) "
                         "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
                         None, 'store', None),
+            'recursive-module-unload': ("Enable generating of modules that unload recursively.",
+                                        None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
                            'choice', 'store', oldstyle_defaults['repository'], sorted(avail_repositories().keys())),
             'repositorypath': (("Repository path, used by repository "
@@ -198,6 +234,7 @@ class EasyBuildOptions(GeneralOption):
                            None, 'store', oldstyle_defaults['sourcepath']),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', oldstyle_defaults['subdir_modules']),
             'subdir-software': ("Installpath subdir for software", None, 'store', oldstyle_defaults['subdir_software']),
+            'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
             'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
@@ -247,14 +284,17 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'aggregate-regtest': ("Collect all the xmls inside the given directory and generate a single file",
                                   None, 'store', None, {'metavar': 'DIR'}),
+            'dump-test-report': ("Dump test report to specified path", None, 'store_or_None', 'test_report.md'),
+            'github-user': ("GitHub username", None, 'store', None),
             'regtest': ("Enable regression test mode",
                         None, 'store_true', False),
-            'regtest-online': ("Enable online regression test mode",
-                               None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
+                                       None, 'regex', None),
         })
 
         self.log.debug("regtest_options: descr %s opts %s" % (descr, opts))
@@ -289,27 +329,41 @@ class EasyBuildOptions(GeneralOption):
 
     def validate(self):
         """Additional validation of options"""
-        stop_msg = []
+        error_cnt = 0
 
-        if self.options.toolchain and not len(self.options.toolchain) == 2:
-            stop_msg.append('--toolchain requires NAME,VERSION (given %s)' %
-                            (','.join(self.options.toolchain)))
-        if self.options.try_toolchain and not len(self.options.try_toolchain) == 2:
-            stop_msg.append('--try-toolchain requires NAME,VERSION (given %s)' %
-                            (','.join(self.options.try_toolchain)))
+        for opt in ['software', 'try-software', 'toolchain', 'try-toolchain']:
+            val = getattr(self.options, opt.replace('-', '_'))
+            if val and len(val) != 2:
+                self.log.warning('--%s requires NAME,VERSION (given %s)' % (opt, ','.join(val)))
+                error_cnt += 1
 
-        if len(stop_msg) > 0:
-            indent = " "*2
-            stop_msg = ['%s%s' % (indent, x) for x in stop_msg]
-            stop_msg.insert(0, 'ERROR: Found %s problems validating the options:' % len(stop_msg))
-            print "\n".join(stop_msg)
-            sys.exit(1)
+        if self.options.umask:
+            umask_regex = re.compile('^[0-7]{3}$')
+            if not umask_regex.match(self.options.umask):
+                self.log.warning("--umask value should be 3 digits (0-7) (regex pattern '%s')" % umask_regex.pattern)
+                error_cnt += 1
+
+        if error_cnt > 0:
+            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
+        build_log.EXPERIMENTAL = self.options.experimental
+        config.SUPPORT_OLDSTYLE = self.options.oldstyleconfig
+
+        # set strictness of run module
+        if self.options.strict:
+            run.strictness = self.options.strict
+
+        # override current version of EasyBuild with version specified to --deprecated
+        if self.options.deprecated:
+            build_log.CURRENT_VERSION = LooseVersion(self.options.deprecated)
+
+        # log to specified value of --unittest-file
         if self.options.unittest_file:
             fancylogger.logToFile(self.options.unittest_file)
 
+        # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
                 self.options.list_easyblocks, self.options.list_toolchains,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
@@ -319,13 +373,30 @@ class EasyBuildOptions(GeneralOption):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
+        # fail early if required dependencies for functionality requiring using GitHub API are not available:
+        if self.options.from_pr or self.options.upload_test_report:
+            if not HAVE_GITHUB_API:
+                self.log.error("Required support for using GitHub API is not available (see warnings).")
+
+        # make sure a GitHub token is available when it's required
+        if self.options.upload_test_report:
+            if not HAVE_KEYRING:
+                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
+            if self.options.github_user is None:
+                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+            token = fetch_github_token(self.options.github_user)
+            if token is None:
+                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
+
         self._postprocess_config()
 
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
         if self.options.prefix is not None:
             changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
-            for dest in ['installpath', 'buildpath', 'sourcepath', 'repositorypath']:
+            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath into account
+            # in the legacy-style configuration, repository is initialised in configuration file itself
+            for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
                 if not self.options._action_taken.get(dest, False):
                     new_def = changed_defaults[dest]
                     if dest == 'repositorypath':
@@ -341,7 +412,11 @@ class EasyBuildOptions(GeneralOption):
 
         # split supplied list of robot paths to obtain a list
         if self.options.robot:
-            self.options.robot = self.options.robot.split(os.pathsep)
+            class RobotPath(ListOfStrings):
+                SEPARATOR_LIST = os.pathsep
+                # explicit definition of __str__ is required for unknown reason related to the way Wrapper is defined
+                __str__ = ListOfStrings.__str__
+            self.options.robot = RobotPath(self.options.robot)
 
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
@@ -396,7 +471,7 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_class(self.options.easyblock)
+        app = get_easyblock_class(self.options.easyblock)
         extra = app.extra_options()
         mapping = convert_to_help(extra, has_default=False)
         if len(extra) > 0:
@@ -497,9 +572,8 @@ class EasyBuildOptions(GeneralOption):
 
         for (tcname, tcc) in tclist:
             tc = tcc(version='1.2.3')  # version doesn't matter here, but something needs to be there
-            tc_elems = set([y for x in dir(tc) if x.endswith('_MODULE_NAME') for y in eval("tc.%s" % x)])
-
-            txt.append("\t%s: %s" % (tcname, ', '.join(sorted(tc_elems))))
+            tc_elems = nub(sorted([e for es in tc.definition().values() for e in es]))
+            txt.append("\t%s: %s" % (tcname, ', '.join(tc_elems)))
 
         return '\n'.join(txt)
 
@@ -510,20 +584,20 @@ class EasyBuildOptions(GeneralOption):
         usable_repos = avail_repositories(check_useable=True).keys()
 
         indent = ' ' * 2
-        txt = ['All avaialble repository types']
+        txt = ['All avaliable repository types']
         repos = sorted(all_repos.keys())
         for repo in repos:
             if repo in usable_repos:
                 missing = ''
             else:
-                missing = ' (*Not usable*, something is missing (eg a specific module))'
+                missing = ' (*not usable*, something is missing (e.g. a required Python module))'
             if repo in repopath_defaults:
-                default = ' (Default arguments: %s)' % (repopath_defaults[repo])
+                default = ' (default arguments: %s)' % ', '.join(repopath_defaults[repo])
             else:
-                default = ' (No default arguments)'
+                default = ' (no default arguments)'
 
-            txt.append("%s%s%s%s" % (indent, repo, default, missing))
-            txt.append("%s%s" % (indent * 2, all_repos[repo].DESCRIPTION))
+            txt.append("%s* %s%s%s" % (indent, repo, default, missing))
+            txt.append("%s%s" % (indent * 3, all_repos[repo].DESCRIPTION))
 
         return "\n".join(txt)
 
@@ -594,17 +668,23 @@ def process_software_build_specs(options):
             # only when a try option is set do we enable generating easyconfigs
             try_to_generate = True
 
-    # process --toolchain --try-toolchain (sanity check done in tools.options)
-    tc = options.toolchain or options.try_toolchain
-    if tc:
-        if options.toolchain and options.try_toolchain:
-            print_warning("Ignoring --try-toolchain, only using --toolchain specification.")
-        elif options.try_toolchain:
-            try_to_generate = True
-        build_specs.update({
-            'toolchain_name': tc[0],
-            'toolchain_version': tc[1],
-        })
+    # process --(try-)software/toolchain
+    for opt in ['software', 'toolchain']:
+        val = getattr(options, opt)
+        tryval = getattr(options, 'try_%s' % opt)
+        if val or tryval:
+            if val and tryval:
+                self.log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
+            elif tryval:
+                try_to_generate = True
+            val = val or tryval  # --try-X value is overridden by --X
+            key_prefix = ''
+            if opt == 'toolchain':
+                key_prefix = 'toolchain_'
+            build_specs.update({
+                '%sname' % key_prefix: val[0],
+                '%sversion' % key_prefix: val[1],
+            })
 
     # provide both toolchain and toolchain_name/toolchain_version keys
     if 'toolchain_name' in build_specs:
@@ -620,7 +700,7 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                print_warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+                self.log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
         if options.try_amend:
             amends += options.try_amend
             try_to_generate = True

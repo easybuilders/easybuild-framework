@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,31 +29,53 @@ EasyBuild support for building and installing toy, implemented as an easyblock
 """
 
 import os
+import platform
 import shutil
 
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.filetools import mkdir, run_cmd
+from easybuild.tools.modules import get_software_root, get_software_version
 
 class EB_toy(EasyBlock):
     """Support for building/installing toy."""
 
-    def configure_step(self):
+    def prepare_for_extensions(self):
+        """
+        Prepare for installing toy extensions.
+        """
+        # insert new packages by building them with RPackage
+        self.cfg['exts_defaultclass'] = "Toy_Extension"
+        self.cfg['exts_filter'] = ("%(ext_name)s", "")
+
+    def configure_step(self, name=None):
         """Configure build of toy."""
-        os.rename('toy.source', 'toy.c')
+        if name is None:
+            name = self.name
+        # make sure Python system dep is handled correctly when specified
+        if self.cfg['allow_system_deps']:
+            if get_software_root('Python') != 'Python' or get_software_version('Python') != platform.python_version():
+                self.log.error("Sanity check on allowed Python system dep failed.")
+        os.rename('%s.source' % name, '%s.c' % name)
 
-    def build_step(self):
+    def build_step(self, name=None):
         """Build toy."""
-        run_cmd('gcc toy.c -o toy')
+        if name is None:
+            name = self.name
+        run_cmd('%(premakeopts)s gcc %(name)s.c -o %(name)s' % {
+            'name': name,
+            'premakeopts': self.cfg['premakeopts'],
+        })
 
-    def install_step(self):
+    def install_step(self, name=None):
         """Install toy."""
+        if name is None:
+            name = self.name
         bindir = os.path.join(self.installdir, 'bin')
-        os.mkdir(bindir)
-        shutil.copy2('toy', bindir)
+        mkdir(bindir, parents=True)
+        shutil.copy2(name, bindir)
         # also install a dummy libtoy.a, to make the default sanity check happy
         libdir = os.path.join(self.installdir, 'lib')
-        os.mkdir(libdir)
-        f = open(os.path.join(libdir, 'libtoy.a'), 'w')
-        f.write('TOY')
+        mkdir(libdir, parents=True)
+        f = open(os.path.join(libdir, 'lib%s.a' % name), 'w')
+        f.write(name.upper())
         f.close()

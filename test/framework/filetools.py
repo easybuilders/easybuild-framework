@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,16 +30,17 @@ Unit tests for filetools.py
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import shutil
+import stat
 import tempfile
-from unittest import TestCase, TestLoader, main
-from vsc import fancylogger
+from test.framework.utilities import EnhancedTestCase, find_full_path
+from unittest import TestLoader, main
 
-import easybuild.tools.config as config
 import easybuild.tools.filetools as ft
-from test.framework.utilities import find_full_path
+from easybuild.tools.build_log import EasyBuildError
 
 
-class FileToolsTest(TestCase):
+class FileToolsTest(EnhancedTestCase):
     """ Testcase for filetools module """
 
     class_names = [
@@ -51,7 +52,8 @@ class FileToolsTest(TestCase):
     ]
 
     def setUp(self):
-        self.log = fancylogger.getLogger(self.__class__.__name__)
+        """Set up testcase."""
+        super(FileToolsTest, self).setUp()
         self.legacySetUp()
 
     def legacySetUp(self):
@@ -59,13 +61,6 @@ class FileToolsTest(TestCase):
         cfg_path = os.path.join('easybuild', 'easybuild_config.py')
         cfg_full_path = find_full_path(cfg_path)
         self.assertTrue(cfg_full_path)
-
-        config.oldstyle_init(cfg_full_path)
-        self.cwd = os.getcwd()
-
-    def tearDown(self):
-        """cleanup"""
-        os.chdir(self.cwd)
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -80,37 +75,15 @@ class FileToolsTest(TestCase):
             ('test.tbz2', "tar xjf test.tbz2"),
             ('test.tb2', "tar xjf test.tb2"),
             ('test.tar.bz2', "tar xjf test.tar.bz2"),
+            ('test.gz', "gunzip -c test.gz > test"),
+            ("/some/path/test.gz", "gunzip -c /some/path/test.gz > test"),
+            ('test.xz', "unxz test.xz"),
+            ('test.tar.xz', "unxz test.tar.xz --stdout | tar x"),
+            ('test.txz', "unxz test.txz --stdout | tar x"),
         ]
         for (fn, expected_cmd) in tests:
             cmd = ft.extract_cmd(fn)
             self.assertEqual(expected_cmd, cmd)
-
-    def test_run_cmd(self):
-        """Basic test for run_cmd function."""
-        (out, ec) = ft.run_cmd("echo hello")
-        self.assertEqual(out, "hello\n")
-        # no reason echo hello could fail
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_bis(self):
-        """More 'complex' test for run_cmd function."""
-        # a more 'complex' command to run, make sure all required output is there
-        (out, ec) = ft.run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
-        self.assertTrue(out.startswith('hello\nhello\n'))
-        self.assertEqual(len(out), len("hello\n"*300))
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_qa(self):
-        """Basic test for run_cmd_qa function."""
-        (out, ec) = ft.run_cmd_qa("echo question; read x; echo $x", {"question": "answer"})
-        self.assertEqual(out, "question\nanswer\n")
-        # no reason echo hello could fail
-        self.assertEqual(ec, 0)
-
-    def test_run_cmd_simple(self):
-        """Test return value for run_cmd in 'simple' mode."""
-        self.assertEqual(True, ft.run_cmd("echo hello", simple=True))
-        self.assertEqual(False, ft.run_cmd("exit 1", simple=True, log_all=False, log_ok=False))
 
     def test_convert_name(self):
         """Test convert_name function."""
@@ -119,37 +92,10 @@ class FileToolsTest(TestCase):
         name = ft.convert_name("test+test-test", True)
         self.assertEqual(name, "TESTPLUSTESTMINTEST")
 
-    def test_parse_log_error(self):
-        """Test basic parse_log_for_error functionality."""
-        errors = ft.parse_log_for_error("error failed", True)
-        self.assertEqual(len(errors), 1)
-
-        # I expect tests to be run from the base easybuild directory
+    def test_cwd(self):
+        """tests should be run from the base easybuild directory"""
+        # used to be part of test_parse_log_error
         self.assertEqual(os.getcwd(), ft.find_base_dir())
-
-    def test_run_cmd_suse(self):
-        """Test run_cmd on SuSE systems, which have $PROFILEREAD set."""
-        # avoid warning messages
-        ft_log_level = ft._log.getEffectiveLevel()
-        ft._log.setLevel('ERROR')
-
-        # run_cmd should also work if $PROFILEREAD is set (very relevant for SuSE systems)
-        profileread = os.environ.get('PROFILEREAD', None)
-        os.environ['PROFILEREAD'] = 'profilereadxxx'
-        try:
-            (out, ec) = ft.run_cmd("echo hello")
-        except Exception, err:
-            out, ec = "ERROR: %s" % err, 1
-
-        # make sure it's restored again before we can fail the test
-        if profileread is not None:
-            os.environ['PROFILEREAD'] = profileread
-        else:
-            del os.environ['PROFILEREAD']
-
-        self.assertEqual(out, "hello\n")
-        self.assertEqual(ec, 0)
-        ft._log.setLevel(ft_log_level)
 
     def test_encode_class_name(self):
         """Test encoding of class names."""
@@ -179,8 +125,8 @@ class FileToolsTest(TestCase):
         ft.write_file(fp, perltxt)
         ft.patch_perl_script_autoflush(fp)
         txt = ft.read_file(fp)
-        self.assertTrue(len(txt.split('\n')) == len(perl_lines)+4)
-        self.assertTrue(txt.startswith(perl_lines[0]+"\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
+        self.assertTrue(len(txt.split('\n')) == len(perl_lines) + 4)
+        self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
             self.assertTrue(line in txt)
         os.remove(fp)
@@ -237,6 +183,103 @@ class FileToolsTest(TestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
+
+    def test_download_file(self):
+        """Test download_file function."""
+        fn = 'toy-0.0.tar.gz'
+        target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
+        # provide local file path as source URL
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location)
+
+    def test_mkdir(self):
+        """Test mkdir function."""
+        tmpdir = tempfile.mkdtemp()
+
+        def check_mkdir(path, error=None, **kwargs):
+            """Create specified directory with mkdir, and check for correctness."""
+            if error is None:
+                ft.mkdir(path, **kwargs)
+                self.assertTrue(os.path.exists(path) and os.path.isdir(path), "Directory %s exists" % path)
+            else:
+                self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
+
+        foodir = os.path.join(tmpdir, 'foo')
+        barfoodir = os.path.join(tmpdir, 'bar', 'foo')
+        check_mkdir(foodir)
+        # no error on existing paths
+        check_mkdir(foodir)
+        # no recursion by defaults, requires parents=True
+        check_mkdir(barfoodir, error="Failed.*No such file or directory")
+        check_mkdir(barfoodir, parents=True)
+        check_mkdir(os.path.join(barfoodir, 'bar', 'foo', 'trolololol'), parents=True)
+        # group ID and sticky bits are disabled by default
+        self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
+        self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+        # setting group ID bit works
+        giddir = os.path.join(foodir, 'gid')
+        check_mkdir(giddir, set_gid=True)
+        self.assertTrue(os.stat(giddir).st_mode & stat.S_ISGID, "gid bit set %s" % giddir)
+        self.assertFalse(os.stat(giddir).st_mode & stat.S_ISVTX, "no sticky bit %s" % giddir)
+        # setting stciky bit works
+        stickydir = os.path.join(barfoodir, 'sticky')
+        check_mkdir(stickydir, sticky=True)
+        self.assertFalse(os.stat(stickydir).st_mode & stat.S_ISGID, "no gid bit %s" % stickydir)
+        self.assertTrue(os.stat(stickydir).st_mode & stat.S_ISVTX, "sticky bit set %s" % stickydir)
+        # setting both works, bits are set for all new subdirectories
+        stickygiddirs = [os.path.join(foodir, 'new')]
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'sticky'))
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'and'))
+        stickygiddirs.append(os.path.join(stickygiddirs[-1], 'gid'))
+        check_mkdir(stickygiddirs[-1], parents=True, set_gid=True, sticky=True)
+        for subdir in stickygiddirs:
+            gid_or_sticky = stat.S_ISGID | stat.S_ISVTX
+            self.assertEqual(os.stat(subdir).st_mode & gid_or_sticky, gid_or_sticky, "gid bit set %s" % subdir)
+        # existing parent dirs are untouched, no sticky/group ID bits set
+        self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
+        self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+
+        shutil.rmtree(tmpdir)
+
+    def test_read_write_file(self):
+        """Test reading/writing files."""
+        tmpdir = tempfile.mkdtemp()
+
+        fp = os.path.join(tmpdir, 'test.txt')
+        txt = "test123"
+        ft.write_file(fp, txt)
+        self.assertEqual(ft.read_file(fp), txt)
+
+        txt2 = '\n'.join(['test', '123'])
+        ft.write_file(fp, txt2, append=True)
+        self.assertEqual(ft.read_file(fp), txt+txt2)
+
+        shutil.rmtree(tmpdir)
+
+    def test_det_patched_files(self):
+        """Test det_patched_files function."""
+        pf = os.path.join(os.path.dirname(__file__), 'sandbox', 'sources', 'toy', 'toy-0.0_typo.patch')
+        self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
+        self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
+
+    def test_guess_patch_level(self):
+        "Test guess_patch_level."""
+        # create dummy toy.source file so guess_patch_level can work
+        f = open(os.path.join(self.test_buildpath, 'toy.source'), 'w')
+        f.write("This is toy.source")
+        f.close()
+
+        for patched_file, correct_patch_level in [
+            ('toy.source', 0),
+            ('b/toy.source', 1),  # b/ prefix is used in +++ line in git diff patches
+            ('a/toy.source', 1),  # a/ prefix is used in --- line in git diff patches
+            ('c/toy.source', 1),
+            ('toy-0.0/toy.source', 1),
+            ('b/toy-0.0/toy.source', 2),
+        ]:
+            self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
 
 def suite():
     """ returns all the testcases in this module """

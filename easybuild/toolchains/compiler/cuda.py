@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -65,7 +65,7 @@ class Cuda(Compiler):
 
     COMPILER_CUDA_CC = 'nvcc'
     COMPILER_CUDA_CXX = 'nvcc'
-    LIB_CUDA_RUNTIME = 'cudart'
+    LIB_CUDA_RUNTIME = ['rt', 'cudart']
 
     def __init__(self, *args, **kwargs):
         """Constructor, with settings custom to CUDA."""

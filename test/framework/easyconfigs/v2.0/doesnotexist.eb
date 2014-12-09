@@ -10,9 +10,10 @@ name = 'doesnotexist'
 
 homepage = "http://www.example.com/"
 description = "doesnotexist is bug free software"
-docurl = "http://www.example.com/docs"
+docurls = ["http://www.example.com/docs"]
 
-license = VeryRestrictive
+software_license = VeryRestrictive
+software_license_urls = ['http://localhost/my_license']
 
 # source tarball filename
 sources = ['%(name)s-%(version)s.tar.gz']
@@ -23,10 +24,12 @@ source_urls = ['http://ftpmirror.gnu.org/gzip']
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}
 
-[DEFAULT]
+[SUPPORTED]
 versions=1.0.0,>= 0.5.0
 toolchains=dummy > 5,GCC == 3.0.0,ictce < 1.0
+
 [goolf > 1]
 versions=1.5.0
+
 [2.0.0]
 toolchains=dummy > 6,GCC > 4

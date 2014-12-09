@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -26,12 +26,16 @@ implemented as an easyblock
 """
 import copy
 import os
+from vsc.utils import fancylogger
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
 from easybuild.tools.filetools import apply_patch, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
+
+
+_log = fancylogger.getLogger('extensioneasyblock', fname=False)
 
 
 class ExtensionEasyBlock(EasyBlock, Extension):
@@ -50,14 +54,16 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     @staticmethod
     def extra_options(extra_vars=None):
         """Extra easyconfig parameters specific to ExtensionEasyBlock."""
-
-        # using [] as default value is a bad idea, so we handle it this way
         if extra_vars is None:
-            extra_vars = []
+            extra_vars = {}
 
-        extra_vars.extend([
-                           ('options', [{}, "Dictionary with extension options.", CUSTOM]),
-                          ])
+        if not isinstance(extra_vars, dict):
+            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
+            extra_vars = dict(extra_vars)
+
+        extra_vars.update({
+            'options': [{}, "Dictionary with extension options.", CUSTOM],
+        })
         return EasyBlock.extra_options(extra_vars)
 
     def __init__(self, *args, **kwargs):

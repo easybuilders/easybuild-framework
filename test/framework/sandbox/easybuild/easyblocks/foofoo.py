@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,9 +38,8 @@ class EB_foofoo(EB_foo):
     @staticmethod
     def extra_options():
         """Custom easyconfig parameters for foofoo."""
-
-        extra_vars = [
-                      ('foofoo_extra1', [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY]),
-                      ('foofoo_extra2', ['FOOFOO', "second foofoo-specific easyconfig parameter", CUSTOM]),
-                     ]
+        extra_vars = {
+            'foofoo_extra1': [None, "first foofoo-specific easyconfig parameter (mandatory)", MANDATORY],
+            'foofoo_extra2': ['FOOFOO', "second foofoo-specific easyconfig parameter", CUSTOM],
+        }
         return EB_foo.extra_options(extra_vars)

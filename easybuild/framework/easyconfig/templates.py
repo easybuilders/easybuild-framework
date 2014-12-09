@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,7 +31,7 @@ be used within an Easyconfig file.
 @author: Fotis Georgatos (University of Luxembourg)
 """
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from distutils.version import LooseVersion
 
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -73,6 +73,8 @@ TEMPLATE_CONSTANTS = [
      'apache.org source url'),
     ('BITBUCKET_SOURCE', 'http://bitbucket.org/%(namelower)s/%(namelower)s/get',
      'bitbucket.org source url'),
+    ('BITBUCKET_DOWNLOADS', 'http://bitbucket.org/%(namelower)s/%(namelower)s/downloads',
+     'bitbucket.org downloads url'),
     ('CRAN_SOURCE', 'http://cran.r-project.org/src/contrib',
      'CRAN (contrib) source url'),
     ('FTPGNOME_SOURCE', 'http://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',

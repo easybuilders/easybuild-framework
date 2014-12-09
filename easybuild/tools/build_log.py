@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2013 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,20 +31,22 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
-
 import os
-import platform
 import sys
-import time
 from copy import copy
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, VERSION
+from easybuild.tools.version import VERSION
 
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
+
+# the version seen by log.deprecated
+CURRENT_VERSION = VERSION
+
+# allow some experimental experimental code
+EXPERIMENTAL = False
 
 
 class EasyBuildError(Exception):
@@ -78,11 +80,22 @@ class EasyBuildLog(fancylogger.FancyLogger):
                 filepath_dirs.remove(dirName)
             else:
                 break
+            if not filepath_dirs:
+                filepath_dirs = ['?']
         return "(at %s:%s in %s)" % (os.path.join(*filepath_dirs), line, function_name)
+
+    def experimental(self, msg, *args, **kwargs):
+        """Handle experimental functionality if EXPERIMENTAL is True, otherwise log error"""
+        if EXPERIMENTAL:
+            msg = 'Experimental functionality. Behaviour might change/be removed later. ' + msg
+            self.warning(msg, *args, **kwargs)
+        else:
+            msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
+            self.error(msg, *args)
 
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
-        fancylogger.FancyLogger.deprecated(self, msg, str(VERSION), max_ver, exception=EasyBuildError)
+        fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
@@ -144,6 +157,7 @@ def print_msg(msg, log=None, silent=False, prefix=True):
         else:
             print msg
 
+
 def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
     Print error message and exit EasyBuild
@@ -158,30 +172,9 @@ def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=Tr
     elif log is not None:
         log.error(message)
 
+
 def print_warning(message, silent=False):
     """
     Print warning message.
     """
     print_msg("WARNING: %s\n" % message, silent=silent)
-
-
-def get_build_stats(app, starttime, cpu_model, core_count):
-    """
-    Return build statistics for this build
-    """
-
-    time_now = time.time()
-    buildtime = round(time_now - starttime, 2)
-    buildstats = OrderedDict([
-        ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
-        ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-        ('host', os.uname()[1]),
-        ('platform', platform.platform()),
-        ('cpu_model', cpu_model),
-        ('core_count', core_count),
-        ('timestamp', int(time_now)),
-        ('build_time', buildtime),
-        ('install_size', app.det_installsize()),
-    ])
-
-    return buildstats

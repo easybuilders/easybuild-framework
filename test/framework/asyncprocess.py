@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,19 +30,20 @@ Unit tests for asyncprocess.py.
 
 import os
 import time
-from unittest import TestCase, TestSuite, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestSuite, main
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
 
 
-class AsyncProcessTest(TestCase):
+class AsyncProcessTest(EnhancedTestCase):
     """ Testcase for asyncprocess """
 
     def setUp(self):
         """ setup a basic shell """
+        super(AsyncProcessTest, self).setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
-        self.cwd = os.getcwd()
 
     def runTest(self):
         """ try echoing some text and see if it comes back out """
@@ -61,7 +62,7 @@ class AsyncProcessTest(TestCase):
 
     def tearDown(self):
         """cleanup"""
-        os.chdir(self.cwd)
+        super(AsyncProcessTest, self).tearDown()
 
 def suite():
     """ returns all the testcases in this module """

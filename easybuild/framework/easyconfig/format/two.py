@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,8 +35,8 @@ import copy
 import re
 
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
-from easybuild.framework.easyconfig.format.version import ConfigObjVersion, EasyVersion
-from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
+from easybuild.framework.easyconfig.format.format import EBConfigObj
+from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -57,7 +57,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     USABLE = True
 
     PYHEADER_ALLOWED_BUILTINS = ['len', 'False', 'True']
-    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'license', 'docurl']
+    PYHEADER_MANDATORY = ['name', 'homepage', 'description', 'software_license', 'software_license_urls', 'docurls']
     PYHEADER_BLACKLIST = ['version', 'toolchain']
 
     NAME_DOCSTRING_REGEX_TEMPLATE = r'^\s*@%s\s*:\s*(?P<name>\S.*?)\s*$'  # non-greedy match in named pattern
@@ -70,6 +70,7 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
     def validate(self):
         """Format validation"""
         self._check_docstring()
+        self._validate_pyheader()
 
     def _check_docstring(self):
         """
@@ -95,73 +96,38 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
 
     def get_config_dict(self):
         """Return the best matching easyconfig dict"""
+        self.log.experimental(self.__class__.__name__)
+
         # the toolchain name/version should not be specified in the pyheader,
         # but other toolchain options are allowed
 
         cfg = copy.deepcopy(self.pyheader_localvars)
         self.log.debug("Config dict based on Python header: %s" % cfg)
 
-        cov = ConfigObjVersion(self.configobj)
+        co = EBConfigObj(self.configobj)
 
-        # we only need to find one version / toolchain combo
-        # esp. the toolchain name should be fixed, so no need to process anything but one toolchain
         version = self.specs.get('version', None)
-        if version is None:
-            # check for default version
-            if 'default_version' in cov.default:
-                version = cov.default['default_version']
-                self.log.info("no software version specified, using default version '%s'" % version)
-            else:
-                self.log.error("no software version specified, no default version found")
-        else:
-            self.log.debug("Using specified software version %s" % version)
-
         tc_spec = self.specs.get('toolchain', {})
         toolchain_name = tc_spec.get('name', None)
-        if toolchain_name is None:
-            # check for default toolchain
-            if 'default_toolchain' in cov.default:
-                toolchain = cov.default['default_toolchain']
-                toolchain_name = toolchain.tc_name
-                self.log.info("no toolchain name specified, using default '%s'" % toolchain_name)
-                toolchain_version = tc_spec.get('version', None)
-                if toolchain_version is None:
-                    toolchain_version = toolchain.get_version_str()
-                    self.log.info("no toolchain version specified, using default '%s'" % toolchain_version)
-            else:
-                self.log.error("no toolchain name specified, no default toolchain found")
-        else:
-            self.log.debug("Using specified toolchain name %s" % toolchain_name)
-            toolchain_version = tc_spec.get('version', None)
-            if toolchain_version is None:
-                self.log.error("Toolchain specification incomplete: name %s provided, but no version" % toolchain_name)
+        toolchain_version = tc_spec.get('version', None)
 
-        # add version/toolchain specifications to config dict
-        if isinstance(version, VersionOperator):
-            version = version.get_version_str()
-        elif not isinstance(version, basestring):
-            self.log.error("Found version of unexpected type: %s (%s)" % (type(version), version))
-        if isinstance(toolchain_version, ToolchainVersionOperator):
-            toolchain_version = toolchain_version.get_version_str()
-        elif not isinstance(toolchain_version, basestring):
-            tup = (type(toolchain_version), toolchain_version)
-            self.log.error("Found toolchain version of unexpected type: %s (%s)" % tup)
+        # parse and interpret, dealing with defaults etc
+        version, tcname, tcversion = co.get_version_toolchain(version, toolchain_name, toolchain_version)
 
+        # format 2.0 will squash
+        self.log.debug('Squashing with version %s and toolchain %s' % (version, (tcname, tcversion)))
+        res = co.squash(version, tcname, tcversion)
+
+        cfg.update(res)
+        self.log.debug("Config dict after processing applicable easyconfig sections: %s" % cfg)
+        # FIXME what about updating dict values/appending to list values?
+        # FIXME how do we allow both redefining and updating? = and +=?
+
+        # update config with correct version/toolchain (to avoid using values specified in default section)
         cfg.update({
             'version': version,
-            'toolchain': {'name': toolchain_name, 'version': toolchain_version},
+            'toolchain': {'name': tcname, 'version': tcversion},
         })
-        self.log.debug("Config dict including version/toolchain specs: %s" % cfg)
 
-        # toolchain name is known, remove all others toolchains from parsed easyconfig before we continue
-        # this also performs some validation, and checks for conflicts between section markers
-        self.log.debug("sections for full parsed configobj: %s" % cov.sections)
-        cov.validate_and_filter_by_toolchain(toolchain_name)
-        self.log.debug("sections for filtered parsed configobj: %s" % cov.sections)
-
-        section_specs = cov.get_specs_for(version=version, tcname=toolchain_name, tcversion=toolchain_version)
-        cfg.update(section_specs)
-        # FIXME what about updating dict values/appending to list values? how do we allow both redefining and updating? = and +=?
-
-        self.log.debug("Final config dict: %s" % cfg)
+        self.log.debug("Final config dict (including correct version/toolchain): %s" % cfg)
         return cfg

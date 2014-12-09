@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,24 +29,17 @@ Unit tests for tools/variables.py.
 @author: Stijn De Weirdt (Ghent University)
 """
 
-import re
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
-from unittest import TestCase, TestSuite, main
 from easybuild.tools.variables import CommaList, StrList, Variables
 from easybuild.tools.toolchain.variables import CommandFlagList
 
 
-class VariablesTest(TestCase):
+class VariablesTest(EnhancedTestCase):
     """ Baseclass for easyblock testcases """
 
-    def assertErrorRegex(self, error, regex, call, *args):
-        """ convenience method to match regex with the error message """
-        try:
-            call(*args)
-        except error, err:
-            self.assertTrue(re.search(regex, err.msg))
-
-    def runTest(self):
+    def test_variables(self):
         class TestVariables(Variables):
             MAP_CLASS = {'FOO':CommaList}
 
@@ -80,14 +73,14 @@ class VariablesTest(TestCase):
         v.join('BAR2', 'FOO', 'BARINT')
         self.assertEqual(str(v['BAR2']), "0,1,2 0")
 
-        self.assertRaises(Exception, v.join, 'BAZ', 'DOESNOTEXIST')
+        self.assertErrorRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")
 
 def suite():
     """ return all the tests"""
-    return TestSuite([VariablesTest()])
+    return TestLoader().loadTestsFromTestCase(VariablesTest)
 
 if __name__ == '__main__':
     main()

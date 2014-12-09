@@ -1,5 +1,5 @@
 ##
-# Copyright 2013 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,16 +27,17 @@ Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
 """
-
-from unittest import TestCase, TestLoader, main
+from test.framework.utilities import EnhancedTestCase
+from unittest import TestLoader, main
 
 from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
 from easybuild.tools.systemtools import get_avail_core_count, get_core_count
-from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor
-from easybuild.tools.systemtools import get_os_type, get_shared_lib_ext, get_platform_name, get_os_name, get_os_version
+from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
+from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
+from easybuild.tools.systemtools import get_system_info
 
 
-class SystemToolsTest(TestCase):
+class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
     def test_core_count(self):
@@ -93,6 +94,16 @@ class SystemToolsTest(TestCase):
         """Test getting OS version."""
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
+
+    def test_glibc_version(self):
+        """Test getting glibc version."""
+        glibc_version = get_glibc_version()
+        self.assertTrue(isinstance(glibc_version, basestring) or glibc_version == UNKNOWN)
+
+    def test_system_info(self):
+        """Test getting system info."""
+        system_info = get_system_info()
+        self.assertTrue(isinstance(system_info, dict))
 
 def suite():
     """ returns all the testcases in this module """

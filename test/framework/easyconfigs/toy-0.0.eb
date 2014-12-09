@@ -8,12 +8,12 @@ toolchain = {'name': 'dummy', 'version': 'dummy'}
 
 sources = [SOURCE_TAR_GZ]
 checksums = [[
-    'f09dca47638869866e28c9f44aadc111',  # default (MD5)
-    ('adler32', '0x706774088'),
-    ('crc32', '0x652118562'),
-    ('md5', 'f09dca47638869866e28c9f44aadc111'),
-    ('sha1', 'd0f33da8d5164f0f482f82a6c52f1704f1149440'),
-    ('size', 275),
+    'be662daa971a640e40be5c804d9d7d10',  # default (MD5)
+    ('adler32', '0x998410035'),
+    ('crc32', '0x1553842328'),
+    ('md5', 'be662daa971a640e40be5c804d9d7d10'),
+    ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+    ('size', 273),
 ]]
 patches = ['toy-0.0_typo.patch']
 
@@ -21,5 +21,7 @@ sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],
     'dirs': ['bin'],
 }
+
+postinstallcmds = ["echo TOY > %(installdir)s/README"]
 
 moduleclass = 'tools'

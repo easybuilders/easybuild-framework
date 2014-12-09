@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -152,6 +152,9 @@ class IntelMKL(LinAlg):
         elif self.options.get('i8', None):
             # ilp64/i8
             self.SCALAPACK_LIB_MAP.update({"lp64_sc":'_ilp64'})
+
+        self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
+        self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
         super(IntelMKL, self)._set_scalapack_variables()
 

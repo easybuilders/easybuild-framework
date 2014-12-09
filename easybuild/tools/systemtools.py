@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2013 Ghent University
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,17 +28,22 @@ Module with useful functions for getting system information
 @author: Jens Timmerman (Ghent University)
 @auther: Ward Poelmans (Ghent University)
 """
+import grp  # @UnresolvedImport
 import os
 import platform
+import pwd
 import re
-from vsc import fancylogger
+import sys
+from socket import gethostname
+from vsc.utils import fancylogger
 try:
     # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
     from vsc.utils.affinity import sched_getaffinity
 except ImportError:
     pass
 
-from easybuild.tools.filetools import read_file, run_cmd
+from easybuild.tools.filetools import read_file, which
+from easybuild.tools.run import run_cmd
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -96,7 +101,7 @@ def get_avail_core_count():
             f = open("/proc/%s/status" % mypid, 'r')
             txt = f.read()
             f.close()
-            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M|re.I)
+            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M | re.I)
         except IOError:
             cpuset = None
 
@@ -212,7 +217,7 @@ def get_cpu_speed():
     os_type = get_os_type()
     if os_type == LINUX:
         try:
-             # Linux with cpu scaling
+            # Linux with cpu scaling
             max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
             try:
                 f = open(max_freq_fp, 'r')
@@ -258,7 +263,7 @@ def get_kernel_name():
 
     e.g., 'Linux', 'Darwin', ...
     """
-    _log.deprecated("get_kernel_name() (replaced by os_type())", "2.0")
+    _log.deprecated("get_kernel_name() (replaced by get_os_type())", "2.0")
     try:
         kernel_name = os.uname()[0]
         return kernel_name
@@ -377,3 +382,152 @@ def get_os_version():
         return os_version
     else:
         return UNKNOWN
+
+
+def check_os_dependency(dep):
+    """
+    Check if dependency is available from OS.
+    """
+    # - uses rpm -q and dpkg -s --> can be run as non-root!!
+    # - fallback on which
+    # - should be extended to files later?
+    cmd = None
+    if get_os_name() in ['debian', 'ubuntu']:
+        if which('dpkg'):
+            cmd = "dpkg -s %s" % dep
+    else:
+        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
+        if which('rpm'):
+            cmd = "rpm -q %s" % dep
+
+    found = None
+    if cmd is not None:
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if found is None:
+        # fallback for when os-dependency is a binary/library
+        found = which(dep)
+
+    # try locate if it's available
+    if found is None and which('locate'):
+        cmd = 'locate --regexp "/%s$"' % dep
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    return found
+
+
+def get_tool_version(tool, version_option='--version'):
+    """
+    Get output of running version option for specific command line tool.
+    Output is returned as a single-line string (newlines are replaced by '; ').
+    """
+    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False)
+    if ec:
+        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
+        return UNKNOWN
+    else:
+        return '; '.join(out.split('\n'))
+
+
+def get_glibc_version():
+    """
+    Find the version of glibc used on this system
+    """
+    os_type = get_os_type()
+
+    if os_type == LINUX:
+        glibc_ver_str = get_tool_version('ldd')
+        glibc_ver_regex = re.compile(r"^ldd \([^)]*\) (\d[\d.]*).*$")
+        res = glibc_ver_regex.search(glibc_ver_str)
+
+        if res is not None:
+            glibc_version = res.group(1)
+            _log.debug("Found glibc version %s" % glibc_version)
+            return glibc_version
+        else:
+            tup = (glibc_ver_str, glibc_ver_regex.pattern)
+            _log.error("Failed to determine version from '%s' using pattern '%s'." % tup)
+    else:
+        # no glibc on OS X standard
+        _log.debug("No glibc on a non-Linux system, so can't determine version.")
+        return UNKNOWN
+
+
+def get_system_info():
+    """Return a dictionary with system information."""
+    python_version = '; '.join(sys.version.split('\n'))
+    return {
+        'core_count': get_avail_core_count(),
+        'cpu_model': get_cpu_model(),
+        'cpu_speed': get_cpu_speed(),
+        'cpu_vendor': get_cpu_vendor(),
+        'gcc_version': get_tool_version('gcc', version_option='-v'),
+        'hostname': gethostname(),
+        'glibc_version': get_glibc_version(),
+        'kernel_name': get_kernel_name(),
+        'os_name': get_os_name(),
+        'os_type': get_os_type(),
+        'os_version': get_os_version(),
+        'platform_name': get_platform_name(),
+        'python_version': python_version,
+        'system_python_path': which('python'),
+        'system_gcc_path': which('gcc'),
+    }
+
+
+def use_group(group_name):
+    """Use group with specified name."""
+    try:
+        group_id = grp.getgrnam(group_name).gr_gid
+    except KeyError, err:
+        _log.error("Failed to get group ID for '%s', group does not exist (err: %s)" % (group_name, err))
+
+    group = (group_name, group_id)
+    try:
+        os.setgid(group_id)
+    except OSError, err:
+        err_msg = "Failed to use group %s: %s; " % (group, err)
+        user = pwd.getpwuid(os.getuid()).pw_name
+        grp_members = grp.getgrgid(group_id).gr_mem
+        if user in grp_members:
+            err_msg += "change the primary group before using EasyBuild, using 'newgrp %s'." % group_name
+        else:
+            err_msg += "current user '%s' is not in group %s (members: %s)" % (user, group, grp_members)
+        _log.error(err_msg)
+    _log.info("Using group '%s' (gid: %s)" % group)
+
+    return group
+
+
+def det_parallelism(par, maxpar):
+    """
+    Determine level of parallelism that should be used.
+    Default: educated guess based on # cores and 'ulimit -u' setting: min(# cores, ((ulimit -u) - 15) / 6)
+    """
+    if par is not None:
+        if not isinstance(par, int):
+            try:
+                par = int(par)
+            except ValueError, err:
+                _log.error("Specified level of parallelism '%s' is not an integer value: %s" % (par, err))
+    else:
+        par = get_avail_core_count()
+        # check ulimit -u
+        out, ec = run_cmd('ulimit -u')
+        try:
+            if out.startswith("unlimited"):
+                out = 2 ** 32 - 1
+            maxuserproc = int(out)
+            # assume 6 processes per build thread + 15 overhead
+            par_guess = int((maxuserproc - 15) / 6)
+            if par_guess < par:
+                par = par_guess
+                _log.info("Limit parallel builds to %s because max user processes is %s" % (par, out))
+        except ValueError, err:
+            _log.exception("Failed to determine max user processes (%s, %s): %s" % (ec, out, err))
+
+    if maxpar is not None and maxpar < par:
+        _log.info("Limiting parallellism from %s to %s" % (par, maxpar))
+        par = min(par, maxpar)
+
+    return par
