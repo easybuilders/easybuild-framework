@@ -75,17 +75,31 @@ class EasyBuildOptions(GeneralOption):
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
+    def __init__(self, *args, **kwargs):
+        """Constructor."""
+
+        self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
+
+        # set up constants to seed into config files parser, by section
+        self.go_cfg_constants = {
+            self.DEFAULTSECT: {
+                'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
+                                        "List of default robot paths ('%s'-separated)" % os.pathsep),
+            }
+        }
+
+        # update or define go_configfiles_initenv in named arguments to pass to parent constructor
+        go_cfg_initenv = kwargs.setdefault('go_configfiles_initenv', {})
+        for section, constants in self.go_cfg_constants.items():
+            constants = dict([(name, value) for (name, (value, _)) in constants.items()])
+            go_cfg_initenv.setdefault(section, {}).update(constants)
+
+        super(EasyBuildOptions, self).__init__(*args, **kwargs)
+
     def basic_options(self):
         """basic runtime options"""
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         strictness_options = [run.IGNORE, run.WARN, run.ERROR]
-
-        easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None)
-        if easyconfigs_pkg_paths:
-            default_robot_paths = easyconfigs_pkg_paths
-        else:
-            self.log.warning("basic_options: unable to determine easyconfigs pkg path for --robot-paths default")
-            default_robot_paths = []
 
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
@@ -100,7 +114,7 @@ class EasyBuildOptions(GeneralOption):
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
                       'pathlist', 'store_or_None', [], 'r', {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
-                            'pathlist', 'store', default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
+                            'pathlist', 'store', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'skip': ("Skip existing software (useful for installing additional packages)",
                      None, 'store_true', False, 'k'),
             'stop': ("Stop the installation after certain step", 'choice', 'store_or_None', 'source', 's', all_stops),
@@ -256,6 +270,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Informative options", "Obtain information about EasyBuild.")
 
         opts = OrderedDict({
+            'avail-cfgfile-constants': ("Show all constants that can be used in configuration files",
+                                        None, 'store_true', False),
             'avail-easyconfig-constants': ("Show all constants that can be used in easyconfigs",
                                            None, 'store_true', False),
             'avail-easyconfig-licenses': ("Show all license constants that can be used in easyconfigs",
@@ -369,7 +385,7 @@ class EasyBuildOptions(GeneralOption):
 
         # prepare for --list/--avail
         if any([self.options.avail_easyconfig_params, self.options.avail_easyconfig_templates,
-                self.options.list_easyblocks, self.options.list_toolchains,
+                self.options.list_easyblocks, self.options.list_toolchains, self.options.avail_cfgfile_constants,
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
@@ -423,6 +439,11 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_list_avail(self):
         """Create all the additional info that can be requested (exit at the end)"""
         msg = ''
+
+        # dump supported configuration file constants
+        if self.options.avail_cfgfile_constants:
+            msg += self.avail_cfgfile_constants()
+
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
             msg += self.avail_easyconfig_params()
@@ -468,6 +489,23 @@ class EasyBuildOptions(GeneralOption):
         else:
             print msg
         sys.exit(0)
+
+    def avail_cfgfile_constants(self):
+        """
+        Return overview of constants supported in configuration files.
+        """
+        lines = [
+            "Constants available (only) in configuration files:",
+            "syntax: %(CONSTANT_NAME)s",
+        ]
+        for section in self.go_cfg_constants:
+            lines.append('')
+            if section != self.DEFAULTSECT:
+                section_title = "only in '%s' section:" % section
+                lines.append(section_title)
+            for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
+                lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
+        return '\n'.join(lines)
 
     def avail_easyconfig_params(self):
         """
