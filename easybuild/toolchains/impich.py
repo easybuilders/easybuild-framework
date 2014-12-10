@@ -23,19 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH,
-Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
+EasyBuild support for impich compiler toolchain (includes Intel compilers (icc, ifort), MPICH.
 
-@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.impich import Impich
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.mpi.mpich import Mpich
 
-class Impmkl(Impich, IntelMKL, IntelFFTW):
+
+class Impich(IntelIccIfort, Mpich):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), MPICH,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    Compiler toolchain with Intel compilers (icc/ifort), MPICH.
     """
-    NAME = 'impmkl'
+    NAME = 'impich'

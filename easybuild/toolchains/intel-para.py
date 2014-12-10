@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2012-2013 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,19 +23,22 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for impmkl compiler toolchain (includes Intel compilers (icc, ifort), MPICH,
-Intel Math Kernel Library (MKL) , and Intel FFTW wrappers.
+EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Parastation MPICH,
+Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.impich import Impich
+from easybuild.toolchains.ipsmpi import Ipsmpi
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
-class Impmkl(Impich, IntelMKL, IntelFFTW):
+
+class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), MPICH,
+    Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'impmkl'
+    NAME = 'intel-para'
+    # Parastation MPI needs to be matched with the IntelMPI blacs library
+    BLACS_LIB = ["mkl_blacs_intelmpi%(lp64)s"]
+    
