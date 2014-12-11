@@ -32,6 +32,7 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import re
