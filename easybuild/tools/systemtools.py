@@ -392,7 +392,7 @@ def check_os_dependency(dep):
     # - fallback on which
     # - should be extended to files later?
     cmd = None
-    if get_os_name() in ['debian', 'ubuntu']:
+    if get_os_name() in ['debian', 'ubuntu', 'linuxmint']:
         if which('dpkg'):
             cmd = "dpkg -s %s" % dep
     else:
