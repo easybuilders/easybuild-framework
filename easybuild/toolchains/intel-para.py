@@ -39,6 +39,4 @@ class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
     NAME = 'intel-para'
-    # Parastation MPI needs to be matched with the IntelMPI blacs library
-    BLACS_LIB = ["mkl_blacs_intelmpi%(lp64)s"]
     

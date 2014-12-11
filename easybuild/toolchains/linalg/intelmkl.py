@@ -126,7 +126,8 @@ class IntelMKL(LinAlg):
             "OpenMPI": '_openmpi',
             "IntelMPI": '_intelmpi',
             "MVAPICH2": '_intelmpi',
-            "MPICH2":'',
+            "MPICH2": '_intelmpi',
+            "MPICH": '_intelmpi',
         }
         try:
             self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})
