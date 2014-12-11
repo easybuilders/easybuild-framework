@@ -608,7 +608,11 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         patched_file = match.group('file')
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
-        patched_files.append(patched_file)
+
+        if patched_file in ['/dev/null']:
+            _log.debug("Ignoring patched file %s" % patched_file)
+        else:
+            patched_files.append(patched_file)
 
     return patched_files
 
