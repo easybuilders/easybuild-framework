@@ -251,10 +251,10 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
-    _log.debug("List of patches files (before filtering): %s" % patched_files)
+    _log.debug("List of patched files (before filtering): %s" % patched_files)
     # filter out '/dev/null' entries (removed files)
     patched_files = [pf for pf in patched_files if pf != '/dev/null']
-    _log.debug("List of patches files (after filtering): %s" % patched_files)
+    _log.debug("List of patched files (after filtering): %s" % patched_files)
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
