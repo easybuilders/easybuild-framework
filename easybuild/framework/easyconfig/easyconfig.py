@@ -81,6 +81,8 @@ DEPRECATED_OPTIONS = {
     'premakeopts': ('prebuildopts', '2.0'),
 }
 
+DEFAULT_EASYBLOCK = 'ConfigureMake'
+
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
@@ -739,9 +741,6 @@ def get_easyblock_class(easyblock, name=None):
     Get class for a particular easyblock (or use default)
     """
 
-    def_class = get_easyconfig_parameter_default('easyblock')
-    def_mod_path = get_module_path(def_class, generic=True)
-
     try:
         if easyblock:
             # something was specified, lets parse it
@@ -788,8 +787,15 @@ def get_easyblock_class(easyblock, name=None):
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
                     # no easyblock could be found, so fall back to default class.
+                    def_class = DEFAULT_EASYBLOCK
+                    def_mod_path = get_module_path(def_class, generic=True)
+
                     _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
                                 (class_name, (def_mod_path, def_class), err))
+
+                    depr_msg = "Fallback to default easyblock %s (from %s)" % (def_class, def_mod_path)
+                    depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % def_class
+                    _log.deprecated(depr_msg, '2.0')
                     cls = get_class_for(def_mod_path, def_class)
                 else:
                     _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
@@ -798,6 +804,9 @@ def get_easyblock_class(easyblock, name=None):
         _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
         return cls
 
+    except EasyBuildError, err:
+        # simply reraise rather than wrapping it into another error
+        raise err
     except Exception, err:
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
 
