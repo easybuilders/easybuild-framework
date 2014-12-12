@@ -66,9 +66,7 @@ from easybuild.framework.easyconfig.templates import template_constant_dict
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
-
 # add license here to make it really MANDATORY (remove comment in default)
-_log.deprecated('Mandatory license not enforced', '2.0')
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
@@ -185,6 +183,7 @@ class EasyConfig(object):
         self._config.update(self.extra_options)
 
         self.path = path
+
         self.mandatory = MANDATORY_PARAMS[:]
 
         # extend mandatory keys
