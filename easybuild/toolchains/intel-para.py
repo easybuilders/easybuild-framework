@@ -23,22 +23,20 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
+EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Parastation MPICH,
 Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.ipsmpi import Ipsmpi
 from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
 from easybuild.toolchains.linalg.intelmkl import IntelMKL
 
 
-class Intel(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
+class IntelPara(Ipsmpi, IntelMKL, IntelFFTW):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
+    Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH,
     Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
     """
-    NAME = 'intel'
+    NAME = 'intel-para'
+    
