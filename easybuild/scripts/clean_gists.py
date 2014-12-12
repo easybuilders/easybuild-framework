@@ -42,7 +42,6 @@ def main():
     """the main function"""
     fancylogger.logToScreen(enable=True, stdout=True)
     fancylogger.setLogLevelInfo()
-    log = fancylogger.getLogger()
 
     options = {
         'github-user': ('Your github username to use', None, 'store', None, 'g'),
@@ -52,6 +51,7 @@ def main():
     }
 
     go = simple_option(options)
+    log = go.log
 
     if not (go.options.all or go.options.closed_pr or go.options.orphans):
         log.error("Please tell me what to do?")
