@@ -346,10 +346,9 @@ class EasyConfig(object):
         """Validate the license"""
         lic = self._config['software_license'][0]
         if lic is None:
-            self.log.deprecated('Mandatory license not enforced', '2.0')
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                self.log.error('License is mandatory')
+                self.log.error("License is mandatory, but 'software_license' is undefined")
         elif not isinstance(lic, License):
             self.log.error('License %s has to be a License subclass instance, found classname %s.' %
                            (lic, lic.__class__.__name__))

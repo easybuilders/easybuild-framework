@@ -80,7 +80,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         options = init_config(args=args)
         return options.config
 
-    def xtest_default_config(self):
+    def test_default_config(self):
         """Test default configuration."""
         self.purge_environment()
 
@@ -355,7 +355,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(log_file_format(), logtmpl)
         self.assertEqual(get_build_log_path(), tmplogdir)
 
-    def xtest_generaloption_config(self):
+    def test_generaloption_config(self):
         """Test new-style configuration (based on generaloption)."""
         self.purge_environment()
 
@@ -414,7 +414,7 @@ modules_install_suffix = '%(modsuffix)s'
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
 
-    def xtest_generaloption_config_file(self):
+    def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
         self.purge_environment()
 
@@ -491,7 +491,7 @@ modules_install_suffix = '%(modsuffix)s'
         del os.environ['EASYBUILD_CONFIGFILES']
         sys.path[:] = orig_sys_path
 
-    def xtest_set_tmpdir(self):
+    def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
         self.purge_environment()
 
@@ -517,7 +517,7 @@ modules_install_suffix = '%(modsuffix)s'
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
 
-    def xtest_configuration_variables(self):
+    def test_configuration_variables(self):
         """Test usage of ConfigurationVariables."""
         # delete instance of ConfigurationVariables
         ConfigurationVariables.__metaclass__._instances.pop(ConfigurationVariables, None)
@@ -529,7 +529,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertTrue(cv1 is cv2)
         self.assertTrue(cv1 is cv3)
 
-    def xtest_build_options(self):
+    def test_build_options(self):
         """Test usage of BuildOptions."""
         # delete instance of BuildOptions
         BuildOptions.__metaclass__._instances.pop(BuildOptions, None)
