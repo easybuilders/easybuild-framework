@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,22 +23,15 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
+EasyBuild support for gmpich compiler toolchain (includes GCC and MPICH).
 
-@author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Intel(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
-    """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
-    """
-    NAME = 'intel'
+class Gmpich(Gcc, Mpich):
+    """Compiler toolchain with GCC and MPICH."""
+    NAME = 'gmpich'

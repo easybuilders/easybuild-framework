@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2013 Ghent University
+# Copyright 2012-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,22 +23,17 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Intel MPI,
-Intel Math Kernel Library (MKL), and Intel FFTW wrappers).
+EasyBuild support for intel compiler toolchain (includes Intel compilers (icc, ifort), Parastation MPICH).
 
-@author: Stijn De Weirdt (Ghent University)
-@author: Kenneth Hoste (Ghent University)
 """
 
-from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
-from easybuild.toolchains.fft.intelfftw import IntelFFTW
-from easybuild.toolchains.mpi.intelmpi import IntelMPI
-from easybuild.toolchains.linalg.intelmkl import IntelMKL
+from easybuild.toolchains.impich import Impich
 
 
-class Intel(IntelIccIfort, IntelMPI, IntelMKL, IntelFFTW):
+class Ipsmpi(Impich):
     """
-    Compiler toolchain with Intel compilers (icc/ifort), Intel MPI,
-    Intel Math Kernel Library (MKL) and Intel FFTW wrappers.
+    Compiler toolchain with Intel compilers (icc/ifort), Parastation MPICH.
     """
-    NAME = 'intel'
+    NAME = 'ipsmpi'
+    # Use Parastation naming
+    MPI_MODULE_NAME = ["psmpi"]
