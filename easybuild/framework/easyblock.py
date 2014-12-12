@@ -33,7 +33,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import copy
@@ -46,12 +46,13 @@ import time
 import traceback
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
+from vsc.utils.missing import get_class_for
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS, ITERATE_OPTIONS
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_class_for
+from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
@@ -137,7 +138,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.moduleGenerator = ModuleGenerator(self, fake=True)
+        self.module_generator = ModuleGenerator(self, fake=True)
 
         # modules footer
         self.modules_footer = None
@@ -613,6 +614,14 @@ class EasyBlock(object):
         """
         return self.cfg.short_mod_name
 
+    @property
+    def moduleGenerator(self):
+        """
+        Module generator (DEPRECATED, use self.module_generator instead).
+        """
+        self.log.deprecated("self.moduleGenerator is replaced by self.module_generator", "2.0")
+        return self.module_generator
+
     #
     # DIRECTORY UTILITY FUNCTIONS
     #
@@ -816,8 +825,8 @@ class EasyBlock(object):
 
         deps = [d for d in deps if d not in excluded_deps]
         self.log.debug("List of retained dependencies: %s" % deps)
-        loads = [self.moduleGenerator.load_module(d) for d in deps]
-        unloads = [self.moduleGenerator.unload_module(d) for d in deps[::-1]]
+        loads = [self.module_generator.load_module(d) for d in deps]
+        unloads = [self.module_generator.unload_module(d) for d in deps[::-1]]
 
         # Force unloading any other modules
         if self.cfg['moduleforceunload']:
@@ -829,7 +838,7 @@ class EasyBlock(object):
         """
         Create the module description.
         """
-        return self.moduleGenerator.get_description()
+        return self.module_generator.get_description()
 
     def make_module_extra(self):
         """
@@ -839,26 +848,26 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.moduleGenerator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
-        txt += self.moduleGenerator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
+        txt += self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+        txt += self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
         devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
-        txt += self.moduleGenerator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
+        txt += self.module_generator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
         for (key, value) in self.cfg['modextravars'].items():
-            txt += self.moduleGenerator.set_environment(key, value)
+            txt += self.module_generator.set_environment(key, value)
         for (key, value) in self.cfg['modextrapaths'].items():
             if isinstance(value, basestring):
                 value = [value]
             elif not isinstance(value, (tuple, list)):
                 self.log.error("modextrapaths dict value %s (type: %s) is not a list or tuple" % (value, type(value)))
-            txt += self.moduleGenerator.prepend_paths(key, value)
+            txt += self.module_generator.prepend_paths(key, value)
         if self.cfg['modloadmsg']:
-            txt += self.moduleGenerator.msg_on_load(self.cfg['modloadmsg'])
+            txt += self.module_generator.msg_on_load(self.cfg['modloadmsg'])
         if self.cfg['modtclfooter']:
-            txt += self.moduleGenerator.add_tcl_footer(self.cfg['modtclfooter'])
+            txt += self.module_generator.add_tcl_footer(self.cfg['modtclfooter'])
         for (key, value) in self.cfg['modaliases'].items():
-            txt += self.moduleGenerator.set_alias(key, value)
+            txt += self.module_generator.set_alias(key, value)
 
         self.log.debug("make_module_extra added this: %s" % txt)
 
@@ -874,7 +883,7 @@ class EasyBlock(object):
         # set environment variable that specifies list of extensions
         if self.exts_all:
             exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            txt += self.moduleGenerator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+            txt += self.module_generator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
 
         return txt
 
@@ -909,7 +918,7 @@ class EasyBlock(object):
             # module path extensions must exist, otherwise loading this module file will fail
             for modpath_extension in full_path_modpath_extensions:
                 mkdir(modpath_extension, parents=True)
-            txt = self.moduleGenerator.use(full_path_modpath_extensions)
+            txt = self.module_generator.use(full_path_modpath_extensions)
         else:
             self.log.debug("Not including module path extensions, as specified.")
         return txt
@@ -931,7 +940,7 @@ class EasyBlock(object):
                 for path in requirements[key]:
                     paths = glob.glob(path)
                     if paths:
-                        txt += self.moduleGenerator.prepend_paths(key, paths)
+                        txt += self.module_generator.prepend_paths(key, paths)
             try:
                 os.chdir(self.orig_workdir)
             except OSError, err:
@@ -1660,8 +1669,8 @@ class EasyBlock(object):
         """
         Generate a module file.
         """
-        self.moduleGenerator.set_fake(fake)
-        modpath = self.moduleGenerator.prepare()
+        self.module_generator.set_fake(fake)
+        modpath = self.module_generator.prepare()
 
         txt = ''
         txt += self.make_module_description()
@@ -1671,12 +1680,12 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-        write_file(self.moduleGenerator.filename, txt)
+        write_file(self.module_generator.filename, txt)
 
-        self.log.info("Module file %s written" % self.moduleGenerator.filename)
+        self.log.info("Module file %s written" % self.module_generator.filename)
 
         self.modules_tool.update()
-        self.moduleGenerator.create_symlinks()
+        self.module_generator.create_symlinks()
 
         if not fake:
             self.make_devel_module()

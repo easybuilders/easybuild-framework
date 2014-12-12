@@ -390,12 +390,12 @@ def init(options, config_options_dict):
 
 def init_build_options(build_options=None, cmdline_options=None):
     """Initialize build options."""
-    # building a dependency graph implies force, so that all dependencies are retained
-    # and also skips validation of easyconfigs (e.g. checking os dependencies)
 
     active_build_options = {}
 
     if cmdline_options is not None:
+        # building a dependency graph implies force, so that all dependencies are retained
+        # and also skips validation of easyconfigs (e.g. checking os dependencies)
         retain_all_deps = False
         if cmdline_options.dep_graph:
             _log.info("Enabling force to generate dependency graph.")
