@@ -392,6 +392,7 @@ def check_os_dependency(dep):
     # - fallback on which
     # - should be extended to files later?
     found = None
+    cmd = None
     if which('rpm'):
         cmd = "rpm -q %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
@@ -400,14 +401,14 @@ def check_os_dependency(dep):
         cmd = "dpkg -s %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if not found:
+    if cmd is None:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
-    # try locate if it's available
-    if not found and which('locate'):
-        cmd = 'locate --regexp "/%s$"' % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        # try locate if it's available
+        if not found and which('locate'):
+            cmd = 'locate --regexp "/%s$"' % dep
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
 
