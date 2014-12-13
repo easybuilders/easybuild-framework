@@ -169,7 +169,6 @@ DEFAULT_MODULECLASSES = [
 ]
 
 
-# note: keys are new style option names
 OLDSTYLE_ENVIRONMENT_VARIABLES = {
     'build_path': 'EASYBUILDBUILDPATH',
     'config_file': 'EASYBUILDCONFIG',
