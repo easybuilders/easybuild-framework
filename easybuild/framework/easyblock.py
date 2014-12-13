@@ -97,8 +97,9 @@ class EasyBlock(object):
             extra = {}
 
         if not isinstance(extra, dict):
-            _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
-            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
+            typ = type(extra)
+            _log.deprecated("Obtained 'extra' value of type '%s' in extra_options, should be 'dict'" % typ, '2.0')
+            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, typ))
             extra = dict(extra)
 
         # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
