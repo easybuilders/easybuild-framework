@@ -47,6 +47,7 @@ import traceback
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for
+from vsc.utils.wrapper import HybridListDict
 
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
@@ -104,8 +105,8 @@ class EasyBlock(object):
 
         # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
         # starting with EasyBuild v2.0, this will be changed to return the actual dict
-        res = extra.items()
-
+        # as a temporary workaround, return a value which is a hybrid between a list and a dict
+        res = HybridListDict(extra.items())
         return res
 
     #
