@@ -174,14 +174,6 @@ class EasyConfig(object):
                 tup = (type(self.extra_options), self.extra_options)
                 self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
-        # map deprecated params to new names if they occur in extra_options
-        for key, val in self.extra_options.items():
-            if key in DEPRECATED_OPTIONS:
-                new_key, depr_ver = DEPRECATED_OPTIONS[key]
-                self.log.deprecated("Found deprecated key '%s', should use '%s' instead." % (key, new_key), depr_ver)
-                self.extra_options[new_key] = self.extra_options[key]
-                self.log.debug("Set '%s' with value of deprecated '%s': %s" % (new_key, key, self.extra_options[key]))
-                del self.extra_options[key]
         self._config.update(self.extra_options)
 
         self.path = path
