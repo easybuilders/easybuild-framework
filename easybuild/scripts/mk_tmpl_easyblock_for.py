@@ -121,7 +121,7 @@ import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 %(parent_import)s
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 class %(class_name)s(%(parent)s):
