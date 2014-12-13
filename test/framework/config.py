@@ -246,7 +246,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.purge_environment()
 
         cfg_fn = self.configure(args=[])
-        #self.assertTrue(cfg_fn.endswith('easybuild/easybuild_config.py'))
+        self.assertTrue(cfg_fn.endswith('easybuild/easybuild_config.py'))
 
         configtxt = """
 build_path = '%(buildpath)s'
