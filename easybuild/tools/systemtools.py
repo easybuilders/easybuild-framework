@@ -396,16 +396,16 @@ def check_os_dependency(dep):
         cmd = "rpm -q %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if found is None and which('dpkg'):
+    if not found and which('dpkg'):
         cmd = "dpkg -s %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if found is None:
+    if not found:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
     # try locate if it's available
-    if found is None and which('locate'):
+    :x
         cmd = 'locate --regexp "/%s$"' % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
