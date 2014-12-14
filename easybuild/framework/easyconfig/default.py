@@ -34,6 +34,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 @author: Toon Willems (Ghent University)
 """
 from vsc.utils import fancylogger
+from vsc.utils.wrapper import HybridListDict
 
 from easybuild.tools.ordereddict import OrderedDict
 
@@ -194,6 +195,8 @@ def convert_to_help(opts, has_default=False):
     mapping = OrderedDict()
     if isinstance(opts, dict):
         opts = opts.items()
+    elif isinstance(opts, HybridListDict):
+        opts = list(opts)
     if not has_default:
         defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
         opts = defs + opts
