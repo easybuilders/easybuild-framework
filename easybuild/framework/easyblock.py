@@ -1404,6 +1404,7 @@ class EasyBlock(object):
             os.chdir(self.orig_workdir)
 
             cls, inst = None, None
+            class_name = encode_class_name(ext['name'])
 
             # try instantiating extension-specific class
             try:
