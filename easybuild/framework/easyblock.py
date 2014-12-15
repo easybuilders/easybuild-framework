@@ -52,7 +52,7 @@ from vsc.utils.wrapper import HybridListDict
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import DEFAULT_EASYBLOCK, ITERATE_OPTIONS, EasyConfig, ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -1406,23 +1406,17 @@ class EasyBlock(object):
             inst = None
 
             # try instantiating extension-specific class
-            class_name = encode_class_name(ext['name'])  # use the same encoding as get_class
-            mod_path = get_module_path(class_name)
-            if not os.path.exists("%s.py" % mod_path):
-                self.log.deprecated("Determine module path based on software name", "2.0")
-                mod_path = get_module_path(ext['name'], decode=False)
-
             try:
-                cls = get_class_for(mod_path, class_name)
-                inst = cls(self, ext)
+                cls = get_easyblock_class(None, name=ext['name'])
+                self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
+                if cls.__name__ != DEFAULT_EASYBLOCK:
+                    inst = cls(self, ext)
             except (ImportError, NameError), err:
-                self.log.debug("Failed to use class %s from %s for extension %s: %s" % (class_name,
-                                                                                        mod_path,
-                                                                                        ext['name'],
-                                                                                        err))
+                self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
 
             # LEGACY: try and use default module path for getting extension class instance
             if inst is None and legacy:
+                self.log.deprecated("Using specified module path for default class", '2.0')
                 try:
                     msg = "Failed to use derived module path for %s, " % class_name
                     msg += "considering specified module path as (legacy) fallback."
@@ -1450,9 +1444,7 @@ class EasyBlock(object):
                                                                                                err))
 
             # fallback attempt: use default class
-            if not inst is None:
-                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
-            else:
+            if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s" % (cls, ext['name']))
@@ -1463,6 +1455,8 @@ class EasyBlock(object):
                     msg = "Also failed to use default class %s from %s for extension %s: %s, giving up" % \
                         (default_class, default_class_modpath, ext['name'], err)
                     self.log.error(msg)
+            else:
+                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
 
             # real work
             inst.prerun()
