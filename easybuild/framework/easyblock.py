@@ -1409,7 +1409,9 @@ class EasyBlock(object):
 
             # try instantiating extension-specific class
             try:
-                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False)
+                # don't fail when importing class fails, in case we run into an existing easyblock
+                # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
+                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False, error_on_failed_import=True)
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
                 if cls is not None:
                     inst = cls(self, ext)

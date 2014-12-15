@@ -728,7 +728,7 @@ def fetch_parameter_from_easyconfig_file(path, param):
         return None
 
 
-def get_easyblock_class(easyblock, name=None, default_fallback=True):
+def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
     """
     Get class for a particular easyblock (or use default)
     """
@@ -805,7 +805,10 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True):
                         _log.deprecated(depr_msg, '2.0')
                         cls = get_class_for(def_mod_path, def_class)
                 else:
-                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                    if error_on_failed_import:
+                        _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                    else:
+                        _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             tup = (cls.__name__, easyblock, name)
