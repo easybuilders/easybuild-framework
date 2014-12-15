@@ -464,7 +464,6 @@ def get_system_info():
         'gcc_version': get_tool_version('gcc', version_option='-v'),
         'hostname': gethostname(),
         'glibc_version': get_glibc_version(),
-        'kernel_name': get_kernel_name(),
         'os_name': get_os_name(),
         'os_type': get_os_type(),
         'os_version': get_os_version(),
