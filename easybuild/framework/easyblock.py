@@ -1403,13 +1403,13 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
 
-            inst = None
+            cls, inst = None, None
 
             # try instantiating extension-specific class
             try:
-                cls = get_easyblock_class(default_class, name=ext['name'])
+                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False)
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
-                if cls.__name__ != default_class:
+                if cls is not None:
                     inst = cls(self, ext)
             except (ImportError, NameError), err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))

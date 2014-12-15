@@ -728,11 +728,11 @@ def fetch_parameter_from_easyconfig_file(path, param):
         return None
 
 
-def get_easyblock_class(easyblock, name=None):
+def get_easyblock_class(easyblock, name=None, default_fallback=True):
     """
     Get class for a particular easyblock (or use default)
     """
-
+    cls = None
     try:
         if easyblock:
             # something was specified, lets parse it
@@ -792,22 +792,28 @@ def get_easyblock_class(easyblock, name=None):
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
-                    # no easyblock could be found, so fall back to default class.
-                    def_class = DEFAULT_EASYBLOCK
-                    def_mod_path = get_module_path(def_class, generic=True)
+                    if default_fallback:
+                        # no easyblock could be found, so fall back to default class.
+                        def_class = DEFAULT_EASYBLOCK
+                        def_mod_path = get_module_path(def_class, generic=True)
 
-                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, (def_mod_path, def_class), err))
+                        _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
+                                    (class_name, (def_mod_path, def_class), err))
 
-                    depr_msg = "Fallback to default easyblock %s (from %s)" % (def_class, def_mod_path)
-                    depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % def_class
-                    _log.deprecated(depr_msg, '2.0')
-                    cls = get_class_for(def_mod_path, def_class)
+                        depr_msg = "Fallback to default easyblock %s (from %s)" % (def_class, def_mod_path)
+                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % def_class
+                        _log.deprecated(depr_msg, '2.0')
+                        cls = get_class_for(def_mod_path, def_class)
                 else:
                     _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
 
-        tup = (cls.__name__, easyblock, name)
-        _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+        if cls is not None:
+            tup = (cls.__name__, easyblock, name)
+            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+        else:
+            tup = (easyblock, name, default_fallback)
+            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s" % tup)
+
         return cls
 
     except EasyBuildError, err:
