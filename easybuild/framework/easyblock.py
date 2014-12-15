@@ -1407,9 +1407,9 @@ class EasyBlock(object):
 
             # try instantiating extension-specific class
             try:
-                cls = get_easyblock_class(None, name=ext['name'])
+                cls = get_easyblock_class(default_class, name=ext['name'])
                 self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
-                if cls.__name__ != DEFAULT_EASYBLOCK:
+                if cls.__name__ != default_class:
                     inst = cls(self, ext)
             except (ImportError, NameError), err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
