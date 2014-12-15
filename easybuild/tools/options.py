@@ -243,7 +243,7 @@ class EasyBuildOptions(GeneralOption):
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                 'strlist', 'store',
-                                mk_full_default_path('repositorypath')),
+                                [mk_full_default_path('repositorypath')]),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
@@ -417,6 +417,8 @@ class EasyBuildOptions(GeneralOption):
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
                         setattr(self.options, dest, DEFAULT_REPOSITORY)
+                    elif dest == 'repositorypath':
+                        setattr(self.options, dest, [mk_full_default_path(dest, prefix=self.options.prefix)])
                     else:
                         setattr(self.options, dest, mk_full_default_path(dest, prefix=self.options.prefix))
                     # LEGACY this line is here for oldstyle config reasons
