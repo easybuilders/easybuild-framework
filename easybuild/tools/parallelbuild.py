@@ -182,9 +182,9 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
-    oldstyle_testoutput_env_var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
-    if not (oldstyle_testoutput_env_var in easybuild_vars or 'EASYBUILD_TESTOUTPUT' in easybuild_vars):
-        easybuild_vars['EASYBUILD_TESTOUTPUT'] = os.path.join(os.path.abspath(output_dir), name)
+    regtest_output_dir_var = 'EASYBUILD_REGTEST_OUTPUT_DIR'
+    if not regtest_output_dir_var in easybuild_vars:
+        easybuild_vars[regtest_output_dir_var] = os.path.join(os.path.abspath(output_dir), name)
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
