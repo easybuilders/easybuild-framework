@@ -70,7 +70,7 @@ DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 DEFAULT_TMP_LOGDIR = tempfile.gettempdir()
 
-# utility function for defining DEFAULT_ constants below
+# utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
     """Create full path, avoid '/' at the end."""
     args = [prefix]
@@ -262,7 +262,7 @@ def get_user_easybuild_dir():
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
     newpath = os.path.join(xdg_config_home, "easybuild")
 
-    # only issue deprecation warning/error is new path doesn't exist, but deprecated path does
+    # only issue deprecation warning/error if new path doesn't exist, but deprecated path does
     if not os.path.isdir(newpath) and os.path.isdir(oldpath):
         _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
         return oldpath
