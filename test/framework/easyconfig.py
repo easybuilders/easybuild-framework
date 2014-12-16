@@ -88,14 +88,14 @@ class EasyConfigTest(EnhancedTestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
-    def xtest_empty(self):
+    def test_empty(self):
         """ empty files should not parse! """
         self.contents = "# empty string"
         self.prep()
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
 
-    def xtest_mandatory(self):
+    def test_mandatory(self):
         """ make sure all checking of mandatory variables works """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -119,7 +119,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['toolchain'], {"name":"dummy", "version": "dummy"})
         self.assertEqual(eb['description'], "test easyconfig")
 
-    def xtest_validation(self):
+    def test_validation(self):
         """ test other validations beside mandatory variables """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -151,7 +151,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
 
-    def xtest_shared_lib_ext(self):
+    def test_shared_lib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -165,7 +165,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file)
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
-    def xtest_dependency(self):
+    def test_dependency(self):
         """ test all possible ways of specifying dependencies """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -211,7 +211,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "without name", eb._parse_dependency, ())
         self.assertErrorRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
 
-    def xtest_extra_options(self):
+    def test_extra_options(self):
         """ extra_options should allow other variables to be stored """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -264,7 +264,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(eb['mandatory_key'], 'value')
 
-    def xtest_exts_list(self):
+    def test_exts_list(self):
         """Test handling of list of extensions."""
         os.environ['EASYBUILD_SOURCEPATH'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         init_config()
@@ -295,7 +295,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         exts_sources = eb.fetch_extension_sources()
 
-    def xtest_suggestions(self):
+    def test_suggestions(self):
         """ If a typo is present, suggestions should be provided (if possible) """
         self.contents = '\n'.join([
             'name = "pi"',
@@ -314,7 +314,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
         self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
 
-    def xtest_tweaking(self):
+    def test_tweaking(self):
         """test tweaking ability of easyconfigs"""
 
         fd, tweaked_fn = tempfile.mkstemp(prefix='easybuild-tweaked-', suffix='.eb')
@@ -386,7 +386,7 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         os.remove(tweaked_fn)
 
-    def xtest_installversion(self):
+    def test_installversion(self):
         """Test generation of install version."""
 
         ver = "3.14"
@@ -416,7 +416,7 @@ class EasyConfigTest(EnhancedTestCase):
         installver = det_full_ec_version(cfg)
         self.assertEqual(installver, correct_installver)
 
-    def xtest_legacy_installversion(self):
+    def test_legacy_installversion(self):
         """Test generation of install version (legacy)."""
 
         ver = "3.14"
@@ -434,7 +434,7 @@ class EasyConfigTest(EnhancedTestCase):
         installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
-    def xtest_obtain_easyconfig(self):
+    def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
 
         tcname = 'GCC'
@@ -670,7 +670,7 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(self.ec_dir)
 
-    def xtest_templating(self):
+    def test_templating(self):
         """ test easyconfig templating """
         inp = {
            'name': 'PI',
@@ -707,7 +707,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb['description'] = "test easyconfig % %% %s% %%% %(name)s %%(name)s %%%(name)s %%%%(name)s"
         self.assertEqual(eb['description'], "test easyconfig % %% %s% %%% PI %(name)s %PI %%(name)s")
 
-    def xtest_templating_doc(self):
+    def test_templating_doc(self):
         """test templating documentation"""
         doc = easyconfig.templates.template_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
@@ -720,7 +720,7 @@ class EasyConfigTest(EnhancedTestCase):
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
-    def xtest_constant_doc(self):
+    def test_constant_doc(self):
         """test constant documentation"""
         doc = easyconfig.constants.constant_documentation()
         # expected length: 1 per constant and 1 extra per constantgroup
@@ -729,7 +729,7 @@ class EasyConfigTest(EnhancedTestCase):
                 ]
         self.assertEqual(len(doc.split('\n')), sum([len(temps)] + [len(x) for x in temps]))
 
-    def xtest_build_options(self):
+    def test_build_options(self):
         """Test configure/build/install options, both strings and lists."""
         orig_contents = '\n'.join([
             'name = "pi"',
@@ -798,7 +798,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         eb = EasyConfig(self.eb_file)
 
-    def xtest_buildininstalldir(self):
+    def test_buildininstalldir(self):
         """Test specifying build in install dir."""
         self.contents = '\n'.join([
             'name = "pi"',
@@ -818,7 +818,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb.builddir, eb.installdir)
         self.assertTrue(os.path.isdir(eb.builddir))
 
-    def xtest_format_equivalence_basic(self):
+    def test_format_equivalence_basic(self):
         """Test whether easyconfigs in different formats are equivalent."""
         # hard enable experimental
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
@@ -850,7 +850,7 @@ class EasyConfigTest(EnhancedTestCase):
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
-    def xtest_fetch_parameter_from_easyconfig_file(self):
+    def test_fetch_parameter_from_easyconfig_file(self):
         """Test fetch_easyblock_from_easyconfig_file function."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         toy_ec_file = os.path.join(test_ecs_dir, 'toy-0.0.eb')
@@ -883,7 +883,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
 
-    def xtest_easyconfig_paths(self):
+    def test_easyconfig_paths(self):
         """Test create_paths function."""
         cand_paths = create_paths("/some/path", "Foo", "1.2.3")
         expected_paths = [
@@ -894,7 +894,7 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertEqual(cand_paths, expected_paths)
 
-    def xtest_deprecated_options(self):
+    def test_deprecated_options(self):
         """Test whether deprecated options are handled correctly."""
         deprecated_options = [
             ('makeopts', 'buildopts', 'CC=foo'),
@@ -915,7 +915,7 @@ class EasyConfigTest(EnhancedTestCase):
             ec = EasyConfig(self.eb_file)
             self.assertEqual(ec[depr_opt], ec[new_opt])
 
-    def xtest_toolchain_inspection(self):
+    def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
         build_options = {
             'robot_path': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
@@ -936,7 +936,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_toolchain_compilers(ec), None)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
-    def xtest_filter_deps(self):
+    def test_filter_deps(self):
         """Test filtered dependencies."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec_file = os.path.join(test_ecs_dir, 'goolf-1.4.10.eb')
