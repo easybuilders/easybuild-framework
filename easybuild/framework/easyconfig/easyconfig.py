@@ -42,11 +42,11 @@ import re
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, get_class_for, nub
 from vsc.utils.patterns import Singleton
-from vsc.utils.wrapper import HybridListDict
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -164,9 +164,9 @@ class EasyConfig(object):
             self.extra_options = extra_options
 
         if not isinstance(self.extra_options, dict):
-            if isinstance(self.extra_options, (list, tuple, HybridListDict)):
+            if isinstance(self.extra_options, (list, tuple, ExtraOptionsDeprecatedReturnValue)):
                 typ = type(self.extra_options)
-                if not isinstance(self.extra_options, HybridListDict):
+                if not isinstance(self.extra_options, ExtraOptionsDeprecatedReturnValue):
                     self.log.deprecated("extra_options return value should be of type 'dict', found '%s'" % typ, '2.0')
                 tup = (self.extra_options, type(self.extra_options))
                 self.log.debug("Converting extra_options value '%s' of type '%s' to a dict" % tup)
