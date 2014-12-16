@@ -367,6 +367,8 @@ modules_install_suffix = '%(modsuffix)s'
         options = init_config(args=[])
         self.assertEqual(build_path(), buildpath_env_var)
         self.assertEqual(install_path(), os.path.join(prefix, 'software'))
+        self.assertEqual(get_repositorypath(), [os.path.join(prefix, 'ebfiles_repo')])
+
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_BUILDPATH']
 

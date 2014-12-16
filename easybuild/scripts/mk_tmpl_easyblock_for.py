@@ -121,7 +121,7 @@ import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 %(parent_import)s
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 class %(class_name)s(%(parent)s):
@@ -136,11 +136,10 @@ class %(class_name)s(%(parent)s):
     @staticmethod
     def extra_options():
         \"\"\"Custom easyconfig parameters for %(name)s.\"\"\"
-
-        extra_vars = [
-                      ('mandatory_extra_param', ['default value', "short description", MANDATORY]),
-                      ('optional_extra_param', ['default value', "short description", CUSTOM]),
-                     ]
+        extra_vars = {
+            'mandatory_extra_param': ['default value', "short description", MANDATORY],
+            'optional_extra_param': ['default value', "short description", CUSTOM],
+         }
         return %(parent)s.extra_options(extra_vars)
 
     def configure_step(self):

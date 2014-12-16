@@ -50,9 +50,10 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
+from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_TMP_LOGDIR
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
-from easybuild.tools.config import get_default_oldstyle_configfile_defaults, DEFAULT_MODULECLASSES
-from easybuild.tools.convert import ListOfStrings
+from easybuild.tools.config import get_default_oldstyle_configfile, mk_full_default_path
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -206,8 +207,6 @@ class EasyBuildOptions(GeneralOption):
         # config options
         descr = ("Configuration options", "Configure EasyBuild behavior.")
 
-        oldstyle_defaults = get_default_oldstyle_configfile_defaults()
-
         opts = OrderedDict({
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
@@ -215,50 +214,49 @@ class EasyBuildOptions(GeneralOption):
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                     None, "store_true", False,),
-            'buildpath': ("Temporary build path", None, 'store', oldstyle_defaults['buildpath']),
+            'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
-            'installpath': ("Install path for software and modules", None, 'store', oldstyle_defaults['installpath']),
-            'config': ("Path to EasyBuild config file",
-                       None, 'store', oldstyle_defaults['config'], 'C'),
+            'installpath': ("Install path for software and modules", None, 'store', mk_full_default_path('installpath')),
+            'config': ("Path to EasyBuild config file (DEPRECATED, use --configfiles instead!)",
+                       None, 'store', get_default_oldstyle_configfile(), 'C'),
+            # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
-                               'strtuple', 'store', oldstyle_defaults['logfile_format'], {'metavar': 'DIR,FORMAT'}),
+                               'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
             'module-naming-scheme': ("Module naming scheme",
-                                     'choice', 'store', oldstyle_defaults['module_naming_scheme'],
-                                     sorted(avail_module_naming_schemes().keys())),
+                                     'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
-                               None, 'extend', oldstyle_defaults['moduleclasses']),
+                               None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
-                             'choice', 'store', oldstyle_defaults['modules_tool'],
-                             sorted(avail_modules_tools().keys())),
+                             'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
-                        "(used prefix for defaults %s)" % oldstyle_defaults['prefix']),
+                        "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                         None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
                                         None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
-                           'choice', 'store', oldstyle_defaults['repository'], sorted(avail_repositories().keys())),
+                           'choice', 'store', DEFAULT_REPOSITORY, sorted(avail_repositories().keys())),
             'repositorypath': (("Repository path, used by repository "
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
                                 'strlist', 'store',
-                                oldstyle_defaults['repositorypath'][oldstyle_defaults['repository']]),
+                                [mk_full_default_path('repositorypath')]),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
-                           None, 'store', oldstyle_defaults['sourcepath']),
-            'subdir-modules': ("Installpath subdir for modules", None, 'store', oldstyle_defaults['subdir_modules']),
-            'subdir-software': ("Installpath subdir for software", None, 'store', oldstyle_defaults['subdir_software']),
+                           None, 'store', mk_full_default_path('sourcepath')),
+            'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
+            'subdir-software': ("Installpath subdir for software", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
             'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
                             None, 'store', None),
             'tmp-logdir': ("Log directory where temporary log files are stored",
-                           None, 'store', oldstyle_defaults['tmp_logdir']),
+                           None, 'store', DEFAULT_TMP_LOGDIR),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
 
@@ -413,18 +411,17 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
         if self.options.prefix is not None:
-            changed_defaults = get_default_oldstyle_configfile_defaults(self.options.prefix)
             # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath into account
             # in the legacy-style configuration, repository is initialised in configuration file itself
             for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
                 if not self.options._action_taken.get(dest, False):
-                    new_def = changed_defaults[dest]
-                    if dest == 'repositorypath':
-                        setattr(self.options, dest, new_def[changed_defaults['repository']])
+                    if dest == 'repository':
+                        setattr(self.options, dest, DEFAULT_REPOSITORY)
+                    elif dest == 'repositorypath':
+                        setattr(self.options, dest, [mk_full_default_path(dest, prefix=self.options.prefix)])
                     else:
-                        setattr(self.options, dest, new_def)
-                    # LEGACY this line is here for oldstyle reasons
-                    self.log.deprecated('Fake action taken to distinguish from default', '2.0')
+                        setattr(self.options, dest, mk_full_default_path(dest, prefix=self.options.prefix))
+                    # LEGACY this line is here for oldstyle config reasons
                     self.options._action_taken[dest] = True
 
         if self.options.pretend:
@@ -619,7 +616,7 @@ class EasyBuildOptions(GeneralOption):
 
     def avail_repositories(self):
         """Show list of known repository types."""
-        repopath_defaults = get_default_oldstyle_configfile_defaults()['repositorypath']
+        repopath_defaults = mk_full_default_path('repositorypath')
         all_repos = avail_repositories(check_useable=False)
         usable_repos = avail_repositories(check_useable=True).keys()
 

@@ -349,9 +349,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 write_file(self.logfile, '')
 
                 args = [
-                        avail_arg,
-                        '--unittest-file=%s' % self.logfile,
-                       ]
+                    avail_arg,
+                    '--unittest-file=%s' % self.logfile,
+                ]
                 if custom is not None:
                     args.extend(['-e', custom])
 

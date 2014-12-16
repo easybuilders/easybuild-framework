@@ -76,19 +76,17 @@ def regtest(easyconfig_paths, build_specs=None):
         _log.info("aggregated xml files inside %s, output written to: %s" % (aggregate_regtest, output_file))
         sys.exit(0)
 
-    # create base directory, which is used to place
-    # all log files and the test output as xml
-    basename = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
-    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
-
+    # create base directory, which is used to place all log files and the test output as xml
     regtest_output_dir = build_option('regtest_output_dir')
+    testoutput = build_option('testoutput')
     if regtest_output_dir is not None:
         output_dir = regtest_output_dir
-    elif var in os.environ:
-        output_dir = os.path.abspath(os.environ[var])
+    elif testoutput is not None:
+        output_dir = os.path.abspath(testoutput)
     else:
         # default: current dir + easybuild-test-[timestamp]
-        output_dir = os.path.join(cur_dir, basename)
+        dirname = "easybuild-test-%s" % datetime.now().strftime("%Y%m%d%H%M%S")
+        output_dir = os.path.join(cur_dir, dirname)
 
     mkdir(output_dir, parents=True)
 
@@ -121,7 +119,7 @@ def regtest(easyconfig_paths, build_specs=None):
     else:
         resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
 
-        cmd = "eb %(spec)s --regtest --sequential -ld"
+        cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}

@@ -880,7 +880,10 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
         self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
+        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
+        self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
+        self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
     def test_easyconfig_paths(self):
         """Test create_paths function."""

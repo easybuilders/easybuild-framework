@@ -47,13 +47,11 @@ UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii
 
 def any(ls):
     """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
-    _log.deprecated("own definition of any", "2.0")
     return _any(ls)
 
 
 def all(ls):
     """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
-    _log.deprecated("own definition of all", "2.0")
     return _all(ls)
 
 

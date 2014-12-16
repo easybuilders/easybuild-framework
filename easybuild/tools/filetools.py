@@ -1044,17 +1044,20 @@ def decode_class_name(name):
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """Legacy wrapper/placeholder for run.run_cmd"""
+    _log.deprecated("run_cmd was moved from tools.filetools to tools.run", '2.0')
     return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
                        inp=inp, regexp=regexp, log_output=log_output, path=path)
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """Legacy wrapper/placeholder for run.run_cmd_qa"""
+    _log.deprecated("run_cmd_qa was moved from tools.filetools to tools.run", '2.0')
     return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
                           simple=simple, regexp=regexp, std_qa=std_qa, path=path)
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """Legacy wrapper/placeholder for run.parse_log_for_error"""
+    _log.deprecated("parse_log_for_error was moved from tools.filetools to tools.run", '2.0')
     return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
 
 
