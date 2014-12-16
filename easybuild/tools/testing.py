@@ -119,7 +119,7 @@ def regtest(easyconfig_paths, build_specs=None):
     else:
         resolved = resolve_dependencies(easyconfigs, build_specs=build_specs)
 
-        cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%%(output_dir)s"
+        cmd = "eb %(spec)s --regtest --sequential -ld --testoutput=%(output_dir)s"
         command = "unset TMPDIR && cd %s && %s; " % (cur_dir, cmd)
         # retry twice in case of failure, to avoid fluke errors
         command += "if [ $? -ne 0 ]; then %(cmd)s --force && %(cmd)s --force; fi" % {'cmd': cmd}
