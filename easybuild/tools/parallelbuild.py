@@ -135,7 +135,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
 
     quoted_opts = subprocess.list2cmdline(opts)
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s" % (curdir, quoted_opts)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, quoted_opts)
     _log.info("Command template for jobs: %s" % command)
     job_info_lines = []
     if testing:
@@ -153,16 +153,13 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     Creates a job, to build a *single* easyconfig
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
-    @param output_dir: optional output path; $EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
     @param conn: open connection to PBS server
     @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
     returns the job
     """
     if output_dir is None:
         output_dir = 'easybuild-build'
-
-    # create command based on build_command template
-    command = build_command % {'spec': easyconfig['spec']}
 
     # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
     easybuild_vars = {}
@@ -182,9 +179,11 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
-    regtest_output_dir_var = 'EASYBUILD_REGTEST_OUTPUT_DIR'
-    if not regtest_output_dir_var in easybuild_vars:
-        easybuild_vars[regtest_output_dir_var] = os.path.join(os.path.abspath(output_dir), name)
+    # create command based on build_command template
+    command = build_command % {
+        'spec': easyconfig['spec'],
+        'output_dir': os.path.join(os.path.abspath(output_dir), name),
+    }
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
