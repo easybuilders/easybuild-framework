@@ -99,7 +99,6 @@ class EasyBuildLog(fancylogger.FancyLogger):
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
         msg += "; see %s for more information" % DEPRECATED_DOC_URL
-        print_warning("Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg))
         fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
 
     def error(self, msg, *args, **kwargs):
