@@ -53,11 +53,11 @@ _log = fancylogger.getLogger('config', fname=False)
 
 # class constant to prepare migration to generaloption as only way of configuration (maybe for v2.X)
 SUPPORT_OLDSTYLE = True
-
+DEFAULT_OLDSTYLE_CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'easybuild_config.py')
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
-
-
+DEFAULT_MNS = 'EasyBuildMNS'
+DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
@@ -66,6 +66,18 @@ DEFAULT_PATH_SUBDIRS = {
     'subdir_modules': 'modules',
     'subdir_software': 'software',
 }
+DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
+DEFAULT_REPOSITORY = 'FileRepository'
+DEFAULT_TMP_LOGDIR = tempfile.gettempdir()
+
+# utility function for obtaining default paths
+def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
+    """Create full path, avoid '/' at the end."""
+    args = [prefix]
+    path = DEFAULT_PATH_SUBDIRS[name]
+    if path:
+        args.append(path)
+    return os.path.join(*args)
 
 # build options that have a perfectly matching command line option, listed by default value
 BUILD_OPTIONS_CMDLINE = {
@@ -86,6 +98,7 @@ BUILD_OPTIONS_CMDLINE = {
         'stop',
         'suffix_modules_path',
         'test_report_env_filter',
+        'testoutput',
         'umask',
     ],
     False: [
@@ -188,9 +201,7 @@ def map_to_newstyle(adict):
     res = {}
     for key, val in adict.items():
         if key in OLDSTYLE_NEWSTYLE_MAP:
-            newkey = OLDSTYLE_NEWSTYLE_MAP.get(key)
-            _log.deprecated("oldstyle key %s usage found, replacing with newkey %s" % (key, newkey), "2.0")
-            key = newkey
+            key = OLDSTYLE_NEWSTYLE_MAP[key]
         res[key] = val
     return res
 
@@ -251,11 +262,13 @@ def get_user_easybuild_dir():
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
     newpath = os.path.join(xdg_config_home, "easybuild")
 
-    if os.path.isdir(newpath):
-        return newpath
-    else:
+    # only issue deprecation warning/error if new path doesn't exist, but deprecated path does
+    if not os.path.isdir(newpath) and os.path.isdir(oldpath):
         _log.deprecated("The user easybuild dir has moved from %s to %s." % (oldpath, newpath), "2.0")
         return oldpath
+
+    # if neither exist, new path wins
+    return newpath
 
 
 def get_default_oldstyle_configfile():
@@ -275,56 +288,13 @@ def get_default_oldstyle_configfile():
     else:
         # this should be easybuild.tools.config, the default config file is
         # part of framework in easybuild (ie in tool/..)
-        appPath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        config_file = os.path.join(appPath, "easybuild_config.py")
-        _log.debug("Falling back to default config: %s" % config_file)
-
-    _log.deprecated("get_default_oldstyle_configfile oldstyle configfile %s used" % config_file, "2.0")
+        if os.path.exists(DEFAULT_OLDSTYLE_CONFIG_FILE):
+            config_file = DEFAULT_OLDSTYLE_CONFIG_FILE
+            _log.debug("Falling back to default config: %s" % config_file)
+        else:
+            config_file = None
 
     return config_file
-
-
-def get_default_oldstyle_configfile_defaults(prefix=None):
-    """
-    Return a dict with the defaults from the shipped legacy easybuild_config.py and/or environment variables
-        prefix: string, when provided, it used as prefix for the other defaults (where applicable)
-    """
-    if prefix is None:
-        prefix = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
-
-    def mk_full_path(name):
-        """Create full path, avoid '/' at the end."""
-        args = [prefix]
-        path = DEFAULT_PATH_SUBDIRS[name]
-        if path:
-            args.append(path)
-        return os.path.join(*args)
-
-    # keys are the options dest
-    defaults = {
-        'config': get_default_oldstyle_configfile(),
-        'prefix': prefix,
-        'buildpath': mk_full_path('buildpath'),
-        'installpath': mk_full_path('installpath'),
-        'sourcepath': mk_full_path('sourcepath'),
-        'repository': 'FileRepository',
-        'repositorypath': {'FileRepository': [mk_full_path('repositorypath')]},
-        'logfile_format': DEFAULT_LOGFILE_FORMAT[:],  # make a copy
-        'tmp_logdir': tempfile.gettempdir(),
-        'moduleclasses': [x[0] for x in DEFAULT_MODULECLASSES],
-        'subdir_modules': DEFAULT_PATH_SUBDIRS['subdir_modules'],
-        'subdir_software': DEFAULT_PATH_SUBDIRS['subdir_software'],
-        'modules_tool': 'EnvironmentModulesC',
-        'module_naming_scheme': 'EasyBuildMNS',
-    }
-
-    # sanity check
-    if not defaults['repository'] in defaults['repositorypath']:
-        _log.error('Failed to get repository path default for default %s' % (defaults['repository']))
-
-    _log.deprecated("get_default_oldstyle_configfile_defaults", "2.0")
-
-    return defaults
 
 
 def get_default_configfiles():
@@ -344,7 +314,10 @@ def init(options, config_options_dict):
     """
     tmpdict = {}
     if SUPPORT_OLDSTYLE:
-        _log.deprecated('oldstyle init with modifications to support oldstyle options', '2.0')
+        if not os.path.samefile(options.config, DEFAULT_OLDSTYLE_CONFIG_FILE):
+            # only trip if an oldstyle config other than the default is used (via $EASYBUILDCONFIG or --config)
+            # we still need the oldstyle default config file to ensure legacy behavior, for now
+            _log.deprecated('use of oldstyle configuration file %s' % options.config, '2.0')
         tmpdict.update(oldstyle_init(options.config))
 
         # add the DEFAULT_MODULECLASSES as default (behavior is now that this extends the default list)
@@ -474,10 +447,9 @@ def install_path(typ=None):
         suffix = variables[key]
     else:
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('%s not set in config, returning default' % key, "2.0")
-        defaults = get_default_oldstyle_configfile_defaults()
         try:
-            suffix = defaults[key]
+            suffix = DEFAULT_PATH_SUBDIRS[key]
+            _log.deprecated('%s not set in config, returning default: %s' % (key, suffix), "2.0")
         except:
             _log.error('install_path trying to get unknown suffix %s' % key)
 
@@ -521,10 +493,9 @@ def log_file_format(return_directory=False):
     if 'logfile_format' in variables:
         res = variables['logfile_format'][idx]
     else:
+        res = DEFAULT_LOGFILE_FORMAT[:][idx]  # purposely take a copy
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('logfile_format not set in config, returning default', "2.0")
-        defaults = get_default_oldstyle_configfile_defaults()
-        res = defaults['logfile_format'][idx]
+        _log.deprecated('logfile_format not set in config, returning default: %s' % res, '2.0')
     return res
 
 
@@ -552,9 +523,8 @@ def get_build_log_path():
         return variables['tmp_logdir']
     else:
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('tmp_logdir not set in config, returning default', "2.0")
-        defaults = get_default_oldstyle_configfile_defaults()
-        return defaults['tmp_logdir']
+        _log.deprecated('tmp_logdir not set in config, returning default: %s' % DEFAULT_TMP_LOGDIR, "2.0")
+        return DEFAULT_TMP_LOGDIR
 
 
 def get_log_filename(name, version, add_salt=False):
@@ -605,10 +575,10 @@ def module_classes():
     if 'moduleclasses' in variables:
         return variables['moduleclasses']
     else:
+        res = [x[0] for x in DEFAULT_MODULECLASSES]
         # TODO remove default setting. it should have been set through options
-        _log.deprecated('moduleclasses not set in config, returning default', "2.0")
-        defaults = get_default_oldstyle_configfile_defaults()
-        return defaults['moduleclasses']
+        _log.deprecated('moduleclasses not set in config, returning default: %s' % res, "2.0")
+        return res
 
 
 def read_environment(env_vars, strict=False):
@@ -623,7 +593,6 @@ def oldstyle_init(filename, **kwargs):
     Variables are read in this order of preference: CLI option > environment > config file
     """
     res = {}
-    _log.deprecated("oldstyle_init filename %s kwargs %s" % (filename, kwargs), "2.0")
 
     _log.debug('variables before oldstyle_init %s' % res)
     res.update(oldstyle_read_configuration(filename))  # config file
@@ -641,8 +610,6 @@ def oldstyle_read_configuration(filename):
     """
     Read variables from the config file
     """
-    _log.deprecated("oldstyle_read_configuration filename %s" % filename, "2.0")
-
     # import avail_repositories here to avoid cyclic dependencies
     # this block of code is going to be removed in EB v2.0
     from easybuild.tools.repository.repository import avail_repositories
@@ -660,8 +627,6 @@ def oldstyle_read_environment(env_vars=None, strict=False):
     Read variables from the environment
         - strict=True enforces that all possible environment variables are found
     """
-    _log.deprecated(('Adapt code to use read_environment from easybuild.tools.utilities '
-                     'and do not use oldstyle environment variables'), '2.0')
     if env_vars is None:
         env_vars = OLDSTYLE_ENVIRONMENT_VARIABLES
     result = {}
@@ -669,7 +634,7 @@ def oldstyle_read_environment(env_vars=None, strict=False):
         env_var = env_vars[key]
         if env_var in os.environ:
             result[key] = os.environ[env_var]
-            _log.deprecated("Found oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), "2.0")
+            _log.deprecated("Use of oldstyle environment variable %s for %s: %s" % (env_var, key, result[key]), '2.0')
         elif strict:
             _log.error("Can't determine value for %s. Environment variable %s is missing" % (key, env_var))
         else:

@@ -23,16 +23,15 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
+EasyBuild support for gpsmpi compiler toolchain (includes GCC and Parastation MPICH).
 
-@author: Kenneth Hoste (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
-from easybuild.toolchains.gcccuda import GccCUDA
-from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.gmpich import Gmpich
 
 
-class Gompic(GccCUDA, OpenMPI):
-    """Compiler toolchain with GCC+CUDA and OpenMPI."""
-    NAME = 'gompic'
+class Gpsmpi(Gmpich):
+    """Compiler toolchain with GCC and Parastation MPICH."""
+    NAME = 'gpsmpi'
+    # Use Parastation naming
+    MPI_MODULE_NAME = ["psmpi"]

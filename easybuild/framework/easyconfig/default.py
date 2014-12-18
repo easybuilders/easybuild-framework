@@ -35,6 +35,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.ordereddict import OrderedDict
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -92,7 +93,8 @@ DEFAULT_CONFIG = {
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
-    'easyblock': ['ConfigureMake', "EasyBlock to use for building", BUILD],
+    'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
+                        "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
@@ -193,6 +195,8 @@ def convert_to_help(opts, has_default=False):
     mapping = OrderedDict()
     if isinstance(opts, dict):
         opts = opts.items()
+    elif isinstance(opts, ExtraOptionsDeprecatedReturnValue):
+        opts = list(opts)
     if not has_default:
         defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
         opts = defs + opts

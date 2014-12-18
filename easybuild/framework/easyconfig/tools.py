@@ -33,7 +33,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import os
@@ -70,10 +70,11 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, run_cmd, search_file, write_file
+from easybuild.tools.filetools import find_easyconfigs, search_file, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import quote_str
 
 

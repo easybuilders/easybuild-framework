@@ -33,7 +33,7 @@ The EasyBlock class should serve as a base class for all easyblocks.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import copy
@@ -51,7 +51,7 @@ from vsc.utils.missing import get_class_for
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.easyconfig import DEFAULT_EASYBLOCK, ITERATE_OPTIONS, EasyConfig, ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -60,6 +60,7 @@ from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -97,14 +98,16 @@ class EasyBlock(object):
             extra = {}
 
         if not isinstance(extra, dict):
-            _log.deprecated("Obtained value of type '%s' for extra, should be 'dict'" % type(extra), '2.0')
-            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, type(extra)))
+            typ = type(extra)
+            if not isinstance(extra, ExtraOptionsDeprecatedReturnValue):
+                _log.deprecated("Obtained 'extra' value of type '%s' in extra_options, should be 'dict'" % typ, '2.0')
+            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, typ))
             extra = dict(extra)
 
         # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
-        _log.deprecated("Returning list of tuples rather than a dict as return value of extra_options", '2.0')
-        res = extra.items()
-
+        # starting with EasyBuild v2.0, this will be changed to return the actual dict
+        # as a temporary workaround, return a value which is a hybrid between a list and a dict
+        res = ExtraOptionsDeprecatedReturnValue(extra.items())
         return res
 
     #
@@ -1064,14 +1067,19 @@ class EasyBlock(object):
                 'src': ext.get('source'),
             }
 
-            deprecated_msg = "Providing 'name' and 'version' keys for extensions, should use 'ext_name', 'ext_version'"
-            self.log.deprecated(deprecated_msg, '2.0')
-            tmpldict.update({
-                'name': modname,
-                'version': ext.get('version'),
-            })
+            try:
+                cmd = cmdtmpl % tmpldict
+            except KeyError, err:
+                self.log.warning("Failed to complete filter cmd templ '%s' using %s: %s" % (cmdtmpl, tmpldict, err))
+                deprecated_msg = "Providing 'name'/'version' keys for extensions, should use 'ext_name', 'ext_version'"
+                self.log.deprecated(deprecated_msg, '2.0')
+                tmpldict.update({
+                    'name': modname,
+                    'version': ext.get('version'),
+                })
+                self.log.debug("Retrying to complete filter cmd templ with added name/version keys: %s" % tmpldict)
+                cmd = cmdtmpl % tmpldict
 
-            cmd = cmdtmpl % tmpldict
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
                 (cmdstdouterr, ec) = run_cmd(cmd, log_all=False, log_ok=False, simple=False, inp=stdin, regexp=False)
@@ -1401,26 +1409,24 @@ class EasyBlock(object):
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             os.chdir(self.orig_workdir)
 
-            inst = None
+            cls, inst = None, None
+            class_name = encode_class_name(ext['name'])
+            mod_path = get_module_path(class_name)
 
             # try instantiating extension-specific class
-            class_name = encode_class_name(ext['name'])  # use the same encoding as get_class
-            mod_path = get_module_path(class_name)
-            if not os.path.exists("%s.py" % mod_path):
-                self.log.deprecated("Determine module path based on software name", "2.0")
-                mod_path = get_module_path(ext['name'], decode=False)
-
             try:
-                cls = get_class_for(mod_path, class_name)
-                inst = cls(self, ext)
+                # no error when importing class fails, in case we run into an existing easyblock
+                # with a similar name (e.g., Perl Extension 'GO' vs 'Go' for which 'EB_Go' is available)
+                cls = get_easyblock_class(None, name=ext['name'], default_fallback=False, error_on_failed_import=False)
+                self.log.debug("Obtained class %s for extension %s" % (cls, ext['name']))
+                if cls is not None:
+                    inst = cls(self, ext)
             except (ImportError, NameError), err:
-                self.log.debug("Failed to use class %s from %s for extension %s: %s" % (class_name,
-                                                                                        mod_path,
-                                                                                        ext['name'],
-                                                                                        err))
+                self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
 
             # LEGACY: try and use default module path for getting extension class instance
             if inst is None and legacy:
+                self.log.deprecated("Using specified module path for default class", '2.0')
                 try:
                     msg = "Failed to use derived module path for %s, " % class_name
                     msg += "considering specified module path as (legacy) fallback."
@@ -1448,9 +1454,7 @@ class EasyBlock(object):
                                                                                                err))
 
             # fallback attempt: use default class
-            if not inst is None:
-                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
-            else:
+            if inst is None:
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s" % (cls, ext['name']))
@@ -1461,6 +1465,8 @@ class EasyBlock(object):
                     msg = "Also failed to use default class %s from %s for extension %s: %s, giving up" % \
                         (default_class, default_class_modpath, ext['name'], err)
                     self.log.error(msg)
+            else:
+                self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
 
             # real work
             inst.prerun()

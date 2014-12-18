@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2013-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
+EasyBuild support for impich compiler toolchain (includes Intel compilers (icc, ifort), MPICH.
 
-@author: Kenneth Hoste (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
-from easybuild.toolchains.gcccuda import GccCUDA
-from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gompic(GccCUDA, OpenMPI):
-    """Compiler toolchain with GCC+CUDA and OpenMPI."""
-    NAME = 'gompic'
+class Impich(IntelIccIfort, Mpich):
+    """
+    Compiler toolchain with Intel compilers (icc/ifort), MPICH.
+    """
+    NAME = 'impich'

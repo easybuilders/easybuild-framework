@@ -251,7 +251,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
-    _log.debug("List of patches files: %s" % patched_files)
+    _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
