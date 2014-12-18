@@ -11,7 +11,7 @@ feature + bugfix release
     - easyconfigs should specify easyblock = 'ConfigureMake' instead of relying on the fallback mechanism
     - note: automagic fallback to ConfigureMake easyblock will be dropped in EasyBuild v2.0
     - see also http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback
-- stop triggering deprecated functionality, to enable use of --deprecated=2.0 (#1107, #1115)
+- stop triggering deprecated functionality, to enable use of --deprecated=2.0 (#1107, #1115, #1119)
     - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback for more information
 - various other enhancements, including:
     - add script to clean up gists created via --upload-test-report (#958)
