@@ -431,7 +431,7 @@ def main():
     info('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
     info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
-    info("See https://github.com/hpcugent/easybuild/wiki/Configuration for details on configuring EasyBuild.")
+    info("See http://easybuild.readthedocs.org/en/latest/Configuration.html for details on configuring EasyBuild.")
 
 # template easyconfig file for EasyBuild
 EB_EC_FILE = """

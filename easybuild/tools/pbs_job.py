@@ -150,11 +150,8 @@ class PbsJob(object):
                           "walltime": "%s:00:00" % hours,
                           "nodes": "1:ppn=%s" % cores
                          }
-        # set queue based on the hours requested
-        if hours >= 12:
-            self.queue = 'long'
-        else:
-            self.queue = 'short'
+        # don't specify any queue name to submit to, use the default
+        self.queue = None
         # job id of this job
         self.jobid = None
         # list of dependencies for this job

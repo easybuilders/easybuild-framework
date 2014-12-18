@@ -1,6 +1,54 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
+
+v1.16.0 (December 18th 2014)
+----------------------------
+
+feature + bugfix release
+- deprecate automagic fallback to ConfigureMake easyblock (#1113)
+    - easyconfigs should specify easyblock = 'ConfigureMake' instead of relying on the fallback mechanism
+    - note: automagic fallback to ConfigureMake easyblock will be dropped in EasyBuild v2.0
+    - see also http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback
+- stop triggering deprecated functionality, to enable use of --deprecated=2.0 (#1107, #1115, #1119)
+    - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback for more information
+- various other enhancements, including:
+    - add script to clean up gists created via --upload-test-report (#958)
+    - also use -xHost when using Intel compilers on AMD systems (as opposed to -msse3) (#960)
+    - add Python version check in eb command (#1046)
+    - take versionprefix into account in HierarchicalMNS module naming scheme (#1058)
+    - clean up and refactor main.py, move functionality to other modules (#1059, #1064, #1075, #1087)
+    - add check in download_file function for HTTP return code + show download progress report (#1066, #1090)
+    - include info log message with name and location of used easyblock (#1069)
+    - add toolchains definitions for gpsmpi, gpsolf, impich, intel-para, ipsmpi toolchains (#1072, #1073)
+        - support for Parastation MPI based toolchains
+    - enforce that hiddendependencies is a subset of dependencies (#1078)
+        - this is done to avoid that site-specific policies w.r.t. hidden modules slip into contributed easyconfigs
+    - enable use of --show_hidden for avail subcommand with recent Lmod versions (#1081)
+    - add --robot-paths configure option (#1080, #1093, #1095, #1114)
+    - support use of %(DEFAULT_ROBOT_PATHS)s template in EasyBuild configuration files (#1100)
+        - see also http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#controlling-the-robot-search-path
+    - use -xHost rather than -xHOST, to match Intel documentation (#1084)
+    - update and cleanup README file (#1085)
+    - deprecate self.moduleGenerator in favor of self.module_generator in EasyBlock (#1088)
+    - also support MPICH MPI family in mpi_cmd_for function (#1098)
+    - update documentation references to point to http://easybuild.readthedocs.org (#1102)
+    - check for OS dependencies with both rpm and dpkg (if available) (#1111)
+- various bug fixes, including:
+    - fix picking required software version specified by --software-version and clean up tweak.py (#1062, #1063)
+    - escape $ characters in module load message specified via modloadmsg easyconfig parameter) (#1068)
+    - take available hidden modules into account in dependency resolution (#1065)
+    - fix hard crash when using patch files with an empty list of sources (#1070)
+    - fix Intel MKL BLACS library being used for MPICH/MPICH2-based toolchains (#1072)
+    - fix regular expression in fetch_parameter_from_easyconfig_file function (#1096)
+    - don’t hardcode queue names when submitting a job (#1106)
+    - fix affiliation/mail address for Fotis in headers (#1105)
+    - filter out /dev/null entries in patch file in det_patched_files function (#1108)
+    - fix gmpolf toolchain definition, to have gmpich as MPI components (instead of gmpich2) (#1101)
+        - ‘MPICH’ refers to MPICH v3.x, while MPICH2 refers to MPICH(2) v2.x (MPICH v1.x is ancient/obsolete)
+        - note: this requires to reinstall the gmpolf module, using the updated easyconfig from easybuild-easyconfigs#1217
+
 v1.15.2 (October 7th 2014)
 --------------------------
 

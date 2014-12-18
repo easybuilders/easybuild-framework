@@ -601,6 +601,15 @@ class EasyConfigTest(EnhancedTestCase):
                 'hidden': True,
             },
         ]
+
+        # hidden dependencies must be included in list of dependencies
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        self.assertEqual(res[0], True)
+        error_pattern = "Hidden dependencies with visible module names .* not in list of dependencies: .*"
+        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
+
+        specs['dependencies'].append(('test', '3.2.1'))
+
         res = obtain_ec_for(specs, [self.ec_dir], None)
         self.assertEqual(res[0], True)
         ec = EasyConfig(res[1])
@@ -871,7 +880,10 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
         self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
+        self.assertEqual(get_easyblock_class(None, name='gzip', default_fallback=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
+        self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
+        self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
     def test_easyconfig_paths(self):
         """Test create_paths function."""
