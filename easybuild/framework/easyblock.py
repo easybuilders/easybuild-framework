@@ -1070,13 +1070,14 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                self.log.warning("Failed to complete filter command template '%s' with %s: %s" % (cmdtmpl, tmpldict, err))
-                deprecated_msg = "Providing 'name' and 'version' keys for extensions, should use 'ext_name', 'ext_version'"
+                self.log.warning("Failed to complete filter cmd templ '%s' using %s: %s" % (cmdtmpl, tmpldict, err))
+                deprecated_msg = "Providing 'name'/'version' keys for extensions, should use 'ext_name', 'ext_version'"
                 self.log.deprecated(deprecated_msg, '2.0')
                 tmpldict.update({
                     'name': modname,
                     'version': ext.get('version'),
                 })
+                self.log.debug("Retrying to complete filter cmd templ with added name/version keys: %s" % tmpldict)
                 cmd = cmdtmpl % tmpldict
 
             if cmdinputtmpl:
