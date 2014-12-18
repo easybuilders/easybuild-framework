@@ -131,9 +131,13 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        for path in [self.test_buildpath, self.test_installpath, self.test_prefix]:
+        # cleanup
+        for path in [self.logfile, self.test_buildpath, self.test_installpath, self.test_prefix]:
             try:
-                shutil.rmtree(path)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
             except OSError, err:
                 pass
 
