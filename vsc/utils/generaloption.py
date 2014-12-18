@@ -1,6 +1,6 @@
 #
 #
-# Copyright 2011-2013 Ghent University
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of vsc-base,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -708,7 +708,7 @@ class GeneralOption(object):
         go_args = kwargs.pop('go_args', None)
         self.no_system_exit = kwargs.pop('go_nosystemexit', None)  # unit test option
         self.use_configfiles = kwargs.pop('go_useconfigfiles', self.CONFIGFILES_USE)  # use or ignore config files
-        self.configfiles = kwargs.pop('go_configfiles', self.CONFIGFILES_INIT)  # configfiles to parse
+        self.configfiles = kwargs.pop('go_configfiles', self.CONFIGFILES_INIT[:])  # configfiles to parse
         configfiles_initenv = kwargs.pop('go_configfiles_initenv', None)  # initial environment for configfiles to parse
         prefixloggername = kwargs.pop('go_prefixloggername', False)  # name of logger is same as envvar prefix
         mainbeforedefault = kwargs.pop('go_mainbeforedefault', False)  # Set the main options before the default ones
