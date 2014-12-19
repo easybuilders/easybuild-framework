@@ -510,9 +510,7 @@ class EasyBuildOptions(GeneralOption):
         """
         extra = []
         app = get_easyblock_class(self.options.easyblock, default_fallback=False)
-        if app is None:
-            extra = []
-        else:
+        if app is not None:
             extra = app.extra_options()
         mapping = convert_to_help(extra, has_default=False)
         if extra:
