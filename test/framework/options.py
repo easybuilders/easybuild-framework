@@ -749,8 +749,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for intel/2014b, see https://github.com/hpcugent/easybuild-easyconfigs/pull/948/files
-            '--from-pr=948',
+            # PR for intel/2014b, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1238/files
+            '--from-pr=1238',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -762,20 +762,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
             modules = [
-                'HPL/2.1-intel-2014b',
-                'GCC/4.8.3',
-                'icc/2013.5.192-GCC-4.8.3',
-                'ifort/2013.5.192-GCC-4.8.3',
-                'imkl/11.1.2.144-2013.5.192-GCC-4.8.3',
-                'impi/4.1.3.049-GCC-4.8.3',
-                'intel/2014b',
+                'HPL/2.1-intel-2015a',
+                'intel/2015a',
             ]
             for module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr948')
+            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1238')
             regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError, err:

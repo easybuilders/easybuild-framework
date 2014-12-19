@@ -171,7 +171,7 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file)
         self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
-    def test_SHLIB_EXT(self):
+    def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
