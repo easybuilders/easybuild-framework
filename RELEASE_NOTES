@@ -3,6 +3,17 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v1.16.1 (December 19th 2014)
+----------------------------
+
+bugfix release
+- fix functionality that is broken with --deprecated=2.0 or with $EASYBUILD_DEPRECATED=2.0
+    - don't include easyconfig parameters for ConfigureMake in eb -a, since fallback is deprecated (#1123)
+    - correctly check software_license value type (#1124)
+    - fix generate_software_list.py script w.r.t. deprecated fallback to ConfigureMake (#1127)
+- other bug fixes
+    - fix logging issues in tests, sync with vsc-base v2.0.0 (#1120)
+
 v1.16.0 (December 18th 2014)
 ----------------------------
 
