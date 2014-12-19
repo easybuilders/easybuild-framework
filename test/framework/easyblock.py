@@ -100,6 +100,7 @@ class EasyBlockTest(EnhancedTestCase):
         name = "pi"
         version = "3.14"
         self.contents =  '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
@@ -143,7 +144,7 @@ class EasyBlockTest(EnhancedTestCase):
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
             def extra_options():
-                return ExtensionEasyBlock.extra_options([('extra_param', [None, "help", CUSTOM])])
+                return ExtensionEasyBlock.extra_options({'extra_param': [None, "help", CUSTOM]})
         texeb = TestExtension(eb, {'name': 'bar'})
         self.assertEqual(texeb.cfg['name'], 'bar')
         extra_options = texeb.extra_options()
@@ -158,6 +159,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_fake_module_load(self):
         """Testcase for fake module load"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -177,6 +179,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_make_module_req(self):
         """Testcase for make_module_req"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -212,6 +215,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -228,7 +232,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
-        self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
+        self.contents += "\nexts_defaultclass = 'DummyExtension'"
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.builddir = config.build_path()
@@ -246,14 +250,15 @@ class EasyBlockTest(EnhancedTestCase):
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
             'exts_list = ["ext1", "ext2"]',
-            'exts_filter = ("if [ %(name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
-            'exts_defaultclass = ["easybuild.framework.extension", "Extension"]',
+            'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
+            'exts_defaultclass = "DummyExtension"',
         ])
         # check if skip skips correct extensions
         self.writeEC()
@@ -282,6 +287,7 @@ class EasyBlockTest(EnhancedTestCase):
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
@@ -333,6 +339,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",

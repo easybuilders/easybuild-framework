@@ -33,9 +33,10 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
+from urllib2 import URLError
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
@@ -103,12 +104,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug(self):
         """Test enabling debug logging."""
-
         for debug_arg in ['-d', '--debug']:
             args = [
-                    '--software-name=somethingrandom',
-                    debug_arg,
-                   ]
+                'nosuchfile.eb',
+                debug_arg,
+            ]
             outtxt = self.eb_main(args)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
@@ -123,7 +123,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for info_arg in ['--info']:
             args = [
-                    '--software-name=somethingrandom',
+                    'nosuchfile.eb',
                     info_arg,
                    ]
             outtxt = self.eb_main(args)
@@ -144,7 +144,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for quiet_arg in ['--quiet']:
             args = [
-                    '--software-name=somethingrandom',
+                    'nosuchfile.eb',
                     quiet_arg,
                    ]
             outtxt = self.eb_main(args)
@@ -749,8 +749,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
-            '--from-pr=726',
+            # PR for intel/2014b, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -758,26 +758,31 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=easybuild_test',  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                'FFTW/3.3.4-gompi-2015a',
+                'foss/2015a',
+                'GCC/4.9.2',
+                'gompi/2015a',
+                'HPL/2.1-foss-2015a',
+                'hwloc/1.10.0-GCC-4.9.2',
+                'numactl/2.0.10-GCC-4.9.2',
+                'OpenBLAS/0.2.13-GCC-4.9.2-LAPACK-3.5.0',
+                'OpenMPI/1.8.3-GCC-4.9.2',
+                'ScaLAPACK/2.0.2-gompi-2015a-OpenBLAS-0.2.13-LAPACK-3.5.0',
+            ]
+            for module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-        modules = [
-            'icc/2013_sp1.2.144',
-            'ifort/2013_sp1.2.144',
-            'impi/4.1.3.049',
-            'imkl/11.1.2.144',
-            'ictce/6.2.5',
-            'gzip/1.6-ictce-6.2.5',
-        ]
-        for module in modules:
-            ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
+            regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
-
-        pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr726')
-        regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
-
-        shutil.rmtree(tmpdir)
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr" % err
+            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -896,6 +901,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_ignore_osdeps(self):
         """Test ignoring of listed OS dependencies."""
         txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -976,6 +982,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_deprecated(self):
         """Test the deprecated option"""
+        if 'EASYBUILD_DEPRECATED' in os.environ:
+            os.environ['EASYBUILD_DEPRECATED'] = str(VERSION)
+            init_config()
+
         orig_value = easybuild.tools.build_log.CURRENT_VERSION
 
         # make sure it's off by default
@@ -1003,7 +1013,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError, err2:
             self.assertTrue('DEPRECATED' in str(err2))
 
-        # force higher version by prefixing it with 1, which should result in deprecation
+        # force higher version by prefixing it with 1, which should result in deprecation errors
         topt = EasyBuildOptions(
             go_args=['--deprecated=1%s' % orig_value],
         )
@@ -1070,10 +1080,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_try(self):
         """Test whether --try options are taken into account."""
-        ecs_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec_file = os.path.join(ecs_path, 'toy-0.0.eb')
+        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
+        shutil.copy2(os.path.join(ecs_path, 'toy-0.0.eb'), tweaked_toy_ec)
+        f = open(tweaked_toy_ec, 'a')
+        f.write("easyblock = 'ConfigureMake'")
+        f.close()
+
         args = [
-            ec_file,
+            tweaked_toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -1190,7 +1205,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--force',
-            '--try-amend=premakeopts=nosuchcommand &&',
+            '--try-amend=prebuildopts=nosuchcommand &&',
         ]
         self.eb_main(args, do_build=True)
         self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)

@@ -105,6 +105,11 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
+
+        # make sure no deprecated behaviour is being triggered (unless intended by the test)
+        # trip *all* log.deprecated statements by setting deprecation version ridiculously high
+        os.environ['EASYBUILD_DEPRECATED'] = '10000000'
+
         init_config()
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules

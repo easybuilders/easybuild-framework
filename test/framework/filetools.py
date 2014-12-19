@@ -51,17 +51,6 @@ class FileToolsTest(EnhancedTestCase):
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
 
-    def setUp(self):
-        """Set up testcase."""
-        super(FileToolsTest, self).setUp()
-        self.legacySetUp()
-
-    def legacySetUp(self):
-        self.log.deprecated("legacySetUp", "2.0")
-        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
-        cfg_full_path = find_full_path(cfg_path)
-        self.assertTrue(cfg_full_path)
-
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
