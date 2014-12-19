@@ -508,10 +508,14 @@ class EasyBuildOptions(GeneralOption):
         """
         Print the available easyconfig parameters, for the given easyblock.
         """
-        app = get_easyblock_class(self.options.easyblock)
-        extra = app.extra_options()
+        extra = []
+        app = get_easyblock_class(self.options.easyblock, default_fallback=False)
+        if app is None:
+            extra = []
+        else:
+            extra = app.extra_options()
         mapping = convert_to_help(extra, has_default=False)
-        if len(extra) > 0:
+        if extra:
             ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
             extra_names = [x[0] for x in extra]
         else:
