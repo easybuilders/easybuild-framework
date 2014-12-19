@@ -99,13 +99,13 @@ def handle_deprecated_easyconfig_parameter(ec_method):
         # make sure that value for software_license has correct type, convert if needed
         if key == 'software_license':
             # key 'license' will already be mapped to 'software_license' above
-            lic = self._config['software_license']
-            if not isinstance(lic, License):
+            lic = self._config['software_license'][0]
+            if lic is not None and not isinstance(lic, License):
                 self.log.deprecated('Type for software_license must to be instance of License (sub)class', '2.0')
                 lic_type = type(lic)
 
                 class LicenseLegacy(License, lic_type):
-                    """A special License class to deal with legacy license paramters"""
+                    """A special License class to deal with legacy license parameters"""
                     DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
                                     " (DO NOT USE).")
                     HIDDEN = False
