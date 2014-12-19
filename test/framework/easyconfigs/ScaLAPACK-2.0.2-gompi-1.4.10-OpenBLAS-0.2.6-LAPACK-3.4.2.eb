@@ -1,4 +1,5 @@
-easyblock = 'EB_ScaLAPACK'
+# should be EB_ScaLAPACK, but OK for testing purposes
+easyblock = 'EB_toy'
 
 name = 'ScaLAPACK'
 version = '2.0.2'

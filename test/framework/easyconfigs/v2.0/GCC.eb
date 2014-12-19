@@ -5,7 +5,8 @@ docstring test
 @author: Stijn De Weirdt (UGent)
 @maintainer: Kenneth Hoste (UGent)
 """
-easyblock = 'EB_GCC'
+# should be EB_GCC, but OK for testing purposes
+easyblock = 'EB_toy'
 
 name = "GCC"
 

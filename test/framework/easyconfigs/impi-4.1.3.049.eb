@@ -1,4 +1,5 @@
-easyblock = 'EB_impi'
+# should be EB_impi, but OK for testing purposes
+easyblock = 'EB_toy'
 
 name = 'impi'
 version = '4.1.3.049'
