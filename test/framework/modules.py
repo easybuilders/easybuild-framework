@@ -123,6 +123,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
 
         # test deprecated functionality
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
         self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
         self.assertFalse(self.testmods.exists('foo/1.2.3'))
         # exists should not return True for incomplete module names

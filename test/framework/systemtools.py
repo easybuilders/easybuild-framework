@@ -27,7 +27,8 @@ Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
 """
-from test.framework.utilities import EnhancedTestCase
+import os
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
@@ -40,11 +41,18 @@ from easybuild.tools.systemtools import get_system_info
 class SystemToolsTest(EnhancedTestCase):
     """ very basis FileRepository test, we don't want git / svn dependency """
 
-    def test_core_count(self):
+    def test_avail_core_count(self):
         """Test getting core count."""
-        for core_count in [get_avail_core_count(), get_core_count()]:
-            self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
-            self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
+        core_count = get_avail_core_count()
+        self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
+        self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
+
+        # also test deprecated get_core_count
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+        core_count = get_core_count()
+        self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
+        self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
     def test_cpu_model(self):
         """Test getting CPU model."""

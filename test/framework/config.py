@@ -110,6 +110,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_generaloption_overrides_legacy(self):
         """Test whether generaloption overrides legacy configuration."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
         self.purge_environment()
         # if both legacy and generaloption style configuration is mixed, generaloption wins
         legacy_prefix = os.path.join(self.tmpdir, 'legacy')
@@ -140,6 +144,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_legacy_env_vars(self):
         """Test legacy environment variables."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
         self.purge_environment()
 
         # build path
@@ -243,6 +251,10 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
         self.purge_environment()
 
         cfg_fn = self.configure(args=[])
@@ -381,7 +393,7 @@ modules_install_suffix = '%(modsuffix)s'
         write_file(config_file, '')
 
         args = [
-            '--config', config_file,  # force empty oldstyle config file
+            '--configfiles', config_file,  # force empty config file
             '--prefix', prefix,
             '--installpath', install,
             '--repositorypath', repopath,
@@ -394,14 +406,14 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
-        self.assertEqual(options.config, config_file)
+        self.assertTrue(config_file in options.configfiles)
 
         # check mixed command line/env var configuration
         prefix = os.path.join(self.tmpdir, 'test3')
         install = os.path.join(self.tmpdir, 'test4', 'install')
         subdir_software = 'eb-soft'
         args = [
-            '--config', config_file,  # force empty oldstyle config file
+            '--configfiles', config_file,  # force empty config file
             '--installpath', install,
         ]
 
