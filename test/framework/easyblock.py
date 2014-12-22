@@ -407,6 +407,31 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
+    def test_patchlevel(self):
+        """Test the parsing of the fetch_patches function."""
+        # adjust PYTHONPATH such that test easyblocks are found
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0-patches.eb'))[0]
+        eb = get_easyblock_instance(ec)
+
+        patches = [
+            ('toy-0.0_level0_2.patch',0),  # should also be level 0 (not None)
+            ('toy-0.0_level4.patch',4),   # should be level4
+        ]
+        sandbox_sources = os.path.join(testdir, 'sandbox', 'sources')
+        init_config(args=["--sourcepath=%s" % sandbox_sources])
+        #check if patch levels are parsed correctly
+        eb.fetch_patches(patches)
+
+        self.assertEquals(eb.patches[0]['level'], 0)
+        self.assertEquals(eb.patches[1]['level'], 4)
+
+        patches = [
+            ('toy-0.0_level4.patch', False),  #should throw an error, only int's an strings allowed here
+        ]
+        self.assertRaises(EasyBuildError, eb.fetch_patches, patches)
+
+
     def test_obtain_file(self):
         """Test obtain_file method."""
         toy_tarball = 'toy-0.0.tar.gz'

@@ -304,10 +304,12 @@ class EasyBlock(object):
             level = None
             if isinstance(patch_entry, (list, tuple)):
                 if not len(patch_entry) == 2:
-                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patch_entry)
+                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!",
+                                   str(patch_entry))
                 pf = patch_entry[0]
 
-                if isinstance(patch_entry[1], int):
+                if type(patch_entry[1]) == int:  # int and only int is allowed here, we are parsing a config file, not
+                                                 # trying to write generic code
                     level = patch_entry[1]
                 elif isinstance(patch_entry[1], basestring):
                     # non-patch files are assumed to be files to copy
@@ -315,7 +317,10 @@ class EasyBlock(object):
                         copy_file = True
                     suff = patch_entry[1]
                 else:
-                    self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patch_entry)
+                    self.log.error(
+                        "Wrong patch specification '%s', only int and string are supported as second element!",
+                        str(patch_entry),
+                        )
             else:
                 pf = patch_entry
 
@@ -332,7 +337,7 @@ class EasyBlock(object):
                         patchspec['copy'] = suff
                     else:
                         patchspec['sourcepath'] = suff
-                if level:
+                if level is not None:
                     patchspec['level'] = level
 
                 if extension:
@@ -1215,7 +1220,7 @@ class EasyBlock(object):
         # fetch extensions
         if len(self.cfg['exts_list']) > 0:
             self.exts = self.fetch_extension_sources()
- 
+
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1364,7 +1369,7 @@ class EasyBlock(object):
 
         if fetch:
             self.exts = self.fetch_extension_sources()
-            
+
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
