@@ -35,8 +35,6 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
-from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
-from easybuild.tools.ordereddict import OrderedDict
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
@@ -185,30 +183,6 @@ def sorted_categories():
     categories = ALL_CATEGORIES.values()
     categories.sort(key=lambda c: c[0])
     return categories
-
-
-def convert_to_help(opts, has_default=False):
-    """
-    Converts the given list to a mapping of category -> [(name, help)] (OrderedDict)
-        @param: has_default, if False, add the DEFAULT_CONFIG list
-    """
-    mapping = OrderedDict()
-    if isinstance(opts, dict):
-        opts = opts.items()
-    elif isinstance(opts, ExtraOptionsDeprecatedReturnValue):
-        opts = list(opts)
-    if not has_default:
-        defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
-        opts = defs + opts
-
-    # sort opts
-    opts.sort()
-
-    for cat in sorted_categories():
-        mapping[cat[1]] = [(opt[0], "%s (default: %s)" % (opt[1][1], opt[1][0]))
-                           for opt in opts if opt[1][2] == cat]
-
-    return mapping
 
 
 def get_easyconfig_parameter_default(param):
