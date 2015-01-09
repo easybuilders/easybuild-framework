@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import os
 import re
 import sys
@@ -42,7 +43,7 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
-from easybuild.framework.easyconfig.default import convert_to_help
+from easybuild.framework.easyconfig.default import ALL_CATEGORIES, DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
@@ -54,6 +55,7 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_TMP_LOGDIR
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile, mk_full_default_path
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -61,10 +63,15 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
+from easybuild.tools.utilities import quote_str
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 from vsc.utils.missing import any
+
+
+FORMAT_RST = 'rst'
+FORMAT_TXT = 'txt'
 
 
 class EasyBuildOptions(GeneralOption):
@@ -276,7 +283,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                         None, "store_true", False, 'a'),
+                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
                                             None, 'store_true', False),
@@ -504,36 +511,126 @@ class EasyBuildOptions(GeneralOption):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
 
+    def avail_easyconfig_params_txt(self, title, grouped_params):
+        """
+        Compose overview of available easyconfig parameters, in plain text format.
+        """
+        # main title
+        lines = [
+            '%s:' % title,
+            '',
+        ]
+
+        for grpname in grouped_params:
+            # group section title
+            lines.append(grpname.upper())
+            lines.append('-' * len(lines[-1]))
+
+            # determine width of 'name' column, to left-align descriptions
+            nw = max(map(len, grouped_params[grpname].keys()))
+
+            # line by parameter
+            for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
+                lines.append("{0:<{nw}}   {1:} [default: {2:}]".format(name, descr, str(quote_str(dflt)), nw=nw))
+            lines.append('')
+
+        return '\n'.join(lines)
+    
+    def avail_easyconfig_params_rst(self, title, grouped_params):
+        """
+        Compose overview of available easyconfig parameters, in RST format.
+        """
+        def det_col_width(entries, title):
+            """Determine column width based on column title and list of entries."""
+            return max(map(len, entries + [title]))
+
+        # main title
+        lines = [
+            title,
+            '=' * len(title),
+            '',
+        ]
+
+        for grpname in grouped_params:
+            # group section title
+            lines.append("%s parameters" % grpname)
+            lines.extend(['-' * len(lines[-1]), ''])
+
+            name_title = "**Parameter name**"
+            descr_title = "**Description**"
+            dflt_title = "**Default value**"
+
+            # figure out column widths
+            nw = det_col_width(grouped_params[grpname].keys(), name_title) + 4  # +4 for raw format ("``foo``")
+            dw = det_col_width([x[0] for x in grouped_params[grpname].values()], descr_title)
+            dfw = det_col_width([str(quote_str(x[1])) for x in grouped_params[grpname].values()], dflt_title)
+
+            # 3 columns (name, description, default value), left-aligned, {c} is fill char
+            line_tmpl = "{0:{c}<%s}   {1:{c}<%s}   {2:{c}<%s}" % (nw, dw, dfw)
+            table_line = line_tmpl.format('', '', '', c='=', nw=nw, dw=dw, dfw=dfw)
+
+            # table header
+            lines.append(table_line)
+            lines.append(line_tmpl.format(name_title, descr_title, dflt_title, c=' '))
+            lines.append(line_tmpl.format('', '', '', c='-'))
+
+            # table rows by parameter
+            for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
+                rawname = '``%s``' % name
+                lines.append(line_tmpl.format(rawname, descr, str(quote_str(dflt)), c=' '))
+            lines.append(table_line)
+            lines.append('')
+
+        return '\n'.join(lines)
+
     def avail_easyconfig_params(self):
         """
-        Print the available easyconfig parameters, for the given easyblock.
+        Compose overview of available easyconfig parameters, in specified format.
         """
-        extra = []
+        params = copy.deepcopy(DEFAULT_CONFIG)
+
+        # include list of extra parameters (if any)
+        extra_params = {}
         app = get_easyblock_class(self.options.easyblock, default_fallback=False)
         if app is not None:
-            extra = app.extra_options()
-        mapping = convert_to_help(extra, has_default=False)
-        if extra:
-            ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
-            extra_names = [x[0] for x in extra]
-        else:
-            ebb_msg = ''
-            extra_names = []
-        txt = ["Available easyconfig parameters%s" % ebb_msg]
-        params = [(k, v) for (k, v) in mapping.items() if k.upper() not in ['HIDDEN']]
-        for key, values in params:
-            txt.append("%s" % key.upper())
-            txt.append('-' * len(key))
-            for name, value in values:
-                tabs = "\t" * (3 - (len(name) + 1) / 8)
-                if name in extra_names:
-                    starred = '(*)'
-                else:
-                    starred = ''
-                txt.append("%s%s:%s%s" % (name, starred, tabs, value))
-            txt.append('')
+            extra_params = app.extra_options()
+        if isinstance(extra_params, ExtraOptionsDeprecatedReturnValue):
+            extra_params = dict(extra_params)
+        params.update(extra_params)
 
-        return "\n".join(txt)
+        # compose title
+        title = "Available easyconfig parameters"
+        if extra_params:
+            title += " (* indicates specific to the %s easyblock)" % app.__name__
+
+        # group parameters by category
+        grouped_params = OrderedDict()
+        for category in sorted_categories():
+            # exclude hidden parameters
+            if category[1].upper() in [HIDDEN]:
+                continue
+
+            grpname = category[1]
+            grouped_params[grpname] = {}
+            for name, (dflt, descr, cat) in params.items():
+                # FIXME bug in default.py?
+                if isinstance(cat, basestring):
+                    cat = ALL_CATEGORIES[cat]
+                if cat == category:
+                    if name in extra_params:
+                        # mark easyblock-specific parameters
+                        name = '%s*' % name
+                    grouped_params[grpname].update({name: (descr, dflt)})
+
+            if not grouped_params[grpname]:
+                del grouped_params[grpname]
+
+        # compose output, according to specified format (txt, rst, ...)
+        avail_easyconfig_params_functions = {
+            FORMAT_RST: self.avail_easyconfig_params_rst,
+            FORMAT_TXT: self.avail_easyconfig_params_txt,
+        }
+        return avail_easyconfig_params_functions[self.options.avail_easyconfig_params](title, grouped_params)
 
     def avail_classes_tree(self, classes, classNames, detailed, depth=0):
         """Print list of classes as a tree."""
