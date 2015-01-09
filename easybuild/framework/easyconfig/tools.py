@@ -249,17 +249,23 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
     if easyconfigs_pkg_paths is None:
         easyconfigs_pkg_paths = []
 
-    pr_files = None
+    # list of specified easyconfig files
+    ec_files = orig_paths[:]
+
     if from_pr is not None:
         pr_files = fetch_easyconfigs_from_pr(from_pr)
 
-    ec_files = orig_paths[:]
+        if ec_files:
+            # replace paths for specified easyconfigs that are touched in PR
+            for i, ec_file in enumerate(ec_files):
+                for pr_file in pr_files:
+                    if ec_file == os.path.basename(pr_file):
+                        ec_files[i] = pr_file
+        else:
+            # if no easyconfigs are specified, use all the ones touched in the PR
+            ec_files = [path for path in pr_files if path.endswith('.eb')]
 
-    if not ec_files and pr_files:
-        ec_files = [path for path in pr_files if path.endswith('.eb')]
-    elif ec_files and pr_files:
-        ec_files = [path for path in pr_files if os.path.basename(path) in orig_paths]
-    elif ec_files and easyconfigs_pkg_paths:
+    if ec_files and easyconfigs_pkg_paths:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they were found at the given relative paths
 
