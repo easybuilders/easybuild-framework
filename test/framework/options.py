@@ -747,19 +747,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        orig_sys_path = sys.path[:]
-
-        # adjust PYTHONPATH such that test easyblocks are found
-        # this is required since the HPL and ScaLAPACK easyconfigs included in the tested PR have no 'easyblock' spec
-        import easybuild
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        if not eb_blocks_path in sys.path:
-            sys.path.append(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-
         tmpdir = tempfile.mkdtemp()
         args = [
             # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
@@ -774,21 +761,26 @@ class CommandLineOptionsTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                'FFTW/3.3.4-gompi-2015a',
-                'foss/2015a',
-                'GCC/4.9.2',
-                'gompi/2015a',
-                'HPL/2.1-foss-2015a',
-                'hwloc/1.10.0-GCC-4.9.2',
-                'numactl/2.0.10-GCC-4.9.2',
-                'OpenBLAS/0.2.13-GCC-4.9.2-LAPACK-3.5.0',
-                'OpenMPI/1.8.3-GCC-4.9.2',
-                'ScaLAPACK/2.0.2-gompi-2015a-OpenBLAS-0.2.13-LAPACK-3.5.0',
+                (tmpdir, 'FFTW/3.3.4-gompi-2015a'),
+                (tmpdir, 'foss/2015a'),
+                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (tmpdir, 'gompi/2015a'),
+                (tmpdir, 'HPL/2.1-foss-2015a'),
+                (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
+                (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
+                (tmpdir, 'OpenBLAS/0.2.13-GCC-4.9.2-LAPACK-3.5.0'),
+                (tmpdir, 'OpenMPI/1.8.3-GCC-4.9.2'),
+                (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
+                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2015a-OpenBLAS-0.2.13-LAPACK-3.5.0'),
             ]
-            for module in modules:
+            for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
-                regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
             regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
@@ -797,7 +789,57 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print "Ignoring URLError '%s' in test_from_pr" % err
             shutil.rmtree(tmpdir)
 
-        sys.path = orig_sys_path
+    def test_from_pr_listed_ecs(self):
+        """Test --from-pr in combination with specifying easyconfigs on the command line."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ecstmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(ecstmpdir, 'easybuild'), parents=True)
+        shutil.copytree(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
+
+        # inject path to test easyconfigs into head of Python search path
+        sys.path.insert(0, ecstmpdir)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            'toy-0.0.eb',
+            'gompi-2015a.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc and numactl)
+            'GCC-4.6.3.eb',
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
+            '--dry-run',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--tmpdir=%s' % tmpdir,
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (ecstmpdir, 'toy/0.0'),
+                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
+                (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
+                (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
+                (tmpdir, 'gompi/2015a'),
+                ('.*', 'GCC/4.6.3'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr" % err
+            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
