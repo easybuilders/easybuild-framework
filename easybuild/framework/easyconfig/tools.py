@@ -249,6 +249,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
     if easyconfigs_pkg_paths is None:
         easyconfigs_pkg_paths = []
 
+    pr_files = None
     if from_pr is not None:
         pr_files = fetch_easyconfigs_from_pr(from_pr)
 
