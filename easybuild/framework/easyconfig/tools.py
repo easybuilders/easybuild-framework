@@ -34,6 +34,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
+@author: Ward Poelmans (Ghent University)
 """
 
 import os
@@ -248,13 +249,23 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
     if easyconfigs_pkg_paths is None:
         easyconfigs_pkg_paths = []
 
+    # list of specified easyconfig files
     ec_files = orig_paths[:]
 
-    if not ec_files and from_pr:
+    if from_pr is not None:
         pr_files = fetch_easyconfigs_from_pr(from_pr)
-        ec_files = [path for path in pr_files if path.endswith('.eb')]
 
-    elif ec_files and easyconfigs_pkg_paths:
+        if ec_files:
+            # replace paths for specified easyconfigs that are touched in PR
+            for i, ec_file in enumerate(ec_files):
+                for pr_file in pr_files:
+                    if ec_file == os.path.basename(pr_file):
+                        ec_files[i] = pr_file
+        else:
+            # if no easyconfigs are specified, use all the ones touched in the PR
+            ec_files = [path for path in pr_files if path.endswith('.eb')]
+
+    if ec_files and easyconfigs_pkg_paths:
         # look for easyconfigs with relative paths in easybuild-easyconfigs package,
         # unless they were found at the given relative paths
 
@@ -282,7 +293,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
                     break
 
                 # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-                dirnames[:] = [d for d in dirnames if not d in build_option('ignore_dirs')]
+                dirnames[:] = [d for d in dirnames if d not in build_option('ignore_dirs')]
 
             # stop os.walk insanity as soon as we have all we need (outer loop)
             if not ecs_to_find:
