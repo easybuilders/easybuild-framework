@@ -35,7 +35,7 @@ Documentation-related functionality
 """
 import copy
 
-from easybuild.framework.easyconfig.default import ALL_CATEGORIES, DEFAULT_CONFIG, HIDDEN, sorted_categories
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.ordereddict import OrderedDict
@@ -148,9 +148,6 @@ def avail_easyconfig_params(easyblock, output_format):
         grpname = category[1]
         grouped_params[grpname] = {}
         for name, (dflt, descr, cat) in params.items():
-            # FIXME bug in default.py?
-            if isinstance(cat, basestring):
-                cat = ALL_CATEGORIES[cat]
             if cat == category:
                 if name in extra_params:
                     # mark easyblock-specific parameters

@@ -40,30 +40,30 @@ _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
 
 # we use a tuple here so we can sort them based on the numbers
-HIDDEN = "HIDDEN"
-MANDATORY = "MANDATORY"
-CUSTOM = "CUSTOM"
-TOOLCHAIN = "TOOLCHAIN"
-BUILD = "BUILD"
-FILEMANAGEMENT = "FILEMANAGEMENT"
-DEPENDENCIES = "DEPENDENCIES"
-LICENSE = "LICENSE"
-EXTENSIONS = "EXTENSIONS"
-MODULES = "MODULES"
-OTHER = "OTHER"
+HIDDEN = (-1, 'hidden')
+MANDATORY = (0, 'mandatory')
+CUSTOM = (1, 'easyblock-specific')
+TOOLCHAIN = (2, 'toolchain')
+BUILD = (3, 'build')
+FILEMANAGEMENT = (4, 'file-management')
+DEPENDENCIES = (5, 'dependencies')
+LICENSE = (6, 'license')
+EXTENSIONS = (7, 'extensions')
+MODULES = (8, 'modules')
+OTHER = (9, 'other')
 
 ALL_CATEGORIES = {
-    HIDDEN: (-1, 'hidden'),
-    MANDATORY: (0, 'mandatory'),
-    CUSTOM: (1, 'easyblock-specific'),
-    TOOLCHAIN: (2, 'toolchain'),
-    BUILD: (3, 'build'),
-    FILEMANAGEMENT: (4, 'file-management'),
-    DEPENDENCIES: (5, 'dependencies'),
-    LICENSE: (6, 'license'),
-    EXTENSIONS: (7, 'extensions'),
-    MODULES: (8, 'modules'),
-    OTHER: (9, 'other'),
+    'HIDDEN': HIDDEN,
+    'MANDATORY': MANDATORY,
+    'CUSTOM': CUSTOM,
+    'TOOLCHAIN': TOOLCHAIN,
+    'BUILD': BUILD,
+    'FILEMANAGEMENT': FILEMANAGEMENT,
+    'DEPENDENCIES': DEPENDENCIES,
+    'LICENSE': LICENSE,
+    'EXTENSIONS': EXTENSIONS,
+    'MODULES': MODULES,
+    'OTHER': OTHER,
 }
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
