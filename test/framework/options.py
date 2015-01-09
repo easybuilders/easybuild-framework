@@ -747,9 +747,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        orig_sys_path = sys.path[:]
+
+        # adjust PYTHONPATH such that test easyblocks are found
+        # this is required since the HPL and ScaLAPACK easyconfigs included in the tested PR have no 'easyblock' spec
+        import easybuild
+        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
+        if not eb_blocks_path in sys.path:
+            sys.path.append(eb_blocks_path)
+            easybuild = reload(easybuild)
+
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for intel/2014b, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
@@ -783,6 +796,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError, err:
             print "Ignoring URLError '%s' in test_from_pr" % err
             shutil.rmtree(tmpdir)
+
+        sys.path = orig_sys_path
 
     def test_no_such_software(self):
         """Test using no arguments."""
