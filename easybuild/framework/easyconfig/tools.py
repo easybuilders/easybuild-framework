@@ -39,6 +39,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 
 import os
 import sys
+import tempfile
 from vsc.utils import fancylogger
 
 # optional Python packages, these might be missing
@@ -69,7 +70,7 @@ except ImportError, err:
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, find_related_easyconfigs, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option, build_path
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
@@ -346,9 +347,12 @@ def stats_to_str(stats):
     return txt
 
 
-def review_pr(pull_request, colored):
+def review_pr(pull_request, colored=True, tmpdir=None):
     """Print multi-diff overview between easyconfigs in specified PR and current develop branch."""
-    download_repo_path = download_repo(branch='develop', path=build_path())
+    if tmpdir is None:
+        tmpdir = tempfile.mkdtemp()
+
+    download_repo_path = download_repo(branch='develop', path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
 
@@ -356,8 +360,5 @@ def review_pr(pull_request, colored):
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
         _log.debug("File in pull request %s has these related easyconfigs: %s" % (ec['spec'], files))
-        for listing in files:
-            if listing:
-                diff = multi_diff(ec['spec'], listing, colored)
-                print diff
-                break
+        diff = multi_diff(ec['spec'], files, colored=colored)
+        print diff

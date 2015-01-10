@@ -218,7 +218,7 @@ def main(testing_data=(None, None, None)):
 
     # review specified PR
     if options.review_pr:
-        review_pr(options.review_pr, options.color)
+        review_pr(options.review_pr, colored=options.color, tmpdir=eb_tmpdir)
 
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short

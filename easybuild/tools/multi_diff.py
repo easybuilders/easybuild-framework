@@ -206,7 +206,7 @@ def multi_diff(base,files, colored=True):
         compensator = 1
         for (i, line) in enumerate(diff):
             if line.startswith('?'):
-                squigly_dict[last_added] = (line)
+                squigly_dict[last_added] = line
                 compensator -= 1
             elif line.startswith('+'):
                 local_diff.setdefault(i+compensator, []).append((line, file_name))
