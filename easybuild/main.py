@@ -220,7 +220,6 @@ def main(testing_data=(None, None, None)):
     # review specified PR
     if options.review_pr:
         review_pr(options.review_pr, options.color)
-        sys.exit()
 
     # search for easyconfigs, if a query is specified
     query = options.search or options.search_short
@@ -232,13 +231,16 @@ def main(testing_data=(None, None, None)):
     if not easyconfigs_pkg_paths:
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
+    # command line options that do not require any easyconfigs to be specified
+    no_ec_opts = [options.aggregate_regtest, options.review_pr, options.search, options.search_short, options.regtest]
+
     # determine paths to easyconfigs
     paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
     if not paths:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
-        elif not any([options.aggregate_regtest, options.search, options.search_short, options.regtest]):
+        elif not any(no_ec_opts):
             print_error(("Please provide one or multiple easyconfig files, or use software build "
                          "options to make EasyBuild search for easyconfigs"),
                          log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
@@ -268,7 +270,7 @@ def main(testing_data=(None, None, None)):
         print_msg(txt, log=_log, silent=testing, prefix=False)
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
-    if any([options.dry_run, options.dry_run_short, options.regtest, options.search, options.search_short]):
+    if any(no_ec_opts + [options.dry_run, options.dry_run_short]):
         cleanup(logfile, eb_tmpdir, testing)
         sys.exit(0)
 
