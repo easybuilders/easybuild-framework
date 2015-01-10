@@ -27,10 +27,13 @@ Module with various utility functions
 
 @author: Kenneth Hoste (Ghent University)
 """
+import fcntl
 import glob
 import os
 import string
+import struct
 import sys
+import termios
 from vsc.utils import fancylogger
 from vsc.utils.missing import any as _any
 from vsc.utils.missing import all as _all
@@ -118,3 +121,12 @@ def import_available_modules(namespace):
                 _log.debug("importing module %s" % modpath)
                 modules.append(__import__(modpath, globals(), locals(), ['']))
     return modules
+
+
+def det_terminal_size():
+    """
+    Determine the current size of the terminal window.
+    @return: tuple with terminal width and height
+    """
+    height, width, _, _ = struct.unpack('HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))
+    return width, height

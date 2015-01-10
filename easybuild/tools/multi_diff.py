@@ -32,7 +32,8 @@ import difflib
 import math
 import os
 
-import easybuild.tools.terminal as terminal
+from easybuild.tools.utilities import det_terminal_size
+
 
 SEP_WIDTH = 5
 
@@ -80,7 +81,7 @@ class MultiDiff(object):
             else:
                 return text
 
-        term_width, _ = terminal.get_terminal_size()
+        term_width, _ = det_terminal_size()
 
         base = self._color(os.path.basename(self.base), PURPLE)
         filenames = ', '.join(map(os.path.basename, self.files))
