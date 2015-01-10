@@ -33,13 +33,11 @@ import base64
 import os
 import socket
 import tempfile
-import urllib
-import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir
+from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file, write_file
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -60,6 +58,7 @@ except ImportError, err:
     HAVE_GITHUB_API = False
 
 
+GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
@@ -176,8 +175,8 @@ class Githubfs(object):
         # https://raw.github.com/hpcugent/easybuild/master/README.rst
         if not api:
             outfile = tempfile.mkstemp()[1]
-            url = ("http://raw.github.com/%s/%s/%s/%s" % (self.githubuser, self.reponame, self.branchname, path))
-            urllib.urlretrieve(url, outfile)
+            url = ("%s/%s/%s/%s/%s" % (GITHUB_RAW, self.githubuser, self.reponame, self.branchname, path))
+            download_file(os.path.basename(path), url, outfile)
             return outfile
         else:
             obj = self.get_path(path).get(ref=self.branchname)[1]
@@ -191,98 +190,99 @@ class GithubError(Exception):
     pass
 
 
-def _do_request(lmb, github_user=None, **kwargs):
-    """Helper method, for performing get requests"""
+def github_api_get_request(request_f, github_user=None, **kwargs):
+    """
+    Helper method, for performing get requests to GitHub API.
+    @param request_f: function that should be called to compose request, providing a RestClient instance
+    @param github_user: GitHub user name (to try and obtain matching GitHub token)
+    @return: tuple with return status and data
+    """
     if github_user is None:
         github_user = build_option('github_user')
 
     token = fetch_github_token(github_user)
-    g = RestClient(GITHUB_API_URL, username=github_user, token=token)
-
-    # call our lambda
-    url = lmb(g)
+    url = request_f(RestClient(GITHUB_API_URL, username=github_user, token=token))
 
     try:
         status, data = url.get(**kwargs)
     except socket.gaierror, err:
+        _log.warning("Error occured while performing get request: %s" % err)
         status, data = 0, None
-    _log.debug("status: %d, data: %s" % (status, data))
 
+    _log.debug("get request result for %s: status: %d, data: %s" % (url, status, data))
     return (status, data)
 
-def fetch_latest_commit_sha(repo, account, branch='master'):
-    """fetches the latest sha for a specified branch"""
 
-    status, data = _do_request(lambda x: x.repos[account][repo].branches)
+def fetch_latest_commit_sha(repo, account, branch='master'):
+    """
+    Fetch latest SHA1 for a specified repository and branch.
+    @param repo: GitHub repository
+    @param account: GitHub account
+    @param branch: branch to fetch latest SHA1 for
+    @return: latest SHA1
+    """
+    status, data = github_api_get_request(lambda x: x.repos[account][repo].branches)
     if not status == HTTP_STATUS_OK:
         tup = (branch, account, repo, status, data)
         _log.error("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)" % tup)
 
-    branch = [br for br in data if br[u'name'] == branch]
-    if len(branch) != 1:
-        _log.error('no branch with name %s found in repo %s/%s' % (branch, account, repo))
+    res = None
+    for entry in data:
+        if entry[u'name'] == branch:
+            res = entry['commit']['sha']
 
-    branch = branch[0]
+    if res is None:
+        _log.error('No branch with name %s found in repo %s/%s (%s)' % (branch, account, repo, data))
 
-    return branch['commit']['sha']
+    return res
+
 
 def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_EB_MAIN, path=None):
-    """Download entire repo as a tar.gz archive and extract it into path"""
+    """
+    Download entire GitHub repo as a tar.gz archive, and extract it into specified path.
+    @param repo: repo to download
+    @param branch: branch to download
+    @param account: GitHub account to download repo from
+    @param path: path to extract to
+    """
     # make sure path exists, create it if necessary
-    if path == None:
+    if path is None:
         path = tempfile.mkdtemp()
 
     # add account subdir
     path = os.path.join(path, account)
     mkdir(path, parents=True)
 
-    extracted_dir_name = "%s-%s" % (GITHUB_EASYCONFIGS_REPO, branch)
-    base_name = "%s.tar.gz" % branch
-
+    extracted_dir_name = '%s-%s' % (GITHUB_EASYCONFIGS_REPO, branch)
+    base_name = '%s.tar.gz' % branch
     latest_commit_sha = fetch_latest_commit_sha(repo, account, branch)
 
-    # check if directory already exists, and don't download if it does
     expected_path = os.path.join(path, extracted_dir_name)
+    latest_sha_path = os.path.join(expected_path, 'latest-sha')
+
+    # check if directory already exists, don't download if it does
     if os.path.isdir(expected_path):
-        sha = open(os.path.join(expected_path, "latest-sha")).readlines()[0]
-        if latest_commit_sha == sha.rstrip():
-            _log.debug("Not redownloading %s/%s as it already exists" % (account, repo))
+        sha = read_file(latest_sha_path).split('\n')[0].rstrip()
+        if latest_commit_sha == sha:
+            _log.debug("Not redownloading %s/%s as it already exists: %s" % (account, repo, expected_path))
             return expected_path
 
-    url = URL_SEPARATOR.join(["https://github.com", account, repo, 'archive', base_name])
+    url = URL_SEPARATOR.join([GITHUB_URL, account, repo, 'archive', base_name])
 
-    _log.debug("download repo %s/%s as archive from %s" % (account,repo, url))
-    download_file(base_name, url, os.path.join(path,base_name))
+    target_path = os.path.join(path, base_name)
+    _log.debug("downloading repo %s/%s as archive from %s to %s" % (account, repo, url, target_path))
+    download_file(base_name, url, target_path)
     _log.debug("%s downloaded to %s, extracting now" % (base_name, path))
 
-    extracted_path = extract_file(os.path.join(path, base_name), path)
-    extracted_path = os.path.join(extracted_path, extracted_dir_name)
+    extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
-        _log.error("We expected %s to exists and contain the repo %s at branch %s" % (extracted_path, repo, branch))
+        _log.error("%s should exist and contain the repo %s at branch %s" % (extracted_path, repo, branch))
 
-    f = open(os.path.join(extracted_path, 'latest-sha'), 'w')
-    f.write(latest_commit_sha)
+    write_file(latest_sha_path, latest_commit_sha)
 
     _log.debug("Repo %s at branch %s extracted into %s" % (repo, branch, extracted_path))
     return extracted_path
-
-def _download(url, path=None):
-    """Download file from specified URL to specified path."""
-    if path is None:
-        try:
-            return urllib2.urlopen(url).read()
-        except urllib2.URLError, err:
-            _log.error("Failed to open %s for reading: %s" % (url, err))
-    else:
-        try:
-            _, httpmsg = urllib.urlretrieve(url, path)
-            _log.debug("Downloaded %s to %s" % (url, path))
-        except IOError, err:
-            _log.error("Failed to download %s to %s: %s" % (url, path, err))
-
-        if httpmsg.type != 'text/plain' and httpmsg.type != 'application/x-gzip' :
-            _log.error("Unexpected file type for %s: %s" % (path, httpmsg.type))
 
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
@@ -301,7 +301,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     _log.debug("Fetching easyconfigs from PR #%s into %s" % (pr, path))
     pr_url = lambda g: g.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr]
 
-    status, pr_data = _do_request(pr_url, github_user)
+    status, pr_data = github_api_get_request(pr_url, github_user)
     if not status == HTTP_STATUS_OK:
         tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
         _log.error("Failed to get data for PR #%d from %s/%s (status: %d %s)" % tup)
@@ -316,7 +316,11 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
         _log.debug("\n%s:\n\n%s\n" % (key, val))
 
     # determine list of changed files via diff
-    diff_txt = _download(pr_data['diff_url'])
+    diff_fn = os.path.basename(pr_data['diff_url'])
+    diff_filepath = os.path.join(path, diff_fn)
+    download_file(diff_fn, pr_data['diff_url'], diff_filepath)
+    diff_txt = read_file(diff_filepath)
+    os.remove(diff_filepath)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
     _log.debug("List of patched files: %s" % patched_files)
@@ -325,7 +329,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
         _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
-    status, commits_data = _do_request(lambda g: pr_url(g).commits, github_user, per_page=GITHUB_MAX_PER_PAGE)
+    status, commits_data = github_api_get_request(lambda g: pr_url(g).commits, github_user, per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
