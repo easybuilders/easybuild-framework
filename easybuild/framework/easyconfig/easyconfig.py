@@ -950,9 +950,9 @@ def find_related_easyconfigs(path, ec):
     parsed_version = LooseVersion(version).version
     version_patterns = [
         version,  # exact version match
-        '%s\.%s\.[0-9_-]+' % tuple(parsed_version[:2]),  # major/minor version match
-        '%s\.[0-9-]+\.[0-9_-]+' % parsed_version[0],  # major version match
-        '[0-9._A-Za-z-]+',  # any version
+        r'%s\.%s\.[0-9_-]+' % tuple(parsed_version[:2]),  # major/minor version match
+        r'%s\.[0-9-]+\.[0-9_-]+' % parsed_version[0],  # major version match
+        r'[0-9._A-Za-z-]+',  # any version
     ]
 
     regexes = []
