@@ -304,7 +304,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
     return [(ec_file, False) for ec_file in ec_files]
 
 
-def parse_easyconfigs(paths):
+def parse_easyconfigs(paths, validate=True):
     """
     Parse easyconfig files
     @params paths: paths to easyconfigs
@@ -321,7 +321,7 @@ def parse_easyconfigs(paths):
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
                 # only pass build specs when not generating easyconfig files
-                kwargs = {}
+                kwargs = {'validate': validate}
                 if not build_option('try_to_generate'):
                     kwargs['build_specs'] = build_option('build_specs')
                 ecs = process_easyconfig(ec_file, **kwargs)
@@ -356,7 +356,7 @@ def review_pr(pull_request, colored=True, tmpdir=None):
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
 
-    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files])
+    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
         _log.debug("File in pull request %s has these related easyconfigs: %s" % (ec['spec'], files))
