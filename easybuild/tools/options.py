@@ -162,8 +162,6 @@ class EasyBuildOptions(GeneralOption):
         # additional options that don't need a --try equivalent
         opts.update({
             'from-pr': ("Obtain easyconfigs from specified PR", int, 'store', None, {'metavar': 'PR#'}),
-            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
-            'color': ("Allow color output", None, 'store_true', True),
         })
 
         self.log.debug("software_options: descr %s opts %s" % (descr, opts))
@@ -177,6 +175,7 @@ class EasyBuildOptions(GeneralOption):
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
+            'color': ("Allow color output", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
@@ -310,6 +309,7 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store_true', False),
             'regtest-output-dir': ("Set output directory for test-run",
                                    None, 'store', None, {'metavar': 'DIR'}),
+            'review-pr': ("Review specified pull request", int, 'store', None, {'metavar': 'PR#'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
             'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
