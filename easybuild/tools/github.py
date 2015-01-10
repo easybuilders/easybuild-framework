@@ -38,7 +38,8 @@ import urllib2
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.filetools import download_file
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir
 
 
 _log = fancylogger.getLogger('github', fname=False)
@@ -57,9 +58,6 @@ try:
 except ImportError, err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
-
-from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_patched_files, extract_file, mkdir
 
 
 GITHUB_API_URL = 'https://api.github.com'
@@ -193,13 +191,13 @@ class GithubError(Exception):
     pass
 
 
-def _do_request(lmb, github_user=None, **kwargs):
+def _do_request(lmb, github_user=None):
     """Helper method, for performing get requests"""
     token = fetch_github_token(github_user)
     g = RestClient(GITHUB_API_URL, username=github_user, token=token)
 
     # call our lambda
-    url = lmb(g, **kwargs)
+    url = lmb(g)
 
     try:
         status, data = url.get()
@@ -324,7 +322,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
         _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
-    status, commits_data = _do_request(lambda g: pr_url(g).commits.get, github_user, per_page=GITHUB_MAX_PER_PAGE)
+    status, commits_data = _do_request(lambda g: pr_url(g).commits.get(per_page=GITHUB_MAX_PER_PAGE), github_user)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
