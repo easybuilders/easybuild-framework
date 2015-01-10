@@ -30,7 +30,6 @@ Unit tests for scripts
 import os
 import re
 import shutil
-import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -46,7 +45,7 @@ class ScriptsTest(EnhancedTestCase):
 
         # adjust $PYTHONPATH such that test easyblocks are found by the script
         eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        pythonpath = os.environ['PYTHONPATH']
+        pythonpath = os.environ.get('PYTHONPATH', '.')
         os.environ['PYTHONPATH'] = "%s:%s" % (pythonpath, eb_blocks_path)
 
         testdir = os.path.dirname(__file__)
@@ -66,13 +65,14 @@ class ScriptsTest(EnhancedTestCase):
         out, ec = run_cmd(cmd, simple=False)
 
         # make sure output is kind of what we expect it to be
-        regex = r"Supported Packages \(11 "
+        regex = r"Supported Packages \(18 "
         self.assertTrue(re.search(regex, out), "Pattern '%s' found in output: %s" % (regex, out))
         per_letter = {
+            'C': '1',  # CUDA
             'F': '1',  # FFTW
             'G': '4',  # GCC, gompi, goolf, gzip
             'H': '1',  # hwloc
-            'I': '1',  # ictce
+            'I': '7',  # icc, iccifort, ictce, ifort, iimpi, imkl, impi
             'O': '2',  # OpenMPI, OpenBLAS
             'S': '1',  # ScaLAPACK
             'T': '1',  # toy
@@ -89,6 +89,7 @@ class ScriptsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
         os.environ['PYTHONPATH'] = pythonpath
+
 
 def suite():
     """ returns all the testcases in this module """

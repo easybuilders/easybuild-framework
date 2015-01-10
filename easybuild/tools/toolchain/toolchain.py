@@ -32,7 +32,9 @@ Creating a new toolchain should be as simple as possible.
 """
 
 import os
+import re
 from vsc.utils import fancylogger
+from vsc.utils.missing import all, any
 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -75,7 +77,7 @@ class Toolchain(object):
         self.base_init()
 
         self.dependencies = []
-        self.toolchain_dependencies = []
+        self.toolchain_dep_mods = []
 
         if name is None:
             name = self.NAME
@@ -92,16 +94,17 @@ class Toolchain(object):
         self.vars = None
 
         self.modules_tool = modules_tool()
+        self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
         if self.name != DUMMY_TOOLCHAIN_NAME:
             # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
-            if mns is not None:
+            if self.mns is not None:
                 tc_dict = self.as_dict()
-                self.mod_full_name = mns.det_full_module_name(tc_dict)
-                self.mod_short_name = mns.det_short_module_name(tc_dict)
-                self.init_modpaths = mns.det_init_modulepaths(tc_dict)
+                self.mod_full_name = self.mns.det_full_module_name(tc_dict)
+                self.mod_short_name = self.mns.det_short_module_name(tc_dict)
+                self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def base_init(self):
         if not hasattr(self, 'log'):
@@ -215,6 +218,7 @@ class Toolchain(object):
             'versionsuffix': '',
             'dummy': True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
+            'hidden': False,
         }
 
     def det_short_module_name(self):
@@ -235,7 +239,7 @@ class Toolchain(object):
             if self.mod_short_name is None:
                 self.log.error("Toolchain module name was not set yet (using set_module_info).")
             # check whether a matching module exists if self.mod_short_name contains a module name
-            return self.modules_tool.exists(self.mod_full_name)
+            return self.modules_tool.exist([self.mod_full_name])[0]
 
     def set_options(self, options):
         """ Process toolchain options """
@@ -283,10 +287,12 @@ class Toolchain(object):
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
         self.log.debug("add_dependencies: adding toolchain dependencies %s" % dependencies)
-        for dep in dependencies:
+        dep_mod_names = [dep['full_mod_name'] for dep in dependencies]
+        deps_exist = self.modules_tool.exist(dep_mod_names)
+        for dep, dep_mod_name, dep_exists in zip(dependencies, dep_mod_names, deps_exist):
             self.log.debug("add_dependencies: MODULEPATH: %s" % os.environ['MODULEPATH'])
-            if not self.modules_tool.exists(dep['full_mod_name']):
-                tup = (dep['full_mod_name'], dep)
+            if not dep_exists:
+                tup = (dep_mod_name, dep)
                 self.log.error("add_dependencies: no module '%s' found for dependency %s" % tup)
             else:
                 self.dependencies.append(dep)
@@ -309,6 +315,10 @@ class Toolchain(object):
 
         _log.debug("Toolchain definition for %s: %s" % (self.as_dict(), tc_elems))
         return tc_elems
+
+    def is_dep_in_toolchain_module(self, name):
+        """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
+        return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
 
     def prepare(self, onlymod=None):
         """
@@ -346,29 +356,28 @@ class Toolchain(object):
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
-        self.toolchain_dependencies = self.modules_tool.dependencies_for(mod_name, depth=0)
-        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dependencies)
+        self.toolchain_dep_mods = self.modules_tool.dependencies_for(mod_name, depth=0)
+        self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
 
-        # verify whether elements in toolchain definition match toolchain deps specified by loaded toolchain module
-        toolchain_module_deps = set([self.modules_tool.module_software_name(d) for d in self.toolchain_dependencies])
         # only retain names of toolchain elements, excluding toolchain name
         toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
 
         # filter out optional toolchain elements if they're not used in the module
-        for mod_name in toolchain_definition.copy():
-            if not self.is_required(mod_name):
-                if not mod_name in toolchain_module_deps:
-                    self.log.debug("Removing optional module %s from list of toolchain elements." % mod_name)
-                    toolchain_definition.remove(mod_name)
+        for elem_name in toolchain_definition.copy():
+            if self.is_required(elem_name) or self.is_dep_in_toolchain_module(elem_name):
+                continue
+            # not required and missing: remove from toolchain definition
+            self.log.debug("Removing %s from list of optional toolchain elements." % elem_name)
+            toolchain_definition.remove(elem_name)
 
-        self.log.debug("List of toolchain dependencies from toolchain module: %s" % toolchain_module_deps)
+        self.log.debug("List of toolchain dependencies from toolchain module: %s" % self.toolchain_dep_mods)
         self.log.debug("List of toolchain elements from toolchain definition: %s" % toolchain_definition)
 
-        if toolchain_module_deps == toolchain_definition:
+        if all(map(self.is_dep_in_toolchain_module, toolchain_definition)):
             self.log.info("List of toolchain dependency modules and toolchain definition match!")
         else:
             self.log.error("List of toolchain dependency modules and toolchain definition do not match " \
-                           "(%s vs %s)" % (toolchain_module_deps, toolchain_definition))
+                           "(%s vs %s)" % (self.toolchain_dep_mods, toolchain_definition))
 
         # Generate the variables to be set
         self.set_variables()

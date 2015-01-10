@@ -30,9 +30,10 @@ Generating module files.
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
+import re
 import tempfile
 from vsc.utils import fancylogger
 
@@ -40,6 +41,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
+from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
 from easybuild.tools.utilities import quote_str
 
 
@@ -50,6 +52,10 @@ class ModuleGenerator(object):
     """
     Class for generating module files.
     """
+
+    # chars we want to escape in the generated modulefiles
+    CHARS_TO_ESCAPE = ["$"]
+
     def __init__(self, application, fake=False):
         self.app = application
         self.fake = fake
@@ -63,11 +69,12 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
+        full_mod_name = self.app.full_mod_name
         # module file goes in general moduleclass category
-        self.filename = os.path.join(self.module_path, mod_path_suffix, self.app.full_mod_name)
+        self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.app.cfg)
-        self.class_mod_files = [os.path.join(self.module_path, p, self.app.full_mod_name) for p in mod_symlink_paths]
+        self.class_mod_files = [os.path.join(self.module_path, p, full_mod_name) for p in mod_symlink_paths]
 
         # create directories and links
         for path in [os.path.dirname(x) for x in [self.filename] + self.class_mod_files]:
@@ -121,7 +128,12 @@ class ModuleGenerator(object):
             ])
 
         elif conflict:
-            lines.append("conflict    %s\n" % self.app.name)
+            # conflict on 'name' part of module name (excluding version part at the end)
+            # examples:
+            # - 'conflict GCC' for 'GCC/4.8.3'
+            # - 'conflict Core/GCC' for 'Core/GCC/4.8.2'
+            # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
+            lines.append("conflict %s\n" % os.path.dirname(self.app.short_mod_name))
 
         txt = '\n'.join(lines) % {
             'name': self.app.name,
@@ -132,11 +144,11 @@ class ModuleGenerator(object):
 
         return txt
 
-    def load_module(self, mod_name, recursive_unload=False):
+    def load_module(self, mod_name):
         """
         Generate load statements for module.
         """
-        if recursive_unload:
+        if build_option('recursive_mod_unload'):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
@@ -202,6 +214,8 @@ class ModuleGenerator(object):
         """
         Add a message that should be printed when loading the module.
         """
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",

@@ -31,7 +31,6 @@ Utility module for working with github
 """
 import base64
 import os
-import re
 import socket
 import tempfile
 import urllib
@@ -59,7 +58,8 @@ except ImportError, err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
-from easybuild.tools.filetools import det_patched_files, mkdir, extract_file
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import det_patched_files, extract_file, mkdir
 
 
 GITHUB_API_URL = 'https://api.github.com'
@@ -67,6 +67,7 @@ GITHUB_DIR_TYPE = u'dir'
 GITHUB_EB_MAIN = 'hpcugent'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FILE_TYPE = u'file'
+GITHUB_MAX_PER_PAGE = 100
 GITHUB_MERGEABLE_STATE_CLEAN = 'clean'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 GITHUB_STATE_CLOSED = 'closed'
@@ -192,13 +193,13 @@ class GithubError(Exception):
     pass
 
 
-def _do_request(lmb, github_user=None):
+def _do_request(lmb, github_user=None, **kwargs):
     """Helper method, for performing get requests"""
     token = fetch_github_token(github_user)
     g = RestClient(GITHUB_API_URL, username=github_user, token=token)
 
     # call our lambda
-    url = lmb(g)
+    url = lmb(g, **kwargs)
 
     try:
         status, data = url.get()
@@ -285,6 +286,10 @@ def _download(url, path=None):
 
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
+    if github_user is None:
+        github_user = build_option('github_user')
+    if path is None:
+        path = build_option('pr_path')
 
     if path is None:
         path = tempfile.mkdtemp()
@@ -313,12 +318,15 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = _download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
-    _log.debug("List of patches files: %s" % patched_files)
+    _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
-    status, commits_data = _do_request(lambda g: pr_url(g).commits, github_user)
+    # get all commits, increase to (max of) 100 per page
+    if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
+        _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
+    status, commits_data = _do_request(lambda g: pr_url(g).commits.get, github_user, per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
-    _log.debug("Commits: %s" % commits_data)
+    _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
     # obtain most recent version of patched files
     for patched_file in patched_files:

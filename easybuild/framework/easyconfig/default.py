@@ -35,6 +35,7 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.ordereddict import OrderedDict
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
@@ -92,7 +93,8 @@ DEFAULT_CONFIG = {
     'buildopts': ['', 'Extra options passed to make step (default already has -j X)', BUILD],
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
-    'easyblock': ['ConfigureMake', "EasyBlock to use for building", BUILD],
+    'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
+                        "based on the software name", BUILD],
     'easybuild_version': [None, "EasyBuild-version this spec-file was written for", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
@@ -143,6 +145,7 @@ DEFAULT_CONFIG = {
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
+    'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
@@ -168,6 +171,7 @@ DEFAULT_CONFIG = {
     'moduleclass': ['base', 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
+    'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
 
     # OTHER easyconfig parameters
     'buildstats': [None, "A list of dicts with build statistics", OTHER],
@@ -191,6 +195,8 @@ def convert_to_help(opts, has_default=False):
     mapping = OrderedDict()
     if isinstance(opts, dict):
         opts = opts.items()
+    elif isinstance(opts, ExtraOptionsDeprecatedReturnValue):
+        opts = list(opts)
     if not has_default:
         defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
         opts = defs + opts

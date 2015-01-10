@@ -61,3 +61,9 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         Determine list of paths in which symlinks to module files must be created.
         """
         return [ec['moduleclass'].upper(), ec['name'].lower()[0]]
+
+    def is_short_modname_for(self, modname, name):
+        """
+        Determine whether the specified (short) module name is a module for software with the specified name.
+        """
+        return modname.find('%s' % name)!= -1

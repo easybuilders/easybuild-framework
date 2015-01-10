@@ -391,27 +391,24 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    cmd = None
-    if get_os_name() in ['debian', 'ubuntu']:
-        if which('dpkg'):
-            cmd = "dpkg -s %s" % dep
-    else:
-        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-        if which('rpm'):
-            cmd = "rpm -q %s" % dep
-
     found = None
-    if cmd is not None:
+    cmd = None
+    if which('rpm'):
+        cmd = "rpm -q %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if found is None:
+    if not found and which('dpkg'):
+        cmd = "dpkg -s %s" % dep
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if cmd is None:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
-    # try locate if it's available
-    if found is None and which('locate'):
-        cmd = 'locate --regexp "/%s$"' % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        # try locate if it's available
+        if not found and which('locate'):
+            cmd = 'locate --regexp "/%s$"' % dep
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
 
@@ -464,7 +461,6 @@ def get_system_info():
         'gcc_version': get_tool_version('gcc', version_option='-v'),
         'hostname': gethostname(),
         'glibc_version': get_glibc_version(),
-        'kernel_name': get_kernel_name(),
         'os_name': get_os_name(),
         'os_type': get_os_type(),
         'os_version': get_os_version(),

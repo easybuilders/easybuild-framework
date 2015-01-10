@@ -30,7 +30,7 @@ Utility functions for implementating module naming schemes.
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string
@@ -101,3 +101,10 @@ def is_valid_module_name(mod_name):
             return False
     _log.debug("Module name %s validated" % mod_name)
     return True
+
+
+def det_hidden_modname(modname):
+    """Determine the hidden equivalent of the specified module name."""
+    moddir = os.path.dirname(modname)
+    modfile = os.path.basename(modname)
+    return os.path.join(moddir, '.%s' % modfile).lstrip(os.path.sep)

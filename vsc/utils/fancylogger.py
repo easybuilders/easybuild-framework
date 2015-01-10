@@ -95,9 +95,10 @@ DEFAULT_UDP_PORT = 5005
 
 # register new loglevelname
 logging.addLevelName(logging.CRITICAL * 2 + 1, 'APOCALYPTIC')
-# register EXCEPTION and FATAL alias
+# register QUIET, EXCEPTION and FATAL alias
 logging._levelNames['EXCEPTION'] = logging.ERROR
 logging._levelNames['FATAL'] = logging.CRITICAL
+logging._levelNames['QUIET'] = logging.WARNING
 
 
 # mpi rank support
@@ -323,7 +324,7 @@ def thread_name():
     return threading.currentThread().getName()
 
 
-def getLogger(name=None, fname=True, clsname=False, fancyrecord=None):
+def getLogger(name=None, fname=False, clsname=False, fancyrecord=None):
     """
     returns a fancylogger
     if fname is True, the loggers name will be 'name[.classname].functionname'
@@ -351,8 +352,10 @@ def getLogger(name=None, fname=True, clsname=False, fancyrecord=None):
     if os.environ.get('FANCYLOGGER_GETLOGGER_DEBUG', '0').lower() in ('1', 'yes', 'true', 'y'):
         print 'FANCYLOGGER_GETLOGGER_DEBUG',
         print 'name', name, 'fname', fname, 'fullname', fullname,
-        print 'parent_info verbose'
-        print "\n".join(l.get_parent_info("FANCYLOGGER_GETLOGGER_DEBUG"))
+        print "getRootLoggerName: ", getRootLoggerName()
+        if hasattr(l, 'get_parent_info'):
+            print 'parent_info verbose'
+            print "\n".join(l.get_parent_info("FANCYLOGGER_GETLOGGER_DEBUG"))
         sys.stdout.flush()
     return l
 
@@ -677,3 +680,23 @@ def disableDefaultHandlers():
 def enableDefaultHandlers():
     """(re)Enable the default handlers on all fancyloggers"""
     _enable_disable_default_handlers(True)
+
+
+def getDetailsLogLevels(fancy=True):
+    """
+    Return list of (name,loglevelname) pairs of existing loggers
+
+    @param fancy: if True, returns only Fancylogger; if False, returns non-FancyLoggers,
+                  anything else, return all loggers
+    """
+    func_map = {
+        True: getAllFancyloggers,
+        False: getAllNonFancyloggers,
+    }
+    func = func_map.get(fancy, getAllExistingLoggers)
+    res = []
+    for name, logger in func():
+        # PlaceHolder instances have no level attribute set
+        level_name = logging.getLevelName(getattr(logger, 'level', logging.NOTSET))
+        res.append((name, level_name))
+    return res

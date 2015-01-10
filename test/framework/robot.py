@@ -35,13 +35,16 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
-from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
+import easybuild.tools.robot as robot
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.robot import resolve_dependencies
 from test.framework.utilities import find_full_path
 
 ORIG_MODULES_TOOL = modules.modules_tool
-ORIG_MAIN_MODULES_TOOL = ectools.modules_tool
+ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
+ORIG_ROBOT_MODULES_TOOL = robot.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
@@ -56,8 +59,16 @@ class MockModule(modules.ModulesTool):
     avail_modules = []
 
     def available(self, *args):
-        """ no module should be available """
+        """Dummy implementation of available."""
         return self.avail_modules
+
+    def show(self, modname):
+        """Dummy implementation of show, which includes full path to (available or hidden) module files."""
+        if modname in self.avail_modules or os.path.basename(modname).startswith('.'):
+            txt =  '  %s:' % os.path.join('/tmp', modname)
+        else:
+            txt = 'Module %s not found' % modname
+        return txt
 
 def mock_module(mod_paths=None):
     """Get mock module instance."""
@@ -74,6 +85,7 @@ class RobotTest(EnhancedTestCase):
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
+        robot.modules_tool = mock_module
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
@@ -112,10 +124,11 @@ class RobotTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
+                'hidden': False,
             }],
             'parsed': True,
         }
-        build_options.update({'robot_path': self.base_easyconfig_dir})
+        build_options.update({'robot': True, 'robot_path': self.base_easyconfig_dir})
         init_config(build_options=build_options)
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct
@@ -123,7 +136,34 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
-        # here we have include a Dependency in the easyconfig list
+        # hidden dependencies are found too, but only retained if they're not available (or forced to be retained
+        hidden_dep = {
+            'name': 'toy',
+            'version': '0.0',
+            'versionsuffix': '-deps',
+            'toolchain': {'name': 'dummy', 'version': 'dummy'},
+            'dummy': True,
+            'hidden': True,
+        }
+        easyconfig_moredeps = deepcopy(easyconfig_dep)
+        easyconfig_moredeps['dependencies'].append(hidden_dep)
+        easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
+
+        # toy/.0.0-deps is available and thus should be omitted
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
+        self.assertEqual(len(res), 2)
+        full_mod_names = [ec['full_mod_name'] for ec in res]
+        self.assertFalse('toy/.0.0-deps' in full_mod_names)
+
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], retain_all_deps=True)
+        self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
+        self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
+        self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
+        full_mod_names = [ec['full_mod_name'] for ec in res]
+        self.assertTrue('toy/.0.0-deps' in full_mod_names)
+        self.assertTrue('ictce/4.1.13' in full_mod_names)
+
+        # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
 
         ecs = [deepcopy(easyconfig_dep), deepcopy(easyconfig)]
@@ -145,6 +185,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         build_options.update({'robot_path': self.base_easyconfig_dir})
@@ -171,6 +212,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies(ecs)
@@ -199,7 +241,7 @@ class RobotTest(EnhancedTestCase):
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
         init_config(build_options=build_options)
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 2)
         self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
@@ -209,7 +251,7 @@ class RobotTest(EnhancedTestCase):
         build_options.update({'retain_all_deps': True})
         init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 9)
         self.assertEqual('GCC/4.7.2', res[0]['full_mod_name'])
@@ -233,6 +275,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
@@ -250,7 +293,8 @@ class RobotTest(EnhancedTestCase):
         super(RobotTest, self).tearDown()
 
         config.modules_tool = ORIG_MODULES_TOOL
-        ectools.modules_tool = ORIG_MAIN_MODULES_TOOL
+        ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
+        robot.modules_tool = ORIG_ROBOT_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is not None:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         else:

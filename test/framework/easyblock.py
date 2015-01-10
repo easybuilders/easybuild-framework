@@ -44,7 +44,9 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.environment import modify_env
+from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import modules_tool
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -77,23 +79,28 @@ class EasyBlockTest(EnhancedTestCase):
 
         def check_extra_options_format(extra_options):
             """Make sure extra_options value is of correct format."""
-            # EasyBuild v1.x
-            self.assertTrue(isinstance(extra_options, list))
+            # EasyBuild v1.x: list of (<string>, <list>) tuples
+            self.assertTrue(isinstance(list(extra_options), list))  # conversion to a list works
             for extra_option in extra_options:
                 self.assertTrue(isinstance(extra_option, tuple))
                 self.assertEqual(len(extra_option), 2)
                 self.assertTrue(isinstance(extra_option[0], basestring))
                 self.assertTrue(isinstance(extra_option[1], list))
                 self.assertEqual(len(extra_option[1]), 3)
-            # EasyBuild v2.0 (breaks backward compatibility compared to v1.x)
-            #self.assertTrue(isinstance(extra_options, dict))
-            #for key in extra_options:
-            #    self.assertTrue(isinstance(extra_options[key], list))
-            #    self.assertTrue(len(extra_options[key]), 3)
+            # EasyBuild v2.0: dict with <string> keys and <list> values
+            # (breaks backward compatibility compared to v1.x)
+            self.assertTrue(isinstance(dict(extra_options), dict))  # conversion to a dict works
+            extra_options.items()
+            extra_options.keys()
+            extra_options.values()
+            for key in extra_options.keys():
+                self.assertTrue(isinstance(extra_options[key], list))
+                self.assertTrue(len(extra_options[key]), 3)
 
         name = "pi"
         version = "3.14"
         self.contents =  '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
@@ -113,6 +120,12 @@ class EasyBlockTest(EnhancedTestCase):
         sys.stdout.close()
         sys.stdout = stdoutorig
 
+        # check whether 'This is easyblock' log message is there
+        tup = ('EasyBlock', 'easybuild.framework.easyblock', '.*easybuild/framework/easyblock.pyc*')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
+
         # test extensioneasyblock, as extension
         exeb1 = ExtensionEasyBlock(eb, {'name': 'foo', 'version': '0.0'})
         self.assertEqual(exeb1.cfg['name'], 'foo')
@@ -131,7 +144,7 @@ class EasyBlockTest(EnhancedTestCase):
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
             def extra_options():
-                return ExtensionEasyBlock.extra_options([('extra_param', [None, "help", CUSTOM])])
+                return ExtensionEasyBlock.extra_options({'extra_param': [None, "help", CUSTOM]})
         texeb = TestExtension(eb, {'name': 'bar'})
         self.assertEqual(texeb.cfg['name'], 'bar')
         extra_options = texeb.extra_options()
@@ -146,6 +159,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_fake_module_load(self):
         """Testcase for fake module load"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -165,6 +179,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_make_module_req(self):
         """Testcase for make_module_req"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -200,6 +215,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_extensions_step(self):
         """Test the extensions_step"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -212,16 +228,16 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertRaises(EasyBuildError, eb.extensions_step)
-        self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step)
+        self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
+        self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
-        self.contents += "\nexts_defaultclass = ['easybuild.framework.extension', 'Extension']"
+        self.contents += "\nexts_defaultclass = 'DummyExtension'"
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
-        eb.extensions_step()
+        eb.extensions_step(fetch=True)
 
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
@@ -234,14 +250,15 @@ class EasyBlockTest(EnhancedTestCase):
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = {"name": "dummy", "version": "dummy"}',
             'exts_list = ["ext1", "ext2"]',
-            'exts_filter = ("if [ %(name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
-            'exts_defaultclass = ["easybuild.framework.extension", "Extension"]',
+            'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
+            'exts_defaultclass = "DummyExtension"',
         ])
         # check if skip skips correct extensions
         self.writeEC()
@@ -250,7 +267,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
         eb.skip = True
-        eb.extensions_step()
+        eb.extensions_step(fetch=True)
         # 'ext1' should be in eb.exts
         self.assertTrue('ext1' in [y for x in eb.exts for y in x.values()])
         # 'ext2' should not
@@ -264,24 +281,35 @@ class EasyBlockTest(EnhancedTestCase):
         """Test the make_module_step"""
         name = "pi"
         version = "3.14"
+        deps = [('GCC', '4.6.4')]
+        hiddendeps = [('toy', '0.0-deps')]
+        alldeps = deps + hiddendeps  # hidden deps must be included in list of deps
         modextravars = {'PI': '3.1415', 'FOO': 'bar'}
         modextrapaths = {'PATH': 'pibin', 'CPATH': 'pi/include'}
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             "toolchain = {'name': 'dummy', 'version': 'dummy'}",
-            "dependencies = [('foo', '1.2.3')]",
-            "builddependencies = [('bar', '9.8.7')]",
+            "dependencies = %s" % str(alldeps),
+            "hiddendependencies = %s" % str(hiddendeps),
+            "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
         ])
 
+        test_dir = os.path.dirname(os.path.abspath(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+
         # test if module is generated correctly
         self.writeEC()
-        eb = EasyBlock(EasyConfig(self.eb_file))
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        #eb.builddir = self.test_buildpath
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
+        eb.check_readiness_step()
 
         modpath = os.path.join(eb.make_module_step(), name, version)
         self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
@@ -296,13 +324,22 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(re.search('^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper(), txt, re.M))
         self.assertTrue(re.search('^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
         for (key, val) in modextravars.items():
-            self.assertTrue(re.search('^setenv\s+%s\s+"%s"$' % (key, val), txt, re.M))
+            regex = re.compile('^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
         for (key, val) in modextrapaths.items():
-            self.assertTrue(re.search('^prepend-path\s+%s\s+\$root/%s$' % (key, val), txt, re.M))
+            regex = re.compile('^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (name, ver) in deps:
+            regex = re.compile('^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+        for (name, ver) in hiddendeps:
+            regex = re.compile('^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+            self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
         self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
             "name = 'pi'",
             "version = '3.14'",
             "homepage = 'http://example.com'",
@@ -363,6 +400,12 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
         self.assertTrue(isinstance(eb, EB_toy))
+
+        # check whether 'This is easyblock' log message is there
+        tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/toy.pyc*')
+        eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
     def test_obtain_file(self):
         """Test obtain_file method."""
@@ -447,6 +490,74 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(err_regex.search(str(err)), "Pattern '%s' found in '%s'" % (err_regex.pattern, err))
 
         shutil.rmtree(tmpdir)
+
+    def test_exclude_path_to_top_of_module_tree(self):
+        """
+        Make sure that modules under the HierarchicalMNS are correct,
+        w.r.t. not including any load statements for modules that build up the path to the top of the module tree.
+        """
+        self.orig_module_naming_scheme = config.get_module_naming_scheme()
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [test_ecs_path],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        init_config(build_options=build_options)
+        self.setup_hierarchical_modules()
+        modtool = modules_tool()
+
+        modfile_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mkdir(os.path.join(modfile_prefix, 'Compiler', 'GCC', '4.8.3'), parents=True)
+        mkdir(os.path.join(modfile_prefix, 'MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'), parents=True)
+
+        impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
+        imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+
+        # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
+        # not for the toolchain or any of the toolchain components,
+        # since both icc/ifort and impi form the path to the top of the module tree
+        tests = [
+            ('impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb', impi_modfile_path, ['icc', 'ifort', 'iccifort']),
+            ('imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb', imkl_modfile_path, ['icc', 'ifort', 'impi', 'iccifort', 'iimpi']),
+        ]
+        for ec_file, modfile_path, excluded_deps in tests:
+            ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
+            eb = EasyBlock(ec)
+            eb.toolchain.prepare()
+            modpath = eb.make_module_step()
+            modfile_path = os.path.join(modpath, modfile_path)
+            modtxt = read_file(modfile_path)
+
+            for imkl_dep in excluded_deps:
+                tup = (imkl_dep, modfile_path, modtxt)
+                failmsg = "No 'module load' statement found for '%s' not found in module %s: %s" % tup
+                self.assertFalse(re.search("module load %s" % imkl_dep, modtxt), failmsg)
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = self.orig_module_naming_scheme
+        init_config(build_options=build_options)
+
+    def test_patch_step(self):
+        """Test patch step."""
+        ec = process_easyconfig(os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'toy-0.0.eb'))[0]
+        orig_sources = ec['ec']['sources'][:]
+
+        # test applying patches without sources
+        ec['ec']['sources'] = []
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+
+        # test actual patching of unpacked sources
+        ec['ec']['sources'] = orig_sources
+        eb = EasyBlock(ec['ec'])
+        eb.fetch_step()
+        eb.extract_step()
+        eb.patch_step()
 
     def tearDown(self):
         """ make sure to remove the temporary file """

@@ -18,7 +18,7 @@ checksums = [[
 ]]
 patches = ['toy-0.0_typo.patch']
 
-dependencies = [('gompi', '1.3.12')]
+dependencies = [('ictce', '4.1.13', '', True)]
 
 sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy')],

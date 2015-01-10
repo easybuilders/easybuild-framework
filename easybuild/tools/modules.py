@@ -47,8 +47,8 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, which
+from easybuild.tools.environment import restore_env
+from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -137,12 +137,14 @@ class ModulesTool(object):
 
     __metaclass__ = Singleton
 
-    def __init__(self, mod_paths=None):
+    def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+        # this can/should be set to True during testing
+        self.testing = testing
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.mod_paths = None
@@ -172,9 +174,6 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
 
-        # this can/should be set to True during testing
-        self.testing = False
-
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
@@ -198,6 +197,14 @@ class ModulesTool(object):
             if res:
                 self.version = res.group('version')
                 self.log.info("Found version %s" % self.version)
+
+                # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
+                # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+                self.version = self.version.replace('rc', 'b')
+                if len(self.version.split('.')) > 3:
+                    self.version = '.'.join(self.version.split('.')[:3])
+
+                self.log.info("Converted actual version to '%s'" % self.version)
             else:
                 self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
         except (OSError), err:
@@ -206,8 +213,7 @@ class ModulesTool(object):
         if self.REQ_VERSION is None:
             self.log.debug('No version requirement defined.')
         else:
-            # replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-            if StrictVersion(self.version.replace('rc', 'b')) < StrictVersion(self.REQ_VERSION):
+            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
                 msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
                 self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
             else:
@@ -225,11 +231,20 @@ class ModulesTool(object):
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
-        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if self.testing:
+            # grab 'module' function definition from environment if it's there; only during testing
+            if 'module' in os.environ:
+                out, ec = os.environ['module'], 0
+            else:
+                out, ec = None, 1
+        else:
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+
         if ec == 0:
             if mod_cmd_re.search(out):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
@@ -311,16 +326,19 @@ class ModulesTool(object):
             self.use(mod_path)
         self.log.info("$MODULEPATH set based on list of module paths (via 'module use'): %s" % os.environ['MODULEPATH'])
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         @param mod_name: a (partial) module name for filtering (default: None)
         """
+        if extra_args is None:
+            extra_args = []
         if mod_name is None:
             mod_name = ''
-        mods = self.run_module('avail', mod_name)
+        args = ['avail'] + extra_args + [mod_name]
+        mods = self.run_module(*args)
 
         # sort list of modules in alphabetical order
         mods.sort(key=lambda m: m['mod_name'])
@@ -329,11 +347,32 @@ class ModulesTool(object):
         self.log.debug("'module available %s' gave %d answers: %s" % (mod_name, len(ans), ans))
         return ans
 
+    def exist(self, mod_names):
+        """
+        Check if modules with specified names exists.
+        """
+        avail_mod_names = self.available()
+        # differentiate between hidden and visible modules
+        mod_names = [(mod_name, not os.path.basename(mod_name).startswith('.')) for mod_name in mod_names]
+
+        mods_exist = []
+        for (mod_name, visible) in mod_names:
+            if visible:
+                mods_exist.append(mod_name in avail_mod_names)
+            else:
+                # hidden modules are not visible in 'avail', need to use 'show' instead
+                modtype = ('hidden', 'visible (not hidden)')[visible]
+                self.log.debug("checking whether %s module %s exists via 'show'..." % (modtype, mod_name))
+                txt = self.show(mod_name)
+                mods_exist_re = re.compile('^\s*\S*/%s:\s*$' % re.escape(mod_name), re.M)
+                mods_exist.append(bool(mods_exist_re.search(txt)))
+
+        return mods_exist
+
     def exists(self, mod_name):
-        """
-        Check if module with specified name exists.
-        """
-        return mod_name in self.available(mod_name)
+        """Check if a module with the specified name exists."""
+        self.log.deprecated("exists(<mod_name>) is deprecated, use exist([<mod_name>]) instead", '2.0')
+        return self.exist([mod_name])[0]
 
     def load(self, modules, mod_paths=None, purge=False, orig_env=None):
         """
@@ -352,7 +391,7 @@ class ModulesTool(object):
             self.purge()
             # restore original environment if provided
             if orig_env is not None:
-                modify_env(os.environ, orig_env)
+                restore_env(orig_env)
 
         # make sure $MODULEPATH is set correctly after purging
         self.check_module_path()
@@ -395,7 +434,7 @@ class ModulesTool(object):
         @param mod_name: module name
         @param regex: (compiled) regular expression, with one group
         """
-        if self.exists(mod_name):
+        if self.exist([mod_name])[0]:
             modinfo = self.show(mod_name)
             self.log.debug("modinfo: %s" % modinfo)
             res = regex.search(modinfo)
@@ -404,7 +443,7 @@ class ModulesTool(object):
             else:
                 self.log.error("Failed to determine value from 'show' (pattern: '%s') in %s" % (regex.pattern, modinfo))
         else:
-            raise EasyBuildError("Can't get module file path for non-existing module %s" % mod_name)
+            raise EasyBuildError("Can't get value from a non-existing module %s" % mod_name)
 
     def modulefile_path(self, mod_name):
         """Get the path of the module file for the specified module."""
@@ -412,10 +451,6 @@ class ModulesTool(object):
         # this works for both environment modules and Lmod
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
         return self.get_value_from_modulefile(mod_name, modpath_re)
-
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        raise NotImplementedError
 
     def set_ld_library_path(self, ld_library_paths):
         """Set $LD_LIBRARY_PATH to the given list of paths."""
@@ -531,17 +566,22 @@ class ModulesTool(object):
 
         return loaded_modules
 
-    # depth=sys.maxint should be equivalent to infinite recursion depth
-    def dependencies_for(self, mod_name, depth=sys.maxint):
+    def read_module_file(self, mod_name):
         """
-        Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+        Read module file with specified name.
         """
         modfilepath = self.modulefile_path(mod_name)
         self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
 
-        modtxt = read_file(modfilepath)
+        return read_file(modfilepath)
 
-        loadregex = re.compile(r"^\s+module load\s+(.*)$", re.M)
+    def dependencies_for(self, mod_name, depth=sys.maxint):
+        """
+        Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+        @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
+        """
+        modtxt = self.read_module_file(mod_name)
+        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
@@ -559,6 +599,118 @@ class ModulesTool(object):
 
         return mods
 
+    def modpath_extensions_for(self, mod_names):
+        """
+        Determine dictionary with $MODULEPATH extensions for specified modules.
+        Modules with an empty list of $MODULEPATH extensions are included.
+        """
+        self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
+
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
+
+        modpath_exts = {}
+        for mod_name in mod_names:
+            modtxt = self.read_module_file(mod_name)
+            useregex = re.compile(r"^\s*module\s+use\s+(\S+)", re.M)
+            exts = useregex.findall(modtxt)
+
+            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
+            modpath_exts.update({mod_name: exts})
+
+            if exts:
+                # load this module, since it may extend $MODULEPATH to make other modules available
+                # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
+                self.load([mod_name])
+
+        # restore original environment (modules may have been loaded above)
+        restore_env(orig_env)
+
+        return modpath_exts
+
+    def path_to_top_of_module_tree(self, top_paths, mod_name, full_mod_subdir, deps, modpath_exts=None):
+        """
+        Recursively determine path to the top of the module tree,
+        for given module, module subdir and list of $MODULEPATH extensions per dependency module.
+
+        For example, when to determine the path to the top of the module tree for the HPL/2.1 module being
+        installed with a goolf/1.5.14 toolchain in a Core/Compiler/MPI hierarchy (HierarchicalMNS):
+
+        * starting point:
+            top_paths = ['<prefix>', '<prefix>/Core']
+            mod_name = 'HPL/2.1'
+            full_mod_subdir = '<prefix>/MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.5'
+            deps = ['GCC/4.8.2', 'OpenMPI/1.6.5', 'OpenBLAS/0.2.8-LAPACK-3.5.0', 'FFTW/3.3.4', 'ScaLAPACK/...']
+
+        * 1st iteration: find module that extends $MODULEPATH with '<prefix>/MPI/Compiler/GCC/4.8.2/OpenMPI/1.6.5',
+                         => OpenMPI/1.6.5 (in '<prefix>/Compiler/GCC/4.8.2' subdir);
+                         recurse with mod_name = 'OpenMPI/1.6.5' and full_mod_subdir = '<prefix>/Compiler/GCC/4.8.2'
+
+        * 2nd iteration: find module that extends $MODULEPATH with '<prefix>/Compiler/GCC/4.8.2'
+                         => GCC/4.8.2 (in '<prefix>/Core' subdir);
+                         recurse with mod_name = 'GCC/4.8.2' and full_mod_subdir = '<prefix>/Core'
+
+        * 3rd iteration: try to find module that extends $MODULEPATH with '<prefix>/Core'
+                         => '<prefix>/Core' is in top_paths, so stop recursion
+
+        @param top_paths: list of potentation 'top of module tree' (absolute) paths
+        @param mod_name: (short) module name for starting point (only used in log messages)
+        @param full_mod_subdir: absolute path to module subdirectory for starting point
+        @param deps: list of dependency modules for module at starting point
+        @param modpath_exts: list of module path extensions for each of the dependency modules
+        """
+        # copy environment so we can restore it
+        orig_env = os.environ.copy()
+
+        if path_matches(full_mod_subdir, top_paths):
+            self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
+            return []
+
+        self.log.debug("Checking for dependency that extends $MODULEPATH with %s" % full_mod_subdir)
+
+        if modpath_exts is None:
+            # only retain dependencies that have a non-empty lists of $MODULEPATH extensions
+            modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
+            self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
+
+        mods_to_top = []
+        full_mod_subdirs = []
+        for dep in modpath_exts:
+            # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
+            # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
+            full_modpath_exts = modpath_exts[dep]
+            if path_matches(full_mod_subdir, full_modpath_exts):
+                # full path to module subdir of dependency is simply path to module file without (short) module name
+                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(dep_full_mod_subdir)
+
+                mods_to_top.append(dep)
+                tup = (dep, dep_full_mod_subdir, full_modpath_exts)
+                self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
+
+            if full_modpath_exts:
+                # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
+                # this is required to obtain the corresponding module file paths (via 'module show')
+                self.load([dep])
+
+        # restore original environment (modules may have been loaded above)
+        restore_env(orig_env)
+
+        path = mods_to_top[:]
+        if mods_to_top:
+            # remove retained dependencies from the list, since we're climbing up the module tree
+            remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
+
+            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
+            for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
+                path.extend(self.path_to_top_of_module_tree(top_paths, mod_name, full_mod_subdir, None,
+                                                            modpath_exts=remaining_modpath_exts))
+        else:
+            self.log.debug("Path not extended, we must have reached the top of the module tree")
+
+        self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
+        return path
+
     def update(self):
         """Update after new modules were added."""
         raise NotImplementedError
@@ -569,12 +721,6 @@ class EnvironmentModulesC(ModulesTool):
     COMMAND = "modulecmd"
     REQ_VERSION = '3.2.10'
     VERSION_REGEXP = r'^\s*(VERSION\s*=\s*)?(?P<version>\d\S*)\s*'
-
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        # line that specified conflict contains software name
-        name_re = re.compile('^conflict\s*(?P<name>\S+).*$', re.M)
-        return self.get_value_from_modulefile(mod_name, name_re)
 
     def update(self):
         """Update after new modules were added."""
@@ -678,7 +824,13 @@ class Lmod(ModulesTool):
 
         @param name: a (partial) module name for filtering (default: None)
         """
-        mods = super(Lmod, self).available(mod_name=mod_name)
+        extra_args = []
+        if StrictVersion(self.version) >= StrictVersion('5.7.5'):
+            # make hidden modules visible for recent version of Lmod
+            extra_args = ['--show_hidden']
+
+        mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
+
         # only retain actual modules, exclude module directories (which end with a '/')
         real_mods = [mod for mod in mods if not mod.endswith('/')]
 
@@ -715,12 +867,6 @@ class Lmod(ModulesTool):
                 cache_file.close()
             except (IOError, OSError), err:
                 self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
-
-    def module_software_name(self, mod_name):
-        """Get the software name for a given module name."""
-        # line that specified conflict contains software name
-        name_re = re.compile('^conflict\("*(?P<name>[^ "]+)"\).*$', re.M)
-        return self.get_value_from_modulefile(mod_name, name_re)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'
@@ -839,7 +985,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None):
+def modules_tool(mod_paths=None, testing=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -847,7 +993,7 @@ def modules_tool(mod_paths=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths)
+        return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
 

@@ -1,6 +1,6 @@
 #
 #
-# Copyright 2011-2013 Ghent University
+# Copyright 2011-2014 Ghent University
 #
 # This file is part of vsc-base,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,9 +46,10 @@ from optparse import BadOptionError, SUPPRESS_USAGE, NO_DEFAULT, OptionValueErro
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 from optparse import _ as _gettext  # this is gettext normally
 from vsc.utils.dateandtime import date_parser, datetime_parser
-from vsc.utils.fancylogger import getLogger, setLogLevel
+from vsc.utils.fancylogger import getLogger, setLogLevel, getDetailsLogLevels
 from vsc.utils.missing import shell_quote, nub
 from vsc.utils.optcomplete import autocomplete, CompleterOption
+
 
 def set_columns(cols=None):
     """Set os.environ COLUMNS variable
@@ -71,20 +72,38 @@ def set_columns(cols=None):
         os.environ['COLUMNS'] = "%s" % cols
 
 
+def what_str_list_tuple(name):
+    """Given name, return separator, class and helptext wrt separator.
+        (Currently supports strlist, strtuple, pathlist, pathtuple) 
+    """
+    sep = ','
+    helpsep = 'comma'
+    if name.startswith('path'):
+        sep = os.pathsep
+        helpsep = 'pathsep'
+
+    klass = None
+    if name.endswith('list'):
+        klass = list
+    elif name.endswith('tuple'):
+        klass = tuple
+
+    return sep, klass, helpsep
+
 def check_str_list_tuple(option, opt, value):
     """
     check function for strlist and strtuple type
         assumes value is comma-separated list
         returns list or tuple of strings
     """
-    split = value.split(',')
-    if option.type == 'strlist':
-        return split
-    elif option.type == 'strtuple':
-        return tuple(split)
-    else:
-        err = _("check_strlist_strtuple: unsupported type %s" % option.type)
+    sep, klass, _ = what_str_list_tuple(option.type)
+    split = value.split(sep)
+
+    if klass is None:
+        err = _gettext("check_strlist_strtuple: unsupported type %s" % option.type)
         raise OptionValueError(err)
+    else:
+        return klass(split)
 
 
 class ExtOption(CompleterOption):
@@ -96,7 +115,10 @@ class ExtOption(CompleterOption):
          - confighelp : hook for configfile-style help messages
          - store_debuglog : turns on fancylogger debugloglevel
             - also: 'store_infolog', 'store_warninglog'
-         - extend : extend default list (or create new one if is None)
+         - add : add value to default (result is default + value)
+             - add_first : add default to value (result is value + default)
+             - extend : alias for add with strlist type
+             - type must support + (__add__) and one of negate (__neg__) or slicing (__getslice__)
          - date : convert into datetime.date
          - datetime : convert into datetime.datetime
          - regex: compile str in regexp
@@ -104,13 +126,18 @@ class ExtOption(CompleterOption):
            - set default to None if no option passed,
            - set to default if option without value passed,
            - set to value if option with value passed
+           
+        Types:
+          - strlist, strtuple : convert comma-separated string in a list resp. tuple of strings     
+          - pathlist, pathtuple : using os.pathsep, convert pathsep-separated string in a list resp. tuple of strings
+              - the path separator is OS-dependent
     """
     EXTEND_SEPARATOR = ','
 
     ENABLE = 'enable'  # do nothing
     DISABLE = 'disable'  # inverse action
 
-    EXTOPTION_EXTRA_OPTIONS = ('extend', 'date', 'datetime', 'regex',)
+    EXTOPTION_EXTRA_OPTIONS = ('date', 'datetime', 'regex', 'add', 'add_first',)
     EXTOPTION_STORE_OR = ('store_or_None',)  # callback type
     EXTOPTION_LOG = ('store_debuglog', 'store_infolog', 'store_warninglog',)
     EXTOPTION_HELP = ('shorthelp', 'confighelp',)
@@ -120,16 +147,24 @@ class ExtOption(CompleterOption):
     TYPED_ACTIONS = Option.TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_STORE_OR
     ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS
 
-    TYPE_CHECKER = dict([('strlist', check_str_list_tuple),
-                         ('strtuple', check_str_list_tuple),
-                         ] + Option.TYPE_CHECKER.items())
-    TYPES = tuple(['strlist', 'strtuple'] + list(Option.TYPES))
+    TYPE_STRLIST = ['%s%s' % (name, klass) for klass in ['list', 'tuple'] for name in ['str', 'path'] ]
+    TYPE_CHECKER = dict([(x, check_str_list_tuple) for x in TYPE_STRLIST] + Option.TYPE_CHECKER.items())
+    TYPES = tuple(TYPE_STRLIST + list(Option.TYPES))
     BOOLEAN_ACTIONS = ('store_true', 'store_false',) + EXTOPTION_LOG
+
+    def __init__(self, *args, **kwargs):
+        """Add logger to init"""
+        CompleterOption.__init__(self, *args, **kwargs)
+        self.log = getLogger(self.__class__.__name__)
 
     def _set_attrs(self, attrs):
         """overwrite _set_attrs to allow store_or callbacks"""
         Option._set_attrs(self, attrs)
-        if self.action in self.EXTOPTION_STORE_OR:
+        if self.action == 'extend':
+            # alias
+            self.action = 'add'
+            self.type = 'strlist'
+        elif self.action in self.EXTOPTION_STORE_OR:
             setattr(self, 'store_or', self.action)
 
             def store_or(option, opt_str, value, parser, *args, **kwargs):
@@ -137,8 +172,7 @@ class ExtOption(CompleterOption):
                 # see http://stackoverflow.com/questions/1229146/parsing-empty-options-in-python
                 # ugly code, optparse is crap
                 if parser.rargs and not parser.rargs[0].startswith('-'):
-                    val = parser.rargs[0]
-                    parser.rargs.pop(0)
+                    val = option.check_value(opt_str, parser.rargs.pop(0))
                 else:
                     val = kwargs.get('orig_default', None)
 
@@ -151,13 +185,14 @@ class ExtOption(CompleterOption):
                 self.type = 'string'
 
             self.callback = store_or
-            self.callback_kwargs = {'orig_default': copy.deepcopy(self.default),
-                                    }
+            self.callback_kwargs = {
+                'orig_default': copy.deepcopy(self.default),
+                }
             self.action = 'callback'  # act as callback
             if self.store_or == 'store_or_None':
                 self.default = None
             else:
-                raise ValueError("_set_attrs: unknown store_or %s" % self.store_or)
+                self.log.raiseException("_set_attrs: unknown store_or %s" % self.store_or, exception=ValueError)
 
     def take_action(self, action, dest, opt, value, values, parser):
         """Extended take_action"""
@@ -184,26 +219,40 @@ class ExtOption(CompleterOption):
                     action = 'store_true'
 
             if orig_action in self.EXTOPTION_LOG and action == 'store_true':
-                setLogLevel(orig_action.split('_')[1][:-3].upper())
+                newloglevel = orig_action.split('_')[1][:-3].upper()
+                logstate = ", ".join(["(%s, %s)" % (n, l) for n, l in getDetailsLogLevels()])
+                self.log.debug("changing loglevel to %s, current state: %s" % (newloglevel, logstate))
+                setLogLevel(newloglevel)
+                self.log.debug("changed loglevel to %s, previous state: %s" % (newloglevel, logstate))
+                if hasattr(values, '_logaction_taken'):
+                    values._logaction_taken[dest] = True
 
             Option.take_action(self, action, dest, opt, value, values, parser)
+
         elif action in self.EXTOPTION_EXTRA_OPTIONS:
-            if action == "extend":
-                # comma separated list convert in list
-                lvalue = value.split(self.EXTEND_SEPARATOR)
-                values.ensure_value(dest, []).extend(lvalue)
+            if action in ("add", "add_first",):
+                # determine type from lvalue
+                # set default first
+                values.ensure_value(dest, type(value)())
+                default = getattr(values, dest)
+                if not (hasattr(default, '__add__') and
+                        (hasattr(default, '__neg__') or hasattr(default, '__getslice__'))):
+                    msg = "Unsupported type %s for action %s (requires + and one of negate or slice)"
+                    self.log.raiseException(msg % (type(default), action))
+                if action == 'add':
+                    lvalue = default + value
+                elif action == 'add_first':
+                    lvalue = value + default
             elif action == "date":
                 lvalue = date_parser(value)
-                setattr(values, dest, lvalue)
             elif action == "datetime":
                 lvalue = datetime_parser(value)
-                setattr(values, dest, lvalue)
             elif action == "regex":
                 lvalue = re.compile(r'' + value)
-                setattr(values, dest, lvalue)
             else:
-                raise(Exception("Unknown extended option action %s (known: %s)" %
-                                (action, self.EXTOPTION_EXTRA_OPTIONS)))
+                msg = "Unknown extended option action %s (known: %s)"
+                self.log.raiseException(msg % (action, self.EXTOPTION_EXTRA_OPTIONS))
+            setattr(values, dest, lvalue)
         else:
             Option.take_action(self, action, dest, opt, value, values, parser)
 
@@ -278,7 +327,7 @@ class PassThroughOptionParser(OptionParser):
 
 class ExtOptionGroup(OptionGroup):
     """An OptionGroup with support for configfile section names"""
-    RESERVED_SECTIONS = ['DEFAULT']
+    RESERVED_SECTIONS = [ConfigParser.DEFAULTSECT]
     NO_SECTION = ('NO', 'SECTION')
 
     def __init__(self, *args, **kwargs):
@@ -324,6 +373,7 @@ class ExtOptionParser(OptionParser):
         self.help_to_string = kwargs.pop('help_to_string', None)
         self.help_to_file = kwargs.pop('help_to_file', None)
         self.envvar_prefix = kwargs.pop('envvar_prefix', None)
+        self.process_env_options = kwargs.pop('process_env_options', True)
 
         # py2.4 epilog compatibilty with py2.7 / optparse 1.5.3
         self.epilog = kwargs.pop('epilog', None)
@@ -343,6 +393,9 @@ class ExtOptionParser(OptionParser):
             epilogtxt = 'Boolean options support %(disable)s prefix to do the inverse of the action,'
             epilogtxt += ' e.g. option --someopt also supports --disable-someopt.'
             self.epilog.append(epilogtxt % {'disable': self.option_class.DISABLE})
+
+        self.environment_arguments = None
+        self.commandline_arguments = None
 
     def set_description_docstring(self):
         """Try to find the main docstring and add it if description is not None"""
@@ -400,12 +453,15 @@ class ExtOptionParser(OptionParser):
     def get_default_values(self):
         """Introduce the ExtValues class with class constant
             - make it dynamic, otherwise the class constant is shared between multiple instances
-            - class constant is used to avoid _taken_action as option in the __dict__
+            - class constant is used to avoid _action_taken as option in the __dict__ 
+                - only works by using reference to object
+                - same for _logaction_taken
         """
         values = OptionParser.get_default_values(self)
 
         class ExtValues(self.VALUES_CLASS):
             _action_taken = {}
+            _logaction_taken = {}
 
         newvalues = ExtValues()
         newvalues.__dict__ = values.__dict__.copy()
@@ -524,9 +580,9 @@ class ExtOptionParser(OptionParser):
 
     def _get_args(self, args):
         """Prepend the options set through the environment"""
-        regular_args = OptionParser._get_args(self, args)
-        env_args = self.get_env_options()
-        return env_args + regular_args  # prepend the environment options as longopts
+        self.commandline_arguments = OptionParser._get_args(self, args)
+        self.get_env_options()
+        return self.environment_arguments + self.commandline_arguments  # prepend the environment options as longopts
 
     def get_env_options_prefix(self):
         """Return the prefix to use for options passed through the environment"""
@@ -537,7 +593,12 @@ class ExtOptionParser(OptionParser):
 
     def get_env_options(self):
         """Retrieve options from the environment: prefix_longopt.upper()"""
-        env_long_opts = []
+        self.environment_arguments = []
+
+        if not self.process_env_options:
+            self.log.debug("Not processing environment for options")
+            return
+
         if self.envvar_prefix is None:
             self.get_env_options_prefix()
 
@@ -556,16 +617,16 @@ class ExtOptionParser(OptionParser):
                 val = os.environ.get(env_opt_name, None)
                 if not val is None:
                     if opt.action in opt.TYPED_ACTIONS:  # not all typed actions are mandatory, but let's assume so
-                        env_long_opts.append("%s=%s" % (lo, val))
+                        self.environment_arguments.append("%s=%s" % (lo, val))
                     else:
                         # interpretation of values: 0/no/false means: don't set it
                         if not ("%s" % val).lower() in ("0", "no", "false",):
-                            env_long_opts.append("%s" % lo)
+                            self.environment_arguments.append("%s" % lo)
                 else:
                     self.log.debug("Environment variable %s is not set" % env_opt_name)
 
-        self.log.debug("Environment variable options with prefix %s: %s" % (self.envvar_prefix, env_long_opts))
-        return env_long_opts
+        self.log.debug("Environment variable options with prefix %s: %s" % (self.envvar_prefix, self.environment_arguments))
+        return self.environment_arguments
 
     def get_option_by_long_name(self, name):
         """Return the option matching the long option name"""
@@ -592,6 +653,9 @@ class GeneralOption(object):
         - go_useconfigfiles : use configfiles or not (default set by CONFIGFILES_USE)
             if True, an option --configfiles will be added
         - go_configfiles : list of configfiles to parse. Uses ConfigParser.read; last file wins
+        - go_configfiles_initenv : section dict of key/value dict; inserted before configfileparsing
+            As a special case, using all uppercase key in DEFAULT section with a case-sensitive 
+            configparser can be used to set "constants" for easy interpolation in all sections.
         - go_loggername : name of logger, default classname
         - go_mainbeforedefault : set the main options before the default ones
         - go_autocompleter : dict with named options to pass to the autocomplete call (eg arg_completer)
@@ -623,7 +687,8 @@ class GeneralOption(object):
     CONFIGFILES_INIT = []  # initial list of defaults, overwritten by go_configfiles options
     CONFIGFILES_IGNORE = []
     CONFIGFILES_MAIN_SECTION = 'MAIN'  # sectionname that contains the non-grouped/non-prefixed options
-    CONFIGFILE_PARSER = ConfigParser.ConfigParser
+    CONFIGFILE_PARSER = ConfigParser.SafeConfigParser
+    CONFIGFILE_CASESENSITIVE = True
 
     METAVAR_DEFAULT = True  # generate a default metavar
     METAVAR_MAP = None  # metvar, list of longopts map
@@ -634,6 +699,7 @@ class GeneralOption(object):
 
     VERSION = None  # set the version (will add --version)
 
+    DEFAULTSECT = ConfigParser.DEFAULTSECT
     DEFAULT_LOGLEVEL = None
     DEFAULT_CONFIGFILES = None
     DEFAULT_IGNORECONFIGFILES = None
@@ -642,7 +708,8 @@ class GeneralOption(object):
         go_args = kwargs.pop('go_args', None)
         self.no_system_exit = kwargs.pop('go_nosystemexit', None)  # unit test option
         self.use_configfiles = kwargs.pop('go_useconfigfiles', self.CONFIGFILES_USE)  # use or ignore config files
-        self.configfiles = kwargs.pop('go_configfiles', self.CONFIGFILES_INIT)  # configfiles to parse
+        self.configfiles = kwargs.pop('go_configfiles', self.CONFIGFILES_INIT[:])  # configfiles to parse
+        configfiles_initenv = kwargs.pop('go_configfiles_initenv', None)  # initial environment for configfiles to parse
         prefixloggername = kwargs.pop('go_prefixloggername', False)  # name of logger is same as envvar prefix
         mainbeforedefault = kwargs.pop('go_mainbeforedefault', False)  # Set the main options before the default ones
         autocompleter = kwargs.pop('go_autocompleter', {})  # Pass these options to the autocomplete call
@@ -657,7 +724,7 @@ class GeneralOption(object):
         self.parser = self.PARSER(**kwargs)
         self.parser.allow_interspersed_args = self.INTERSPERSED
 
-        self.configfile_parser = self.CONFIGFILE_PARSER()
+        self.configfile_parser = None
         self.configfile_remainder = {}
 
         loggername = self.__class__.__name__
@@ -692,6 +759,7 @@ class GeneralOption(object):
 
         if not self.options is None:
             # None for eg usage/help
+            self.configfile_parser_init(initenv=configfiles_initenv)
             self.parseconfigfiles()
 
             self._set_default_loglevel()
@@ -719,7 +787,7 @@ class GeneralOption(object):
         self._logopts = {
             'debug': ("Enable debug log mode", None, "store_debuglog", False, 'd'),
             'info': ("Enable info log mode", None, "store_infolog", False),
-            'quiet': ("Enable info quiet/warning mode", None, "store_warninglog", False),
+            'quiet': ("Enable quiet/warning log mode", None, "store_warninglog", False),
         }
 
         descr = ['Debug and logging options', '']
@@ -735,8 +803,8 @@ class GeneralOption(object):
     def _make_configfiles_options(self):
         """Add configfiles option"""
         opts = {
-            'configfiles': ("Parse (additional) configfiles", None, "extend", self.DEFAULT_CONFIGFILES),
-            'ignoreconfigfiles': ("Ignore configfiles", None, "extend", self.DEFAULT_IGNORECONFIGFILES),
+            'configfiles': ("Parse (additional) configfiles", "strlist", "add", self.DEFAULT_CONFIGFILES),
+            'ignoreconfigfiles': ("Ignore configfiles", "strlist", "add", self.DEFAULT_IGNORECONFIGFILES),
         }
         descr = ['Configfile options', '']
         self.log.debug("Add configfiles options descr %s opts %s (no prefix)" % (descr, opts))
@@ -855,16 +923,17 @@ class GeneralOption(object):
                 default = otherdefaults.get(key)
 
             extra_help = []
-            if action in ("extend",) or typ in ('strlist', 'strtuple',):
-                extra_help.append("type comma-separated list")
+            if typ in ExtOption.TYPE_STRLIST:
+                sep, klass, helpsep = what_str_list_tuple(typ)
+                extra_help.append("type %s-separated %s" % (helpsep, klass.__name__))
             elif typ is not None:
                 extra_help.append("type %s" % typ)
 
             if default is not None:
                 if len(str(default)) == 0:
                     extra_help.append("def ''")  # empty string
-                elif action in ("extend",) or typ in ('strlist', 'strtuple',):
-                    extra_help.append("def %s" % ','.join(default))
+                elif typ in ExtOption.TYPE_STRLIST:
+                    extra_help.append("def %s" % sep.join(default))
                 else:
                     extra_help.append("def %s" % default)
 
@@ -958,17 +1027,19 @@ class GeneralOption(object):
         try:
             (self.options, self.args) = self.parser.parse_args(options_list)
         except SystemExit, err:
+            try:
+                msg = err.message
+            except AttributeError:
+                # py2.4
+                msg = str(err)
+            self.log.debug("parseoptions: parse_args err %s code %s" % (msg, err.code))
             if self.no_system_exit:
-                try:
-                    msg = err.message
-                except:
-                    # py2.4
-                    msg = '_nomessage_'
-                self.log.debug("parseoptions: no_system_exit set after parse_args err %s code %s" %
-                               (msg, err.code))
                 return
             else:
                 sys.exit(err.code)
+
+        self.log.debug("parseoptions: options from environment %s" % (self.parser.environment_arguments))
+        self.log.debug("parseoptions: options from commandline %s" % (self.parser.commandline_arguments))
 
         # args should be empty, since everything is optional
         if len(self.args) > 1:
@@ -977,6 +1048,40 @@ class GeneralOption(object):
                 self.parser.error("Invalid arguments args %s" % self.args)
 
         self.log.debug("Found options %s args %s" % (self.options, self.args))
+
+    def configfile_parser_init(self, initenv=None):
+        """
+        Initialise the confgiparser to use.
+        
+            @params initenv: insert initial environment into the configparser. 
+                It is a dict of dicts; the first level key is the section name; 
+                the 2nd level key,value is the key=value. 
+                All section names, keys and values are converted to strings.
+        """
+        self.configfile_parser = self.CONFIGFILE_PARSER()
+
+        # make case sensitive
+        if self.CONFIGFILE_CASESENSITIVE:
+            self.log.debug('Initialise case sensitive configparser')
+            self.configfile_parser.optionxform = str
+        else:
+            self.log.debug('Initialise case insensitive configparser')
+            self.configfile_parser.optionxform = str.lower
+
+        # insert the initenv in the parser
+        if initenv is None:
+            initenv = {}
+
+        for name, section in initenv.items():
+            name = str(name)
+            if name == self.DEFAULTSECT:
+                # is protected/reserved (and hidden)
+                pass
+            elif not self.configfile_parser.has_section(name):
+                self.configfile_parser.add_section(name)
+
+            for key, value in section.items():
+                self.configfile_parser.set(name, str(key), str(value))
 
     def parseconfigfiles(self):
         """Parse configfiles"""
@@ -1023,7 +1128,8 @@ class GeneralOption(object):
         self.log.debug("parseconfigfiles: following files were parsed %s" % parsed_files)
         self.log.debug("parseconfigfiles: following files were NOT parsed %s" %
                        [x for x in configfiles if not x in parsed_files])
-        self.log.debug("parseconfigfiles: sections (w/o DEFAULT) %s" % self.configfile_parser.sections())
+        self.log.debug("parseconfigfiles: sections (w/o %s) %s" %
+                       (self.DEFAULTSECT, self.configfile_parser.sections()))
 
         # walk through list of section names
         # - look for options set though config files
@@ -1045,8 +1151,8 @@ class GeneralOption(object):
             if section not in cfg_sections_flat:
                 self.log.debug("parseconfigfiles: found section %s, adding to remainder" % section)
                 remainder = self.configfile_remainder.setdefault(section, {})
-                # parse te remaining options, sections starting with 'raw_' as their name will be considered raw sections
-
+                # parse the remaining options, sections starting with 'raw_'
+                # as their name will be considered raw sections
                 for opt, val in self.configfile_parser.items(section, raw=(section.startswith('raw_'))):
                     remainder[opt] = val
 
@@ -1070,12 +1176,30 @@ class GeneralOption(object):
                     opt_name, opt_dest = self.make_options_option_name_and_destination(prefix, opt)
                     actual_option = self.parser.get_option_by_long_name(opt_name)
                     if actual_option is None:
-                        self.log.raiseException('parseconfigfiles: no option corresponding with dest %s' %
-                                                opt_dest)
+                        # don't fail on DEFAULT UPPERCASE options in case-sensitive mode.
+                        in_def = self.configfile_parser.has_option(self.DEFAULTSECT, opt)
+                        if in_def and self.CONFIGFILE_CASESENSITIVE and opt == opt.upper():
+                            self.log.debug(('parseconfigfiles: no option corresponding with '
+                                            'opt %s dest %s in section %s but found all uppercase '
+                                            'in DEFAULT section. Skipping.') % (opt, opt_dest, section))
+                            continue
+                        else:
+                            self.log.raiseException(('parseconfigfiles: no option corresponding with '
+                                                     'opt %s dest %s in section %s') % (opt, opt_dest, section))
 
                     configfile_options_default[opt_dest] = actual_option.default
 
-                    if actual_option.action in ExtOption.BOOLEAN_ACTIONS:
+                    # log actions require special care
+                    # if any log action was already taken before, it would precede the one from the configfile
+                    # however, multiple logactions in a configfile (or environment for that matter) have
+                    # undefined behaviour
+                    is_log_action = actual_option.action in ExtOption.EXTOPTION_LOG
+                    log_action_taken = getattr(self.options, '_logaction_taken', False)
+                    if is_log_action and log_action_taken:
+                        # value set through take_action. do not modify by configfile
+                        self.log.debug(('parseconfigfiles: log action %s (value %s) found,'
+                                        ' but log action already taken. Ignoring.') % (opt_dest, val))
+                    elif actual_option.action in ExtOption.BOOLEAN_ACTIONS:
                         try:
                             newval = self.configfile_parser.getboolean(section, opt)
                             self.log.debug(('parseconfigfiles: getboolean for option %s value %s '
@@ -1102,10 +1226,16 @@ class GeneralOption(object):
         # reparse
         self.log.debug('parseconfigfiles: going to parse options through cmdline %s' % configfile_cmdline)
         try:
+            # can't reprocress the environment, since we are not reporcessing the commandline either
+            self.parser.process_env_options = False
             (parsed_configfile_options, parsed_configfile_args) = self.parser.parse_args(configfile_cmdline)
+            self.parser.process_env_options = True
         except:
             self.log.raiseException('parseconfigfiles: failed to parse options through cmdline %s' %
                                     configfile_cmdline)
+
+        # re-report the options as parsed via parser
+        self.log.debug("parseconfigfiles: options from configfile %s" % (self.parser.commandline_arguments))
 
         if len(parsed_configfile_args) > 0:
             self.log.raiseException('parseconfigfiles: not all options were parsed: %s' % parsed_configfile_args)
@@ -1210,8 +1340,8 @@ class GeneralOption(object):
         return subdict
 
     def generate_cmd_line(self, ignore=None, add_default=None):
-        """Create the commandline options that would create the current self.options
-            opt_name is destination
+        """Create the commandline options that would create the current self.options.
+           The result is sorted on the destination names.
 
             @param ignore : regex on destination
             @param add_default : print value that are equal to default
@@ -1265,7 +1395,11 @@ class GeneralOption(object):
                 else:
                     self.log.debug("generate_cmd_line %s adding %s non-default value %s" %
                                    (action, opt_name, opt_value))
-                    args.append("--%s=%s" % (opt_name, shell_quote(opt_value)))
+                    if typ in ExtOption.TYPE_STRLIST:
+                        sep, _, _ = what_str_list_tuple(typ)
+                        args.append("--%s=%s" % (opt_name, shell_quote(sep.join(opt_value))))
+                    else:
+                        args.append("--%s=%s" % (opt_name, shell_quote(opt_value)))
             elif action in ("store_true", "store_false",) + ExtOption.EXTOPTION_LOG:
                 # not default!
                 self.log.debug("generate_cmd_line adding %s value %s. store action found" %
@@ -1290,23 +1424,39 @@ class GeneralOption(object):
                                            (opt_name, action, default))
                     else:
                         args.append("--%s" % opt_name)
-            elif action in ("extend",):
-                # comma separated
-                self.log.debug("generate_cmd_line adding %s value %s. extend action, return as comma-separated list" %
-                               (opt_name, opt_value))
-
+            elif action in ("add", "add_first"):
                 if default is not None:
-                    # remove these. if default is set, extend extends the default!
-                    for def_el in default:
-                        opt_value.remove(def_el)
+                    if hasattr(opt_value, '__neg__'):
+                        if action == 'add_first':
+                            opt_value = opt_value + -default
+                        else:
+                            opt_value = -default + opt_value
+                    elif hasattr(opt_value, '__getslice__'):
+                        if action == 'add_first':
+                            opt_value = opt_value[:-len(default)]
+                        else:
+                            opt_value = opt_value[len(default):]
 
-                if len(opt_value) == 0:
-                    self.log.debug('generate_cmd_line skipping.')
+                if typ in ExtOption.TYPE_STRLIST:
+                    sep, klass, helpsep = what_str_list_tuple(typ)
+                    restype = '%s-separated %s' % (helpsep, klass.__name__)
+                    value = sep.join(opt_value)
+                else:
+                    restype = 'string'
+                    value = opt_value
+
+                if not opt_value:
+                    # empty strings, empty lists, 0
+                    self.log.debug('generate_cmd_line no value left, skipping.')
                     continue
 
-                args.append("--%s=%s" % (opt_name, shell_quote(",".join(opt_value))))
-            elif typ in ('strlist', 'strtuple',):
-                args.append("--%s=%s" % (opt_name, shell_quote(",".join(opt_value))))
+                self.log.debug("generate_cmd_line adding %s value %s. %s action, return as %s" %
+                               (opt_name, opt_value, action, restype))
+
+                args.append("--%s=%s" % (opt_name, shell_quote(value)))
+            elif typ in ExtOption.TYPE_STRLIST:
+                sep, _, _ = what_str_list_tuple(typ)
+                args.append("--%s=%s" % (opt_name, shell_quote(sep.join(opt_value))))
             elif action in ("append",):
                 # add multiple times
                 self.log.debug("generate_cmd_line adding %s value %s. append action, return as multiple args" %

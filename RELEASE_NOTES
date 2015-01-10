@@ -1,6 +1,122 @@
 This file contains a description of the major changes to the easybuild-framework EasyBuild package.
 For more detailed information, please see the git log.
 
+These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
+
+v1.16.1 (December 19th 2014)
+----------------------------
+
+bugfix release
+- fix functionality that is broken with --deprecated=2.0 or with $EASYBUILD_DEPRECATED=2.0
+    - don't include easyconfig parameters for ConfigureMake in eb -a, since fallback is deprecated (#1123)
+    - correctly check software_license value type (#1124)
+    - fix generate_software_list.py script w.r.t. deprecated fallback to ConfigureMake (#1127)
+- other bug fixes
+    - fix logging issues in tests, sync with vsc-base v2.0.0 (#1120)
+
+v1.16.0 (December 18th 2014)
+----------------------------
+
+feature + bugfix release
+- deprecate automagic fallback to ConfigureMake easyblock (#1113)
+    - easyconfigs should specify easyblock = 'ConfigureMake' instead of relying on the fallback mechanism
+    - note: automagic fallback to ConfigureMake easyblock will be dropped in EasyBuild v2.0
+    - see also http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback
+- stop triggering deprecated functionality, to enable use of --deprecated=2.0 (#1107, #1115, #1119)
+    - see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html#configuremake-fallback for more information
+- various other enhancements, including:
+    - add script to clean up gists created via --upload-test-report (#958)
+    - also use -xHost when using Intel compilers on AMD systems (as opposed to -msse3) (#960)
+    - add Python version check in eb command (#1046)
+    - take versionprefix into account in HierarchicalMNS module naming scheme (#1058)
+    - clean up and refactor main.py, move functionality to other modules (#1059, #1064, #1075, #1087)
+    - add check in download_file function for HTTP return code + show download progress report (#1066, #1090)
+    - include info log message with name and location of used easyblock (#1069)
+    - add toolchains definitions for gpsmpi, gpsolf, impich, intel-para, ipsmpi toolchains (#1072, #1073)
+        - support for Parastation MPI based toolchains
+    - enforce that hiddendependencies is a subset of dependencies (#1078)
+        - this is done to avoid that site-specific policies w.r.t. hidden modules slip into contributed easyconfigs
+    - enable use of --show_hidden for avail subcommand with recent Lmod versions (#1081)
+    - add --robot-paths configure option (#1080, #1093, #1095, #1114)
+    - support use of %(DEFAULT_ROBOT_PATHS)s template in EasyBuild configuration files (#1100)
+        - see also http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#controlling-the-robot-search-path
+    - use -xHost rather than -xHOST, to match Intel documentation (#1084)
+    - update and cleanup README file (#1085)
+    - deprecate self.moduleGenerator in favor of self.module_generator in EasyBlock (#1088)
+    - also support MPICH MPI family in mpi_cmd_for function (#1098)
+    - update documentation references to point to http://easybuild.readthedocs.org (#1102)
+    - check for OS dependencies with both rpm and dpkg (if available) (#1111)
+- various bug fixes, including:
+    - fix picking required software version specified by --software-version and clean up tweak.py (#1062, #1063)
+    - escape $ characters in module load message specified via modloadmsg easyconfig parameter) (#1068)
+    - take available hidden modules into account in dependency resolution (#1065)
+    - fix hard crash when using patch files with an empty list of sources (#1070)
+    - fix Intel MKL BLACS library being used for MPICH/MPICH2-based toolchains (#1072)
+    - fix regular expression in fetch_parameter_from_easyconfig_file function (#1096)
+    - don’t hardcode queue names when submitting a job (#1106)
+    - fix affiliation/mail address for Fotis in headers (#1105)
+    - filter out /dev/null entries in patch file in det_patched_files function (#1108)
+    - fix gmpolf toolchain definition, to have gmpich as MPI components (instead of gmpich2) (#1101)
+        - ‘MPICH’ refers to MPICH v3.x, while MPICH2 refers to MPICH(2) v2.x (MPICH v1.x is ancient/obsolete)
+        - note: this requires to reinstall the gmpolf module, using the updated easyconfig from easybuild-easyconfigs#1217
+
+v1.15.2 (October 7th 2014)
+--------------------------
+
+bugfix release
+- fix $MODULEPATH extensions for Clang/CUDA, to make goolfc/cgoolf compatible with HierarchicalMNS (#1050)
+- include versionsuffix in module subdirectory with HierarchicalMNS (#1050, #1055)
+- fix unit tests which were broken with bash patched for ShellShock bug (#1051)
+- add definition of gimpi toolchain, required to make gimkl toolchain compatible with HierarchicalMNS (#1052)
+- don't override COMPILER_MODULE_NAME obtained from ClangGCC in Clang-based toolchains (#1053)
+- fix wrong code in path_to_top_of_module_tree function (#1054)
+    - because of this, load statements for compilers were potentially included in higher-level modules under HierarchicalMNS
+
+v1.15.1 (September 23rd 2014)
+-----------------------------
+
+bugfix release
+- take into account that multiple modules may be extending $MODULEPATH with the same path,
+  when determining path to top of module tree (see #1047)
+        - this bug caused a load statement for either icc or ifort to be included in higher-level
+          modules installed with an Intel-based compiler toolchain, under the HierarchicalMNS module naming scheme
+- make HierarchicalMNS module naming scheme compatible with cgoolf and goolfc toolchain (#1049)
+- add definition of iompi (sub)toolchain to make iomkl toolchain compatible with HierarchicalMNS (#1049)
+
+v1.15.0 (September 12th 2014)
+-----------------------------
+
+feature + bugfix release
+- various other enhancements, including:
+    - fetch extension sources in fetch_step to enhance --stop=fetch (#978)
+    - add iimpi toolchain definition (#993)
+    - prepend robot path with download location of files when --from-pr is used (#995)
+    - add support for excluding module path extensions from generated modules (#1003)
+        - see 'include_modpath_extensions' easyconfig parameter
+    - add support for installing hidden modules and using them as dependencies (#1009, #1021, #1023)
+        - see --hidden and 'hiddendependencies' easyconfig parameter
+    - stop relying on 'conflict' statement in module files to determine software name of toolchain components (#1017, #1037)
+        - instead, the 'is_short_modname_for' method defined by the module naming scheme implementation is queried
+    - improve error message generated for a missing easyconfig file (#1019)
+    - include path where tweaked easyconfigs are placed in robot path (#1032)
+    - indicate forced builds in --dry-run output (#1034)
+    - fix interaction between --force and --try-toolchain --robot (#1035)
+    - add --software option, disable recursion for --try-software(-X) (#1036)
+- various bug fixes, including:
+    - fix HierarchicalMNS crashing when MPI library is installed with a dummy toolchain (#986)
+    - fix list of FFTW wrapper libraries for Intel MKL (#987)
+    - fix stability of unit tests (#988, #1027, #1033)
+    - make sure $SCALAPACK_INC_DIR (and $SCALAPACK_LIB_DIR) are defined when using imkl (#990)
+    - fix error message on missing FFTW wrapper libs (#992)
+    - fix duplicate toolchain elements in --list-toolchains output (#993)
+    - filter out load statements that extend the $MODULEPATH to make the module being installed available (#1016)
+    - fix conflict specification included in module files (#1017)
+    - avoid --from-pr crashing hard unless --robot is used (#1022)
+    - properly quote GCC version string in archived easyconfig (#1028)
+    - fix issue with --repositorypath not honoring --prefix (#1031)
+    - sync with latest vsc-base version to fix log order (#1039)
+    - increase # commits per page for --from-pr (#1040)
+
 v1.14.0 (July 9th 2014)
 -----------------------
 

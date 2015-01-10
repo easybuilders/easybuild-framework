@@ -31,6 +31,7 @@ Unit tests for EasyBuild configuration.
 import copy
 import os
 import shutil
+import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
@@ -42,7 +43,7 @@ from easybuild.tools.config import build_path, source_paths, install_path, get_r
 from easybuild.tools.config import log_file_format, set_tmpdir, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
 from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import write_file
+from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.repository import init_repository
 
@@ -59,7 +60,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
-        for path in ['buildpath', 'installpath', 'sourcepath']:
+        for path in ['buildpath', 'installpath', 'sourcepath', 'prefix']:
             var = 'EASYBUILD_%s' % path.upper()
             if var in os.environ:
                 del os.environ[var]
@@ -107,8 +108,46 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(config_options['logfile_format'][1], "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
         self.assertEqual(config_options['tmp_logdir'], tempfile.gettempdir())
 
+    def test_generaloption_overrides_legacy(self):
+        """Test whether generaloption overrides legacy configuration."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
+        self.purge_environment()
+        # if both legacy and generaloption style configuration is mixed, generaloption wins
+        legacy_prefix = os.path.join(self.tmpdir, 'legacy')
+        go_prefix = os.path.join(self.tmpdir, 'generaloption')
+
+        # legacy env vars
+        os.environ['EASYBUILDPREFIX'] = legacy_prefix
+        os.environ['EASYBUILDBUILDPATH'] = os.path.join(legacy_prefix, 'build')
+        # generaloption env vars
+        os.environ['EASYBUILD_INSTALLPATH'] = go_prefix
+        init_config()
+        self.assertEqual(build_path(), os.path.join(legacy_prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(go_prefix, 'software'))
+        repo = init_repository(get_repository(), get_repositorypath())
+        self.assertEqual(repo.repo, os.path.join(legacy_prefix, 'ebfiles_repo'))
+        del os.environ['EASYBUILDPREFIX']
+
+        # legacy env vars
+        os.environ['EASYBUILDBUILDPATH'] = os.path.join(legacy_prefix, 'buildagain')
+        # generaloption env vars
+        os.environ['EASYBUILD_PREFIX'] = go_prefix
+        init_config()
+        self.assertEqual(build_path(), os.path.join(go_prefix, 'build'))
+        self.assertEqual(install_path(), os.path.join(go_prefix, 'software'))
+        repo = init_repository(get_repository(), get_repositorypath())
+        self.assertEqual(repo.repo, os.path.join(go_prefix, 'ebfiles_repo'))
+        del os.environ['EASYBUILDBUILDPATH']
+
     def test_legacy_env_vars(self):
         """Test legacy environment variables."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
         self.purge_environment()
 
         # build path
@@ -167,6 +206,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
+        # purposely not unsetting $EASYBUILDPREFIX yet here
 
         # build/source/install path overrides prefix
         init_config()
@@ -206,9 +246,15 @@ class EasyBuildConfigTest(EnhancedTestCase):
         repo = init_repository(get_repository(), get_repositorypath())
         self.assertTrue(isinstance(repo, FileRepository))
         self.assertEqual(repo.repo, os.path.join(test_prefixpath, DEFAULT_PATH_SUBDIRS['repositorypath']))
+        del os.environ['EASYBUILDPREFIX']
+        del os.environ['EASYBUILDINSTALLPATH']
 
     def test_legacy_config_file(self):
         """Test finding/using legacy configuration files."""
+        # lower 'current' version to avoid tripping over deprecation errors
+        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
+        init_config()
+
         self.purge_environment()
 
         cfg_fn = self.configure(args=[])
@@ -333,6 +379,8 @@ modules_install_suffix = '%(modsuffix)s'
         options = init_config(args=[])
         self.assertEqual(build_path(), buildpath_env_var)
         self.assertEqual(install_path(), os.path.join(prefix, 'software'))
+        self.assertEqual(get_repositorypath(), [os.path.join(prefix, 'ebfiles_repo')])
+
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_BUILDPATH']
 
@@ -345,7 +393,7 @@ modules_install_suffix = '%(modsuffix)s'
         write_file(config_file, '')
 
         args = [
-            '--config', config_file,  # force empty oldstyle config file
+            '--configfiles', config_file,  # force empty config file
             '--prefix', prefix,
             '--installpath', install,
             '--repositorypath', repopath,
@@ -358,14 +406,14 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(install_path(typ='mod'), os.path.join(install, 'modules'))
 
         self.assertEqual(options.installpath, install)
-        self.assertEqual(options.config, config_file)
+        self.assertTrue(config_file in options.configfiles)
 
         # check mixed command line/env var configuration
         prefix = os.path.join(self.tmpdir, 'test3')
         install = os.path.join(self.tmpdir, 'test4', 'install')
         subdir_software = 'eb-soft'
         args = [
-            '--config', config_file,  # force empty oldstyle config file
+            '--configfiles', config_file,  # force empty config file
             '--installpath', install,
         ]
 
@@ -410,10 +458,22 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(source_paths(), [os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'sources')])  # default
         self.assertEqual(install_path(), os.path.join(testpath2, 'software'))  # via config file
 
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
+
         # test with config file passed via environment variable
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
+            'robot-paths = /tmp/foo:%(DEFAULT_ROBOT_PATHS)s',
         ])
         write_file(config_file, cfgtxt)
 
@@ -427,6 +487,8 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
+        self.assertTrue('/tmp/foo' in options.robot_paths)
+        self.assertTrue(os.path.join(tmpdir, 'easybuild', 'easyconfigs') in options.robot_paths)
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2
@@ -441,6 +503,7 @@ modules_install_suffix = '%(modsuffix)s'
         self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']
+        sys.path[:] = orig_sys_path
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
