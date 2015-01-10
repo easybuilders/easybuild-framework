@@ -193,6 +193,9 @@ class GithubError(Exception):
 
 def _do_request(lmb, github_user=None, **kwargs):
     """Helper method, for performing get requests"""
+    if github_user is None:
+        github_user = build_option('github_user')
+
     token = fetch_github_token(github_user)
     g = RestClient(GITHUB_API_URL, username=github_user, token=token)
 

@@ -37,10 +37,8 @@ Easyconfig module that contains the EasyConfig class.
 
 import copy
 import difflib
-import glob
 import os
 import re
-from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import any, get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -904,77 +902,6 @@ def resolve_template(value, tmpl_dict):
             value = dict([(key, resolve_template(val, tmpl_dict)) for key, val in value.items()])
 
     return value
-
-def find_related_easyconfigs(path, ec):
-    """
-    Find related easyconfigs for provided parsed easyconfig in specified path.
-
-    A list of easyconfigs for the same software (name) is returned,
-    matching the 1st criterion that yields a non-empty list.
-
-    Software version is considered more important than toolchain.
-
-    Toolchain is considered with exact same version prior to without version (only name).
-
-    Matching versionsuffix is considered prior to any versionsuffix.
-
-    Exact software versions are considered prior to matching major/minor version numbers,
-    and only matching major version number, before any software version is considered.
-
-    The following criteria are considered, in order (with 'version criterion' being either an
-    exact version match, a major/minor version match, a major version match, or no version match).
-
-    (i)   software version criterion, versionsuffix and toolchain name/version
-    (ii)  software version criterion, versionsuffix and toolchain name (any toolchain version)
-    (iii) software version criterion, versionsuffix (any toolchain name/version)
-    (iv)  software version criterion and toolchain name/version (any versionsuffix)
-    (v)   software version criterion and toolchain name (any versionsuffix, toolchain version)
-    (vi)  software version criterion (any versionsuffix, toolchain name/version)
-
-    If no related easyconfigs with a matching software name are found, an empty list is returned.
-    """
-    name = ec.name
-    version = ec.version
-    versionsuffix = ec['versionsuffix']
-    toolchain_name = ec['toolchain']['name']
-    toolchain_name_pattern = '-%s-\S+' % toolchain_name
-    toolchain = "%s-%s" % (toolchain_name, ec['toolchain']['version'])
-    toolchain_pattern = '-%s' % toolchain
-    if toolchain_name == DUMMY_TOOLCHAIN_NAME:
-        toolchain_name_pattern = ''
-        toolchain_pattern = ''
-
-    potential_paths = [glob.glob(ec_path) for ec_path in create_paths(path, name, '*')]
-    potential_paths = sum(potential_paths, [])  # flatten
-
-    parsed_version = LooseVersion(version).version
-    version_patterns = [
-        version,  # exact version match
-        r'%s\.%s\.[0-9_-]+' % tuple(parsed_version[:2]),  # major/minor version match
-        r'%s\.[0-9-]+\.[0-9_-]+' % parsed_version[0],  # major version match
-        r'[0-9._A-Za-z-]+',  # any version
-    ]
-
-    regexes = []
-    for version_pattern in version_patterns:
-        regexes.extend([
-            re.compile((r"^\S+/%s-%s%s%s.eb$" % (name, version_pattern, toolchain_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s%s%s.eb$" % (name, version_pattern, toolchain_name_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s-\S+%s.eb$" % (name, version_pattern, versionsuffix))),
-            re.compile((r"^\S+/%s-%s%s.eb$" % (name, version_pattern, toolchain_pattern))),
-            re.compile((r"^\S+/%s-%s%s.eb$" % (name, version_pattern, toolchain_name_pattern))),
-            re.compile((r"^\S+/%s-%s-\S+.eb$" % (name, version_pattern))),
-        ])
-    _log.debug("found these potential paths: %s" % potential_paths)
-
-    for regex in regexes:
-        res = [p for p in potential_paths if regex.match(p)]
-        if res:
-            _log.debug("Related easyconfigs found using '%s': %s" % (regex.pattern, res))
-            break
-        else:
-            _log.debug("No related easyconfigs in potential paths using '%s'" % regex.pattern)
-    return res
 
 
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
