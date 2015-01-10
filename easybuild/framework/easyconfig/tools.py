@@ -352,11 +352,12 @@ def review_pr(pull_request, colored):
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
     pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
 
-    for easyconfig in pr_files:
-        files = find_related_easyconfigs(repo_path, easyconfig)
-        _log.debug("File in pull request %s has these related easyconfigs: %s" % (easyconfig, files))
+    ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files])
+    for ec in ecs:
+        files = find_related_easyconfigs(repo_path, ec['ec'])
+        _log.debug("File in pull request %s has these related easyconfigs: %s" % (ec['spec'], files))
         for listing in files:
             if listing:
-                diff = multi_diff(easyconfig, listing, colored)
+                diff = multi_diff(ec['spec'], listing, colored)
                 print diff
                 break

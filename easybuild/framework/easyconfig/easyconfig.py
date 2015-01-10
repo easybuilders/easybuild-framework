@@ -914,14 +914,6 @@ def find_related_easyconfigs(path, ec):
     - Then it takes the ones with any version and same toolchain name
     - Then it takes those with any version and any toolchain
     """
-    # make sure we are working with an EasyConfig object
-    if not isinstance(ec, EasyConfig):
-        # we can safely only take the first one
-        easyconfigs = process_easyconfig(ec, parse_only=True)
-        if len(easyconfigs) > 1:
-            _log.error("Expected only one easyconfig to be found, exiting!")
-        ec = easyconfigs[0]['ec']
-
     name = ec.name
     version = ec.version
     toolchain_name = ec['toolchain']['name']
