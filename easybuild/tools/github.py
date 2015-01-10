@@ -191,7 +191,7 @@ class GithubError(Exception):
     pass
 
 
-def _do_request(lmb, github_user=None):
+def _do_request(lmb, github_user=None, **kwargs):
     """Helper method, for performing get requests"""
     token = fetch_github_token(github_user)
     g = RestClient(GITHUB_API_URL, username=github_user, token=token)
@@ -200,7 +200,7 @@ def _do_request(lmb, github_user=None):
     url = lmb(g)
 
     try:
-        status, data = url.get()
+        status, data = url.get(**kwargs)
     except socket.gaierror, err:
         status, data = 0, None
     _log.debug("status: %d, data: %s" % (status, data))
@@ -322,7 +322,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
         _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
-    status, commits_data = _do_request(lambda g: pr_url(g).commits.get(per_page=GITHUB_MAX_PER_PAGE), github_user)
+    status, commits_data = _do_request(lambda g: pr_url(g).commits, github_user, per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
