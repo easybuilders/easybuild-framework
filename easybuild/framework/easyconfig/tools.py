@@ -67,13 +67,13 @@ except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, find_related_easyconfigs, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, search_file, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr
+from easybuild.tools.config import build_option, build_path
+from easybuild.tools.filetools import find_easyconfigs, write_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
+from easybuild.tools.multi_diff import multi_diff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import quote_str
@@ -344,3 +344,19 @@ def stats_to_str(stats):
         txt += "%s%s: %s,\n" % (pref, quote_str(k), quote_str(v))
     txt += "}"
     return txt
+
+
+def review_pr(pull_request, colored):
+    """Print multi-diff overview between easyconfigs in specified PR and current develop branch."""
+    download_repo_path = download_repo(branch='develop', path=build_path())
+    repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
+
+    for easyconfig in pr_files:
+        files = find_related_easyconfigs(repo_path, easyconfig)
+        _log.debug("File in pull request %s has these related easyconfigs: %s" % (easyconfig, files))
+        for listing in files:
+            if listing:
+                diff = multi_diff(easyconfig, listing, colored)
+                print diff
+                break
