@@ -363,17 +363,17 @@ def find_related_easyconfigs(path, ec):
 
     Matching versionsuffix is considered prior to any versionsuffix.
 
-    Exact software versions are considered prior to matching major/minor version numbers,
-    and only matching major version number, before any software version is considered.
+    Exact software version is considered prior to matching major/minor version numbers,
+    and only matching major version number. Any software version is considered last.
 
     The following criteria are considered, in order (with 'version criterion' being either an
     exact version match, a major/minor version match, a major version match, or no version match).
 
-    (i)   software version criterion, versionsuffix and toolchain name/version
-    (ii)  software version criterion, versionsuffix and toolchain name (any toolchain version)
-    (iii) software version criterion, versionsuffix (any toolchain name/version)
-    (iv)  software version criterion and toolchain name/version (any versionsuffix)
-    (v)   software version criterion and toolchain name (any versionsuffix, toolchain version)
+    (i)   software version criterion, matching versionsuffix and toolchain name/version
+    (ii)  software version criterion, matching versionsuffix and toolchain name (any toolchain version)
+    (iii) software version criterion, matching versionsuffix (any toolchain name/version)
+    (iv)  software version criterion, matching toolchain name/version (any versionsuffix)
+    (v)   software version criterion, matching toolchain name (any versionsuffix, toolchain version)
     (vi)  software version criterion (any versionsuffix, toolchain name/version)
 
     If no related easyconfigs with a matching software name are found, an empty list is returned.
@@ -422,22 +422,26 @@ def find_related_easyconfigs(path, ec):
     return res
 
 
-def review_pr(pull_request, colored=True, tmpdir=None):
-    """Print multi-diff overview between easyconfigs in specified PR and current develop branch."""
-    if tmpdir is None:
-        tmpdir = tempfile.mkdtemp()
+def review_pr(pr, colored=True, branch='develop'):
+    """
+    Print multi-diff overview between easyconfigs in specified PR and specified branch.
+    @param pr: pull request number in easybuild-easyconfigs repo to review
+    @param colored: boolean indicating whether a colored multi-diff should be generated
+    @param branch: easybuild-easyconfigs branch to compare with
+    """
+    tmpdir = tempfile.mkdtemp()
 
-    download_repo_path = download_repo(branch='develop', path=tmpdir)
+    download_repo_path = download_repo(branch=branch, path=tmpdir)
     repo_path = os.path.join(download_repo_path, 'easybuild', 'easyconfigs')
-    pr_files = [path for path in fetch_easyconfigs_from_pr(pull_request) if path.endswith('.eb')]
+    pr_files = [path for path in fetch_easyconfigs_from_pr(pr) if path.endswith('.eb')]
 
     ecs, _ = parse_easyconfigs([(fp, False) for fp in pr_files], validate=False)
     for ec in ecs:
         files = find_related_easyconfigs(repo_path, ec['ec'])
-        _log.debug("File in pull request %s has these related easyconfigs: %s" % (ec['spec'], files))
+        _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
         if files:
             diff = multi_diff(ec['spec'], files, colored=colored)
             msg = diff
         else:
             msg = "\n(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])
-        print msg
+        print(msg)
