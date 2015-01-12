@@ -217,7 +217,7 @@ class MultiDiff(object):
 
         return ''.join(base)
 
-def multi_diff(base, files, colored=True):
+def multidiff(base, files, colored=True):
     """
     Generate a diff for multiple files, all compared to base.
     @param base: base to compare with

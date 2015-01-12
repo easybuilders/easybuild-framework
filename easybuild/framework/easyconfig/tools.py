@@ -76,7 +76,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.filetools import find_easyconfigs, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.multi_diff import multi_diff
+from easybuild.tools.multidiff import multidiff
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
@@ -440,7 +440,7 @@ def review_pr(pr, colored=True, branch='develop'):
         files = find_related_easyconfigs(repo_path, ec['ec'])
         _log.debug("File in PR#%s %s has these related easyconfigs: %s" % (pr, ec['spec'], files))
         if files:
-            diff = multi_diff(ec['spec'], files, colored=colored)
+            diff = multidiff(ec['spec'], files, colored=colored)
             msg = diff
         else:
             msg = "\n(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])
