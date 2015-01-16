@@ -403,27 +403,44 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         self.assertTrue(eb_log_msg_re.search(logtxt), "Pattern '%s' found in: %s" % (eb_log_msg_re.pattern, logtxt))
 
-    def test_patchlevel(self):
-        """Test the parsing of the fetch_patches function."""
+    def test_fetch_patches(self):
+        """Test fetch_patches method."""
         # adjust PYTHONPATH such that test easyblocks are found
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'toy-0.0.eb'))[0]
         eb = get_easyblock_instance(ec)
 
+        eb.fetch_patches()
+        self.assertEqual(len(eb.patches), 1)
+        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertFalse('level' in eb.patches[0])
+
+        # reset
+        eb.patches = []
+
         patches = [
-            ('toy-0.0_level0_2.patch', 0),  # should also be level 0 (not None)
-            ('toy-0.0_level4.patch', 4),   # should be level4
+            ('toy-0.0_typo.patch', 0),  # should also be level 0 (not None or something else)
+            ('toy-0.0_typo.patch', 4),   # should be level 4
+            ('toy-0.0_typo.patch', 'foobar'),  # sourcepath should be set to 'foobar'
+            ('toy-0.0.tar.gz', 'some/path'),  # copy mode (not a .patch file)
         ]
         # check if patch levels are parsed correctly
-        eb.fetch_patches(patches)
+        eb.fetch_patches(patch_specs=patches)
 
-        self.assertEquals(eb.patches[0]['level'], 0)
-        self.assertEquals(eb.patches[1]['level'], 4)
+        self.assertEqual(len(eb.patches), 4)
+        self.assertEqual(eb.patches[0]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[0]['level'], 0)
+        self.assertEqual(eb.patches[1]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[1]['level'], 4)
+        self.assertEqual(eb.patches[2]['name'], 'toy-0.0_typo.patch')
+        self.assertEqual(eb.patches[2]['sourcepath'], 'foobar')
+        self.assertEqual(eb.patches[3]['name'], 'toy-0.0.tar.gz'),
+        self.assertEqual(eb.patches[3]['copy'], 'some/path')
 
         patches = [
             ('toy-0.0_level4.patch', False),  # should throw an error, only int's an strings allowed here
         ]
-        self.assertRaises(EasyBuildError, eb.fetch_patches, patches)
+        self.assertRaises(EasyBuildError, eb.fetch_patches, patch_specs=patches)
 
     def test_obtain_file(self):
         """Test obtain_file method."""
