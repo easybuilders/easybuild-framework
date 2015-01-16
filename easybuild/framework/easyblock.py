@@ -289,50 +289,55 @@ class EasyBlock(object):
 
         self.log.info("Added sources: %s" % self.src)
 
-    def fetch_patches(self, list_of_patches, extension=False, checksums=None):
+    def fetch_patches(self, patch_specs=None, extension=False, checksums=None):
         """
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
+        if patch_specs is None:
+            patch_specs = self.cfg['patches']
 
         patches = []
-        for index, patch_entry in enumerate(list_of_patches):
+        for index, patch_spec in enumerate(patch_specs):
 
             # check if the patches can be located
             copy_file = False
             suff = None
             level = None
-            if isinstance(patch_entry, (list, tuple)):
-                if not len(patch_entry) == 2:
-                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!" % patch_entry)
-                pf = patch_entry[0]
+            if isinstance(patch_spec, (list, tuple)):
+                if not len(patch_spec) == 2:
+                    self.log.error("Unknown patch specification '%s', only two-element lists/tuples are supported!",
+                                   str(patch_spec))
+                patch_file = patch_spec[0]
 
-                if isinstance(patch_entry[1], int):
-                    level = patch_entry[1]
-                elif isinstance(patch_entry[1], basestring):
+                # this *must* be of typ int, nothing else
+                # no 'isinstance(..., int)', since that would make True/False also acceptable
+                if type(patch_spec[1]) == int:
+                    level = patch_spec[1]
+                elif isinstance(patch_spec[1], basestring):
                     # non-patch files are assumed to be files to copy
-                    if not patch_entry[0].endswith('.patch'):
+                    if not patch_spec[0].endswith('.patch'):
                         copy_file = True
-                    suff = patch_entry[1]
+                    suff = patch_spec[1]
                 else:
-                    self.log.error("Wrong patch specification '%s', only int and string are supported as second element!" % patch_entry)
+                    self.log.error("Wrong patch spec '%s', only int/string are supported as 2nd element" % str(patch_spec))
             else:
-                pf = patch_entry
+                patch_file = patch_spec
 
-            path = self.obtain_file(pf, extension=extension)
+            path = self.obtain_file(patch_file, extension=extension)
             if path:
-                self.log.debug('File %s found for patch %s' % (path, patch_entry))
+                self.log.debug('File %s found for patch %s' % (path, patch_spec))
                 patchspec = {
-                    'name': pf,
+                    'name': patch_file,
                     'path': path,
-                    'checksum': self.get_checksum_for(checksums, filename=pf, index=index),
+                    'checksum': self.get_checksum_for(checksums, filename=patch_file, index=index),
                 }
                 if suff:
                     if copy_file:
                         patchspec['copy'] = suff
                     else:
                         patchspec['sourcepath'] = suff
-                if level:
+                if level is not None:
                     patchspec['level'] = level
 
                 if extension:
@@ -340,7 +345,7 @@ class EasyBlock(object):
                 else:
                     self.patches.append(patchspec)
             else:
-                self.log.error('No file found for patch %s' % patch_entry)
+                self.log.error('No file found for patch %s' % patch_spec)
 
         if extension:
             self.log.info("Fetched extension patches: %s" % patches)
@@ -407,7 +412,7 @@ class EasyBlock(object):
                                 else:
                                     self.log.error('Checksum for ext source %s failed' % fn)
 
-                            ext_patches = self.fetch_patches(ext_options.get('patches', []), extension=True)
+                            ext_patches = self.fetch_patches(patch_specs=ext_options.get('patches', []), extension=True)
                             if ext_patches:
                                 self.log.debug('Found patches for extension %s: %s' % (ext_name, ext_patches))
                                 ext_src.update({'patches': ext_patches})
@@ -1215,7 +1220,7 @@ class EasyBlock(object):
         # fetch extensions
         if len(self.cfg['exts_list']) > 0:
             self.exts = self.fetch_extension_sources()
- 
+
         # fetch patches
         if self.cfg['patches']:
             if isinstance(self.cfg['checksums'], (list, tuple)):
@@ -1223,7 +1228,7 @@ class EasyBlock(object):
                 patches_checksums = self.cfg['checksums'][len(self.cfg['sources']):]
             else:
                 patches_checksums = self.cfg['checksums']
-            self.fetch_patches(self.cfg['patches'], checksums=patches_checksums)
+            self.fetch_patches(checksums=patches_checksums)
         else:
             self.log.info('no patches provided')
 
@@ -1364,7 +1369,7 @@ class EasyBlock(object):
 
         if fetch:
             self.exts = self.fetch_extension_sources()
-            
+
         self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         if self.skip:
