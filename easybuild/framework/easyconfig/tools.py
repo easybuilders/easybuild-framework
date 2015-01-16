@@ -44,6 +44,19 @@ import tempfile
 from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import build_option
+from easybuild.tools.filetools import find_easyconfigs, write_file
+from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
+from easybuild.tools.modules import modules_tool
+from easybuild.tools.multidiff import multidiff
+from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.utilities import quote_str
+
 # optional Python packages, these might be missing
 # failing imports are just ignored
 # a NameError should be catched where these are used
@@ -68,19 +81,6 @@ try:
     import gv
 except ImportError, err:
     graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
-
-from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, write_file
-from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
-from easybuild.tools.modules import modules_tool
-from easybuild.tools.multidiff import multidiff
-from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
-from easybuild.tools.utilities import quote_str
 
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
