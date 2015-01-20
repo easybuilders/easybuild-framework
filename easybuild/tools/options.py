@@ -42,8 +42,6 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
-from easybuild.framework.easyconfig.default import convert_to_help
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -54,6 +52,7 @@ from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_TMP_LOGDIR
 from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
 from easybuild.tools.config import get_default_oldstyle_configfile, mk_full_default_path
+from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -276,7 +275,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                         None, "store_true", False, 'a'),
+                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
                                             None, 'store_true', False),
@@ -443,7 +442,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
-            msg += self.avail_easyconfig_params()
+            msg += avail_easyconfig_params(self.options.easyblock, self.options.avail_easyconfig_params)
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
@@ -503,37 +502,6 @@ class EasyBuildOptions(GeneralOption):
             for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
-
-    def avail_easyconfig_params(self):
-        """
-        Print the available easyconfig parameters, for the given easyblock.
-        """
-        extra = []
-        app = get_easyblock_class(self.options.easyblock, default_fallback=False)
-        if app is not None:
-            extra = app.extra_options()
-        mapping = convert_to_help(extra, has_default=False)
-        if extra:
-            ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
-            extra_names = [x[0] for x in extra]
-        else:
-            ebb_msg = ''
-            extra_names = []
-        txt = ["Available easyconfig parameters%s" % ebb_msg]
-        params = [(k, v) for (k, v) in mapping.items() if k.upper() not in ['HIDDEN']]
-        for key, values in params:
-            txt.append("%s" % key.upper())
-            txt.append('-' * len(key))
-            for name, value in values:
-                tabs = "\t" * (3 - (len(name) + 1) / 8)
-                if name in extra_names:
-                    starred = '(*)'
-                else:
-                    starred = ''
-                txt.append("%s%s:%s%s" % (name, starred, tabs, value))
-            txt.append('')
-
-        return "\n".join(txt)
 
     def avail_classes_tree(self, classes, classNames, detailed, depth=0):
         """Print list of classes as a tree."""

@@ -57,7 +57,7 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
@@ -150,10 +150,7 @@ class EasyConfig(object):
         if self.valid_module_classes is not None:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
-        # replace the category name with the category
-        self._config = {}
-        for k, [def_val, descr, cat] in copy.deepcopy(DEFAULT_CONFIG).items():
-            self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
+        self._config = copy.deepcopy(DEFAULT_CONFIG)
 
         if extra_options is None:
             name = fetch_parameter_from_easyconfig_file(path, 'name')

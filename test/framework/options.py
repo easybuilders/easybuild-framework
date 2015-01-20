@@ -334,24 +334,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
-        def run_test(custom=None, extra_params=[]):
+        def run_test(custom=None, extra_params=[], fmt=None):
             """Inner function to run actual test in current setting."""
 
             fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
             os.close(fd)
 
-            for avail_arg in [
-                              '-a',
-                              '--avail-easyconfig-params',
-                             ]:
+            avail_args = [
+                '-a',
+                '--avail-easyconfig-params',
+            ]
+            for avail_arg in avail_args:
 
                 # clear log
                 write_file(self.logfile, '')
 
                 args = [
-                    avail_arg,
                     '--unittest-file=%s' % self.logfile,
+                    avail_arg,
                 ]
+                if fmt is not None:
+                    args.append(fmt)
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -364,17 +367,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     par_types.append(CUSTOM)
 
                 for param_type in [x[1] for x in par_types]:
-                    self.assertTrue(re.search("%s\n%s" % (param_type.upper(), '-' * len(param_type)), outtxt),
-                                    "Parameter type %s is featured in output of eb %s (args: %s): %s" %
-                                    (param_type, avail_arg, args, outtxt))
+                    # regex for parameter group title, matches both txt and rst formats
+                    regex = re.compile("%s.*\n%s" % (param_type, '-' * len(param_type)), re.I)
+                    tup = (param_type, avail_arg, args, outtxt)
+                    msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
+                    self.assertTrue(regex.search(outtxt), msg)
 
                 # check a couple of easyconfig parameters
                 for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
-                    self.assertTrue(re.search("%s(?:\(\*\))?:\s*\w.*" % param, outtxt),
-                                    "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
-                                    (param, avail_arg, args, outtxt)
-                                    )
+                    # regex for parameter name (with optional '*') & description, matches both txt and rst formats
+                    regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
+                    tup = (param, avail_arg, args, regex.pattern, outtxt)
+                    msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
+                    self.assertTrue(regex.search(outtxt), msg)
 
                 modify_env(os.environ, self.orig_environ)
                 tempfile.tempdir = None
@@ -382,10 +388,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
 
-        run_test()
-        run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
-        run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
-        run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+            run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'], fmt=fmt)
+            run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'], fmt=fmt)
+            run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'], fmt=fmt)
 
     # double underscore to make sure it runs first, which is required to detect certain types of bugs,
     # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
