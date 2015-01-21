@@ -37,7 +37,6 @@ import copy
 
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
-from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.utilities import quote_str
 
@@ -129,8 +128,6 @@ def avail_easyconfig_params(easyblock, output_format):
     app = get_easyblock_class(easyblock, default_fallback=False)
     if app is not None:
         extra_params = app.extra_options()
-    if isinstance(extra_params, ExtraOptionsDeprecatedReturnValue):
-        extra_params = dict(extra_params)
     params.update(extra_params)
 
     # compose title
