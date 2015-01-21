@@ -83,21 +83,12 @@ _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
 
-def handle_replaced_easyconfig_parameter(ec_method):
-    """Decorator to handle replaced easyconfig parameters."""
+def check_replaced_easyconfig_parameter(ec_method):
+    """Decorator to check for replaced easyconfig parameters."""
     def new_ec_method(self, key, *args, **kwargs):
-        """Map replaced easyconfig parameters to the new correct parameter."""
-        # map name of replaced easyconfig parameter to new name
+        """Check whether any replace easyconfig parameters are still used"""
         if key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
-
-        # make sure that value for software_license has correct type, convert if needed
-        if key == 'software_license':
-            # key 'license' will already be mapped to 'software_license' above
-            lic = self._config['software_license'][0]
-            if lic is not None and not isinstance(lic, License):
-                self.log.nosupport('Type for software_license must to be instance of License (sub)class', '2.0')
-
         return ec_method(self, key, *args, **kwargs)
 
     return new_ec_method
@@ -628,7 +619,7 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
-    @handle_replaced_easyconfig_parameter
+    @check_replaced_easyconfig_parameter
     def __getitem__(self, key):
         """
         will return the value without the help text
@@ -641,7 +632,7 @@ class EasyConfig(object):
         else:
             return value
 
-    @handle_replaced_easyconfig_parameter
+    @check_replaced_easyconfig_parameter
     def __setitem__(self, key, value):
         """
         sets the value of key in config.
@@ -741,7 +732,7 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                 modulepath_bis = get_module_path(name, decode=False)
                 _log.debug("Module path determined based on software name: %s" % modulepath_bis)
                 if modulepath_bis != modulepath:
-                    _log.nosupport("Determine module path based on software name", '2.0')
+                    _log.nosupport("Determining module path based on software name", '2.0')
 
             # try and find easyblock
             try:

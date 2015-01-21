@@ -1065,7 +1065,8 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                msg = "Use of 'name'/'version' keys for extensions filter, should use 'ext_name', 'ext_version' instead"
+                msg = "KeyError occured on completing extension filter template: %s; "
+                msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
                 self.log.nosupport(msg, '2.0')
 
             if cmdinputtmpl:
@@ -1370,7 +1371,7 @@ class EasyBlock(object):
 
         # obtain name and module path for default extention class
         if hasattr(exts_defaultclass, '__iter__'):
-            self.log.nosupport("Using specified module path for default class", '2.0')
+            self.log.nosupport("Module path for default class is explicitly defined", '2.0')
 
         elif isinstance(exts_defaultclass, basestring):
             # proper way: derive module path from specified class name
@@ -1411,8 +1412,7 @@ class EasyBlock(object):
                     cls = get_class_for(mod_path, class_name)
                     inst = cls(self, ext)
                 except (ImportError, NameError), err:
-                    tup = (class_name, ext['name'], err)
-                    self.log.error("Failed to load specified class %s for extension %s: %s" % tup)
+                    self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name, ext['name'], err))
 
             # fallback attempt: use default class
             if inst is None:

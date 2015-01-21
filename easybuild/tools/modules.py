@@ -181,7 +181,7 @@ class ModulesTool(object):
     @property
     def modules(self):
         """(NO LONGER SUPPORTED!) Property providing access to 'modules' class variable"""
-        self.log.nosupport("'modules' class variable is not supported anymore, just use load([<list of modules>])", '2.0')
+        self.log.nosupport("'modules' class variable is not supported anymore, use load([<list of modules>]) instead", '2.0')
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""

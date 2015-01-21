@@ -216,12 +216,6 @@ class BuildOptions(FrozenDictKnownKeys):
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
 
-def get_default_configfiles():
-    """Return a list of default configfiles for tools.options/generaloption"""
-    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser('~'), ".config"))
-    return [os.path.join(xdg_config_home, 'easybuild', 'config.cfg')]
-
-
 def get_pretend_installpath():
     """Get the installpath when --pretend option is used"""
     return os.path.join(os.path.expanduser('~'), 'easybuildinstall')
@@ -313,7 +307,7 @@ def source_paths():
 
 def source_path():
     """NO LONGER SUPPORTED: use source_paths instead"""
-    _log.nosupport("Use of source_path(), use source_paths() instead.", '2.0')
+    _log.nosupport("source_path() is replaced by source_paths()", '2.0')
 
 
 def install_path(typ=None):
@@ -384,7 +378,7 @@ def log_path():
 
 def get_build_log_path():
     """
-    return temporary log directory
+    Return (temporary) directory for build log
     """
     variables = ConfigurationVariables()
     if variables['tmp_logdir'] is not None:
@@ -442,8 +436,8 @@ def module_classes():
 
 
 def read_environment(env_vars, strict=False):
-    """Depreacted location for read_environment, use easybuild.tools.environment"""
-    _log.nosupport("Deprecated location for read_environment, use easybuild.tools.environment", '2.0')
+    """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
+    _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')
 
 
 def set_tmpdir(tmpdir=None):

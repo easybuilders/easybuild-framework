@@ -129,7 +129,7 @@ def get_avail_core_count():
 
 def get_core_count():
     """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
-    _log.nosupport("get_core_count() is nosupport, use get_avail_core_count() instead", '2.0')
+    _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
 
 
 def get_cpu_vendor():
@@ -256,7 +256,7 @@ def get_cpu_speed():
 
 def get_kernel_name():
     """NO LONGER SUPPORTED: use get_os_type() instead"""
-    _log.nosupport("get_kernel_name() (replaced by get_os_type())", "2.0")
+    _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
 
 
 def get_os_type():

@@ -36,7 +36,6 @@ Command line options for eb
 import os
 import re
 import sys
-import tempfile
 from distutils.version import LooseVersion
 from vsc.utils.missing import nub
 
@@ -51,7 +50,7 @@ from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
-from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
+from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
@@ -75,7 +74,6 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-
     DEFAULT_CONFIGFILES = [DEFAULT_CONFIGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
