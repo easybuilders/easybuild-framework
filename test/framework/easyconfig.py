@@ -153,24 +153,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
 
-    def test_deprecated_shared_lib_ext(self):
-        """ inside easyconfigs shared_lib_ext should be set """
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        self.contents = '\n'.join([
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
-            'sanity_check_paths = { "files": ["lib/lib.%s" % shared_lib_ext] }',
-        ])
-        self.prep()
-        eb = EasyConfig(self.eb_file)
-        self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
-
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
         self.contents = '\n'.join([
@@ -281,12 +263,6 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file, extra_options=extra_vars)
 
         self.assertEqual(eb['mandatory_key'], 'value')
-
-        # test legacy behavior of passing a list of tuples rather than a dict
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars.items())
-        self.assertEqual(eb['custom_key'], 'test')
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
@@ -441,26 +417,6 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': versuff,
         }
         installver = det_full_ec_version(cfg)
-        self.assertEqual(installver, correct_installver)
-
-    def test_legacy_installversion(self):
-        """Test generation of install version (legacy)."""
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        ver = "3.14"
-        verpref = "myprefix|"
-        versuff = "|mysuffix"
-        tcname = "GCC"
-        tcver = "4.6.3"
-        dummy = "dummy"
-
-        correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
-        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-        self.assertEqual(installver, correct_installver)
-
-        correct_installver = "%s%s%s" % (verpref, ver, versuff)
-        installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
     def test_obtain_easyconfig(self):
@@ -928,10 +884,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
-        # deprecated functionality: ConfigureMake fallback still enabled
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-        self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
 
     def test_easyconfig_paths(self):
         """Test create_paths function."""
@@ -943,32 +895,6 @@ class EasyConfigTest(EnhancedTestCase):
             "/some/path/Foo-1.2.3.eb",
         ]
         self.assertEqual(cand_paths, expected_paths)
-
-    def test_deprecated_options(self):
-        """Test whether deprecated options are handled correctly."""
-        # lower 'current' version to avoid tripping over deprecation errors
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        deprecated_options = [
-            ('makeopts', 'buildopts', 'CC=foo'),
-            ('premakeopts', 'prebuildopts', ['PATH=%(builddir)s/foo:$PATH', 'PATH=%(builddir)s/bar:$PATH']),
-        ]
-        clean_contents = [
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
-            'buildininstalldir = True',
-        ]
-        # alternative option is ready to use
-        for depr_opt, new_opt, val in deprecated_options:
-            self.contents = '\n'.join(clean_contents + ['%s = %s' % (depr_opt, quote_str(val))])
-            self.prep()
-            ec = EasyConfig(self.eb_file)
-            self.assertEqual(ec[depr_opt], ec[new_opt])
 
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""

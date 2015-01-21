@@ -77,17 +77,9 @@ class EasyBlockTest(EnhancedTestCase):
 
         def check_extra_options_format(extra_options):
             """Make sure extra_options value is of correct format."""
-            # EasyBuild v1.x: list of (<string>, <list>) tuples
-            self.assertTrue(isinstance(list(extra_options), list))  # conversion to a list works
-            for extra_option in extra_options:
-                self.assertTrue(isinstance(extra_option, tuple))
-                self.assertEqual(len(extra_option), 2)
-                self.assertTrue(isinstance(extra_option[0], basestring))
-                self.assertTrue(isinstance(extra_option[1], list))
-                self.assertEqual(len(extra_option[1]), 3)
             # EasyBuild v2.0: dict with <string> keys and <list> values
             # (breaks backward compatibility compared to v1.x)
-            self.assertTrue(isinstance(dict(extra_options), dict))  # conversion to a dict works
+            self.assertTrue(isinstance(extra_options, dict))  # conversion to a dict works
             extra_options.items()
             extra_options.keys()
             extra_options.values()
@@ -129,7 +121,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exeb1.cfg['name'], 'foo')
         extra_options = exeb1.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in [key for (key, _) in extra_options])
+        self.assertTrue('options' in extra_options)
 
         # test extensioneasyblock, as easyblock
         exeb2 = ExtensionEasyBlock(ec)
@@ -137,7 +129,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exeb2.cfg['version'], '3.14')
         extra_options = exeb2.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in [key for (key, _) in extra_options])
+        self.assertTrue('options' in extra_options)
 
         class TestExtension(ExtensionEasyBlock):
             @staticmethod
@@ -147,8 +139,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(texeb.cfg['name'], 'bar')
         extra_options = texeb.extra_options()
         check_extra_options_format(extra_options)
-        self.assertTrue('options' in [key for (key, _) in extra_options])
-        self.assertEqual([val for (key, val) in extra_options if key == 'extra_param'][0], [None, "help", CUSTOM])
+        self.assertTrue('options' in extra_options)
+        self.assertEqual(extra_options['extra_param'], [None, "help", CUSTOM])
 
         # cleanup
         eb.close_log()

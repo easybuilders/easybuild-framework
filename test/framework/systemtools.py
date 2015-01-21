@@ -47,13 +47,6 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
-        # also test deprecated get_core_count
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-        core_count = get_core_count()
-        self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
-        self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
-
     def test_cpu_model(self):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
