@@ -167,7 +167,10 @@ class Mpi(Toolchain):
         """Construct an MPI command for the given command and number of ranks."""
 
         # parameter values for mpirun command
-        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
+        params = {
+            'nr_ranks': nr_ranks,
+            'cmd': cmd,
+        }
 
         # different known mpirun commands
         mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
