@@ -457,37 +457,3 @@ class Toolchain(object):
     def mpi_family(self):
         """ Return type of MPI library used in this toolchain (abstract method)."""
         raise NotImplementedError
-
-    # legacy functions TODO remove AFTER migration
-    # should search'n'replaced
-    def get_type(self, name, type_map):
-        """Determine type of toolchain based on toolchain dependencies."""
-        self.log.raiseException("get_type: legacy code. should not be needed anymore.")
-
-    def _set_variables(self, dontset=None):
-        """ Sets the environment variables """
-        self.log.raiseException("_set_variables: legacy code. use _setenv_variables.")
-
-    def _addDependencyVariables(self, names=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.vars based on the dependencies
-        names should be a list of strings containing the name of the dependency"""
-        self.log.raiseException("_addDependencyVaraibles: legacy code. use _add_dependency_variables.")
-
-    def _setVariables(self, dontset=None):
-        """ Sets the environment variables """
-        self.log.raiseException("_setVariables: legacy code. use _set_variables.")
-
-    def _toolkitExists(self, name=None, version=None):
-        """
-        Verify if there exists a toolkit by this name and version
-        """
-        self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
-
-    def get_openmp_flag(self):
-        """Get compiler flag for OpenMP support."""
-        self.log.raiseException("get_openmp_flag: legacy code. use options.get_flag('openmp').")
-
-    @property
-    def opts(self):
-        """Get value for specified option."""
-        self.log.raiseException("opts[x]: legacy code. use options[x].")
