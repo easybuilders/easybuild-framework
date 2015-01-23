@@ -82,13 +82,13 @@ class Toolchain(object):
         if name is None:
             name = self.NAME
         if name is None:
-            self.log.raiseException("init: no name provided")
+            self.log.error("Toolchain init: no name provided")
         self.name = name
 
         if version is None:
             version = self.VERSION
         if version is None:
-            self.log.raiseException("init: no version provided")
+            self.log.error("Toolchain init: no version provided")
         self.version = version
 
         self.vars = None
@@ -129,7 +129,7 @@ class Toolchain(object):
         elif typ == list:
             return self.variables[name].flatten()
         else:
-            self.log.raiseException("get_variables: Don't know how to create value of type %s." % typ)
+            self.log.error("get_variable: Don't know how to create value of type %s." % typ)
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -188,7 +188,7 @@ class Toolchain(object):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            self.log.raiseException("get_software_root software root for %s was not found in environment" % (name))
+            self.log.error("get_software_root software root for %s was not found in environment" % name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment" % (root, name))
         return root
@@ -197,11 +197,9 @@ class Toolchain(object):
         """Try to get the software root for name"""
         version = get_software_version(name)
         if version is None:
-            self.log.raiseException("get_software_version software version for %s was not found in environment" %
-                                    (name))
+            self.log.error("get_software_version software version for %s was not found in environment" % name)
         else:
-            self.log.debug("get_software_version software version %s for %s was found in environment" %
-                           (version, name))
+            self.log.debug("get_software_version software version %s for %s was found in environment" % (version, name))
 
         return version
 
@@ -249,8 +247,8 @@ class Toolchain(object):
                 self.options[opt] = options[opt]
             else:
                 # used to be warning, but this is a severe error imho
-                self.log.raiseException("set_options: undefined toolchain option %s specified (possible names %s)" %
-                                        (opt, ",".join(self.options.keys())))
+                known_opts = ','.join(self.options.keys())
+                self.log.error("Undefined toolchain option %s specified (known options: %s)" % (opt, known_opts))
 
     def get_dependency_version(self, dependency):
         """ Generate a version string for a dependency on a module using this toolchain """
@@ -281,8 +279,8 @@ class Toolchain(object):
                 self.log.debug("get_dependency_version: version not in dependency return %s" % version)
                 return
             else:
-                self.log.raiseException('get_dependency_version: No toolchain version for dependency '\
-                                        'name %s (suffix %s) found' % (dependency['name'], toolchain_suffix))
+                tup = (dependency['name'], toolchain_suffix)
+                self.log.error("No toolchain version for dependency name %s (suffix %s) found" % tup)
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
@@ -331,10 +329,10 @@ class Toolchain(object):
         (If string: comma separated list of variables that will be ignored).
         """
         if self.modules_tool is None:
-            self.log.raiseException("No modules tool defined.")
+            self.log.error("No modules tool defined in Toolchain instance.")
 
         if not self._toolchain_exists():
-            self.log.raiseException("No module found for toolchain name '%s' (%s)" % (self.name, self.version))
+            self.log.error("No module found for toolchain: %s" % self.mod_short_name)
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
@@ -429,7 +427,7 @@ class Toolchain(object):
         donotsetlist = []
         if isinstance(donotset, str):
             # TODO : more legacy code that should be using proper type
-            self.log.raiseException("_setenv_variables: using commas-separated list. should be deprecated.")
+            self.log.error("_setenv_variables: using commas-separated list. should be deprecated.")
             donotsetlist = donotset.split(',')
         elif isinstance(donotset, list):
             donotsetlist = donotset
