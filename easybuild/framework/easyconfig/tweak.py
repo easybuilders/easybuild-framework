@@ -201,12 +201,12 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
             diff = True
             try:
                 _log.debug("eval(%s): %s" % (res.group('val'), eval(res.group('val'))))
-                diff = not eval(res.group('val')) == val
+                diff = eval(res.group('val')) != val
             except (NameError, SyntaxError):
                 # if eval fails, just fall back to string comparison
                 tup = (res.group('val'), val)
                 _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % tup)
-                diff = not res.group('val') == val
+                diff = res.group('val') != val
 
             if diff:
                 ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
@@ -524,7 +524,7 @@ def select_or_generate_ec(fp, paths, specs):
         for (key, val) in specs.items():
             if key in selected_ec._config:
                 # values must be equal to have a full match
-                if not selected_ec[key] == val:
+                if selected_ec[key] != val:
                     match = False
             else:
                 # if we encounter a key that is not set in the selected easyconfig, we don't have a full match
