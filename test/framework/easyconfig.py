@@ -585,7 +585,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
         txt = read_file(res[1])
-        self.assertTrue(re.search("version = [\"']%s[\"'] .*was: [\"']3.13[\"']" % ver, txt))
+        self.assertTrue(re.search("^version = [\"']%s[\"']$" % ver, txt, re.M))
         os.remove(res[1])
 
         # should pick correct toolchain version as well, i.e. now newer than what's specified, if a choice needs to be made
@@ -599,8 +599,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['version'], specs['version'])
         self.assertEqual(ec['toolchain']['version'], specs['toolchain_version'])
         txt = read_file(res[1])
-        pattern = "toolchain = .*version.*[\"']%s[\"'].*was: .*version.*[\"']%s[\"']" % (specs['toolchain_version'], tcver)
-        self.assertTrue(re.search(pattern, txt))
+        pattern = "^toolchain = .*version.*[\"']%s[\"'].*}$" % specs['toolchain_version']
+        self.assertTrue(re.search(pattern, txt, re.M))
         os.remove(res[1])
 
 
