@@ -496,6 +496,11 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
+    def test_nosuchtoolchain(self):
+        """Test preparing for a toolchain for which no module is available."""
+        tc = self.get_toolchain('intel', version='1970.01')
+        self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
+
     def tearDown(self):
         """Cleanup."""
         # purge any loaded modules before restoring $MODULEPATH
