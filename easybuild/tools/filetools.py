@@ -40,6 +40,7 @@ import shutil
 import stat
 import time
 import urllib
+import urllib2
 import zlib
 from vsc.utils import fancylogger
 
@@ -259,75 +260,30 @@ def download_file(filename, url, path):
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
-    # internal function to report on download progress
-    def report(blocks_read, blocksize, filesize):
-        """
-        Report hook for urlretrieve, which logs the download progress every 10 seconds with log level info.
-        @param blocks_read: number of blocks already read
-        @param blocksize: size of one block, in bytes
-        @param filesize: total size of the download (in number of blocks blocks)
-        """
-        if download_file.last_time + 10 < time.time():
-            newblocks = blocks_read - download_file.last_block
-            download_file.last_block = blocks_read
-            tot_time = time.time() - download_file.last_time
-
-            if filesize <= 0:
-                # content length isn't always set
-                report_msg = "downloaded in %ss" % tot_time
-            else:
-                percent = blocks_read * blocksize * 100 // filesize
-                report_msg = "of %d kb downloaded in %ss [%d %%]" % (filesize / 1024.0, tot_time, percent)
-
-            downloaded_kbs = (blocks_read * blocksize) / 1024.0
-            kbps = (blocksize * newblocks) / 1024  // tot_time
-            _log.info("Download report: %d kb %s (%d kbps)", downloaded_kbs, report_msg, kbps)
-
-            download_file.last_time = time.time()
-
     # try downloading, three times max.
     downloaded = False
     attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
-        # get HTTP response code first before downloading file
-        response_code = None
-        try:
-            urlfile = urllib.urlopen(url)
-            if hasattr(urlfile, 'getcode'):  # no getcode() in Py2.4 yet
-                response_code = urlfile.getcode()
-            urlfile.close()
-        except IOError, err:
-            _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
-
-        if response_code is not None:
-            _log.debug('HTTP response code for given url: %d', response_code)
-            # check for a 4xx response code which indicates a non-existing URL
-            if response_code // 100 == 4:
-                _log.warning('url %s was not found (HTTP response %d), not trying again', url, response_code)
-                return None
-
-        # use this functions's scope for variables we share with inner function used as report hook for urlretrieve
-        download_file.last_time = time.time()
-        download_file.last_block = 0
-
-        httpmsg = None
-        try:
-            (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
-            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
-
-            if httpmsg.type == "text/html" and not filename.endswith('.html'):
-                _log.warning("HTML file downloaded to %s, so assuming invalid download, retrying.", path)
-                remove_file(path)
-            else:
-                # successful download
+        with open(path, "wb+") as dest_fd:
+            try:
+                src_fd = urllib2.urlopen(url)
+                _log.debug('HTTP response code for given url: %d', src_fd.getcode())
+                dest_fd.write(src_fd.read())
+                _log.info("Downloaded file %s from url %s to %s", filename, url, path)
                 downloaded = True
-        except IOError, err:
-            _log.warning("Error when downloading from %s to %s (%s), removing it and retrying", url, path, err)
-            remove_file(path)
-
-        if not downloaded:
-            attempt_cnt += 1
-            _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+                src_fd.close()
+            except (urllib2.HTTPError, ) as err:
+                    if err.code == 404:
+                        attempt_cnt += 1
+                        _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+                        continue
+                    raise
+            except (IOError, ) as err:
+                if attempt_cnt <= 3:
+                    _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
+                    attempt_cnt += 1
+                    continue
+                raise
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s", filename, url, path)
@@ -1069,3 +1025,5 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
+
+# vim: set ts=4 sts=4 fenc=utf-8 expandtab list:
