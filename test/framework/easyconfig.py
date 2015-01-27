@@ -29,11 +29,12 @@ Unit tests for easyconfig.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
-
+import copy
 import os
 import re
 import shutil
 import tempfile
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -69,8 +70,6 @@ class EasyConfigTest(EnhancedTestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
-        self.orig_current_version = easybuild.tools.build_log.CURRENT_VERSION
-
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -83,7 +82,6 @@ class EasyConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
-        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -152,24 +150,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.contents += "\nsyntax_error'"
         self.prep()
         self.assertErrorRegex(EasyBuildError, "SyntaxError", EasyConfig, self.eb_file)
-
-    def test_deprecated_shared_lib_ext(self):
-        """ inside easyconfigs shared_lib_ext should be set """
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        self.contents = '\n'.join([
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
-            'sanity_check_paths = { "files": ["lib/lib.%s" % shared_lib_ext] }',
-        ])
-        self.prep()
-        eb = EasyConfig(self.eb_file)
-        self.assertEqual(eb['sanity_check_paths']['files'][0], "lib/lib.%s" % get_shared_lib_ext())
 
     def test_shlib_ext(self):
         """ inside easyconfigs shared_lib_ext should be set """
@@ -281,12 +261,6 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(self.eb_file, extra_options=extra_vars)
 
         self.assertEqual(eb['mandatory_key'], 'value')
-
-        # test legacy behavior of passing a list of tuples rather than a dict
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-        eb = EasyConfig(self.eb_file, extra_options=extra_vars.items())
-        self.assertEqual(eb['custom_key'], 'test')
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
@@ -441,26 +415,6 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': versuff,
         }
         installver = det_full_ec_version(cfg)
-        self.assertEqual(installver, correct_installver)
-
-    def test_legacy_installversion(self):
-        """Test generation of install version (legacy)."""
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        ver = "3.14"
-        verpref = "myprefix|"
-        versuff = "|mysuffix"
-        tcname = "GCC"
-        tcver = "4.6.3"
-        dummy = "dummy"
-
-        correct_installver = "%s%s-%s-%s%s" % (verpref, ver, tcname, tcver, versuff)
-        installver = det_installversion(ver, tcname, tcver, verpref, versuff)
-        self.assertEqual(installver, correct_installver)
-
-        correct_installver = "%s%s%s" % (verpref, ver, versuff)
-        installver = det_installversion(ver, dummy, tcver, verpref, versuff)
         self.assertEqual(installver, correct_installver)
 
     def test_obtain_easyconfig(self):
@@ -928,10 +882,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
-        # deprecated functionality: ConfigureMake fallback still enabled
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-        self.assertEqual(get_easyblock_class(None, name='gzip'), ConfigureMake)
 
     def test_easyconfig_paths(self):
         """Test create_paths function."""
@@ -943,32 +893,6 @@ class EasyConfigTest(EnhancedTestCase):
             "/some/path/Foo-1.2.3.eb",
         ]
         self.assertEqual(cand_paths, expected_paths)
-
-    def test_deprecated_options(self):
-        """Test whether deprecated options are handled correctly."""
-        # lower 'current' version to avoid tripping over deprecation errors
-        os.environ['EASYBUILD_DEPRECATED'] = '1.0'
-        init_config()
-
-        deprecated_options = [
-            ('makeopts', 'buildopts', 'CC=foo'),
-            ('premakeopts', 'prebuildopts', ['PATH=%(builddir)s/foo:$PATH', 'PATH=%(builddir)s/bar:$PATH']),
-        ]
-        clean_contents = [
-            'easyblock = "ConfigureMake"',
-            'name = "pi"',
-            'version = "3.14"',
-            'homepage = "http://example.com"',
-            'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
-            'buildininstalldir = True',
-        ]
-        # alternative option is ready to use
-        for depr_opt, new_opt, val in deprecated_options:
-            self.contents = '\n'.join(clean_contents + ['%s = %s' % (depr_opt, quote_str(val))])
-            self.prep()
-            ec = EasyConfig(self.eb_file)
-            self.assertEqual(ec[depr_opt], ec[new_opt])
 
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
@@ -1017,6 +941,65 @@ class EasyConfigTest(EnhancedTestCase):
         opts = init_config(args=['--filter-deps=zlib,ncurses'])
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
 
+    def test_replaced_easyconfig_parameters(self):
+        """Test handling of replaced easyconfig parameters."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+        replaced_parameters = {
+            'license': ('software_license', '2.0'),
+            'makeopts': ('buildopts', '2.0'),
+            'premakeopts': ('prebuildopts', '2.0'),
+        }
+        for key, (newkey, ver) in replaced_parameters.items():
+            error_regex = "NO LONGER SUPPORTED since v%s.*'%s' is replaced by '%s'" % (ver, key, newkey)
+            self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
+            self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+            def foo(key):
+                ec[key] = 'foo'
+            self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+
+    def test_deprecated_easyconfig_parameters(self):
+        """Test handling of replaced easyconfig parameters."""
+        os.environ.pop('EASYBUILD_DEPRECATED')
+        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
+        init_config()
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+
+        orig_deprecated_parameters = copy.deepcopy(easyconfig.easyconfig.DEPRECATED_PARAMETERS)
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS.update({
+            'foobar': ('barfoo', '0.0'),  # deprecated since forever
+            'foobarbarfoo': ('barfoofoobar', '1000000000'),  # won't be actually deprecated for a while
+        })
+
+        # copy classes before reloading, so we can restore them (other isinstance checks fail)
+        orig_EasyConfig = copy.deepcopy(easyconfig.easyconfig.EasyConfig)
+        orig_ActiveMNS = copy.deepcopy(easyconfig.easyconfig.ActiveMNS)
+        reload(easyconfig.easyconfig)
+
+        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_PARAMETERS.items():
+            if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
+                # deprecation error
+                error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
+                self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
+                self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+                def foo(key):
+                    ec[key] = 'foo'
+                self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+            else:
+                # only deprecation warning, but key is replaced when getting/setting
+                ec[key] = 'test123'
+                self.assertEqual(ec[newkey], 'test123')
+                self.assertEqual(ec[key], 'test123')
+                ec[newkey] = '123test'
+                self.assertEqual(ec[newkey], '123test')
+                self.assertEqual(ec[key], '123test')
+
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS = orig_deprecated_parameters
+        reload(easyconfig.easyconfig)
+        easyconfig.easyconfig.EasyConfig = orig_EasyConfig
+        easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
 def suite():
     """ returns all the testcases in this module """

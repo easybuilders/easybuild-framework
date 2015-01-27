@@ -49,9 +49,9 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_TMP_LOGDIR
-from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
-from easybuild.tools.config import get_default_oldstyle_configfile, mk_full_default_path
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import get_pretend_installpath
+from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
@@ -63,7 +63,10 @@ from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
-from vsc.utils.missing import any
+
+
+XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
+DEFAULT_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -71,7 +74,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = get_default_configfiles()
+    DEFAULT_CONFIGFILES = [DEFAULT_CONFIGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
@@ -217,8 +220,6 @@ class EasyBuildOptions(GeneralOption):
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules", None, 'store', mk_full_default_path('installpath')),
-            'config': ("Path to EasyBuild config file (DEPRECATED, use --configfiles instead!)",
-                       None, 'store', get_default_oldstyle_configfile(), 'C'),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -252,10 +253,8 @@ class EasyBuildOptions(GeneralOption):
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
-            'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
-                            None, 'store', None),
-            'tmp-logdir': ("Log directory where temporary log files are stored",
-                           None, 'store', DEFAULT_TMP_LOGDIR),
+            'testoutput': ("Path to where a job should place the output (to be set within jobscript)", None, 'store', None),
+            'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
 

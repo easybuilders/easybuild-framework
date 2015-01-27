@@ -38,6 +38,7 @@ from unittest import TestCase
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
@@ -108,6 +109,7 @@ class EnhancedTestCase(TestCase):
 
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
+        self.orig_current_version = eb_build_log.CURRENT_VERSION
         os.environ['EASYBUILD_DEPRECATED'] = '10000000'
 
         init_config()

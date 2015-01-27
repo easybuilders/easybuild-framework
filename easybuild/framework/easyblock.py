@@ -51,7 +51,7 @@ from vsc.utils.missing import get_class_for
 import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
-from easybuild.framework.easyconfig.easyconfig import DEFAULT_EASYBLOCK, ITERATE_OPTIONS, EasyConfig, ActiveMNS
+from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
@@ -60,7 +60,6 @@ from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
-from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -98,17 +97,9 @@ class EasyBlock(object):
             extra = {}
 
         if not isinstance(extra, dict):
-            typ = type(extra)
-            if not isinstance(extra, ExtraOptionsDeprecatedReturnValue):
-                _log.deprecated("Obtained 'extra' value of type '%s' in extra_options, should be 'dict'" % typ, '2.0')
-            _log.debug("Converting extra_options value '%s' of type '%s' to a dict" % (extra, typ))
-            extra = dict(extra)
+            _log.nosupport("Obtained 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
 
-        # to avoid breaking backward compatibility, we still need to return a list of tuples in EasyBuild v1.x
-        # starting with EasyBuild v2.0, this will be changed to return the actual dict
-        # as a temporary workaround, return a value which is a hybrid between a list and a dict
-        res = ExtraOptionsDeprecatedReturnValue(extra.items())
-        return res
+        return extra
 
     #
     # INIT
@@ -627,8 +618,7 @@ class EasyBlock(object):
         """
         Module generator (DEPRECATED, use self.module_generator instead).
         """
-        self.log.deprecated("self.moduleGenerator is replaced by self.module_generator", "2.0")
-        return self.module_generator
+        self.log.nosupport("self.moduleGenerator is replaced by self.module_generator", '2.0')
 
     #
     # DIRECTORY UTILITY FUNCTIONS
@@ -770,14 +760,14 @@ class EasyBlock(object):
         # these should be all the dependencies and we should load them
         for key in os.environ:
             # legacy support
-            if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX) or key.startswith("SOFTDEVEL"):
-                if key.startswith("SOFTDEVEL"):
-                    self.log.deprecated("Environment variable SOFTDEVEL* being relied on", "2.0")
+            if key.startswith(DEVEL_ENV_VAR_NAME_PREFIX):
                 if not key.endswith(convert_name(self.name, upper=True)):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
                         load_txt += mod_gen.load_module(mod_name)
+            elif key.startswith('SOFTDEVEL'):
+                self.log.nosupport("Environment variable SOFTDEVEL* being relied on", '2.0')
 
         if create_in_builddir:
             output_dir = self.builddir
@@ -1075,15 +1065,9 @@ class EasyBlock(object):
             try:
                 cmd = cmdtmpl % tmpldict
             except KeyError, err:
-                self.log.warning("Failed to complete filter cmd templ '%s' using %s: %s" % (cmdtmpl, tmpldict, err))
-                deprecated_msg = "Providing 'name'/'version' keys for extensions, should use 'ext_name', 'ext_version'"
-                self.log.deprecated(deprecated_msg, '2.0')
-                tmpldict.update({
-                    'name': modname,
-                    'version': ext.get('version'),
-                })
-                self.log.debug("Retrying to complete filter cmd templ with added name/version keys: %s" % tmpldict)
-                cmd = cmdtmpl % tmpldict
+                msg = "KeyError occured on completing extension filter template: %s; "
+                msg += "'name'/'version' keys are no longer supported, should use 'ext_name'/'ext_version' instead"
+                self.log.nosupport(msg, '2.0')
 
             if cmdinputtmpl:
                 stdin = cmdinputtmpl % tmpldict
@@ -1386,18 +1370,8 @@ class EasyBlock(object):
             self.log.error("ERROR: No default extension class set for %s" % self.name)
 
         # obtain name and module path for default extention class
-        legacy = False
         if hasattr(exts_defaultclass, '__iter__'):
-            # LEGACY: module path is explicitely specified
-            self.log.deprecated("Using specified module path for default class", "2.0")
-            default_class_modpath = exts_defaultclass[0]
-            default_class = exts_defaultclass[1]
-            derived_mod_path = get_module_path(default_class, generic=True)
-            if not default_class_modpath == derived_mod_path:
-                msg = "Specified module path for default class %s " % default_class_modpath
-                msg += "doesn't match derived path %s" % derived_mod_path
-                self.log.warning(msg)
-            legacy = True
+            self.log.nosupport("Module path for default class is explicitly defined", '2.0')
 
         elif isinstance(exts_defaultclass, basestring):
             # proper way: derive module path from specified class name
@@ -1429,22 +1403,6 @@ class EasyBlock(object):
             except (ImportError, NameError), err:
                 self.log.debug("Failed to use extension-specific class for extension %s: %s" % (ext['name'], err))
 
-            # LEGACY: try and use default module path for getting extension class instance
-            if inst is None and legacy:
-                self.log.deprecated("Using specified module path for default class", '2.0')
-                try:
-                    msg = "Failed to use derived module path for %s, " % class_name
-                    msg += "considering specified module path as (legacy) fallback."
-                    self.log.debug(msg)
-                    mod_path = default_class_modpath
-                    cls = get_class_for(mod_path, class_name)
-                    inst = cls(self, ext)
-                except (ImportError, NameError), err:
-                    self.log.debug("Failed to use class %s from %s for extension %s: %s" % (class_name,
-                                                                                            mod_path,
-                                                                                            ext['name'],
-                                                                                            err))
-
             # alternative attempt: use class specified in class map (if any)
             if inst is None and ext['name'] in exts_classmap:
 
@@ -1454,9 +1412,7 @@ class EasyBlock(object):
                     cls = get_class_for(mod_path, class_name)
                     inst = cls(self, ext)
                 except (ImportError, NameError), err:
-                    self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name,
-                                                                                               ext['name'],
-                                                                                               err))
+                    self.log.error("Failed to load specified class %s for extension %s: %s" % (class_name, ext['name'], err))
 
             # fallback attempt: use default class
             if inst is None:

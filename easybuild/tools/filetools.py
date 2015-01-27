@@ -42,7 +42,6 @@ import time
 import urllib
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all, any
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -712,11 +711,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
 
 def modify_env(old, new):
-    """
-    Compares 2 os.environ dumps. Adapts final environment.
-    """
-    _log.deprecated("moved modify_env to tools.environment", "2.0")
-    return env.modify_env(old, new)
+    """NO LONGER SUPPORTED: use modify_env from easybuild.tools.environment instead"""
+    _log.nosupport("moved modify_env to easybuild.tools.environment", "2.0")
 
 
 def convert_name(name, upper=False):
@@ -1043,22 +1039,17 @@ def decode_class_name(name):
 
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd"""
-    _log.deprecated("run_cmd was moved from tools.filetools to tools.run", '2.0')
-    return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
-                       inp=inp, regexp=regexp, log_output=log_output, path=path)
+    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd_qa"""
-    _log.deprecated("run_cmd_qa was moved from tools.filetools to tools.run", '2.0')
-    return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
-                          simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """Legacy wrapper/placeholder for run.parse_log_for_error"""
-    _log.deprecated("parse_log_for_error was moved from tools.filetools to tools.run", '2.0')
-    return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
+    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
+    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def det_size(path):

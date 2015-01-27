@@ -34,7 +34,6 @@ Creating a new toolchain should be as simple as possible.
 import os
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import all, any
 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
