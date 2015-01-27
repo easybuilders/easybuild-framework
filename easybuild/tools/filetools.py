@@ -273,12 +273,16 @@ def download_file(filename, url, path):
                 _log.info("Downloaded file %s from url %s to %s", filename, url, path)
                 downloaded = True
                 src_fd.close()
+            except (ValueError, ) as err:
+                attempt_cnt += 1
+                shutil.copy(url, path)
+                downloaded = True
             except (urllib2.HTTPError, ) as err:
-                    if err.code == 404:
-                        attempt_cnt += 1
-                        _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
-                        continue
-                    raise
+                if err.code == 404:
+                    attempt_cnt += 1
+                    _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+                    continue
+                raise
             except (IOError, ) as err:
                 if attempt_cnt <= 3:
                     _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
