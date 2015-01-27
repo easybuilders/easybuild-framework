@@ -29,11 +29,12 @@ Unit tests for easyconfig.py
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
-
+import copy
 import os
 import re
 import shutil
 import tempfile
+from distutils.version import LooseVersion
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
@@ -69,8 +70,6 @@ class EasyConfigTest(EnhancedTestCase):
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
-        self.orig_current_version = easybuild.tools.build_log.CURRENT_VERSION
-
     def prep(self):
         """Prepare for test."""
         # (re)cleanup last test file
@@ -83,7 +82,6 @@ class EasyConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """ make sure to remove the temporary file """
-        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
         super(EasyConfigTest, self).tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
@@ -943,6 +941,65 @@ class EasyConfigTest(EnhancedTestCase):
         opts = init_config(args=['--filter-deps=zlib,ncurses'])
         self.assertEqual(opts.filter_deps, ['zlib', 'ncurses'])
 
+    def test_replaced_easyconfig_parameters(self):
+        """Test handling of replaced easyconfig parameters."""
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+        replaced_parameters = {
+            'license': 'software_license',
+            'makeopts': 'buildopts',
+            'premakeopts': 'prebuildopts',
+        }
+        for key in replaced_parameters:
+            error_regex = "NO LONGER SUPPORTED.*'%s'" % replaced_parameters[key]
+            self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
+            self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+            def foo(key):
+                ec[key] = 'foo'
+            self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+
+    def test_deprecated_easyconfig_parameters(self):
+        """Test handling of replaced easyconfig parameters."""
+        os.environ.pop('EASYBUILD_DEPRECATED')
+        easybuild.tools.build_log.CURRENT_VERSION = self.orig_current_version
+        init_config()
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
+        ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
+
+        orig_deprecated_parameters = copy.deepcopy(easyconfig.easyconfig.DEPRECATED_PARAMETERS)
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS.update({
+            'foobar': ('barfoo', '0.0'),  # deprecated since forever
+            'foobarbarfoo': ('barfoofoobar', '1000000000'),  # won't be actually deprecated for a while
+        })
+
+        # copy classes before reloading, so we can restore them (other isinstance checks fail)
+        orig_EasyConfig = copy.deepcopy(easyconfig.easyconfig.EasyConfig)
+        orig_ActiveMNS = copy.deepcopy(easyconfig.easyconfig.ActiveMNS)
+        reload(easyconfig.easyconfig)
+
+        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_PARAMETERS.items():
+            if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
+                # deprecation error
+                error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
+                self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
+                self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+                def foo(key):
+                    ec[key] = 'foo'
+                self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+            else:
+                # only deprecation warning, but key is replaced when getting/setting
+                ec[key] = 'test123'
+                self.assertEqual(ec[newkey], 'test123')
+                self.assertEqual(ec[key], 'test123')
+                ec[newkey] = '123test'
+                self.assertEqual(ec[newkey], '123test')
+                self.assertEqual(ec[key], '123test')
+
+        easyconfig.easyconfig.DEPRECATED_PARAMETERS = orig_deprecated_parameters
+        reload(easyconfig.easyconfig)
+        easyconfig.easyconfig.EasyConfig = orig_EasyConfig
+        easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 
 def suite():
     """ returns all the testcases in this module """

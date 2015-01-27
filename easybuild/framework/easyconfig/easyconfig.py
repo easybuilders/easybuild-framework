@@ -72,6 +72,11 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
+# deprecated easyconfig parameters, and their replacements
+DEPRECATED_PARAMETERS = {
+    # <old_param>: (<new_param>, <deprecation_version>),
+}
+
 # replaced easyconfig parameters, and their replacements
 REPLACED_PARAMETERS = {
     'license': 'software_license',
@@ -83,10 +88,15 @@ _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
 
-def check_replaced_easyconfig_parameter(ec_method):
-    """Decorator to check for replaced easyconfig parameters."""
+def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
+    """Decorator to handle deprecated/replaced easyconfig parameters."""
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
+        # map deprecated parameters to their replacements, issue deprecation warning(/error)
+        if key in DEPRECATED_PARAMETERS:
+            depr_key = key
+            key, ver = DEPRECATED_PARAMETERS[depr_key]
+            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), ver)
         if key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
         return ec_method(self, key, *args, **kwargs)
@@ -619,7 +629,7 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
-    @check_replaced_easyconfig_parameter
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """
         will return the value without the help text
@@ -632,7 +642,7 @@ class EasyConfig(object):
         else:
             return value
 
-    @check_replaced_easyconfig_parameter
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
         """
         sets the value of key in config.
@@ -640,6 +650,7 @@ class EasyConfig(object):
         """
         self._config[key][0] = value
 
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
         """
         Gets the value of a key in the config, with 'default' as fallback.
