@@ -946,12 +946,12 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
         replaced_parameters = {
-            'license': 'software_license',
-            'makeopts': 'buildopts',
-            'premakeopts': 'prebuildopts',
+            'license': ('software_license', '2.0'),
+            'makeopts': ('buildopts', '2.0'),
+            'premakeopts': ('prebuildopts', '2.0'),
         }
-        for key in replaced_parameters:
-            error_regex = "NO LONGER SUPPORTED.*'%s'" % replaced_parameters[key]
+        for key, (newkey, ver) in replaced_parameters.items():
+            error_regex = "NO LONGER SUPPORTED since v%s.*'%s' is replaced by '%s'" % (ver, key, newkey)
             self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
             self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
             def foo(key):

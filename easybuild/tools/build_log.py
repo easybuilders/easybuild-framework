@@ -103,7 +103,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def nosupport(self, msg, ver):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
-        self.error("NO LONGER SUPPORTED: %s; see %s for more information" % (msg, DEPRECATED_DOC_URL))
+        self.error("NO LONGER SUPPORTED since v%s: %s; see %s for more information" % (ver, msg, DEPRECATED_DOC_URL))
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""

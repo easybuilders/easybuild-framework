@@ -173,8 +173,8 @@ class ConfigurationVariables(FrozenDictKnownKeys):
     # singleton metaclass: only one instance is created
     __metaclass__ = Singleton
 
-    # list of know/required keys
-    KNOWN_KEYS = [
+    # list of known/required keys
+    REQUIRED = [
         'config',
         'prefix',
         'buildpath',
@@ -190,8 +190,9 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'modules_tool',
         'module_naming_scheme',
     ]
+    KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
 
-    def get_items_check_required(self, no_missing=True):
+    def get_items_check_required(self):
         """
         For all known/required keys, check if exists and return all key/value pairs.
             no_missing: boolean, when True, will throw error message for missing values
@@ -199,10 +200,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         missing = [x for x in self.KNOWN_KEYS if not x in self]
         if len(missing) > 0:
             msg = 'Cannot determine value for configuration variables %s. Please specify it.' % missing
-            if no_missing:
-                self.log.error(msg)
-            else:
-                self.log.debug(msg)
+            self.log.error(msg)
 
         return self.items()
 
