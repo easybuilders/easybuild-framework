@@ -133,27 +133,14 @@ class EasyConfig(object):
         self._config = copy.deepcopy(DEFAULT_CONFIG)
 
         # obtain name and easyblock specifications from raw easyconfig contents
-        name, easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
+        self.name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
 
         # try and fix potentially broken easyconfig, if requested
-        if build_option('fix_broken_easyconfigs'):
-            derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
-            fixed_rawtxt = fix_broken_easyconfig(self.rawtxt, derived_easyblock_class)
-            if self.rawtxt != fixed_rawtxt:
-                self.rawtxt = fixed_rawtxt
-                self.path = os.path.join(tempfile.gettempdir(), os.path.basename(self.path))
-                write_file(self.path, self.rawtxt)
-                self.log.info("Replacing broken supplied easyconfig with fixed copy %s" % self.path)
-                self.log.info("Contents of fixed easyconfig file: %s" % self.rawtxt)
-
-                # redetermine easyblock from easyconfig, since it may have changed
-                easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['easyblock'])[0]
-            else:
-                self.log.debug("Nothing broken detected in supplied easyconfig %s, so nothing fixed" % self.path)
+        self.fix_broken()
 
         # determine line of extra easyconfig parameters
         if extra_options is None:
-            easyblock_class = get_easyblock_class(easyblock, name=name)
+            easyblock_class = get_easyblock_class(self.easyblock, name=self.name)
             self.extra_options = easyblock_class.extra_options()
         else:
             self.extra_options = extra_options
@@ -228,6 +215,25 @@ class EasyConfig(object):
             self[key] = prev_value + value
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
+
+    def fix_broken(self):
+        """
+        Try and fix this easyconfig's raw contents, if it's broken and fixing is requested.
+        """
+        if build_option('fix_broken_easyconfigs'):
+            derived_easyblock_class = get_easyblock_class(self.easyblock, name=self.name, default_fallback=False)
+            fixed_rawtxt = fix_broken_easyconfig(self.rawtxt, derived_easyblock_class)
+            if self.rawtxt != fixed_rawtxt:
+                self.rawtxt = fixed_rawtxt
+                self.path = os.path.join(tempfile.gettempdir(), os.path.basename(self.path))
+                write_file(self.path, self.rawtxt)
+                self.log.info("Replacing broken supplied easyconfig with fixed copy %s" % self.path)
+                self.log.info("Contents of fixed easyconfig file: %s" % self.rawtxt)
+
+                # redetermine easyblock from easyconfig, since it may have changed
+                self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['easyblock'])[0]
+            else:
+                self.log.debug("Nothing broken detected in supplied easyconfig %s, so nothing fixed" % self.path)
 
     def parse(self):
         """
