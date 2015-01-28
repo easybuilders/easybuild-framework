@@ -133,14 +133,14 @@ class EasyConfig(object):
         self._config = copy.deepcopy(DEFAULT_CONFIG)
 
         # obtain name and easyblock specifications from raw easyconfig contents
-        self.name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
+        self.software_name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
 
         # try and fix potentially broken easyconfig, if requested
         self.fix_broken()
 
         # determine line of extra easyconfig parameters
         if extra_options is None:
-            easyblock_class = get_easyblock_class(self.easyblock, name=self.name)
+            easyblock_class = get_easyblock_class(self.easyblock, name=self.software_name)
             self.extra_options = easyblock_class.extra_options()
         else:
             self.extra_options = extra_options
@@ -221,7 +221,7 @@ class EasyConfig(object):
         Try and fix this easyconfig's raw contents, if it's broken and fixing is requested.
         """
         if build_option('fix_broken_easyconfigs'):
-            derived_easyblock_class = get_easyblock_class(self.easyblock, name=self.name, default_fallback=False)
+            derived_easyblock_class = get_easyblock_class(self.easyblock, name=self.software_name, default_fallback=False)
             fixed_rawtxt = fix_broken_easyconfig(self.rawtxt, derived_easyblock_class)
             if self.rawtxt != fixed_rawtxt:
                 self.rawtxt = fixed_rawtxt
