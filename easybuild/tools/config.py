@@ -102,6 +102,7 @@ BUILD_OPTIONS_CMDLINE = {
         'allow_modules_tool_mismatch',
         'debug',
         'experimental',
+        'fix_broken_easyconfigs',
         'force',
         'hidden',
         'robot',

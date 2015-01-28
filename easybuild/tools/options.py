@@ -183,6 +183,8 @@ class EasyBuildOptions(GeneralOption):
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
                              None, 'store_true', False),
+            'fix-broken-easyconfigs': ("Fix easyconfig files that were broken due to non-backwards-compatible changes",
+                                       None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),

@@ -39,6 +39,7 @@ import copy
 import difflib
 import os
 import re
+import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -46,7 +47,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -56,11 +57,12 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, get_easyconfig_parameter_default
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig, fix_broken_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
@@ -71,18 +73,6 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
-
-# deprecated easyconfig parameters, and their replacements
-DEPRECATED_PARAMETERS = {
-    # <old_param>: (<new_param>, <deprecation_version>),
-}
-
-# replaced easyconfig parameters, and their replacements
-REPLACED_PARAMETERS = {
-    'license': 'software_license',
-    'makeopts': 'buildopts',
-    'premakeopts': 'prebuildopts',
-}
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -109,7 +99,7 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
         """
         initialize an easyconfig.
         @param path: path to easyconfig file to be parsed
@@ -123,8 +113,17 @@ class EasyConfig(object):
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        if not os.path.isfile(path):
+        if path is not None and not os.path.isfile(path):
             self.log.error("EasyConfig __init__ expected a valid path")
+
+        # read easyconfig file contents (or use provided rawtxt), so it can be passed down to avoid multiple re-reads
+        self.path = path
+        if rawtxt is None:
+            self.rawtxt = read_file(path)
+            self.log.info("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
+        else:
+            self.rawtxt = rawtxt
+            self.log.info("Supplied easyconfig: %s" % self.rawtxt)
 
         # use legacy module classes as default
         self.valid_module_classes = build_option('valid_module_classes')
@@ -133,11 +132,29 @@ class EasyConfig(object):
 
         self._config = copy.deepcopy(DEFAULT_CONFIG)
 
+        # obtain name and easyblock specifications from raw easyconfig contents
+        name, easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
+
+        # try and fix potentially broken easyconfig, if requested
+        if build_option('fix_broken_easyconfigs'):
+            derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
+            fixed_rawtxt = fix_broken_easyconfig(self.rawtxt, derived_easyblock_class)
+            if self.rawtxt != fixed_rawtxt:
+                self.rawtxt = fixed_rawtxt
+                self.path = os.path.join(tempfile.gettempdir(), os.path.basename(self.path))
+                write_file(self.path, self.rawtxt)
+                self.log.info("Replacing broken supplied easyconfig with fixed copy %s" % self.path)
+                self.log.info("Contents of fixed easyconfig file: %s" % self.rawtxt)
+
+                # redetermine easyblock from easyconfig, since it may have changed
+                easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['easyblock'])[0]
+            else:
+                self.log.debug("Nothing broken detected in supplied easyconfig %s, so nothing fixed" % self.path)
+
+        # determine line of extra easyconfig parameters
         if extra_options is None:
-            name = fetch_parameter_from_easyconfig_file(path, 'name')
-            easyblock = fetch_parameter_from_easyconfig_file(path, 'easyblock')
-            app_class = get_easyblock_class(easyblock, name=name)
-            self.extra_options = app_class.extra_options()
+            easyblock_class = get_easyblock_class(easyblock, name=name)
+            self.extra_options = easyblock_class.extra_options()
         else:
             self.extra_options = extra_options
 
@@ -146,8 +163,6 @@ class EasyConfig(object):
             self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
         self._config.update(self.extra_options)
-
-        self.path = path
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -196,7 +211,7 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden)
+        ec = EasyConfig(None, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -228,16 +243,17 @@ class EasyConfig(object):
             self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
+        self.log.info("Parsing easyconfig file %s" % self.path)
         parser = EasyConfigParser(self.path)
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
-        # validate mandatory keys
-        # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
-        missing_keys = [key for key in self.mandatory if key not in local_vars]
-        if missing_keys:
-            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, self.path))
+        # make sure all mandatory parameters are defined
+        # this includes both generic mandatory parameters, as software-specific parameters defined via extra_options
+        missing_mandatory_keys = [key for key in self.mandatory if key not in local_vars]
+        if missing_mandatory_keys:
+            self.log.error("mandatory parameters not provided in %s: %s" % (self.path, missing_mandatory_keys))
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
@@ -682,16 +698,14 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
 
 
 def fetch_parameter_from_easyconfig_file(path, param):
-    """Fetch parameter specification from given easyconfig file."""
-    # check whether easyblock is specified in easyconfig file
-    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
-    txt = read_file(path)
-    res = reg.search(txt)
-    if res:
-        return res.group('param').strip("'\"")
-    else:
-        return None
+    """
+    Fetch parameter specification from given easyconfig file.
+    DEPRECATED: use fetch_parameters_from_easyconfig from easybuild.framework.easyconfigs.parser instead
+    """
+    old = 'fetch_parameter_from_easyconfig_file'
+    new = 'fetch_parameters_from_easyconfig'
+    _log.deprecated("%s is replaced by %s from easybuild.framework.easyconfig.parser" % (old, new), '3.0')
+    return fetch_parameters_from_easyconfig(read_file(path), [param])[0]
 
 
 def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):

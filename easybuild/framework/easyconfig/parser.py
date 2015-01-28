@@ -30,6 +30,7 @@ The parser is format version aware
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import re
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
@@ -37,7 +38,72 @@ from easybuild.framework.easyconfig.format.format import get_format_version, get
 from easybuild.tools.filetools import read_file, write_file
 
 
+# deprecated easyconfig parameters, and their replacements
+DEPRECATED_PARAMETERS = {
+    # <old_param>: (<new_param>, <deprecation_version>),
+}
+
+# replaced easyconfig parameters, and their replacements
+REPLACED_PARAMETERS = {
+    'license': 'license_file',
+    'makeopts': 'buildopts',
+    'premakeopts': 'prebuildopts',
+}
+
+
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
+
+
+def fetch_parameters_from_easyconfig(rawtxt, params):
+    """
+    Fetch (initial) parameter definition from the given easyconfig file contents.
+    @param rawtxt: contents of the easyconfig file
+    @param params: list of parameter names to fetch values for
+    """
+    param_values = []
+    for param in params:
+        regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        res = regex.search(rawtxt)
+        if res:
+            param_values.append(res.group('param').strip("'\""))
+        else:
+            param_values.append(None)
+    _log.debug("Obtained parameters value for %s: %s" % (params, param_values))
+    return param_values
+
+
+def fix_broken_easyconfig(ectxt, easyblock_class):
+    """
+    Fix easyconfig file at specified location, that may be broken due to non-backwards-compatible changes.
+    @param ectxt: raw contents of easyconfig to fix
+    @param easyblock_class: easyblock class, as derived from software name/specified easyblock
+    """
+    _log.debug("Raw contents of potentially broken easyconfig file to fix: %s" % ectxt)
+
+    subs = {
+        # replace former 'magic' variable shared_lib_ext with SHLIB_EXT constant
+        'shared_lib_ext': 'SHLIB_EXT',
+        'name': 'name',
+    }
+    # include replaced easyconfig parameters
+    subs.update(REPLACED_PARAMETERS)
+
+    # check whether any substitions need to be made
+    for old, new in subs.items():
+        regex = re.compile(r'(\W)%s(\W)' % old)
+        if regex.search(ectxt):
+            tup = (regex.pattern, old, new)
+            _log.info("Broken stuff detected using regex pattern '%s', replacing '%s' with '%s'" % tup)
+            ectxt = regex.sub(r'\1%s\2' % new, ectxt)
+
+    # check whether missing "easyblock = 'ConfigureMake'" needs to be inserted
+    if easyblock_class is None:
+        # prepend "easyblock = 'ConfigureMake'" to line containing "name =..."
+        easyblock_spec = "easyblock = 'ConfigureMake'"
+        _log.info("Inserting \"%s\", since no easyblock class was derived from easyconfig parameters" % easyblock_spec)
+        ectxt = re.sub(r'(\s*)(name\s*=)', r"\1%s\n\n\2" % easyblock_spec, ectxt, re.M)
+
+    return ectxt
 
 
 class EasyConfigParser(object):
