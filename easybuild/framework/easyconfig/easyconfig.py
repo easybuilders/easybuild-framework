@@ -925,7 +925,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         if not parse_only:
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
-                'spec': spec,
+                'spec': ec.path,
                 'short_mod_name': ec.short_mod_name,
                 'full_mod_name': ec.full_mod_name,
                 'dependencies': [],
