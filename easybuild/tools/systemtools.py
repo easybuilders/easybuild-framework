@@ -128,12 +128,8 @@ def get_avail_core_count():
 
 
 def get_core_count():
-    """
-    Try to detect the number of virtual or physical CPUs on this system
-    (DEPRECATED, use get_avail_core_count instead)
-    """
-    _log.deprecated("get_core_count() is deprecated, use get_avail_core_count() instead", '2.0')
-    return get_avail_core_count()
+    """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
+    _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
 
 
 def get_cpu_vendor():
@@ -272,16 +268,8 @@ def get_cpu_speed():
 
 
 def get_kernel_name():
-    """Try to determine kernel name
-
-    e.g., 'Linux', 'Darwin', ...
-    """
-    _log.deprecated("get_kernel_name() (replaced by get_os_type())", "2.0")
-    try:
-        kernel_name = os.uname()[0]
-        return kernel_name
-    except OSError, err:
-        raise SystemToolsException("Failed to determine kernel name: %s" % err)
+    """NO LONGER SUPPORTED: use get_os_type() instead"""
+    _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
 
 
 def get_os_type():
@@ -339,15 +327,9 @@ def get_os_name():
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
     'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
     """
-    try:
-        # platform.linux_distribution is more useful, but only available since Python 2.6
-        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
-    except AttributeError:
-        # platform.dist can be used as a fallback
-        # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
-        os_name = platform.dist()[0].strip().lower()
-        _log.deprecated("platform.dist as fallback for platform.linux_distribution", "2.0")
+    # platform.linux_distribution is more useful, but only available since Python 2.6
+    # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
+    os_name = platform.linux_distribution()[0].strip().lower()
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -404,27 +386,24 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    cmd = None
-    if get_os_name() in ['debian', 'ubuntu']:
-        if which('dpkg'):
-            cmd = "dpkg -s %s" % dep
-    else:
-        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-        if which('rpm'):
-            cmd = "rpm -q %s" % dep
-
     found = None
-    if cmd is not None:
+    cmd = None
+    if which('rpm'):
+        cmd = "rpm -q %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if found is None:
+    if not found and which('dpkg'):
+        cmd = "dpkg -s %s" % dep
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if cmd is None:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
-    # try locate if it's available
-    if found is None and which('locate'):
-        cmd = 'locate --regexp "/%s$"' % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        # try locate if it's available
+        if not found and which('locate'):
+            cmd = 'locate --regexp "/%s$"' % dep
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
 
@@ -477,7 +456,6 @@ def get_system_info():
         'gcc_version': get_tool_version('gcc', version_option='-v'),
         'hostname': gethostname(),
         'glibc_version': get_glibc_version(),
-        'kernel_name': get_kernel_name(),
         'os_name': get_os_name(),
         'os_type': get_os_type(),
         'os_version': get_os_version(),

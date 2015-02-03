@@ -42,12 +42,12 @@ import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, any
+from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import modify_env
+from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -137,12 +137,14 @@ class ModulesTool(object):
 
     __metaclass__ = Singleton
 
-    def __init__(self, mod_paths=None):
+    def __init__(self, mod_paths=None, testing=False):
         """
         Create a ModulesTool object
         @param mod_paths: A list of paths where the modules can be located
         @type mod_paths: list
         """
+        # this can/should be set to True during testing
+        self.testing = testing
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.mod_paths = None
@@ -172,18 +174,14 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
 
-        # this can/should be set to True during testing
-        self.testing = False
-
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
 
     @property
     def modules(self):
-        """Property providing access to deprecated 'modules' class variable."""
-        self.log.deprecated("'modules' class variable is deprecated, just use load([<list of modules>])", '2.0')
-        return self._modules
+        """(NO LONGER SUPPORTED!) Property providing access to 'modules' class variable"""
+        self.log.nosupport("'modules' class variable is not supported anymore, use load([<list of modules>]) instead", '2.0')
 
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
@@ -198,6 +196,14 @@ class ModulesTool(object):
             if res:
                 self.version = res.group('version')
                 self.log.info("Found version %s" % self.version)
+
+                # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
+                # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+                self.version = self.version.replace('rc', 'b')
+                if len(self.version.split('.')) > 3:
+                    self.version = '.'.join(self.version.split('.')[:3])
+
+                self.log.info("Converted actual version to '%s'" % self.version)
             else:
                 self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
         except (OSError), err:
@@ -206,12 +212,7 @@ class ModulesTool(object):
         if self.REQ_VERSION is None:
             self.log.debug('No version requirement defined.')
         else:
-            # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
-            # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-            check_ver = self.version.replace('rc', 'b')
-            if len(check_ver.split('.')) > 3:
-                check_ver = '.'.join(check_ver.split('.')[:3])
-            if StrictVersion(check_ver) < StrictVersion(self.REQ_VERSION):
+            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
                 msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
                 self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
             else:
@@ -229,11 +230,20 @@ class ModulesTool(object):
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
-        out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+        if self.testing:
+            # grab 'module' function definition from environment if it's there; only during testing
+            if 'module' in os.environ:
+                out, ec = os.environ['module'], 0
+            else:
+                out, ec = None, 1
+        else:
+            out, ec = run_cmd("type module", simple=False, log_ok=False, log_all=False)
+
         if regex is None:
             regex = r".*%s" % os.path.basename(self.cmd)
         mod_cmd_re = re.compile(regex, re.M)
         mod_details = "pattern '%s' (%s)" % (mod_cmd_re.pattern, self.__class__.__name__)
+
         if ec == 0:
             if mod_cmd_re.search(out):
                 self.log.debug("Found pattern '%s' in defined 'module' function." % mod_cmd_re.pattern)
@@ -315,16 +325,19 @@ class ModulesTool(object):
             self.use(mod_path)
         self.log.info("$MODULEPATH set based on list of module paths (via 'module use'): %s" % os.environ['MODULEPATH'])
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         @param mod_name: a (partial) module name for filtering (default: None)
         """
+        if extra_args is None:
+            extra_args = []
         if mod_name is None:
             mod_name = ''
-        mods = self.run_module('avail', mod_name)
+        args = ['avail'] + extra_args + [mod_name]
+        mods = self.run_module(*args)
 
         # sort list of modules in alphabetical order
         mods.sort(key=lambda m: m['mod_name'])
@@ -356,9 +369,8 @@ class ModulesTool(object):
         return mods_exist
 
     def exists(self, mod_name):
-        """Check if a module with the specified name exists."""
-        self.log.deprecated("exists(<mod_name>) is deprecated, use exist([<mod_name>]) instead", '2.0')
-        return self.exist([mod_name])[0]
+        """NO LONGER SUPPORTED: use exist method instead"""
+        self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
     def load(self, modules, mod_paths=None, purge=False, orig_env=None):
         """
@@ -377,7 +389,7 @@ class ModulesTool(object):
             self.purge()
             # restore original environment if provided
             if orig_env is not None:
-                modify_env(os.environ, orig_env)
+                restore_env(orig_env)
 
         # make sure $MODULEPATH is set correctly after purging
         self.check_module_path()
@@ -394,8 +406,7 @@ class ModulesTool(object):
         Unload all requested modules.
         """
         if modules is None:
-            self.log.deprecated("Unloading modules listed in _modules class variable", '2.0')
-            modules = self._modules[:]
+            self.log.nosupport("Unloading modules listed in _modules class variable", '2.0')
 
         for mod in modules:
             self.run_module('unload', mod)
@@ -456,15 +467,12 @@ class ModulesTool(object):
             args.insert(*self.TERSE_OPTION)
 
         module_path_key = None
-        original_module_path = None
         if 'mod_paths' in kwargs:
             module_path_key = 'mod_paths'
         elif 'modulePath' in kwargs:
             module_path_key = 'modulePath'
         if module_path_key is not None:
-            original_module_path = os.environ['MODULEPATH']
-            os.environ['MODULEPATH'] = kwargs[module_path_key]
-            self.log.deprecated("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
+            self.log.nosupport("Use of '%s' named argument in 'run_module'" % module_path_key, '2.0')
 
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
@@ -490,9 +498,6 @@ class ModulesTool(object):
         # stderr will contain text (just like the normal module command)
         (stdout, stderr) = proc.communicate()
         self.log.debug("Output of module command '%s': stdout: %s; stderr: %s" % (full_cmd, stdout, stderr))
-        if original_module_path is not None:
-            os.environ['MODULEPATH'] = original_module_path
-            self.log.deprecated("Restoring $MODULEPATH back to what it was before running module command/.", '2.0')
 
         if kwargs.get('return_output', False):
             return stdout + stderr
@@ -590,6 +595,8 @@ class ModulesTool(object):
         Determine dictionary with $MODULEPATH extensions for specified modules.
         Modules with an empty list of $MODULEPATH extensions are included.
         """
+        self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
+
         # copy environment so we can restore it
         orig_env = os.environ.copy()
 
@@ -599,6 +606,7 @@ class ModulesTool(object):
             useregex = re.compile(r"^\s*module\s+use\s+(\S+)", re.M)
             exts = useregex.findall(modtxt)
 
+            self.log.debug("Found $MODULEPATH extensions for %s: %s" % (mod_name, exts))
             modpath_exts.update({mod_name: exts})
 
             if exts:
@@ -607,7 +615,7 @@ class ModulesTool(object):
                 self.load([mod_name])
 
         # restore original environment (modules may have been loaded above)
-        modify_env(os.environ, orig_env)
+        restore_env(orig_env)
 
         return modpath_exts
 
@@ -656,39 +664,40 @@ class ModulesTool(object):
             modpath_exts = dict([(k, v) for k, v in self.modpath_extensions_for(deps).items() if v])
             self.log.debug("Non-empty lists of module path extensions for dependencies: %s" % modpath_exts)
 
-        path = []
+        mods_to_top = []
+        full_mod_subdirs = []
         for dep in modpath_exts:
             # if a $MODULEPATH extension is identical to where this module will be installed, we have a hit
             # use os.path.samefile when comparing paths to avoid issues with resolved symlinks
             full_modpath_exts = modpath_exts[dep]
             if path_matches(full_mod_subdir, full_modpath_exts):
                 # full path to module subdir of dependency is simply path to module file without (short) module name
-                full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                dep_full_mod_subdir = self.modulefile_path(dep)[:-len(dep)-1]
+                full_mod_subdirs.append(dep_full_mod_subdir)
 
-                path.append(dep)
-                tup = (dep, full_mod_subdir, full_modpath_exts)
+                mods_to_top.append(dep)
+                tup = (dep, dep_full_mod_subdir, full_modpath_exts)
                 self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
-
-                # no need to continue further, we found the module that extends $MODULEPATH with module subdir
-                break
 
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
                 # this is required to obtain the corresponding module file paths (via 'module show')
                 self.load([dep])
 
-        if path:
-            # remove retained dependency from the list, since we're climbing up the module tree
-            modpath_exts.pop(path[-1])
+        # restore original environment (modules may have been loaded above)
+        restore_env(orig_env)
 
-            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, path))
-            path.extend(self.path_to_top_of_module_tree(top_paths, path[-1], full_mod_subdir, None,
-                                                        modpath_exts=modpath_exts))
+        path = mods_to_top[:]
+        if mods_to_top:
+            # remove retained dependencies from the list, since we're climbing up the module tree
+            remaining_modpath_exts = dict([m for m in modpath_exts.items() if not m[0] in mods_to_top])
+
+            self.log.debug("Path to top from %s extended to %s, so recursing to find way to the top" % (mod_name, mods_to_top))
+            for mod_name, full_mod_subdir in zip(mods_to_top, full_mod_subdirs):
+                path.extend(self.path_to_top_of_module_tree(top_paths, mod_name, full_mod_subdir, None,
+                                                            modpath_exts=remaining_modpath_exts))
         else:
             self.log.debug("Path not extended, we must have reached the top of the module tree")
-
-        # restore original environment (modules may have been loaded above)
-        modify_env(os.environ, orig_env)
 
         self.log.debug("Path to top of module tree from %s: %s" % (mod_name, path))
         return path
@@ -806,7 +815,13 @@ class Lmod(ModulesTool):
 
         @param name: a (partial) module name for filtering (default: None)
         """
-        mods = super(Lmod, self).available(mod_name=mod_name)
+        extra_args = []
+        if StrictVersion(self.version) >= StrictVersion('5.7.5'):
+            # make hidden modules visible for recent version of Lmod
+            extra_args = ['--show_hidden']
+
+        mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
+
         # only retain actual modules, exclude module directories (which end with a '/')
         real_mods = [mod for mod in mods if not mod.endswith('/')]
 
@@ -860,24 +875,22 @@ def get_software_root(name, with_env_var=False):
     """
     Return the software root set for a particular software name.
     """
-    environment_key = get_software_root_env_var_name(name)
-    newname = convert_name(name, upper=True)
-    legacy_key = "SOFTROOT%s" % newname
+    env_var = get_software_root_env_var_name(name)
+    legacy_key = "SOFTROOT%s" % convert_name(name, upper=True)
 
-    # keep on supporting legacy installations
-    if environment_key in os.environ:
-        env_var = environment_key
-    else:
-        env_var = legacy_key
-        if legacy_key in os.environ:
-            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
+    root = None
+    if env_var in os.environ:
+        root = os.getenv(env_var)
 
-    root = os.getenv(env_var)
+    elif legacy_key in os.environ:
+        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
     if with_env_var:
-        return (root, env_var)
+        res = (root, env_var)
     else:
-        return root
+        res = root
+
+    return res
 
 
 def get_software_libdir(name, only_one=True, fs=None):
@@ -923,18 +936,16 @@ def get_software_version(name):
     """
     Return the software version set for a particular software name.
     """
-    environment_key = get_software_version_env_var_name(name)
-    newname = convert_name(name, upper=True)
-    legacy_key = "SOFTVERSION%s" % newname
+    env_var = get_software_version_env_var_name(name)
+    legacy_key = "SOFTVERSION%s" % convert_name(name, upper=True)
 
-    # keep on supporting legacy installations
-    if environment_key in os.environ:
-        return os.getenv(environment_key)
-    else:
-        if legacy_key in os.environ:
-            _log.deprecated("Legacy env var %s is being relied on!" % legacy_key, "2.0")
-        return os.getenv(legacy_key)
+    version = None
+    if env_var in os.environ:
+        version = os.getenv(env_var)
+    elif legacy_key in os.environ:
+        _log.nosupport("Legacy env var %s is being relied on!" % legacy_key, "2.0")
 
+    return version
 
 def curr_module_paths():
     """
@@ -961,7 +972,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None):
+def modules_tool(mod_paths=None, testing=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
@@ -969,15 +980,12 @@ def modules_tool(mod_paths=None):
     modules_tool = get_modules_tool()
     if modules_tool is not None:
         modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths)
+        return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
 
 
-# provide Modules class for backward compatibility (e.g., in easyblocks)
 class Modules(EnvironmentModulesC):
-    """Deprecated interface to modules tool."""
-
+    """NO LONGER SUPPORTED: interface to modules tool, use modules_tool from easybuild.tools.modules instead"""
     def __init__(self, *args, **kwargs):
-        _log.deprecated("modules.Modules class is now an abstract interface, use modules.modules_tool instead", "2.0")
-        super(Modules, self).__init__(*args, **kwargs)
+        _log.nosupport("modules.Modules class is now an abstract interface, use modules.modules_tool instead", '2.0')

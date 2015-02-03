@@ -38,6 +38,7 @@ from unittest import TestCase
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
@@ -105,6 +106,12 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
+
+        # make sure no deprecated behaviour is being triggered (unless intended by the test)
+        # trip *all* log.deprecated statements by setting deprecation version ridiculously high
+        self.orig_current_version = eb_build_log.CURRENT_VERSION
+        os.environ['EASYBUILD_DEPRECATED'] = '10000000'
+
         init_config()
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules
@@ -131,9 +138,13 @@ class EnhancedTestCase(TestCase):
         # restore original Python search path
         sys.path = self.orig_sys_path
 
-        for path in [self.test_buildpath, self.test_installpath, self.test_prefix]:
+        # cleanup
+        for path in [self.logfile, self.test_buildpath, self.test_installpath, self.test_prefix]:
             try:
-                shutil.rmtree(path)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
             except OSError, err:
                 pass
 
@@ -202,13 +213,17 @@ class EnhancedTestCase(TestCase):
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
         # a flat scheme like EasyBuildMNS and a hierarhical one like HierarchicalMNS doesn't work
-        self.reset_modulepath([os.path.join(mod_prefix, 'Core')])
+        self.reset_modulepath([mod_prefix, os.path.join(mod_prefix, 'Core')])
 
-        # tweak use statements in GCC/OpenMPI modules to ensure correct paths
+        # tweak use statements in modules to ensure correct paths
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
         for modfile in [
             os.path.join(mod_prefix, 'Core', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Core', 'GCC', '4.8.3'),
+            os.path.join(mod_prefix, 'Core', 'icc', '2013.5.192-GCC-4.8.3'),
+            os.path.join(mod_prefix, 'Core', 'ifort', '2013.5.192-GCC-4.8.3'),
             os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'OpenMPI', '1.6.4'),
+            os.path.join(mod_prefix, 'Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049'),
             os.path.join(mpi_pref, 'FFTW', '3.3.3'),
             os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
             os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
@@ -228,6 +243,7 @@ def cleanup():
     # empty caches
     tc_utils._initial_toolchain_instances.clear()
     easyconfig._easyconfigs_cache.clear()
+    easyconfig._easyconfig_files_cache.clear()
     mns_toolchain._toolchain_details_cache.clear()
 
 
@@ -248,7 +264,7 @@ def init_config(args=None, build_options=None):
         }
     if 'suffix_modules_path' not in build_options:
         build_options.update({'suffix_modules_path': GENERAL_CLASS})
-    config.init_build_options(build_options)
+    config.init_build_options(build_options=build_options)
 
     return eb_go.options
 

@@ -51,17 +51,6 @@ class FileToolsTest(EnhancedTestCase):
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
 
-    def setUp(self):
-        """Set up testcase."""
-        super(FileToolsTest, self).setUp()
-        self.legacySetUp()
-
-    def legacySetUp(self):
-        self.log.deprecated("legacySetUp", "2.0")
-        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
-        cfg_full_path = find_full_path(cfg_path)
-        self.assertTrue(cfg_full_path)
-
     def test_extract_cmd(self):
         """Test various extract commands."""
         tests = [
@@ -190,9 +179,12 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location)
+
+        # non-existing files result in None return value
+        self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
 
     def test_mkdir(self):
         """Test mkdir function."""

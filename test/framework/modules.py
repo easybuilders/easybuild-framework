@@ -43,7 +43,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 44
+TEST_MODULES_COUNT = 50
 
 
 class ModulesTest(EnhancedTestCase):
@@ -121,12 +121,6 @@ class ModulesTest(EnhancedTestCase):
                      'ScaLAPACK/1.8.0-gompi-1.1.0-no-OFED-ATLAS-3.8.4-LAPACK-3.4.0-BLACS-1.1',
                      'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
         self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
-
-        # test deprecated functionality
-        self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
-        self.assertFalse(self.testmods.exists('foo/1.2.3'))
-        # exists should not return True for incomplete module names
-        self.assertFalse(self.testmods.exists('GCC'))
 
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
@@ -282,6 +276,7 @@ class ModulesTest(EnhancedTestCase):
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
 
 def suite():
     """ returns all the testcases in this module """
