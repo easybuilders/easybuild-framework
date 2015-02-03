@@ -630,10 +630,13 @@ class EasyConfig(object):
                 del self.template_values[k]
 
     @handle_deprecated_or_replaced_easyconfig_parameters
+    def __contains__(self, key):
+        """Check whether easyconfig parameter is defined"""
+        return key in self._config
+
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
-        """
-        will return the value without the help text
-        """
+        """Return value of specified easyconfig parameter (without help text, etc.)"""
         value = self._config[key][0]
         if self.enable_templating:
             if self.template_values is None or len(self.template_values) == 0:
@@ -644,10 +647,7 @@ class EasyConfig(object):
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
-        """
-        sets the value of key in config.
-        help text is untouched
-        """
+        """Set value of specified easyconfig parameter (help text & co is left untouched)"""
         self._config[key][0] = value
 
     @handle_deprecated_or_replaced_easyconfig_parameters
