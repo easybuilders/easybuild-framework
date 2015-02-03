@@ -637,18 +637,26 @@ class EasyConfig(object):
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """Return value of specified easyconfig parameter (without help text, etc.)"""
-        value = self._config[key][0]
+        value = None
+        if key in self._config:
+            value = self._config[key][0]
+        else:
+            self.log.error("Use of unknown easyconfig parameter '%s' when getting parameter value" % key)
+
         if self.enable_templating:
             if self.template_values is None or len(self.template_values) == 0:
                 self.generate_template_values()
-            return resolve_template(value, self.template_values)
-        else:
-            return value
+            value = resolve_template(value, self.template_values)
+
+        return value
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
         """Set value of specified easyconfig parameter (help text & co is left untouched)"""
-        self._config[key][0] = value
+        if key in self._config:
+            self._config[key][0] = value
+        else:
+            self.log.error("Use of unknown easyconfig parameter '%s' when setting parameter value" % key)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
