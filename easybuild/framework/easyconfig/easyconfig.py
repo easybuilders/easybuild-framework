@@ -241,7 +241,7 @@ class EasyConfig(object):
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
-                          for key in local_vars if key not in self._config]
+                          for key in local_vars if key not in self]
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
@@ -656,15 +656,16 @@ class EasyConfig(object):
         if key in self._config:
             self._config[key][0] = value
         else:
-            self.log.error("Use of unknown easyconfig parameter '%s' when setting parameter value" % key)
+            tup = (key, value)
+            self.log.error("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'" % tup)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
         """
         Gets the value of a key in the config, with 'default' as fallback.
         """
-        if key in self._config:
-            return self.__getitem__(key)
+        if key in self:
+            return self[key]
         else:
             return default
 
