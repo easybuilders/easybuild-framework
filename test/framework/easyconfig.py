@@ -227,7 +227,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
-        self.assertRaises(KeyError, lambda: eb['custom_key'])
+        self.assertErrorRegex(EasyBuildError, "unknown easyconfig parameter", lambda: eb['custom_key'])
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
@@ -1000,6 +1000,27 @@ class EasyConfigTest(EnhancedTestCase):
         reload(easyconfig.easyconfig)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
+
+    def test_unknown_easyconfig_parameter(self):
+        """Check behaviour when unknown easyconfig parameters are used."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        self.assertFalse('therenosucheasyconfigparameterlikethis' in ec)
+        error_regex = "unknown easyconfig parameter"
+        self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], 'therenosucheasyconfigparameterlikethis')
+        def set_ec_key(key):
+            """Dummy function to set easyconfig parameter in 'ec' EasyConfig instance"""
+            ec[key] = 'foobar'
+        self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
+
 
 def suite():
     """ returns all the testcases in this module """
