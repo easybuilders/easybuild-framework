@@ -39,8 +39,7 @@ import re
 import shutil
 import stat
 import time
-import urllib
-import urllib2
+import urllib2 # does the right thing for http proxy setups
 import zlib
 from vsc.utils import fancylogger
 
@@ -264,29 +263,28 @@ def download_file(filename, url, path):
     downloaded = False
     attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
-        with open(path, "wb+") as dest_fd:
-            try:
-                src_fd = urllib2.urlopen(url)
-                _log.debug('HTTP response code for given url: %d', src_fd.getcode())
-                dest_fd.write(src_fd.read())
-                _log.info("Downloaded file %s from url %s to %s", filename, url, path)
-                downloaded = True
-                src_fd.close()
-            except (ValueError, ) as err:
+        try:
+            src_fd = urllib2.urlopen(url)
+            _log.debug('HTTP response code for given url: %d', src_fd.getcode())
+            write_file(path, src_fd.read())
+            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
+            downloaded = True
+            src_fd.close()
+        except (ValueError, ) as err:
+            attempt_cnt += 1
+            shutil.copy(url, path)
+            downloaded = True
+        except (urllib2.HTTPError, ) as err:
+            if 400 <= err.code <= 499:
                 attempt_cnt += 1
-                shutil.copy(url, path)
-                downloaded = True
-            except (urllib2.HTTPError, ) as err:
-                if err.code == 404:
-                    attempt_cnt += 1
-                    _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
-                    continue
+                _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+            else:
                 raise
-            except (IOError, ) as err:
-                if attempt_cnt <= 3:
-                    _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
-                    attempt_cnt += 1
-                    continue
+        except (IOError, ) as err:
+            if attempt_cnt <= 3:
+                _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
+                attempt_cnt += 1
+            else:
                 raise
 
     if downloaded:
@@ -1029,5 +1027,3 @@ def det_size(path):
         _log.warn("Could not determine install size: %s" % err)
 
     return installsize
-
-# vim: set ts=4 sts=4 fenc=utf-8 expandtab list:
