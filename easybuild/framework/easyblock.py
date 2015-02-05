@@ -881,7 +881,8 @@ class EasyBlock(object):
         # set environment variable that specifies list of extensions
         if self.exts_all:
             exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            txt += self.module_generator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+            env_var_name = convert_name(self.name, upper=True)
+            txt += self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list)
 
         return txt
 
