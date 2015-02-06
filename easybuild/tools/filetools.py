@@ -289,6 +289,8 @@ def download_file(filename, url, path):
         except IOError as err:
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
             attempt_cnt += 1
+        except Exception, err:
+            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
 
         if not downloaded and attempt_cnt < max_attempts:
             _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
