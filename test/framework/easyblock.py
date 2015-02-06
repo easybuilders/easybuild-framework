@@ -451,7 +451,7 @@ class EasyBlockTest(EnhancedTestCase):
         # 'downloading' a file to (first) sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, testdir)])
         shutil.copy2(toy_tarball_path, tmpdir_subdir)
-        res = eb.obtain_file(toy_tarball, urls=[os.path.join('file://', tmpdir_subdir)])
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
         # finding a file in sourcepath works
@@ -460,16 +460,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(res, toy_tarball_path)
 
         # sourcepath has preference over downloading
-        res = eb.obtain_file(toy_tarball, urls=[os.path.join('file://', tmpdir_subdir)])
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
 
         # obtain_file yields error for non-existing files
         fn = 'thisisclearlyanonexistingfile'
-        try:
-            eb.obtain_file(fn, urls=[os.path.join('file://', tmpdir_subdir)])
-        except EasyBuildError, err:
-            fail_regex = re.compile("Couldn't find file %s anywhere, and downloading it didn't work either" % fn)
-            self.assertTrue(fail_regex.search(str(err)))
+        error_regex = "Couldn't find file %s anywhere, and downloading it didn't work either" % fn
+        self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])

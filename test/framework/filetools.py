@@ -33,7 +33,8 @@ import os
 import shutil
 import stat
 import tempfile
-from test.framework.utilities import EnhancedTestCase, find_full_path
+import urllib2
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -181,10 +182,24 @@ class FileToolsTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works")
 
         # non-existing files result in None return value
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+
+        # install broken proxy handler for opening local files
+        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+
+        # downloading over a broken proxy results in None return value (failed download)
+        # this tests whether proxies are taken into account by download_file
+        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+
+        # restore a working file handler, and retest download of local file
+        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
     def test_mkdir(self):
         """Test mkdir function."""
