@@ -39,7 +39,7 @@ import re
 import shutil
 import stat
 import time
-import urllib2 # does the right thing for http proxy setups
+import urllib2  # does the right thing for http proxy setups, urllib does not!
 import zlib
 from vsc.utils import fancylogger
 
@@ -268,38 +268,35 @@ def download_file(filename, url, path):
 
     # try downloading, three times max.
     downloaded = False
+    max_attempts = 3
     attempt_cnt = 0
-    while not downloaded and attempt_cnt < 3:
+    while not downloaded and attempt_cnt < max_attempts:
         try:
-            src_fd = urllib2.urlopen(url, timeout=timeout)
-            _log.debug('HTTP response code for given url: %d', src_fd.getcode())
-            write_file(path, src_fd.read())
-            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
+            url_fd = urllib2.urlopen(url, timeout=timeout)
+            _log.debug('response code for given url: %s' % url_fd.getcode())
+            write_file(path, url_fd.read())
+            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
-            src_fd.close()
-        except (ValueError, ) as err:
-            attempt_cnt += 1
-            shutil.copy(url, path)
-            downloaded = True
-        except (urllib2.HTTPError, ) as err:
+            url_fd.close()
+        except urllib2.HTTPError as err:
             if 400 <= err.code <= 499:
-                attempt_cnt += 1
-                _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+                break
             else:
-                raise
-        except (IOError, ) as err:
-            if attempt_cnt <= 3:
-                _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
+                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
                 attempt_cnt += 1
-            else:
-                raise
+        except IOError as err:
+            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            attempt_cnt += 1
+
+        if not downloaded and attempt_cnt < max_attempts:
+            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
 
     if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s", filename, url, path)
+        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
         return path
     else:
-        # failed to download after multiple attempts
-        _log.warning("Too many failed download attempts, giving up")
+        _log.warning("Download of %s to %s failed, done trying" % (url, path))
         return None
 
 
