@@ -1934,7 +1934,9 @@ def build_and_install_one(module, orig_environ):
 
         try:
             newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
-            shutil.copy(spec, newspec)
+            # only copy if the files are not the same actual file already
+            if not os.path.samefile(spec, newspec):
+                shutil.copy(spec, newspec)
             _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
             print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
