@@ -1460,7 +1460,7 @@ class EasyBlock(object):
             for cmd in self.cfg['postinstallcmds']:
                 if not isinstance(cmd, basestring):
                     self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
-                run_cmd(cmd, simple=True, log_ok=False, log_all=False)
+                run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         if self.group is not None:
             # remove permissions for others, and set group ID
