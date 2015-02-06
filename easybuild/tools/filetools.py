@@ -39,7 +39,7 @@ import re
 import shutil
 import stat
 import time
-import urllib2  # does the right thing for http proxy setups, urllib does not!
+import urllib2
 import zlib
 from vsc.utils import fancylogger
 
@@ -272,6 +272,7 @@ def download_file(filename, url, path):
     attempt_cnt = 0
     while not downloaded and attempt_cnt < max_attempts:
         try:
+            # urllib2 does the right thing for http proxy setups, urllib does not!
             url_fd = urllib2.urlopen(url, timeout=timeout)
             _log.debug('response code for given url: %s' % url_fd.getcode())
             write_file(path, url_fd.read())
