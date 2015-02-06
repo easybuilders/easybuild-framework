@@ -1940,7 +1940,7 @@ def build_and_install_one(module, orig_environ):
                 shutil.copy(spec, newspec)
             _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
+            print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
 
     # build failed
     else:
