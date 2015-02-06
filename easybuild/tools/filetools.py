@@ -255,6 +255,13 @@ def download_file(filename, url, path):
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
+    timeout = build_option('download_timeout')
+    if timeout is None:
+        # default to 10sec timeout if none was specified
+        # default system timeout (used is nothing is specified) may be infinite (?)
+        timeout = 10
+    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
+
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
@@ -264,7 +271,7 @@ def download_file(filename, url, path):
     attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
         try:
-            src_fd = urllib2.urlopen(url)
+            src_fd = urllib2.urlopen(url, timeout=timeout)
             _log.debug('HTTP response code for given url: %d', src_fd.getcode())
             write_file(path, src_fd.read())
             _log.info("Downloaded file %s from url %s to %s", filename, url, path)
