@@ -274,7 +274,7 @@ def download_file(filename, url, path):
         try:
             # urllib2 does the right thing for http proxy setups, urllib does not!
             url_fd = urllib2.urlopen(url, timeout=timeout)
-            _log.debug('response code for given url: %s' % url_fd.getcode())
+            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
             write_file(path, url_fd.read())
             _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
