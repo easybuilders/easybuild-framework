@@ -1935,10 +1935,14 @@ def build_and_install_one(module, orig_environ):
 
         try:
             newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
-            shutil.copy(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
+            # only copy if the files are not the same file already (yes, it happens)
+            if os.path.exists(newspec) and os.path.samefile(spec, newspec):
+                _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))
+            else:
+                shutil.copy(spec, newspec)
+                _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
+            print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
 
     # build failed
     else:
