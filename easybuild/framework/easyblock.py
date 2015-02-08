@@ -745,7 +745,7 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        header = "#%Module\n"
+        header = self.module_generator.module_header()
 
         env_txt = ""
         for (key, val) in env.get_changes().items():

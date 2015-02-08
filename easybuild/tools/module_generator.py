@@ -116,12 +116,19 @@ class ModuleGenerator(object):
         else:
             self.module_path = config.install_path('mod')
 
+    def module_header(self):
+        """Return module header string."""
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
     """
 
+    def module_header(self):
+        """Return module header string."""
+        return "#%Module\n"
 
     def get_description(self, conflict=True):
         """
@@ -130,7 +137,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            "#%%Module",  # double % to escape string formatting!
             "",
             "proc ModulesHelp { } {",
             "    puts stderr {   %(description)s",
@@ -161,7 +167,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.append("conflict %s\n" % os.path.dirname(self.app.short_mod_name))
 
-        txt = '\n'.join(lines) % {
+        txt = self.module_header()
+        txt += '\n'.join(lines) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
@@ -270,6 +277,10 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
+
+    def module_header(self):
+        """Return module header string."""
+        return ''
 
     def get_description(self, conflict=True):
         """
