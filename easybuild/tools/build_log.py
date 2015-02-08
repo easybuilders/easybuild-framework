@@ -33,6 +33,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 """
 import os
 import sys
+import tempfile
 from copy import copy
 from vsc.utils import fancylogger
 
@@ -47,6 +48,8 @@ CURRENT_VERSION = VERSION
 
 # allow some experimental experimental code
 EXPERIMENTAL = False
+
+DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
 
 
 class EasyBuildError(Exception):
@@ -95,7 +98,12 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
+        msg += "; see %s for more information" % DEPRECATED_DOC_URL
         fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
+
+    def nosupport(self, msg, ver):
+        """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
+        self.error("NO LONGER SUPPORTED since v%s: %s; see %s for more information" % (ver, msg, DEPRECATED_DOC_URL))
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
@@ -134,15 +142,36 @@ fancylogger.logToFile(filename=os.devnull)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
+def init_logging(logfile, logtostdout=False, testing=False):
+    """Initialize logging."""
+    if logtostdout:
+        fancylogger.logToScreen(enable=True, stdout=True)
+    else:
+        if logfile is None:
+            # mkstemp returns (fd,filename), fd is from os.open, not regular open!
+            fd, logfile = tempfile.mkstemp(suffix='.log', prefix='easybuild-')
+            os.close(fd)
+
+        fancylogger.logToFile(logfile)
+        print_msg('temporary log file in case of crash %s' % (logfile), log=None, silent=testing)
+
+    log = fancylogger.getLogger(fname=False)
+
+    return log, logfile
+
+
+def stop_logging(logfile, logtostdout=False):
+    """Stop logging."""
+    if logtostdout:
+        fancylogger.logToScreen(enable=False, stdout=True)
+    fancylogger.logToFile(logfile, enable=False)
+
+
 def get_log(name=None):
     """
-    Generate logger object
+    (NO LONGER SUPPORTED!) Generate logger object
     """
-    # fname is always get_log, useless
-    log = fancylogger.getLogger(name, fname=False)
-    log.info("Logger started for %s." % name)
-    log.deprecated("get_log", "2.0")
-    return log
+    log.nosupport("Use of get_log function", '2.0')
 
 
 def print_msg(msg, log=None, silent=False, prefix=True):
@@ -164,10 +193,9 @@ def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=Tr
     """
     if exit_on_error:
         if not silent:
-            print_msg("ERROR: %s\n" % message)
             if opt_parser:
                 opt_parser.print_shorthelp()
-                print_msg("ERROR: %s\n" % message)
+            sys.stderr.write("ERROR: %s\n" % message)
         sys.exit(exitCode)
     elif log is not None:
         log.error(message)

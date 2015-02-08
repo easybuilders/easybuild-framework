@@ -75,7 +75,6 @@ def build_easyconfig_constants_dict():
 
 def build_easyconfig_variables_dict():
     """Make a dictionary with all variables that can be used"""
-    _log.deprecated("Magic 'global' easyconfigs variables like shared_lib_ext should no longer be used", '2.0')
     vars_dict = {
         "shared_lib_ext": get_shared_lib_ext(),
     }
@@ -177,6 +176,11 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         self.log.debug("pyheader initial global_vars %s" % global_vars)
         self.log.debug("pyheader initial local_vars %s" % local_vars)
         self.log.debug("pyheader text being exec'ed: %s" % pyheader)
+
+        # check for use of deprecated magic easyconfigs variables
+        for magic_var in build_easyconfig_variables_dict():
+            if re.search(magic_var, pyheader, re.M):
+                _log.nosupport("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
 
         try:
             exec(pyheader, global_vars, local_vars)

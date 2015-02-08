@@ -32,7 +32,7 @@ The main easyconfig format class
 import copy
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import get_subclasses, any
+from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator

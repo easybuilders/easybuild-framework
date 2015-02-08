@@ -5,6 +5,7 @@ docstring test
 @author: Stijn De Weirdt (UGent)
 @maintainer: Kenneth Hoste (UGent)
 """
+easyblock = 'ConfigureMake'
 
 name = 'doesnotexist'
 

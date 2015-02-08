@@ -39,6 +39,28 @@
 # @author: Pieter De Baets (Ghent University)
 # @author: Jens Timmerman (Ghent University)
 
+# Python 2.6 or more recent 2.x required
+REQ_MAJ_PYVER=2
+REQ_MIN_PYVER=6
+REQ_PYVER=${REQ_MAJ_PYVER}.${REQ_MIN_PYVER}
+
+# make sure Python version being used is compatible
+pyver=`python -V 2>&1 | cut -f2 -d' '`
+pyver_maj=`echo $pyver | cut -f1 -d'.'`
+pyver_min=`echo $pyver | cut -f2 -d'.'`
+
+if [ $pyver_maj -ne $REQ_MAJ_PYVER ]
+then
+    echo "ERROR: EasyBuild is currently only compatible with Python v${REQ_MAJ_PYVER}.x, found v${pyver}" 1>&2
+    exit 1
+fi
+if [ $pyver_min -lt $REQ_MIN_PYVER ]
+then
+    echo "ERROR: EasyBuild requires Python v${REQ_PYVER} or a more recent v${REQ_MAJ_PYVER}.x, found v${pyver}." 1>&2
+    exit 2
+fi
+
+
 main_script_base_path="easybuild/main.py"
 python_search_path_cmd="python -c \"import sys; print ' '.join(sys.path)\""
 
