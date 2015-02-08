@@ -54,6 +54,7 @@ _log = fancylogger.getLogger('config', fname=False)
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
+DEFAULT_MODULE_SYNTAX = 'Tcl'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',

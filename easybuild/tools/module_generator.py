@@ -36,13 +36,16 @@ import os
 import re
 import tempfile
 from vsc.utils import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
-from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
 from easybuild.tools.utilities import quote_str
+
+
+MODULE_GENERATOR_CLASS_PREFIX = 'ModuleGenerator'
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -407,3 +410,19 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
     # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias(%s,"%s")\n' % (key, quote_str(value))
+
+
+def avail_module_syntaxes():
+    """
+    Return all known module syntaxes.
+    """
+    class_dict = {}
+    for klass in get_subclasses(ModuleGenerator):
+        class_name = klass.__name__
+        if class_name.startswith(MODULE_GENERATOR_CLASS_PREFIX):
+            syntax = class_name[len(MODULE_GENERATOR_CLASS_PREFIX):]
+            class_dict.update({syntax: klass})
+        else:
+            tup = (MODULE_GENERATOR_CLASS_PREFIX, class_name)
+            _log.error("Invalid name for ModuleGenerator subclass, should start with %s: %s" % tup)
+    return class_dict
