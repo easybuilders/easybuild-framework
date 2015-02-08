@@ -30,9 +30,10 @@ Generating module files.
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
+import re
 import tempfile
 from vsc.utils import fancylogger
 
@@ -47,7 +48,14 @@ from easybuild.tools.utilities import quote_str
 _log = fancylogger.getLogger('module_generator', fname=False)
 
 
-class ModuleGenerator:
+class ModuleGenerator(object):
+    """
+    Class for generating module files.
+    """
+
+    # chars we want to escape in the generated modulefiles
+    CHARS_TO_ESCAPE = ["$"]
+
     def __init__(self, application, fake=False):
         self.fake = fake
         self.app = application
@@ -231,6 +239,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
+        # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         return '\n'.join([
             "",
             "if [ module-info mode load ] {",

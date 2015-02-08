@@ -30,7 +30,7 @@ Utility functions for implementating module naming schemes.
 @author: Kenneth Hoste (Ghent University)
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
-@author: Fotis Georgatos (Uni.Lu)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import string

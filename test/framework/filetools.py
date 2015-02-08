@@ -33,7 +33,8 @@ import os
 import shutil
 import stat
 import tempfile
-from test.framework.utilities import EnhancedTestCase, find_full_path
+import urllib2
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -50,17 +51,6 @@ class FileToolsTest(EnhancedTestCase):
         ('DL_POLY_Classic', 'EB_DL_underscore_POLY_underscore_Classic'),
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
-
-    def setUp(self):
-        """Set up testcase."""
-        super(FileToolsTest, self).setUp()
-        self.legacySetUp()
-
-    def legacySetUp(self):
-        self.log.deprecated("legacySetUp", "2.0")
-        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
-        cfg_full_path = find_full_path(cfg_path)
-        self.assertTrue(cfg_full_path)
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -190,9 +180,26 @@ class FileToolsTest(EnhancedTestCase):
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = os.path.join('file://', test_dir, 'sandbox', 'sources', 'toy', fn)
+        source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works")
+
+        # non-existing files result in None return value
+        self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+
+        # install broken proxy handler for opening local files
+        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+
+        # downloading over a broken proxy results in None return value (failed download)
+        # this tests whether proxies are taken into account by download_file
+        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+
+        # restore a working file handler, and retest download of local file
+        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
     def test_mkdir(self):
         """Test mkdir function."""

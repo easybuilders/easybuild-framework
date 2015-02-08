@@ -37,7 +37,7 @@ import copy
 import os
 
 from easybuild.tools.config import build_path
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 class Extension(object):
