@@ -67,7 +67,7 @@ from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import ModuleGeneratorLua
+from easybuild.tools.module_generator import module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -132,7 +132,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.module_generator = ModuleGeneratorLua(self, fake=True)
+        self.module_generator = module_generator()
 
         # modules footer
         self.modules_footer = None
@@ -745,7 +745,6 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        mod_gen = ModuleGeneratorLua(self)
         header = "#%Module\n"
 
         env_txt = ""
@@ -753,7 +752,7 @@ class EasyBlock(object):
             # check if non-empty string
             # TODO: add unset for empty vars?
             if val.strip():
-                env_txt += mod_gen.set_environment(key, val)
+                env_txt += self.module_generator.set_environment(key, val)
 
         load_txt = ""
         # capture all the EBDEVEL vars
@@ -765,7 +764,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name)
+                        load_txt += self.module_generator.load_module(mod_name)
             elif key.startswith('SOFTDEVEL'):
                 self.log.nosupport("Environment variable SOFTDEVEL* being relied on", '2.0')
 

@@ -55,7 +55,7 @@ from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import avail_module_syntaxes
+from easybuild.tools.module_generator import avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.ordereddict import OrderedDict
@@ -228,7 +228,7 @@ class EasyBuildOptions(GeneralOption):
             'module-naming-scheme': ("Module naming scheme",
                                      'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
-                              sorted(avail_module_syntaxes().keys())),
+                              sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
                                None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),

@@ -350,9 +350,16 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuild, ...)
+    Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_module_syntax():
+    """
+    Return module syntax (Lua, Tcl)
+    """
+    return ConfigurationVariables()['module_syntax']
 
 
 def log_file_format(return_directory=False):

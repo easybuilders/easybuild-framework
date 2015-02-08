@@ -40,7 +40,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, get_module_syntax
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.utilities import quote_str
 
@@ -412,7 +412,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return 'setalias(%s,"%s")\n' % (key, quote_str(value))
 
 
-def avail_module_syntaxes():
+def avail_module_generators():
     """
     Return all known module syntaxes.
     """
@@ -426,3 +426,12 @@ def avail_module_syntaxes():
             tup = (MODULE_GENERATOR_CLASS_PREFIX, class_name)
             _log.error("Invalid name for ModuleGenerator subclass, should start with %s: %s" % tup)
     return class_dict
+
+
+def module_generator():
+    """
+    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
+    """
+    module_syntax = get_module_syntax()
+    module_generator_class = avail_module_generators().get(module_syntax)
+    return module_generator_class()
