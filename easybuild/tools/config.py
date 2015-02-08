@@ -54,6 +54,7 @@ _log = fancylogger.getLogger('config', fname=False)
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MNS = 'EasyBuildMNS'
+DEFAULT_MODULE_SYNTAX = 'Tcl'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
@@ -176,20 +177,21 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 
     # list of known/required keys
     REQUIRED = [
-        'config',
-        'prefix',
         'buildpath',
+        'config',
         'installpath',
-        'sourcepath',
+        'logfile_format',
+        'moduleclasses',
+        'module_naming_scheme',
+        'module_syntax',
+        'modules_tool',
+        'prefix',
         'repository',
         'repositorypath',
-        'logfile_format',
-        'tmp_logdir',
-        'moduleclasses',
+        'sourcepath',
         'subdir_modules',
         'subdir_software',
-        'modules_tool',
-        'module_naming_scheme',
+        'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
 
@@ -349,9 +351,16 @@ def get_modules_tool():
 
 def get_module_naming_scheme():
     """
-    Return module naming scheme (EasyBuild, ...)
+    Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
+
+
+def get_module_syntax():
+    """
+    Return module syntax (Lua, Tcl)
+    """
+    return ConfigurationVariables()['module_syntax']
 
 
 def log_file_format(return_directory=False):

@@ -36,13 +36,16 @@ import os
 import re
 import tempfile
 from vsc.utils import fancylogger
+from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
-from easybuild.tools.config import build_option
+from easybuild.tools.config import build_option, get_module_syntax
 from easybuild.tools.filetools import mkdir
-from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
 from easybuild.tools.utilities import quote_str
+
+
+MODULE_GENERATOR_CLASS_PREFIX = 'ModuleGenerator'
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -57,7 +60,6 @@ class ModuleGenerator(object):
     CHARS_TO_ESCAPE = ["$"]
 
     def __init__(self, application, fake=False):
-        self.fake = fake
         self.app = application
         self.fake = fake
         self.tmpdir = None
@@ -114,12 +116,19 @@ class ModuleGenerator(object):
         else:
             self.module_path = config.install_path('mod')
 
+    def module_header(self):
+        """Return module header string."""
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
     """
 
+    def module_header(self):
+        """Return module header string."""
+        return "#%Module\n"
 
     def get_description(self, conflict=True):
         """
@@ -128,7 +137,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            "#%%Module",  # double % to escape string formatting!
             "",
             "proc ModulesHelp { } {",
             "    puts stderr {   %(description)s",
@@ -159,7 +167,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.append("conflict %s\n" % os.path.dirname(self.app.short_mod_name))
 
-        txt = '\n'.join(lines) % {
+        txt = self.module_header()
+        txt += '\n'.join(lines) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
@@ -268,6 +277,10 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
+
+    def module_header(self):
+        """Return module header string."""
+        return ''
 
     def get_description(self, conflict=True):
         """
@@ -407,3 +420,28 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
     # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias(%s,"%s")\n' % (key, quote_str(value))
+
+
+def avail_module_generators():
+    """
+    Return all known module syntaxes.
+    """
+    class_dict = {}
+    for klass in get_subclasses(ModuleGenerator):
+        class_name = klass.__name__
+        if class_name.startswith(MODULE_GENERATOR_CLASS_PREFIX):
+            syntax = class_name[len(MODULE_GENERATOR_CLASS_PREFIX):]
+            class_dict.update({syntax: klass})
+        else:
+            tup = (MODULE_GENERATOR_CLASS_PREFIX, class_name)
+            _log.error("Invalid name for ModuleGenerator subclass, should start with %s: %s" % tup)
+    return class_dict
+
+
+def module_generator(app, fake=False):
+    """
+    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
+    """
+    module_syntax = get_module_syntax()
+    module_generator_class = avail_module_generators().get(module_syntax)
+    return module_generator_class(app, fake=fake)
