@@ -1651,7 +1651,7 @@ class EasyBlock(object):
         txt += self.make_module_extra()
         txt += self.make_module_footer()
 
-        write_file(self.module_generator.filename+".lua", txt)
+        write_file(self.module_generator.filename, txt)
 
         self.log.info("Module file %s written" % self.module_generator.filename)
 

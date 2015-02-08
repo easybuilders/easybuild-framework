@@ -58,6 +58,7 @@ class ModuleGenerator(object):
 
     # chars we want to escape in the generated modulefiles
     CHARS_TO_ESCAPE = ["$"]
+    MODULE_SUFFIX = ''
 
     def __init__(self, application, fake=False):
         self.app = application
@@ -72,7 +73,7 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
-        full_mod_name = self.app.full_mod_name
+        full_mod_name = '%s%s' % (self.app.full_mod_name, self.MODULE_SUFFIX)
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
@@ -277,6 +278,8 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
+
+    MODULE_SUFFIX = '.lua'
 
     def module_header(self):
         """Return module header string."""
