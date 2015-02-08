@@ -121,6 +121,10 @@ class ModuleGenerator(object):
         """Return module header string."""
         raise NotImplementedError
 
+    def comment(self, msg):
+        """Return string containing given message as a comment."""
+        raise NotImplementedError
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
@@ -130,6 +134,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
     def module_header(self):
         """Return module header string."""
         return "#%Module\n"
+
+    def comment(self, msg):
+        """Return string containing given message as a comment."""
+        return "# %s\n" % msg
 
     def get_description(self, conflict=True):
         """
@@ -284,6 +292,10 @@ class ModuleGeneratorLua(ModuleGenerator):
     def module_header(self):
         """Return module header string."""
         return ''
+
+    def comment(self, msg):
+        """Return string containing given message as a comment."""
+        return " -- %s\n" % msg
 
     def get_description(self, conflict=True):
         """

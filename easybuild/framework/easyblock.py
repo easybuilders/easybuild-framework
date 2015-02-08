@@ -892,8 +892,7 @@ class EasyBlock(object):
         """
         Insert a footer section in the modulefile, primarily meant for contextual information
         """
-        #@todo fix this as it is lua specific
-        txt = '\n -- Built with EasyBuild version %s\n' % VERBOSE_VERSION
+        txt = '\n' + self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)
 
         # add extra stuff for extensions (if any)
         if self.cfg['exts_list']:
