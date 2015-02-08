@@ -60,7 +60,6 @@ class ModuleGenerator(object):
     CHARS_TO_ESCAPE = ["$"]
 
     def __init__(self, application, fake=False):
-        self.fake = fake
         self.app = application
         self.fake = fake
         self.tmpdir = None
@@ -428,10 +427,10 @@ def avail_module_generators():
     return class_dict
 
 
-def module_generator():
+def module_generator(app, fake=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
     module_syntax = get_module_syntax()
     module_generator_class = avail_module_generators().get(module_syntax)
-    return module_generator_class()
+    return module_generator_class(app, fake=fake)

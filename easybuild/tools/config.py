@@ -177,20 +177,21 @@ class ConfigurationVariables(FrozenDictKnownKeys):
 
     # list of known/required keys
     REQUIRED = [
-        'config',
-        'prefix',
         'buildpath',
+        'config',
         'installpath',
-        'sourcepath',
+        'logfile_format',
+        'moduleclasses',
+        'module_naming_scheme',
+        'module_syntax',
+        'modules_tool',
+        'prefix',
         'repository',
         'repositorypath',
-        'logfile_format',
-        'tmp_logdir',
-        'moduleclasses',
+        'sourcepath',
         'subdir_modules',
         'subdir_software',
-        'modules_tool',
-        'module_naming_scheme',
+        'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
 

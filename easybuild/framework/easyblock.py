@@ -132,7 +132,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.module_generator = module_generator()
+        self.module_generator = module_generator(self, fake=True)
 
         # modules footer
         self.modules_footer = None
