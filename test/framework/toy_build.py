@@ -57,17 +57,6 @@ class ToyBuildTest(EnhancedTestCase):
         fd, self.dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        # adjust PYTHONPATH such that test easyblocks are found
-        import easybuild
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        if not eb_blocks_path in sys.path:
-            sys.path.append(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        reload(easybuild.tools.module_naming_scheme)
-
         # clear log
         write_file(self.logfile, '')
 

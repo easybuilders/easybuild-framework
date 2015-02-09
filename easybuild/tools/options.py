@@ -42,8 +42,6 @@ from vsc.utils.missing import nub
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.constants import constant_documentation
-from easybuild.framework.easyconfig.default import convert_to_help
-from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.licenses import license_documentation
 from easybuild.framework.easyconfig.templates import template_documentation
@@ -51,9 +49,10 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_TMP_LOGDIR
-from easybuild.tools.config import get_default_configfiles, get_pretend_installpath
-from easybuild.tools.config import get_default_oldstyle_configfile, mk_full_default_path
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
+from easybuild.tools.config import get_pretend_installpath
+from easybuild.tools.config import mk_full_default_path
+from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
@@ -64,7 +63,10 @@ from easybuild.tools.repository.repository import avail_repositories
 from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
-from vsc.utils.missing import any
+
+
+XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
+DEFAULT_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -72,7 +74,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = get_default_configfiles()
+    DEFAULT_CONFIGFILES = [DEFAULT_CONFIGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
@@ -177,6 +179,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
+            'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
@@ -218,8 +221,6 @@ class EasyBuildOptions(GeneralOption):
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules", None, 'store', mk_full_default_path('installpath')),
-            'config': ("Path to EasyBuild config file (DEPRECATED, use --configfiles instead!)",
-                       None, 'store', get_default_oldstyle_configfile(), 'C'),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -253,10 +254,8 @@ class EasyBuildOptions(GeneralOption):
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
-            'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
-                            None, 'store', None),
-            'tmp-logdir': ("Log directory where temporary log files are stored",
-                           None, 'store', DEFAULT_TMP_LOGDIR),
+            'testoutput': ("Path to where a job should place the output (to be set within jobscript)", None, 'store', None),
+            'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
 
@@ -276,7 +275,7 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                         None, "store_true", False, 'a'),
+                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
                                             None, 'store_true', False),
@@ -443,7 +442,7 @@ class EasyBuildOptions(GeneralOption):
 
         # dump possible easyconfig params
         if self.options.avail_easyconfig_params:
-            msg += self.avail_easyconfig_params()
+            msg += avail_easyconfig_params(self.options.easyblock, self.options.avail_easyconfig_params)
 
         # dump easyconfig template options
         if self.options.avail_easyconfig_templates:
@@ -503,37 +502,6 @@ class EasyBuildOptions(GeneralOption):
             for cst_name, (cst_value, cst_help) in sorted(self.go_cfg_constants[section].items()):
                 lines.append("* %s: %s [value: %s]" % (cst_name, cst_help, cst_value))
         return '\n'.join(lines)
-
-    def avail_easyconfig_params(self):
-        """
-        Print the available easyconfig parameters, for the given easyblock.
-        """
-        extra = []
-        app = get_easyblock_class(self.options.easyblock, default_fallback=False)
-        if app is not None:
-            extra = app.extra_options()
-        mapping = convert_to_help(extra, has_default=False)
-        if extra:
-            ebb_msg = " (* indicates specific for the %s EasyBlock)" % app.__name__
-            extra_names = [x[0] for x in extra]
-        else:
-            ebb_msg = ''
-            extra_names = []
-        txt = ["Available easyconfig parameters%s" % ebb_msg]
-        params = [(k, v) for (k, v) in mapping.items() if k.upper() not in ['HIDDEN']]
-        for key, values in params:
-            txt.append("%s" % key.upper())
-            txt.append('-' * len(key))
-            for name, value in values:
-                tabs = "\t" * (3 - (len(name) + 1) / 8)
-                if name in extra_names:
-                    starred = '(*)'
-                else:
-                    starred = ''
-                txt.append("%s%s:%s%s" % (name, starred, tabs, value))
-            txt.append('')
-
-        return "\n".join(txt)
 
     def avail_classes_tree(self, classes, classNames, detailed, depth=0):
         """Print list of classes as a tree."""

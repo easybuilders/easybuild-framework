@@ -259,7 +259,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        self.assertErrorRegex(KeyError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'

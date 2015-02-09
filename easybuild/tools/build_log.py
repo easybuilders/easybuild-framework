@@ -101,6 +101,10 @@ class EasyBuildLog(fancylogger.FancyLogger):
         msg += "; see %s for more information" % DEPRECATED_DOC_URL
         fancylogger.FancyLogger.deprecated(self, msg, str(CURRENT_VERSION), max_ver, exception=EasyBuildError)
 
+    def nosupport(self, msg, ver):
+        """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
+        self.error("NO LONGER SUPPORTED since v%s: %s; see %s for more information" % (ver, msg, DEPRECATED_DOC_URL))
+
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
         newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
@@ -165,13 +169,9 @@ def stop_logging(logfile, logtostdout=False):
 
 def get_log(name=None):
     """
-    Generate logger object
+    (NO LONGER SUPPORTED!) Generate logger object
     """
-    # fname is always get_log, useless
-    log = fancylogger.getLogger(name, fname=False)
-    log.info("Logger started for %s." % name)
-    log.deprecated("get_log", "2.0")
-    return log
+    log.nosupport("Use of get_log function", '2.0')
 
 
 def print_msg(msg, log=None, silent=False, prefix=True):

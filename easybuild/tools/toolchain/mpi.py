@@ -28,8 +28,8 @@ Toolchain mpi module. Contains all MPI related classes
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
 import os
+import tempfile
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -167,7 +167,10 @@ class Mpi(Toolchain):
         """Construct an MPI command for the given command and number of ranks."""
 
         # parameter values for mpirun command
-        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
+        params = {
+            'nr_ranks': nr_ranks,
+            'cmd': cmd,
+        }
 
         # different known mpirun commands
         mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
@@ -185,8 +188,10 @@ class Mpi(Toolchain):
         # Intel MPI mpirun needs more work
         if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
+            tmpdir = tempfile.mkdtemp(prefix='eb-mpi_cmd_for-')
+
             # set temporary dir for mdp
-            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
+            env.setvar('I_MPI_MPD_TMPDIR', tmpdir)
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
@@ -196,7 +201,7 @@ class Mpi(Toolchain):
             env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
 
             # create mpdboot file
-            fn = "/tmp/mpdboot"
+            fn = os.path.join(tmpdir, 'mpdboot')
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
@@ -204,10 +209,10 @@ class Mpi(Toolchain):
             except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'mpdbf':"--file=%s" % fn})
+            params.update({'mpdbf': "--file=%s" % fn})
 
             # create nodes file
-            fn = "/tmp/nodes"
+            fn = os.path.join(tmpdir, 'nodes')
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
@@ -215,7 +220,7 @@ class Mpi(Toolchain):
             except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'nodesfile':"-machinefile %s" % fn})
+            params.update({'nodesfile': "-machinefile %s" % fn})
 
         if mpi_family in mpi_cmds.keys():
             return mpi_cmds[mpi_family] % params
