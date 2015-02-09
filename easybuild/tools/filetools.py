@@ -61,6 +61,7 @@ GIT = 'git'
 SVN = 'svn'
 BZR = 'bzr'
 FILE = 'local_file'
+FTP = 'ftp'
 
 # map protocols to things we know how to download
 PROTOCOL_MAP = {
@@ -69,6 +70,7 @@ PROTOCOL_MAP = {
     # 'http+git': GIT,
     # 'git': GIT,
     # 'bzr': BZR,
+    # 'ftp': FTP,
     'svn': SVN,
     'svn+http': SVN,
     'file': FILE,
@@ -311,7 +313,12 @@ def download_local_file(filename, url, path, timeout):
     if url.startswith('file://'):
         url = url[7:]
     _log.debug("copyting %s to %s", url, path)
-    shutil.copy2(url, path)
+    try:
+        shutil.copy2(url, path)
+    except IOError, error:
+        if error.errno == 2:  # no such file or directory
+            return None
+        raise
     return path
 
 
