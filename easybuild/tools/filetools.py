@@ -39,6 +39,7 @@ import re
 import shutil
 import stat
 import sys
+import tarfile
 import time
 import urllib
 import zlib
@@ -405,6 +406,12 @@ def download_http(filename, url, path):
         return None
 
 
+def make_tarfile(output_filename, source_dir):
+    """Make a tarfile with the output_filename of the source_dir"""
+    with tarfile.open(output_filename, "w:gz") as tar:
+            tar.add(source_dir, arcname=os.path.basename(source_dir))
+
+
 def download_svn(revision, url, path):
     # import here to avoid circular import
     from easybuild.tools.repository.svnrepo import SvnRepository
@@ -427,10 +434,11 @@ def download_svn(revision, url, path):
         _log.debug('error checkout out svn repo %s', err)
         raise err
     svnrepo.export(path, revision)
+    # make a tarfile in the directory next to the repo
+    make_tarfile('../%s.tar.gz' % revision, path)
     # path will always have '/repo' in it, so the rm should be file
-    cmd = ('cd %s && tar -acvf ../%s.tar.gz *; rm %s -rf; cd -' % (path, revision, path))
-    run.run_cmd(cmd, simple=True)
-    return "%s/%s.tar.gz" % (path, revision)
+    shutil.rmtree(path)
+    return os.path.join(path, '../', '%s.tar.gz' % revision)
 
 def find_easyconfigs(path, ignore_dirs=None):
     """
