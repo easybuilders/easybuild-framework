@@ -200,7 +200,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-            _log.error("Failed to remove %s: %s", path, err)
+            _log.error("Failed to remove%s: %s" % (path, err))
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -366,8 +366,10 @@ def download_http(filename, url, path, timeout):
 
 def make_tarfile(output_filename, source_dir):
     """Make a tarfile with the output_filename of the source_dir"""
+    _log.debug('making new tarfile at %s from %s', output_filename, source_dir)
     with tarfile.open(output_filename, "w:gz") as tar:
             tar.add(source_dir, arcname=os.path.basename(source_dir))
+    _log.debug('done making tarfile at %s', output_filename)
 
 
 def download_svn(revision, url, path, timeout):
@@ -388,19 +390,19 @@ def download_svn(revision, url, path, timeout):
         path = path[:-len(revision)]
     path = os.path.join(path, 'repo')
     # svn revisions are digit's so only get these, some packages have version='r1234'
-    revision = ''.join([x for x in revision if x.isdigit()])
+    int_revision = ''.join([x for x in revision if x.isdigit()])
 
     try:
         svnrepo = SvnRepository(url)
     except AttributeError, err:
         _log.debug('error checkout out svn repo %s', err)
         raise err
-    svnrepo.export(path, revision)
+    svnrepo.export(path, int_revision)
     # make a tarfile in the directory next to the repo
-    make_tarfile('../%s.tar.gz' % revision, path)
+    make_tarfile(os.path.join(path, '..' ,revision), path)
     # path will always have '/repo' in it, so the rm should be file
-    shutil.rmtree(path)
-    return os.path.join(path, '../', '%s.tar.gz' % revision)
+    shutil.rmtree(os.path.join(path))
+    return os.path.join(path, '..', revision)
 
 
 def find_easyconfigs(path, ignore_dirs=None):
@@ -489,7 +491,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
-        _log.error("Failed to read %s: %s", path, err)
+        _log.error("Failed to read patch %s: %s" % (path, err))
     except MemoryError, err:
         _log.warning("A memory error occured when computing the checksum for %s: %s", path, err)
         checksum = 'dummy_checksum_due_to_memory_error'
@@ -514,7 +516,7 @@ def calc_block_checksum(path, algorithm):
             algorithm.update(block)
         f.close()
     except IOError, err:
-        _log.error("Failed to read %s: %s", path, err)
+        _log.error("Failed to read %s: %s" % (path, err))
 
     return algorithm.hexdigest()
 
@@ -1121,7 +1123,6 @@ def det_size(path):
     """
     installsize = 0
     try:
-
         # walk install dir to determine total size
         for (dirpath, _, filenames) in os.walk(path):
             for filename in filenames:
