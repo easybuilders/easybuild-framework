@@ -42,6 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option, get_module_syntax
 from easybuild.tools.filetools import mkdir
+from easybuild.tools.modules import Lmod, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -61,12 +62,14 @@ class ModuleGenerator(object):
     MODULE_SUFFIX = ''
 
     def __init__(self, application, fake=False):
+        """ModuleGenerator constructor."""
         self.app = application
         self.fake = fake
         self.tmpdir = None
         self.filename = None
         self.class_mod_file = None
         self.module_path = None
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def prepare(self):
         """
@@ -99,7 +102,7 @@ class ModuleGenerator(object):
                     os.remove(class_mod_file)
                 os.symlink(self.filename, class_mod_file)
         except OSError, err:
-            _log.error("Failed to create symlinks from %s to %s: %s" % (self.class_mod_files, self.filename, err))
+            self.log.error("Failed to create symlinks from %s to %s: %s" % (self.class_mod_files, self.filename, err))
 
     def is_fake(self):
         """Return whether this ModuleGeneratorTcl instance generates fake modules or not."""
@@ -107,12 +110,12 @@ class ModuleGenerator(object):
 
     def set_fake(self, fake):
         """Determine whether this ModuleGeneratorTcl instance should generate fake modules."""
-        _log.debug("Updating fake for this ModuleGeneratorTcl instance to %s (was %s)" % (fake, self.fake))
+        self.log.debug("Updating fake for this ModuleGeneratorTcl instance to %s (was %s)" % (fake, self.fake))
         self.fake = fake
         # fake mode: set installpath to temporary dir
         if self.fake:
             self.tmpdir = tempfile.mkdtemp()
-            _log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
+            self.log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
             self.module_path = self.tmpdir
         else:
             self.module_path = config.install_path('mod')
@@ -222,13 +225,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
         template = "prepend-path\t%s\t\t%s\n"
 
         if isinstance(paths, basestring):
-            _log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
         # make sure only relative paths are passed
         for i in xrange(len(paths)):
             if os.path.isabs(paths[i]) and not allow_abs:
-                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
             elif not os.path.isabs(paths[i]):
                 # prepend $root (= installdir) for relative paths
                 paths[i] = "$root/%s" % paths[i]
@@ -288,6 +291,14 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
 
     MODULE_SUFFIX = '.lua'
+
+    def __init__(self, *args, **kwargs):
+        """ModuleGeneratorLua constructor."""
+        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
+
+        # make sure Lmod is being used as a modules tool
+        if not isinstance(modules_tool(), Lmod):
+            self.log.error("Only Lmod can be used as modules tool when generating module files in Lua syntax.")
 
     def module_header(self):
         """Return module header string."""
@@ -381,13 +392,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         template = 'prepend_path(%s,%s)\n'
 
         if isinstance(paths, basestring):
-            _log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
         # make sure only relative paths are passed
         for i in xrange(len(paths)):
             if os.path.isabs(paths[i]) and not allow_abs:
-                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
             elif not os.path.isabs(paths[i]):
                 # prepend $root (= installdir) for relative paths
                 paths[i] = ' pathJoin(pkg.root,"%s")' % paths[i]
