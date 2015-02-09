@@ -34,7 +34,7 @@ Svn repository
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import getpass
 import os

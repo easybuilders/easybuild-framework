@@ -63,8 +63,8 @@ class MockModule(modules.ModulesTool):
         return self.avail_modules
 
     def show(self, modname):
-        """Dummy implementation of show, which includes full path to (existing) module files."""
-        if modname in self.avail_modules:
+        """Dummy implementation of show, which includes full path to (available or hidden) module files."""
+        if modname in self.avail_modules or os.path.basename(modname).startswith('.'):
             txt =  '  %s:' % os.path.join('/tmp', modname)
         else:
             txt = 'Module %s not found' % modname
@@ -124,10 +124,11 @@ class RobotTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
+                'hidden': False,
             }],
             'parsed': True,
         }
-        build_options.update({'robot_path': self.base_easyconfig_dir})
+        build_options.update({'robot': True, 'robot_path': self.base_easyconfig_dir})
         init_config(build_options=build_options)
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct
@@ -135,7 +136,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
-        # hidden dependencies are found too
+        # hidden dependencies are found too, but only retained if they're not available (or forced to be retained
         hidden_dep = {
             'name': 'toy',
             'version': '0.0',
@@ -147,7 +148,14 @@ class RobotTest(EnhancedTestCase):
         easyconfig_moredeps = deepcopy(easyconfig_dep)
         easyconfig_moredeps['dependencies'].append(hidden_dep)
         easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
+
+        # toy/.0.0-deps is available and thus should be omitted
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
+        self.assertEqual(len(res), 2)
+        full_mod_names = [ec['full_mod_name'] for ec in res]
+        self.assertFalse('toy/.0.0-deps' in full_mod_names)
+
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], retain_all_deps=True)
         self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
@@ -177,6 +185,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         build_options.update({'robot_path': self.base_easyconfig_dir})
@@ -203,6 +212,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies(ecs)
@@ -265,6 +275,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies([deepcopy(easyconfig_dep)])

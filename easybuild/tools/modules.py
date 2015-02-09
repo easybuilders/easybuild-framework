@@ -197,6 +197,14 @@ class ModulesTool(object):
             if res:
                 self.version = res.group('version')
                 self.log.info("Found version %s" % self.version)
+
+                # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
+                # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
+                self.version = self.version.replace('rc', 'b')
+                if len(self.version.split('.')) > 3:
+                    self.version = '.'.join(self.version.split('.')[:3])
+
+                self.log.info("Converted actual version to '%s'" % self.version)
             else:
                 self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
         except (OSError), err:
@@ -205,12 +213,7 @@ class ModulesTool(object):
         if self.REQ_VERSION is None:
             self.log.debug('No version requirement defined.')
         else:
-            # make sure version is a valid StrictVersion (e.g., 5.7.3.1 is invalid),
-            # and replace 'rc' by 'b', to make StrictVersion treat it as a beta-release
-            check_ver = self.version.replace('rc', 'b')
-            if len(check_ver.split('.')) > 3:
-                check_ver = '.'.join(check_ver.split('.')[:3])
-            if StrictVersion(check_ver) < StrictVersion(self.REQ_VERSION):
+            if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
                 msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
                 self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
             else:
@@ -323,16 +326,19 @@ class ModulesTool(object):
             self.use(mod_path)
         self.log.info("$MODULEPATH set based on list of module paths (via 'module use'): %s" % os.environ['MODULEPATH'])
 
-    def available(self, mod_name=None):
+    def available(self, mod_name=None, extra_args=None):
         """
         Return a list of available modules for the given (partial) module name;
         use None to obtain a list of all available modules.
 
         @param mod_name: a (partial) module name for filtering (default: None)
         """
+        if extra_args is None:
+            extra_args = []
         if mod_name is None:
             mod_name = ''
-        mods = self.run_module('avail', mod_name)
+        args = ['avail'] + extra_args + [mod_name]
+        mods = self.run_module(*args)
 
         # sort list of modules in alphabetical order
         mods.sort(key=lambda m: m['mod_name'])
@@ -818,7 +824,13 @@ class Lmod(ModulesTool):
 
         @param name: a (partial) module name for filtering (default: None)
         """
-        mods = super(Lmod, self).available(mod_name=mod_name)
+        extra_args = []
+        if StrictVersion(self.version) >= StrictVersion('5.7.5'):
+            # make hidden modules visible for recent version of Lmod
+            extra_args = ['--show_hidden']
+
+        mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
+
         # only retain actual modules, exclude module directories (which end with a '/')
         real_mods = [mod for mod in mods if not mod.endswith('/')]
 

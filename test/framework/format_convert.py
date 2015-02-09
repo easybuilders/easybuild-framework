@@ -61,6 +61,12 @@ class ConvertTest(EnhancedTestCase):
         res = ListOfStrings(txt.replace(ListOfStrings.SEPARATOR_LIST, ListOfStrings.SEPARATOR_LIST + ' '))
         self.assertEqual(res, dest)
 
+        # empty string yields a list with an empty string
+        self.assertEqual(ListOfStrings(''), [''])
+
+        # empty entries are retained
+        self.assertEqual(ListOfStrings('a,,b'), ['a', '', 'b'])
+
     def test_dictofstrings(self):
         """Test dict of strings"""
         # test default separators

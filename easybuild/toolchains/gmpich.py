@@ -23,16 +23,15 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
+EasyBuild support for gmpich compiler toolchain (includes GCC and MPICH).
 
 @author: Kenneth Hoste (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
-from easybuild.toolchains.gcccuda import GccCUDA
-from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.compiler.gcc import Gcc
+from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Gompic(GccCUDA, OpenMPI):
-    """Compiler toolchain with GCC+CUDA and OpenMPI."""
-    NAME = 'gompic'
+class Gmpich(Gcc, Mpich):
+    """Compiler toolchain with GCC and MPICH."""
+    NAME = 'gmpich'

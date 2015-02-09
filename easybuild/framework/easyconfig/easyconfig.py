@@ -40,12 +40,13 @@ import difflib
 import os
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import any, nub
+from vsc.utils.missing import any, get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
+from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -66,9 +67,7 @@ from easybuild.framework.easyconfig.templates import template_constant_dict
 
 _log = fancylogger.getLogger('easyconfig.easyconfig', fname=False)
 
-
 # add license here to make it really MANDATORY (remove comment in default)
-_log.deprecated('Mandatory license not enforced', '2.0')
 MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 
 # set of configure/build/install options that can be provided as lists for an iterated build
@@ -80,6 +79,8 @@ DEPRECATED_OPTIONS = {
     'makeopts': ('buildopts', '2.0'),
     'premakeopts': ('prebuildopts', '2.0'),
 }
+
+DEFAULT_EASYBLOCK = 'ConfigureMake'
 
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
@@ -98,13 +99,13 @@ def handle_deprecated_easyconfig_parameter(ec_method):
         # make sure that value for software_license has correct type, convert if needed
         if key == 'software_license':
             # key 'license' will already be mapped to 'software_license' above
-            lic = self._config['software_license']
-            if not isinstance(lic, License):
+            lic = self._config['software_license'][0]
+            if lic is not None and not isinstance(lic, License):
                 self.log.deprecated('Type for software_license must to be instance of License (sub)class', '2.0')
                 lic_type = type(lic)
 
                 class LicenseLegacy(License, lic_type):
-                    """A special License class to deal with legacy license paramters"""
+                    """A special License class to deal with legacy license parameters"""
                     DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
                                     " (DO NOT USE).")
                     HIDDEN = False
@@ -163,9 +164,10 @@ class EasyConfig(object):
             self.extra_options = extra_options
 
         if not isinstance(self.extra_options, dict):
-            if isinstance(self.extra_options, (list, tuple,)):
+            if isinstance(self.extra_options, (list, tuple, ExtraOptionsDeprecatedReturnValue)):
                 typ = type(self.extra_options)
-                self.log.deprecated("Specified extra_options should be of type 'dict', found type '%s'" % typ, '2.0')
+                if not isinstance(self.extra_options, ExtraOptionsDeprecatedReturnValue):
+                    self.log.deprecated("extra_options return value should be of type 'dict', found '%s'" % typ, '2.0')
                 tup = (self.extra_options, type(self.extra_options))
                 self.log.debug("Converting extra_options value '%s' of type '%s' to a dict" % tup)
                 self.extra_options = dict(self.extra_options)
@@ -173,17 +175,10 @@ class EasyConfig(object):
                 tup = (type(self.extra_options), self.extra_options)
                 self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
 
-        # map deprecated params to new names if they occur in extra_options
-        for key, val in self.extra_options.items():
-            if key in DEPRECATED_OPTIONS:
-                new_key, depr_ver = DEPRECATED_OPTIONS[key]
-                self.log.deprecated("Found deprecated key '%s', should use '%s' instead." % (key, new_key), depr_ver)
-                self.extra_options[new_key] = self.extra_options[key]
-                self.log.debug("Set '%s' with value of deprecated '%s': %s" % (new_key, key, self.extra_options[key]))
-                del self.extra_options[key]
         self._config.update(self.extra_options)
 
         self.path = path
+
         self.mandatory = MANDATORY_PARAMS[:]
 
         # extend mandatory keys
@@ -339,14 +334,16 @@ class EasyConfig(object):
         self.log.info("Checking licenses")
         self.validate_license()
 
+        self.log.info("Checking whether list of hidden dependencies is a subset of list of dependencies")
+        self.validate_hiddendeps()
+
     def validate_license(self):
         """Validate the license"""
         lic = self._config['software_license'][0]
         if lic is None:
-            self.log.deprecated('Mandatory license not enforced', '2.0')
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                self.log.error('License is mandatory')
+                self.log.error("License is mandatory, but 'software_license' is undefined")
         elif not isinstance(lic, License):
             self.log.error('License %s has to be a License subclass instance, found classname %s.' %
                            (lic, lic.__class__.__name__))
@@ -406,6 +403,30 @@ class EasyConfig(object):
             self.log.error("Build option lists for iterated build should have same length: %s" % opt_counts)
 
         return True
+
+    def validate_hiddendeps(self):
+        """
+        Validate that list of hidden dependencies is a subset of the list of dependencies.
+        The list of dependencies is adjusted to only include non-hidden dependencies.
+        """
+        dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
+
+        faulty_deps = []
+        for hidden_dep in self['hiddendependencies']:
+            # check whether hidden dep is a listed dep using *visible* module name, not hidden one
+            visible_mod_name = ActiveMNS().det_full_module_name(hidden_dep, force_visible=True)
+            if visible_mod_name in dep_mod_names:
+                self['dependencies'] = [d for d in self['dependencies'] if d['full_mod_name'] != visible_mod_name]
+                self.log.debug("Removed dependency matching hidden dependency %s" % hidden_dep)
+            else:
+                # hidden dependencies must also be included in list of dependencies;
+                # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
+                # i.e. by simply removing the 'hiddendependencies' specification
+                faulty_deps.append(visible_mod_name)
+
+        if faulty_deps:
+            tup = (faulty_deps, dep_mod_names)
+            self.log.error("Hidden dependencies with visible module names %s not in list of dependencies: %s" % tup)
 
     def dependencies(self):
         """
@@ -698,7 +719,7 @@ def fetch_parameter_from_easyconfig_file(path, param):
     """Fetch parameter specification from given easyconfig file."""
     # check whether easyblock is specified in easyconfig file
     # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*)\s*$" % param, re.M)
+    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
     txt = read_file(path)
     res = reg.search(txt)
     if res:
@@ -707,31 +728,11 @@ def fetch_parameter_from_easyconfig_file(path, param):
         return None
 
 
-def get_class_for(modulepath, class_name):
-    """
-    Get class for a given class name and easyblock module path.
-    """
-    # try to import specified module path, reraise ImportError if it occurs
-    try:
-        m = __import__(modulepath, globals(), locals(), [''])
-    except ImportError, err:
-        raise ImportError(err)
-    # try to import specified class name from specified module path, throw ImportError if this fails
-    try:
-        c = getattr(m, class_name)
-    except AttributeError, err:
-        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
-    return c
-
-
-def get_easyblock_class(easyblock, name=None):
+def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
     """
     Get class for a particular easyblock (or use default)
     """
-
-    def_class = get_easyconfig_parameter_default('easyblock')
-    def_mod_path = get_module_path(def_class, generic=True)
-
+    cls = None
     try:
         if easyblock:
             # something was specified, lets parse it
@@ -761,9 +762,23 @@ def get_easyblock_class(easyblock, name=None):
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)
             modulepath = get_module_path(class_name)
-            if not os.path.exists("%s.py" % modulepath):
-                _log.deprecated("Determine module path based on software name", "2.0")
-                modulepath = get_module_path(name, decode=False)
+            modulepath_imported = False
+            try:
+                __import__(modulepath, globals(), locals(), [''])
+                modulepath_imported = True
+            except ImportError, err:
+                _log.debug("Failed to import module '%s': %s" % (modulepath, err))
+
+            # check if determining module path based on software name would have resulted in a different module path
+            if modulepath_imported:
+                _log.debug("Module path '%s' found" % modulepath)
+            else:
+                _log.debug("No module path '%s' found" % modulepath)
+                modulepath_bis = get_module_path(name, decode=False)
+                _log.debug("Module path determined based on software name: %s" % modulepath_bis)
+                if modulepath_bis != modulepath:
+                    _log.deprecated("Determine module path based on software name", "2.0")
+                    modulepath = modulepath_bis
 
             # try and find easyblock
             try:
@@ -777,17 +792,36 @@ def get_easyblock_class(easyblock, name=None):
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
-                    # no easyblock could be found, so fall back to default class.
-                    _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                (class_name, (def_mod_path, def_class), err))
-                    cls = get_class_for(def_mod_path, def_class)
-                else:
-                    _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                    if default_fallback:
+                        # no easyblock could be found, so fall back to default class.
+                        def_class = DEFAULT_EASYBLOCK
+                        def_mod_path = get_module_path(def_class, generic=True)
 
-        tup = (cls.__name__, easyblock, name)
-        _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+                        _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
+                                    (class_name, (def_mod_path, def_class), err))
+
+                        depr_msg = "Fallback to default easyblock %s (from %s)" % (def_class, def_mod_path)
+                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % def_class
+                        _log.deprecated(depr_msg, '2.0')
+                        cls = get_class_for(def_mod_path, def_class)
+                else:
+                    if error_on_failed_import:
+                        _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                    else:
+                        _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+
+        if cls is not None:
+            tup = (cls.__name__, easyblock, name)
+            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+        else:
+            tup = (easyblock, name, default_fallback)
+            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s" % tup)
+
         return cls
 
+    except EasyBuildError, err:
+        # simply reraise rather than wrapping it into another error
+        raise err
     except Exception, err:
         _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
 

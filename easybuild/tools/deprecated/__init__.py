@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,16 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
+This declares the namespace for the tools.deprecated submodule of EasyBuild,
+which provides deprecated functionality.
 
+@author: Stijn De Weirdt (Ghent University)
+@author: Dries Verdegem (Ghent University)
 @author: Kenneth Hoste (Ghent University)
-@author: Fotis Georgatos (Uni.Lu, NTUA)
+@author: Pieter De Baets (Ghent University)
+@author: Jens Timmerman (Ghent University)
 """
+from pkgutil import extend_path
 
-from easybuild.toolchains.gcccuda import GccCUDA
-from easybuild.toolchains.mpi.openmpi import OpenMPI
-
-
-class Gompic(GccCUDA, OpenMPI):
-    """Compiler toolchain with GCC+CUDA and OpenMPI."""
-    NAME = 'gompic'
+# we're not the only ones in this namespace
+__path__ = extend_path(__path__, __name__)  #@ReservedAssignment

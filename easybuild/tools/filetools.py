@@ -32,6 +32,7 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import os
 import re
@@ -191,6 +192,15 @@ def write_file(path, txt, append=False):
         _log.error("Failed to write to %s: %s" % (path, err))
 
 
+def remove_file(path):
+    """Remove file at specified path."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError, err:
+          _log.error("Failed to remove %s: %s", path, err)
+
+
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     """
     Given filename fn, try to extract in directory dest
@@ -270,7 +280,7 @@ def download_file(filename, url, path):
     it will save this to the path as a tarball
     """
 
-    _log.debug("Downloading %s from %s to %s", filename, url, path)
+    _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
@@ -304,11 +314,12 @@ def download_http(filename, url, path):
     download_http.last_time = time.time()
     download_http.last_block = 0
     # internal function to report on download progress
-    def report(block, blocksize, filesize):
+    def report(blocks_read, blocksize, filesize):
         """
-        This is a reporthook for urlretrieve, it takes 3 integers as arguments:
-        the current downloaded block, the size in bytes of one block and the total size of the downlad.
-        This efectively logs the download progress every 10 seconds with loglevel info.
+        Report hook for urlretrieve, which logs the download progress every 10 seconds with log level info.
+        @param blocks_read: number of blocks already read
+        @param blocksize: size of one block, in bytes
+        @param filesize: total size of the download (in number of blocks blocks)
         """
         if download_http.last_time + 10 < time.time():
             newblocks = block - download_http.last_block
@@ -324,23 +335,38 @@ def download_http(filename, url, path):
                 _log.info('download report: %d kb of %d kb (%d %%, %d kbps)', total_download, filesize, percentage, kbps)
 
             download_http.last_time = time.time()
+            downloaded_kbs = (blocks_read * blocksize) / 1024.0
+            kbps = (blocksize * newblocks) / 1024  // tot_time
+            _log.info("Download report: %d kb %s (%d kbps)", downloaded_kbs, report_msg, kbps)
 
+            download_file.last_time = time.time()
 
-    # try downloading three times max.
+    # try downloading, three times max.
+    downloaded = False
+    attempt_cnt = 0
     while not downloaded and attempt_cnt < 3:
-        # get http response code first before downloading file
-        urlfile = urllib.urlopen(url)
-        response_code = urlfile.getcode()
-        urlfile.close()
-        if response_code:
-            _log.debug('http response code for given url: %d', response_code)
-        if response_code == 404:
-            _log.warning('url %s was not found (404), not trying again', url)
-            return None
+        # get HTTP response code first before downloading file
+        response_code = None
+        try:
+            urlfile = urllib.urlopen(url)
+            if hasattr(urlfile, 'getcode'):  # no getcode() in Py2.4 yet
+                response_code = urlfile.getcode()
+            urlfile.close()
+        except IOError, err:
+            _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
 
+        if response_code is not None:
+            _log.debug('HTTP response code for given url: %d', response_code)
+            # check for a 4xx response code which indicates a non-existing URL
+            if response_code // 100 == 4:
+                _log.warning('url %s was not found (HTTP response %d), not trying again', url, response_code)
+                return None
+
+        # use this functions's scope for variables we share with inner function used as report hook for urlretrieve
         download_http.last_time = time.time()
         download_http.last_block = 0
 
+        httpmsg = None
         try:
             (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
         except ContentTooShortError:
@@ -356,24 +382,27 @@ def download_http(filename, url, path):
             attempt_cnt += 1
             continue
 
-        if httpmsg.type == "text/html" and not filename.endswith('.html'):
-            _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
-            _log.debug("removing downloaded file %s from %s" % (filename, path))
-            try:
-                os.remove(path)
-            except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
-        else:
-            _log.info("Downloading file %s from url %s: done" % (filename, url))
-            downloaded = True
-            return path
+            if httpmsg.type == "text/html" and not filename.endswith('.html'):
+                _log.warning("HTML file downloaded to %s, so assuming invalid download, retrying.", path)
+                remove_file(path)
+            else:
+                # successful download
+                downloaded = True
+        except IOError, err:
+            _log.warning("Error when downloading from %s to %s (%s), removing it and retrying", url, path, err)
+            remove_file(path)
 
-        attempt_cnt += 1
-        _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
+        if not downloaded:
+            attempt_cnt += 1
+            _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
 
-
-    # failed to download after multiple attempts
-    return None
+    if downloaded:
+        _log.info("Successful download of file %s from url %s to path %s", filename, url, path)
+        return path
+    else:
+        # failed to download after multiple attempts
+        _log.warning("Too many failed download attempts, giving up")
+        return None
 
 
 def download_svn(revision, url, path):
@@ -673,7 +702,11 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         patched_file = match.group('file')
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
-        patched_files.append(patched_file)
+
+        if patched_file in ['/dev/null']:
+            _log.debug("Ignoring patched file %s" % patched_file)
+        else:
+            patched_files.append(patched_file)
 
     return patched_files
 
@@ -1104,17 +1137,20 @@ def decode_class_name(name):
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
     """Legacy wrapper/placeholder for run.run_cmd"""
+    _log.deprecated("run_cmd was moved from tools.filetools to tools.run", '2.0')
     return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
                        inp=inp, regexp=regexp, log_output=log_output, path=path)
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
     """Legacy wrapper/placeholder for run.run_cmd_qa"""
+    _log.deprecated("run_cmd_qa was moved from tools.filetools to tools.run", '2.0')
     return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
                           simple=simple, regexp=regexp, std_qa=std_qa, path=path)
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """Legacy wrapper/placeholder for run.parse_log_for_error"""
+    _log.deprecated("parse_log_for_error was moved from tools.filetools to tools.run", '2.0')
     return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
 
 

@@ -261,11 +261,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # use gzip-1.4.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4.eb')
 
-        # check log message with --job
-        for job_args in [  # options passed are reordered, so order here matters to make tests pass
-                         ['--debug'],
-                         ['--debug', '--stop=configure', '--try-software-name=foo'],
-                        ]:
+        def check_args(job_args, passed_args=None):
+            """Check whether specified args yield expected result."""
+            if passed_args is None:
+                passed_args = job_args[:]
 
             # clear log file
             write_file(self.logfile, '')
@@ -276,12 +275,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
                    ] + job_args
             outtxt = self.eb_main(args)
 
-            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(job_args)
-            assertmsg = "Info log message with job command template when using --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
+            job_msg = "INFO.* Command template for jobs: .* && eb %%\(spec\)s.* %s.*\n" % ' .*'.join(passed_args)
+            assertmsg = "Info log msg with job command template for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             self.assertTrue(re.search(job_msg, outtxt), assertmsg)
 
             modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
+
+        # options passed are reordered, so order here matters to make tests pass
+        check_args(['--debug'])
+        check_args(['--debug', '--stop=configure', '--try-software-name=foo'])
+        check_args(['--debug', '--robot-paths=/tmp/foo:/tmp/bar'])
+        # --robot has preference over --robot-paths, --robot is not passed down
+        check_args(['--debug', '--robot-paths=/tmp/foo', '--robot=/tmp/bar'], passed_args=['--debug', '--robot-paths=/tmp/bar:/tmp/foo'])
 
     # 'zzz' prefix in the test name is intentional to make this test run last,
     # since it fiddles with the logging infrastructure which may break things
@@ -343,9 +349,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 write_file(self.logfile, '')
 
                 args = [
-                        avail_arg,
-                        '--unittest-file=%s' % self.logfile,
-                       ]
+                    avail_arg,
+                    '--unittest-file=%s' % self.logfile,
+                ]
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -376,6 +382,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
 
+        run_test()
         run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
         run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
         run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
@@ -446,6 +453,39 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
+
+    def test_avail_cfgfile_constants(self):
+        """Test --avail-cfgfile-constants."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+
+        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
+
+        args = [
+            '--avail-cfgfile-constants',
+            '--unittest-file=%s' % self.logfile,
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn)
+        cfgfile_constants = {
+            'DEFAULT_ROBOT_PATHS': os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+        }
+        for cst_name, cst_value in cfgfile_constants.items():
+            cst_regex = re.compile("^\*\s%s:\s.*\s\[value: .*%s.*\]" % (cst_name, cst_value), re.M)
+            tup = (cst_regex.pattern, outtxt)
+            self.assertTrue(cst_regex.search(outtxt), "Pattern '%s' in --avail-cfgfile_constants output: %s" % tup)
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+        sys.path[:] = orig_sys_path
 
     def test_list_easyblocks(self):
         """Test listing easyblock hierarchy."""
@@ -535,10 +575,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = [
                 search_arg,
                 'toy-0.0',
-                '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+                '-r',
+                os.path.join(os.path.dirname(__file__), 'easyconfigs'),
                 '--unittest-file=%s' % self.logfile,
             ]
-            outtxt = self.eb_main(args, logfile=dummylogfn)
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True, verbose=True)
 
             info_msg = r"Searching \(case-insensitive\) for 'toy-0.0' in"
             self.assertTrue(re.search(info_msg, outtxt), "Info message when searching for easyconfigs in '%s'" % outtxt)
@@ -556,9 +597,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.4-GCC-4.6.3.eb'),
-            '--dry-run',
+            '--dry-run',  # implies enabling dependency resolution
             '--unittest-file=%s' % self.logfile,
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot-paths=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
         ]
         outtxt = self.eb_main(args, logfile=dummylogfn)
 
@@ -578,7 +619,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
-        # to check with easyconfigs install path is auto-included in robot path
+        # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
@@ -586,7 +627,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
-        sys.path.append(tmpdir)
+        sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
         for dry_run_arg in ['-D', '--dry-run-short']:
             open(self.logfile, 'w').write('')
@@ -676,11 +717,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--ignore-osdeps',
             '--force',
             '--debug',
+            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
         ]
-        errmsg = r"No robot path specified, which is required when looking for easyconfigs \(use --robot\)"
-        self.assertErrorRegex(EasyBuildError, errmsg, self.eb_main, args, logfile=dummylogfn, raise_error=True)
-
-        args.append('--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'))
         outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
 
         ecs_mods = [
@@ -1232,6 +1270,61 @@ class CommandLineOptionsTest(EnhancedTestCase):
         filter_arg_regex = re.compile(filter_arg.replace('*', '\*'))
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
+
+    def test_robot(self):
+        """Test --robot and --robot-paths command line options."""
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
+
+        # hide test modules
+        self.reset_modulepath([])
+
+        # dependency resolution is disabled by default, even if required paths are available
+        args = [
+            eb_file,
+            '--robot-paths=%s' % test_ecs_path,
+        ]
+        error_regex ='no module .* found for dependency'
+        self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
+
+        # enable robot, but without passing path required to resolve toy dependency => FAIL
+        args = [
+            eb_file,
+            '--robot',
+            '--dry-run',
+        ]
+        self.assertErrorRegex(EasyBuildError, 'Irresolvable dependencies', self.eb_main, args, raise_error=True)
+
+        # add path to test easyconfigs to robot paths, so dependencies can be resolved
+        self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
+
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        # to check whether easyconfigs install path is auto-included in robot path
+        tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
+        shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+
+        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)
+        self.eb_main(args, raise_error=True)
+
+        shutil.rmtree(tmpdir)
+        sys.path[:] = orig_sys_path
+
+        # make sure that paths specified to --robot get preference over --robot-paths
+        args = [
+            eb_file,
+            '--robot=%s' % test_ecs_path,
+            '--robot-paths=%s' % os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+            '--dry-run',
+        ]
+        outtxt = self.eb_main(args, raise_error=True)
+
+        for ec in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
+            ec_regex = re.compile('^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ec), re.M)
+            self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
+
 
 def suite():
     """ returns all the testcases in this module """

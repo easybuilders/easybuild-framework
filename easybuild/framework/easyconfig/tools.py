@@ -33,7 +33,7 @@ alongside the EasyConfig class to represent parsed easyconfig files.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 import os
@@ -70,10 +70,11 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, run_cmd, search_file, write_file
+from easybuild.tools.filetools import find_easyconfigs, search_file, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
+from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import quote_str
 
 
@@ -95,19 +96,25 @@ def skip_available(easyconfigs):
     return retained_easyconfigs
 
 
-def find_resolved_modules(unprocessed, avail_modules):
+def find_resolved_modules(unprocessed, avail_modules, retain_all_deps=False):
     """
     Find easyconfigs in 1st argument which can be fully resolved using modules specified in 2nd argument
     """
     ordered_ecs = []
     new_avail_modules = avail_modules[:]
     new_unprocessed = []
+    modtool = modules_tool()
 
     for ec in unprocessed:
         new_ec = ec.copy()
         deps = []
         for dep in new_ec['dependencies']:
-            if not ActiveMNS().det_full_module_name(dep) in new_avail_modules:
+            full_mod_name = ActiveMNS().det_full_module_name(dep)
+            dep_resolved = full_mod_name in new_avail_modules
+            if not retain_all_deps:
+                # hidden modules need special care, since they may not be included in list of available modules
+                dep_resolved |= dep['hidden'] and modtool.exist([full_mod_name])[0]
+            if not dep_resolved:
                 deps.append(dep)
         new_ec['dependencies'] = deps
 
