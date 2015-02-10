@@ -134,20 +134,21 @@ class PbsJobServer(object):
 
     ppn = property(_get_ppn)
 
-    def make_job(self, script, name, env_vars=None, resources={}):
+    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """Create and return a `PbsJob` object with the given parameters."""
-        return PbsJob(self, script, name, env_vars, resources,
+        return PbsJob(self, script, name, env_vars, hours, cores,
                       conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(Job):
     """Interaction with TORQUE"""
 
-    def __init__(self, server, script, name, env_vars=None, resources={}, conn=None, ppn=None):
+    def __init__(self, server, script, name, env_vars=None,
+                 hours=None, cores=None, conn=None, ppn=None):
         """
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
-        resources is a dictionary with optional keys: ['hours', 'cores'] both of these should be integer values.
+        hours and cores should be integer values.
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
@@ -169,7 +170,8 @@ class PbsJob(Job):
         # setup the resources requested
 
         # validate requested resources!
-        hours = resources.get('hours', MAX_WALLTIME)
+        if hours is None:
+            hours = MAX_WALLTIME
         if hours > MAX_WALLTIME:
             self.log.warn("Specified %s hours, but this is impossible. (resetting to %s hours)" % (hours, MAX_WALLTIME))
             hours = MAX_WALLTIME
@@ -178,7 +180,8 @@ class PbsJob(Job):
             max_cores = get_ppn()
         else:
             max_cores = ppn
-        cores = resources.get('cores', max_cores)
+        if cores is None:
+            cores = max_cores
         if cores > max_cores:
             self.log.warn("number of requested cores (%s) was greater than available (%s) " % (cores, max_cores))
             cores = max_cores

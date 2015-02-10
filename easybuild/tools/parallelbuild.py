@@ -178,12 +178,12 @@ def create_job(job_server, build_command, easyconfig, output_dir='easybuild-buil
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
     buildstats = repo.get_buildstats(*ec_tuple)
-    resources = {}
+    extra = {}
     if buildstats:
         previous_time = buildstats[-1]['build_time']
-        resources['hours'] = int(math.ceil(previous_time * 2 / 60))
+        extra['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = job_server.make_job(command, name, easybuild_vars, resources)
+    job = job_server.make_job(command, name, easybuild_vars, **extra)
     job.module = easyconfig['ec'].full_mod_name
 
     return job

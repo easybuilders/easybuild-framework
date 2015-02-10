@@ -36,7 +36,7 @@ class Job(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def __init__(self, server, script, name, env_vars=None, resources={}):
+    def __init__(self, server, script, name, env_vars=None, hours=None, cores=None):
         """
         Create a new `Job` object.
 
@@ -52,10 +52,9 @@ class Job(object):
         Fourth (optional) argument `env_vars` is a dictionary with key-value pairs
         of environment variables that should be passed on to the job.
 
-        Fifth (optional) argument `resources` is a dictionary with
-        optional keys: ['hours', 'cores'] both of which should be
+        Fifth and sith (optional) arguments `hours` and `cores` should be
         integer values:
-        * hours can be up to 1 - MAX_WALLTIME,;
+        * hours must be in the range 1 .. MAX_WALLTIME;
         * cores depends on which cluster the job is being run.
 
         Concrete subclasses may add more optional parameters.
@@ -88,7 +87,7 @@ class JobServer(object):
         pass
 
     @abstractmethod
-    def make_job(self, script, name, env_vars=None, resources={}):
+    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """
         Create and return a `Job` object with the given parameters.
 
