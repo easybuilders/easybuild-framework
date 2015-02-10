@@ -34,10 +34,9 @@ Set of file tools.
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-import md5
+import hashlib
 import os
 import re
-import sha
 import shutil
 import stat
 import tarfile
@@ -99,8 +98,8 @@ DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5.md5()),
-    'sha1': lambda p: calc_block_checksum(p, sha.sha()),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
