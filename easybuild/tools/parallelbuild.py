@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.job import job_factory
+from easybuild.tools.job import job_server
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
 
@@ -68,9 +68,9 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
-    job_factory = job_factory()
+    job_server = job_server()
     try:
-        job_factory.connect_to_server()
+        job_server.begin()
     except RuntimeError, err:
         _log.error("connection to server failed (%s: %s), can't submit jobs."
                    % (err.__class__.__name__, err))
@@ -92,28 +92,21 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
-        new_job = create_job(job_factory, build_command, ec, output_dir=output_dir)
+        new_job = create_job(job_server, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
         new_job.add_dependencies(job_deps)
 
         # actually (try to) submit job
-        new_job.submit()
+        job_server.submit(new_job)
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
         module_to_job[new_job.module] = new_job
-        new_job.cleanup()
         jobs.append(new_job)
 
-    # release all user holds on jobs after submission is completed
-    for job in jobs:
-        if job.has_holds():
-            _log.info("releasing user hold on job %s" % job.jobid)
-            job.release_hold()
-
-    job_factory.disconnect_from_server()
+    job_server.commit()
 
     return jobs
 
@@ -149,11 +142,11 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
         return '\n'.join(job_info_lines)
 
 
-def create_job(job_factory, build_command, easyconfig, output_dir='easybuild-build'):
+def create_job(job_server, build_command, easyconfig, output_dir='easybuild-build'):
     """
     Creates a job to build a *single* easyconfig.
 
-    @param job_factory: A factory object for querying server parameters and creating actual job objects
+    @param job_server: A factory object for querying server parameters and creating actual job objects
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
     @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
@@ -190,7 +183,7 @@ def create_job(job_factory, build_command, easyconfig, output_dir='easybuild-bui
         previous_time = buildstats[-1]['build_time']
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
-    job = job_factory.make_job(command, name, easybuild_vars, resources)
+    job = job_server.make_job(command, name, easybuild_vars, resources)
     job.module = easyconfig['ec'].full_mod_name
 
     return job

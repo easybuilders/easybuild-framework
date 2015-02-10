@@ -25,16 +25,103 @@
 """Abstract interface for submitting jobs and related utilities."""
 
 
+from abc import ABCMeta, abstractmethod
+
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.config import get_job
 
 
 class Job(object):
-    pass
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __init__(self, server, script, name, env_vars=None, resources={}):
+        """
+        Create a new `Job` object.
+
+        First argument `server` is an instance of the corresponding
+        `JobServer` class.
+
+        Second argument `script` is the content of the job script
+        itself, i.e., the sequence of shell commands that will be
+        executed.
+
+        Third argument `name` sets the job human-readable name.
+
+        Fourth (optional) argument `env_vars` is a dictionary with key-value pairs
+        of environment variables that should be passed on to the job.
+
+        Fifth (optional) argument `resources` is a dictionary with
+        optional keys: ['hours', 'cores'] both of which should be
+        integer values:
+        * hours can be up to 1 - MAX_WALLTIME,;
+        * cores depends on which cluster the job is being run.
+
+        Concrete subclasses may add more optional parameters.
+        """
+        pass
+
+    @abstractmethod
+    def add_dependencies(self, jobs):
+        """
+        Add dependencies to this job.
+
+        Argument `jobs` is a sequence of `Job` objects,
+        which must actually be instances of the exact same
+        class as the dependent job.
+        """
+        pass
 
 
-def avail_job_factories():
+class JobServer(object):
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def begin(self):
+        """
+        Start a bulk job submission.
+
+        Jobs may be queued and only actually submitted when `commit()`
+        is called.
+        """
+        pass
+
+    @abstractmethod
+    def make_job(self, script, name, env_vars=None, resources={}):
+        """
+        Create and return a `Job` object with the given parameters.
+
+        See the `Job`:class: constructor for an explanation of what
+        the arguments are.
+        """
+        pass
+
+    @abstractmethod
+    def submit(self, job):
+        """
+        Submit a job to the batch-queueing system.
+
+        Note that actual submission may be delayed until `commit()` is
+        called.
+        """
+        pass
+
+    @abstractmethod
+    def commit(self):
+        """
+        End a bulk job submission.
+
+        Releases any jobs that were possibly queued since the last
+        `begin()` call.
+
+        No more job submissions should be attempted after `commit()`
+        has been called, until a `begin()` is invoked again.
+        """
+        pass
+
+
+def avail_job_servers():
     """
     Return all known job execution backends.
     """
@@ -42,10 +129,10 @@ def avail_job_factories():
     return class_dict
 
 
-def job_factory(testing=False):
+def job_server(testing=False):
     """
-    Return interface to job factory.
+    Return interface to job server.
     """
-    job_factory = get_job()
-    job_factory_class = avail_job_factories().get(job_factory)
-    return job_factory_class(testing=testing)
+    job_server = get_job()
+    job_server_class = avail_job_servers().get(job_server)
+    return job_server_class(testing=testing)

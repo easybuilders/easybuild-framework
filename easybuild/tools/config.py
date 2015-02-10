@@ -356,7 +356,7 @@ def get_module_naming_scheme():
 
 
 # XXX: from the code writer perspective, this would more appropriately
-# named `get_job_factory` or `get_job_backend`; from the
+# named `get_job_server` or `get_job_backend`; from the
 # user/command-line viewpoint, however, `--job` is just fine so if we
 # stick with the convention that the accessor for command-line option
 # `--foo` is named `get_foo`, we should name this `get_job()`.

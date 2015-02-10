@@ -69,7 +69,7 @@ except ImportError:
         return instead
 
 
-class PbsJobFactory(object):
+class PbsJobServer(object):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """
@@ -79,12 +79,29 @@ class PbsJobFactory(object):
         self.conn = None
         self._ppn = None
 
+    def begin(self):
+        self.connect_to_server()
+        self._submitted = []
+
     @only_if_pbs_import_successful
     def connect_to_server(self):
         """Connect to PBS server, set and return connection."""
         if not self.conn:
             self.conn = pbs.pbs_connect(self.pbs_server)
         return self.conn
+
+    def submit(self, job):
+        assert isinstance(job, PbsJob)
+        job._submit()
+        self._submitted.append(job)
+
+    def commit(self):
+        # release all user holds on jobs after submission is completed
+        for job in self._submitted:
+            if job.has_holds():
+                _log.info("releasing user hold on job %s" % job.jobid)
+                job.release_hold()
+        self.disconnect_from_server()
 
     @only_if_pbs_import_successful
     def disconnect_from_server(self):
@@ -97,7 +114,7 @@ class PbsJobFactory(object):
         # cache this value as it's not likely going to change over the
         # `eb` script runtime ...
         if not self._ppn:
-            log = fancylogger.getLogger('pbs_job.PbsJobFactory.ppn')
+            log = fancylogger.getLogger('pbs_job.PbsServer.ppn')
 
             pq = PBSQuery()
             node_vals = pq.getnodes().values()  # only the values, not the names
@@ -117,25 +134,25 @@ class PbsJobFactory(object):
 
     ppn = property(_get_ppn)
 
-
     def make_job(self, script, name, env_vars=None, resources={}):
         """Create and return a `PbsJob` object with the given parameters."""
-        return PbsJob(script, name, env_vars, resources,
+        return PbsJob(self, script, name, env_vars, resources,
                       conn=self.conn, ppn=self.ppn)
 
 
 class PbsJob(Job):
     """Interaction with TORQUE"""
 
-    def __init__(self, script, name, env_vars=None, resources={}, conn=None, ppn=None):
+    def __init__(self, server, script, name, env_vars=None, resources={}, conn=None, ppn=None):
         """
         create a new Job to be submitted to PBS
         env_vars is a dictionary with key-value pairs of environment variables that should be passed on to the job
         resources is a dictionary with optional keys: ['hours', 'cores'] both of these should be integer values.
         hours can be 1 - MAX_WALLTIME, cores depends on which cluster it is being run.
         """
-        self.clean_conn = True
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        self._server = server
         self.script = script
         if env_vars:
             self.env_vars = env_vars.copy()
@@ -143,18 +160,11 @@ class PbsJob(Job):
             self.env_vars = {}
         self.name = name
 
-        if pbs_import_failed:
-            self.log.error(pbs_import_failed)
-
         try:
-            self.pbs_server = pbs.pbs_default()
-            if conn:
-                self.pbsconn = conn
-                self.clean_conn = False
-            else:
-                self.pbsconn = pbs.pbs_connect(self.pbs_server)
+            self.pbsconn = self._server.connect_to_server()
         except Exception, err:
-            self.log.error("Failed to connect to the default pbs server: %s" % err)
+            self.log.error("Failed to connect to PBS server: %s" % err)
+            raise
 
         # setup the resources requested
 
@@ -195,7 +205,7 @@ class PbsJob(Job):
         """
         self.deps.extend(jobs)
 
-    def submit(self):
+    def _submit(self):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
         self.log.debug("Going to submit script %s" % txt)
@@ -381,11 +391,6 @@ class PbsJob(Job):
             for idx, attr in enumerate(types):
                 jobattr[idx].name = attr
 
-
-        # get a new connection (otherwise this seems to fail)
-        if self.clean_conn:
-            pbs.pbs_disconnect(self.pbsconn)
-            self.pbsconn = pbs.pbs_connect(self.pbs_server)
         jobs = pbs.pbs_statjob(self.pbsconn, self.jobid, jobattr, NULL)
         if len(jobs) == 0:
             # no job found, return None info
@@ -413,9 +418,3 @@ class PbsJob(Job):
             self.log.error("Failed to delete job %s: error %s" % (self.jobid, result))
         else:
             self.log.debug("Succesfully deleted job %s" % self.jobid)
-
-    def cleanup(self):
-        """Cleanup: disconnect from server."""
-        if self.clean_conn:
-            self.log.debug("Disconnecting from server.")
-            pbs.pbs_disconnect(self.pbsconn)
