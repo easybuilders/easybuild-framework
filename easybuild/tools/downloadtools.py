@@ -130,10 +130,11 @@ def download_svn(revision, url, path, timeout):
         raise err
     svnrepo.export(path, int_revision)
     # make a tarfile in the directory next to the repo
-    make_tarfile(os.path.join(path, '..', revision), path)
+    tarpath = os.path.join(path, '..', revision)
+    make_tarfile(tarpath, path)
     # path will always have '/repo' in it, so the rm should be file
     shutil.rmtree(os.path.join(path))
-    return os.path.join(path, '..', revision)
+    return tarpath
 
 
 def download_local_file(filename, url, path, timeout):

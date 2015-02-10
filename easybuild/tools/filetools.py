@@ -250,15 +250,12 @@ def det_common_path_prefix(paths):
         return None
 
 
-def find_easyconfigs(path, ignore_dirs=None):
+def find_easyconfigs(path, ignore_dirs=[]):
     """
     Find .eb easyconfig files in path
     """
     if os.path.isfile(path):
         return [path]
-
-    if ignore_dirs is None:
-        ignore_dirs = []
 
     # walk through the start directory, retain all files that end in .eb
     files = []
@@ -278,10 +275,12 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, short=False, ignore_dirs=['.git', '.svn'], silent=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     """
     Search for a particular file (only prints)
     """
+    if not ignore_dirs:
+        ignore_dirs = build_option('ignore_dirs')
     assert isinstance(ignore_dirs, list), \
         "search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs))
 

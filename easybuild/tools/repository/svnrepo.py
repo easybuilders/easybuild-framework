@@ -88,8 +88,8 @@ class SvnRepository(FileRepository):
         try:
             pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
-            self.log.exception("pysvn not available (%s). Make sure it is installed properly." 
-                                + " Run 'python -c \"import pysvn\"' to test.", err)
+            self.log.exception("pysvn not available (%s). Make sure it is installed properly."
+                               + " Run 'python -c \"import pysvn\"' to test.", err)
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -171,12 +171,11 @@ class SvnRepository(FileRepository):
         except OSError, err:
             self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
 
-
     def export(self, to_path, revision=None):
         """
-        Get a copy of the files in this repository to the given path, this will need a setup repo first, 
-        but can just download the files to the path without version information, if no revision is given this will default to 
-        the latest revision
+        Get a copy of the files in this repository to the given path, this will need a setup repo first,
+        but can just download the files to the path without version information, if no revision is given this will
+        default to the latest revision.
         """
         if not self.client:
             self.setup_repo()
@@ -185,5 +184,5 @@ class SvnRepository(FileRepository):
         else:
             revision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
 
+        _log.debug('exporting %s at revision %s to %s', self.repo, revision, to_path)
         self.client.export(self.repo, to_path, revision=revision)
-         
