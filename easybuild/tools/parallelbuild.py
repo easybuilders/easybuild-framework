@@ -43,24 +43,17 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.job import job_factory
-#from easybuild.tools.gc3pie_job import GC3PieJobFactory
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
 
 
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
-# map `--job=name` to a Python class we can use
-_job_submission_backends = {
-#    'gc3pie': GC3PieJobFactory,
-    'pbs': PbsJobFactory,
-}
-
 def _to_key(dep):
     """Determine key for specified dependency."""
     return ActiveMNS().det_full_module_name(dep)
 
-def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_dir=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
@@ -69,16 +62,14 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
     built: e.g. they have no unresolved dependencies.  This function
     will build them in parallel by submitting jobs.
 
-    @param backend: name of the job processing backend to use (currently 'pbs' only)
     @param build_command: build command to use
     @param easyconfigs: list of easyconfig files
     @param output_dir: output directory
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
-    assert backend in _job_submission_backends
+    job_factory = job_factory()
     try:
-        job_factory = GC3PieFactory()  #job_factory()
         job_factory.connect_to_server()
     except RuntimeError, err:
         _log.error("connection to server failed (%s: %s), can't submit jobs."
@@ -132,12 +123,11 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
     return jobs
 
 
-def submit_jobs(ordered_ecs, cmd_line_opts, backend='pbs', testing=False):
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     """
     Submit jobs.
     @param ordered_ecs: list of easyconfigs, in the order they should be processed
     @param cmd_line_opts: list of command line options (in 'longopt=value' form)
-    @param backend: job submission backend to use (either 'pbs' or 'gc3pie')
     @param testing: If `True`, skip actual job submission
     """
     curdir = os.getcwd()
@@ -157,7 +147,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, backend='pbs', testing=False):
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
-        jobs = build_easyconfigs_in_parallel(backend, command, ordered_ecs)
+        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
         job_info_lines = ["List of submitted jobs:"]
         job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
         job_info_lines.append("(%d jobs submitted)" % len(jobs))

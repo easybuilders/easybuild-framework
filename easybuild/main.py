@@ -292,8 +292,7 @@ def main(testing_data=(None, None, None)):
 
     # submit build as job(s), clean up and exit
     if options.job:
-        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(),
-                                   backend=options.job, testing=testing)
+        job_info_txt = submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now: %s" % job_info_txt)
             cleanup(logfile, eb_tmpdir, testing)

@@ -355,6 +355,19 @@ def get_module_naming_scheme():
     return ConfigurationVariables()['module_naming_scheme']
 
 
+# XXX: from the code writer perspective, this would more appropriately
+# named `get_job_factory` or `get_job_backend`; from the
+# user/command-line viewpoint, however, `--job` is just fine so if we
+# stick with the convention that the accessor for command-line option
+# `--foo` is named `get_foo`, we should name this `get_job()`.
+# And so be it.
+def get_job():
+    """
+    Return job execution backend (PBS, GC3Pie, ...)
+    """
+    return ConfigurationVariables()['job']
+
+
 def log_file_format(return_directory=False):
     """Return the format for the logfile or the directory"""
     idx = int(not return_directory)
