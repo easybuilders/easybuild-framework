@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.pbs_job import PbsJobFactory
+from easybuild.tools.job.job import job_factory
 #from easybuild.tools.gc3pie_job import GC3PieJobFactory
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
@@ -78,7 +78,7 @@ def build_easyconfigs_in_parallel(backend, build_command, easyconfigs, output_di
 
     assert backend in _job_submission_backends
     try:
-        job_factory = _job_submission_backends[backend]()
+        job_factory = GC3PieFactory()  #job_factory()
         job_factory.connect_to_server()
     except RuntimeError, err:
         _log.error("connection to server failed (%s: %s), can't submit jobs."

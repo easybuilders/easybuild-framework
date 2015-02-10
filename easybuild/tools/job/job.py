@@ -22,11 +22,8 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""Interface for submitting jobs via gc3pie"""
-
-from easybuild.tools.job.job import Job
+"""Abstract interface for submitting jobs"""
 
 
-# eb --job=GC3Pie
-class GC3Pie(Job):
+class Job(object):
     pass
