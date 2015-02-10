@@ -818,6 +818,9 @@ class EasyBlock(object):
         full_mod_subdir = os.path.join(mod_install_path, self.cfg.mod_subdir)
         init_modpaths = mns.det_init_modulepaths(self.cfg)
         top_paths = [mod_install_path] + [os.path.join(mod_install_path, p) for p in init_modpaths]
+        # top-level module paths must exist, otherwise searching for the top path of the module tree fails
+        for path in top_paths:
+            mkdir(path, parents=True)
         excluded_deps = self.modules_tool.path_to_top_of_module_tree(top_paths, self.cfg.short_mod_name,
                                                                      full_mod_subdir, deps)
 
