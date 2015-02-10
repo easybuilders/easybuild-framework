@@ -276,8 +276,6 @@ class ModulesTool(object):
 
     def use(self, path):
         """Add module path via 'module use'."""
-        # make sure path exists before we add it
-        mkdir(path, parents=True)
         self.run_module(['use', path])
 
     def unuse(self, path):
@@ -716,6 +714,12 @@ class EnvironmentModulesC(ModulesTool):
     def update(self):
         """Update after new modules were added."""
         pass
+
+    def use(self, path):
+        """Add module path via 'module use'."""
+        # make sure path exists before we add it, since Tcl/C env mods trips over non-existing directories
+        mkdir(path, parents=True)
+        self.run_module(['use', path])
 
 
 class EnvironmentModulesTcl(EnvironmentModulesC):
