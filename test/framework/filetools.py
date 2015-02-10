@@ -33,7 +33,6 @@ import os
 import shutil
 import stat
 import tempfile
-import urllib2
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
@@ -172,36 +171,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.det_common_path_prefix(['foo', 'bar']), None)
         self.assertEqual(ft.det_common_path_prefix(['foo']), None)
         self.assertEqual(ft.det_common_path_prefix([]), None)
-
-    def test_download_file(self):
-        """Test download_file function."""
-        fn = 'toy-0.0.tar.gz'
-        target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
-        # provide local file path as source URL
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
-        res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location, "'download' of local file works")
-
-        # non-existing files result in None return value
-        self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
-
-        # install broken proxy handler for opening local files
-        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
-        proxy_handler = urllib2.ProxyHandler({'https': 'http://%s/nosuchfile' % test_dir})
-        urllib2.install_opener(urllib2.build_opener(proxy_handler))
-
-        # downloading over a broken proxy results in None return value (failed download)
-        # this tests whether proxies are taken into account by download_file
-        fn = "robots.txt"
-        source_url = "https://jenkins1.ugent.be/"
-        target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
-        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
-
-        # restore a working file handler, and retest download of local file
-        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
-        res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
     def test_mkdir(self):
         """Test mkdir function."""

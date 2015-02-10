@@ -34,15 +34,16 @@ Set of file tools.
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
+import md5
 import os
 import re
+import sha
 import shutil
 import stat
-import sys
 import tarfile
 import time
-import urllib2
 import zlib
+
 from vsc.utils import fancylogger
 
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -54,27 +55,6 @@ _log = fancylogger.getLogger('filetools', fname=False)
 
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
-
-# list of possible protocols we should know how to download
-HTTP = 'http'
-GIT = 'git'
-SVN = 'svn'
-BZR = 'bzr'
-FILE = 'local_file'
-FTP = 'ftp'
-
-# map protocols to things we know how to download
-PROTOCOL_MAP = {
-    'http': HTTP,
-    'https': HTTP,
-    # 'http+git': GIT,
-    # 'git': GIT,
-    # 'bzr': BZR,
-    # 'ftp': FTP,
-    'svn': SVN,
-    'svn+http': SVN,
-    'file': FILE,
-}
 
 # character map for encoding strings
 STRING_ENCODING_CHARMAP = {
@@ -113,24 +93,14 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    md5_class = hashlib.md5
-    sha1_class = hashlib.sha1
-except ImportError:
-    import md5
-    import sha
-    md5_class = md5.md5
-    sha1_class = sha.sha
 
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5_class()),
-    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'md5': lambda p: calc_block_checksum(p, md5.md5()),
+    'sha1': lambda p: calc_block_checksum(p, sha.sha()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
@@ -200,7 +170,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-            _log.error("Failed to remove%s: %s" % (path, err))
+        _log.error("Failed to remove%s: %s" % (path, err))
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -235,8 +205,15 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
         cmd = "%s %s" % (cmd, extra_options)
 
     run.run_cmd(cmd, simple=True)
-
     return find_base_dir()
+
+
+def make_tarfile(output_filename, source_dir):
+    """Make a tarfile with the output_filename of the source_dir"""
+    _log.debug('making new tarfile at %s from %s', output_filename, source_dir)
+    with tarfile.open(output_filename, "w:gz") as tar:
+            tar.add(source_dir, arcname=os.path.basename(source_dir))
+    _log.debug('done making tarfile at %s', output_filename)
 
 
 def which(cmd):
@@ -271,138 +248,6 @@ def det_common_path_prefix(paths):
         return prefix.rstrip(os.path.sep) or None
     else:
         return None
-
-
-def download_file(filename, url, path):
-    """
-    Download a file from the given URL, to the specified path.
-    This function will parse the url and try to use the protcol that best matches the url to download it
-    if the protocol is a versioning control system it will do a checkout of the repo and use filename as the
-    revision to check out instead of the file.
-    it will save this to the path as a tarball
-    """
-    _log.debug("Trying to download %s from %s to %s", filename, url, path)
-
-    timeout = build_option('download_timeout')
-    if timeout is None:
-        # default to 10sec timeout if none was specified
-        # default system timeout (used is nothing is specified) may be infinite (?)
-        timeout = 10
-    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
-
-    # make sure directory exists
-    basedir = os.path.dirname(path)
-    mkdir(basedir, parents=True)
-
-    protocol = url.split(':')[0]
-    if protocol not in PROTOCOL_MAP:
-        _log.exception("can't handle url: %s, unsupported protocol %s currently only %s are supported" %
-                       (url, protocol, PROTOCOL_MAP.keys()))
-    _log.debug("Downloading %s from %s to %s using protocol %s", filename, url, path, protocol)
-    # call the download_XXX function
-    return getattr(sys.modules[__name__], "download_%s" % PROTOCOL_MAP[protocol])(filename, url, path, timeout)
-
-
-def download_local_file(filename, url, path, timeout):
-    """
-    Dowloading a local file is just copying it
-    timeout is ignored here.
-    """
-    if not url.endswith(filename):
-        url = os.path.join(filename)
-    if url.startswith('file://'):
-        url = url[7:]
-    _log.debug("copyting %s to %s", url, path)
-    try:
-        shutil.copy2(url, path)
-    except IOError, error:
-        if error.errno == 2:  # no such file or directory
-            return None
-        raise
-    return path
-
-
-def download_http(filename, url, path, timeout):
-    """
-    Download a file over the http protocol
-    """
-    # try downloading, three times max.
-    downloaded = False
-    max_attempts = 3
-    attempt_cnt = 0
-
-    while not downloaded and attempt_cnt < max_attempts:
-        try:
-            # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url, timeout=timeout)
-            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read())
-            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
-            downloaded = True
-            url_fd.close()
-        except urllib2.HTTPError as err:
-            if 400 <= err.code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
-                break
-            else:
-                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
-                attempt_cnt += 1
-        except IOError as err:
-            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
-            attempt_cnt += 1
-        except Exception, err:
-            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
-
-        if not downloaded and attempt_cnt < max_attempts:
-            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
-
-    if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
-        return path
-    else:
-        _log.warning("Download of %s to %s failed, done trying" % (url, path))
-        return None
-
-
-def make_tarfile(output_filename, source_dir):
-    """Make a tarfile with the output_filename of the source_dir"""
-    _log.debug('making new tarfile at %s from %s', output_filename, source_dir)
-    with tarfile.open(output_filename, "w:gz") as tar:
-            tar.add(source_dir, arcname=os.path.basename(source_dir))
-    _log.debug('done making tarfile at %s', output_filename)
-
-
-def download_svn(revision, url, path, timeout):
-    """
-    Download a svn repository and create a tarball out of it in the given path
-    timeout is ignored here
-    """
-    # import here to avoid circular import
-    from easybuild.tools.repository.svnrepo import SvnRepository
-    # transform url into something SvnRepository understands
-    if url.startswith('svn+'):
-        url = url[4:]
-    # revision could already be a part of the url, we don't want that
-    if url.endswith(str(revision)):
-        url = url[:-len(revision)]
-    # same for path
-    if path.endswith(str(revision)):
-        path = path[:-len(revision)]
-    path = os.path.join(path, 'repo')
-    # svn revisions are digit's so only get these, some packages have version='r1234'
-    int_revision = ''.join([x for x in revision if x.isdigit()])
-
-    try:
-        svnrepo = SvnRepository(url)
-    except AttributeError, err:
-        _log.debug('error checkout out svn repo %s', err)
-        raise err
-    svnrepo.export(path, int_revision)
-    # make a tarfile in the directory next to the repo
-    make_tarfile(os.path.join(path, '..' ,revision), path)
-    # path will always have '/repo' in it, so the rm should be file
-    shutil.rmtree(os.path.join(path))
-    return os.path.join(path, '..', revision)
 
 
 def find_easyconfigs(path, ignore_dirs=None):
