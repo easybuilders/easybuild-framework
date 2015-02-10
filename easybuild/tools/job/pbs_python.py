@@ -124,7 +124,7 @@ class PbsJobFactory(object):
                       conn=self.conn, ppn=self.ppn)
 
 
-class Pbs_python(Job):
+class PbsJob(Job):
     """Interaction with TORQUE"""
 
     def __init__(self, script, name, env_vars=None, resources={}, conn=None, ppn=None):
@@ -206,14 +206,14 @@ class Pbs_python(Job):
         pbs_attributes[0].value = self.name
 
         # set resource requirements
-        resourse_attributes = pbs.new_attropl(len(self.resources))
+        resource_attributes = pbs.new_attropl(len(self.resources))
         idx = 0
         for k, v in self.resources.items():
-            resourse_attributes[idx].name = pbs.ATTR_l  # Resource_List
-            resourse_attributes[idx].resource = k
-            resourse_attributes[idx].value = v
+            resource_attributes[idx].name = pbs.ATTR_l  # Resource_List
+            resource_attributes[idx].resource = k
+            resource_attributes[idx].value = v
             idx += 1
-        pbs_attributes.extend(resourse_attributes)
+        pbs_attributes.extend(resource_attributes)
 
         # add job dependencies to attributes
         if self.deps:

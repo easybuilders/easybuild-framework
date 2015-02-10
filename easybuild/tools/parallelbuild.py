@@ -149,7 +149,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
         return '\n'.join(job_info_lines)
 
 
-def create_job(job_factory, build_command, easyconfig, output_dir=None):
+def create_job(job_factory, build_command, easyconfig, output_dir='easybuild-build'):
     """
     Creates a job to build a *single* easyconfig.
 
@@ -157,22 +157,16 @@ def create_job(job_factory, build_command, easyconfig, output_dir=None):
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
     @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
-    @param conn: open connection to PBS server
-    @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
+
     returns the job
     """
-    if output_dir is None:
-        output_dir = 'easybuild-build'
-
     # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
     easybuild_vars = {}
     for name in os.environ:
         if name.startswith("EASYBUILD"):
             easybuild_vars[name] = os.environ[name]
 
-    others = ["PYTHONPATH", "MODULEPATH"]
-
-    for env_var in others:
+    for env_var in ["PYTHONPATH", "MODULEPATH"]:
         if env_var in os.environ:
             easybuild_vars[env_var] = os.environ[env_var]
 
