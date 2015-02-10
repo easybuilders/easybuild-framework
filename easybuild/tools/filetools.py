@@ -847,12 +847,11 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
 
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
+    if not os.path.exists(path):
+        return False
     for somepath in paths:
-        try:
-            if os.path.samefile(path, somepath):
-                return True
-        except OSError:
-            pass
+        if os.path.exists(somepath) and os.path.samefile(path, somepath):
+            return True
     return False
 
 
