@@ -198,7 +198,7 @@ class Pbs_python(Job):
 
         self.deps.extend(job_ids)
 
-    def submit(self, with_hold=False):
+    def submit(self):
         """Submit the jobscript txt, set self.jobid"""
         txt = self.script
         self.log.debug("Going to submit script %s" % txt)
@@ -226,14 +226,13 @@ class Pbs_python(Job):
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
-        # submit job with (user) hold if requested
-        if with_hold:
-            hold_attributes = pbs.new_attropl(1)
-            hold_attributes[0].name = pbs.ATTR_h
-            hold_attributes[0].value = pbs.USER_HOLD
-            pbs_attributes.extend(hold_attributes)
-            self.holds.append(pbs.USER_HOLD)
-            self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
+        # submit job with (user) hold
+        hold_attributes = pbs.new_attropl(1)
+        hold_attributes[0].name = pbs.ATTR_h
+        hold_attributes[0].value = pbs.USER_HOLD
+        pbs_attributes.extend(hold_attributes)
+        self.holds.append(pbs.USER_HOLD)
+        self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
 
         # add a bunch of variables (added by qsub)
         # also set PBS_O_WORKDIR to os.getcwd()

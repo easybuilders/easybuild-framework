@@ -96,15 +96,8 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
         job_deps = [job_ids[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in job_ids]
         new_job.add_dependencies(job_deps)
 
-        # place user hold on job to prevent it from starting too quickly,
-        # we might still need it in the queue to set it as a dependency for another job;
-        # only set hold for job without dependencies, other jobs have a dependency hold set anyway
-        with_hold = False
-        if not job_deps:
-            with_hold = True
-
         # actually (try to) submit job
-        new_job.submit(with_hold)
+        new_job.submit()
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
@@ -115,7 +108,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     # release all user holds on jobs after submission is completed
     for job in jobs:
         if job.has_holds():
-            _log.info("releasing hold on job %s" % job.jobid)
+            _log.info("releasing user hold on job %s" % job.jobid)
             job.release_hold()
 
     job_factory.disconnect_from_server()
