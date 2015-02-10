@@ -847,7 +847,13 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
 
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
-    return any([os.path.samefile(path, p) for p in paths])
+    for somepath in paths:
+        try:
+            if os.path.samefile(path, somepath):
+                return True
+        except OSError:
+            pass
+    return False
 
 
 def rmtree2(path, n=3):
