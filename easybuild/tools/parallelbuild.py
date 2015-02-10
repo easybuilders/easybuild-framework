@@ -76,10 +76,12 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
                    % (err.__class__.__name__, err))
         return None # XXX: should this `raise` instead?
 
-    job_ids = {}
     # dependencies have already been resolved,
     # so one can linearly walk over the list and use previous job id's
     jobs = []
+
+    # keep track of which job builds which module
+    module_to_job = {}
 
     for ec in easyconfigs:
         # this is very important, otherwise we might have race conditions
@@ -93,7 +95,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
         new_job = create_job(job_factory, build_command, ec, output_dir=output_dir)
 
         # sometimes unresolved_deps will contain things, not needed to be build
-        job_deps = [job_ids[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in job_ids]
+        job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
         new_job.add_dependencies(job_deps)
 
         # actually (try to) submit job
@@ -101,7 +103,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
-        job_ids[new_job.module] = new_job.jobid
+        module_to_job[new_job.module] = new_job
         new_job.cleanup()
         jobs.append(new_job)
 

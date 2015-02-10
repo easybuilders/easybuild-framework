@@ -187,16 +187,13 @@ class Pbs_python(Job):
         # list of holds that are placed on this job
         self.holds = []
 
-    def add_dependencies(self, job_ids):
+    def add_dependencies(self, jobs):
         """
         Add dependencies to this job.
-        job_ids is an array of job ids (e.g.: 8453.master2.gengar....)
-        if only one job_id is provided this function will also work
-        """
-        if isinstance(job_ids, str):
-            job_ids = list(job_ids)
 
-        self.deps.extend(job_ids)
+        Argument `jobs` is a sequence of `PbsJob` objects.
+        """
+        self.deps.extend(jobs)
 
     def submit(self):
         """Submit the jobscript txt, set self.jobid"""
@@ -222,7 +219,7 @@ class Pbs_python(Job):
         if self.deps:
             deps_attributes = pbs.new_attropl(1)
             deps_attributes[0].name = pbs.ATTR_depend
-            deps_attributes[0].value = ",".join(["afterany:%s" % dep for dep in self.deps])
+            deps_attributes[0].value = ",".join(["afterany:%s" % dep.jobid for dep in self.deps])
             pbs_attributes.extend(deps_attributes)
             self.log.debug("Job deps attributes: %s" % deps_attributes[0].value)
 
