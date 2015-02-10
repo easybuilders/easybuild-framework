@@ -35,7 +35,6 @@ or
 import os
 from distutils import log
 
-from easybuild.main import REQ_VSC_BASE_VERSION
 from easybuild.tools.version import VERSION
 
 API_VERSION = str(VERSION).split('.')[0]
@@ -107,5 +106,5 @@ implement support for installing particular (groups of) software packages.""",
     provides = ["eb"] + easybuild_packages,
     test_suite = "test.framework.suite",
     zip_safe = False,
-    install_requires = ["vsc-base >= " % REQ_VSC_BASE_VERSION],
+    install_requires = ["vsc-base >= 2.0.0"],
 )

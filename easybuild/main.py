@@ -41,22 +41,6 @@ import sys
 import traceback
 from distutils.version import LooseVersion
 
-# version check of required vsc-base package
-REQ_VSC_BASE_VERSION = '2.0.1'
-vsc_base_error = None
-try:
-    from vsc.version import VERSION as VSC_BASE_VERSION
-    if LooseVersion(VSC_BASE_VERSION) < LooseVersion(REQ_VSC_BASE_VERSION):
-        tup = (VSC_BASE_VERSION, REQ_VSC_BASE_VERSION)
-        vsc_base_error = "Found vsc-base version %s, but version >= %s is required" % tup
-except ImportError:
-    vsc_base_error = "Failed to determine version of required vsc-base Python package"
-
-if vsc_base_error is not None:
-    sys.stderr.write("ERROR: %s\n" % vsc_base_error)
-    sys.exit(1)
-
-
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, init_logging, print_msg, print_error, stop_logging
