@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.job.job import job_factory
+from easybuild.tools.job import job_factory
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
 

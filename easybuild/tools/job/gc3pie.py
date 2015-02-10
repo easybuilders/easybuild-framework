@@ -24,7 +24,7 @@
 ##
 """Interface for submitting jobs via gc3pie"""
 
-from easybuild.tools.job.job import Job
+from easybuild.tools.job import Job
 
 
 # eb --job=GC3Pie

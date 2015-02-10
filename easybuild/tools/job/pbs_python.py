@@ -35,7 +35,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
-from easybuild.tools.job.job import Job
+from easybuild.tools.job import Job
 
 
 _log = fancylogger.getLogger('pbs_job', fname=False)
