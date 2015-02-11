@@ -26,6 +26,8 @@
 """Interface for submitting jobs via gc3pie"""
 
 
+import time
+
 try:
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
