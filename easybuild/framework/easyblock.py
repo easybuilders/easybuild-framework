@@ -1445,7 +1445,13 @@ class EasyBlock(object):
 
     def package_step(self):
         """Package software (e.g. into an RPM)."""
-        pass
+        rpmname = "nxprog-%s-%s" % (self.name, self.version)
+        os.chdir("/tmp")
+        deplist=""
+        deplist+=" ".join(["--dependency " + i for i in (map(">".join, [(self.toolchain.name, self.toolchain.version)]))])
+        deplist+=" ".join(["--dependency " + i for i in (map(lambda x:x["name"] + ">" + x["version"], self.cfg.dependencies()))])
+        cmd = "fpm --workdir /tmp -t rpm -n %s -s dir %s %s" % (rpmname, deplist, self.installdir)
+        (out, _) = run_cmd(cmd, log_all=True, simple=False)
 
     def post_install_step(self):
         """
@@ -1801,6 +1807,8 @@ class EasyBlock(object):
             ], False))
 
         return steps
+
+
 
     def run_all_steps(self, run_test_cases):
         """
