@@ -90,8 +90,10 @@ class Pbs(JobServer):
             self.conn = pbs.pbs_connect(self.pbs_server)
         return self.conn
 
-    def submit(self, job):
+    def submit(self, job, after=frozenset()):
         assert isinstance(job, PbsJob)
+        if after:
+            job.add_dependencies(after)
         job._submit()
         self._submitted.append(job)
 

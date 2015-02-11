@@ -62,17 +62,6 @@ class Job(object):
         """
         pass
 
-    @abstractmethod
-    def add_dependencies(self, jobs):
-        """
-        Add dependencies to this job.
-
-        Argument `jobs` is a sequence of `Job` objects,
-        which must actually be instances of the exact same
-        class as the dependent job.
-        """
-        pass
-
 
 class JobServer(object):
     __metaclass__ = ABCMeta
@@ -98,9 +87,13 @@ class JobServer(object):
         pass
 
     @abstractmethod
-    def submit(self, job):
+    def submit(self, job, after=frozenset()):
         """
         Submit a job to the batch-queueing system.
+
+        If second optional argument `after` is given, it must be a
+        sequence of jobs that must be successfully terminated before
+        the new job can run.
 
         Note that actual submission may be delayed until `commit()` is
         called.

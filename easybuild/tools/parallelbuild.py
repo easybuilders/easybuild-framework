@@ -96,10 +96,9 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
 
         # sometimes unresolved_deps will contain things, not needed to be build
         job_deps = [module_to_job[dep] for dep in map(_to_key, ec['unresolved_deps']) if dep in module_to_job]
-        new_job.add_dependencies(job_deps)
 
         # actually (try to) submit job
-        job_server.submit(new_job)
+        job_server.submit(new_job, job_deps)
         _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
 
         # update dictionary
