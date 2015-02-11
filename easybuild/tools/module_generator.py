@@ -40,7 +40,6 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
-from easybuild.tools.config import build_option, get_module_syntax
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.utilities import quote_str
 
@@ -432,7 +431,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Append whatever Tcl code you want to your modulefile
         """
-    #@todo to pass or not to pass? this should fail in the context of generating Lua modules
+    	#@todo to pass or not to pass? this should fail in the context of generating Lua modules
         pass
 
 
@@ -440,9 +439,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
-    # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+    	# quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias(%s,"%s")\n' % (key, quote_str(value))
-
 
 def avail_module_generators():
     """
@@ -468,9 +466,10 @@ def module_generator(app, fake=False):
     module_generator_class = avail_module_generators().get(module_syntax)
     return module_generator_class(app, fake=fake)
 
+
 def return_module_loadregex(modfilepath):
     """
-    Return the right regex depending on the module file type (Lua vs Tcl) in order for 
+    Return the correct regex depending on the module file type (Lua vs Tcl) in order for 
     to be able to figure out dependencies.
     """
     if (modfilepath.endswith('.lua')):

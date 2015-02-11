@@ -1,4 +1,4 @@
-# #
+#
 # Copyright 2009-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -51,7 +51,6 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
-from easybuild.tools.module_generator import return_module_loadregex
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
@@ -573,7 +572,7 @@ class ModulesTool(object):
         @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = return_module_loadregex(self.modulefile_path(modmod_name))
+	loadregex = return_module_loadregex(self.modulefile_path(modmod_name))
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
