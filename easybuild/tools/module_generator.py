@@ -473,16 +473,14 @@ def module_generator(app, fake=False):
     module_generator_class = avail_module_generators().get(module_syntax)
     return module_generator_class(app, fake=fake)
 
-def return_module_loadregex(modulefile):
+def return_module_loadregex(modname):
     """
     Return the right regex depending on the module file type (Lua vs Tcl) in order for 
     to be able to figure out dependencies.
     """
-    if (modules_tool().modulefile_path(modulefile)).endswith('.lua'):
+    if (modules_tool().modulefile_path(modname).endswith('.lua')):
         loadregex = re.compile(r"^\s*load\(\"(\S+)\"", re.M)
     else:   `
         loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
     return loadregex
-
-
 
