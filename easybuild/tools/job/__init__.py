@@ -32,37 +32,6 @@ from vsc.utils.missing import get_subclasses
 from easybuild.tools.config import get_job_backend
 
 
-class Job(object):
-    __metaclass__ = ABCMeta
-
-    @abstractmethod
-    def __init__(self, server, script, name, env_vars=None, hours=None, cores=None):
-        """
-        Create a new `Job` object.
-
-        First argument `server` is an instance of the corresponding
-        `JobServer` class.
-
-        Second argument `script` is the content of the job script
-        itself, i.e., the sequence of shell commands that will be
-        executed.
-
-        Third argument `name` sets the job human-readable name.
-
-        Fourth (optional) argument `env_vars` is a dictionary with
-        key-value pairs of environment variables that should be passed
-        on to the job.
-
-        Fifth and sith (optional) arguments `hours` and `cores` should be
-        integer values:
-        * hours must be in the range 1 .. MAX_WALLTIME;
-        * cores depends on which cluster the job is being run.
-
-        Concrete subclasses may add more optional parameters.
-        """
-        pass
-
-
 class JobServer(object):
     __metaclass__ = ABCMeta
 

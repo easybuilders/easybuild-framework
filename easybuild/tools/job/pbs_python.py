@@ -35,7 +35,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
-from easybuild.tools.job import Job, JobServer
+from easybuild.tools.job import JobServer
 
 
 _log = fancylogger.getLogger('pbs_job', fname=False)
@@ -142,7 +142,7 @@ class Pbs(JobServer):
                       conn=self.conn, ppn=self.ppn)
 
 
-class PbsJob(Job):
+class PbsJob(object):
     """Interaction with TORQUE"""
 
     def __init__(self, server, script, name, env_vars=None,
