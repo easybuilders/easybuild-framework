@@ -34,7 +34,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config, parallelbuild
-from easybuild.tools.parallelbuild import PbsJob, build_easyconfigs_in_parallel
+from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
 from easybuild.tools.robot import resolve_dependencies
 
 
