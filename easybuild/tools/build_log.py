@@ -31,6 +31,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
+import logging
 import os
 import sys
 import tempfile
@@ -120,12 +121,70 @@ class EasyBuildLog(fancylogger.FancyLogger):
         raise EasyBuildError(newMsg)
 
 
+class LoggerFactory(object):
+    """
+    Instanciate different logger classes, depending upon requested
+    logger name.
+
+    Loggers can be associated with prefixes; when a logger is
+    requested, the constructor associated with the longest matching
+    prefix is used to actually create the class instance.
+    """
+
+    def __init__(self, loggers):
+        self._dispatch = {}
+        self.dispatch('', logging.getLoggerClass())
+        for prefix, cls in loggers.items():
+            self.dispatch(prefix, cls)
+
+    def dispatch(self, prefix, cls):
+        """
+        Register a logger of class `cls` to be used whenever a name
+        starting with `prefix` is requested.
+        """
+        self._dispatch[prefix] = cls
+
+    def __call__(self, name):
+        """
+        Create a logger with the specified name.
+
+        The actual logger constructor is selected among the registered
+        ones: the constructor associated with the longest matching
+        prefix is used.
+        """
+        #sys.stderr.write("=== Requested logger for %s\n" % name)
+        matched = -1
+        logger = None
+        for prefix, ctor in self._dispatch.items():
+            if name.startswith(prefix) and len(prefix) > matched:
+                matched = len(prefix)
+                logger = ctor
+        return logger(name)
+
+
 # set format for logger
 LOGGING_FORMAT = EB_MSG_PREFIX + ' %(asctime)s %(name)s %(levelname)s %(message)s'
 fancylogger.setLogFormat(LOGGING_FORMAT)
 
-# set the default LoggerClass to EasyBuildLog
-fancylogger.logging.setLoggerClass(EasyBuildLog)
+# set the default LoggerClass depending on the caller
+logDispatcher = LoggerFactory({
+    # Ideally, one would use EasyBuildLog for EB and Python's default
+    # for anything else, but the `easybuild.` prefix is stripped out
+    # e.g. when one runs tests directly, but some EB code bombs out
+    # when using Python's default Logger (not thread safe?).  Using
+    # `FancyLogger` seems an acceptable compromise, in that it works
+    # with both EB code and GC3Pie code...
+    'easybuild': EasyBuildLog,
+    '':          fancylogger.FancyLogger,
+    #'':          logging.Logger,
+})
+# `logging.setLoggerClass` insists that the passed callable is a class
+# definition and that it derives from `logging.Logger` (or the current
+# Logger); I cannot see a way of adapting the log dispatcher to meet
+# those requirements, so let us just bypass `logging.setLoggerClass`
+# and set the logger class by accessing a private global variable
+# directly.  Not kosher, but it works.
+logging._loggerClass = logDispatcher
 
 # you can't easily set another LoggerClass before fancylogger calls getLogger on import
 _init_fancylog = fancylogger.getLogger(fname=False)
