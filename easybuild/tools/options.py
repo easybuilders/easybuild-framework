@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import glob
 import os
 import re
 import sys
@@ -67,8 +68,7 @@ from vsc.utils.generaloption import GeneralOption
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', os.path.join("/etc"))
-DEFAULT_SYSTEM_CONFIGFILE = os.path.join(XDG_CONFIG_DIRS, 'easybuild', 'config.fg')
-DEFAULT_SHIPPED_CONFIGFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'easybuild.cfg')
+DEFAULT_SYSTEM_CONFIGFILES = glob.glob(os.path.join(XDG_CONFIG_DIRS, 'easybuild.d', '*.cfg'))
 DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
@@ -77,7 +77,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = [DEFAULT_SHIPPED_CONFIGFILE, DEFAULT_SYSTEM_CONFIGFILE, DEFAULT_USER_CONFIGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYSTEM_CONFIGFILES + [DEFAULT_USER_CONFIGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
