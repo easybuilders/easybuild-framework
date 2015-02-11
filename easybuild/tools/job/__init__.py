@@ -30,7 +30,7 @@ from abc import ABCMeta, abstractmethod
 from vsc.utils.missing import get_subclasses
 
 from easybuild.tools.config import get_job_backend
-from easybuild.tools.config import PREFERRED_JOB_SERVERS
+from easybuild.tools.config import PREFERRED_JOB_BACKENDS
 from easybuild.tools.utilities import import_available_modules
 
 
@@ -87,7 +87,7 @@ class JobServer(object):
         pass
 
 
-def avail_job_servers(check_usable=True):
+def avail_job_backends(check_usable=True):
     """
     Return all known job execution backends.
     """
@@ -98,21 +98,23 @@ def avail_job_servers(check_usable=True):
     return class_dict
 
 
-def job_server():
+def job_backend():
     """
-    Return interface to job server.
+    Return interface to job server, or `None` if none is available.
     """
-    job_server = get_job_backend()
-    job_server_class = avail_job_servers().get(job_server)
-    return job_server_class()
+    job_backend = get_job_backend()
+    if job_backend is None:
+        return None
+    job_backend_class = avail_job_backends().get(job_backend)
+    return job_backend_class()
 
 
-def preferred_job_server(order=PREFERRED_JOB_SERVERS):
+def preferred_job_backend(order=PREFERRED_JOB_BACKENDS):
     """
     Return name of preferred concrete `JobServer` instance, or `None`
     if none is available.
     """
-    available_backends = avail_job_servers()
+    available_backends = avail_job_backends()
     for backend in order:
         if backend in available_backends:
             return backend

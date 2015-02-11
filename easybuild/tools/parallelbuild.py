@@ -42,7 +42,7 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.job import job_server
+from easybuild.tools.job import job_backend
 from easybuild.tools.repository.repository import init_repository
 from vsc.utils import fancylogger
 
@@ -68,7 +68,10 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     """
     _log.info("going to build these easyconfigs in parallel: %s", easyconfigs)
 
-    job_server = job_server()
+    job_server = job_backend()
+    if job_server is None:
+        _log.error("Cannot use --job if no job backend is available.")
+
     try:
         job_server.begin()
     except RuntimeError, err:

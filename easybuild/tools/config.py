@@ -66,7 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
-PREFERRED_JOB_SERVERS = ['Pbs', 'GC3Pie']
+PREFERRED_JOB_BACKENDS = ['Pbs', 'GC3Pie']
 
 
 # utility function for obtaining default paths
@@ -183,6 +183,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'prefix',
         'buildpath',
         'installpath',
+        'job_backend',
         'sourcepath',
         'repository',
         'repositorypath',
@@ -361,7 +362,8 @@ def get_job_backend():
     """
     Return job execution backend (PBS, GC3Pie, ...)
     """
-    return ConfigurationVariables()['job_backend']
+    # 'job_backend' key will only be present after EasyBuild config is initialized
+    return ConfigurationVariables().get('job_backend', None)
 
 
 def log_file_format(return_directory=False):
