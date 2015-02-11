@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Unit tests for downloadtools.py
+Unit tests for download.py
 @author: Kenneth Hoste (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
@@ -31,13 +31,13 @@ import os
 import urllib2
 
 from test.framework.utilities import EnhancedTestCase
-from unittest import TestLoader, main
+from unittest import TestLoader, main, SkipTest
 
-import easybuild.tools.downloadtools as dt
+import easybuild.tools.download as d
 
 
-class DownloadToolsTest(EnhancedTestCase):
-    """ Testcase for downloadtools module """
+class DownloadTest(EnhancedTestCase):
+    """ Testcase for download module """
 
     def test_download_file(self):
         """Test download_file function."""
@@ -46,11 +46,17 @@ class DownloadToolsTest(EnhancedTestCase):
         # provide local file path as source URL
         test_dir = os.path.abspath(os.path.dirname(__file__))
         source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
-        res = dt.download_file(fn, source_url, target_location)
+        res = d.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works")
 
         # non-existing files result in None return value
-        self.assertEqual(dt.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+        self.assertEqual(d.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+
+        # rest of the test only makes sense when online
+        try:
+            urllib2.urlopen('https://jenkins1.ugent.be/', timeout=1)
+        except urllib2.URLError:
+            raise SkipTest("We don't seem to be online, skipping testing of proxy features")
 
         # install broken proxy handler for opening local files
         # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
@@ -62,17 +68,18 @@ class DownloadToolsTest(EnhancedTestCase):
         fn = "robots.txt"
         source_url = "https://jenkins1.ugent.be/"
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
-        self.assertEqual(dt.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+        self.assertEqual(d.download_file(fn, source_url, target_location), None,
+                         "download over broken proxy should't work")
 
         # restore a working file handler, and retest download of local file
         urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
-        res = dt.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
+        res = d.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of remote file should work after removing broken proxy")
 
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(DownloadToolsTest)
+    return TestLoader().loadTestsFromTestCase(DownloadTest)
 
 if __name__ == '__main__':
     main()

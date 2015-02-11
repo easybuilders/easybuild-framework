@@ -88,8 +88,8 @@ class SvnRepository(FileRepository):
         try:
             pysvn.ClientError  # IGNORE:E0611 pysvn fails to recognize ClientError is available
         except NameError, err:
-            self.log.exception("pysvn not available (%s). Make sure it is installed properly."
-                               + " Run 'python -c \"import pysvn\"' to test.", err)
+            self.log.error("pysvn not available. Make sure it is installed properly."
+                           + " Run 'python -c \"import pysvn\"' to test.", err)
 
         # try to connect to the repository
         self.log.debug("Try to connect to repository %s" % self.repo)
@@ -179,10 +179,10 @@ class SvnRepository(FileRepository):
         """
         if not self.client:
             self.setup_repo()
-        if not revision:
-            revision = pysvn.Revision(pysvn.opt_revision_kind.head)
-        else:
+        if revision:
             revision = pysvn.Revision(pysvn.opt_revision_kind.number, revision)
+        else:
+            revision = pysvn.Revision(pysvn.opt_revision_kind.head)
 
         _log.debug('exporting %s at revision %s to %s', self.repo, revision, to_path)
         self.client.export(self.repo, to_path, revision=revision)

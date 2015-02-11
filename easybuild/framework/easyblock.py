@@ -48,33 +48,31 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for
 
-import easybuild.tools.environment as env
-from easybuild.tools import config, filetools
+from easybuild.tools import config, environment as env, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.tools.downloadtools import PROTOCOL_MAP
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
+from easybuild.tools.download import download_file, PROTOCOL_MAP
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, encode_class_name
-from easybuild.tools.downloadtools import download_file
-from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
-from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum, DEFAULT_CHECKSUM
-from easybuild.tools.run import run_cmd
+from easybuild.tools.filetools import adjust_permissions, apply_patch, compute_checksum, convert_name, encode_class_name
+from easybuild.tools.filetools import DEFAULT_CHECKSUM, extract_file, mkdir, read_file, rmtree2
+from easybuild.tools.filetools import verify_checksum,  write_file
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGenerator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import det_parallelism, use_group
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 

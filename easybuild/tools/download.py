@@ -24,7 +24,9 @@
 ##
 """
 Set of tools to download files.
+
 @author: Jens Timmerman
+@author: Kenneth Hoste (Ghent University)
 """
 import os
 import shutil
@@ -36,30 +38,30 @@ from vsc.utils import fancylogger
 from easybuild.tools import build_log  # import build_log must stay, to activate use of EasyBuildLog
 from easybuild.tools.config import build_option
 from easybuild.tools.repository.svnrepo import SvnRepository
-from easybuild.tools.filetools import make_tarfile, write_file, mkdir
+from easybuild.tools.filetools import make_tarfile, write_file, mkdir, rmtree2
 
 
-_log = fancylogger.getLogger('filetools', fname=False)
+_log = fancylogger.getLogger('tools.download', fname=False)
 
 # list of possible protocols we should know how to download
-HTTP = 'download_http'
-# GIT = download_git
-SVN = 'download_svn'
-# BZR = download_bzr
+BZR = 'download_bzr'
 FILE = 'download_local_file'
-# FTP = download_ftp
+FTP = 'download_ftp'
+GIT = 'download_git'
+HTTP = 'download_http'
+SVN = 'download_svn'
 
 # map protocols to things we know how to download
 PROTOCOL_MAP = {
+    # 'bzr': BZR,
+    'file': FILE,
+    # 'ftp': FTP,
+    # 'git': GIT,
     'http': HTTP,
     'https': HTTP,
     # 'http+git': GIT,
-    # 'git': GIT,
-    # 'bzr': BZR,
-    # 'ftp': FTP,
     'svn': SVN,
     'svn+http': SVN,
-    'file': FILE,
 }
 
 
@@ -107,8 +109,12 @@ def download_http(filename, url, path, timeout):
 
 def download_svn(revision, url, path, timeout):
     """
-    Download a svn repository and create a tarball out of it in the given path
-    timeout is ignored here
+    Download an svn repository and create a tarball out of it in the given path
+    @param revision: SVN revision to create a tarball for
+    @param url: URL of SVN repository
+    @param path: path where tarball should be created
+    @param timeout: (ignored, only here to make function signatures match across `download` functions)
+    @return: full path to tarball
     """
     # transform url into something SvnRepository understands
     if url.startswith('svn+'):
@@ -133,13 +139,14 @@ def download_svn(revision, url, path, timeout):
     tarpath = os.path.join(path, '..', revision)
     make_tarfile(tarpath, path)
     # path will always have '/repo' in it, so the rm should be file
-    shutil.rmtree(os.path.join(path))
+    rmtree2(os.path.join(path))
     return tarpath
 
 
 def download_local_file(filename, url, path, timeout):
     """
-    Dowloading a local file is just copying it
+    Dowloading a local file is just copying it over.
+    so copy filename from url (starting with file://) to path
     timeout is ignored here.
     """
     if not url.endswith(filename):

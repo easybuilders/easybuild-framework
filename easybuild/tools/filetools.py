@@ -45,9 +45,9 @@ import zlib
 
 from vsc.utils import fancylogger
 
+from easybuild.tools import run
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
 from easybuild.tools.config import build_option
-from easybuild.tools import run
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
@@ -123,6 +123,13 @@ class ZlibChecksum(object):
     def hexdigest(self):
         """Return hex string of the checksum"""
         return '0x%s' % (self.checksum & 0xffffffff)
+
+
+def download_file(*args, **kwargs):
+    """DEPRECATED: Replaced by download_file in easybuild.tools.download"""
+    from easybuild.tools.download import download_file as _download_file
+    _log.deprecated("The download_file function has moved to easybuild.tools.download", '3.0')
+    return _download_file(*args, **kwargs)
 
 
 def read_file(path, log_error=True):
@@ -210,8 +217,13 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
 def make_tarfile(output_filename, source_dir):
     """Make a tarfile with the output_filename of the source_dir"""
     _log.debug('making new tarfile at %s from %s', output_filename, source_dir)
-    with tarfile.open(output_filename, "w:gz") as tar:
-            tar.add(source_dir, arcname=os.path.basename(source_dir))
+    try:
+        tar = tarfile.open(output_filename, "w:gz")
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+        tar.close()
+    except IOError:
+        tar.close()
+        _log.error("Error when creating a tarfile at %s from %s" % (output_filename, source_dir))
     _log.debug('done making tarfile at %s', output_filename)
 
 
@@ -249,10 +261,12 @@ def det_common_path_prefix(paths):
         return None
 
 
-def find_easyconfigs(path, ignore_dirs=[]):
+def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
     """
+    if not ignore_dirs:
+        ignore_dirs = []
     if os.path.isfile(path):
         return [path]
 
@@ -334,7 +348,7 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
-        _log.error("Failed to read patch %s: %s" % (path, err))
+        _log.error("Failed to read path %s: %s" % (path, err))
     except MemoryError, err:
         _log.warning("A memory error occured when computing the checksum for %s: %s", path, err)
         checksum = 'dummy_checksum_due_to_memory_error'
