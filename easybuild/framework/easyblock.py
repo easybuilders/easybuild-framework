@@ -1457,7 +1457,7 @@ class EasyBlock(object):
         deplist += " ".join([" --dependency " + i 
             for i in (map(lambda x:x["name"] + "=" + x["version"], self.cfg.dependencies()))
         ])
-        cmd = "fpm --workdir $TMPDIR -t rpm --name %s -s dir %s %s" % (rpmname, deplist, self.installdir)
+        cmd = "fpm --workdir $TMPDIR -t rpm --name %s -s dir %s -C %s" % (rpmname, deplist, self.installdir)
         (out, _) = run_cmd(cmd, log_all=True, simple=False)
 
     def post_install_step(self):
