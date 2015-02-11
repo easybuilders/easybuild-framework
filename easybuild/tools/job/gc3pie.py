@@ -26,10 +26,14 @@
 """Interface for submitting jobs via gc3pie"""
 
 
-from gc3libs import Application, Run, create_engine
-from gc3libs.core import Engine
-from gc3libs.quantity import hours as hr
-from gc3libs.workflow import DependentTaskCollection
+try:
+    from gc3libs import Application, Run, create_engine
+    from gc3libs.core import Engine
+    from gc3libs.quantity import hours as hr
+    from gc3libs.workflow import DependentTaskCollection
+    HAVE_GC3PIE = True
+except ImportError:
+    HAVE_GC3PIE = False
 
 from easybuild.tools.job import JobServer
 
@@ -46,6 +50,8 @@ class GC3Pie(JobServer):
 
     .. __: http://gc3pie.googlecode.com/
     """
+
+    USABLE = HAVE_GC3PIE
 
     def begin(self):
         """

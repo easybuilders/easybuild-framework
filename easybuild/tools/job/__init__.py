@@ -36,6 +36,8 @@ from easybuild.tools.utilities import import_available_modules
 class JobServer(object):
     __metaclass__ = ABCMeta
 
+    USABLE = False
+
     @abstractmethod
     def begin(self):
         """
@@ -84,12 +86,14 @@ class JobServer(object):
         pass
 
 
-def avail_job_servers():
+def avail_job_servers(check_usable=True):
     """
     Return all known job execution backends.
     """
     import_available_modules('easybuild.tools.job')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(JobServer)])
+    class_dict = dict([(x.__name__, x)
+                       for x in get_subclasses(JobServer)
+                       if (x.USABLE or not check_usable)])
     return class_dict
 
 

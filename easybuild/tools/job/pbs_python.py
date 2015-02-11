@@ -47,7 +47,6 @@ NULL = 'NULL'
 # list of known hold types
 KNOWN_HOLD_TYPES = []
 
-pbs_import_failed = None
 try:
     from PBSQuery import PBSQuery
     import pbs
@@ -55,6 +54,7 @@ try:
     # `pbs_python` available, no need guard against import errors
     def only_if_pbs_import_successful(fn):
         return fn
+    HAVE_PBS_PYTHON = True
 except ImportError:
     _log.debug("Failed to import pbs from pbs_python."
                " Silently ignoring, this is a real issue only with --job=pbs")
@@ -67,12 +67,15 @@ except ImportError:
             _log.error(errmsg)
             raise RuntimeError(errmsg)
         return instead
+    HAVE_PBS_PYTHON = False
 
 
 class Pbs(JobServer):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """
+
+    USABLE = HAVE_PBS_PYTHON
 
     def __init__(self, pbs_server=None):
         self.pbs_server = pbs_server or pbs.pbs_default()
