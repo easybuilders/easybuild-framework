@@ -66,7 +66,9 @@ from vsc.utils.generaloption import GeneralOption
 
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
-DEFAULT_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
+XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', os.path.join("/etc"))
+DEFAULT_SYSTEM_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild.cfg')
+DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -74,7 +76,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = [DEFAULT_CONFIGFILE]
+    DEFAULT_CONFIGFILES = [DEFAULT_SYSTEM_CONFIGFILE, DEFAULT_USER_CONFIGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
@@ -138,7 +140,7 @@ class EasyBuildOptions(GeneralOption):
                  )
 
         opts = OrderedDict({
-            'amend':(("Specify additional search and build parameters (can be used multiple times); "
+            'amend': (("Specify additional search and build parameters (can be used multiple times); "
                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
@@ -681,7 +683,7 @@ def process_software_build_specs(options):
         tryval = getattr(options, 'try_%s' % opt)
         if val or tryval:
             if val and tryval:
-                self.log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
+                fancylogger.getLogger().warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
             elif tryval:
                 try_to_generate = True
             val = val or tryval  # --try-X value is overridden by --X
@@ -707,7 +709,9 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                self.log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+                fancylogger.getLogger().warning(
+                    "Ignoring options passed via --try-amend, only using those passed via --amend."
+                )
         if options.try_amend:
             amends += options.try_amend
             try_to_generate = True
