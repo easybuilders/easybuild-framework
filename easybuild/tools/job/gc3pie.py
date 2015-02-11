@@ -128,7 +128,7 @@ class GC3Pie(JobServer):
         """
         # Create an instance of `Engine` using the configuration file present
         # in your home directory.
-        engine = gc3libs.create_engine()
+        engine = create_engine()
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
