@@ -120,8 +120,6 @@ class EasyBuildOptions(GeneralOption):
             'force': ("Force to rebuild software even if it's already installed (i.e. if it can be found as module)",
                       None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
-            'job-backend': ("What job runner to use", 'choice', 'store',
-                            preferred_job_backend(), (avail_job_backends().keys())),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",
@@ -234,6 +232,8 @@ class EasyBuildOptions(GeneralOption):
                             'strlist', 'store', ['.git', '.svn']),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
+            'job-backend': ("What job runner to use", 'choice', 'store',
+                            preferred_job_backend(), (avail_job_backends().keys())),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
