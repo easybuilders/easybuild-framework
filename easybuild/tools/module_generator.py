@@ -480,7 +480,7 @@ def return_module_loadregex(modname):
     """
     if (modules_tool().modulefile_path(modname).endswith('.lua')):
         loadregex = re.compile(r"^\s*load\(\"(\S+)\"", re.M)
-    else:   `
+    else:
         loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
     return loadregex
 
