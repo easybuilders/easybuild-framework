@@ -42,7 +42,6 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
 from easybuild.tools.config import build_option, get_module_syntax
 from easybuild.tools.filetools import mkdir
-from easybuild.tools.modules import Lmod, modules_tool
 from easybuild.tools.utilities import quote_str
 
 
@@ -296,10 +295,6 @@ class ModuleGeneratorLua(ModuleGenerator):
         """ModuleGeneratorLua constructor."""
         super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
 
-        # make sure Lmod is being used as a modules tool
-        if not isinstance(modules_tool(), Lmod):
-            self.log.error("Only Lmod can be used as modules tool when generating module files in Lua syntax.")
-
     def module_header(self):
         """Return module header string."""
         return ''
@@ -473,12 +468,12 @@ def module_generator(app, fake=False):
     module_generator_class = avail_module_generators().get(module_syntax)
     return module_generator_class(app, fake=fake)
 
-def return_module_loadregex(modname):
+def return_module_loadregex(modfilepath):
     """
     Return the right regex depending on the module file type (Lua vs Tcl) in order for 
     to be able to figure out dependencies.
     """
-    if (modules_tool().modulefile_path(modname).endswith('.lua')):
+    if (modfilepath.endswith('.lua')):
         loadregex = re.compile(r"^\s*load\(\"(\S+)\"", re.M)
     else:
         loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)

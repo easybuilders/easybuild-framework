@@ -573,7 +573,7 @@ class ModulesTool(object):
         @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = return_module_loadregex(mod_name)
+        loadregex = return_module_loadregex(self.modulefile_path(modmod_name))
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
