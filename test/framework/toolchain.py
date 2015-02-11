@@ -381,6 +381,30 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.comp_family(), "GCC")
 
+    def test_mpi_family(self):
+        """Test determining MPI family."""
+        # check subtoolchain w/o MPI
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), None)
+        modules.modules_tool().purge()
+
+        # check full toolchain including MPI
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "OpenMPI")
+        modules.modules_tool().purge()
+
+        # check another one
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "IntelMPI")
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        open(imkl_module_path, 'w').write(imkl_module_txt)
+
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")
