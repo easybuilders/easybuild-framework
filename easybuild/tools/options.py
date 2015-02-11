@@ -49,14 +49,15 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
-from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_JOB_SERVER
+from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT
 from easybuild.tools.config import DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
+from easybuild.tools.config import PREFERRED_JOB_SERVERS
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
-from easybuild.tools.job import avail_job_servers
+from easybuild.tools.job import avail_job_servers, preferred_job_server
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
@@ -120,7 +121,7 @@ class EasyBuildOptions(GeneralOption):
                       None, 'store_true', False, 'f'),
             'job': ("Submit the build as a job", None, 'store_true', False),
             'job-backend': ("What job runner to use", 'choice', 'store',
-                            DEFAULT_JOB_SERVER, (avail_job_servers().keys())),
+                            preferred_job_server(), (avail_job_servers().keys())),
             'logtostdout': ("Redirect main log to stdout", None, 'store_true', False, 'l'),
             'only-blocks': ("Only build listed blocks", None, 'extend', None, 'b', {'metavar': 'BLOCKS'}),
             'robot': ("Enable dependency resolution, using easyconfigs in specified paths",

@@ -53,7 +53,6 @@ _log = fancylogger.getLogger('config', fname=False)
 
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
-DEFAULT_JOB_SERVER = 'Pbs'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
@@ -66,6 +65,8 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
+
+PREFERRED_JOB_SERVERS = ['Pbs', 'GC3Pie']
 
 
 # utility function for obtaining default paths
