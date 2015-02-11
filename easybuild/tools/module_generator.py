@@ -342,7 +342,8 @@ class ModuleGeneratorLua(ModuleGenerator):
              ])
 
         elif conflict:
-            # conflicts are not needed in lua module files, as Lmod "conflict" by default
+            # conflicts are not needed in lua module files, as Lmod's one name
+            # rule and automatic swapping.
             pass
 
         txt = '\n'.join(lines) % {
@@ -436,7 +437,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Append whatever Tcl code you want to your modulefile
         """
-    # nothing to do here, but this should fail in the context of generating Lua modules
+    #@todo to pass or not to pass? this should fail in the context of generating Lua modules
         pass
 
 
@@ -471,3 +472,17 @@ def module_generator(app, fake=False):
     module_syntax = get_module_syntax()
     module_generator_class = avail_module_generators().get(module_syntax)
     return module_generator_class(app, fake=fake)
+
+def return_module_loadregex(modulefile):
+    """
+    Return the right regex depending on the module file type (Lua vs Tcl) in order for 
+    to be able to figure out dependencies.
+    """
+    if (modules_tool().modulefile_path(modulefile)).endswith('.lua'):
+        loadregex = re.compile(r"^\s*load\(\"(\S+)\"", re.M)
+    else:   `
+        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
+    return loadregex
+
+
+
