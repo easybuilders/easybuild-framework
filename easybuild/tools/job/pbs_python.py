@@ -35,7 +35,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
-from easybuild.tools.job import Job
+from easybuild.tools.job import Job, JobServer
 
 
 _log = fancylogger.getLogger('pbs_job', fname=False)
@@ -69,7 +69,7 @@ except ImportError:
         return instead
 
 
-class PbsJobServer(object):
+class Pbs(JobServer):
     """
     Manage PBS server communication and create `PbsJob` objects.
     """

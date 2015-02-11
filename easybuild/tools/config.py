@@ -53,6 +53,7 @@ _log = fancylogger.getLogger('config', fname=False)
 
 
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
+DEFAULT_JOB_SERVER = 'Pbs'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
@@ -355,17 +356,11 @@ def get_module_naming_scheme():
     return ConfigurationVariables()['module_naming_scheme']
 
 
-# XXX: from the code writer perspective, this would more appropriately
-# named `get_job_server` or `get_job_backend`; from the
-# user/command-line viewpoint, however, `--job` is just fine so if we
-# stick with the convention that the accessor for command-line option
-# `--foo` is named `get_foo`, we should name this `get_job()`.
-# And so be it.
-def get_job():
+def get_job_backend():
     """
     Return job execution backend (PBS, GC3Pie, ...)
     """
-    return ConfigurationVariables()['job']
+    return ConfigurationVariables()['job_backend']
 
 
 def log_file_format(return_directory=False):

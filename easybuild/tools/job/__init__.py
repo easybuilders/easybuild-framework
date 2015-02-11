@@ -29,7 +29,7 @@ from abc import ABCMeta, abstractmethod
 
 from vsc.utils.missing import get_subclasses
 
-from easybuild.tools.config import get_job
+from easybuild.tools.config import get_job_backend
 
 
 class Job(object):
@@ -124,14 +124,14 @@ def avail_job_servers():
     """
     Return all known job execution backends.
     """
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(Job)])
+    class_dict = dict([(x.__name__, x) for x in get_subclasses(JobServer)])
     return class_dict
 
 
-def job_server(testing=False):
+def job_server():
     """
     Return interface to job server.
     """
-    job_server = get_job()
+    job_server = get_job_backend()
     job_server_class = avail_job_servers().get(job_server)
-    return job_server_class(testing=testing)
+    return job_server_class()
