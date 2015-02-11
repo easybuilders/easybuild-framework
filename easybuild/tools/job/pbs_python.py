@@ -205,6 +205,11 @@ class PbsJob(object):
         # list of holds that are placed on this job
         self.holds = []
 
+    def __str__(self):
+        """Return the job ID as a string."""
+        return (str(self.jobid) if self.jobid is not None
+                else repr(self))
+
     def add_dependencies(self, jobs):
         """
         Add dependencies to this job.

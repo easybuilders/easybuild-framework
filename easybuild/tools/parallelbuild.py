@@ -102,7 +102,9 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
 
         # actually (try to) submit job
         job_server.submit(new_job, job_deps)
-        _log.info("job for module %s has been submitted (job id: %s)" % (new_job.module, new_job.jobid))
+        _log.info(
+            "job %s for module %s has been submitted"
+            % (new_job, new_job.module))
 
         # update dictionary
         module_to_job[new_job.module] = new_job
