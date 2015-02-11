@@ -49,8 +49,9 @@ class Job(object):
 
         Third argument `name` sets the job human-readable name.
 
-        Fourth (optional) argument `env_vars` is a dictionary with key-value pairs
-        of environment variables that should be passed on to the job.
+        Fourth (optional) argument `env_vars` is a dictionary with
+        key-value pairs of environment variables that should be passed
+        on to the job.
 
         Fifth and sith (optional) arguments `hours` and `cores` should be
         integer values:
