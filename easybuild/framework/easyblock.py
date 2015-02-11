@@ -77,7 +77,6 @@ from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
 
-
 _log = fancylogger.getLogger('easyblock')
 
 
@@ -1444,20 +1443,18 @@ class EasyBlock(object):
         self.clean_up_fake_module(fake_mod_data)
 
     def package_step(self):
-        """Package software (e.g. into an RPM)."""
+        """Prepare package software (e.g. into an RPM) with fpm."""
         rpmname = "HPCBIOS.20150211-%s-%s" % (self.name, self.version)
         os.chdir(os.environ['TMPDIR'])
         
-        
-        toolchaindep = "=".join([self.toolchain.name, self.toolchain.version])
-        if toolchaindep == "dummy=":
-            deplist = ""
+        if self.toolchain.name == "dummy":
+            dependencies = []
         else:
-            deplist = " ".join([" --dependency ", toolchaindep])
-        deplist += " ".join([" --dependency " + i 
-            for i in (map(lambda x:x["name"] + "=" + x["version"], self.cfg.dependencies()))
-        ])
-        cmd = "fpm --workdir $TMPDIR -t rpm --name %s -s dir %s -C %s" % (rpmname, deplist, self.installdir)
+            dependencies = [ "=".join([ self.toolchain.name, self.toolchain.version ]) ]
+        dependencies.extend([ "=".join([ dep['name'], dep['version'] ]) for dep in self.cfg.dependencies() ])
+        depstring = '--dependency ' + ' --dependency '.join(dependencies)
+
+        cmd = "fpm --workdir $TMPDIR -t rpm --name %s -s dir %s -C %s" % (rpmname, depstring, self.installdir)
         (out, _) = run_cmd(cmd, log_all=True, simple=False)
 
     def post_install_step(self):
@@ -1797,11 +1794,11 @@ class EasyBlock(object):
         # part 3: post-iteration part
         steps_part3 = [
             ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
-            ('package', 'packaging', [lambda x: x.package_step()], True),
             ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
             ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
             ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
             ('module', 'creating module', [lambda x: x.make_module_step()], False),
+            # ('package', 'packaging', [lambda x: x.package_step()], True),
         ]
 
         # full list of steps, included iterated steps
@@ -1812,6 +1809,14 @@ class EasyBlock(object):
                 lambda x: x.load_module(),
                 lambda x: x.test_cases_step(),
             ], False))
+
+        ## CHANGE TRUE TO build_option, and 
+        ## ADD build-pkg to all the configuration dicts
+        ## # if build_option('build-pkg'):
+        if True:
+            steps.append(('package', 'packaging', [lambda x: x.package_step()], True))
+        else:
+            self.log.debug('Skipping package step')
 
         return steps
 
