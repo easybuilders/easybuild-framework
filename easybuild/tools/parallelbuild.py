@@ -141,7 +141,8 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     else:
         jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
         job_info_lines = ["List of submitted jobs:"]
-        job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
+        job_info_lines.extend([("%s (%s): %s" % (job.name, job.module, job))
+                               for job in jobs])
         job_info_lines.append("(%d jobs submitted)" % len(jobs))
         return '\n'.join(job_info_lines)
 
