@@ -88,7 +88,9 @@ class GC3Pie(JobServer):
         * hours must be in the range 1 .. MAX_WALLTIME;
         * cores depends on which cluster the job is being run.
         """
-        extra_args = {}
+        extra_args = {
+            'jobname': name,
+        }
         if env_vars:
             extra_args['environment'] = env_vars
         if hours:
