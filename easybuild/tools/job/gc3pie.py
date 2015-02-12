@@ -154,4 +154,4 @@ class GC3Pie(JobServer):
             engine.progress()
 
             # Wait a few seconds...
-            time.sleep(1)
+            time.sleep(30)
