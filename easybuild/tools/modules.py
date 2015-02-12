@@ -118,6 +118,17 @@ output_matchers = {
 _log = fancylogger.getLogger('modules', fname=False)
 
 
+def module_load_regex(modfilepath):
+    """
+    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
+    """
+    if modfilepath.endswith('.lua'):
+        regex = r'^\s*load\("(\S+)"'
+    else:
+        regex = r"^\s*module\s+load\s+(\S+)"
+    return re.compile(regex, re.M)
+
+
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # position and optionname
@@ -572,7 +583,7 @@ class ModulesTool(object):
         @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-	loadregex = return_module_loadregex(self.modulefile_path(modmod_name))
+        loadregex = module_load_regex(self.modulefile_path(mod_name))
         mods = loadregex.findall(modtxt)
 
         if depth > 0:
@@ -833,7 +844,6 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        return
         spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
         cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
         self.log.debug("Running command '%s'..." % ' '.join(cmd))
