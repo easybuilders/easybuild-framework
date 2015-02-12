@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # #
 # Copyright 2012-2014 Ghent University
 #
@@ -50,6 +50,7 @@ fancylogger.setLogLevelError()
 # toolkit should be first to allow hacks to work
 import test.framework.asyncprocess as a
 import test.framework.config as c
+import test.framework.download as d
 import test.framework.easyblock as b
 import test.framework.easyconfig as e
 import test.framework.easyconfigparser as ep
@@ -100,7 +101,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw]
+tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, d, p]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
@@ -122,5 +123,5 @@ if not res.wasSuccessful():
     print "Log available at %s" % log_fn, xml_msg
     sys.exit(2)
 else:
-    for f in glob.glob('%s*' % log_fn):
-        os.remove(f)
+    for filename in glob.glob('%s*' % log_fn):
+        os.remove(filename)

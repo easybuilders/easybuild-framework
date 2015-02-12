@@ -451,7 +451,7 @@ class EasyBlockTest(EnhancedTestCase):
         # 'downloading' a file to (first) sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, testdir)])
         shutil.copy2(toy_tarball_path, tmpdir_subdir)
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])  # no os.path.join here, we want an url
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
         # finding a file in sourcepath works

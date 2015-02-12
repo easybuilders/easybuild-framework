@@ -1,5 +1,5 @@
-# #
-# Copyright 2009-2014 Ghent University
+##
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 Set of file tools.
 
@@ -34,19 +34,20 @@ Set of file tools.
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
+import hashlib
 import os
 import re
 import shutil
 import stat
+import tarfile
 import time
-import urllib2
 import zlib
+
 from vsc.utils import fancylogger
 
-import easybuild.tools.environment as env
+from easybuild.tools import run
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
 from easybuild.tools.config import build_option
-from easybuild.tools import run
 
 
 _log = fancylogger.getLogger('filetools', fname=False)
@@ -91,23 +92,14 @@ STRING_ENCODING_CHARMAP = {
     r'~': "_tilde_",
 }
 
-try:
-    # preferred over md5/sha modules, but only available in Python 2.5 and more recent
-    import hashlib
-    md5_class = hashlib.md5
-    sha1_class = hashlib.sha1
-except ImportError:
-    import md5, sha
-    md5_class = md5.md5
-    sha1_class = sha.sha
 
 # default checksum for source and patch files
 DEFAULT_CHECKSUM = 'md5'
 
 # map of checksum types to checksum functions
 CHECKSUM_FUNCTIONS = {
-    'md5': lambda p: calc_block_checksum(p, md5_class()),
-    'sha1': lambda p: calc_block_checksum(p, sha1_class()),
+    'md5': lambda p: calc_block_checksum(p, hashlib.md5()),
+    'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     'adler32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.adler32)),
     'crc32': lambda p: calc_block_checksum(p, ZlibChecksum(zlib.crc32)),
     'size': lambda p: os.path.getsize(p),
@@ -131,6 +123,13 @@ class ZlibChecksum(object):
     def hexdigest(self):
         """Return hex string of the checksum"""
         return '0x%s' % (self.checksum & 0xffffffff)
+
+
+def download_file(*args, **kwargs):
+    """DEPRECATED: Replaced by download_file in easybuild.tools.download"""
+    from easybuild.tools.download import download_file as _download_file
+    _log.deprecated("The download_file function has moved to easybuild.tools.download", '3.0')
+    return _download_file(*args, **kwargs)
 
 
 def read_file(path, log_error=True):
@@ -177,7 +176,7 @@ def remove_file(path):
         if os.path.exists(path):
             os.remove(path)
     except OSError, err:
-          _log.error("Failed to remove %s: %s", path, err)
+        _log.error("Failed to remove%s: %s" % (path, err))
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -212,8 +211,20 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
         cmd = "%s %s" % (cmd, extra_options)
 
     run.run_cmd(cmd, simple=True)
-
     return find_base_dir()
+
+
+def make_tarfile(output_filename, source_dir):
+    """Make a tarfile with the output_filename of the source_dir"""
+    _log.debug('making new tarfile at %s from %s', output_filename, source_dir)
+    try:
+        tar = tarfile.open(output_filename, "w:gz")
+        tar.add(source_dir, arcname=os.path.basename(source_dir))
+        tar.close()
+    except IOError:
+        tar.close()
+        _log.error("Error when creating a tarfile at %s from %s" % (output_filename, source_dir))
+    _log.debug('done making tarfile at %s', output_filename)
 
 
 def which(cmd):
@@ -250,68 +261,14 @@ def det_common_path_prefix(paths):
         return None
 
 
-def download_file(filename, url, path):
-    """Download a file from the given URL, to the specified path."""
-
-    _log.debug("Trying to download %s from %s to %s", filename, url, path)
-
-    timeout = build_option('download_timeout')
-    if timeout is None:
-        # default to 10sec timeout if none was specified
-        # default system timeout (used is nothing is specified) may be infinite (?)
-        timeout = 10
-    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
-
-    # make sure directory exists
-    basedir = os.path.dirname(path)
-    mkdir(basedir, parents=True)
-
-    # try downloading, three times max.
-    downloaded = False
-    max_attempts = 3
-    attempt_cnt = 0
-    while not downloaded and attempt_cnt < max_attempts:
-        try:
-            # urllib2 does the right thing for http proxy setups, urllib does not!
-            url_fd = urllib2.urlopen(url, timeout=timeout)
-            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
-            write_file(path, url_fd.read())
-            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
-            downloaded = True
-            url_fd.close()
-        except urllib2.HTTPError as err:
-            if 400 <= err.code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
-                break
-            else:
-                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
-                attempt_cnt += 1
-        except IOError as err:
-            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
-            attempt_cnt += 1
-        except Exception, err:
-            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
-
-        if not downloaded and attempt_cnt < max_attempts:
-            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
-
-    if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
-        return path
-    else:
-        _log.warning("Download of %s to %s failed, done trying" % (url, path))
-        return None
-
-
 def find_easyconfigs(path, ignore_dirs=None):
     """
     Find .eb easyconfig files in path
     """
+    if not ignore_dirs:
+        ignore_dirs = []
     if os.path.isfile(path):
         return [path]
-
-    if ignore_dirs is None:
-        ignore_dirs = []
 
     # walk through the start directory, retain all files that end in .eb
     files = []
@@ -322,11 +279,11 @@ def find_easyconfigs(path, ignore_dirs=None):
                 continue
 
             spec = os.path.join(dirpath, f)
-            _log.debug("Found easyconfig %s" % spec)
+            _log.debug("Found easyconfig %s", spec)
             files.append(spec)
 
         # ignore subdirs specified to be ignored by replacing items in dirnames list used by os.walk
-        dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
     return files
 
@@ -335,10 +292,10 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     """
     Search for a particular file (only prints)
     """
-    if ignore_dirs is None:
-        ignore_dirs = ['.git', '.svn']
-    if not isinstance(ignore_dirs, list):
-        _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
+    if not ignore_dirs:
+        ignore_dirs = build_option('ignore_dirs')
+    assert isinstance(ignore_dirs, list), \
+        "search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs))
 
     var_lines = []
     hit_lines = []
@@ -364,7 +321,7 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # note: we still need to consider e.g., .local !
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
-            dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+            dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
 
         if hits:
             common_prefix = det_common_path_prefix(hits)
@@ -385,15 +342,15 @@ def compute_checksum(path, checksum_type=DEFAULT_CHECKSUM):
     @param path: Path of file to compute checksum for
     @param checksum_type: Type of checksum ('adler32', 'crc32', 'md5' (default), 'sha1', 'size')
     """
-    if not checksum_type in CHECKSUM_FUNCTIONS:
-        _log.error("Unknown checksum type (%s), supported types are: %s" % (checksum_type, CHECKSUM_FUNCTIONS.keys()))
+    if checksum_type not in CHECKSUM_FUNCTIONS:
+        _log.error("Unknown checksum type (%s), supported types are: %s", checksum_type, CHECKSUM_FUNCTIONS.keys())
 
     try:
         checksum = CHECKSUM_FUNCTIONS[checksum_type](path)
     except IOError, err:
-        _log.error("Failed to read %s: %s" % (path, err))
+        _log.error("Failed to read path %s: %s" % (path, err))
     except MemoryError, err:
-        _log.warning("A memory error occured when computing the checksum for %s: %s" % (path, err))
+        _log.warning("A memory error occured when computing the checksum for %s: %s", path, err)
         checksum = 'dummy_checksum_due_to_memory_error'
 
     return checksum
@@ -408,7 +365,7 @@ def calc_block_checksum(path, algorithm):
         blocksize = algorithm.blocksize * 262144  # 2^18
     except AttributeError, err:
         blocksize = 16777216  # 2^24
-    _log.debug("Using blocksize %s for calculating the checksum" % blocksize)
+    _log.debug("Using blocksize %s for calculating the checksum", blocksize)
 
     try:
         f = open(path, 'rb')
@@ -768,7 +725,7 @@ def adjust_permissions(name, permissionBits, add=True, onlyfiles=False, onlydirs
     max_fail_ratio = 0.5
     if fail_ratio > max_fail_ratio:
         _log.error("%.2f%% of permissions/owner operations failed (more than %.2f%%), something must be wrong..." %
-                  (100 * fail_ratio, 100 * max_fail_ratio))
+                   (100 * fail_ratio, 100 * max_fail_ratio))
     elif fail_cnt > 0:
         _log.debug("%.2f%% of permissions/owner operations failed, ignoring that..." % (100 * fail_ratio))
 
@@ -953,7 +910,7 @@ def copytree(src, dst, symlinks=False, ignore=None):
         else:
             errors.extend((src, dst, str(why)))
     if errors:
-        raise Error, errors
+        raise Error(errors)
 
 
 def encode_string(name):
@@ -972,7 +929,6 @@ def encode_string(name):
     For readability of >2 words, it is suggested to use _CamelCase_ style.
     So, yes, '_GreekSmallLetterEtaWithPsiliAndOxia_' *could* indeed be a fully
     valid software name; software "electron" in the original spelling anyone? ;-)
-
     """
 
     # do the character remapping, return same char by default
@@ -1012,6 +968,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
     """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
     _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
+
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
     """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
     _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
@@ -1023,7 +980,6 @@ def det_size(path):
     """
     installsize = 0
     try:
-
         # walk install dir to determine total size
         for (dirpath, _, filenames) in os.walk(path):
             for filename in filenames:
