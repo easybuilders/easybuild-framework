@@ -57,6 +57,7 @@ from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_t
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
+from easybuild.tools.modules import LMOD_USER_CACHE_RELDIR, Lmod
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -197,10 +198,12 @@ class EasyBuildOptions(GeneralOption):
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
-            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
-                      None, 'store', None),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
                         None, 'store', None),
+            'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
+                      None, 'store', None),
+            'update-lmod-cache': ("Update Lmod spider cache in specified directory", None, 'store_or_None',
+                                  os.path.join(os.path.expanduser('~'), LMOD_USER_CACHE_RELDIR), {'metavar': 'DIR'}),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -404,6 +407,11 @@ class EasyBuildOptions(GeneralOption):
             token = fetch_github_token(self.options.github_user)
             if token is None:
                 self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
+
+        # options w.r.t. updating Lmod cache only make sense when Lmod is selected modules tool
+        if self.options.update_lmod_cache:
+            if self.options.modules_tool != Lmod.__name__:
+                self.log.error("Options related to Lmod cache are only supported if Lmod is used as a modules tool.")
 
         self._postprocess_config()
 

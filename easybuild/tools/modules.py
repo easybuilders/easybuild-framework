@@ -48,11 +48,14 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
+from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
+
+# relative to user's home directory
+LMOD_USER_CACHE_RELDIR = '.lmod.d/.cache'
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -832,32 +835,32 @@ class Lmod(ModulesTool):
         return correct_real_mods
 
     def update(self):
-        """Update after new modules were added."""
-        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-        self.log.debug("Running command '%s'..." % ' '.join(cmd))
+        """Update Lmod cache after new modules were added."""
+        cache_dir = build_option('update_lmod_cache')
 
-        proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-        (stdout, stderr) = proc.communicate()
+        if cache_dir is not None:
+            # run spider to create cache contents
+            spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+            # FIXME support also updating dbT and reverseMapT
+            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-        if stderr:
-            self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+            # we can't use run_cmd, since we need to separate stdout from stderr
+            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            (cache_txt, stderr) = proc.communicate()
 
-        if self.testing:
-            # don't actually update local cache when testing, just return the cache contents
-            return stdout
-        else:
-            try:
-                cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-                cache_dir = os.path.dirname(cache_filefn)
-                if not os.path.exists(cache_dir):
-                    mkdir(cache_dir, parents=True)
-                cache_file = open(cache_filefn, 'w')
-                cache_file.write(stdout)
-                cache_file.close()
-            except (IOError, OSError), err:
-                self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
+            if stderr:
+                self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+
+            if self.testing:
+                # don't actually update local cache when testing, just return the cache contents
+                return cache_txt
+            else:
+                cache_fp = os.path.join(cache_dir, 'moduleT.lua')
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                # FIXME: backup existing cache
+                # FIXME: also support compiling cache
+                write_file(cache_fp, cache_txt)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'
