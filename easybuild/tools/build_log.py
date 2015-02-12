@@ -169,14 +169,11 @@ fancylogger.setLogFormat(LOGGING_FORMAT)
 # set the default LoggerClass depending on the caller
 logDispatcher = LoggerFactory({
     # Ideally, one would use EasyBuildLog for EB and Python's default
-    # for anything else, but the `easybuild.` prefix is stripped out
-    # e.g. when one runs tests directly, but some EB code bombs out
-    # when using Python's default Logger (not thread safe?).  Using
-    # `FancyLogger` seems an acceptable compromise, in that it works
-    # with both EB code and GC3Pie code...
-    'easybuild': EasyBuildLog,
-    '':          fancylogger.FancyLogger,
-    #'':          logging.Logger,
+    # for anything else, but there's no common prefix for EB loggers,
+    # so let's use `EasyBuildLog` as default, and explicitly list
+    # exceptions (e.g., GC3Pie)
+    '':    EasyBuildLog,
+    'gc3': logging.Logger,
 })
 # `logging.setLoggerClass` insists that the passed callable is a class
 # definition and that it derives from `logging.Logger` (or the current
