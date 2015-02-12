@@ -1652,7 +1652,10 @@ class EasyBlock(object):
 
         self.log.info("Module file %s written" % self.module_generator.filename)
 
-        self.modules_tool.update()
+        # only update after generating final module file
+        if not fake:
+            self.modules_tool.update()
+
         self.module_generator.create_symlinks()
 
         if not fake:
