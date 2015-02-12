@@ -39,12 +39,13 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.tools import config
+from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.utilities import quote_str
 
 
-MODULE_GENERATOR_CLASS_PREFIX = 'ModuleGenerator'
+LUA_SYNTAX = 'Lua'
+TCL_SYNTAX = 'Tcl'
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -54,6 +55,7 @@ class ModuleGenerator(object):
     """
     Class for generating module files.
     """
+    SYNTAX = None
 
     # chars we want to escape in the generated modulefiles
     CHARS_TO_ESCAPE = ["$"]
@@ -116,7 +118,7 @@ class ModuleGenerator(object):
             self.log.debug("Fake mode: using %s (instead of %s)" % (self.tmpdir, self.module_path))
             self.module_path = self.tmpdir
         else:
-            self.module_path = config.install_path('mod')
+            self.module_path = install_path('mod')
 
     def module_header(self):
         """Return module header string."""
@@ -131,6 +133,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
     """
+    SYNTAX = TCL_SYNTAX
 
     def module_header(self):
         """Return module header string."""
@@ -287,6 +290,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
+    SYNTAX = LUA_SYNTAX
 
     MODULE_SUFFIX = '.lua'
 
@@ -448,13 +452,7 @@ def avail_module_generators():
     """
     class_dict = {}
     for klass in get_subclasses(ModuleGenerator):
-        class_name = klass.__name__
-        if class_name.startswith(MODULE_GENERATOR_CLASS_PREFIX):
-            syntax = class_name[len(MODULE_GENERATOR_CLASS_PREFIX):]
-            class_dict.update({syntax: klass})
-        else:
-            tup = (MODULE_GENERATOR_CLASS_PREFIX, class_name)
-            _log.error("Invalid name for ModuleGenerator subclass, should start with %s: %s" % tup)
+        class_dict.update({klass.SYNTAX: klass})
     return class_dict
 
 
