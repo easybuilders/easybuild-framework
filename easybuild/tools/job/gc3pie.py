@@ -100,7 +100,7 @@ class GC3Pie(JobServer):
             extra_args['requested_cores'] = cores
         return Application(
             # arguments
-            arguments=script.split(), # FIXME: breaks if args contain spaces!
+            ['/bin/sh', '-c', script],
             # no need to stage files in or out
             inputs=[],
             outputs=[],
