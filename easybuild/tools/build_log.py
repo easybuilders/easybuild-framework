@@ -174,11 +174,11 @@ def get_log(name=None):
     log.nosupport("Use of get_log function", '2.0')
 
 
-def print_msg(msg, log=None, silent=False, prefix=True):
+def print_msg(msg, do_log=False, silent=False, prefix=True):
     """
     Print a message to stdout.
     """
-    if log:
+    if do_log:
         log.info(msg)
     if not silent:
         if prefix:
@@ -187,7 +187,7 @@ def print_msg(msg, log=None, silent=False, prefix=True):
             print msg
 
 
-def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
+def print_error(message, do_log=False, exitCode=1, opt_parser=None, exit_on_error=True, silent=False):
     """
     Print error message and exit EasyBuild
     """
@@ -197,7 +197,7 @@ def print_error(message, log=None, exitCode=1, opt_parser=None, exit_on_error=Tr
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % message)
         sys.exit(exitCode)
-    elif log is not None:
+    elif do_log:
         log.error(message)
 
 
