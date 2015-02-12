@@ -834,9 +834,15 @@ class Lmod(ModulesTool):
 
         return correct_real_mods
 
+    def compile_cache(self, cache_fp):
+        """Compile Lmod cache file using luac."""
+        if build_option('compile_lmod_caches'):
+            # FIXME: ask Lmod to compile, to ensure that luac that matches the lua used by Lmod is used?
+            run_cmd("luac %s" % cache_fp)
+
     def update(self):
         """Update Lmod cache after new modules were added."""
-        cache_dir = build_option('update_lmod_cache')
+        cache_dir = build_option('update_lmod_caches')
 
         if cache_dir is not None:
 
@@ -865,6 +871,7 @@ class Lmod(ModulesTool):
                     if os.path.exists(cache_fp):
                         old_cache_fp = '%s.old.lua' % os.path.splitext(cache_fp)[0]
                         copy_file(cache_fp, old_cache_fp)
+                        self.compile_cache(old_cache_fp)
 
                     # FIXME: also support compiling cache
                     # make update as atomic as possible: write cache file under temporary name, and then rename
@@ -874,6 +881,7 @@ class Lmod(ModulesTool):
                         os.rename(new_cache_fp, cache_fp)
                     except OSError, err:
                         self.log.error("Failed to rename Lmod cache %s to %s: %s" % (new_cache_fp, cache_fp, err))
+                    self.compile_cache(cache_fp)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'

@@ -178,6 +178,7 @@ class EasyBuildOptions(GeneralOption):
             'allow-modules-tool-mismatch': ("Allow mismatch of modules tool and definition of 'module' function",
                                             None, 'store_true', False),
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
+            'compile-lmod-caches': ("Compile Lmod cache files with luac after updating them", None, 'store_true', False),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
             'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
@@ -202,7 +203,7 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store', None),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'update-lmod-cache': ("Update Lmod spider cache in specified directory", None, 'store_or_None',
+            'update-lmod-caches': ("Update Lmod cache files in specified directory", None, 'store_or_None',
                                   os.path.join(os.path.expanduser('~'), LMOD_USER_CACHE_RELDIR), {'metavar': 'DIR'}),
         })
 
@@ -409,7 +410,7 @@ class EasyBuildOptions(GeneralOption):
                 self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
 
         # options w.r.t. updating Lmod cache only make sense when Lmod is selected modules tool
-        if self.options.update_lmod_cache:
+        if self.options.update_lmod_caches:
             if self.options.modules_tool != Lmod.__name__:
                 self.log.error("Options related to Lmod cache are only supported if Lmod is used as a modules tool.")
 
