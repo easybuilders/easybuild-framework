@@ -67,7 +67,7 @@ class GC3Pie(JobServer):
         """
         self._jobs = DependentTaskCollection()
 
-    def make_job(self, server, script, name, env_vars=None, hours=None, cores=None):
+    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
         """
         Create and return a job object with the given parameters.
 
