@@ -48,7 +48,7 @@ from vsc.utils.patterns import Singleton
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which, write_file
+from easybuild.tools.filetools import convert_name, copy_file, mkdir, read_file, path_matches, which, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
@@ -839,28 +839,41 @@ class Lmod(ModulesTool):
         cache_dir = build_option('update_lmod_cache')
 
         if cache_dir is not None:
-            # run spider to create cache contents
-            spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-            # FIXME support also updating dbT and reverseMapT
-            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-            self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-            # we can't use run_cmd, since we need to separate stdout from stderr
-            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-            (cache_txt, stderr) = proc.communicate()
+            for cache_type in ['moduleT', 'dbT', 'reverseMapT']:
 
-            if stderr:
-                self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+                # run spider to create cache contents
+                spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+                cmd = [spider_cmd, '-o', cache_type, os.environ['MODULEPATH']]
+                self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-            if self.testing:
-                # don't actually update local cache when testing, just return the cache contents
-                return cache_txt
-            else:
-                cache_fp = os.path.join(cache_dir, 'moduleT.lua')
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
-                # FIXME: backup existing cache
-                # FIXME: also support compiling cache
-                write_file(cache_fp, cache_txt)
+                # we can't use run_cmd, since we need to separate stdout from stderr
+                proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+                (cache_txt, stderr) = proc.communicate()
+                if stderr:
+                    self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+
+                if self.testing:
+                    # don't actually update local cache when testing, just return the cache contents
+                    return cache_txt
+                else:
+                    cache_fp = os.path.join(cache_dir, '%s.lua' % cache_type)
+                    self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+
+                    # back existing cache by copying it to <cache>T.old.lua
+                    # Lmod also considers this filename for the cache in case <cache>T.lua isn't found
+                    if os.path.exists(cache_fp):
+                        old_cache_fp = '%s.old.lua' % os.path.splitext(cache_fp)[0]
+                        copy_file(cache_fp, old_cache_fp)
+
+                    # FIXME: also support compiling cache
+                    # make update as atomic as possible: write cache file under temporary name, and then rename
+                    new_cache_fp = '%s.new' % cache_fp
+                    write_file(new_cache_fp, cache_txt)
+                    try:
+                        os.rename(new_cache_fp, cache_fp)
+                    except OSError, err:
+                        self.log.error("Failed to rename Lmod cache %s to %s: %s" % (new_cache_fp, cache_fp, err))
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'

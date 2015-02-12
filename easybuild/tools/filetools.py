@@ -133,6 +133,19 @@ class ZlibChecksum(object):
         return '0x%s' % (self.checksum & 0xffffffff)
 
 
+def copy_file(src, dest):
+    """
+    Copy file at specified path to new location.
+    @param src: source path
+    @param dest: destination path (full path, incl. filename)
+    """
+    try:
+        mkdir(os.path.dirname(dest))
+        shutil.copy2(src, dest)
+    except OSError, err:
+        _log.error("Failed to copy %s to %s: %s")
+
+
 def read_file(path, log_error=True):
     """Read contents of file at given path, in a robust way."""
     f = None
