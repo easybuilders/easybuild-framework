@@ -107,8 +107,9 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
-        fancylogger.FancyLogger.error(self, newMsg, *args, **kwargs)
+        newMsg = ("EasyBuild crashed with an error %s: %s"
+                  % (self.caller_info(), (msg % args)))
+        fancylogger.FancyLogger.error(self, newMsg, **kwargs)
         if self.raiseError:
             raise EasyBuildError(newMsg)
 
