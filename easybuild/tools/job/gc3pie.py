@@ -29,11 +29,14 @@
 import time
 
 try:
+    import gc3libs
     from gc3libs import Application, Run, create_engine
     from gc3libs.core import Engine
     from gc3libs.quantity import hours as hr
     from gc3libs.workflow import DependentTaskCollection
     HAVE_GC3PIE = True
+    # make handling of log.error compatible with stdlib logging
+    gc3libs.log.raiseError = False
 except ImportError:
     HAVE_GC3PIE = False
 
