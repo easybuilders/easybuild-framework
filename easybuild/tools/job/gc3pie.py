@@ -26,6 +26,7 @@
 """Interface for submitting jobs via gc3pie"""
 
 
+import os
 import time
 
 try:
@@ -104,7 +105,7 @@ class GC3Pie(JobServer):
             inputs=[],
             outputs=[],
             # where should the output (STDOUT/STDERR) files be downloaded to?
-            output_dir=('/tmp/%s' % name),
+            output_dir=('%s/easybuild-jobs/%s' % (os.getcwd(), name)),
             # capture STDOUT and STDERR
             stdout='stdout.log',
             join=True,
