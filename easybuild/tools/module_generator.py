@@ -313,7 +313,6 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
-
         lines = [
             "local pkg = {}",
             "help = [["
@@ -351,7 +350,6 @@ class ModuleGeneratorLua(ModuleGenerator):
             'installdir': self.app.installdir,
             'homepage': self.app.cfg['homepage'],
         }
-
 
         return txt
 
@@ -414,7 +412,6 @@ class ModuleGeneratorLua(ModuleGenerator):
             use_statements.append('use("%s")' % path)
         return '\n'.join(use_statements)
 
-
     def set_environment(self, key, value):
 
         """
@@ -423,27 +420,24 @@ class ModuleGeneratorLua(ModuleGenerator):
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setenv("%s", %s)\n' % (key, quote_str(value))
 
-
     def msg_on_load(self, msg):
         """
         Add a message that should be printed when loading the module.
         """
         pass
 
-
     def add_tcl_footer(self, tcltxt):
         """
         Append whatever Tcl code you want to your modulefile
         """
-    	#@todo to pass or not to pass? this should fail in the context of generating Lua modules
+        #@todo to pass or not to pass? this should fail in the context of generating Lua modules
         pass
-
 
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
-    	# quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         return 'setalias(%s,"%s")\n' % (key, quote_str(value))
 
 def avail_module_generators():
@@ -458,21 +452,14 @@ def avail_module_generators():
 
 def module_generator(app, fake=False):
     """
-    Return interface to modules tool (environment modules (C, Tcl), or Lmod)
+    Return ModuleGenerator instance that matches the selected module file syntax to be used
     """
     module_syntax = get_module_syntax()
-    module_generator_class = avail_module_generators().get(module_syntax)
+    available_mod_gens = avail_module_generators()
+
+    if module_syntax not in available_mod_gens:
+        tup = (module_syntax, available_mod_gens)
+        _log.error("No module generator available for specified syntax '%s' (available: %s)" % tup)
+
+    module_generator_class = available_mod_gens[module_syntax]
     return module_generator_class(app, fake=fake)
-
-
-def return_module_loadregex(modfilepath):
-    """
-    Return the correct regex depending on the module file type (Lua vs Tcl) in order for 
-    to be able to figure out dependencies.
-    """
-    if (modfilepath.endswith('.lua')):
-        loadregex = re.compile(r"^\s*load\(\"(\S+)\"", re.M)
-    else:
-        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
-    return loadregex
-
