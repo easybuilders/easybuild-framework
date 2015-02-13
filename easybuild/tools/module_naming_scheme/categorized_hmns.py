@@ -30,6 +30,8 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# License: 3-clause BSD
 ##
 """
 Implementation of a hierarchical module naming scheme using module classes.
@@ -77,15 +79,9 @@ class CategorizedHMNS(HierarchicalMNS):
         Compiler/GCC/4.8.3/<moduleclasses> (for GCC/4.8.3 module),
         MPI/GCC/4.8.3/OpenMPI/1.6.5/<moduleclasses> (for OpenMPI/1.6.5 module)
         """
-        known_module_classes = build_option('valid_module_classes')
         basepaths = super(CategorizedHMNS, self).det_modpath_extensions(ec)
 
-        paths = []
-        for path in basepaths:
-            for moduleclass in known_module_classes:
-                paths.extend([os.path.join(path, moduleclass)])
-
-        return paths
+        return self.categorize_paths(basepaths)
 
     def det_init_modulepaths(self, ec):
         """
@@ -95,12 +91,20 @@ class CategorizedHMNS(HierarchicalMNS):
         Examples:
         Core/<moduleclasses>
         """
-        known_module_classes = build_option('valid_module_classes')
         basepaths = super(CategorizedHMNS, self).det_init_modulepaths(ec)
+
+        return self.categorize_paths(basepaths)
+
+    def categorize_paths(self, basepaths):
+        """
+        Returns a list of paths where all known (valid) module classes have
+        been added to each of the given base paths.
+        """
+        valid_module_classes = build_option('valid_module_classes')
 
         paths = []
         for path in basepaths:
-            for moduleclass in known_module_classes:
+            for moduleclass in valid_module_classes:
                 paths.extend([os.path.join(path, moduleclass)])
 
         return paths
