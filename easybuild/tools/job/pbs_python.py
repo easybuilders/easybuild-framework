@@ -38,7 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.job import JobServer
 
 
-_log = fancylogger.getLogger('pbs_job', fname=False)
+_log = fancylogger.getLogger('pbs_python', fname=False)
 
 
 MAX_WALLTIME = 72
