@@ -41,7 +41,13 @@ try:
 except ImportError:
     HAVE_GC3PIE = False
 
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.job import JobServer
+
+from vsc.utils import fancylogger
+
+
+_log = fancylogger.getLogger('gc3pie', fname=False)
 
 
 # eb --job --job-backend=GC3Pie
@@ -153,5 +159,36 @@ class GC3Pie(JobServer):
             # results of terminating jobs etc...
             engine.progress()
 
+            # report progress
+            stats = engine.stats()
+            print_msg(
+                "build jobs: "
+                + str.join(", ", [
+                    ("%d %s" % (stats[state], state.lower()))
+                    for state in [
+                            'total',
+                            'SUBMITTED',
+                            'RUNNING',
+                            'ok',
+                            'failed',
+                    ]
+                    if stats[state] > 0
+                ]))
+
             # Wait a few seconds...
             time.sleep(30)
+
+        # final status report
+        stats = engine.stats()
+        print_msg(
+            "build jobs: "
+            + str.join(", ", [
+                ("%d %s" % (stats[state], state.lower()))
+                for state in [
+                        'total',
+                        'ok',
+                        'failed',
+                ]
+                if stats[state] > 0
+            ]),
+            log=_log)
