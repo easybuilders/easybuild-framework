@@ -49,7 +49,6 @@ class ToolchainMNS(HierarchicalMNS):
             subdir = CORE
         else:
             subdir = os.path.join(TOOLCHAIN,ec.toolchain.name,ec.toolchain.version)
-
         return subdir
 
     def det_modpath_extensions(self, ec):
@@ -58,13 +57,11 @@ class ToolchainMNS(HierarchicalMNS):
         Examples: Toolchain/intel/2014.12 (for intel/2014.12 module)
         """
         modclass = ec['moduleclass']
-
         paths = []
 	# Take care of the corner cases, such as GCC, where it is both a compiler and a toolchain
         if modclass == MODULECLASS_TC or ec['name'] in ['GCC']:
             fullver = self.det_full_version(ec)
             paths.append(os.path.join(TOOLCHAIN,  ec['name'], fullver))
-
         return paths
 
     def expand_toolchain_load(self):
