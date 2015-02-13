@@ -1641,7 +1641,7 @@ class EasyBlock(object):
         """
         self.module_generator.set_fake(fake)
 
-        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.app.cfg)
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
         modpath = self.module_generator.prepare(mod_symlink_paths)
 
         txt = ''
