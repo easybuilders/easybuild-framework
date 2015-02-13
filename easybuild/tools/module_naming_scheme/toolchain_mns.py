@@ -52,7 +52,6 @@ class ToolchainMNS(HierarchicalMNS):
 
         return subdir
 
-
     def det_modpath_extensions(self, ec):
         """
         Determine module path extensions, if any.
