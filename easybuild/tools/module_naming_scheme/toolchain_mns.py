@@ -29,18 +29,11 @@ Implementation of an example hierarchical module naming scheme.
 @author: Eric "The Knife" Gregory (Forschungszentrum Juelich GmbH)
 """
 
-import os
-import re
-from vsc.utils import fancylogger
-
 from easybuild.tools.module_naming_scheme.hierarchical_mns import HierarchicalMNS
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
-CORE = 'Core'
 TOOLCHAIN = 'Toolchain'
-
 MODULECLASS_TC = 'toolchain'
-
 
 class ToolchainMNS(HierarchicalMNS):
     """Class implementing a toolchain-based hierarchical module naming scheme."""
@@ -51,9 +44,7 @@ class ToolchainMNS(HierarchicalMNS):
         This determines the separation between module names exposed to users, and what's part of the $MODULEPATH.
         Examples: Core, Toolchain/gpsolf/2015.02
         """
-
         if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
-
             # toolchain is dummy/dummy, put in Core
             subdir = CORE
         else:
@@ -70,11 +61,8 @@ class ToolchainMNS(HierarchicalMNS):
         modclass = ec['moduleclass']
 
         paths = []
-
-
-	# Take care of the GCC corner case since it is both a compiler and a toolchain
-        if modclass == MODULECLASS_TC or ec['name'] == 'GCC':
-
+	# Take care of the corner cases, such as GCC, where it is both a compiler and a toolchain
+        if modclass == MODULECLASS_TC or ec['name'] in ['GCC']:
             fullver = self.det_full_version(ec)
             paths.append(os.path.join(TOOLCHAIN,  ec['name'], fullver))
 
@@ -85,6 +73,5 @@ class ToolchainMNS(HierarchicalMNS):
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
-#        return True
-# In our case we have to load the toolchains because they are explicitly exposed when extending the module path
+	# In our case we have to load the toolchains because they are explicitly exposed when extending the module path
         return False
