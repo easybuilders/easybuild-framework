@@ -39,6 +39,7 @@ import easybuild.tools.modules as modules
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
+from easybuild.tools.module_generator import module_load_regex
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -50,7 +51,9 @@ class ToolchainTest(EnhancedTestCase):
         super(ToolchainTest, self).setUp()
 
         # start with a clean slate
-        modules.modules_tool().purge()
+        modtool = modules.modules_tool()
+        modtool.purge()
+        modtool.set_load_regex_function(module_load_regex)
 
         # make sure path with modules for testing is added to MODULEPATH
         self.orig_modpath = os.environ.get('MODULEPATH', '')

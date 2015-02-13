@@ -55,7 +55,7 @@ from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_token
 from easybuild.tools.modules import avail_modules_tools
-from easybuild.tools.module_generator import LUA_SYNTAX, avail_module_generators
+from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
 from easybuild.tools.modules import Lmod
@@ -399,7 +399,7 @@ class EasyBuildOptions(GeneralOption):
             if not HAVE_GITHUB_API:
                 self.log.error("Required support for using GitHub API is not available (see warnings).")
 
-        if self.options.module_syntax == LUA_SYNTAX and self.options.modules_tool != Lmod.__name__:
+        if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
             self.log.error("Generating Lua module files requires Lmod as modules tool.")
 
         # make sure a GitHub token is available when it's required

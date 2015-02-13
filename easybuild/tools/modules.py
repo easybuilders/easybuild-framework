@@ -118,17 +118,6 @@ output_matchers = {
 _log = fancylogger.getLogger('modules', fname=False)
 
 
-def module_load_regex(modfilepath):
-    """
-    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
-    """
-    if modfilepath.endswith('.lua'):
-        regex = r'^\s*load\("(\S+)"'
-    else:
-        regex = r"^\s*module\s+load\s+(\S+)"
-    return re.compile(regex, re.M)
-
-
 class ModulesTool(object):
     """An abstract interface to a tool that deals with modules."""
     # position and optionname
@@ -184,6 +173,14 @@ class ModulesTool(object):
         self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
+
+        self.det_load_regex = None
+
+    def set_load_regex_function(self, det_load_regex):
+        """
+        Set function to determine regex for 'load' statements.
+        """
+        self.det_load_regex = det_load_regex
 
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
@@ -583,7 +580,7 @@ class ModulesTool(object):
         @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
         """
         modtxt = self.read_module_file(mod_name)
-        loadregex = module_load_regex(self.modulefile_path(mod_name))
+        loadregex = self.det_load_regex(self.modulefile_path(mod_name))
         mods = loadregex.findall(modtxt)
 
         if depth > 0:

@@ -34,18 +34,16 @@ Generating module files.
 """
 import os
 import re
+import sys
 import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.config import build_option, get_module_syntax, install_path
-from easybuild.tools.filetools import mkdir
+from easybuild.tools.filetools import mkdir, read_file
+from easybuild.tools.modules import modules_tool
 from easybuild.tools.utilities import quote_str
-
-
-LUA_SYNTAX = 'Lua'
-TCL_SYNTAX = 'Tcl'
 
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -59,7 +57,7 @@ class ModuleGenerator(object):
 
     # chars we want to escape in the generated modulefiles
     CHARS_TO_ESCAPE = ["$"]
-    MODULE_SUFFIX = ''
+    MODULE_FILE_EXTENSION = None
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -76,7 +74,7 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
-        full_mod_name = '%s%s' % (self.app.full_mod_name, self.MODULE_SUFFIX)
+        full_mod_name = '%s%s' % (self.app.full_mod_name, self.MODULE_FILE_EXTENSION)
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
@@ -133,7 +131,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
     """
-    SYNTAX = TCL_SYNTAX
+    MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
+    SYNTAX = 'Tcl'
+
+    LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
+    LOAD_TEMPLATE = "module load %(mod_name)s"
 
     def module_header(self):
         """Return module header string."""
@@ -202,7 +204,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         else:
             load_statement = [
                 "if { ![is-loaded %(mod_name)s] } {",
-                "    module load %(mod_name)s",
+                "    %s" % self.LOAD_TEMPLATE,
                 "}",
             ]
         return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
@@ -290,9 +292,11 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
-    SYNTAX = LUA_SYNTAX
+    MODULE_FILE_EXTENSION = '.lua'
+    SYNTAX = 'Lua'
 
-    MODULE_SUFFIX = '.lua'
+    LOAD_REGEX = r'^\s*load\("(\S+)"'
+    LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -361,11 +365,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = ['load("%(mod_name)s")']
+            load_statement = [LOAD_TEMPLATE]
         else:
             load_statement = [
                 'if ( not isloaded("%(mod_name)s")) then',
-                '  load("%(mod_name)s")',
+                '  %s' % LOAD_TEMPLATE,
                 'end',
             ]
         return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
@@ -463,3 +467,14 @@ def module_generator(app, fake=False):
 
     module_generator_class = available_mod_gens[module_syntax]
     return module_generator_class(app, fake=fake)
+
+
+def module_load_regex(modfilepath):
+    """
+    Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
+    """
+    if modfilepath.endswith('.lua'):
+        regex = ModuleGeneratorLua.LOAD_REGEX
+    else:
+        regex = ModuleGeneratorTcl.LOAD_REGEX
+    return re.compile(regex, re.M)
