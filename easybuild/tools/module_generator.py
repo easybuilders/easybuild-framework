@@ -39,7 +39,6 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
-from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.modules import modules_tool
@@ -69,7 +68,7 @@ class ModuleGenerator(object):
         self.module_path = None
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-    def prepare(self):
+    def prepare(self, mod_symlink_paths):
         """
         Creates the absolute filename for the module.
         """
@@ -78,7 +77,6 @@ class ModuleGenerator(object):
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
-        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.app.cfg)
         self.class_mod_files = [os.path.join(self.module_path, p, full_mod_name) for p in mod_symlink_paths]
 
         # create directories and links
@@ -478,3 +476,29 @@ def module_load_regex(modfilepath):
     else:
         regex = ModuleGeneratorTcl.LOAD_REGEX
     return re.compile(regex, re.M)
+
+
+def dependencies_for(mod_name, depth=sys.maxint):
+    """
+    Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
+    @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
+    """
+    mod_filepath = modules_tool().modulefile_path(mod_name)
+    modtxt = read_file(mod_filepath)
+    loadregex = module_load_regex(mod_filepath)
+    mods = loadregex.findall(modtxt)
+
+    if depth > 0:
+        # recursively determine dependencies for these dependency modules, until depth is non-positive
+        moddeps = [dependencies_for(mod, depth=depth - 1) for mod in mods]
+    else:
+        # ignore any deeper dependencies
+        moddeps = []
+
+    # add dependencies of dependency modules only if they're not there yet
+    for moddepdeps in moddeps:
+        for dep in moddepdeps:
+            if not dep in mods:
+                mods.append(dep)
+
+    return mods

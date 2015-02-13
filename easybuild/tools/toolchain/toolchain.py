@@ -32,11 +32,11 @@ Creating a new toolchain should be as simple as possible.
 """
 
 import os
-import re
 from vsc.utils import fancylogger
 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
+from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from easybuild.tools.toolchain.options import ToolchainOptions
@@ -353,7 +353,7 @@ class Toolchain(object):
 
         # determine direct toolchain dependencies
         mod_name = self.det_short_module_name()
-        self.toolchain_dep_mods = self.modules_tool.dependencies_for(mod_name, depth=0)
+        self.toolchain_dep_mods = dependencies_for(mod_name, depth=0)
         self.log.debug('prepare: list of direct toolchain dependencies: %s' % self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name

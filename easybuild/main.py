@@ -53,8 +53,6 @@ from easybuild.framework.easyconfig.tools import get_paths_for, parse_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
 from easybuild.tools.config import get_repository, get_repositorypath, set_tmpdir
 from easybuild.tools.filetools import cleanup, write_file
-from easybuild.tools.module_generator import module_load_regex
-from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import process_software_build_specs
 from easybuild.tools.robot import det_robot_path, dry_run, resolve_dependencies, search_easyconfigs
 from easybuild.tools.parallelbuild import submit_jobs
@@ -209,10 +207,6 @@ def main(testing_data=(None, None, None)):
     # initialise the EasyBuild configuration & build options
     config.init(options, config_options_dict)
     config.init_build_options(build_options=build_options, cmdline_options=options)
-
-    # inject function to determine regex for 'load' statements in modules into ModulesTool instance
-    # we need to resort to this trickery to avoid cyclic imports (while retaining top-level imports)
-    modules_tool().set_load_regex_function(module_load_regex)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)

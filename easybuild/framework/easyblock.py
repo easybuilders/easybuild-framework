@@ -1640,7 +1640,9 @@ class EasyBlock(object):
         Generate a module file.
         """
         self.module_generator.set_fake(fake)
-        modpath = self.module_generator.prepare()
+
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+        modpath = self.module_generator.prepare(mod_symlink_paths)
 
         txt = ''
         txt += self.make_module_description()
