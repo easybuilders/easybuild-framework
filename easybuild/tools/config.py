@@ -40,12 +40,11 @@ import string
 import tempfile
 import time
 from vsc.utils import fancylogger
-from vsc.utils.missing import nub, FrozenDictKnownKeys
+from vsc.utils.missing import FrozenDictKnownKeys
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.build_log  # this import is required to obtain a correct (EasyBuild) logger!
 import easybuild.tools.environment as env
-from easybuild.tools.environment import read_environment as _read_environment
 from easybuild.tools.run import run_cmd
 
 
