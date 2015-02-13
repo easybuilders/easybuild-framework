@@ -25,8 +25,8 @@
 """
 Implementation of an example hierarchical module naming scheme.
 
-@author: Kenneth Hoste (Ghent University)
-@author: Markus Geimer (Forschungszentrum Juelich GmbH)
+@author: Alan O'Cais (Forschungszentrum Juelich GmbH)
+@author: Eric "The Knife" Gregory (Forschungszentrum Juelich GmbH)
 """
 
 import os
