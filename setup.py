@@ -74,7 +74,6 @@ easybuild_packages = [
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.deprecated",
     "easybuild.tools.toolchain", "easybuild.tools.module_naming_scheme", "easybuild.tools.repository",
     "test.framework", "test",
-    "vsc", "vsc.utils",
 ]
 
 setup(
