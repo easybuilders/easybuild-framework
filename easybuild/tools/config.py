@@ -80,7 +80,6 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
-        'compile_lmod_caches',
         'download_timeout',
         'dump_test_report',
         'easyblock',
