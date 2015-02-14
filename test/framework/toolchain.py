@@ -403,7 +403,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        open(imkl_module_path, 'w').write(imkl_module_txt)
+        write_file(imkl_module_path, imkl_module_txt)
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
@@ -503,7 +503,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        open(imkl_module_path, 'w').write(imkl_module_txt)
+        write_file(imkl_module_path, imkl_module_txt)
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
@@ -544,7 +544,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        open(imkl_module_path, 'w').write(imkl_module_txt)
+        write_file(imkl_module_path, imkl_module_txt)
 
     def tearDown(self):
         """Cleanup."""
