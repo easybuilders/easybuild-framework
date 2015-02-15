@@ -754,6 +754,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
+        self.setup_categorized_modules()
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         args = [
             os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
@@ -1256,7 +1257,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
         ]
 
-        for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS', '--module-naming-scheme=CategorizedHMNS']]:
+        for extra_args in [[], ['--module-naming-scheme=HierarchicalMNS']]:
 
             outtxt = self.eb_main(args + extra_args, verbose=True, raise_error=True)
 

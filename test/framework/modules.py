@@ -127,7 +127,8 @@ class ModulesTest(EnhancedTestCase):
         self.init_testmods()
         ms = self.testmods.available()
         # exclude modules not on the top level of a hierarchy
-        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/'))]
+        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
+                                    m.startswith('CategorizedHMNS'))]
 
         for m in ms:
             self.testmods.load([m])
