@@ -57,7 +57,7 @@ from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_t
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
-from easybuild.tools.modules import LMOD_USER_CACHE_RELDIR, modules_tool
+from easybuild.tools.modules import LMOD_USER_CACHE_DIR, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -202,8 +202,9 @@ class EasyBuildOptions(GeneralOption):
                         None, 'store', None),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'update-lmod-caches': ("Update Lmod cache files in specified directory", None, 'store_or_None',
-                                  os.path.join(os.path.expanduser('~'), LMOD_USER_CACHE_RELDIR), {'metavar': 'DIR'}),
+            'update-lmod-cache': ("Update Lmod cache files in specified dir after generating module file",
+                                  None, 'store_or_None', LMOD_USER_CACHE_DIR,
+                                  {'metavar': 'CACHE_DIR_PATH[,TIMESTAMP_FILEPATH]'}),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -410,7 +411,7 @@ class EasyBuildOptions(GeneralOption):
 
         # options w.r.t. updating Lmod cache only make sense when Lmod is selected modules tool
         modules_tool_class = modules_tool(name=self.options.modules_tool, return_class=True)
-        if self.options.update_lmod_caches and not modules_tool_class.is_lmod():
+        if self.options.update_lmod_cache and not modules_tool_class.is_lmod():
             self.log.error("Options related to Lmod cache are only supported if Lmod is used as a modules tool.")
 
         self._postprocess_config()
