@@ -133,6 +133,13 @@ class HierarchicalMNS(ModuleNamingScheme):
 
         return subdir
 
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        # symlinks are not very useful in the context of a hierarchical MNS
+        return []
+
     def det_modpath_extensions(self, ec):
         """
         Determine module path extensions, if any.
