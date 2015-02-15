@@ -754,7 +754,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
-        self.setup_categorized_modules()
+        self.setup_categorized_hmns_modules()
         test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         args = [
             os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),

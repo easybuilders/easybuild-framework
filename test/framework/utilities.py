@@ -234,7 +234,7 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def setup_categorized_modules(self):
+    def setup_categorized_hmns_modules(self):
         """Setup categorized hierarchical modules to run tests on."""
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
