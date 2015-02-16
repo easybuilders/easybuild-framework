@@ -140,11 +140,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
     else:
         jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
-        job_info_lines = ["List of submitted jobs:"]
-        job_info_lines.extend([("%s (%s): %s" % (job.name, job.module, job))
-                               for job in jobs])
-        job_info_lines.append("(%d jobs submitted)" % len(jobs))
-        return '\n'.join(job_info_lines)
+        return ("%d jobs required for build." % (len(jobs),))
 
 
 def create_job(job_server, build_command, easyconfig, output_dir='easybuild-build'):
