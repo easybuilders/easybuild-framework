@@ -36,8 +36,6 @@ try:
     from gc3libs.quantity import hours as hr
     from gc3libs.workflow import DependentTaskCollection
     HAVE_GC3PIE = True
-    # make handling of log.error compatible with stdlib logging
-    gc3libs.log.raiseError = False
 except ImportError:
     HAVE_GC3PIE = False
 
@@ -46,8 +44,10 @@ from easybuild.tools.job import JobServer
 
 from vsc.utils import fancylogger
 
-
-_log = fancylogger.getLogger('gc3pie', fname=False)
+# inject EasyBuild logger into GC3Pie
+gc3libs.log = fancylogger.getLogger('gc3pie', fname=False)
+# make handling of log.error compatible with stdlib logging
+gc3libs.log.raiseError = False
 
 
 # eb --job --job-backend=GC3Pie
@@ -96,7 +96,8 @@ class GC3Pie(JobServer):
         * cores depends on which cluster the job is being run.
         """
         extra_args = {
-            'jobname': name,
+            'jobname': name, # job name in GC3Pie
+            'name':    name, # same in EasyBuild
         }
         if env_vars:
             extra_args['environment'] = env_vars
@@ -160,7 +161,7 @@ class GC3Pie(JobServer):
             engine.progress()
 
             # report progress
-            stats = engine.stats()
+            stats = engine.stats(only=Application)
             print_msg(
                 "build jobs: "
                 + str.join(", ", [
@@ -179,7 +180,7 @@ class GC3Pie(JobServer):
             time.sleep(30)
 
         # final status report
-        stats = engine.stats()
+        stats = engine.stats(only=Application)
         print_msg(
             "build jobs: "
             + str.join(", ", [
@@ -191,4 +192,4 @@ class GC3Pie(JobServer):
                 ]
                 if stats[state] > 0
             ]),
-            log=_log)
+            log=gc3libs.log)
