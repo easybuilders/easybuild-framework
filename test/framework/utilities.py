@@ -245,6 +245,9 @@ class EnhancedTestCase(TestCase):
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
             shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+        # create empty module file directory to make C/Tcl modules happy
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mkdir(os.path.join(mpi_pref, 'base'))
 
         # make sure only modules in the CategorizedHMNS are available
         self.reset_modulepath([os.path.join(mod_prefix, 'Core', 'compiler'),
