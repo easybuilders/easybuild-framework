@@ -2,8 +2,6 @@
 
 ## Install EasyBuild and create a file "setup-env.sh" to use it
 
-# To use EasyBuild you will need a working modules tool in your machine (environment modules or Lmod)
-
 # Examples:
 #
 # To install latest stable release to /tmp/eb-stable
@@ -28,6 +26,7 @@ fi
 INSTALL_DIR=`readlink -f $1`
 BRANCH=$2
 LOGFILE=$INSTALL_DIR/install.log
+DATE=$(date +"%d_%m_%Y")
 
 if [ "$2" == "stable" ]
 then
@@ -42,14 +41,15 @@ fi
 
 for repo in framework easyconfigs easyblocks;
 do
-    echo "downloading http://github.com/hpcugent/easybuild-${repo}/archive/${BRANCH}.tar.gz"
-    wget http://github.com/hpcugent/easybuild-${repo}/archive/${BRANCH}.tar.gz -O /tmp/eb-${repo}-${BRANCH}_$(date +"%d_%m_%Y").tar.gz >> $LOGFILE 2>&1
+    REPOURL="http://github.com/hpcugent/easybuild-${repo}/archive/${BRANCH}.tar.gz"
+    echo "downloading ${REPOURL}"
+    wget ${REPOURL} -O /tmp/eb-${repo}-${BRANCH}_${DATE}.tar.gz >> $LOGFILE 2>&1
     
     echo -e "uncompressing ${repo}\n"
-    tar xf /tmp/eb-${repo}-${BRANCH}_$(date +"%d_%m_%Y").tar.gz -C $INSTALL_DIR --strip-components=1
+    tar xf /tmp/eb-${repo}-${BRANCH}_${DATE}.tar.gz -C $INSTALL_DIR --strip-components=1
 done
 
-rm -fr /tmp/eb-{framework,easyconfigs,easyblocks}-${BRANCH}_$(date +"%d_%m_%Y").tar.gz
+rm -fr /tmp/eb-{framework,easyconfigs,easyblocks}-${BRANCH}_${DATE}.tar.gz
 
 cat > $INSTALL_DIR/setup-env.sh << EOF
 export PYTHONPATH=${INSTALL_DIR}:\$PYTHONPATH
@@ -58,4 +58,4 @@ EOF
 
 echo -e "Installation complete. To start using it do \"source $INSTALL_DIR/setup-env.sh\"\n"
 
-touch $INSTALL_DIR/INSTALLED_$(date +"%d_%m_%Y")
+touch $INSTALL_DIR/INSTALLED_${DATE}
