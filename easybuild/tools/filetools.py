@@ -32,20 +32,20 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-import errno
 import os
 import re
 import shutil
 import stat
 import time
-import urllib
+import urllib2
 import zlib
-from vsc import fancylogger
-from vsc.utils.missing import all
+from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.config import build_option
 from easybuild.tools import run
 
 
@@ -152,12 +152,16 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt):
+def write_file(path, txt, append=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
-        f = open(path, 'w')
+        mkdir(os.path.dirname(path), parents=True)
+        if append:
+            f = open(path, 'a')
+        else:
+            f = open(path, 'w')
         f.write(txt)
         f.close()
     except IOError, err:
@@ -165,6 +169,15 @@ def write_file(path, txt):
         if f is not None:
             f.close()
         _log.error("Failed to write to %s: %s" % (path, err))
+
+
+def remove_file(path):
+    """Remove file at specified path."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError, err:
+          _log.error("Failed to remove %s: %s", path, err)
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -175,12 +188,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if not os.path.isfile(fn):
         _log.error("Can't extract file %s: no such file" % fn)
 
-    if not os.path.isdir(dest):
-        # try to create it
-        try:
-            os.makedirs(dest)
-        except OSError, err:
-            _log.exception("Can't extract file %s: directory %s can't be created: %err " % (fn, dest, err))
+    mkdir(dest, parents=True)
 
     # use absolute pathnames from now on
     absDest = os.path.abspath(dest)
@@ -203,7 +211,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     if extra_options:
         cmd = "%s %s" % (cmd, extra_options)
 
-    run_cmd(cmd, simple=True)
+    run.run_cmd(cmd, simple=True)
 
     return find_base_dir()
 
@@ -245,38 +253,54 @@ def det_common_path_prefix(paths):
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
-    _log.debug("Downloading %s from %s to %s" % (filename, url, path))
+    _log.debug("Trying to download %s from %s to %s", filename, url, path)
+
+    timeout = build_option('download_timeout')
+    if timeout is None:
+        # default to 10sec timeout if none was specified
+        # default system timeout (used is nothing is specified) may be infinite (?)
+        timeout = 10
+    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
-    if not os.path.exists(basedir):
-        os.makedirs(basedir)
+    mkdir(basedir, parents=True)
 
+    # try downloading, three times max.
     downloaded = False
+    max_attempts = 3
     attempt_cnt = 0
-
-    # try downloading three times max.
-    while not downloaded and attempt_cnt < 3:
-
-        (_, httpmsg) = urllib.urlretrieve(url, path)
-
-        if httpmsg.type == "text/html" and not filename.endswith('.html'):
-            _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
-            _log.debug("removing downloaded file %s from %s" % (filename, path))
-            try:
-                os.remove(path)
-            except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
-        else:
-            _log.info("Downloading file %s from url %s: done" % (filename, url))
+    while not downloaded and attempt_cnt < max_attempts:
+        try:
+            # urllib2 does the right thing for http proxy setups, urllib does not!
+            url_fd = urllib2.urlopen(url, timeout=timeout)
+            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
+            write_file(path, url_fd.read())
+            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
-            return path
+            url_fd.close()
+        except urllib2.HTTPError as err:
+            if 400 <= err.code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+                break
+            else:
+                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                attempt_cnt += 1
+        except IOError as err:
+            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            attempt_cnt += 1
+        except Exception, err:
+            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
 
-        attempt_cnt += 1
-        _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
+        if not downloaded and attempt_cnt < max_attempts:
+            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
 
-    # failed to download after multiple attempts
-    return None
+    if downloaded:
+        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        return path
+    else:
+        _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        return None
 
 
 def find_easyconfigs(path, ignore_dirs=None):
@@ -307,18 +331,14 @@ def find_easyconfigs(path, ignore_dirs=None):
     return files
 
 
-def search_file(paths, query, build_options=None, short=False):
+def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
     """
     Search for a particular file (only prints)
     """
-    if build_options is None:
-        build_options = {}
-
-    ignore_dirs = build_options.get('ignore_dirs', ['.git', '.svn'])
+    if ignore_dirs is None:
+        ignore_dirs = ['.git', '.svn']
     if not isinstance(ignore_dirs, list):
         _log.error("search_file: ignore_dirs (%s) should be of type list, not %s" % (ignore_dirs, type(ignore_dirs)))
-
-    silent = build_options.get('silent', False)
 
     var_lines = []
     hit_lines = []
@@ -474,64 +494,124 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(fn, overwrite=False):
+def extract_cmd(filepath, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
     - based on file suffix
     - better to use Python magic?
     """
-    ff = [x.lower() for x in fn.split('.')]
-    ftype = None
+    filename = os.path.basename(filepath)
+    exts = [x.lower() for x in filename.split('.')]
+    target = '.'.join(exts[:-1])
+    cmd_tmpl = None
 
     # gzipped or gzipped tarball
-    if ff[-1] in ['gz']:
-        ftype = 'gunzip %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xzf %s'
-    if ff[-1] in ['tgz', 'gtgz']:
-        ftype = 'tar xzf %s'
+    if exts[-1] in ['gz']:
+        if exts[-2] in ['tar']:
+            # unzip .tar.gz in one go
+            cmd_tmpl = "tar xzf %(filepath)s"
+        else:
+            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+
+    elif exts[-1] in ['tgz', 'gtgz']:
+        cmd_tmpl = "tar xzf %(filepath)s"
 
     # bzipped or bzipped tarball
-    if ff[-1] in ['bz2']:
-        ftype = 'bunzip2 %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xjf %s'
-    if ff[-1] in ['tbz', 'tbz2', 'tb2']:
-        ftype = 'tar xjf %s'
+    elif exts[-1] in ['bz2']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = 'tar xjf %(filepath)s'
+        else:
+            cmd_tmpl = "bunzip2 %(filepath)s"
+
+    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
+        cmd_tmpl = "tar xjf %(filepath)s"
 
     # xzipped or xzipped tarball
-    if ff[-1] in ['xz']:
-        ftype = 'unxz %s'
-        if ff[-2] in ['tar']:
-            ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] in ['txz']:
-        ftype = 'unxz %s --stdout | tar x'
+    elif exts[-1] in ['xz']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
+        else:
+            cmd_tmpl = "unxz %(filepath)s"
+
+    elif exts[-1] in ['txz']:
+        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
 
     # tarball
-    if ff[-1] in ['tar']:
-        ftype = 'tar xf %s'
+    elif exts[-1] in ['tar']:
+        cmd_tmpl = "tar xf %(filepath)s"
 
     # zip file
-    if ff[-1] in ['zip']:
+    elif exts[-1] in ['zip']:
         if overwrite:
-            ftype = 'unzip -qq -o %s'
+            cmd_tmpl = "unzip -qq -o %(filepath)s"
         else:
-            ftype = 'unzip -qq %s'
+            cmd_tmpl = "unzip -qq %(filepath)s"
 
-    if not ftype:
-        _log.error('Unknown file type from file %s (%s)' % (fn, ff))
+    if cmd_tmpl is None:
+        _log.error('Unknown file type for file %s (%s)' % (filepath, exts))
 
-    return ftype % fn
+    return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
-def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
+def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
+    """Determine list of patched files from a patch."""
+    # expected format: "+++ path/to/patched/file"
+    # also take into account the 'a/' or 'b/' prefix that may be used
+    patched_regex = re.compile(r"^\s*\+{3}\s+(?P<ab_prefix>[ab]/)?(?P<file>\S+)", re.M)
+    if path is not None:
+        try:
+            f = open(path, 'r')
+            txt = f.read()
+            f.close()
+        except IOError, err:
+            _log.error("Failed to read patch %s: %s" % (path, err))
+    elif txt is None:
+        _log.error("Either a file path or a string representing a patch should be supplied to det_patched_files")
+
+    patched_files = []
+    for match in patched_regex.finditer(txt):
+        patched_file = match.group('file')
+        if not omit_ab_prefix and match.group('ab_prefix') is not None:
+            patched_file = match.group('ab_prefix') + patched_file
+
+        if patched_file in ['/dev/null']:
+            _log.debug("Ignoring patched file %s" % patched_file)
+        else:
+            patched_files.append(patched_file)
+
+    return patched_files
+
+
+def guess_patch_level(patched_files, parent_dir):
+    """Guess patch level based on list of patched files and specified directory."""
+    patch_level = None
+    for patched_file in patched_files:
+        # locate file by stripping of directories
+        tf2 = patched_file.split(os.path.sep)
+        n_paths = len(tf2)
+        path_found = False
+        level = None
+        for level in range(n_paths):
+            if os.path.isfile(os.path.join(parent_dir, *tf2[level:])):
+                path_found = True
+                break
+        if path_found:
+            patch_level = level
+            break
+        else:
+            _log.debug('No match found for %s, trying next patched file...' % patched_file)
+
+    return patch_level
+
+
+def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
     """
     Apply a patch to source code in directory dest
     - assume unified diff created with "diff -ru old new"
     """
 
-    if not os.path.isfile(patchFile):
-        _log.error("Can't find patch %s: no such file" % patchFile)
+    if not os.path.isfile(patch_file):
+        _log.error("Can't find patch %s: no such file" % patch_file)
         return
 
     if fn and not os.path.isfile(fn):
@@ -545,16 +625,39 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
     # copy missing files
     if copy:
         try:
-            shutil.copy2(patchFile, dest)
-            _log.debug("Copied patch %s to dir %s" % (patchFile, dest))
+            shutil.copy2(patch_file, dest)
+            _log.debug("Copied patch %s to dir %s" % (patch_file, dest))
             return 'ok'
         except IOError, err:
-            _log.error("Failed to copy %s to dir %s: %s" % (patchFile, dest, err))
+            _log.error("Failed to copy %s to dir %s: %s" % (patch_file, dest, err))
             return
 
     # use absolute paths
-    apatch = os.path.abspath(patchFile)
+    apatch = os.path.abspath(patch_file)
     adest = os.path.abspath(dest)
+
+    if not level:
+        # guess value for -p (patch level)
+        # - based on +++ lines
+        # - first +++ line that matches an existing file determines guessed level
+        # - we will try to match that level from current directory
+        patched_files = det_patched_files(path=apatch)
+
+        if not patched_files:
+            _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
+            return
+
+        patch_level = guess_patch_level(patched_files, adest)
+
+        if patch_level is None:  # patch_level can also be 0 (zero), so don't use "not patch_level"
+            # no match
+            _log.error("Can't determine patch level for patch %s from directory %s" % (patch_file, adest))
+        else:
+            _log.debug("Guessed patch level %d for patch %s" % (patch_level, patch_file))
+
+    else:
+        patch_level = level
+        _log.debug("Using specified patch level %d for patch %s" % (patch_level, patch_file))
 
     try:
         os.chdir(adest)
@@ -563,73 +666,18 @@ def apply_patch(patchFile, dest, fn=None, copy=False, level=None):
         _log.error("Can't change to directory %s: %s" % (adest, err))
         return
 
-    if not level:
-        # Guess p level
-        # - based on +++ lines
-        # - first +++ line that matches an existing file determines guessed level
-        # - we will try to match that level from current directory
-        patchreg = re.compile(r"^\s*\+\+\+\s+(?P<file>\S+)")
-        try:
-            f = open(apatch)
-            txt = "ok"
-            plusLines = []
-            while txt:
-                txt = f.readline()
-                found = patchreg.search(txt)
-                if found:
-                    plusLines.append(found)
-            f.close()
-        except IOError, err:
-            _log.error("Can't read patch %s: %s" % (apatch, err))
-            return
-
-        if not plusLines:
-            _log.error("Can't guess patchlevel from patch %s: no testfile line found in patch" % apatch)
-            return
-
-        p = None
-        for line in plusLines:
-            # locate file by stripping of /
-            f = line.group('file')
-            tf2 = f.split('/')
-            n = len(tf2)
-            plusFound = False
-            i = None
-            for i in range(n):
-                if os.path.isfile('/'.join(tf2[i:])):
-                    plusFound = True
-                    break
-            if plusFound:
-                p = i
-                break
-            else:
-                _log.debug('No match found for %s, trying next +++ line of patch file...' % f)
-
-        if p is None:  # p can also be zero, so don't use "not p"
-            # no match
-            _log.error("Can't determine patch level for patch %s from directory %s" % (patchFile, adest))
-        else:
-            _log.debug("Guessed patch level %d for patch %s" % (p, patchFile))
-
-    else:
-        p = level
-        _log.debug("Using specified patch level %d for patch %s" % (level, patchFile))
-
-    patchCmd = "patch -b -p%d -i %s" % (p, apatch)
-    result = run_cmd(patchCmd, simple=True)
+    patch_cmd = "patch -b -p%d -i %s" % (patch_level, apatch)
+    result = run.run_cmd(patch_cmd, simple=True)
     if not result:
-        _log.error("Patching with patch %s failed" % patchFile)
+        _log.error("Patching with patch %s failed" % patch_file)
         return
 
     return result
 
 
 def modify_env(old, new):
-    """
-    Compares 2 os.environ dumps. Adapts final environment.
-    """
-    _log.deprecated("moved modify_env to tools.environment", "2.0")
-    return env.modify_env(old, new)
+    """NO LONGER SUPPORTED: use modify_env from easybuild.tools.environment instead"""
+    _log.nosupport("moved modify_env to easybuild.tools.environment", "2.0")
 
 
 def convert_name(name, upper=False):
@@ -745,32 +793,66 @@ def patch_perl_script_autoflush(path):
     write_file(path, newtxt)
 
 
-def mkdir(directory, parents=False):
+def mkdir(path, parents=False, set_gid=None, sticky=None):
     """
     Create a directory
     Directory is the path to create
 
-    When parents is True then no error if directory already exists
-    and make parent directories as needed (cfr. mkdir -p)
+    @param parents: create parent directories if needed (mkdir -p)
+    @param set_gid: set group ID bit, to make subdirectories and files inherit group
+    @param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
+                   to avoid users can removing/renaming files in this directory
     """
-    if parents:
+    if set_gid is None:
+        set_gid = build_option('set_gid_bit')
+    if sticky is None:
+        sticky = build_option('sticky_bit')
+
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
+
+    # exit early if path already exists
+    if not os.path.exists(path):
+        tup = (path, parents, set_gid, sticky)
+        _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)" % tup)
+        # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
+        existing_parent_path = os.path.dirname(path)
         try:
-            os.makedirs(directory)
-            _log.debug("Succesfully created directory %s and needed parents" % directory)
-        except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.debug("Directory %s already exitst" % directory)
+            if parents:
+                # climb up until we hit an existing path or the empty string (for relative paths)
+                while existing_parent_path and not os.path.exists(existing_parent_path):
+                    existing_parent_path = os.path.dirname(existing_parent_path)
+                os.makedirs(path)
             else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
-    else:  # not parents
-        try:
-            os.mkdir(directory)
-            _log.debug("Succesfully created directory %s" % directory)
+                os.mkdir(path)
         except OSError, err:
-            if err.errno == errno.EEXIST:
-                _log.warning("Directory %s already exitst" % directory)
-            else:
-                _log.error("Failed to create directory %s: %s" % (directory, err))
+            _log.error("Failed to create directory %s: %s" % (path, err))
+
+        # set group ID and sticky bits, if desired
+        bits = 0
+        if set_gid:
+            bits |= stat.S_ISGID
+        if sticky:
+            bits |= stat.S_ISVTX
+        if bits:
+            try:
+                new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
+                new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+                adjust_permissions(new_path, bits, add=True, relative=True, recursive=True, onlydirs=True)
+            except OSError, err:
+                _log.error("Failed to set groud ID/sticky bit: %s" % err)
+    else:
+        _log.debug("Not creating existing path %s" % path)
+
+
+def path_matches(path, paths):
+    """Check whether given path matches any of the provided paths."""
+    if not os.path.exists(path):
+        return False
+    for somepath in paths:
+        if os.path.exists(somepath) and os.path.samefile(path, somepath):
+            return True
+    return False
 
 
 def rmtree2(path, n=3):
@@ -927,16 +1009,33 @@ def decode_class_name(name):
 
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd"""
-    return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
-                       inp=inp, regexp=regexp, log_output=log_output, path=path)
+    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd_qa"""
-    return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
-                          simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """Legacy wrapper/placeholder for run.parse_log_for_error"""
-    return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
+    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
+    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+
+
+def det_size(path):
+    """
+    Determine total size of given filepath (in bytes).
+    """
+    installsize = 0
+    try:
+
+        # walk install dir to determine total size
+        for (dirpath, _, filenames) in os.walk(path):
+            for filename in filenames:
+                fullpath = os.path.join(dirpath, filename)
+                if os.path.exists(fullpath):
+                    installsize += os.path.getsize(fullpath)
+    except OSError, err:
+        _log.warn("Could not determine install size: %s" % err)
+
+    return installsize

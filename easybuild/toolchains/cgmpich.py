@@ -38,4 +38,3 @@ from easybuild.toolchains.mpi.mpich import Mpich
 class Cgmpich(ClangGcc, Mpich):
     """Compiler toolchain with Clang, GFortran and MPICH."""
     NAME = 'cgmpich'
-    COMPILER_MODULE_NAME = ['ClangGCC']

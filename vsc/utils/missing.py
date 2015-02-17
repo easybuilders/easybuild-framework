@@ -40,11 +40,35 @@ Various functions that are missing from the default Python library.
 @author: Andy Georges (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
+import os
+import re
 import shlex
 import subprocess
+import sys
 import time
 
 from vsc.utils import fancylogger
+from vsc.utils.frozendict import FrozenDict
+
+
+_log = fancylogger.getLogger('vsc.utils.missing')
+
+
+def partial(func, *args, **keywords):
+    """
+    Return a new partial object which when called will behave like func called with the positional arguments args
+    and keyword arguments keywords. If more arguments are supplied to the call, they are appended to args. If additional
+    keyword arguments are supplied, they extend and override keywords.
+    new in python 2.5, from https://docs.python.org/2/library/functools.html#functools.partial
+    """
+    def newfunc(*fargs, **fkeywords):
+        newkeywords = keywords.copy()
+        newkeywords.update(fkeywords)
+        return func(*(args + fargs), **newkeywords)
+    newfunc.func = func
+    newfunc.args = args
+    newfunc.keywords = keywords
+    return newfunc
 
 
 def any(ls):
@@ -60,7 +84,7 @@ def all(ls):
 
 
 def nub(list_):
-    """Returns the unique items of a list, while preserving order of
+    """Returns the unique items of a list of hashables, while preserving order of
     the original list, i.e. the first unique element encoutered is
     retained.
 
@@ -218,6 +242,46 @@ class RUDict(dict):
             self[key] = other_dict[key]
 
 
+class FrozenDictKnownKeys(FrozenDict):
+    """A frozen dictionary only allowing known keys."""
+
+    # list of known keys
+    KNOWN_KEYS = []
+
+    def __init__(self, *args, **kwargs):
+        """Constructor, only way to define the contents."""
+        self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
+        # support ignoring of unknown keys
+        ignore_unknown_keys = kwargs.pop('ignore_unknown_keys', False)
+
+        # handle unknown keys: either ignore them or raise an exception
+        tmpdict = dict(*args, **kwargs)
+        unknown_keys = [key for key in tmpdict.keys() if not key in self.KNOWN_KEYS]
+        if unknown_keys:
+            if ignore_unknown_keys:
+                for key in unknown_keys:
+                    self.log.debug("Ignoring unknown key '%s' (value '%s')" % (key, args[0][key]))
+                    # filter key out of dictionary before creating instance
+                    del tmpdict[key]
+            else:
+                msg = "Encountered unknown keys %s (known keys: %s)" % (unknown_keys, self.KNOWN_KEYS)
+                self.log.raiseException(msg, exception=KeyError)
+
+        super(FrozenDictKnownKeys, self).__init__(tmpdict)
+
+    def __getitem__(self, key, *args, **kwargs):
+        """Redefine __getitem__ to provide a better KeyError message."""
+        try:
+            return super(FrozenDictKnownKeys, self).__getitem__(key, *args, **kwargs)
+        except KeyError, err:
+            if key in self.KNOWN_KEYS:
+                raise KeyError(err)
+            else:
+                tup = (key, self.__class__.__name__, self.KNOWN_KEYS)
+                raise KeyError("Unknown key '%s' for %s instance (known keys: %s)" % tup)
+
+
 def shell_quote(x):
     """Add quotes so it can be apssed to shell"""
     # use undocumented subprocess API call to quote whitespace (executed with Popen(shell=True))
@@ -231,13 +295,103 @@ def shell_unquote(x):
     return shlex.split(str(x))[0]
 
 
-def get_subclasses(klass):
-    """Get all subclasses recursively"""
-    res = []
-    for cl in klass.__subclasses__():
-        res.extend(get_subclasses(cl))
-        res.append(cl)
+def get_class_for(modulepath, class_name):
+    """
+    Get class for a given Python class name and Python module path.
+
+    @param modulepath: Python module path (e.g., 'vsc.utils.generaloption')
+    @param class_name: Python class name (e.g., 'GeneralOption')
+    """
+    # try to import specified module path, reraise ImportError if it occurs
+    try:
+        module = __import__(modulepath, globals(), locals(), [''])
+    except ImportError, err:
+        raise ImportError(err)
+    # try to import specified class name from specified module path, throw ImportError if this fails
+    try:
+        klass = getattr(module, class_name)
+    except AttributeError, err:
+        raise ImportError("Failed to import %s from %s: %s" % (class_name, modulepath, err))
+    return klass
+
+
+def get_subclasses_dict(klass, include_base_class=False):
+    """Get dict with subclasses per classes, recursively from the specified base class."""
+    res = {}
+    subclasses = klass.__subclasses__()
+    if include_base_class:
+        res.update({klass: subclasses})
+    for subclass in subclasses:
+        # always include base class for recursive call
+        res.update(get_subclasses_dict(subclass, include_base_class=True))
     return res
+
+
+def get_subclasses(klass, include_base_class=False):
+    """Get list of all subclasses, recursively from the specified base class."""
+    return get_subclasses_dict(klass, include_base_class=include_base_class).keys()
+
+
+def modules_in_pkg_path(pkg_path):
+    """Return list of module files in specified package path."""
+    # if the specified (relative) package path doesn't exist, try and determine the absolute path via sys.path
+    if not os.path.isabs(pkg_path) and not os.path.isdir(pkg_path):
+        _log.debug("Obtained non-existing relative package path '%s', will try to figure out absolute path" % pkg_path)
+        newpath = None
+        for sys_path_dir in sys.path:
+            abspath = os.path.join(sys_path_dir, pkg_path)
+            if os.path.isdir(abspath):
+                _log.debug("Found absolute path %s for package path %s, verifying it" % (abspath, pkg_path))
+                # also make sure an __init__.py is in place in every subdirectory
+                is_pkg = True
+                subdir = ''
+                for pkg_path_dir in pkg_path.split(os.path.sep):
+                    subdir = os.path.join(subdir, pkg_path_dir)
+                    if not os.path.isfile(os.path.join(sys_path_dir, subdir, '__init__.py')):
+                        is_pkg = False
+                        tup = (subdir, abspath, pkg_path)
+                        _log.debug("No __init__.py found in %s, %s is not a valid absolute path for pkg_path %s" % tup)
+                        break
+                if is_pkg:
+                    newpath = abspath
+                    break
+
+        if newpath is None:
+            # give up if we couldn't find an absolute path for the imported package
+            tup = (pkg_path, sys.path)
+            raise OSError("Can't browse package via non-existing relative path '%s', not found in sys.path (%s)" % tup)
+        else:
+            pkg_path = newpath
+            _log.debug("Found absolute package path %s" % pkg_path)
+
+    module_regexp = re.compile(r"^(?P<modname>[^_].*|__init__)\.py$")
+    modules = [res.group('modname') for res in map(module_regexp.match, os.listdir(pkg_path)) if res]
+    _log.debug("List of modules for package in %s: %s" % (pkg_path, modules))
+    return modules
+
+
+def avail_subclasses_in(base_class, pkg_name, include_base_class=False):
+    """Determine subclasses for specificied base classes in modules in (only) specified packages."""
+
+    def try_import(name):
+        """Try import the specified package/module."""
+        try:
+            # don't use return value of __import__ since it may not be the package itself but it's parent
+            __import__(name, globals())
+            return sys.modules[name]
+        except ImportError, err:
+            raise ImportError("avail_subclasses_in: failed to import %s: %s" % (name, err))
+
+    # import all modules in package path(s) before determining subclasses
+    pkg = try_import(pkg_name)
+    for pkg_path in pkg.__path__:
+        for mod in modules_in_pkg_path(pkg_path):
+            # no need to directly import __init__ (already done by importing package)
+            if not mod.startswith('__init__'):
+                _log.debug("Importing module '%s' from package '%s'" % (mod, pkg_name))
+                try_import('%s.%s' % (pkg_name, mod))
+
+    return get_subclasses_dict(base_class, include_base_class=include_base_class)
 
 
 class TryOrFail(object):
@@ -251,17 +405,40 @@ class TryOrFail(object):
         self.sleep = sleep
 
     def __call__(self, function):
-        def new_function(*args, **kwargs ):
-            log = fancylogger.getLogger(function.__name__)
-            for i in xrange(0,self.n):
+        def new_function(*args, **kwargs):
+            for i in xrange(0, self.n):
                 try:
                     return function(*args, **kwargs)
                 except self.exceptions, err:
                     if i == self.n - 1:
                         raise
-                    log.exception("try_or_fail caught an exception - attempt %d: %s" % (i, err))
+                    _log.exception("try_or_fail caught an exception - attempt %d: %s" % (i, err))
                     if self.sleep > 0:
-                        log.warning("try_or_fail is sleeping for %d seconds before the next attempt" % (self.sleep,))
+                        _log.warning("try_or_fail is sleeping for %d seconds before the next attempt" % (self.sleep,))
                         time.sleep(self.sleep)
 
         return new_function
+
+
+def post_order(graph, root):
+    """
+    Walk the graph from the given root in a post-order manner by providing the corresponding generator
+    """
+    for node in graph[root]:
+        for child in post_order(graph, node):
+            yield child
+    yield root
+
+
+def topological_sort(graph):
+    """
+    Perform topological sorting of the given graph.
+
+    The graph is a dict with the values for a key being the dependencies, i.e., an arrow from key to each value.
+    """
+    visited = set()
+    for root in graph:
+        for node in post_order(graph, root):
+            if not node in visited:
+                yield node
+                visited.add(node)

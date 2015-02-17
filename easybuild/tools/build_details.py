@@ -1,4 +1,3 @@
-#
 # Copyright 2014-2014 Ghent University
 #
 # This file is part of EasyBuild,
@@ -29,11 +28,10 @@ and allow for reproducable builds
 @author: Kenneth Hoste (Ghent University)
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
-import platform
 import time
+from easybuild.tools.filetools import det_size
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.systemtools import get_cpu_model, get_avail_core_count
+from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 
 
@@ -48,15 +46,13 @@ def get_build_stats(app, start_time, command_line):
     buildstats = OrderedDict([
         ('easybuild-framework_version', str(FRAMEWORK_VERSION)),
         ('easybuild-easyblocks_version', str(EASYBLOCKS_VERSION)),
-        ('host', os.uname()[1]),
-        ('platform', platform.platform()),
-        ('cpu_model', get_cpu_model()),
-        ('core_count', get_avail_core_count()),
         ('timestamp', int(time_now)),
         ('build_time', build_time),
-        ('install_size', app.det_installsize()),
+        ('install_size', det_size(app.installdir)),
         ('command_line', command_line),
         ('modules_tool', app.modules_tool.buildstats()),
     ])
+    for key, val in sorted(get_system_info().items()):
+        buildstats.update({key: val})
 
     return buildstats

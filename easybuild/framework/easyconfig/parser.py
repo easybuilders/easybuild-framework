@@ -30,12 +30,14 @@ The parser is format version aware
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.tools.filetools import read_file, write_file
+
+
+_log = fancylogger.getLogger('easyconfig.parser', fname=False)
 
 
 class EasyConfigParser(object):

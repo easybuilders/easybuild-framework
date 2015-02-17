@@ -59,6 +59,8 @@ os.environ['PYTHONPATH'] = ''
 # keep track of original environment (after clearing PYTHONPATH)
 orig_os_environ = copy.deepcopy(os.environ)
 
+easybuild_modules_tool = None
+
 #
 # Utility functions
 #
@@ -128,6 +130,9 @@ def prep(path):
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([full_libpath] + pythonpaths)
 
+    os.environ['EASYBUILD_MODULES_TOOL'] = easybuild_modules_tool
+    debug("$EASYBUILD_MODULES_TOOL set to %s" % os.environ['EASYBUILD_MODULES_TOOL'])
+
 def check_module_command(tmpdir):
     """Check which module command is available, and prepare for using it."""
 
@@ -148,7 +153,8 @@ def check_module_command(tmpdir):
         debug("Output from %s: %s" % (cmd, txt))
         if modcmd_re.search(txt):
             modtool = modules_tools[modcmd]
-            os.environ['EASYBUILD_MODULES_TOOL'] = modtool
+            global easybuild_modules_tool
+            easybuild_modules_tool = modtool
             info("Found module command '%s' (%s), so using it." % (modcmd, modtool))
             break
 
@@ -355,7 +361,7 @@ def stage1(tmpdir, sources_path):
 def stage2(tmpdir, templates, install_path, distribute_egg_dir, sources_path):
     """STAGE 2: install EasyBuild to temporary dir with EasyBuild from stage 1."""
 
-    info("\n\n+++ STAGE 2: installing EasyBuild in temporary dir with EasyBuild from stage 1...\n\n")
+    info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
     if distribute_egg_dir is not None:
         # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
@@ -372,7 +378,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sources_path):
     os.environ['MODULEPATH'] = ''
 
     # set command line arguments for eb
-    eb_args = ['eb', ebfile]
+    eb_args = ['eb', ebfile, '--allow-modules-tool-mismatch']
     if print_debug:
         eb_args.extend(['--debug', '--logtostdout'])
 
@@ -391,6 +397,13 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sources_path):
             eb_args.append('--installpath=%s' % install_path)
         if sources_path is not None:
             eb_args.append('--sourcepath=%s' % sources_path)
+
+    # make sure parent modules path already exists (Lmod trips over a non-existing entry in $MODULEPATH)
+    if install_path is not None:
+        modules_path = os.path.join(install_path, 'modules', 'all')
+        if not os.path.exists(modules_path):
+            os.makedirs(modules_path)
+        debug("Created path %s" % modules_path)
 
     debug("Running EasyBuild with arguments '%s'" % ' '.join(eb_args))
     sys.argv = eb_args
@@ -481,7 +494,7 @@ def main():
     info('')
     info("By default, EasyBuild will install software to $HOME/.local/easybuild.")
     info("To install software with EasyBuild to %s, make sure $EASYBUILD_INSTALLPATH is set accordingly." % install_path)
-    info("See https://github.com/hpcugent/easybuild/wiki/Configuration for details on configuring EasyBuild.")
+    info("See http://easybuild.readthedocs.org/en/latest/Configuration.html for details on configuring EasyBuild.")
 
 # template easyconfig file for EasyBuild
 EB_EC_FILE = """

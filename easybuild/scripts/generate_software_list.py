@@ -33,10 +33,12 @@ correctly by easybuild.
 from datetime import date
 from optparse import OptionParser
 
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework import easyblock
+import easybuild.tools.build_log  # ensure use of EasyBuildLog
+import easybuild.tools.config as config
+import easybuild.tools.options as eboptions
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
 from easybuild.tools.github import Githubfs
-from vsc import fancylogger
+from vsc.utils import fancylogger
 
 # parse options
 parser = OptionParser()
@@ -65,6 +67,7 @@ elif options.verbose == 2:
     fancylogger.setLogLevelInfo()
 elif options.verbose >= 3:
     fancylogger.setLogLevelDebug()
+
 if options.quiet:
     fancylogger.logToScreen(False)
 else:
@@ -83,16 +86,22 @@ if options.local:
     import os
     walk = os.walk
     join = os.path.join
-    read = lambda file_ : file_
+    read = lambda ec_file : ec_file
+
+    log.info('parsing easyconfigs from location %s' % options.path)
 else:
     fs = Githubfs(options.username, options.repo, options.branch)
     walk = Githubfs(options.username, options.repo, options.branch).walk
     join = fs.join
-    read = lambda file_ : fs.read(file_, api=False)
+    read = lambda ec_file : fs.read(ec_file, api=False)
+
+    log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
 
 
-
-log.info('parsing easyconfigs from user %s reponame %s' % (options.username, options.repo))
+# configure EasyBuild, by parsing options
+eb_go = eboptions.parse_options(args=args)
+config.init(eb_go.options, eb_go.get_options_by_section('config'))
+config.init_build_options({'validate': False})
 
 
 configs = []
@@ -106,30 +115,30 @@ for root, subfolders, files in walk(options.path):
     if '.git' in subfolders:
         log.info("found .git subfolder, ignoring it")
         subfolders.remove('.git')
-    for file_ in files:
-        file_ = join(root,file_)
-        file_ = read(file_)
+    for ec_file in files:
+        if not ec_file.endswith('.eb') or ec_file in ["TEMPLATE.eb"]:
+            log.warning("SKIPPING %s/%s" % (root, ec_file))
+            continue
+        ec_file = join(root, ec_file)
+        ec_file = read(ec_file)
         try:
-
-            ec = EasyConfig(file_, build_options={'validate': False})
+            ec = EasyConfig(ec_file)
             log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
                 log.info("found new software package %s" % ec)
+                ec.easyblock = None
                 # check if an easyblock exists
-                module = easyblock.get_class(None, name=ec.name).__module__.split('.')[-1]
-                if module != "configuremake":
-                    ec.easyblock = module
-                else:
-                    ec.easyblock = None
+                ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)
+                if ebclass is not None:
+                    module = ebclass.__module__.split('.')[-1]
+                    if module != "configuremake":
+                        ec.easyblock = module
                 configs.append(ec)
                 names.append(ec.name)
-        except Exception, e:
-            log.warning("faulty easyconfig %s" % file)
-            log.debug(e)
+        except Exception, err:
+            log.error("faulty easyconfig %s: %s" % (ec_file, err))
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
-# remove example configs
-configs = [c for c in configs if not "example.com" in c['homepage']]
 # sort by name
 configs = sorted(configs, key=lambda config : config.name.lower())
 firstl = ""

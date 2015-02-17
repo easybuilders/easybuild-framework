@@ -29,11 +29,14 @@ Utility module for modifying os.environ
 @author: Ward Poelmans (Ghent University)
 """
 import os
-from vsc import fancylogger
+from vsc.utils import fancylogger
+from vsc.utils.missing import shell_quote
+
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-changes = {}
+_changes = {}
+
 
 def write_changes(filename):
     """
@@ -43,8 +46,8 @@ def write_changes(filename):
     try:
         script = open(filename, 'w')
 
-        for key in changes:
-            script.write('export %s="%s"\n' % (key, changes[key]))
+        for key in _changes:
+            script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
 
         script.close()
     except IOError, err:
@@ -58,9 +61,15 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    global changes
-    changes = {}
+    global _changes
+    _changes = {}
 
+
+def get_changes():
+    """
+    Return tracked changes made in environment.
+    """
+    return _changes
 
 def setvar(key, value):
     """
@@ -69,7 +78,7 @@ def setvar(key, value):
     """
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
-    changes[key] = value
+    _changes[key] = value
     _log.info("Environment variable %s set to %s" % (key, value))
 
 
@@ -93,7 +102,6 @@ def restore_env_vars(env_keys):
     """
     Restore the environment by setting the keys in the env_keys dict again with their old value
     """
-
     for key in env_keys:
         if env_keys[key] is not None:
             _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
@@ -142,3 +150,9 @@ def modify_env(old, new):
             os.unsetenv(key)
             del os.environ[key]
 
+
+def restore_env(env):
+    """
+    Restore active environment based on specified dictionary.
+    """
+    modify_env(os.environ, env)

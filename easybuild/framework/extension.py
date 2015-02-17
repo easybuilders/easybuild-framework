@@ -37,7 +37,7 @@ import copy
 import os
 
 from easybuild.tools.config import build_path
-from easybuild.tools.filetools import run_cmd
+from easybuild.tools.run import run_cmd
 
 
 class Extension(object):
@@ -122,7 +122,7 @@ class Extension(object):
             cmd, inp = exts_filter
         else:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
-            return
+            return True
 
         if 'modulename' in self.options:
             modname = self.options['modulename']

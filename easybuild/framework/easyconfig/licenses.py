@@ -30,7 +30,7 @@ be used within an Easyconfig file.
 @author: Stijn De Weirdt (Ghent University)
 """
 
-from vsc import fancylogger
+from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
@@ -49,7 +49,7 @@ class License(object):
     GROUP_SOURCE = True  # does the license require to keep the source under dedicated group
     GROUP_BINARY = True  # does the license require to install the binaries under dedicated group
 
-    CLASSNAME_PREFIX = 'License_'
+    CLASSNAME_PREFIX = 'License'
 
     def __init__(self):
         if self.NAME is None:
@@ -71,7 +71,15 @@ class VeryRestrictive(License):
     pass
 
 
-class License_Open(License):
+class LicenseUnknown(VeryRestrictive):
+    """A (temporary) license, could be used as default in case nothing was specified"""
+    pass
+
+
+# inspiration
+# http://en.wikipedia.org/wiki/Category:Free_and_open-source_software_licenses
+
+class LicenseOpen(License):
     """
     Hidden license class to subclass open licenses.
     'Open' here means, that source can be redistributed, and that both source
@@ -83,7 +91,7 @@ class License_Open(License):
     GROUP_BINARY = False
 
 
-class License_GPL(License_Open):
+class LicenseGPL(LicenseOpen):
     """
     Hidden license class to subclass GPL licenses.
     """
@@ -91,15 +99,52 @@ class License_GPL(License_Open):
                    "copyleft license for software and other kinds of works.")
 
 
-class License_GPLv2(License_GPL):
+class LicenseGPLv2(LicenseGPL):
     """GPLv2 license"""
     HIDDEN = False
     VERSION = (2,)
 
 
-class License_GPLv3(License_GPLv2):
+class LicenseGPLv3(LicenseGPLv2):
     """GPLv3 license"""
     VERSION = (3,)
+
+
+class LicenseGCC(LicenseGPLv3):
+    """GPLv3 with GCC Runtime Library Exception.
+        Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
+    """
+    DESCRIPTION = ("The GNU General Public License is a free, "
+                   "copyleft license for software and other kinds of works. "
+                   "The GCC Runtime Library Exception is an additional permission "
+                   "under section 7 of the GNU General Public License, version 3.")
+
+
+class LicenseGCCOld(LicenseGPLv2):
+    """GPLv2 with GCC Runtime Library Exception for older GCC versions.
+        Latest GPLv2 GCC release was 4.2.1 (http://gcc.gnu.org/ml/gcc-announce/2007/msg00003.html).
+    """
+    DESCRIPTION = LicenseGCC.DESCRIPTION
+
+
+class LicenseZlib(LicenseOpen):
+    """The zlib License is a permissive free software license 
+        http://www.zlib.net/zlib_license.html
+    """
+    DESCRIPTION = ("Permission is granted to anyone to use this software for any purpose,"
+                   " including commercial applications, and to alter it and redistribute it"
+                   " freely, subject to 3 restrictions;"
+                   " http://www.zlib.net/zlib_license.html for full license")
+
+
+class LicenseLibpng(LicenseOpen):
+    """The PNG license is derived from the zlib license, 
+        http://libpng.org/pub/png/src/libpng-LICENSE.txt
+    """
+    HIDDEN = False
+    DESCRIPTION = ("Permission is granted to use, copy, modify, and distribute the "
+                   "source code, or portions hereof, for any purpose, without fee, subject "
+                   "to 3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license")
 
 
 def what_licenses():
@@ -129,4 +174,3 @@ def license_documentation():
         doc.append('%s%s: %s (version %s)' % (indent_l1, lic_name, lic.description, lic.version))
 
     return "\n".join(doc)
-
