@@ -38,6 +38,7 @@ from unittest import TestLoader, main
 import easybuild.tools.modules as modules
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
@@ -408,8 +409,8 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def test_ictce_toolchain(self):
-        """Test for ictce toolchain."""
+    def setup_sandbox_for_intel_fftw(self):
+        """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # rewrite $root in imkl module so we can put required lib*.a files in place
         tmpdir = tempfile.mkdtemp()
@@ -426,7 +427,13 @@ class ToolchainTest(EnhancedTestCase):
         for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
             os.makedirs(os.path.join(tmpdir, subdir))
             for fftlib in fftw_libs:
-                open(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'w').write('foo')
+                write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
+
+        return tmpdir, imkl_module_path, imkl_module_txt
+
+    def test_ictce_toolchain(self):
+        """Test for ictce toolchain."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
@@ -495,6 +502,25 @@ class ToolchainTest(EnhancedTestCase):
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
+
+    def test_nosuchtoolchain(self):
+        """Test preparing for a toolchain for which no module is available."""
+        tc = self.get_toolchain('intel', version='1970.01')
+        self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
+
+    def test_mpi_cmd_for(self):
+        """Test mpi_cmd_for function."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+
+        mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
+        self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        open(imkl_module_path, 'w').write(imkl_module_txt)
 
     def tearDown(self):
         """Cleanup."""

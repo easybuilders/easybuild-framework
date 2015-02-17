@@ -39,7 +39,6 @@ import copy
 import os
 import sys
 import traceback
-from vsc.utils.missing import any
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!

@@ -180,7 +180,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         # check for use of deprecated magic easyconfigs variables
         for magic_var in build_easyconfig_variables_dict():
             if re.search(magic_var, pyheader, re.M):
-                _log.deprecated("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
+                _log.nosupport("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
 
         try:
             exec(pyheader, global_vars, local_vars)

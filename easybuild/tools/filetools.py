@@ -39,10 +39,9 @@ import re
 import shutil
 import stat
 import time
-import urllib
+import urllib2
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all, any
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -256,86 +255,51 @@ def download_file(filename, url, path):
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
+    timeout = build_option('download_timeout')
+    if timeout is None:
+        # default to 10sec timeout if none was specified
+        # default system timeout (used is nothing is specified) may be infinite (?)
+        timeout = 10
+    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
+
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
-    # internal function to report on download progress
-    def report(blocks_read, blocksize, filesize):
-        """
-        Report hook for urlretrieve, which logs the download progress every 10 seconds with log level info.
-        @param blocks_read: number of blocks already read
-        @param blocksize: size of one block, in bytes
-        @param filesize: total size of the download (in number of blocks blocks)
-        """
-        if download_file.last_time + 10 < time.time():
-            newblocks = blocks_read - download_file.last_block
-            download_file.last_block = blocks_read
-            tot_time = time.time() - download_file.last_time
-
-            if filesize <= 0:
-                # content length isn't always set
-                report_msg = "downloaded in %ss" % tot_time
-            else:
-                percent = blocks_read * blocksize * 100 // filesize
-                report_msg = "of %d kb downloaded in %ss [%d %%]" % (filesize / 1024.0, tot_time, percent)
-
-            downloaded_kbs = (blocks_read * blocksize) / 1024.0
-            kbps = (blocksize * newblocks) / 1024  // tot_time
-            _log.info("Download report: %d kb %s (%d kbps)", downloaded_kbs, report_msg, kbps)
-
-            download_file.last_time = time.time()
-
     # try downloading, three times max.
     downloaded = False
+    max_attempts = 3
     attempt_cnt = 0
-    while not downloaded and attempt_cnt < 3:
-        # get HTTP response code first before downloading file
-        response_code = None
+    while not downloaded and attempt_cnt < max_attempts:
         try:
-            urlfile = urllib.urlopen(url)
-            if hasattr(urlfile, 'getcode'):  # no getcode() in Py2.4 yet
-                response_code = urlfile.getcode()
-            urlfile.close()
-        except IOError, err:
-            _log.warning("Failed to get HTTP response code for %s, retrying: %s", url, err)
-
-        if response_code is not None:
-            _log.debug('HTTP response code for given url: %d', response_code)
-            # check for a 4xx response code which indicates a non-existing URL
-            if response_code // 100 == 4:
-                _log.warning('url %s was not found (HTTP response %d), not trying again', url, response_code)
-                return None
-
-        # use this functions's scope for variables we share with inner function used as report hook for urlretrieve
-        download_file.last_time = time.time()
-        download_file.last_block = 0
-
-        httpmsg = None
-        try:
-            (_, httpmsg) = urllib.urlretrieve(url, path, reporthook=report)
-            _log.info("Downloaded file %s from url %s to %s", filename, url, path)
-
-            if httpmsg.type == "text/html" and not filename.endswith('.html'):
-                _log.warning("HTML file downloaded to %s, so assuming invalid download, retrying.", path)
-                remove_file(path)
+            # urllib2 does the right thing for http proxy setups, urllib does not!
+            url_fd = urllib2.urlopen(url, timeout=timeout)
+            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
+            write_file(path, url_fd.read())
+            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
+            downloaded = True
+            url_fd.close()
+        except urllib2.HTTPError as err:
+            if 400 <= err.code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+                break
             else:
-                # successful download
-                downloaded = True
-        except IOError, err:
-            _log.warning("Error when downloading from %s to %s (%s), removing it and retrying", url, path, err)
-            remove_file(path)
-
-        if not downloaded:
+                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                attempt_cnt += 1
+        except IOError as err:
+            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
             attempt_cnt += 1
-            _log.warning("Downloading failed at attempt %s, retrying...", attempt_cnt)
+        except Exception, err:
+            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
+
+        if not downloaded and attempt_cnt < max_attempts:
+            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
 
     if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s", filename, url, path)
+        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
         return path
     else:
-        # failed to download after multiple attempts
-        _log.warning("Too many failed download attempts, giving up")
+        _log.warning("Download of %s to %s failed, done trying" % (url, path))
         return None
 
 
@@ -712,11 +676,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
 
 def modify_env(old, new):
-    """
-    Compares 2 os.environ dumps. Adapts final environment.
-    """
-    _log.deprecated("moved modify_env to tools.environment", "2.0")
-    return env.modify_env(old, new)
+    """NO LONGER SUPPORTED: use modify_env from easybuild.tools.environment instead"""
+    _log.nosupport("moved modify_env to easybuild.tools.environment", "2.0")
 
 
 def convert_name(name, upper=False):
@@ -1043,22 +1004,17 @@ def decode_class_name(name):
 
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd"""
-    _log.deprecated("run_cmd was moved from tools.filetools to tools.run", '2.0')
-    return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
-                       inp=inp, regexp=regexp, log_output=log_output, path=path)
+    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd_qa"""
-    _log.deprecated("run_cmd_qa was moved from tools.filetools to tools.run", '2.0')
-    return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
-                          simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """Legacy wrapper/placeholder for run.parse_log_for_error"""
-    _log.deprecated("parse_log_for_error was moved from tools.filetools to tools.run", '2.0')
-    return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
+    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
+    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def det_size(path):

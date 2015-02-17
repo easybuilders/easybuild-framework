@@ -1,3 +1,6 @@
+# should be EB_icc, but OK for testing purposes
+easyblock = 'EB_toy'
+
 name = 'icc'
 version = '2013.5.192'
 

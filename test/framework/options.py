@@ -33,9 +33,10 @@ import re
 import shutil
 import sys
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
+from urllib2 import URLError
 
 import easybuild.tools.build_log
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
@@ -103,12 +104,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug(self):
         """Test enabling debug logging."""
-
         for debug_arg in ['-d', '--debug']:
             args = [
-                    '--software-name=somethingrandom',
-                    debug_arg,
-                   ]
+                'nosuchfile.eb',
+                debug_arg,
+            ]
             outtxt = self.eb_main(args)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
@@ -123,7 +123,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for info_arg in ['--info']:
             args = [
-                    '--software-name=somethingrandom',
+                    'nosuchfile.eb',
                     info_arg,
                    ]
             outtxt = self.eb_main(args)
@@ -144,7 +144,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         for quiet_arg in ['--quiet']:
             args = [
-                    '--software-name=somethingrandom',
+                    'nosuchfile.eb',
                     quiet_arg,
                    ]
             outtxt = self.eb_main(args)
@@ -334,24 +334,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
-        def run_test(custom=None, extra_params=[]):
+        def run_test(custom=None, extra_params=[], fmt=None):
             """Inner function to run actual test in current setting."""
 
             fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
             os.close(fd)
 
-            for avail_arg in [
-                              '-a',
-                              '--avail-easyconfig-params',
-                             ]:
+            avail_args = [
+                '-a',
+                '--avail-easyconfig-params',
+            ]
+            for avail_arg in avail_args:
 
                 # clear log
                 write_file(self.logfile, '')
 
                 args = [
-                    avail_arg,
                     '--unittest-file=%s' % self.logfile,
+                    avail_arg,
                 ]
+                if fmt is not None:
+                    args.append(fmt)
                 if custom is not None:
                     args.extend(['-e', custom])
 
@@ -364,17 +367,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     par_types.append(CUSTOM)
 
                 for param_type in [x[1] for x in par_types]:
-                    self.assertTrue(re.search("%s\n%s" % (param_type.upper(), '-' * len(param_type)), outtxt),
-                                    "Parameter type %s is featured in output of eb %s (args: %s): %s" %
-                                    (param_type, avail_arg, args, outtxt))
+                    # regex for parameter group title, matches both txt and rst formats
+                    regex = re.compile("%s.*\n%s" % (param_type, '-' * len(param_type)), re.I)
+                    tup = (param_type, avail_arg, args, outtxt)
+                    msg = "Parameter type %s is featured in output of eb %s (args: %s): %s" % tup
+                    self.assertTrue(regex.search(outtxt), msg)
 
                 # check a couple of easyconfig parameters
                 for param in ["name", "version", "toolchain", "versionsuffix", "buildopts", "sources", "start_dir",
                               "dependencies", "group", "exts_list", "moduleclass", "buildstats"] + extra_params:
-                    self.assertTrue(re.search("%s(?:\(\*\))?:\s*\w.*" % param, outtxt),
-                                    "Parameter %s is listed with help in output of eb %s (args: %s): %s" %
-                                    (param, avail_arg, args, outtxt)
-                                    )
+                    # regex for parameter name (with optional '*') & description, matches both txt and rst formats
+                    regex = re.compile("^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
+                    tup = (param, avail_arg, args, regex.pattern, outtxt)
+                    msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
+                    self.assertTrue(regex.search(outtxt), msg)
 
                 modify_env(os.environ, self.orig_environ)
                 tempfile.tempdir = None
@@ -382,10 +388,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if os.path.exists(dummylogfn):
                 os.remove(dummylogfn)
 
-        run_test()
-        run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'])
-        run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'])
-        run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'])
+        for fmt in [None, 'txt', 'rst']:
+            run_test(fmt=fmt)
+            run_test(custom='EB_foo', extra_params=['foo_extra1', 'foo_extra2'], fmt=fmt)
+            run_test(custom='bar', extra_params=['bar_extra1', 'bar_extra2'], fmt=fmt)
+            run_test(custom='EB_foofoo', extra_params=['foofoo_extra1', 'foofoo_extra2'], fmt=fmt)
 
     # double underscore to make sure it runs first, which is required to detect certain types of bugs,
     # e.g. running with non-initialized EasyBuild config (truly mimicing 'eb --list-toolchains')
@@ -749,8 +756,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for ictce/6.2.5, see https://github.com/hpcugent/easybuild-easyconfigs/pull/726/files
-            '--from-pr=726',
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -758,26 +765,88 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=easybuild_test',  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
-        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True)
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (tmpdir, 'FFTW/3.3.4-gompi-2015a'),
+                (tmpdir, 'foss/2015a'),
+                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (tmpdir, 'gompi/2015a'),
+                (tmpdir, 'HPL/2.1-foss-2015a'),
+                (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
+                (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
+                (tmpdir, 'OpenBLAS/0.2.13-GCC-4.9.2-LAPACK-3.5.0'),
+                (tmpdir, 'OpenMPI/1.8.3-GCC-4.9.2'),
+                (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
+                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2015a-OpenBLAS-0.2.13-LAPACK-3.5.0'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-        modules = [
-            'icc/2013_sp1.2.144',
-            'ifort/2013_sp1.2.144',
-            'impi/4.1.3.049',
-            'imkl/11.1.2.144',
-            'ictce/6.2.5',
-            'gzip/1.6-ictce-6.2.5',
-        ]
-        for module in modules:
-            ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] .*/%s \(module: %s\)$" % (ec_fn, module), re.M)
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
+            regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr" % err
+            shutil.rmtree(tmpdir)
 
-        pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr726')
-        regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+    def test_from_pr_listed_ecs(self):
+        """Test --from-pr in combination with specifying easyconfigs on the command line."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
 
-        shutil.rmtree(tmpdir)
+        # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        ecstmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
+        mkdir(os.path.join(ecstmpdir, 'easybuild'), parents=True)
+        shutil.copytree(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
+
+        # inject path to test easyconfigs into head of Python search path
+        sys.path.insert(0, ecstmpdir)
+
+        tmpdir = tempfile.mkdtemp()
+        args = [
+            'toy-0.0.eb',
+            'gompi-2015a.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc and numactl)
+            'GCC-4.6.3.eb',
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
+            '--dry-run',
+            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
+            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--tmpdir=%s' % tmpdir,
+        ]
+        try:
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            modules = [
+                (ecstmpdir, 'toy/0.0'),
+                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
+                (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
+                (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
+                (tmpdir, 'gompi/2015a'),
+                ('.*', 'GCC/4.6.3'),
+            ]
+            for path_prefix, module in modules:
+                ec_fn = "%s.eb" % '-'.join(module.split('/'))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+                self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+            # make sure that *only* these modules are listed, no others
+            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
+            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+
+        except URLError, err:
+            print "Ignoring URLError '%s' in test_from_pr" % err
+            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -896,6 +965,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_ignore_osdeps(self):
         """Test ignoring of listed OS dependencies."""
         txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
             'homepage = "http://example.com"',
@@ -976,6 +1046,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_deprecated(self):
         """Test the deprecated option"""
+        if 'EASYBUILD_DEPRECATED' in os.environ:
+            os.environ['EASYBUILD_DEPRECATED'] = str(VERSION)
+            init_config()
+
         orig_value = easybuild.tools.build_log.CURRENT_VERSION
 
         # make sure it's off by default
@@ -1003,7 +1077,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError, err2:
             self.assertTrue('DEPRECATED' in str(err2))
 
-        # force higher version by prefixing it with 1, which should result in deprecation
+        # force higher version by prefixing it with 1, which should result in deprecation errors
         topt = EasyBuildOptions(
             go_args=['--deprecated=1%s' % orig_value],
         )
@@ -1070,10 +1144,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_try(self):
         """Test whether --try options are taken into account."""
-        ecs_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
-        ec_file = os.path.join(ecs_path, 'toy-0.0.eb')
+        ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        tweaked_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-tweaked.eb')
+        shutil.copy2(os.path.join(ecs_path, 'toy-0.0.eb'), tweaked_toy_ec)
+        f = open(tweaked_toy_ec, 'a')
+        f.write("easyblock = 'ConfigureMake'")
+        f.close()
+
         args = [
-            ec_file,
+            tweaked_toy_ec,
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
@@ -1089,6 +1168,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            # tweak existing list-typed value (patches)
+            (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
+            # append to existing list-typed value (patches)
+            (['--try-amend=versionsuffix=-test3', '--try-amend=patches=,extra.patch'], 'toy/0.0-test3'),
+            # prepend to existing list-typed value (patches)
+            (['--try-amend=versionsuffix=-test4', '--try-amend=patches=extra.patch,'], 'toy/0.0-test4'),
+            # define extra list-typed parameter
+            (['--try-amend=versionsuffix=-test5', '--try-amend=exts_list=1,2,3'], 'toy/0.0-test5'),
             # only --try causes other build specs to be included too
             (['--try-software=foo,1.2.3', '--toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
@@ -1190,7 +1277,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             toy_ec,
             '--force',
-            '--try-amend=premakeopts=nosuchcommand &&',
+            '--try-amend=prebuildopts=nosuchcommand &&',
         ]
         self.eb_main(args, do_build=True)
         self.assertTrue(os.path.exists(toy_buildpath), "Build dir %s is retained after failed build" % toy_buildpath)

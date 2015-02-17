@@ -23,23 +23,11 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Generic EasyBuild support for building and installing bar, implemented as an easyblock
+Dummy easyblock for ScaLAPACK
 
 @author: Kenneth Hoste (Ghent University)
 """
-
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 
-
-class bar(EasyBlock):
-    """Generic support for building/installing bar."""
-
-    @staticmethod
-    def extra_options():
-        """Custom easyconfig parameters for bar."""
-        extra_vars = {
-            'bar_extra1': [None, "first bar-specific easyconfig parameter (mandatory)", MANDATORY],
-            'bar_extra2': ['BAR', "second bar-specific easyconfig parameter", CUSTOM],
-        }
-        return EasyBlock.extra_options(extra_vars)
+class EB_ScaLAPACK(EasyBlock):
+    pass
