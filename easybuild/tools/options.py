@@ -714,7 +714,7 @@ def process_software_build_specs(options):
             amends += options.amend
             if options.try_amend:
                 logger.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
-        if options.try_amend:
+        elif options.try_amend:
             amends += options.try_amend
             try_to_generate = True
 
