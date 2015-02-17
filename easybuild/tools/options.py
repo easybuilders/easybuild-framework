@@ -67,8 +67,8 @@ from vsc.utils.generaloption import GeneralOption
 
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
-XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', os.path.join("/etc"))
-DEFAULT_SYSTEM_CONFIGFILES = glob.glob(os.path.join(XDG_CONFIG_DIRS, 'easybuild.d', '*.cfg'))
+XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', os.path.join('/etc')).split(os.pathsep)
+DEFAULT_SYSTEM_CONFIGFILES = [f for d in XDG_CONFIG_DIRS for f in glob.glob(os.path.join(d, 'easybuild.d', '*.cfg'))]
 DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
