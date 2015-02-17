@@ -345,7 +345,7 @@ class ModulesTool(object):
         if mod_name is None:
             mod_name = ''
         args = ['avail'] + extra_args + [mod_name]
-        mods = self.run_module(*args, debug=True)
+        mods = self.run_module(*args)
 
         # sort list of modules in alphabetical order
         mods.sort(key=lambda m: m['mod_name'])
