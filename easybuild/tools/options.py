@@ -67,8 +67,8 @@ from vsc.utils.generaloption import GeneralOption
 
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
-XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', os.path.join("/etc"))
-DEFAULT_SYSTEM_CONFIGFILES = glob.glob(os.path.join(XDG_CONFIG_DIRS, 'easybuild.d', '*.cfg'))
+XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
+DEFAULT_SYSTEM_CONFIGFILES = [f for d in XDG_CONFIG_DIRS for f in glob.glob(os.path.join(d, 'easybuild.d', '*.cfg'))]
 DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
@@ -185,10 +185,8 @@ class EasyBuildOptions(GeneralOption):
             'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
-            'experimental': (
-                "Allow experimental code (with behaviour that can be changed or removed at any given time).",
-                None, 'store_true', False
-            ),
+            'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
+                             None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
             'ignore-osdeps': ("Ignore any listed OS dependencies", None, 'store_true', False),
@@ -225,9 +223,8 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
-            'installpath': (
-                "Install path for software and modules", None, 'store', mk_full_default_path('installpath')
-            ),
+            'installpath': ("Install path for software and modules",
+                            None, 'store', mk_full_default_path('installpath')),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -257,15 +254,13 @@ class EasyBuildOptions(GeneralOption):
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
-            'subdir-software': (
-                "Installpath subdir for software", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']
-            ),
+            'subdir-software': ("Installpath subdir for software",
+                                None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
-            'testoutput': (
-                "Path to where a job should place the output (to be set within jobscript)", None, 'store', None
-            ),
+            'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
+                           None, 'store', None),
             'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
@@ -719,7 +714,7 @@ def process_software_build_specs(options):
             amends += options.amend
             if options.try_amend:
                 logger.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
-        if options.try_amend:
+        elif options.try_amend:
             amends += options.try_amend
             try_to_generate = True
 
