@@ -878,7 +878,9 @@ class Lmod(ModulesTool):
         cache_dir = None
         cache_timestamp = None
         cache_specs = build_option('update_lmod_cache')
-        if cache_specs is not None:
+        if cache_specs:
+            if isinstance(cache_specs, bool):
+                cache_specs = LMOD_USER_CACHE_DIR
             cache_specs = cache_specs.split(',')
             cache_dir = cache_specs[0]
             if len(cache_specs) > 1:
