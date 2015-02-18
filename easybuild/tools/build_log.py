@@ -69,9 +69,25 @@ class EasyBuildLog(fancylogger.FancyLogger):
     The EasyBuild logger, with its own error and exception functions.
     """
 
-    # self.raiseError can be set to False disable raising the exception which is
-    # necessary because logging.Logger.exception calls self.error
-    raiseError = True
+    def __init__(self, name):
+        """
+        Returns EasyBuildLog instance.
+        Definition of 'error' method is determine based on specified name; for loggers containing 'easybuild',
+        the 'error' method will raise an EasyBuildError next to logging an error
+        @param name: name for this logger instance
+        @return: EasyBuildLog instance
+        """
+        super(EasyBuildLog, self).__init__(name)
+
+        # self.raiseError can be set to False disable raising the exception which is
+        # necessary because logging.Logger.exception calls self.error
+        self.raiseError = True
+
+        # only use custom error method for EasyBuild loggers, adher to standard behaviour for other loggers
+        if 'easybuild' in name:
+            self.error = self.easybuild_error
+        else:
+            self.error = self.standard_error
 
     def caller_info(self):
         """Return string with caller info."""
@@ -105,12 +121,16 @@ class EasyBuildLog(fancylogger.FancyLogger):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
         self.error("NO LONGER SUPPORTED since v%s: %s; see %s for more information" % (ver, msg, DEPRECATED_DOC_URL))
 
-    def error(self, msg, *args, **kwargs):
+    def standard_error(self, *args, **kwargs):
+        """Standard error method, just called error method of parent."""
+        super(EasyBuildLog, self).error(*args, **kwargs)
+
+    def easybuild_error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        newMsg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
-        fancylogger.FancyLogger.error(self, newMsg, *args, **kwargs)
+        new_msg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
+        super(EasyBuildLog, self).error(new_msg, *args, **kwargs)
         if self.raiseError:
-            raise EasyBuildError(newMsg)
+            raise EasyBuildError(new_msg)
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
@@ -158,6 +178,15 @@ def init_logging(logfile, logtostdout=False, testing=False):
     log = fancylogger.getLogger(fname=False)
 
     return log, logfile
+
+
+def get_eb_logger(name=None, *args, **kwargs):
+    """Get logger instance."""
+    # prefix name of all EasyBuild loggers (except root logger) so we can recognize them easily
+    if name is not None:
+        name = 'easybuild.%s' % name
+
+    return fancylogger.getLogger(*args, name=name, **kwargs)
 
 
 def stop_logging(logfile, logtostdout=False):

@@ -41,15 +41,13 @@ import stat
 import time
 import urllib2
 import zlib
-from vsc.utils import fancylogger
 
-import easybuild.tools.environment as env
-from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.build_log import get_eb_logger, print_msg  # this import must stay, to activate use of EasyBuildLog
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 
 
-_log = fancylogger.getLogger('filetools', fname=False)
+_log = get_eb_logger('filetools', fname=False)
 
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
