@@ -186,7 +186,7 @@ class PbsJob(object):
             hours = MAX_WALLTIME
 
         if ppn is None:
-            max_cores = get_ppn()
+            max_cores = server.ppn
         else:
             max_cores = ppn
         if cores is None:
