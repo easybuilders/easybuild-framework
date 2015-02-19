@@ -325,7 +325,6 @@ class ModuleGeneratorLua(ModuleGenerator):
             "whatis([[Description: %(description)s]])",
             "whatis([[Homepage: %(homepage)s]])"
             "whatis([[License: N/A ]])",
-            "whatis([[Keywords: Not set]])",
             "",
             "",
             'pkg.root="%(installdir)s"',
@@ -415,12 +414,19 @@ class ModuleGeneratorLua(ModuleGenerator):
         return '\n'.join(use_statements)
 
     def set_environment(self, key, value):
-
         """
-        Generate setenv statement for the given key/value pair.
+        Generate a quoted setenv statement for the given key/value pair.
         """
-        # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
+        # setting of $EBDEVELFOO modulefile path in Tcl case uses string
+        # interpolation available in Tcl, but not in Lua. Ie
+        # setenv("FOO","pkg.root/somevar") where pkg.root and somevar are
+        # variables cant be used. 
         return 'setenv("%s", %s)\n' % (key, quote_str(value))
+
+    def set_environment_unquoted(self, key, unquotedvalue):
+        """ Generate an unquoted setenv statement for the given key/value pair.
+        """
+        return 'setenv("%s",%s)\n' % (key, unquotedvalue)
 
     def msg_on_load(self, msg):
         """

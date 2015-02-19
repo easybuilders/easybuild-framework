@@ -845,12 +845,16 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        #todo this is only valid for Lua now
-        # This is a bit different in Lua due to string quoting rules in Lua and in Tcl - so $root cannot be used easily.
-        # so we resort to rendering our internal variables and quote them in the set_environment() like all other values.
-        txt += self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, self.installdir)
+        
+        if self.module_generator.SYNTAX == 'Lua':
+            txt += self.module_generator.self_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, self.installdir)
+            devel_path = os.path.join(self.installdir, log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        elif self.module_generator.SYNTAX == 'Tcl':
+            txt += self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+            devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        else: 
+            raise NotImplementedError
         txt += self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join(self.installdir, log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         txt += self.module_generator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
