@@ -66,7 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
 
-PREFERRED_JOB_BACKENDS = ['Pbs', 'GC3Pie']
+PREFERRED_JOB_BACKENDS = ('Pbs', 'GC3Pie')
 
 
 # utility function for obtaining default paths
