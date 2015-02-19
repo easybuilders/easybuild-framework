@@ -145,14 +145,16 @@ class GC3Pie(JobServer):
         No more job submissions should be attempted after `commit()`
         has been called, until `begin()` is invoked again.
         """
+        total = len(self._jobs)
+
         # Create an instance of `Engine` using the configuration file present
         # in your home directory.
-        engine = create_engine()
+        self._engine = create_engine()
 
         # Add your application to the engine. This will NOT submit
         # your application yet, but will make the engine *aware* of
         # the application.
-        engine.add(self._jobs)
+        self._engine.add(self._jobs)
 
         # in case you want to select a specific resource, call
         # `Engine.select_resource(<resource_name>)`
@@ -162,38 +164,42 @@ class GC3Pie(JobServer):
             # `Engine.progress()` will do the GC3Pie magic:
             # submit new jobs, update status of submitted jobs, get
             # results of terminating jobs etc...
-            engine.progress()
+            self._engine.progress()
 
             # report progress
-            stats = engine.stats(only=Application)
-            print_msg(
-                "build jobs: "
-                + str.join(", ", [
-                    ("%d %s" % (stats[state], state.lower()))
-                    for state in [
-                            'total',
-                            'SUBMITTED',
-                            'RUNNING',
-                            'ok',
-                            'failed',
-                    ]
-                    if stats[state] > 0
-                ]))
+            self._print_status_report([
+                'total',
+                'SUBMITTED',
+                'RUNNING',
+                'ok',
+                'failed',
+            ], total=total)
 
             # Wait a few seconds...
             time.sleep(30)
 
         # final status report
-        stats = engine.stats(only=Application)
+        self._print_status_report(['total', 'ok', 'failed'], total=total)
+
+    def _print_status_report(self, states=('total', 'ok', 'failed'), **override):
+        """
+        Print a job status report to STDOUT and the log file.
+
+        The number of jobs in any of the given states is reported; the
+        figures are extracted from the `stats()` method of the
+        currently-running GC3Pie engine.  Additional keyword arguments
+        can override specific stats; this is used, e.g., to correctly
+        report the number of total jobs right from the start.
+        """
+        stats = self._engine.stats(only=Application)
         print_msg(
             "build jobs: "
-            + str.join(", ", [
-                ("%d %s" % (stats[state], state.lower()))
-                for state in [
-                        'total',
-                        'ok',
-                        'failed',
-                ]
+            + ", ".join([
+                ("%d %s" % (
+                    override.get(state, stats[state]),
+                    state.lower(),
+                ))
+                for state in states
                 if stats[state] > 0
             ]),
-            log=gc3libs.log)
+            log=override.get('log', gc3libs.log))
