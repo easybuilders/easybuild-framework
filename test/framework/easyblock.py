@@ -309,7 +309,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(re.search("^#%Module", txt.split('\n')[0]))
         self.assertTrue(re.search("^conflict\s+%s$" % name, txt, re.M))
         self.assertTrue(re.search("^set\s+root\s+%s$" % eb.installdir, txt, re.M))
-        ebroot_regex = re.compile('^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper())
+        ebroot_regex = re.compile('^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper(), re.M)
         self.assertTrue(ebroot_regex.search(txt, re.M), "%s in %s" % (ebroot_regex.pattern, txt))
         self.assertTrue(re.search('^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
         for (key, val) in modextravars.items():
