@@ -108,9 +108,12 @@ class Pbs(JobServer):
                 job.release_hold()
         self.disconnect_from_server()
         if self._submitted:
-            _log.info("List of submitted jobs:")
-            for job in self._submitted:
-                _log.info("* %s (%s): %s", job.name, job.module, job.jobid)
+            _log.info(
+                "List of submitted jobs:"
+                + "; ".join([
+                    ("%s (%s): %s" % (job.name, job.module, job.jobid))
+                    for job in self._submitted
+                ]))
 
     @only_if_pbs_import_successful
     def disconnect_from_server(self):
