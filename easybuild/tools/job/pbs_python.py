@@ -123,8 +123,6 @@ class Pbs(JobServer):
         # cache this value as it's not likely going to change over the
         # `eb` script runtime ...
         if not self._ppn:
-            log = fancylogger.getLogger('pbs_job.PbsServer.ppn')
-
             pq = PBSQuery()
             node_vals = pq.getnodes().values()  # only the values, not the names
             interesting_nodes = ('free', 'job-exclusive',)
@@ -135,7 +133,7 @@ class Pbs(JobServer):
 
             # return most frequent
             freq_count, freq_np = max([(j, i) for i, j in res.items()])
-            log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
+            _log.debug("Found most frequent np %s (%s times) in interesting nodes %s" % (freq_np, freq_count, interesting_nodes))
 
             self._ppn = freq_np
 
