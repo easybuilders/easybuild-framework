@@ -23,7 +23,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""Interface for submitting jobs via GC3Pie"""
+"""
+Interface for submitting jobs via GC3Pie.
+
+@author: Riccardo Murri (University of Zurich)
+"""
 
 
 import os
