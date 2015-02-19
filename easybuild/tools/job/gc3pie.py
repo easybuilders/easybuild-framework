@@ -116,7 +116,7 @@ class GC3Pie(JobServer):
             inputs=[],
             outputs=[],
             # where should the output (STDOUT/STDERR) files be downloaded to?
-            output_dir=('%s/easybuild-jobs/%s' % (os.getcwd(), name)),
+            output_dir=os.path.join(os.getcwd(), 'easybuild-jobs', name),
             # capture STDOUT and STDERR
             stdout='stdout.log',
             join=True,
