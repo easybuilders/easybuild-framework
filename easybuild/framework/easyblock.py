@@ -845,7 +845,6 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
         
         if self.module_generator.SYNTAX == 'Lua':
             txt += self.module_generator.self_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, self.installdir)
@@ -855,7 +854,7 @@ class EasyBlock(object):
             devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         else: 
             raise NotImplementedError
-                                                
+        txt += self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
         txt += self.module_generator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"

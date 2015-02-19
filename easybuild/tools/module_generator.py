@@ -426,7 +426,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     def set_environment_unquoted(self, key, unquotedvalue):
         """ Generate an unquoted setenv statement for the given key/value pair.
         """
-        return 'setenv("%s",%s)\n' % (key, unquotedvalue))
+        return 'setenv("%s",%s)\n' % (key, unquotedvalue)
 
     def msg_on_load(self, msg):
         """
