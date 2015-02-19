@@ -59,7 +59,7 @@ class GC3Pie(JobServer):
     """
     Use the GC3Pie__ framework to submit and monitor compilation jobs.
 
-    In contrast with acessing an external service, GC3Pie implements
+    In contrast with accessing an external service, GC3Pie implements
     its own workflow manager, which means ``eb --job
     --job-backend=GC3Pie`` will keep running until all jobs have
     terminated.
@@ -94,7 +94,7 @@ class GC3Pie(JobServer):
         key-value pairs of environment variables that should be passed
         on to the job.
 
-        Fifth and sith (optional) arguments `hours` and `cores` should be
+        Fifth and sixth (optional) arguments `hours` and `cores` should be
         integer values:
         * hours must be in the range 1 .. MAX_WALLTIME;
         * cores depends on which cluster the job is being run.
