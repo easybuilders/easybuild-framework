@@ -63,6 +63,8 @@ DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
+LMOD_USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
+
 output_matchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
@@ -833,31 +835,32 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-        self.log.debug("Running command '%s'..." % ' '.join(cmd))
+        if build_option('update_modules_tool_cache'):
+            spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-        proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-        (stdout, stderr) = proc.communicate()
+            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            (stdout, stderr) = proc.communicate()
 
-        if stderr:
-            self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+            if stderr:
+                self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        if self.testing:
-            # don't actually update local cache when testing, just return the cache contents
-            return stdout
-        else:
-            try:
-                cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-                cache_dir = os.path.dirname(cache_filefn)
-                if not os.path.exists(cache_dir):
-                    mkdir(cache_dir, parents=True)
-                cache_file = open(cache_filefn, 'w')
-                cache_file.write(stdout)
-                cache_file.close()
-            except (IOError, OSError), err:
-                self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
+            if self.testing:
+                # don't actually update local cache when testing, just return the cache contents
+                return stdout
+            else:
+                try:
+                    cache_fp = os.path.join(LMOD_USER_CACHE_DIR, 'moduleT.lua')
+                    self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                    cache_dir = os.path.dirname(cache_fp)
+                    if not os.path.exists(cache_dir):
+                        mkdir(cache_dir, parents=True)
+                    cache_file = open(cache_fp, 'w')
+                    cache_file.write(stdout)
+                    cache_file.close()
+                except (IOError, OSError), err:
+                    self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_fp, err))
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'

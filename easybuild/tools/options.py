@@ -192,6 +192,8 @@ class EasyBuildOptions(GeneralOption):
                             str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                          None, 'store_true', False, 'p'),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
@@ -199,8 +201,8 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
-                        None, 'store', None),
+            'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
+                                          None, 'store_true', False),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
