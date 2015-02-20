@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import glob
 import os
 import re
@@ -65,6 +66,8 @@ from easybuild.tools.version import this_is_easybuild
 from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 
+
+CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
@@ -182,7 +185,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -315,7 +318,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
         })
@@ -638,8 +641,81 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix='EASYBUILD', go_args=args)
+    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                             go_args=args)
     return eb_go
+
+
+def dump_cfgfile_using_defaults():
+    """Dump contents of configuration file with default values for all configuration options."""
+    default_cfg_txt = []
+    logger = fancylogger.getLogger()
+
+    # copy original environment to restore it later
+    orig_environ = copy.deepcopy(os.environ)
+
+    # clean up environment from unwanted $EASYBUILD_X env vars
+    for key in os.environ.keys():
+        if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
+            logger.debug("Undefining $%s (value: %s)" % (key, os.environ[key]))
+            del os.environ[key]
+
+    # configure while ignoring any configuration files
+    # this should provide us with the default configuration, since the environment is clean too
+    go = EasyBuildOptions(go_useconfigfiles=False)
+
+    for group in go.parser.option_groups:
+        # only consider section with a name of type 'string'
+        if isinstance(group.section_name, basestring):
+            # determine option name prefix for this group, so we can use the correct option name
+            group_prefix = None
+            if group.section_name in go.config_prefix_sectionnames_map:
+                group_prefix = group.section_name
+            logger.debug("Group prefix for group %s: %s" % (group.section_name, group_prefix))
+
+            # include section indicator
+            default_cfg_txt.append('[%s]' % group.section_name)
+
+            for opt in group.option_list:
+                # option correct option name from option destination
+                key = opt.dest.replace('_', '-')
+                # determine default value for this option by looking at current value in parsed options
+                default = getattr(go.options, opt.dest)
+
+                # correct key if there's a group prefix set
+                if group_prefix is not None:
+                    key = key[len(group_prefix)+1:]
+
+                # correct formatting of list/tuple values
+                if isinstance(default, (tuple, list)):
+                    default = ','.join(default)
+
+                # escape use of '%' in values
+                if isinstance(default, basestring):
+                    default = default.replace('%', '%%')
+
+                # uncomment options which are set to None as default
+                # resetting values to None doesn't work (yet)
+                if default is None:
+                    # resetting values to None only works with Python 2.7, just uncomment them otherwise
+                    if LooseVersion(sys.version) >= LooseVersion('2.7'):
+                        entry = '%s' % key
+                    else:
+                        entry = '#%s' % key
+                else:
+                    entry = '%s = %s' % (key, default)
+
+                default_cfg_txt.append(entry)
+        else:
+            logger.debug("Skipping section with name %s" % str(group.section_name))
+
+    # restore original environment
+    logger.debug("Restoring original environment")
+    os.environ = orig_environ
+
+    res = '\n'.join(default_cfg_txt)
+    logger.debug("Configuration file with default values for all options: %s" % res)
+    return res
 
 
 def process_software_build_specs(options):
