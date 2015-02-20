@@ -1,0 +1,30 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/
+    }
+}
+
+module-whatis {Description: The Open MPI Project is an open source MPI-2 implementation. - Homepage: http://www.open-mpi.org/}
+
+set root    /tmp/software/Compiler/GCC/4.7.2/mpi/OpenMPI/1.6.4-no-OFED
+
+conflict    OpenMPI
+module use /tmp/modules/all/MPI/GCC/4.7.2/OpenMPI/1.6.4/base
+module use /tmp/modules/all/MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib
+
+if { ![is-loaded hwloc/1.6.2] } {
+    module load hwloc/1.6.2
+}
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+prepend-path	LIBRARY_PATH		$root/lib
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	PKG_CONFIG_PATH		$root/lib/pkgconfig
+
+setenv	EBROOTOPENMPI		"$root"
+setenv	EBVERSIONOPENMPI		"1.6.4"
+setenv	EBDEVELOPENMPI		"$root/easybuild/Compiler-GCC-4.7.2-OpenMPI-1.6.4-easybuild-devel"
+

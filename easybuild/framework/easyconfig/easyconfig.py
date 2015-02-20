@@ -180,6 +180,9 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
+        # filter hidden dependencies from list of dependencies
+        self.filter_hidden_deps()
+
         # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
@@ -281,11 +284,12 @@ class EasyConfig(object):
 
     def validate(self, check_osdeps=True):
         """
-        Validate this EasyConfig
-        - check certain variables
-        TODO: move more into here
+        Validate this easyonfig
+        - ensure certain easyconfig parameters are set to a known value (see self.validations)
+        - check OS dependencies
+        - check license
         """
-        self.log.info("Validating easy block")
+        self.log.info("Validating easyconfig")
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
@@ -305,9 +309,6 @@ class EasyConfig(object):
 
         self.log.info("Checking licenses")
         self.validate_license()
-
-        self.log.info("Checking whether list of hidden dependencies is a subset of list of dependencies")
-        self.validate_hiddendeps()
 
     def validate_license(self):
         """Validate the license"""
@@ -376,10 +377,9 @@ class EasyConfig(object):
 
         return True
 
-    def validate_hiddendeps(self):
+    def filter_hidden_deps(self):
         """
-        Validate that list of hidden dependencies is a subset of the list of dependencies.
-        The list of dependencies is adjusted to only include non-hidden dependencies.
+        Filter hidden dependencies from list of dependencies.
         """
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
@@ -394,6 +394,7 @@ class EasyConfig(object):
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
+                self.log.warning("Hidden dependency %s not in list of dependencies" % visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
