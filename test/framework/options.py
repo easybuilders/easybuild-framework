@@ -644,6 +644,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         shutil.copytree(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
+        del os.environ['EASYBUILD_CONFIGFILES']
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
 
@@ -1456,14 +1457,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
         shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
-        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
-        orig_sys_path = sys.path[:]
-        sys.path.insert(0, tmpdir)
-        self.eb_main(args, raise_error=True)
-
-        shutil.rmtree(tmpdir)
-        sys.path[:] = orig_sys_path
-
         # make sure that paths specified to --robot get preference over --robot-paths
         args = [
             eb_file,
@@ -1473,9 +1466,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
-        for ec in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
-            ec_regex = re.compile('^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ec), re.M)
+        for ecfile in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
+            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
+
+        # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        del os.environ['EASYBUILD_CONFIGFILES']
+        orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)
+        self.eb_main(args, raise_error=True)
+
+        shutil.rmtree(tmpdir)
+        sys.path[:] = orig_sys_path
 
 
 def suite():
