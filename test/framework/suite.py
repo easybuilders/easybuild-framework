@@ -39,7 +39,7 @@ import tempfile
 import unittest
 from vsc.utils import fancylogger
 
-# set plain text key ring to be used, so a GitHub token stored in it can be obtained with having to provide a password
+# set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
 
 # disable all logging to significantly speed up tests
@@ -100,7 +100,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw]
+tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
