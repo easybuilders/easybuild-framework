@@ -61,12 +61,10 @@ from easybuild.tools.options import EasyBuildOptions
 # keep track of any $EASYBUILD_TEST_X environment variables
 test_env_var_prefix = 'EASYBUILD_TEST_'
 eb_test_env_vars = dict([(key, val) for (key, val) in os.environ.items() if key.startswith(test_env_var_prefix)])
-print "eb_test_env_vars: %s" % eb_test_env_vars
 
 # clean up environment from unwanted $EASYBUILD_X env vars
 for key in os.environ.keys():
     if key.startswith('EASYBUILD_'):
-        print "Undefining $%s (value: %s)" % (key, os.environ[key])
         del os.environ[key]
 
 # ignore any existing configuration files
@@ -76,7 +74,6 @@ os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 # redefine $EASYBUILD_TEST_X env vars as $EASYBUILD_X
 for testkey, val in eb_test_env_vars.items():
     key = 'EASYBUILD_%s' % testkey[len(test_env_var_prefix):]
-    print "redefining $%s as $%s = '%s'" % (testkey, key, val)
     os.environ[key] = val
 
 
