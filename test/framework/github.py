@@ -55,12 +55,11 @@ class GithubTest(EnhancedTestCase):
     def setUp(self):
         """setup"""
         super(GithubTest, self).setUp()
-        github_user = GITHUB_TEST_ACCOUNT
-        self.github_token = fetch_github_token(github_user)
+        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         if self.github_token is None:
             self.ghfs = None
         else:
-            self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, github_user, None, github_token)
+            self.ghfs = Githubfs(GITHUB_USER, GITHUB_REPO, GITHUB_BRANCH, GITHUB_TEST_ACCOUNT, None, self.github_token)
 
     def test_walk(self):
         """test the gitubfs walk function"""
@@ -78,7 +77,7 @@ class GithubTest(EnhancedTestCase):
 
     def test_read_api(self):
         """Test the githubfs read function"""
-        if self.github_token is not None:
+        if self.github_token is None:
             print "Skipping test_read_api, no GitHub token available?"
             return
 
