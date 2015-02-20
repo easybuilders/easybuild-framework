@@ -488,6 +488,8 @@ class EasyBlockTest(EnhancedTestCase):
             txt = open(loc, 'r').read()
             eb_regex = re.compile("EasyBuild: building software with ease")
             self.assertTrue(eb_regex.search(txt))
+        else:
+            print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
 
         shutil.rmtree(tmpdir)
 
