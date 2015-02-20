@@ -51,7 +51,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import dump_cfgfile_using_defaults
+from easybuild.tools.options import EasyBuildOptions
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -69,16 +69,9 @@ for key in os.environ.keys():
         print "Undefining $%s (value: %s)" % (key, os.environ[key])
         del os.environ[key]
 
-# dump configuration file with default values for all options
-default_cfg_txt = dump_cfgfile_using_defaults()
-
-# put configuration file with default configuration settings in place
-TOP_TMPDIR = tempfile.mkdtemp()
-default_cfgfile = os.path.join(TOP_TMPDIR, 'default.cfg')
-fh = open(default_cfgfile, 'w')
-fh.write(default_cfg_txt)
-fh.close()
-os.environ['EASYBUILD_CONFIGFILES'] = default_cfgfile
+# ignore any existing configuration files
+go = EasyBuildOptions(go_useconfigfiles=False)
+os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $EASYBUILD_TEST_X env vars as $EASYBUILD_X
 for testkey, val in eb_test_env_vars.items():
