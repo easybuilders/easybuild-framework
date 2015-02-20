@@ -454,5 +454,7 @@ class Toolchain(object):
         raise NotImplementedError
 
     def mpi_family(self):
-        """ Return type of MPI library used in this toolchain (abstract method)."""
-        raise NotImplementedError
+        """ Return type of MPI library used in this toolchain or 'None' if MPI is not
+            supported.
+        """
+        return None

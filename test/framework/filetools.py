@@ -250,6 +250,26 @@ class FileToolsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_path_matches(self):
+        # set up temporary directories
+        tmpdir = tempfile.mkdtemp()
+        path1 = os.path.join(tmpdir, 'path1')
+        ft.mkdir(path1)
+        path2 = os.path.join(tmpdir, 'path2') 
+        ft.mkdir(path1)
+        symlink = os.path.join(tmpdir, 'symlink')
+        os.symlink(path1, symlink)
+        missing = os.path.join(tmpdir, 'missing')
+
+        self.assertFalse(ft.path_matches(missing, [path1, path2]))
+        self.assertFalse(ft.path_matches(path1, [missing]))
+        self.assertFalse(ft.path_matches(path1, [missing, path2]))
+        self.assertFalse(ft.path_matches(path2, [missing, symlink]))
+        self.assertTrue(ft.path_matches(path1, [missing, symlink]))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+
     def test_read_write_file(self):
         """Test reading/writing files."""
         tmpdir = tempfile.mkdtemp()

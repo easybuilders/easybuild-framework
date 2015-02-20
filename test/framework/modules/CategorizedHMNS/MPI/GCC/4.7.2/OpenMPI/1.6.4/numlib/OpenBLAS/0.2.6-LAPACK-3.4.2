@@ -1,0 +1,22 @@
+#%Module
+
+proc ModulesHelp { } {
+    puts stderr {   OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version. - Homepage: http://xianyi.github.com/OpenBLAS/
+}
+}
+
+module-whatis {OpenBLAS is an optimized BLAS library based on GotoBLAS2 1.13 BSD version. - Homepage: http://xianyi.github.com/OpenBLAS/}
+
+set root    /tmp/software/MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib/OpenBLAS/0.2.6-LAPACK-3.4.2
+
+conflict    OpenBLAS
+
+prepend-path	CPATH		$root/include
+prepend-path	LD_LIBRARY_PATH		$root/lib
+
+setenv	EBROOTOPENBLAS		"$root"
+setenv	EBVERSIONOPENBLAS		"0.2.6"
+setenv	EBDEVELOPENBLAS		"$root/easybuild/OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2-easybuild-devel"
+
+
+# built with EasyBuild version 1.4.0dev
