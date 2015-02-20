@@ -50,6 +50,8 @@ import sys
 import tempfile
 from distutils.version import LooseVersion
 
+PYPI_SOURCE_URL = 'https://pypi.python.org/packages/source'
+
 VSC_BASE = 'vsc-base'
 EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', 'easybuild-easyconfigs']
 
@@ -368,6 +370,10 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
     f = open(ebfile, "w")
+    templates.update({
+        'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
+        'sources': "%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
+    })
     f.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     f.close()
 
@@ -507,20 +513,8 @@ repeatable and robust way.\"\"\"
 
 toolchain = {'name': 'dummy', 'version': 'dummy'}
 
-pypi_source_url = 'https://pypi.python.org/packages/source'
-source_urls = [
-    '%%s/v/vsc-base/' %% pypi_source_url,
-    '%%s/e/easybuild-framework/' %% pypi_source_url,
-    '%%s/e/easybuild-easyblocks/' %% pypi_source_url,
-    '%%s/e/easybuild-easyconfigs/' %% pypi_source_url,
-]
-# order matters a lot, to avoid having dependencies auto-resolved (--no-deps easy_install option doesn't work?)
-sources = [
-    %(vsc-base)s
-    %(easybuild-framework)s
-    %(easybuild-easyblocks)s
-    %(easybuild-easyconfigs)s
-]
+source_urls = [%(source_urls)s]
+sources = [%(sources)s]
 
 # EasyBuild is a (set of) Python packages, so it depends on Python
 # usually, we want to use the system Python, so no actual Python dependency is listed
