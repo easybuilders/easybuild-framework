@@ -87,7 +87,8 @@ class ParallelBuildTest(EnhancedTestCase):
         easyconfig_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'gzip-1.5-goolf-1.4.10.eb')
         easyconfigs = process_easyconfig(easyconfig_file)
         ordered_ecs = resolve_dependencies(easyconfigs)
-        build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs)
+        jobs = build_easyconfigs_in_parallel("echo %(spec)s", ordered_ecs, prepare_first=False)
+        self.assertEqual(len(jobs), 8)
 
 def suite():
     """ returns all the testcases in this module """
