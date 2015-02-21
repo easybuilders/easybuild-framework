@@ -31,7 +31,6 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 @author: Kenneth Hoste (Ghent University)
 """
 import glob
-import keyring
 import os
 import shutil
 import sys
@@ -40,7 +39,11 @@ import unittest
 from vsc.utils import fancylogger
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
-keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
+try:
+    import keyring
+    keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
+except ImportError:
+    pass
 
 # disable all logging to significantly speed up tests
 import easybuild.tools.build_log  # initialize EasyBuild logging, so we disable it
