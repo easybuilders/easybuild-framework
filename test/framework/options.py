@@ -818,7 +818,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
@@ -881,7 +881,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
