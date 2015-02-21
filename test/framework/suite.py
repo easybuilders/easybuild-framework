@@ -32,11 +32,14 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 """
 import glob
 import os
-import shutil
 import sys
 import tempfile
 import unittest
 from vsc.utils import fancylogger
+
+# initialize EasyBuild logging, so we disable it
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import set_tmpdir
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 try:
@@ -46,7 +49,6 @@ except ImportError:
     pass
 
 # disable all logging to significantly speed up tests
-import easybuild.tools.build_log  # initialize EasyBuild logging, so we disable it
 fancylogger.disableDefaultHandlers()
 fancylogger.setLogLevelError()
 
@@ -81,18 +83,11 @@ import test.framework.variables as v
 
 
 # make sure temporary files can be created/used
-fd, fn = tempfile.mkstemp()
-os.close(fd)
-os.remove(fn)
-testdir = tempfile.mkdtemp()
-for test_fn in [fn, os.path.join(testdir, 'test')]:
-    try:
-        open(fn, 'w').write('test')
-    except IOError, err:
-        sys.stderr.write("ERROR: Can't write to temporary file %s, set $TMPDIR to a writeable directory (%s)" % (fn, err))
-        sys.exit(1)
-os.remove(fn)
-shutil.rmtree(testdir)
+try:
+    set_tmpdir(raise_error=True)
+except EasyBuildError, err:
+    sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
+    sys.exit(1)
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')

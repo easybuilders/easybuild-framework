@@ -439,7 +439,7 @@ def read_environment(env_vars, strict=False):
     _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')
 
 
-def set_tmpdir(tmpdir=None):
+def set_tmpdir(tmpdir=None, raise_error=False):
     """Set temporary directory to be used by tempfile and others."""
     try:
         if tmpdir is not None:
@@ -468,7 +468,10 @@ def set_tmpdir(tmpdir=None):
         if not run_cmd(tmptest_file, simple=True, log_ok=False, regexp=False):
             msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
             msg += "This can cause problems in the build process, consider using --tmpdir."
-            _log.warning(msg)
+            if raise_error:
+                _log.error(msg)
+            else:
+                _log.warning(msg)
         else:
             _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
         os.remove(tmptest_file)
