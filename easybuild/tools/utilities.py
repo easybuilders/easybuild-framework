@@ -94,7 +94,7 @@ def import_available_modules(namespace):
     """
     modules = []
     for path in sys.path:
-        for module in glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py'])):
+        for module in sorted(glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py']))):
             if not module.endswith('__init__.py'):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])
