@@ -147,7 +147,7 @@ DEFAULT_CONFIG = {
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
-
+    'system_modules': [[], "System module dependencies that should be present on the system", DEPENDENCIES],
     # LICENSE easyconfig parameters
     'group': [None, "Name of the user group for which the software should be available", LICENSE],
     'key': [None, 'Key for installing software', LICENSE],

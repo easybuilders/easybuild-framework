@@ -64,19 +64,19 @@ def adjust_cmd(func):
     """Make adjustments to given command, if required."""
 
     def inner(cmd, *args, **kwargs):
-        # SuSE hack
+	# SuSE hack
         # - profile is not resourced, and functions (e.g. module) is not inherited
-        if 'PROFILEREAD' in os.environ and (len(os.environ['PROFILEREAD']) > 0):
-            filepaths = ['/etc/profile.d/modules.sh']
-            extra = ''
-            for fp in filepaths:
-                if os.path.exists(fp):
-                    extra = ". %s &&%s" % (fp, extra)
-                else:
-                    _log.warning("Can't find file %s" % fp)
-
-            cmd = "%s %s" % (extra, cmd)
-
+        #if 'PROFILEREAD' in os.environ and (len(os.environ['PROFILEREAD']) > 0):
+        #    filepaths = ['/etc/profile.d/modules.sh']
+        #    extra = ''
+        #    for fp in filepaths:
+        #        if os.path.exists(fp):
+        #            extra = ". %s &&%s" % (fp, extra)
+        #        else:
+        #            _log.warning("Can't find file %s" % fp)
+	#
+        extra = ''
+	cmd = "%s %s" % (extra, cmd)
         return func(cmd, *args, **kwargs)
 
     return inner
