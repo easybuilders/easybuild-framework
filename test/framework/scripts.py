@@ -44,9 +44,10 @@ class ScriptsTest(EnhancedTestCase):
         """Test for generate_software_list.py script."""
 
         # adjust $PYTHONPATH such that test easyblocks are found by the script
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        pythonpath = os.environ.get('PYTHONPATH', '.')
-        os.environ['PYTHONPATH'] = ".:%s:%s" % (pythonpath, eb_blocks_path)
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        eb_blocks_path = os.path.join(test_dir, 'sandbox')
+        pythonpath = os.environ.get('PYTHONPATH', os.path.dirname(test_dir))
+        os.environ['PYTHONPATH'] = os.pathsep.join([pythonpath, eb_blocks_path])
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
