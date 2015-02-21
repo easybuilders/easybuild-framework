@@ -34,9 +34,9 @@ import re
 import shutil
 import sys
 import tempfile
-from unittest import TestCase
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
+from vsc.utils.testing import EnhancedTestCase as _EnhancedTestCase
 
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
@@ -77,34 +77,12 @@ for testkey, val in eb_test_env_vars.items():
     os.environ[key] = val
 
 
-class EnhancedTestCase(TestCase):
+class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """Convenience method to match regex with the expected error message"""
-        try:
-            call(*args, **kwargs)
-            str_kwargs = ', '.join(['='.join([k,str(v)]) for (k,v) in kwargs.items()])
-            str_args = ', '.join(map(str, args) + [str_kwargs])
-            self.assertTrue(False, "Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
-        except error, err:
-            if hasattr(err, 'msg'):
-                msg = err.msg
-            elif hasattr(err, 'message'):
-                msg = err.message
-            elif hasattr(err, 'args'):  # KeyError in Python 2.4 only provides message via 'args' attribute
-                msg = err.args[0]
-            else:
-                msg = err
-            try:
-                msg = str(msg)
-            except UnicodeEncodeError:
-                msg = msg.encode('utf8', 'replace')
-            self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
-            self.assertTrue(re.search(regex, msg), "Pattern '%s' is found in '%s'" % (regex, msg))
 
     def setUp(self):
         """Set up testcase."""
+        super(EnhancedTestCase, self).setUp()
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         fd, self.logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
@@ -155,6 +133,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
+        super(EnhancedTestCase, self).tearDown()
         os.chdir(self.cwd)
         modify_env(os.environ, self.orig_environ)
         tempfile.tempdir = None
