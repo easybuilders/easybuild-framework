@@ -63,8 +63,6 @@ DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
 
-LMOD_USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
-
 output_matchers = {
     # matches whitespace and module-listing headers
     'whitespace': re.compile(r"^\s*$|^(-+).*(-+)$"),
@@ -136,6 +134,8 @@ class ModulesTool(object):
     REQ_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
+    # modules tool user cache directory
+    USER_CACHE_DIR = None
 
     __metaclass__ = Singleton
 
@@ -794,6 +794,7 @@ class Lmod(ModulesTool):
     # we need at least Lmod v5.6.3 (and it can't be a release candidate)
     REQ_VERSION = '5.6.3'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
+    USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
@@ -851,7 +852,7 @@ class Lmod(ModulesTool):
                 return stdout
             else:
                 try:
-                    cache_fp = os.path.join(LMOD_USER_CACHE_DIR, 'moduleT.lua')
+                    cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
                     self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
                     cache_dir = os.path.dirname(cache_fp)
                     if not os.path.exists(cache_dir):
