@@ -70,8 +70,8 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
-DEFAULT_SYSTEM_CONFIGFILES = [f for d in XDG_CONFIG_DIRS for f in glob.glob(os.path.join(d, 'easybuild.d', '*.cfg'))]
-DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
+DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -79,7 +79,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYSTEM_CONFIGFILES + [DEFAULT_USER_CONFIGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 

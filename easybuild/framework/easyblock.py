@@ -937,7 +937,7 @@ class EasyBlock(object):
             txt = "\n"
             for key in sorted(requirements):
                 for path in requirements[key]:
-                    paths = glob.glob(path)
+                    paths = sorted(glob.glob(path))
                     if paths:
                         txt += self.module_generator.prepend_paths(key, paths)
             try:

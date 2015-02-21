@@ -142,7 +142,7 @@ def aggregate_xml_in_dirs(base_dir, output_filename):
     total = 0
 
     for d in dirs:
-        xml_file = glob.glob(os.path.join(d, "*.xml"))
+        xml_file = sorted(glob.glob(os.path.join(d, "*.xml")))
         if xml_file:
             # take the first one (should be only one present)
             xml_file = xml_file[0]
