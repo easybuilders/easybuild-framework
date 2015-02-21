@@ -1205,10 +1205,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ([], 'toy/0.0'),
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            # --try-toolchain is overridden by --toolchain
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            # --try-amend is overridden by --amend
+            (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
             (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)
