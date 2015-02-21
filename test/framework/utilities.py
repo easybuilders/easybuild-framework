@@ -38,6 +38,7 @@ from unittest import TestCase
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
@@ -105,6 +106,12 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
+
+        # make sure no deprecated behaviour is being triggered (unless intended by the test)
+        # trip *all* log.deprecated statements by setting deprecation version ridiculously high
+        self.orig_current_version = eb_build_log.CURRENT_VERSION
+        os.environ['EASYBUILD_DEPRECATED'] = '10000000'
+
         init_config()
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules
@@ -220,6 +227,36 @@ class EnhancedTestCase(TestCase):
             os.path.join(mpi_pref, 'FFTW', '3.3.3'),
             os.path.join(mpi_pref, 'OpenBLAS', '0.2.6-LAPACK-3.4.2'),
             os.path.join(mpi_pref, 'ScaLAPACK', '2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2'),
+        ]:
+            for line in fileinput.input(modfile, inplace=1):
+                line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
+                              r"\1%s/modules/all" % self.test_installpath,
+                              line)
+                sys.stdout.write(line)
+
+    def setup_categorized_hmns_modules(self):
+        """Setup categorized hierarchical modules to run tests on."""
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+
+        # simply copy module files under 'CategorizedHMNS/{Core,Compiler,MPI}' to test install path
+        # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
+        mkdir(mod_prefix, parents=True)
+        for mod_subdir in ['Core', 'Compiler', 'MPI']:
+            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        'modules', 'CategorizedHMNS', mod_subdir)
+            shutil.copytree(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+        # create empty module file directory to make C/Tcl modules happy
+        mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        mkdir(os.path.join(mpi_pref, 'base'))
+
+        # make sure only modules in the CategorizedHMNS are available
+        self.reset_modulepath([os.path.join(mod_prefix, 'Core', 'compiler'),
+                               os.path.join(mod_prefix, 'Core', 'toolchain')])
+
+        # tweak use statements in modules to ensure correct paths
+        for modfile in [
+            os.path.join(mod_prefix, 'Core', 'compiler', 'GCC', '4.7.2'),
+            os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'mpi', 'OpenMPI', '1.6.4'),
         ]:
             for line in fileinput.input(modfile, inplace=1):
                 line = re.sub(r"(module\s*use\s*)/tmp/modules/all",

@@ -5,6 +5,9 @@ docstring test
 @author: Stijn De Weirdt (UGent)
 @maintainer: Kenneth Hoste (UGent)
 """
+# should be EB_GCC, but OK for testing purposes
+easyblock = 'EB_toy'
+
 name = "GCC"
 
 homepage = 'http://gcc.gnu.org/'

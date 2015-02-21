@@ -1,3 +1,6 @@
+# should be EB_ifort, but OK for testing purposes
+easyblock = 'EB_toy'
+
 name = 'ifort'
 version = '2013.5.192'
 

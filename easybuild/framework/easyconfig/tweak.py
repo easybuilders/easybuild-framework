@@ -166,7 +166,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -175,48 +175,48 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
                 # - input starting with comma (empty head list element) => append
                 # - no empty head/tail list element => overwrite
                 if val[0] == '':
-                    newval = "%s + %s" % (res.group(1), fval)
+                    newval = "%s + %s" % (res.group('val'), fval)
                     _log.debug("Appending %s to %s" % (fval, key))
                 elif val[-1] == '':
-                    newval = "%s + %s" % (fval, res.group(1))
+                    newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
                     newval = "%s" % fval
                     _log.debug("Overwriting %s with %s" % (key, fval))
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
-                additions.append("%s = %s # added by EasyBuild" % (key, val))
+                additions.append("%s = %s" % (key, val))
 
             tweaks.pop(key)
 
     # add parameters or replace existing ones
     for (key, val) in tweaks.items():
 
-        regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+        regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
             diff = True
             try:
-                _log.debug("eval(%s): %s" % (res.group(1), eval(res.group(1))))
-                diff = not eval(res.group(1)) == val
+                _log.debug("eval(%s): %s" % (res.group('val'), eval(res.group('val'))))
+                diff = eval(res.group('val')) != val
             except (NameError, SyntaxError):
                 # if eval fails, just fall back to string comparison
-                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % (res.group(1), val))
-                diff = not res.group(1) == val
+                tup = (res.group('val'), val)
+                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % tup)
+                diff = res.group('val') != val
 
             if diff:
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
                 _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
             additions.append("%s = %s" % (key, quote_str(val)))
 
     if additions:
-        _log.info("Adding additional parameters to tweaked easyconfig file: %s")
-        ectxt += "\n\n# added by EasyBuild as dictated by command line options\n"
-        ectxt += '\n'.join(additions) + '\n'
+        _log.info("Adding additional parameters to tweaked easyconfig file: %s" % additions)
+        ectxt = '\n'.join([ectxt] + additions)
 
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
@@ -524,7 +524,7 @@ def select_or_generate_ec(fp, paths, specs):
         for (key, val) in specs.items():
             if key in selected_ec._config:
                 # values must be equal to have a full match
-                if not selected_ec[key] == val:
+                if selected_ec[key] != val:
                     match = False
             else:
                 # if we encounter a key that is not set in the selected easyconfig, we don't have a full match

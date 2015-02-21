@@ -35,38 +35,28 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
-from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
-from easybuild.tools.ordereddict import OrderedDict
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
 
 # we use a tuple here so we can sort them based on the numbers
-HIDDEN = "HIDDEN"
-MANDATORY = "MANDATORY"
-CUSTOM = "CUSTOM"
-TOOLCHAIN = "TOOLCHAIN"
-BUILD = "BUILD"
-FILEMANAGEMENT = "FILEMANAGEMENT"
-DEPENDENCIES = "DEPENDENCIES"
-LICENSE = "LICENSE"
-EXTENSIONS = "EXTENSIONS"
-MODULES = "MODULES"
-OTHER = "OTHER"
-
 ALL_CATEGORIES = {
-    HIDDEN: (-1, 'hidden'),
-    MANDATORY: (0, 'mandatory'),
-    CUSTOM: (1, 'easyblock-specific'),
-    TOOLCHAIN: (2, 'toolchain'),
-    BUILD: (3, 'build'),
-    FILEMANAGEMENT: (4, 'file-management'),
-    DEPENDENCIES: (5, 'dependencies'),
-    LICENSE: (6, 'license'),
-    EXTENSIONS: (7, 'extensions'),
-    MODULES: (8, 'modules'),
-    OTHER: (9, 'other'),
+    'HIDDEN': (-1, 'hidden'),
+    'MANDATORY': (0, 'mandatory'),
+    'CUSTOM': (1, 'easyblock-specific'),
+    'TOOLCHAIN': (2, 'toolchain'),
+    'BUILD': (3, 'build'),
+    'FILEMANAGEMENT': (4, 'file-management'),
+    'DEPENDENCIES': (5, 'dependencies'),
+    'LICENSE': (6, 'license'),
+    'EXTENSIONS': (7, 'extensions'),
+    'MODULES': (8, 'modules'),
+    'OTHER': (9, 'other'),
 }
+# define constants so they can be used below
+# avoid that pylint complains about unknown variables in this file
+# pylint: disable=E0602
+globals().update(ALL_CATEGORIES)
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -185,30 +175,6 @@ def sorted_categories():
     categories = ALL_CATEGORIES.values()
     categories.sort(key=lambda c: c[0])
     return categories
-
-
-def convert_to_help(opts, has_default=False):
-    """
-    Converts the given list to a mapping of category -> [(name, help)] (OrderedDict)
-        @param: has_default, if False, add the DEFAULT_CONFIG list
-    """
-    mapping = OrderedDict()
-    if isinstance(opts, dict):
-        opts = opts.items()
-    elif isinstance(opts, ExtraOptionsDeprecatedReturnValue):
-        opts = list(opts)
-    if not has_default:
-        defs = [(k, [def_val, descr, ALL_CATEGORIES[cat]]) for k, (def_val, descr, cat) in DEFAULT_CONFIG.items()]
-        opts = defs + opts
-
-    # sort opts
-    opts.sort()
-
-    for cat in sorted_categories():
-        mapping[cat[1]] = [(opt[0], "%s (default: %s)" % (opt[1][1], opt[1][0]))
-                           for opt in opts if opt[1][2] == cat]
-
-    return mapping
 
 
 def get_easyconfig_parameter_default(param):

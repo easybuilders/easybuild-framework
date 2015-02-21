@@ -133,9 +133,10 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     # generate_cmd_line returns the options in form --longopt=value
     opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
 
-    quoted_opts = subprocess.list2cmdline(opts)
+    # compose string with command line options, properly quoted and with '%' characters escaped
+    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, quoted_opts)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     job_info_lines = []
     if testing:
