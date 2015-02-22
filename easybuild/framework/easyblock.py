@@ -56,6 +56,7 @@ from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_m
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
+from easybuild.framework.package import package_fpm
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -1444,18 +1445,10 @@ class EasyBlock(object):
 
     def package_step(self):
         """Prepare package software (e.g. into an RPM) with fpm."""
-        rpmname = "HPCBIOS.20150211-%s-%s" % (self.name, self.version)
-        os.chdir(os.environ['TMPDIR'])
-        
-        if self.toolchain.name == "dummy":
-            dependencies = []
-        else:
-            dependencies = [ "=".join([ self.toolchain.name, self.toolchain.version ]) ]
-        dependencies.extend([ "=".join([ dep['name'], dep['version'] ]) for dep in self.cfg.dependencies() ])
-        depstring = '--dependency ' + ' --dependency '.join(dependencies)
 
-        cmd = "fpm --workdir $TMPDIR -t rpm --name %s -s dir %s -C %s" % (rpmname, depstring, self.installdir)
-        (out, _) = run_cmd(cmd, log_all=True, simple=False)
+        path_to_module_file = os.path.join(install_path('mod'), build_option('suffix_modules_path'), self.full_mod_name)
+
+        package_fpm(self, path_to_module_file)
 
     def post_install_step(self):
         """
