@@ -109,6 +109,9 @@ class EnhancedTestCase(_EnhancedTestCase):
         self.test_installpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
+        # make sure that the tests only pick up easyconfigs provided with the tests
+        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs')
+
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         # trip *all* log.deprecated statements by setting deprecation version ridiculously high
         self.orig_current_version = eb_build_log.CURRENT_VERSION
