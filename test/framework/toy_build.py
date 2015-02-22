@@ -401,6 +401,9 @@ class ToyBuildTest(EnhancedTestCase):
             ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
             ('077', None, None, 0700, 0600, 0700),  # no access for other/group
         ]:
+            # empty the install directory, to ensure any created directories adher to the permissions
+            shutil.rmtree(self.test_installpath)
+
             if cfg_group is None and ec_group is None:
                 allargs = [toy_ec_file]
             elif ec_group is not None:
@@ -449,9 +452,6 @@ class ToyBuildTest(EnhancedTestCase):
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
                     self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
-
-            # cleanup for next iteration
-            shutil.rmtree(self.test_installpath)
 
         # restore original umask
         os.umask(orig_umask)
