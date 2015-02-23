@@ -557,7 +557,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(re.search(pattern, txt, re.M))
         os.remove(res[1])
 
-
         # should be able to prepend to list of patches and handle list of dependencies
         new_patches = ['two.patch', 'three.patch']
         specs.update({
@@ -611,6 +610,17 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
+
+        # hidden dependencies are filtered from list of dependencies
+        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        os.remove(res[1])
+
+        # hidden dependencies are also filtered from list of dependencies when validation is skipped
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        ec = EasyConfig(res[1], validate=False)
+        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists

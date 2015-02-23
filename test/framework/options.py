@@ -436,7 +436,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         name_items = {
             'modules-tools': ['EnvironmentModulesC', 'Lmod'],
-            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS'],
+            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS', 'CategorizedHMNS'],
         }
         for (name, items) in name_items.items():
             args = [
@@ -741,6 +741,47 @@ class CommandLineOptionsTest(EnhancedTestCase):
              "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
             ("goolf-1.4.10.eb", "Core", "goolf/1.4.10", 'x'),
             ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4", "gzip/1.5", ' '),  # listed but not there: ' '
+        ]
+        for ec, mod_subdir, mod_name, mark in ecs_mods:
+            regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
+    def test_dry_run_categorized(self):
+        """Test dry run using a categorized hierarchical module naming scheme."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        self.setup_categorized_hmns_modules()
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        args = [
+            os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
+            os.path.join(test_ecs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=CategorizedHMNS',
+            '--ignore-osdeps',
+            '--force',
+            '--debug',
+            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
+
+        ecs_mods = [
+            # easyconfig, module subdir, (short) module name, mark
+            ("GCC-4.7.2.eb", "Core/compiler", "GCC/4.7.2", 'x'),  # already present but not listed, so 'x'
+            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/system", "hwloc/1.6.2", 'x'),
+            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/mpi", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
+            ("gompi-1.4.10.eb", "Core/toolchain", "gompi/1.4.10", 'x'),
+            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib", "FFTW/3.3.3", 'x'),
+            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
+            ("goolf-1.4.10.eb", "Core/toolchain", "goolf/1.4.10", 'x'),
+            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/base", "gzip/1.5", ' '),  # listed but not there: ' '
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
             regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
@@ -1164,10 +1205,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ([], 'toy/0.0'),
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            # --try-toolchain is overridden by --toolchain
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            # --try-amend is overridden by --amend
+            (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
             (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)

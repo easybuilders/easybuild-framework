@@ -137,6 +137,8 @@ class ModulesTool(object):
     REQ_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
+    # modules tool user cache directory
+    USER_CACHE_DIR = None
 
     __metaclass__ = Singleton
 
@@ -804,6 +806,7 @@ class Lmod(ModulesTool):
     # we need at least Lmod v5.6.3 (and it can't be a release candidate)
     REQ_VERSION = '5.6.3'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
+    USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     @staticmethod
     def is_lmod():
@@ -877,7 +880,7 @@ class Lmod(ModulesTool):
         """Update Lmod cache after new modules were added."""
         cache_dir = None
         cache_timestamp = None
-        cache_specs = build_option('update_lmod_cache')
+        cache_specs = build_option('update_modules_tool_cache')
         if cache_specs:
             if isinstance(cache_specs, bool):
                 cache_specs = LMOD_USER_CACHE_DIR
@@ -907,6 +910,7 @@ class Lmod(ModulesTool):
             # we can't use run_cmd, since we need to separate stdout from stderr
             proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
             (cache_txt, stderr) = proc.communicate()
+
             if stderr:
                 self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
