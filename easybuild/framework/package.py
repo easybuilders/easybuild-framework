@@ -29,10 +29,19 @@ A place for packaging functions
 """
 
 import os
+from easybuild.tools.run import run_cmd
 
-def package_fpm(easyblock,modfile_path ):
+def package_fpm(easyblock, modfile_path ):
     rpmname = "HPCBIOS.20150211-%s-%s" % (easyblock.name, easyblock.version)
-    os.chdir("/tmp")
+    workdir = "/tmp"
+    os.chdir(workdir)
+
+    pkgtemplate = "HPCBIOS.20150211-%(name)s-%(version)s"
+
+    pkgname=pkgtemplate % {
+        'name' : easyblock.name,
+        'version' : easyblock.version,
+    }
 
     if easyblock.toolchain.name == "dummy":
         dependencies = []
@@ -47,12 +56,10 @@ def package_fpm(easyblock,modfile_path ):
 
     ]
     cmdlist.extend(' --depends '.join(dependencies))
-    [
-        '-t', flavour, # target
+    cmdlist.extend([
+        '-t', 'rpm', # target
         '-s', 'dir', # source
         '-C', easyblock.installdir,
-    ]
-    cmdlist.extend(deplist)
+    ])
 
-    cmd = "fpm --workdir /tmp --name %s %s -s dir -t rpm -C %s ." % (rpmname, depstring, easyblock.installdir)
-    (out, _) = run_cmd(cmd, log_all=True, simple=False)
+    (out, _) = run_cmd(cmdlist, log_all=True, simple=False)
