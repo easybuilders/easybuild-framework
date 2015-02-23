@@ -111,6 +111,7 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_cases',
         'sticky_bit',
         'upload_test_report',
+        'update_modules_tool_cache',
     ],
     True: [
         'cleanup_builddir',
