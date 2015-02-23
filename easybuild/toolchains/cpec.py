@@ -27,7 +27,7 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import *
+from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperCray
 
 class cpec(CrayPEWrapperCray):
     """Compiler toolchain with Cray cc,CC,ftn,LibSci,MPT,SHMEM."""

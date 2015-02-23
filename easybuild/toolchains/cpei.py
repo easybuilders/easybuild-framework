@@ -27,7 +27,7 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import *
+from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperIntel
 
 class cpei(CrayPEWrapperIntel):
     """Compiler toolchain with Cray cc,CC,ftn,LibSci,MPT,SHMEM."""

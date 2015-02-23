@@ -43,54 +43,157 @@ from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 
+import easybuild.tools.systemtools as systemtools
+
 TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
 
 
 class CrayPEWrapper(Compiler):
     """Base CrayPE compiler class"""
 
-    COMPILER_MODULE_NAME = ['PrgEnv']
-
+    COMPILER_MODULE_NAME = None
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
-        'verbose' : (False, "Enable verbose calls to real compiler driver."),
-        'dynamic' : (False, "Enables dynamic code generation."),
-	}
-
-    COMPILER_UNIQUE_OPTION_MAP = {
-        'verbose': 'craype-verbose',
-	    'dynamic': 'dynamic',
+        'mpich-mt': (False, """Directs the driver to link in an alternate version of the Cray-MPICH library which
+                                 provides fine-grained multi-threading support to applications that perform
+                                 MPI operations within threaded regions."""),
+        'dynamic': (True, "Directs the compiler driver to link dynamic libraries at runtime."),
+        'usewrappedcompiler': (False, "Use the embedded compiler instead of the wrapper"),
     }
 
-    COMPILER_OPT_FLAGS = []
-    COMPILER_PREC_FLAGS = []
+    COMPILER_UNIQUE_OPTION_MAP = {
+        'dynamic': 'dynamic',
+        'shared': 'shared',
+        'static': 'static',
+        'verbose': 'craype-verbose',
+        'mpich-mt': 'craympich-mt',
+        'pic': 'dynamic',
+    }
+
+    COMPILER_SHARED_OPTION_MAP = {
+        'dynamic': 'dynamic',
+        'pic': 'dynamic',
+        'verbose': 'craype-verbose',
+        'static': 'static',
+    }
+
+    # @todo this is BS.
+    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+        systemtools.INTEL: 'march=native',
+        systemtools.AMD: 'march=native'
+    }
+
+    #COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
     COMPILER_CC = 'cc'
     COMPILER_CXX = 'CC'
-    COMPILER_C_UNIQUE_FLAGS = []
-
 
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
-    COMPILER_F_UNIQUE_FLAGS = []
+
+    def _set_compiler_vars(self):
+        super(CrayPEWrapper, self)._set_compiler_vars()
+
+    def _get_optimal_architecture(self):
+        """On a Cray system we assume that the optimal architecture is controlled
+           by loading a craype module that instructs the compiler to generate backend code
+           for that particular target"""
+        pass
+
+    def _set_compiler_flags(self):
+        """Collect the flags set, and add them as variables too"""
+        flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
+        cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
+                  if self.options.get(x, False)]
+        fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
+                  if self.options.get(x, False)]
+
+        # 1st one is the one to use. add default at the end so len is at least 1
+        # optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
+        #            [self.options.option('defaultopt')]
+        #
+        # optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
+        #
+        # precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
+        #             [self.options.option('defaultprec')]
+        #
+        # self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
+        # self.variables.nextend('PRECFLAGS', precflags[:1])
+
+        # precflags last
+        self.variables.nappend('CFLAGS', flags)
+        self.variables.nappend('CFLAGS', cflags)
+        self.variables.join('CFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('CXXFLAGS', flags)
+        self.variables.nappend('CXXFLAGS', cflags)
+        self.variables.join('CXXFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('FFLAGS', flags)
+        self.variables.nappend('FFLAGS', fflags)
+        self.variables.join('FFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
+
+        self.variables.nappend('F90FLAGS', flags)
+        self.variables.nappend('F90FLAGS', fflags)
+        self.variables.join('F90FLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
 
 
-#    def _set_compiler_vars(self):
-#        super(CrayPEWrapper, self)._set_compiler_vars()
-
-#Gcc's base is Compiler
-class CrayPEWrapperGNU(Gcc):
+# Gcc's base is Compiler
+class CrayPEWrapperGNU(CrayPEWrapper):
     """Base Cray Programming Environment GNU compiler class"""
-
     COMPILER_MODULE_NAME = ['PrgEnv-gnu']
+    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
-    #COMPILER_FAMILY = TC_CONSTANT_GCC #@todo does this make sense?
+
+    def _set_compiler_vars(self):
+        if self.options.option('usewrappedcompiler'):
+
+            COMPILER_UNIQUE_OPTS = Gcc.COMPILER_UNIQUE_OPTS
+            COMPILER_UNIQUE_OPTION_MAP = Gcc.COMPILER_UNIQUE_OPTION_MAP
+
+            COMPILER_CC = Gcc.COMPILER_CC
+            COMPILER_CXX = Gcc.COMPILER_CXX
+            COMPILER_C_UNIQUE_FLAGS = []
+
+            COMPILER_F77 = Gcc.COMPILER_F77
+            COMPILER_F90 = Gcc.COMPILER_F90
+            COMPILER_F_UNIQUE_FLAGS = Gcc.COMPILER_F_UNIQUE_FLAGS
+
+            super(CrayPEWrapperGNU, self)._set_compiler_vars()
+        else:
+            super(CrayPEWrapper, self)._set_compiler_vars()
 
 
-class CrayPEWrapperIntel(CrayPEWrapper,IntelIccIfort):
+class CrayPEWrapperIntel(CrayPEWrapper):
+    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
+
     COMPILER_MODULE_NAME = ['PrgEnv-intel']
+
+    def _set_compiler_vars(self):
+        if self.options.option("usewrappedcompiler"):
+            COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
+            COMPILER_UNIQUE_OPTION_MAP = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP
+
+            COMPILER_CC = IntelIccIfort.COMPILER_CC
+
+            COMPILER_CXX = IntelIccIfort.COMPILER_CXX
+            COMPILER_C_UNIQUE_FLAGS = IntelIccIfort.COMPILER_C_UNIQUE_FLAGS
+
+            COMPILER_F77 = IntelIccIfort.COMPILER_F77
+            COMPILER_F90 = IntelIccIfort.COMPILER_F90
+            COMPILER_F_UNIQUE_FLAGS = IntelIccIfort.COMPILER_F_UNIQUE_FLAGS
+
+            LINKER_TOGGLE_STATIC_DYNAMIC = IntelIccIfort.LINKER_TOGGLE_STATIC_DYNAMIC
+
+            super(CrayPEWrapperIntel, self).set_compiler_vars()
+        else:
+            super(CrayPEWrapper, self)._set_compiler_vars()
 
 
 class CrayPEWrapperCray(CrayPEWrapper):
-    pass
+    TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
+    COMPILER_MODULE_NAME = ['PrgEnv-cray']
+
+    def _set_compiler_vars(self):
+        super(CrayPEWrapperCray, self)._set_compiler_vars()

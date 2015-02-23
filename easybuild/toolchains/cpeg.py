@@ -27,7 +27,7 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import *
+from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperGNU
 
 class cpeg(CrayPEWrapperGNU):
     """Compiler toolchain with Cray cc,CC,ftn,LibSci,MPT,SHMEM."""
