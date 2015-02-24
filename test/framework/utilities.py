@@ -73,8 +73,8 @@ for key in os.environ.keys():
     if key.startswith(test_env_var_prefix):
         val = os.environ[key]
         del os.environ[key]
-        key = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
-        os.environ[key] = val
+        newkey = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
+        os.environ[newkey] = val
 
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
