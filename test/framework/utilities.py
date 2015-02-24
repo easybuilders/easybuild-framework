@@ -51,31 +51,30 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions
 
 
 # make sure tests are robust against any non-default configuration settings;
 # involves ignoring any existing configuration files that are picked up, and cleaning the environment
 # this is tackled here rather than in suite.py, to make sure this is also done when test modules are ran separately
 
-# keep track of any $EASYBUILD_TEST_X environment variables
-test_env_var_prefix = 'EASYBUILD_TEST_'
-eb_test_env_vars = dict([(key, val) for (key, val) in os.environ.items() if key.startswith(test_env_var_prefix)])
-
 # clean up environment from unwanted $EASYBUILD_X env vars
 for key in os.environ.keys():
-    if key.startswith('EASYBUILD_'):
+    if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
 # ignore any existing configuration files
 go = EasyBuildOptions(go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
-# redefine $EASYBUILD_TEST_X env vars as $EASYBUILD_X
-for testkey, val in eb_test_env_vars.items():
-    key = 'EASYBUILD_%s' % testkey[len(test_env_var_prefix):]
-    os.environ[key] = val
-
+# redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
+test_env_var_prefix = 'TEST_EASYBUILD_'
+for key in os.environ.keys():
+    if key.startswith(test_env_var_prefix):
+        val = os.environ[key]
+        del os.environ[key]
+        key = '%s_%s' % (CONFIG_ENV_VAR_PREFIX, key[len(test_env_var_prefix):])
+        os.environ[key] = val
 
 class EnhancedTestCase(_EnhancedTestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
