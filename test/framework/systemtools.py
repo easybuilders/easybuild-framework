@@ -27,7 +27,7 @@ Unit tests for systemtools.py
 
 @author: Kenneth hoste (Ghent University)
 """
-import os
+import re
 from os.path import exists as orig_os_path_exists
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
@@ -36,7 +36,7 @@ import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
 from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
-from easybuild.tools.systemtools import get_avail_core_count
+from easybuild.tools.systemtools import det_parallelism, get_avail_core_count
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info
@@ -153,10 +153,12 @@ def mocked_os_path_exists(mocked_fp, fp):
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
+        "ldd --version" : "ldd (GNU libc) 2.12",
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
         "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
+        "ulimit -u": '40',
     }
     if cmd in known_cmds:
         if 'simple' in kwargs and kwargs['simple']:
@@ -290,6 +292,12 @@ class SystemToolsTest(EnhancedTestCase):
         ext = get_shared_lib_ext()
         self.assertTrue(ext in ['dylib', 'so'])
 
+        st.get_os_type = lambda: st.LINUX
+        self.assertEqual(get_shared_lib_ext(), 'so')
+
+        st.get_os_type = lambda: st.DARWIN
+        self.assertEqual(get_shared_lib_ext(), 'dylib')
+
     def test_platform_name(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
@@ -302,6 +310,12 @@ class SystemToolsTest(EnhancedTestCase):
         len_ver = len(platform_name_ver.split('-'))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
+
+        st.get_os_type = lambda: st.LINUX
+        self.assertTrue(re.match('.*-unknown-linux$', get_platform_name()))
+
+        st.get_os_type = lambda: st.DARWIN
+        self.assertTrue(re.match('.*-apple-darwin$', get_platform_name()))
 
     def test_os_name(self):
         """Test getting OS name."""
@@ -318,10 +332,41 @@ class SystemToolsTest(EnhancedTestCase):
         glibc_version = get_glibc_version()
         self.assertTrue(isinstance(glibc_version, basestring) or glibc_version == UNKNOWN)
 
+        st.get_os_type = lambda: st.LINUX
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_glibc_version(), '2.12')
+
+        st.get_os_type = lambda: st.DARWIN
+        self.assertEqual(get_glibc_version(), UNKNOWN)
+
     def test_system_info(self):
         """Test getting system info."""
         system_info = get_system_info()
         self.assertTrue(isinstance(system_info, dict))
+
+    def test_det_parallelism(self):
+        """Test det_parallelism function."""
+        self.assertTrue(det_parallelism(None, None) > 0)
+        # specified parallellism
+        self.assertEqual(det_parallelism(5, None), 5)
+        # max parallellism caps
+        self.assertEqual(det_parallelism(None, 1), 1)
+        self.assertEqual(det_parallelism(16, 1), 1)
+        self.assertEqual(det_parallelism(5, 2), 2)
+        self.assertEqual(det_parallelism(5, 10), 5)
+
+        orig_get_avail_core_count = st.get_avail_core_count
+
+        # mock number of available cores to 8
+        st.get_avail_core_count = lambda: 8
+        self.assertTrue(det_parallelism(None, None), 8)
+        # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
+        st.run_cmd = mocked_run_cmd
+        self.assertTrue(det_parallelism(None, None), 4)
+        self.assertTrue(det_parallelism(6, None), 4)
+        self.assertTrue(det_parallelism(2, None), 2)
+
+        st.get_avail_core_count = orig_get_avail_core_count
 
 def suite():
     """ returns all the testcases in this module """
