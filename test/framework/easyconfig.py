@@ -43,9 +43,9 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, det_installversion
+from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig, fix_broken_easyconfig
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -53,7 +53,6 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
-from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -1015,47 +1014,6 @@ class EasyConfigTest(EnhancedTestCase):
         reload(easyconfig.parser)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
-
-    def test_fix_broken_easyconfig(self):
-        """Test fix_broken_easyconfig function."""
-        # local import, since test easyblocks need to be made available first by setUp
-        from easybuild.easyblocks.toy import EB_toy
-
-        broken_ec_txt = '\n'.join([
-            "# licenseheader",
-            "name = 'foo'",
-            "version = '1.2.3'",
-            '',
-            "description = 'foo'",
-            "homepage = 'http://example.com'",
-            '',
-            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
-            '',
-            "premakeopts = 'FOO=libfoo.%s' % shared_lib_ext",
-            "makeopts = 'CC=gcc'",
-            '',
-            "license = 'foo.lic'",
-        ])
-        fixed_ec_txt = '\n'.join([
-            "# licenseheader",
-            "name = 'foo'",
-            "version = '1.2.3'",
-            '',
-            "description = 'foo'",
-            "homepage = 'http://example.com'",
-            '',
-            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
-            '',
-            "prebuildopts = 'FOO=libfoo.%s' % SHLIB_EXT",
-            "buildopts = 'CC=gcc'",
-            '',
-            "license_file = 'foo.lic'",
-        ])
-        self.assertEqual(fix_broken_easyconfig(broken_ec_txt, EB_toy), fixed_ec_txt)
-
-        lines = fixed_ec_txt.split('\n')
-        fixed_ec_txt = '\n'.join([lines[0], "easyblock = 'ConfigureMake'", ''] + lines[1:])
-        self.assertEqual(fix_broken_easyconfig(broken_ec_txt, None), fixed_ec_txt)
 
     def test_unknown_easyconfig_parameter(self):
         """Check behaviour when unknown easyconfig parameters are used."""

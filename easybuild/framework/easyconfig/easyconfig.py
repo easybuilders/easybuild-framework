@@ -39,7 +39,6 @@ import copy
 import difflib
 import os
 import re
-import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
@@ -47,7 +46,7 @@ from vsc.utils.patterns import Singleton
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file, write_file
+from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
@@ -62,7 +61,7 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
 from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
-from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig, fix_broken_easyconfig
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
@@ -134,9 +133,6 @@ class EasyConfig(object):
 
         # obtain name and easyblock specifications from raw easyconfig contents
         self.software_name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
-
-        # try and fix potentially broken easyconfig, if requested
-        self.fix_broken()
 
         # determine line of extra easyconfig parameters
         if extra_options is None:
@@ -219,25 +215,6 @@ class EasyConfig(object):
         else:
             self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
 
-    def fix_broken(self):
-        """
-        Try and fix this easyconfig's raw contents, if it's broken and fixing is requested.
-        """
-        if build_option('fix_broken_easyconfigs'):
-            derived_easyblock_class = get_easyblock_class(self.easyblock, name=self.software_name, default_fallback=False)
-            fixed_rawtxt = fix_broken_easyconfig(self.rawtxt, derived_easyblock_class)
-            if self.rawtxt != fixed_rawtxt:
-                self.rawtxt = fixed_rawtxt
-                self.path = os.path.join(tempfile.gettempdir(), os.path.basename(self.path))
-                write_file(self.path, self.rawtxt)
-                self.log.info("Replacing broken supplied easyconfig with fixed copy %s" % self.path)
-                self.log.info("Contents of fixed easyconfig file: %s" % self.rawtxt)
-
-                # redetermine easyblock from easyconfig, since it may have changed
-                self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['easyblock'])[0]
-            else:
-                self.log.debug("Nothing broken detected in supplied easyconfig %s, so nothing fixed" % self.path)
-
     def parse(self):
         """
         Parse the file and set options
@@ -252,14 +229,14 @@ class EasyConfig(object):
             self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
-        self.log.info("Parsing easyconfig file %s" % self.path)
-        parser = EasyConfigParser(self.path)
+        self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
+        parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
         # make sure all mandatory parameters are defined
-        # this includes both generic mandatory parameters, as software-specific parameters defined via extra_options
+        # this includes both generic mandatory parameters and software-specific parameters defined via extra_options
         missing_mandatory_keys = [key for key in self.mandatory if key not in local_vars]
         if missing_mandatory_keys:
             self.log.error("mandatory parameters not provided in %s: %s" % (self.path, missing_mandatory_keys))

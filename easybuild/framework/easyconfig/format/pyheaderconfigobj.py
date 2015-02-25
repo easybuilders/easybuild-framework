@@ -227,7 +227,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         """
         Basic validation of pyheader localvars.
         This takes parameter names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY;
-        blacklisted vparameter are not allowed, mandatory vparameter are mandatory unless blacklisted
+        blacklisted parameters are not allowed, mandatory parameters are mandatory unless blacklisted
         """
         if self.pyheader_localvars is None:
             self.log.error("self.pyheader_localvars must be initialized")

@@ -72,46 +72,12 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     return param_values
 
 
-def fix_broken_easyconfig(ectxt, easyblock_class):
-    """
-    Fix easyconfig file at specified location, that may be broken due to non-backwards-compatible changes.
-    @param ectxt: raw contents of easyconfig to fix
-    @param easyblock_class: easyblock class, as derived from software name/specified easyblock
-    """
-    _log.debug("Raw contents of potentially broken easyconfig file to fix: %s" % ectxt)
-
-    subs = {
-        # replace former 'magic' variable shared_lib_ext with SHLIB_EXT constant
-        'shared_lib_ext': 'SHLIB_EXT',
-        'name': 'name',
-    }
-    # include replaced easyconfig parameters
-    subs.update(REPLACED_PARAMETERS)
-
-    # check whether any substitions need to be made
-    for old, new in subs.items():
-        regex = re.compile(r'(\W)%s(\W)' % old)
-        if regex.search(ectxt):
-            tup = (regex.pattern, old, new)
-            _log.info("Broken stuff detected using regex pattern '%s', replacing '%s' with '%s'" % tup)
-            ectxt = regex.sub(r'\1%s\2' % new, ectxt)
-
-    # check whether missing "easyblock = 'ConfigureMake'" needs to be inserted
-    if easyblock_class is None:
-        # prepend "easyblock = 'ConfigureMake'" to line containing "name =..."
-        easyblock_spec = "easyblock = 'ConfigureMake'"
-        _log.info("Inserting \"%s\", since no easyblock class was derived from easyconfig parameters" % easyblock_spec)
-        ectxt = re.sub(r'(\s*)(name\s*=)', r"\1%s\n\n\2" % easyblock_spec, ectxt, re.M)
-
-    return ectxt
-
-
 class EasyConfigParser(object):
     """Read the easyconfig file, return a parsed config object
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None):
+    def __init__(self, filename=None, format_version=None, rawcontent=None):
         """Initialise the EasyConfigParser class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -126,6 +92,11 @@ class EasyConfigParser(object):
         if filename is not None:
             self._check_filename(filename)
             self.process()
+        elif rawcontent is not None:
+            self.rawcontent = rawcontent
+            self._set_formatter()
+        else:
+            self.log.error("Neither filename nor rawcontent provided to EasyConfigParser")
 
     def process(self, filename=None):
         """Create an instance"""
