@@ -156,6 +156,7 @@ class ModulesToolTest(EnhancedTestCase):
         if lmod_abspath is not None:
             build_options = {
                 'allow_modules_tool_mismatch': True,
+                'update_modules_tool_cache': True,
             }
             init_config(build_options=build_options)
 

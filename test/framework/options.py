@@ -44,15 +44,26 @@ from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
+
+# test account, for which a token is available
+GITHUB_TEST_ACCOUNT = 'easybuild_test'
+
+
 class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
 
     logfile = None
+
+    def setUp(self):
+        """Set up test."""
+        super(CommandLineOptionsTest, self).setUp()
+        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -622,6 +633,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -792,6 +806,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_from_pr(self):
         """Test fetching easyconfigs from a PR."""
+        if self.github_token is None:
+            print "Skipping test_from_pr, no GitHub token available?"
+            return
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -803,7 +821,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
@@ -839,6 +857,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
+        if self.github_token is None:
+            print "Skipping test_from_pr, no GitHub token available?"
+            return
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -862,7 +884,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
@@ -1406,6 +1428,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
 
@@ -1454,8 +1479,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
-        for ec in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
-            ec_regex = re.compile('^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ec), re.M)
+        for ecfile in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
+            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
 

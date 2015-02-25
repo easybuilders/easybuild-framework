@@ -66,10 +66,12 @@ from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 
 
+CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
+
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
-DEFAULT_SYSTEM_CONFIGFILES = [f for d in XDG_CONFIG_DIRS for f in glob.glob(os.path.join(d, 'easybuild.d', '*.cfg'))]
-DEFAULT_USER_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
+DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -77,7 +79,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = DEFAULT_SYSTEM_CONFIGFILES + [DEFAULT_USER_CONFIGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
@@ -182,7 +184,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -195,6 +197,8 @@ class EasyBuildOptions(GeneralOption):
                             str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
                         None, 'store_true', False, 'p'),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
@@ -202,8 +206,8 @@ class EasyBuildOptions(GeneralOption):
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
-                        None, 'store', None),
+            'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
+                                          None, 'store_true', False),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -315,7 +319,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
         })
@@ -638,7 +642,8 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix='EASYBUILD', go_args=args)
+    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                             go_args=args)
     return eb_go
 
 

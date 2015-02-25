@@ -937,7 +937,7 @@ class EasyBlock(object):
             txt = "\n"
             for key in sorted(requirements):
                 for path in requirements[key]:
-                    paths = glob.glob(path)
+                    paths = sorted(glob.glob(path))
                     if paths:
                         txt += self.module_generator.prepend_paths(key, paths)
             try:
@@ -1654,7 +1654,10 @@ class EasyBlock(object):
 
         self.log.info("Module file %s written" % self.module_generator.filename)
 
-        self.modules_tool.update()
+         # only update after generating final module file
+        if not fake:
+            self.modules_tool.update()
+
         self.module_generator.create_symlinks()
 
         if not fake:

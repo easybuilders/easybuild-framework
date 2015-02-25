@@ -59,9 +59,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
-        for path in ['buildpath', 'installpath', 'sourcepath', 'prefix']:
-            var = 'EASYBUILD_%s' % path.upper()
-            if var in os.environ:
+        for var in os.environ.keys():
+            if var.startswith('EASYBUILD_'):
                 del os.environ[var]
 
     def tearDown(self):
