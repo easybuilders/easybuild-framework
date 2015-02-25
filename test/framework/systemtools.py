@@ -46,6 +46,41 @@ MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 
 PROC_CPUINFO_TXT = None
+PROC_CPUINFO_TXT_ARM = """processor : 0
+model name : ARMv7 Processor rev 5 (v7l)
+BogoMIPS : 57.60
+Features : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant : 0x0
+CPU part : 0xc07
+CPU revision : 5
+ 
+processor : 1
+model name : ARMv7 Processor rev 5 (v7l)
+BogoMIPS : 57.60
+Features : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant : 0x0
+CPU part : 0xc07
+CPU revision : 5 
+"""
+PROC_CPUINFO_TXT_POWER = """processor	: 0
+cpu		: POWER7 (architected), altivec supported
+clock		: 3550.000000MHz
+revision	: 2.3 (pvr 003f 0203)
+ 
+processor	: 13
+cpu		: POWER7 (architected), altivec supported
+clock		: 3550.000000MHz
+revision	: 2.3 (pvr 003f 0203)
+ 
+timebase	: 512000000
+platform	: pSeries
+model		: IBM,8205-E6C
+machine		: CHRP IBM,8205-E6C
+"""
 PROC_CPUINFO_TXT_X86 = """processor	: 0
 vendor_id	: GenuineIntel
 cpu family	: 6
@@ -98,22 +133,6 @@ cache_alignment	: 64
 address sizes	: 46 bits physical, 48 bits virtual
 power management:
 """
-PROC_CPUINFO_TXT_POWER = """
-processor	: 0
-cpu		: POWER7 (architected), altivec supported
-clock		: 3550.000000MHz
-revision	: 2.3 (pvr 003f 0203)
- 
-processor	: 13
-cpu		: POWER7 (architected), altivec supported
-clock		: 3550.000000MHz
-revision	: 2.3 (pvr 003f 0203)
- 
-timebase	: 512000000
-platform	: pSeries
-model		: IBM,8205-E6C
-machine		: CHRP IBM,8205-E6C
-"""
 
 
 def mocked_read_file(fp):
@@ -139,6 +158,7 @@ def mocked_run_cmd(cmd, **kwargs):
     known_cmds = {
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
+        "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
     }
     if cmd in known_cmds:
         if 'simple' in kwargs and kwargs['simple']:
@@ -226,6 +246,22 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU vendor."""
         cpu_vendor = get_cpu_vendor()
         self.assertTrue(cpu_vendor in [AMD, ARM, INTEL, UNKNOWN])
+
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+
+        global PROC_CPUINFO_TXT
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        self.assertEqual(get_cpu_vendor(), INTEL)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        self.assertEqual(get_cpu_vendor(), ARM)
+
+        st.os.path.exists = self.orig_os_path_exists
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_cpu_vendor(), INTEL)
 
     def test_os_type(self):
         """Test getting OS type."""

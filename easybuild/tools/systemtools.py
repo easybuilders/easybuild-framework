@@ -58,6 +58,11 @@ UNKNOWN = 'UNKNOWN'
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 
+VENDORS = {
+    'GenuineIntel': INTEL,
+    'AuthenticAMD': AMD,
+}
+
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
@@ -94,52 +99,49 @@ def get_core_count():
 
 
 def get_cpu_vendor():
-    """Try to detect the cpu identifier
-
-    will return INTEL, ARM or AMD constant
     """
-    regexp = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
-    VENDORS = {
-        'GenuineIntel': INTEL,
-        'AuthenticAMD': AMD,
-    }
+    Try to detect the CPU vendor
+
+    @return: INTEL, ARM or AMD constant
+    """
+    vendor = None
     os_type = get_os_type()
 
-    if os_type == LINUX:
-        try:
-            txt = read_file(PROC_CPUINFO_FP, log_error=False)
-            arch = UNKNOWN
-            # vendor_id might not be in the /proc/cpuinfo, so this might fail
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if arch in VENDORS:
-                return VENDORS[arch]
+    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+        txt = read_file(PROC_CPUINFO_FP)
+        arch = UNKNOWN
 
-            # some embeded linux on arm behaves differently (e.g. raspbian)
-            regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*", re.M)
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if ARM in arch:
-                return ARM
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining CPU vendor since: %s" % err)
+        # vendor_id might not be in the /proc/cpuinfo, so this might fail
+        vendor_regex = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
+        res = vendor_regex.search(txt)
+        if res:
+            arch = res.group('vendorid')
+        if arch in VENDORS:
+            vendor = VENDORS[arch]
+            tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
+
+        # embedded Linux on ARM behaves differently (e.g. Raspbian)
+        vendor_regex = re.compile(r".*:\s*(?P<vendorid>ARM\S+)\s*", re.M)
+        res = vendor_regex.search(txt)
+        if res:
+            vendor = ARM
+            tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
 
     elif os_type == DARWIN:
-        out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
+        cmd = "sysctl -n machdep.cpu.vendor"
+        out, ec = run_cmd(cmd)
         out = out.strip()
-        if not exitcode and out and out in VENDORS:
-            return VENDORS[out]
+        if ec == 0 and out and out in VENDORS:
+            vendor = VENDORS[out]
+            _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
-    else:
-        # BSD
-        out, exitcode = run_cmd("sysctl -n hw.model")
-        out = out.strip()
-        if not exitcode and out:
-            return out.split(' ')[0]
+    if vendor is None:
+        vendor = UNKNOWN
+        _log.warning("Could not determine CPU vendor on %s, returning %s" % (os_type, vendor))
 
-    return UNKNOWN
+    return vendor
 
 
 def get_cpu_model():
