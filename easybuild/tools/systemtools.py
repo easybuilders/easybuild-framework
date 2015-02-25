@@ -58,6 +58,9 @@ DARWIN = 'Darwin'
 
 UNKNOWN = 'UNKNOWN'
 
+MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
+PROC_CPUINFO_FP = '/proc/cpuinfo'
+
 
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
@@ -89,7 +92,7 @@ def get_avail_core_count():
 
         # determine total number of cores via /proc/cpuinfo
         try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
+            txt = read_file(PROC_CPUINFO_FP, log_error=False)
             # sometimes this is uppercase
             max_num_cores = txt.lower().count('processor\t:')
         except IOError, err:
@@ -146,7 +149,7 @@ def get_cpu_vendor():
 
     if os_type == LINUX:
         try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
+            txt = read_file(PROC_CPUINFO_FP, log_error=False)
             arch = UNKNOWN
             # vendor_id might not be in the /proc/cpuinfo, so this might fail
             res = regexp.search(txt)
@@ -191,7 +194,7 @@ def get_cpu_model():
     if os_type == LINUX:
         regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
         try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
+            txt = read_file(PROC_CPUINFO_FP, log_error=False)
             if txt is not None:
                 res = regexp.search(txt)
                 if res is not None:
@@ -213,58 +216,47 @@ def get_cpu_speed():
     Returns the (maximum) cpu speed in MHz, as a float value.
     In case of throttling, the highest cpu speed is returns.
     """
+    cpu_freq = None
     os_type = get_os_type()
+
     if os_type == LINUX:
-        try:
-            # Linux with cpu scaling
-            max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-            _log.debug("Trying to determine CPU frequency via %s" % max_freq_fp)
-            try:
-                f = open(max_freq_fp, 'r')
-                cpu_freq = float(f.read())/1000
-                f.close()
-                return cpu_freq
-            except IOError, err:
-                _log.debug("Failed to read %s to determine max. CPU clock frequency with CPU scaling: %s" % (max_freq_fp, err))
+        # Linux with cpu scaling
+        if os.path.exists(MAX_FREQ_FP):
+            _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
+            txt = read_file(MAX_FREQ_FP)
+            cpu_freq = float(txt)/1000
 
-            # Linux without cpu scaling
-            cpuinfo_fp = '/proc/cpuinfo'
-            _log.debug("Trying to determine CPU frequency via %s" % cpuinfo_fp)
-            try:
-                cpu_freq = None
-                cpuinfo_txt = open(cpuinfo_fp, 'r').read()
-                cpu_freq_patterns = [
-                    r"^cpu MHz\s*:\s*(?P<cpu_freq>[0-9.]+)",  # Linux x86 & more
-                    r"^clock\s*:\s*(?P<cpu_freq>[0-9.]+)",  # Linux on POWER
-                ]
-                for cpu_freq_pattern in cpu_freq_patterns:
-                    cpu_freq_re = re.compile(cpu_freq_pattern, re.M)
-                    res = cpu_freq_re.search(cpuinfo_txt)
-                    if res:
-                        cpu_freq = res.group('cpu_freq')
-                        _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_pattern, cpu_freq))
-                        break
-                    else:
-                        _log.debug("Failed to determine CPU frequency using regex '%s'" % cpu_freq_re.pattern)
-                if cpu_freq is None:
-                    raise SystemToolsException("Failed to determine CPU frequency from %s" % cpuinfo_fp)
-                else:
-                    return float(cpu_freq)
-            except IOError, err:
-                _log.debug("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
-
-        except (IOError, OSError), err:
-            raise SystemToolsException("Determining CPU speed failed, exception occured: %s" % err)
+        # Linux without cpu scaling
+        elif os.path.exists(PROC_CPUINFO_FP):
+            _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
+            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            cpu_freq_regex = r"(%s)" % '|'.join([
+                r"^cpu MHz\s*:\s*(?P<cpu_freq_x86>[0-9.]+)",  # Linux x86 & more
+                r"^clock\s*:\s*(?P<cpu_freq_POWER>[0-9.]+)",  # Linux on POWER
+            ])
+            res = re.search(cpu_freq_regex, cpuinfo_txt, re.M)
+            if res:
+                cpu_freq = res.group('cpu_freq_x86') or res.group('cpu_freq_POWER')
+            if cpu_freq is not None:
+                cpu_freq = float(cpu_freq)
+                _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex, cpu_freq))
+            else:
+                raise SystemToolsException("Failed to determine CPU frequency from %s" % PROC_CPUINFO_FP)
+        else:
+            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
-        # OS X
-        out, ec = run_cmd("sysctl -n hw.cpufrequency_max")
-        # returns clock frequency in cycles/sec, but we want MHz
-        mhz = float(out.strip())/(1000**2)
+        cmd = "sysctl -n hw.cpufrequency_max"
+        _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
+        out, ec = run_cmd(cmd)
         if ec == 0:
-            return mhz
+            # returns clock frequency in cycles/sec, but we want MHz
+            cpu_freq = float(out.strip())/(1000**2)
 
-    raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
+    else:
+        raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
+
+    return cpu_freq
 
 
 def get_kernel_name():
