@@ -47,6 +47,7 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 # constants
 AMD = 'AMD'
 ARM = 'ARM'
+IBM = 'IBM'
 INTEL = 'Intel'
 POWER = 'POWER'
 
@@ -60,8 +61,10 @@ PROC_CPUINFO_FP = '/proc/cpuinfo'
 
 CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
 VENDORS = {
-    'GenuineIntel': INTEL,
+    'ARM': ARM,
     'AuthenticAMD': AMD,
+    'GenuineIntel': INTEL,
+    'IBM': IBM,
 }
 
 
@@ -112,21 +115,16 @@ def get_cpu_vendor():
         txt = read_file(PROC_CPUINFO_FP)
         arch = UNKNOWN
 
-        # vendor_id might not be in the /proc/cpuinfo, so this might fail
-        vendor_regex = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
+        vendor_regexes = [
+            r"^vendor_id\s+:\s*(\S+)\s*$",  # Linux/x86
+            r".*:\s*(ARM|IBM).*$",  # Linux/ARM (e.g., Raspbian), Linux/POWER
+        ]
+        vendor_regex = re.compile('|'.join(vendor_regexes), re.M)
         res = vendor_regex.search(txt)
         if res:
-            arch = res.group('vendorid')
+            arch = res.group(1) or res.group(2)
         if arch in VENDORS:
             vendor = VENDORS[arch]
-            tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
-            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
-
-        # embedded Linux on ARM behaves differently (e.g. Raspbian)
-        vendor_regex = re.compile(r".*:\s*(?P<vendorid>ARM\S+)\s*", re.M)
-        res = vendor_regex.search(txt)
-        if res:
-            vendor = ARM
             tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
             _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
 

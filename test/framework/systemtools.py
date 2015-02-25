@@ -35,7 +35,7 @@ from unittest import TestLoader, main
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import CPU_FAMILIES, AMD, ARM, DARWIN, INTEL, LINUX, POWER, UNKNOWN
+from easybuild.tools.systemtools import CPU_FAMILIES, AMD, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
@@ -285,6 +285,9 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
         self.assertEqual(get_cpu_vendor(), INTEL)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        self.assertEqual(get_cpu_vendor(), IBM)
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
         self.assertEqual(get_cpu_vendor(), ARM)
