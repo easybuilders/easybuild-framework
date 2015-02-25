@@ -72,7 +72,6 @@ class CrayPEWrapper(Compiler):
     }
 
     COMPILER_SHARED_OPTION_MAP = {
-        'dynamic': 'dynamic',
         'pic': 'dynamic',
         'verbose': 'craype-verbose',
         'static': 'static',
