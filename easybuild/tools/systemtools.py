@@ -48,7 +48,7 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 AMD = 'AMD'
 ARM = 'ARM'
 INTEL = 'Intel'
-PPC = 'PPC'
+POWER = 'POWER'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -58,6 +58,7 @@ UNKNOWN = 'UNKNOWN'
 MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 PROC_CPUINFO_FP = '/proc/cpuinfo'
 
+CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
 VENDORS = {
     'GenuineIntel': INTEL,
     'AuthenticAMD': AMD,
@@ -143,6 +144,33 @@ def get_cpu_vendor():
 
     return vendor
 
+
+def get_cpu_family():
+    """
+    Determine CPU family.
+    @return: one of the AMD, ARM, INTEL, POWER constants
+    """
+    family = None
+    vendor = get_cpu_vendor()
+    if vendor in CPU_FAMILIES:
+        family = vendor
+        _log.debug("Using vendor as CPU family: %s" % family)
+
+    else:
+        # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
+        if os.path.exists(PROC_CPUINFO_FP):
+            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
+            if power_regex.search(cpuinfo_txt):
+                family = POWER
+                tup = (power_regex.pattern, PROC_CPUINFO_FP, family)
+                _log.debug("Determined CPU family using regex '%s' in %s: %s" % tup)
+
+    if family is None:
+        family = UNKNOWN
+        _log.warning("Failed to determine CPU family, returning %s" % family)
+
+    return family
 
 def get_cpu_model():
     """

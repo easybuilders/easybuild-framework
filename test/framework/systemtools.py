@@ -35,8 +35,8 @@ from unittest import TestLoader, main
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import AMD, ARM, DARWIN, INTEL, LINUX, UNKNOWN
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count
+from easybuild.tools.systemtools import CPU_FAMILIES, AMD, ARM, DARWIN, INTEL, LINUX, POWER, UNKNOWN
+from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info
@@ -185,6 +185,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.os.path.exists = self.orig_os_path_exists
         st.read_file = self.orig_read_file
         st.get_os_type = self.orig_get_os_type
+        st.run_cmd = self.orig_run_cmd
         super(SystemToolsTest, self).tearDown()
 
     def test_avail_core_count(self):
@@ -281,6 +282,30 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_vendor(), INTEL)
+
+    def test_cpu_family(self):
+        """Test get_cpu_family function."""
+        cpu_family = get_cpu_family()
+        self.assertTrue(cpu_family in CPU_FAMILIES or cpu_family == UNKNOWN)
+
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+
+        global PROC_CPUINFO_TXT
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        self.assertEqual(get_cpu_family(), INTEL)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        self.assertEqual(get_cpu_family(), ARM)
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        self.assertEqual(get_cpu_family(), POWER)
+
+        st.os.path.exists = self.orig_os_path_exists
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_cpu_family(), INTEL)
 
     def test_os_type(self):
         """Test getting OS type."""
