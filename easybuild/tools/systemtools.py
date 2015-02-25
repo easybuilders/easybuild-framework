@@ -134,7 +134,7 @@ def get_cpu_vendor():
         cmd = "sysctl -n machdep.cpu.vendor"
         out, ec = run_cmd(cmd)
         out = out.strip()
-        if ec == 0 and out and out in VENDORS:
+        if ec == 0 and out in VENDORS:
             vendor = VENDORS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
