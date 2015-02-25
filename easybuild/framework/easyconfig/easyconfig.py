@@ -182,6 +182,9 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
+        # filter hidden dependencies from list of dependencies
+        self.filter_hidden_deps()
+
         # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
@@ -263,7 +266,7 @@ class EasyConfig(object):
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
-                          for key in local_vars if key not in self._config]
+                          for key in local_vars if key not in self]
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
@@ -303,11 +306,12 @@ class EasyConfig(object):
 
     def validate(self, check_osdeps=True):
         """
-        Validate this EasyConfig
-        - check certain variables
-        TODO: move more into here
+        Validate this easyonfig
+        - ensure certain easyconfig parameters are set to a known value (see self.validations)
+        - check OS dependencies
+        - check license
         """
-        self.log.info("Validating easy block")
+        self.log.info("Validating easyconfig")
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
@@ -327,9 +331,6 @@ class EasyConfig(object):
 
         self.log.info("Checking licenses")
         self.validate_license()
-
-        self.log.info("Checking whether list of hidden dependencies is a subset of list of dependencies")
-        self.validate_hiddendeps()
 
     def validate_license(self):
         """Validate the license"""
@@ -398,10 +399,9 @@ class EasyConfig(object):
 
         return True
 
-    def validate_hiddendeps(self):
+    def filter_hidden_deps(self):
         """
-        Validate that list of hidden dependencies is a subset of the list of dependencies.
-        The list of dependencies is adjusted to only include non-hidden dependencies.
+        Filter hidden dependencies from list of dependencies.
         """
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
@@ -416,6 +416,7 @@ class EasyConfig(object):
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
+                self.log.warning("Hidden dependency %s not in list of dependencies" % visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
@@ -652,33 +653,42 @@ class EasyConfig(object):
                 del self.template_values[k]
 
     @handle_deprecated_or_replaced_easyconfig_parameters
+    def __contains__(self, key):
+        """Check whether easyconfig parameter is defined"""
+        return key in self._config
+
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
-        """
-        will return the value without the help text
-        """
-        value = self._config[key][0]
+        """Return value of specified easyconfig parameter (without help text, etc.)"""
+        value = None
+        if key in self._config:
+            value = self._config[key][0]
+        else:
+            self.log.error("Use of unknown easyconfig parameter '%s' when getting parameter value" % key)
+
         if self.enable_templating:
             if self.template_values is None or len(self.template_values) == 0:
                 self.generate_template_values()
-            return resolve_template(value, self.template_values)
-        else:
-            return value
+            value = resolve_template(value, self.template_values)
+
+        return value
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
-        """
-        sets the value of key in config.
-        help text is untouched
-        """
-        self._config[key][0] = value
+        """Set value of specified easyconfig parameter (help text & co is left untouched)"""
+        if key in self._config:
+            self._config[key][0] = value
+        else:
+            tup = (key, value)
+            self.log.error("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'" % tup)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
         """
         Gets the value of a key in the config, with 'default' as fallback.
         """
-        if key in self._config:
-            return self.__getitem__(key)
+        if key in self:
+            return self[key]
         else:
             return default
 

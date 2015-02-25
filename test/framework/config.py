@@ -59,9 +59,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
-        for path in ['buildpath', 'installpath', 'sourcepath', 'prefix']:
-            var = 'EASYBUILD_%s' % path.upper()
-            if var in os.environ:
+        for var in os.environ.keys():
+            if var.startswith('EASYBUILD_'):
                 del os.environ[var]
 
     def tearDown(self):
@@ -335,7 +334,91 @@ class EasyBuildConfigTest(EnhancedTestCase):
         bo2 = BuildOptions()
         self.assertTrue(bo is bo2)
 
+    def test_XDG_CONFIG_env_vars(self):
+        """Test effect of XDG_CONFIG* environment variables on default configuration."""
+        self.purge_environment()
 
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
+        xdg_config_dirs = os.environ.get('XDG_CONFIG_DIRS')
+
+        cfg_template = '\n'.join([
+            '[config]',
+            'prefix=%s',
+        ])
+
+        homedir = os.path.join(self.test_prefix, 'homedir', '.config')
+        mkdir(os.path.join(homedir, 'easybuild'), parents=True)
+        write_file(os.path.join(homedir, 'easybuild', 'config.cfg'), cfg_template % '/home')
+
+        dir1 = os.path.join(self.test_prefix, 'dir1')
+        mkdir(os.path.join(dir1, 'easybuild.d'), parents=True)
+        write_file(os.path.join(dir1, 'easybuild.d', 'foo.cfg'), cfg_template % '/foo')
+        write_file(os.path.join(dir1, 'easybuild.d', 'bar.cfg'), cfg_template % '/bar')
+
+        dir2 = os.path.join(self.test_prefix, 'dir2')  # empty on purpose
+        mkdir(os.path.join(dir2, 'easybuild.d'), parents=True)
+
+        dir3 = os.path.join(self.test_prefix, 'dir3')
+        mkdir(os.path.join(dir3, 'easybuild.d'), parents=True)
+        write_file(os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'), cfg_template % '/foobarbaz')
+
+        # only $XDG_CONFIG_HOME set
+        os.environ['XDG_CONFIG_HOME'] = homedir
+        cfg_files = [os.path.join(homedir, 'easybuild', 'config.cfg')]
+        reload(eboptions)
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.configfiles, cfg_files)
+        self.assertEqual(eb_go.options.prefix, '/home')
+
+        # $XDG_CONFIG_HOME set, one directory listed in $XDG_CONFIG_DIRS
+        os.environ['XDG_CONFIG_DIRS'] = dir1
+        cfg_files = [
+            os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
+            os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
+            os.path.join(homedir, 'easybuild', 'config.cfg'),  # $XDG_CONFIG_HOME goes last
+        ]
+        reload(eboptions)
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.configfiles, cfg_files)
+        self.assertEqual(eb_go.options.prefix, '/home')  # last cfgfile wins
+
+        # $XDG_CONFIG_HOME not set, multiple directories listed in $XDG_CONFIG_DIRS
+        del os.environ['XDG_CONFIG_HOME']  # unset, so should become default
+        os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join([dir1, dir2, dir3])
+        cfg_files = [
+            os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
+            os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
+            os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
+            # default config file in home dir is last (even if the file is not there)
+            os.path.join(os.path.expanduser('~'), '.config', 'easybuild', 'config.cfg'),
+        ]
+        reload(eboptions)
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.configfiles, cfg_files)
+
+        # $XDG_CONFIG_HOME set to non-existing directory, multiple directories listed in $XDG_CONFIG_DIRS
+        os.environ['XDG_CONFIG_HOME'] = os.path.join(self.test_prefix, 'nosuchdir')
+        cfg_files = [
+            os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
+            os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
+            os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
+            os.path.join(self.test_prefix, 'nosuchdir', 'easybuild', 'config.cfg'),
+        ]
+        reload(eboptions)
+        eb_go = eboptions.parse_options(args=[])
+        self.assertEqual(eb_go.options.configfiles, cfg_files)
+        self.assertEqual(eb_go.options.prefix, '/foobarbaz')  # last cfgfile wins
+
+        # restore $XDG_CONFIG env vars to original state
+        if xdg_config_home is None:
+            del os.environ['XDG_CONFIG_HOME']
+        else:
+            os.environ['XDG_CONFIG_HOME'] = xdg_config_home
+
+        if xdg_config_dirs is None:
+            del os.environ['XDG_CONFIG_DIRS']
+        else:
+            os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)

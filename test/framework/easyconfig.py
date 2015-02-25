@@ -228,7 +228,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
-        self.assertRaises(KeyError, lambda: eb['custom_key'])
+        self.assertErrorRegex(EasyBuildError, "unknown easyconfig parameter", lambda: eb['custom_key'])
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
@@ -558,7 +558,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(re.search(pattern, txt, re.M))
         os.remove(res[1])
 
-
         # should be able to prepend to list of patches and handle list of dependencies
         new_patches = ['two.patch', 'three.patch']
         specs.update({
@@ -612,6 +611,17 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1])
         self.assertEqual(ec['patches'], specs['patches'])
         self.assertEqual(ec.dependencies(), parsed_deps)
+
+        # hidden dependencies are filtered from list of dependencies
+        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        os.remove(res[1])
+
+        # hidden dependencies are also filtered from list of dependencies when validation is skipped
+        res = obtain_ec_for(specs, [self.ec_dir], None)
+        ec = EasyConfig(res[1], validate=False)
+        self.assertFalse('test/3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertTrue('test/.3.2.1-GCC-4.4.5' in [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists
@@ -1046,6 +1056,27 @@ class EasyConfigTest(EnhancedTestCase):
         lines = fixed_ec_txt.split('\n')
         fixed_ec_txt = '\n'.join([lines[0], "easyblock = 'ConfigureMake'", ''] + lines[1:])
         self.assertEqual(fix_broken_easyconfig(broken_ec_txt, None), fixed_ec_txt)
+
+    def test_unknown_easyconfig_parameter(self):
+        """Check behaviour when unknown easyconfig parameters are used."""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = {"name": "dummy", "version": "dummy"}',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+        self.assertFalse('therenosucheasyconfigparameterlikethis' in ec)
+        error_regex = "unknown easyconfig parameter"
+        self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], 'therenosucheasyconfigparameterlikethis')
+        def set_ec_key(key):
+            """Dummy function to set easyconfig parameter in 'ec' EasyConfig instance"""
+            ec[key] = 'foobar'
+        self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
+
 
 def suite():
     """ returns all the testcases in this module """
