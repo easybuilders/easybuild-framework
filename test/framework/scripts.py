@@ -131,22 +131,23 @@ class ScriptsTest(EnhancedTestCase):
             "license_file = 'foo.lic'",
         ])
         broken_ec_tmpl = os.path.join(self.test_prefix, '%s.eb')
+        script_cmd_tmpl = "PYTHONPATH=%s:$PYTHONPATH:%s %s %%s" % (topdir, test_easyblocks, script)
 
         # don't change it if it isn't broken
         broken_ec = broken_ec_tmpl % 'notbroken'
-        script_cmd = "%s %s" % (script, broken_ec)
+        script_cmd = script_cmd_tmpl % broken_ec
         fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'ConfigureMake'\n\n", 'foo')
 
         write_file(broken_ec, fixed_ec_txt)
         # (dummy) ConfigureMake easyblock is available in test sandbox
-        script_cmd = "PYTHONPATH=%s:$PYTHONPATH:%s %s %s" % (topdir, test_easyblocks, script, broken_ec)
+        script_cmd = script_cmd_tmpl % broken_ec
         new_ec_txt = read_file(broken_ec)
         self.assertEqual(new_ec_txt, fixed_ec_txt)
         self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
         self.assertFalse(os.path.exists('%s.bk' % broken_ec))  # no backup created if nothing was fixed
 
         broken_ec = broken_ec_tmpl % 'nosuchsoftware'
-        script_cmd = "%s %s" % (script, broken_ec)
+        script_cmd = script_cmd_tmpl % broken_ec
         broken_ec_txt = broken_ec_txt_tmpl % ('', 'nosuchsoftware')
         fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'ConfigureMake'\n\n", 'nosuchsoftware')
 
@@ -171,7 +172,7 @@ class ScriptsTest(EnhancedTestCase):
 
         # if easyblock is specified, that part is left untouched
         broken_ec = broken_ec_tmpl % 'footoy'
-        script_cmd = "PYTHONPATH=%s:$PYTHONPATH:%s %s %s" % (topdir, test_easyblocks, script, broken_ec)
+        script_cmd = script_cmd_tmpl % broken_ec
         broken_ec_txt = broken_ec_txt_tmpl % ("easyblock = 'EB_toy'\n\n", 'foo')
         fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'EB_toy'\n\n", 'foo')
 
@@ -187,7 +188,7 @@ class ScriptsTest(EnhancedTestCase):
         test_easyblocks = os.path.join(testdir, 'sandbox')
         broken_ec = broken_ec_tmpl % 'toy'
         # path to test easyblocks must be *appended* to PYTHONPATH (due to flattening in easybuild-easyblocks repo)
-        script_cmd = "PYTHONPATH=%s:$PYTHONPATH:%s %s %s" % (topdir, test_easyblocks, script, broken_ec)
+        script_cmd = script_cmd_tmpl % broken_ec
         broken_ec_txt = broken_ec_txt_tmpl % ('', 'toy')
         fixed_ec_txt = fixed_ec_txt_tmpl % ('', 'toy')
         write_file(broken_ec, broken_ec_txt)
