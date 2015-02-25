@@ -172,6 +172,7 @@ def get_cpu_family():
 
     return family
 
+
 def get_cpu_model():
     """
     Determine CPU model

@@ -188,12 +188,14 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_cmd = self.orig_run_cmd
         super(SystemToolsTest, self).tearDown()
 
-    def test_avail_core_count(self):
+    def test_avail_core_count_native(self):
         """Test getting core count."""
         core_count = get_avail_core_count()
         self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
 
+    def test_avail_core_count_linux(self):
+        """Test getting core count (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         orig_sched_getaffinity = st.sched_getaffinity
         class MockedSchedGetaffinity(object):
@@ -202,15 +204,19 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_avail_core_count(), 6)
         st.sched_getaffinity = orig_sched_getaffinity
 
+    def test_avail_core_count_darwin(self):
+        """Test getting core count (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_avail_core_count(), 10)
 
-    def test_cpu_model(self):
+    def test_cpu_model_native(self):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
         self.assertTrue(isinstance(cpu_model, basestring))
 
+    def test_cpu_model_linux(self):
+        """Test getting CPU model (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
@@ -225,17 +231,20 @@ class SystemToolsTest(EnhancedTestCase):
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
         self.assertEqual(get_cpu_model(), "ARMv7 Processor rev 5 (v7l)")
 
-        st.os.path.exists = self.orig_os_path_exists
+    def test_cpu_model_darwin(self):
+        """Test getting CPU model (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_model(), "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz")
 
-    def test_cpu_speed(self):
+    def test_cpu_speed_native(self):
         """Test getting CPU speed."""
         cpu_speed = get_cpu_speed()
         self.assertTrue(isinstance(cpu_speed, float))
         self.assertTrue(cpu_speed > 0.0)
 
+    def test_cpu_speed_linux(self):
+        """Test getting CPU speed (mocked for Linux)."""
         # test for particular type of system by mocking used functions
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
@@ -256,8 +265,8 @@ class SystemToolsTest(EnhancedTestCase):
         st.os.path.exists = lambda fp: mocked_os_path_exists(MAX_FREQ_FP, fp)
         self.assertEqual(get_cpu_speed(), 2850.0)
 
-        # OS X
-        st.os.path.exists = self.orig_os_path_exists
+    def test_cpu_speed_darwin(self):
+        """Test getting CPU speed (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_speed(), 2400.0)
@@ -267,6 +276,8 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_vendor = get_cpu_vendor()
         self.assertTrue(cpu_vendor in [AMD, ARM, INTEL, UNKNOWN])
 
+    def test_cpu_vendor_linux(self):
+        """Test getting CPU vendor (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
@@ -278,21 +289,24 @@ class SystemToolsTest(EnhancedTestCase):
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
         self.assertEqual(get_cpu_vendor(), ARM)
 
-        st.os.path.exists = self.orig_os_path_exists
+    def test_cpu_vendor_darwin(self):
+        """Test getting CPU vendor (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_vendor(), INTEL)
 
-    def test_cpu_family(self):
+    def test_cpu_family_native(self):
         """Test get_cpu_family function."""
         cpu_family = get_cpu_family()
         self.assertTrue(cpu_family in CPU_FAMILIES or cpu_family == UNKNOWN)
 
+    def test_cpu_family_linux(self):
+        """Test get_cpu_family function (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.read_file = mocked_read_file
         st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
-
         global PROC_CPUINFO_TXT
+
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
         self.assertEqual(get_cpu_family(), INTEL)
 
@@ -302,7 +316,8 @@ class SystemToolsTest(EnhancedTestCase):
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
         self.assertEqual(get_cpu_family(), POWER)
 
-        st.os.path.exists = self.orig_os_path_exists
+    def test_cpu_family_darwin(self):
+        """Test get_cpu_family function (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_cpu_family(), INTEL)
@@ -312,18 +327,22 @@ class SystemToolsTest(EnhancedTestCase):
         os_type = get_os_type()
         self.assertTrue(os_type in [DARWIN, LINUX])
 
-    def test_shared_lib_ext(self):
+    def test_shared_lib_ext_native(self):
         """Test getting extension for shared libraries."""
         ext = get_shared_lib_ext()
         self.assertTrue(ext in ['dylib', 'so'])
 
+    def test_shared_lib_ext_native(self):
+        """Test getting extension for shared libraries (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         self.assertEqual(get_shared_lib_ext(), 'so')
 
+    def test_shared_lib_ext_native(self):
+        """Test getting extension for shared libraries (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_shared_lib_ext(), 'dylib')
 
-    def test_platform_name(self):
+    def test_platform_name_native(self):
         """Test getting platform name."""
         platform_name_nover = get_platform_name()
         self.assertTrue(isinstance(platform_name_nover, basestring))
@@ -336,11 +355,17 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
         self.assertTrue(len_ver >= len_nover)
 
+    def test_platform_name_linux(self):
+        """Test getting platform name (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         self.assertTrue(re.match('.*-unknown-linux$', get_platform_name()))
+        self.assertTrue(re.match('.*-unknown-linux-gnu$', get_platform_name(withversion=True)))
 
+    def test_platform_name_darwin(self):
+        """Test getting platform name (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         self.assertTrue(re.match('.*-apple-darwin$', get_platform_name()))
+        self.assertTrue(re.match('.*-apple-darwin.*$', get_platform_name(withversion=True)))
 
     def test_os_name(self):
         """Test getting OS name."""
@@ -352,15 +377,19 @@ class SystemToolsTest(EnhancedTestCase):
         os_version = get_os_version()
         self.assertTrue(isinstance(os_version, basestring) or os_version == UNKNOWN)
 
-    def test_glibc_version(self):
+    def test_glibc_version_native(self):
         """Test getting glibc version."""
         glibc_version = get_glibc_version()
         self.assertTrue(isinstance(glibc_version, basestring) or glibc_version == UNKNOWN)
 
+    def test_glibc_version_linux(self):
+        """Test getting glibc version (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
         st.run_cmd = mocked_run_cmd
         self.assertEqual(get_glibc_version(), '2.12')
 
+    def test_glibc_version_darwin(self):
+        """Test getting glibc version (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
         self.assertEqual(get_glibc_version(), UNKNOWN)
 
@@ -369,8 +398,8 @@ class SystemToolsTest(EnhancedTestCase):
         system_info = get_system_info()
         self.assertTrue(isinstance(system_info, dict))
 
-    def test_det_parallelism(self):
-        """Test det_parallelism function."""
+    def test_det_parallelism_native(self):
+        """Test det_parallelism function (native calls)."""
         self.assertTrue(det_parallelism(None, None) > 0)
         # specified parallellism
         self.assertEqual(det_parallelism(5, None), 5)
@@ -380,6 +409,8 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(det_parallelism(5, 2), 2)
         self.assertEqual(det_parallelism(5, 10), 5)
 
+    def test_det_parallelism_mocked(self):
+        """Test det_parallelism function (with mocked ulimit/get_avail_core_count)."""
         orig_get_avail_core_count = st.get_avail_core_count
 
         # mock number of available cores to 8
