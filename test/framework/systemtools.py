@@ -138,6 +138,7 @@ def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
         "sysctl -n hw.cpufrequency_max": "2400000000",
+        "sysctl -n hw.ncpu": '10',
     }
     if cmd in known_cmds:
         if 'simple' in kwargs and kwargs['simple']:
@@ -171,6 +172,18 @@ class SystemToolsTest(EnhancedTestCase):
         core_count = get_avail_core_count()
         self.assertTrue(isinstance(core_count, int), "core_count has type int: %s, %s" % (core_count, type(core_count)))
         self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
+
+        st.get_os_type = lambda: st.LINUX
+        orig_sched_getaffinity = st.sched_getaffinity
+        class MockedSchedGetaffinity(object):
+            cpus = [1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L, 1L, 1L, 0L, 0L]
+        st.sched_getaffinity = lambda: MockedSchedGetaffinity()
+        self.assertEqual(get_avail_core_count(), 6)
+        st.sched_getaffinity = orig_sched_getaffinity
+
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_avail_core_count(), 10)
 
     def test_cpu_model(self):
         """Test getting CPU model."""

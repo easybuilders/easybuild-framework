@@ -36,11 +36,7 @@ import re
 import sys
 from socket import gethostname
 from vsc.utils import fancylogger
-try:
-    # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
-    from vsc.utils.affinity import sched_getaffinity
-except ImportError:
-    pass
+from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.filetools import read_file, which
 from easybuild.tools.run import run_cmd
@@ -52,6 +48,7 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 AMD = 'AMD'
 ARM = 'ARM'
 INTEL = 'Intel'
+PPC = 'PPC'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -70,64 +67,25 @@ def get_avail_core_count():
     """
     Returns the number of available CPUs, according to cgroups and taskssets limits
     """
-    # tiny inner function to help figure out number of available cores in a cpuset
-    def count_bits(n):
-        """Count the number of set bits for a given integer."""
-        bit_cnt = 0
-        while n > 0:
-            n &= n - 1
-            bit_cnt += 1
-        return bit_cnt
-
+    core_cnt = None
     os_type = get_os_type()
+
     if os_type == LINUX:
-        try:
-            # the preferred approach is via sched_getaffinity (yields a long, so cast it down to int)
-            num_cores = int(sum(sched_getaffinity().cpus))
-            return num_cores
-        except NameError:
-            pass
-
-        # in case sched_getaffinity isn't available, fall back to relying on /proc/cpuinfo
-
-        # determine total number of cores via /proc/cpuinfo
-        try:
-            txt = read_file(PROC_CPUINFO_FP, log_error=False)
-            # sometimes this is uppercase
-            max_num_cores = txt.lower().count('processor\t:')
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining total core count: %s" % err)
-
-        # determine cpuset we're in (if any)
-        mypid = os.getpid()
-        try:
-            f = open("/proc/%s/status" % mypid, 'r')
-            txt = f.read()
-            f.close()
-            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M | re.I)
-        except IOError:
-            cpuset = None
-
-        if cpuset is not None:
-            # use cpuset mask to determine actual number of available cores
-            mask_as_int = long(cpuset.group(1).replace(',', ''), 16)
-            num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
-            _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
-            return num_cores_in_cpuset
-        else:
-            _log.debug("No list of allowed CPUs found, not in a cpuset.")
-            return max_num_cores
+        # simple use available sched_getaffinity() function (yields a long, so cast it down to int)
+        core_cnt = int(sum(sched_getaffinity().cpus))
     else:
-        # BSD
+        # BSD-type systems
+        out, _ = run_cmd('sysctl -n hw.ncpu')
         try:
-            out, _ = run_cmd('sysctl -n hw.ncpu')
-            num_cores = int(out)
-            if num_cores > 0:
-                return num_cores
+            if int(out) > 0:
+                core_cnt = int(out)
         except ValueError:
             pass
 
-    raise SystemToolsException('Can not determine number of cores on this system')
+    if core_cnt is None:
+        raise SystemToolsException('Can not determine number of cores on this system')
+    else:
+        return core_cnt
 
 
 def get_core_count():
