@@ -288,7 +288,10 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if opt == 'optarch':
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                else:
+                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -299,7 +302,6 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
-        print st.get_compiler_family()
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
