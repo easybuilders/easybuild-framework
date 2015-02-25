@@ -260,7 +260,7 @@ class Compiler(Toolchain):
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
-            self.arch = systemtools.get_cpu_vendor()
+            self.arch = systemtools.get_cpu_family()
 
         optarch = None
         if build_option('optarch') is not None:
@@ -272,7 +272,7 @@ class Compiler(Toolchain):
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 
-        if 'optarch' in self.options.options_map and self.options.options_map.get('optarch', None) is None:
+        if self.options.options_map.get('optarch', None) is None:
             self.log.raiseException("_get_optimal_architecture: don't know how to set optarch for %s." % self.arch)
 
     def comp_family(self, prefix=None):
