@@ -11,7 +11,10 @@ v2.0.0 (March 2nd 2015)
 feature + bugfix release
 - drop support for behaviour that was deprecated for EasyBuild version 2.0 (#1143)
     - the provided fix_broken_easyconfigs.py script can be used to update easyconfig files suffering from this (#1151)
+    - FIXME: link to docs: No-longer-support-functionality.html + Usage-of-stand-alone-scripts.html#fix-broken-easyconfigs
 - stop including a crippled copy of vsc-base, include vsc-base as a proper dependency instead (#1160)
+    - FIXME: link to docs w.r.t. development setup
+    - FIXME: update requires dependencies to mention vsc-base
 - various other enhancements, including:
     - add support for Linux/POWER systems (#1044)
     - major cleanup in tools/systemtools.py + significantly enhanced tests (#1044)
@@ -23,11 +26,14 @@ feature + bugfix release
         - this involved sacrificing the download progress report (which was only visible in the log file)
     - let mpi_family return None if MPI is not supported by a toolchain (#1164)
     - include support for specifying system-level configuration files for EasyBuild via $XDG_CONFIG_DIRS (#1166)
-        - see http://easybuild.readthedocs.org/en/develop/Configuration.html#default-configuration-files
+        - see http://easybuild.readthedocs.org/en/latest/Configuration.html#default-configuration-files
     - make unit tests more robust (#1167)
+        - FIXME link to docs on running unit tests
     - add hierarchical module naming scheme categorizing modules by 'moduleclass' (#1176)
     - enhance bootstrap script to allow bootstrapping using supplied tarballs (#1184)
-    - disable updating of Lmod cache by default (#1185)
+        - see http://easybuild.readthedocs.org/en/latest/Installation.html#advanced-bootstrapping-options
+    - disable updating of Lmod user cache by default, add configuration option --update-modules-tool-cache (#1185)
+        - for now, only the Lmod user cache can be updated using --update-modules-tool-cache
 - various bug fixes, including:
     - stop triggering deprecated/no longer support functionality in unit tests (#1126)
     - fix from_pr test by including dummy easyblocks for HPL and ScaLAPACK (#1133)
@@ -41,9 +47,8 @@ feature + bugfix release
     - fix rare case in which used easyconfig and copied easyconfig are the same (#1159)
     - always filter hidden deps from list of dependencies (#1161)
     - fix implementation of path_matches function in tools/filetools.py (#1163)
-        - make sure that the specified paths exist before checking whether they point to the same file
     - make sure plain text keyring is used by unit tests (#1165)
-    - suppress creation of module symlinks for hierarchical MNS (#1173)
+    - suppress creation of module symlinks for HierarchicalMNS (#1173)
     - sort all lists obtained via glob.glob, since they are in arbitrary order (#1187)
 
 v1.16.1 (December 19th 2014)
