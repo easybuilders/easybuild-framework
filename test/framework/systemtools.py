@@ -148,7 +148,7 @@ def mocked_read_file(fp):
 
 def mocked_os_path_exists(mocked_fp, fp):
     """Mocked version of os.path.exists, returns True for a particular specified filepath."""
-    return fp == mocked_fp or orig_os_path_exists(fp)
+    return fp == mocked_fp
 
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
