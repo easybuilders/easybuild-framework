@@ -148,16 +148,14 @@ def mocked_read_file(fp):
 
 def mocked_os_path_exists(mocked_fp, fp):
     """Mocked version of os.path.exists, returns True for a particular specified filepath."""
-    if fp == mocked_fp:
-        return True
-    else:
-        orig_os_path_exists(fp)
+    return fp == mocked_fp or orig_os_path_exists(fp)
 
 def mocked_run_cmd(cmd, **kwargs):
     """Mocked version of run_cmd, with specified output for known commands."""
     known_cmds = {
         "sysctl -n hw.cpufrequency_max": "2400000000",
         "sysctl -n hw.ncpu": '10',
+        "sysctl -n machdep.cpu.brand_string": "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
     }
     if cmd in known_cmds:
@@ -209,6 +207,25 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU model."""
         cpu_model = get_cpu_model()
         self.assertTrue(isinstance(cpu_model, basestring))
+
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.os.path.exists = lambda fp: mocked_os_path_exists(PROC_CPUINFO_FP, fp)
+        global PROC_CPUINFO_TXT
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_X86
+        self.assertEqual(get_cpu_model(), "Intel(R) Xeon(R) CPU E5-2670 0 @ 2.60GHz")
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_POWER
+        self.assertEqual(get_cpu_model(), "IBM,8205-E6C")
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_ARM
+        self.assertEqual(get_cpu_model(), "ARMv7 Processor rev 5 (v7l)")
+
+        st.os.path.exists = self.orig_os_path_exists
+        st.get_os_type = lambda: st.DARWIN
+        st.run_cmd = mocked_run_cmd
+        self.assertEqual(get_cpu_model(), "Intel(R) Core(TM) i5-4258U CPU @ 2.40GHz")
 
     def test_cpu_speed(self):
         """Test getting CPU speed."""

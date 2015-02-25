@@ -146,27 +146,35 @@ def get_cpu_vendor():
 
 def get_cpu_model():
     """
-    returns cpu model
-    f.ex Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
+    Determine CPU model
+    for example: Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
-    model = UNKNOWN
+    model = None
     os_type = get_os_type()
-    if os_type == LINUX:
-        regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
-        try:
-            txt = read_file(PROC_CPUINFO_FP, log_error=False)
-            if txt is not None:
-                res = regexp.search(txt)
-                if res is not None:
-                    model = res.group('modelname').strip()
-        except IOError, err:
-            raise SystemToolsException("An error occured when determining CPU model: %s" % err)
+
+    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+        # consider 'model name' first, use 'model' as a fallback
+        # 'model name' is not there for Linux/POWER, but 'model' has the right info
+        for key in [r'model\s*name', 'model']:
+            model_regex = re.compile(r"^%s\s+:\s*(?P<model>.+)\s*$" % key, re.M)
+            txt = read_file(PROC_CPUINFO_FP)
+            res = model_regex.search(txt)
+            if res is not None:
+                model = res.group('model').strip()
+                tup = (model_regex.pattern, PROC_CPUINFO_FP, model)
+                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s" % tup)
+                break
 
     elif os_type == DARWIN:
-        out, exitcode = run_cmd("sysctl -n machdep.cpu.brand_string")
-        out = out.strip()
-        if not exitcode:
-            model = out
+        cmd = "sysctl -n machdep.cpu.brand_string"
+        out, ec = run_cmd(cmd)
+        if ec == 0:
+            model = out.strip()
+            _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
+
+    if model is None:
+        model = UNKNOWN
+        _log.warning("Failed to determine CPU model, returning %s" % model)
 
     return model
 
