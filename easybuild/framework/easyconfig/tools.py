@@ -64,7 +64,7 @@ try:
     sys.path.append('/usr/lib64/graphviz/python/')
     import gv
 except ImportError, err:
-    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz, or brew install graphviz --with-bindings")
 
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
