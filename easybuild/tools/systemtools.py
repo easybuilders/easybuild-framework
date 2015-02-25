@@ -398,7 +398,7 @@ def get_glibc_version():
             return glibc_version
         else:
             tup = (glibc_ver_str, glibc_ver_regex.pattern)
-            _log.error("Failed to determine version from '%s' using pattern '%s'." % tup)
+            _log.error("Failed to determine glibc version from '%s' using pattern '%s'." % tup)
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
