@@ -881,7 +881,8 @@ class EasyBlock(object):
         # set environment variable that specifies list of extensions
         if self.exts_all:
             exts_list = ','.join(['%s-%s' % (ext['name'], ext.get('version', '')) for ext in self.exts_all])
-            txt += self.module_generator.set_environment('EBEXTSLIST%s' % self.name.upper(), exts_list)
+            env_var_name = convert_name(self.name, upper=True)
+            txt += self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list)
 
         return txt
 
@@ -936,7 +937,7 @@ class EasyBlock(object):
             txt = "\n"
             for key in sorted(requirements):
                 for path in requirements[key]:
-                    paths = glob.glob(path)
+                    paths = sorted(glob.glob(path))
                     if paths:
                         txt += self.module_generator.prepend_paths(key, paths)
             try:
@@ -1460,7 +1461,7 @@ class EasyBlock(object):
             for cmd in self.cfg['postinstallcmds']:
                 if not isinstance(cmd, basestring):
                     self.log.error("Invalid element in 'postinstallcmds', not a string: %s" % cmd)
-                run_cmd(cmd, simple=True, log_ok=False, log_all=False)
+                run_cmd(cmd, simple=True, log_ok=True, log_all=True)
 
         if self.group is not None:
             # remove permissions for others, and set group ID
@@ -1651,7 +1652,10 @@ class EasyBlock(object):
 
         self.log.info("Module file %s written" % self.module_generator.filename)
 
-        self.modules_tool.update()
+         # only update after generating final module file
+        if not fake:
+            self.modules_tool.update()
+
         self.module_generator.create_symlinks()
 
         if not fake:
@@ -1934,10 +1938,14 @@ def build_and_install_one(module, orig_environ):
 
         try:
             newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
-            shutil.copy(spec, newspec)
-            _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
+            # only copy if the files are not the same file already (yes, it happens)
+            if os.path.exists(newspec) and os.path.samefile(spec, newspec):
+                _log.debug("Not copying easyconfig file %s to %s since files are identical" % (spec, newspec))
+            else:
+                shutil.copy(spec, newspec)
+                _log.debug("Copied easyconfig file %s to %s" % (spec, newspec))
         except (IOError, OSError), err:
-            print_error("Failed to move easyconfig %s to log dir %s: %s" % (spec, new_log_dir, err))
+            print_error("Failed to copy easyconfig %s to %s: %s" % (spec, newspec, err))
 
     # build failed
     else:
