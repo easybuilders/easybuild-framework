@@ -35,7 +35,7 @@ from unittest import TestLoader, main
 import easybuild.tools.systemtools as st
 from easybuild.tools.filetools import read_file
 from easybuild.tools.run import run_cmd
-from easybuild.tools.systemtools import CPU_FAMILIES, AMD, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN
+from easybuild.tools.systemtools import CPU_FAMILIES, ARM, DARWIN, IBM, INTEL, LINUX, POWER, UNKNOWN, VENDORS
 from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_model, get_cpu_speed, get_cpu_vendor, get_glibc_version
 from easybuild.tools.systemtools import get_os_type, get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
@@ -274,7 +274,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_vendor(self):
         """Test getting CPU vendor."""
         cpu_vendor = get_cpu_vendor()
-        self.assertTrue(cpu_vendor in [AMD, ARM, INTEL, UNKNOWN])
+        self.assertTrue(cpu_vendor in VENDORS.values() + [UNKNOWN])
 
     def test_cpu_vendor_linux(self):
         """Test getting CPU vendor (mocked for Linux)."""
