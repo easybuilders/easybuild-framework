@@ -42,6 +42,10 @@ from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
+from easybuild.tools import systemtools as st
+import easybuild.tools.toolchain.compiler
+easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
+
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
 
@@ -295,6 +299,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_override_optarch(self):
         """Test whether overriding the optarch flag works."""
+        print st.get_compiler_family()
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
         for optarch_var in ['march=lovelylovelysandybridge', None]:
             build_options = {'optarch': optarch_var}
@@ -307,7 +312,8 @@ class ToolchainTest(EnhancedTestCase):
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
                 else:
-                    flag = '-march=native'
+                    # default optarch flag
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -389,7 +395,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -march=native"',
+            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
