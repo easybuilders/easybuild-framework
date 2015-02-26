@@ -106,7 +106,7 @@ def get_cpu_vendor():
     """
     Try to detect the CPU vendor
 
-    @return: INTEL, ARM or AMD constant
+    @return: a value from the VENDORS dict
     """
     vendor = None
     os_type = get_os_type()
@@ -115,14 +115,10 @@ def get_cpu_vendor():
         txt = read_file(PROC_CPUINFO_FP)
         arch = UNKNOWN
 
-        vendor_regexes = [
-            r"^vendor_id\s+:\s*(\S+)\s*$",  # Linux/x86
-            r".*:\s*(ARM|IBM).*$",  # Linux/ARM (e.g., Raspbian), Linux/POWER
-        ]
-        vendor_regex = re.compile('|'.join(vendor_regexes), re.M)
+        vendor_regex = re.compile(r"(vendor_id.*?)?\s*:\s*(?P<vendor>(?(1)\S+|(?:IBM|ARM)))")
         res = vendor_regex.search(txt)
         if res:
-            arch = res.group(1) or res.group(2)
+            arch = res.group('vendor')
         if arch in VENDORS:
             vendor = VENDORS[arch]
             tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
@@ -146,7 +142,7 @@ def get_cpu_vendor():
 def get_cpu_family():
     """
     Determine CPU family.
-    @return: one of the AMD, ARM, INTEL, POWER constants
+    @return: a value from the CPU_FAMILIES list
     """
     family = None
     vendor = get_cpu_vendor()
@@ -173,14 +169,13 @@ def get_cpu_family():
 
 def get_cpu_model():
     """
-    Determine CPU model
-    for example: Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
+    Determine CPU model, e.g., Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
     model = None
     os_type = get_os_type()
 
     if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
-        # consider 'model name' first, use 'model' as a fallback
+        # we need 'model name' on Linux/x86, but 'model' is there first with different info
         # 'model name' is not there for Linux/POWER, but 'model' has the right info
         for key in [r'model\s*name', 'model']:
             model_regex = re.compile(r"^%s\s+:\s*(?P<model>.+)\s*$" % key, re.M)
@@ -225,16 +220,12 @@ def get_cpu_speed():
         elif os.path.exists(PROC_CPUINFO_FP):
             _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
             cpuinfo_txt = read_file(PROC_CPUINFO_FP)
-            cpu_freq_regex = r"(%s)" % '|'.join([
-                r"^cpu MHz\s*:\s*(?P<cpu_freq_x86>[0-9.]+)",  # Linux x86 & more
-                r"^clock\s*:\s*(?P<cpu_freq_POWER>[0-9.]+)",  # Linux on POWER
-            ])
-            res = re.search(cpu_freq_regex, cpuinfo_txt, re.M)
+            # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
+            cpu_freq_regex = re.compile(r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M)
+            res = cpu_freq_regex.search(cpuinfo_txt)
             if res:
-                cpu_freq = res.group('cpu_freq_x86') or res.group('cpu_freq_POWER')
-            if cpu_freq is not None:
-                cpu_freq = float(cpu_freq)
-                _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex, cpu_freq))
+                cpu_freq = float(res.group('cpu_freq'))
+                _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
             else:
                 raise SystemToolsException("Failed to determine CPU frequency from %s" % PROC_CPUINFO_FP)
         else:
