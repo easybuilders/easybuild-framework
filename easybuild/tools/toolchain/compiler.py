@@ -260,7 +260,7 @@ class Compiler(Toolchain):
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
-            self.arch = systemtools.get_cpu_vendor()
+            self.arch = systemtools.get_cpu_family()
 
         optarch = None
         if build_option('optarch') is not None:
