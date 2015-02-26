@@ -177,15 +177,13 @@ def get_cpu_model():
     if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
         # we need 'model name' on Linux/x86, but 'model' is there first with different info
         # 'model name' is not there for Linux/POWER, but 'model' has the right info
-        for key in [r'model\s*name', 'model']:
-            model_regex = re.compile(r"^%s\s+:\s*(?P<model>.+)\s*$" % key, re.M)
-            txt = read_file(PROC_CPUINFO_FP)
-            res = model_regex.search(txt)
-            if res is not None:
-                model = res.group('model').strip()
-                tup = (model_regex.pattern, PROC_CPUINFO_FP, model)
-                _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s" % tup)
-                break
+        model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
+        txt = read_file(PROC_CPUINFO_FP)
+        res = model_regex.search(txt)
+        if res is not None:
+            model = res.group('model').strip()
+            tup = (model_regex.pattern, PROC_CPUINFO_FP, model)
+            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s" % tup)
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
