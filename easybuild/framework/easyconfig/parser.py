@@ -89,12 +89,12 @@ class EasyConfigParser(object):
         self.format_version = format_version
         self._formatter = None
 
-        if filename is not None:
-            self._check_filename(filename)
-            self.process()
-        elif rawcontent is not None:
+        if rawcontent is not None:
             self.rawcontent = rawcontent
             self._set_formatter()
+        elif filename is not None:
+            self._check_filename(filename)
+            self.process()
         else:
             self.log.error("Neither filename nor rawcontent provided to EasyConfigParser")
 

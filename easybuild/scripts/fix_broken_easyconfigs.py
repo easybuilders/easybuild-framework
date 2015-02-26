@@ -22,6 +22,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
+"""
+Script to fix easyconfigs that broke due to support for deprecated functionality being dropped in EasyBuild 2.0
+
+@author: Kenneth Hoste (Ghent University)
+"""
 import os
 import re
 import sys
@@ -37,9 +42,11 @@ from easybuild.tools.filetools import find_easyconfigs, read_file, write_file
 from test.framework.utilities import init_config
 
 
-log = fancylogger.getLogger('main')
-fancylogger.logToScreen(enable=True, stdout=True)
-log.setLevel('INFO')
+options = {
+    'backup': ("Backup up easyconfigs before modifying them", None, 'store_true', True, 'b'),
+}
+go = simple_option(options)
+log = go.log
 
 
 def fix_broken_easyconfig(ectxt, easyblock_class):
@@ -75,19 +82,46 @@ def fix_broken_easyconfig(ectxt, easyblock_class):
     return ectxt
 
 
+def process_easyconfig_file(ec_file):
+    """Process an easyconfig file: fix if it's broken, back it up before fixing it inline (if requested)."""
+    ectxt = read_file(ec_file)
+    name, easyblock = fetch_parameters_from_easyconfig(ectxt, ['name', 'easyblock'])
+    derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
+
+    fixed_ectxt = fix_broken_easyconfig(ectxt, derived_easyblock_class)
+
+    if ectxt != fixed_ectxt:
+        if go.options.backup:
+            try:
+                backup_ec_file = '%s.bk' % ec_file
+                i = 1
+                while os.path.exists(backup_ec_file):
+                    backup_ec_file = '%s.bk%d' % (ec_file, i)
+                    i += 1
+                os.rename(ec_file, backup_ec_file)
+                log.info("Backed up %s to %s" % (ec_file, backup_ec_file))
+            except OSError, err:
+                log.error("Failed to backup %s before rewriting it: %s" % (ec_file, err))
+
+        write_file(ec_file, fixed_ectxt)
+        log.debug("Contents of fixed easyconfig file: %s" % fixed_ectxt)
+
+        log.info("%s: fixed" % ec_file)
+    else:
+        log.info("%s: nothing to fix" % ec_file)
+
 # MAIN
 
 def main():
+    """Main script functionality."""
+
+    fancylogger.logToScreen(enable=True, stdout=True)
+    log.setLevel('INFO')
 
     try:
         import easybuild.easyblocks.generic.configuremake
     except ImportError, err:
         log.error("easyblocks are not available in Python search path: %s" % err)
-
-    options = {
-        'backup': ("Backup up easyconfigs before modifying them", None, 'store_true', True, 'b'),
-    }
-    go = simple_option(options)
 
     init_config(args=['--quiet'])
 
@@ -101,32 +135,7 @@ def main():
 
     log.info("Processing %d easyconfigs" % len(ec_files))
     for ec_file in ec_files:
-
-        ectxt = read_file(ec_file)
-        name, easyblock = fetch_parameters_from_easyconfig(ectxt, ['name', 'easyblock'])
-        derived_easyblock_class = get_easyblock_class(easyblock, name=name, default_fallback=False)
-
-        fixed_ectxt = fix_broken_easyconfig(ectxt, derived_easyblock_class)
-
-        if ectxt != fixed_ectxt:
-            if go.options.backup:
-                try:
-                    backup_ec_file = '%s.bk' % ec_file
-                    i = 1
-                    while os.path.exists(backup_ec_file):
-                        backup_ec_file = '%s.bk%d' % (ec_file, i)
-                        i += 1
-                    os.rename(ec_file, backup_ec_file)
-                    log.info("Backed up %s to %s" % (ec_file, backup_ec_file))
-                except OSError, err:
-                    log.error("Failed to backup %s before rewriting it: %s" % (ec_file, err))
-
-            write_file(path, fixed_ectxt)
-            log.debug("Contents of fixed easyconfig file: %s" % fixed_ectxt)
-
-            log.info("%s: fixed" % ec_file)
-        else:
-            log.info("%s: nothing to fix" % ec_file)
+        process_easyconfig_file(ec_file)
 
 
 if __name__ == '__main__':

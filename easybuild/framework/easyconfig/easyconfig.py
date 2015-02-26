@@ -101,11 +101,12 @@ class EasyConfig(object):
     def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
         """
         initialize an easyconfig.
-        @param path: path to easyconfig file to be parsed
+        @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
         @param extra_options: dictionary with extra variables that can be set for this specific instance
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        @param rawtxt: raw contents of easyconfig file
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
@@ -116,13 +117,14 @@ class EasyConfig(object):
             self.log.error("EasyConfig __init__ expected a valid path")
 
         # read easyconfig file contents (or use provided rawtxt), so it can be passed down to avoid multiple re-reads
-        self.path = path
+        self.path = None
         if rawtxt is None:
+            self.path = path
             self.rawtxt = read_file(path)
-            self.log.info("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
+            self.log.debug("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
         else:
             self.rawtxt = rawtxt
-            self.log.info("Supplied easyconfig: %s" % self.rawtxt)
+            self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
 
         # use legacy module classes as default
         self.valid_module_classes = build_option('valid_module_classes')
@@ -698,7 +700,8 @@ def fetch_parameter_from_easyconfig_file(path, param):
     old = 'fetch_parameter_from_easyconfig_file'
     new = 'fetch_parameters_from_easyconfig'
     _log.deprecated("%s is replaced by %s from easybuild.framework.easyconfig.parser" % (old, new), '3.0')
-    return fetch_parameters_from_easyconfig(read_file(path), [param])[0]
+    ectxt = read_file(path)
+    return fetch_parameters_from_easyconfig(ectxt, [param])[0]
 
 
 def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
