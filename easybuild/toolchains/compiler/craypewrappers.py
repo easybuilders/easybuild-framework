@@ -55,32 +55,19 @@ class CrayPEWrapper(Compiler):
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
+	    'dynamic': (True, """Generate dynamically linked executables and libraries."""),
         'mpich-mt': (False, """Directs the driver to link in an alternate version of the Cray-MPICH library which
                                  provides fine-grained multi-threading support to applications that perform
                                  MPI operations within threaded regions."""),
-        'dynamic': (True, "Directs the compiler driver to link dynamic libraries at runtime."),
         'usewrappedcompiler': (False, "Use the embedded compiler instead of the wrapper"),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'dynamic': 'dynamic',
-        'shared': 'shared',
-        'static': 'static',
+	    'pic': 'shared',
+        'shared': 'dynamic',
+	    'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
-        'pic': 'dynamic',
-    }
-
-    COMPILER_SHARED_OPTION_MAP = {
-        'pic': 'dynamic',
-        'verbose': 'craype-verbose',
-        'static': 'static',
-    }
-
-    # @todo this is BS.
-    COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL: 'march=native',
-        systemtools.AMD: 'march=native'
     }
 
     #COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
@@ -91,8 +78,9 @@ class CrayPEWrapper(Compiler):
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
 
-    def _set_compiler_vars(self):
-        super(CrayPEWrapper, self)._set_compiler_vars()
+    COMPILER_FLAGS = []  # we dont have this for the wrappers
+    COMPILER_OPT_FLAGS = []  # or those
+    COMPILER_PREC_FLAGS = []  # and those for sure not !
 
     def _get_optimal_architecture(self):
         """On a Cray system we assume that the optimal architecture is controlled
@@ -102,40 +90,26 @@ class CrayPEWrapper(Compiler):
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
+
         flags = [self.options.option(x) for x in self.COMPILER_FLAGS if self.options.get(x, False)]
         cflags = [self.options.option(x) for x in self.COMPILER_C_FLAGS + self.COMPILER_C_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
         fflags = [self.options.option(x) for x in self.COMPILER_F_FLAGS + self.COMPILER_F_UNIQUE_FLAGS \
                   if self.options.get(x, False)]
 
-        # 1st one is the one to use. add default at the end so len is at least 1
-        # optflags = [self.options.option(x) for x in self.COMPILER_OPT_FLAGS if self.options.get(x, False)] + \
-        #            [self.options.option('defaultopt')]
-        #
-        # optarchflags = [self.options.option(x) for x in ['optarch'] if self.options.get(x, False)]
-        #
-        # precflags = [self.options.option(x) for x in self.COMPILER_PREC_FLAGS if self.options.get(x, False)] + \
-        #             [self.options.option('defaultprec')]
-        #
-        # self.variables.nextend('OPTFLAGS', optflags[:1] + optarchflags)
-        # self.variables.nextend('PRECFLAGS', precflags[:1])
 
         # precflags last
         self.variables.nappend('CFLAGS', flags)
         self.variables.nappend('CFLAGS', cflags)
-        self.variables.join('CFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
 
         self.variables.nappend('CXXFLAGS', flags)
         self.variables.nappend('CXXFLAGS', cflags)
-        self.variables.join('CXXFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
 
         self.variables.nappend('FFLAGS', flags)
         self.variables.nappend('FFLAGS', fflags)
-        self.variables.join('FFLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
 
         self.variables.nappend('F90FLAGS', flags)
         self.variables.nappend('F90FLAGS', fflags)
-        self.variables.join('F90FLAGS', )  # 'OPTFLAGS', 'PRECFLAGS')
 
 
 # Gcc's base is Compiler
@@ -144,24 +118,26 @@ class CrayPEWrapperGNU(CrayPEWrapper):
     COMPILER_MODULE_NAME = ['PrgEnv-gnu']
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
-
     def _set_compiler_vars(self):
         if self.options.option('usewrappedcompiler'):
+            self.COMPILER_UNIQUE_OPTS = Gcc.COMPILER_UNIQUE_OPTS
+            self.COMPILER_UNIQUE_OPTION_MAP = Gcc.COMPILER_UNIQUE_OPTION_MAP
 
-            COMPILER_UNIQUE_OPTS = Gcc.COMPILER_UNIQUE_OPTS
-            COMPILER_UNIQUE_OPTION_MAP = Gcc.COMPILER_UNIQUE_OPTION_MAP
+            self.COMPILER_CC = Gcc.COMPILER_CC
+            self.COMPILER_CXX = Gcc.COMPILER_CXX
+            self.COMPILER_C_UNIQUE_FLAGS = []
 
-            COMPILER_CC = Gcc.COMPILER_CC
-            COMPILER_CXX = Gcc.COMPILER_CXX
-            COMPILER_C_UNIQUE_FLAGS = []
+            self.COMPILER_F77 = Gcc.COMPILER_F77
+            self.COMPILER_F90 = Gcc.COMPILER_F90
+            self.COMPILER_F_UNIQUE_FLAGS = Gcc.COMPILER_F_UNIQUE_FLAGS
 
-            COMPILER_F77 = Gcc.COMPILER_F77
-            COMPILER_F90 = Gcc.COMPILER_F90
-            COMPILER_F_UNIQUE_FLAGS = Gcc.COMPILER_F_UNIQUE_FLAGS
-
-            super(CrayPEWrapperGNU, self)._set_compiler_vars()
         else:
-            super(CrayPEWrapper, self)._set_compiler_vars()
+            pass
+
+        super(CrayPEWrapperGNU,self)._set_compiler_vars()
+
+
+
 
 
 class CrayPEWrapperIntel(CrayPEWrapper):
@@ -169,7 +145,7 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 
     COMPILER_MODULE_NAME = ['PrgEnv-intel']
 
-    def _set_compiler_vars(self):
+    def _set_compiler_flags(self):
         if self.options.option("usewrappedcompiler"):
             COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
             COMPILER_UNIQUE_OPTION_MAP = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP
@@ -185,9 +161,9 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 
             LINKER_TOGGLE_STATIC_DYNAMIC = IntelIccIfort.LINKER_TOGGLE_STATIC_DYNAMIC
 
-            super(CrayPEWrapperIntel, self).set_compiler_vars()
+            super(CrayPEWrapperIntel, self).set_compiler_flags()
         else:
-            super(CrayPEWrapper, self)._set_compiler_vars()
+            super(CrayPEWrapper, self)._set_compiler_flags()
 
 
 class CrayPEWrapperCray(CrayPEWrapper):
