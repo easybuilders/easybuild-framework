@@ -42,6 +42,10 @@ from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
+from easybuild.tools import systemtools as st
+import easybuild.tools.toolchain.compiler
+easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
+
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
 
@@ -284,7 +288,10 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if opt == 'optarch':
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                else:
+                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -307,7 +314,8 @@ class ToolchainTest(EnhancedTestCase):
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
                 else:
-                    flag = '-march=native'
+                    # default optarch flag
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -413,7 +421,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -march=native"',
+            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
