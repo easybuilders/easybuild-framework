@@ -43,8 +43,9 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.framework.easyconfig.easyconfig import create_paths, det_installversion
+from easybuild.framework.easyconfig.easyconfig import create_paths
 from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import module_classes
@@ -52,7 +53,6 @@ from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.systemtools import get_shared_lib_ext
-from easybuild.tools.utilities import quote_str
 from test.framework.utilities import find_full_path
 
 
@@ -94,14 +94,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
 
     def test_mandatory(self):
-        """ make sure all checking of mandatory variables works """
+        """ make sure all checking of mandatory parameters works """
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
             'version = "3.14"',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "mandatory variables? .* not provided", EasyConfig, self.eb_file)
+        self.assertErrorRegex(EasyBuildError, "mandatory parameters not provided", EasyConfig, self.eb_file)
 
         self.contents += '\n' + '\n'.join([
             'homepage = "http://example.com"',
@@ -119,7 +119,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(eb['description'], "test easyconfig")
 
     def test_validation(self):
-        """ test other validations beside mandatory variables """
+        """ test other validations beside mandatory parameters """
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -250,10 +250,10 @@ class EasyConfigTest(EnhancedTestCase):
         # test if extra toolchain options are being passed
         self.assertEqual(eb.toolchain.options['static'], True)
 
-        # test extra mandatory vars
+        # test extra mandatory parameters
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
-        self.assertErrorRegex(EasyBuildError, r"mandatory variables? \S* not provided",
-                              EasyConfig, self.eb_file, extra_vars)
+        self.assertErrorRegex(EasyBuildError, r"mandatory parameters not provided",
+                              EasyConfig, self.eb_file, extra_options=extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
         self.prep()
@@ -859,8 +859,8 @@ class EasyConfigTest(EnhancedTestCase):
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
 
-    def test_fetch_parameter_from_easyconfig_file(self):
-        """Test fetch_easyblock_from_easyconfig_file function."""
+    def test_fetch_parameters_from_easyconfig(self):
+        """Test fetch_parameters_from_easyconfig function."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         toy_ec_file = os.path.join(test_ecs_dir, 'toy-0.0.eb')
 
@@ -868,11 +868,15 @@ class EasyConfigTest(EnhancedTestCase):
             (toy_ec_file, 'toy', None),
             (os.path.join(test_ecs_dir, 'goolf-1.4.10.eb'), 'goolf', 'Toolchain'),
         ]:
-            name = fetch_parameter_from_easyconfig_file(ec_file, 'name')
+            name, easyblock = fetch_parameters_from_easyconfig(read_file(ec_file), ['name', 'easyblock'])
             self.assertEqual(name, correct_name)
-            easyblock = fetch_parameter_from_easyconfig_file(ec_file, 'easyblock')
             self.assertEqual(easyblock, correct_easyblock)
 
+        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
+
+        # also check deprecated function fetch_parameter_from_easyconfig_file
+        os.environ['EASYBUILD_DEPRECATED'] = '2.0'
+        init_config()
         self.assertEqual(fetch_parameter_from_easyconfig_file(toy_ec_file, 'description'), "Toy C program.")
 
     def test_get_easyblock_class(self):
@@ -956,7 +960,7 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
         replaced_parameters = {
-            'license': ('software_license', '2.0'),
+            'license': ('license_file', '2.0'),
             'makeopts': ('buildopts', '2.0'),
             'premakeopts': ('prebuildopts', '2.0'),
         }
@@ -977,8 +981,8 @@ class EasyConfigTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
         ec = EasyConfig(os.path.join(test_ecs_dir, 'toy-0.0.eb'))
 
-        orig_deprecated_parameters = copy.deepcopy(easyconfig.easyconfig.DEPRECATED_PARAMETERS)
-        easyconfig.easyconfig.DEPRECATED_PARAMETERS.update({
+        orig_deprecated_parameters = copy.deepcopy(easyconfig.parser.DEPRECATED_PARAMETERS)
+        easyconfig.parser.DEPRECATED_PARAMETERS.update({
             'foobar': ('barfoo', '0.0'),  # deprecated since forever
             'foobarbarfoo': ('barfoofoobar', '1000000000'),  # won't be actually deprecated for a while
         })
@@ -986,9 +990,9 @@ class EasyConfigTest(EnhancedTestCase):
         # copy classes before reloading, so we can restore them (other isinstance checks fail)
         orig_EasyConfig = copy.deepcopy(easyconfig.easyconfig.EasyConfig)
         orig_ActiveMNS = copy.deepcopy(easyconfig.easyconfig.ActiveMNS)
-        reload(easyconfig.easyconfig)
+        reload(easyconfig.parser)
 
-        for key, (newkey, depr_ver) in easyconfig.easyconfig.DEPRECATED_PARAMETERS.items():
+        for key, (newkey, depr_ver) in easyconfig.parser.DEPRECATED_PARAMETERS.items():
             if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
                 # deprecation error
                 error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
@@ -1006,8 +1010,8 @@ class EasyConfigTest(EnhancedTestCase):
                 self.assertEqual(ec[newkey], '123test')
                 self.assertEqual(ec[key], '123test')
 
-        easyconfig.easyconfig.DEPRECATED_PARAMETERS = orig_deprecated_parameters
-        reload(easyconfig.easyconfig)
+        easyconfig.parser.DEPRECATED_PARAMETERS = orig_deprecated_parameters
+        reload(easyconfig.parser)
         easyconfig.easyconfig.EasyConfig = orig_EasyConfig
         easyconfig.easyconfig.ActiveMNS = orig_ActiveMNS
 

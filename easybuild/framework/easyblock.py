@@ -52,8 +52,8 @@ import easybuild.tools.environment as env
 from easybuild.tools import config, filetools
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_module_path, resolve_template
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
 from easybuild.tools.build_details import get_build_stats
@@ -1828,15 +1828,17 @@ class EasyBlock(object):
         return True
 
 
-def build_and_install_one(module, orig_environ):
+def build_and_install_one(ecdict, orig_environ):
     """
     Build the software
-    @param module: dictionary contaning parsed easyconfig + metadata
+    @param ecdict: dictionary contaning parsed easyconfig + metadata
     @param orig_environ: original environment (used to reset environment)
     """
     silent = build_option('silent')
 
-    spec = module['spec']
+    spec = ecdict['spec']
+    rawtxt = ecdict['ec'].rawtxt
+    name = ecdict['ec']['name']
 
     print_msg("processing EasyBuild easyconfig %s" % spec, log=_log, silent=silent)
 
@@ -1850,12 +1852,11 @@ def build_and_install_one(module, orig_environ):
     # load easyblock
     easyblock = build_option('easyblock')
     if not easyblock:
-        easyblock = fetch_parameter_from_easyconfig_file(spec, 'easyblock')
+        easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
 
-    name = module['ec']['name']
     try:
         app_class = get_easyblock_class(easyblock, name=name)
-        app = app_class(module['ec'])
+        app = app_class(ecdict['ec'])
         _log.info("Obtained application instance of for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError, err:
         tup = (name, easyblock, err.msg)
@@ -1912,9 +1913,9 @@ def build_and_install_one(module, orig_environ):
                 # upload spec to central repository
                 currentbuildstats = app.cfg['buildstats']
                 repo = init_repository(get_repository(), get_repositorypath())
-                if 'original_spec' in module:
+                if 'original_spec' in ecdict:
                     block = det_full_ec_version(app.cfg) + ".block"
-                    repo.add_easyconfig(module['original_spec'], app.name, block, buildstats, currentbuildstats)
+                    repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
@@ -1979,22 +1980,23 @@ def build_and_install_one(module, orig_environ):
     return (success, application_log, errormsg)
 
 
-def get_easyblock_instance(easyconfig):
+def get_easyblock_instance(ecdict):
     """
     Get an instance for this easyconfig
     @param easyconfig: parsed easyconfig (EasyConfig instance)
 
     returns an instance of EasyBlock (or subclass thereof)
     """
-    spec = easyconfig['spec']
-    name = easyconfig['ec']['name']
+    spec = ecdict['spec']
+    rawtxt = ecdict['ec'].rawtxt
+    name = ecdict['ec']['name']
 
     # handle easyconfigs with custom easyblocks
     # determine easyblock specification from easyconfig file, if any
-    easyblock = fetch_parameter_from_easyconfig_file(spec, 'easyblock')
+    easyblock = fetch_parameters_from_easyconfig(rawtxt, ['easyblock'])[0]
 
     app_class = get_easyblock_class(easyblock, name=name)
-    return app_class(easyconfig['ec'])
+    return app_class(ecdict['ec'])
 
 
 def build_easyconfigs(easyconfigs, output_dir, test_results):
