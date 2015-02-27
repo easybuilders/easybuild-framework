@@ -73,11 +73,10 @@ from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, search_file, write_file
+from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.ordereddict import OrderedDict
-from easybuild.tools.run import run_cmd
 from easybuild.tools.utilities import quote_str
 
 
@@ -203,12 +202,12 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
-    if ec:
-        _log.warning("eb not found (%s), failed to determine installation prefix" % out)
+    eb_path = which('eb')
+    if eb_path is None:
+        _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
     else:
         # eb should reside in <install_prefix>/bin/eb
-        install_prefix = os.path.dirname(os.path.dirname(out))
+        install_prefix = os.path.dirname(os.path.dirname(eb_path))
         path_list.append(install_prefix)
         _log.debug("Also considering installation prefix %s..." % install_prefix)
 
