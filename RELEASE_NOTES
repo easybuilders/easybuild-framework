@@ -34,6 +34,7 @@ feature + bugfix release
         - see http://easybuild.readthedocs.org/en/latest/Installation.html#advanced-bootstrapping-options
     - disable updating of Lmod user cache by default, add configuration option --update-modules-tool-cache (#1185)
         - for now, only the Lmod user cache can be updated using --update-modules-tool-cache
+    - use available which() function, rather than running 'which' via run_cmd (#1192)
 - various bug fixes, including:
     - stop triggering deprecated/no longer support functionality in unit tests (#1126)
     - fix from_pr test by including dummy easyblocks for HPL and ScaLAPACK (#1133)
