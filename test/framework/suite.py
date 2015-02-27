@@ -35,11 +35,22 @@ import os
 import sys
 import tempfile
 import unittest
+import vsc
 from vsc.utils import fancylogger
 
 # initialize EasyBuild logging, so we disable it
+import easybuild.framework
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import set_tmpdir
+
+# easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
+FRAMEWORK_LOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
+# vsc.__file__ provides location to <prefix>/vsc/__init__.py
+VSC_LOC = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+# make sure vsc is being imported from outside of framework
+if os.path.samefile(FRAMEWORK_LOC, VSC_LOC):
+    sys.stderr.write("ERROR: Use of vsc-base at same location as easybuild-framework detected: %s\n" % VSC_LOC)
+    sys.exit(1)
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 try:
