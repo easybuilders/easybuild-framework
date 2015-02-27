@@ -42,7 +42,7 @@ feature + bugfix release
     - fix formatting issues in generated easyconfig file obtained via --try-X (#1144)
     - use log.error in tools/toolchain/toolchain.py where applicable (#1145)
     - stop hardcoding /tmp in mpi_cmd_for function (#1146)
-    - correctly determine variable name for EBEXTLIST when generating module file (#1156)
+    - correctly determine variable name for $EBEXTLIST when generating module file (#1156)
     - do not ignore exit code of failing postinstall commands (#1157)
     - fix rare case in which used easyconfig and copied easyconfig are the same (#1159)
     - always filter hidden deps from list of dependencies (#1161)
@@ -50,6 +50,7 @@ feature + bugfix release
     - make sure plain text keyring is used by unit tests (#1165)
     - suppress creation of module symlinks for HierarchicalMNS (#1173)
     - sort all lists obtained via glob.glob, since they are in arbitrary order (#1187)
+    - stop modifying $MODULEPATH directly in setUp/tearDown of toolchain tests (#1191)
 
 v1.16.1 (December 19th 2014)
 ----------------------------
