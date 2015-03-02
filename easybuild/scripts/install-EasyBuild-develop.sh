@@ -26,7 +26,7 @@ github_clone_branch()
 
     cd "${INSTALL_DIR}"
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
-    git clone git@github.com:${GITHUB_USERNAME}/${REPO}.git
+    git clone --branch master git@github.com:${GITHUB_USERNAME}/${REPO}.git
 
     echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/{$REPO} ..."
     cd "${REPO}"
@@ -69,7 +69,7 @@ conflict    EasyBuild
 
 prepend-path    PATH            "\$root/easybuild-framework"
 
-prepend-path    PYTHONPATH      "\$root/vsc-base"
+prepend-path    PYTHONPATH      "\$root/vsc-base/lib"
 prepend-path    PYTHONPATH      "\$root/easybuild-framework"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyblocks"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyconfigs"
