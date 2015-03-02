@@ -1429,7 +1429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
-        del os.environ['EASYBUILD_ROBOT_PATHS']
+        os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
 
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
@@ -1463,6 +1463,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        del os.environ['EASYBUILD_ROBOT_PATHS']
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)
         self.eb_main(args, raise_error=True)
