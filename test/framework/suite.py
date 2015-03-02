@@ -35,22 +35,11 @@ import os
 import sys
 import tempfile
 import unittest
-import vsc
 from vsc.utils import fancylogger
 
 # initialize EasyBuild logging, so we disable it
-import easybuild.framework
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import set_tmpdir
-
-# easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
-FRAMEWORK_LOC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
-# vsc.__file__ provides location to <prefix>/vsc/__init__.py
-VSC_LOC = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
-# make sure vsc is being imported from outside of framework
-if os.path.samefile(FRAMEWORK_LOC, VSC_LOC):
-    sys.stderr.write("ERROR: Use of vsc-base at same location as easybuild-framework detected: %s\n" % VSC_LOC)
-    sys.exit(1)
 
 # set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
 try:
@@ -74,6 +63,7 @@ import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
 import test.framework.format_convert as f_c
+import test.framework.general as gen
 import test.framework.github as g
 import test.framework.license as l
 import test.framework.module_generator as mg
@@ -109,7 +99,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
+tests = [gen, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
