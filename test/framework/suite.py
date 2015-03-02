@@ -63,6 +63,7 @@ import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
 import test.framework.format_convert as f_c
+import test.framework.general as gen
 import test.framework.github as g
 import test.framework.license as l
 import test.framework.module_generator as mg
@@ -98,7 +99,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
+tests = [gen, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 
