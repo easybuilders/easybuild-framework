@@ -191,7 +191,8 @@ class Mpi(Toolchain):
             tmpdir = tempfile.mkdtemp(prefix='eb-mpi_cmd_for-')
 
             # set temporary dir for mdp
-            env.setvar('I_MPI_MPD_TMPDIR', tmpdir)
+            # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
+            env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
