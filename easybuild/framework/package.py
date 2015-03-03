@@ -53,13 +53,13 @@ def package_fpm(easyblock, modfile_path ):
         'fpm',
         '--workdir', workdir,
         '--name', pkgname,
-
-    ]
-    cmdlist.extend(' --depends '.join(dependencies))
-    cmdlist.extend([
         '-t', 'rpm', # target
         '-s', 'dir', # source
         '-C', easyblock.installdir,
+    ]
+    cmdlist.extend([ depstring ])
+    cmdlist.extend([
+        easyblock.installdir,
     ])
 
     (out, _) = run_cmd(cmdlist, log_all=True, simple=False)
