@@ -226,8 +226,11 @@ def main(testing_data=(None, None, None)):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
-    if not paths:
+    paths = det_easyconfig_paths(orig_paths)
+    if paths:
+        # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
+        paths = [(p, False) for p in paths]
+    else:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)

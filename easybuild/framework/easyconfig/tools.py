@@ -240,15 +240,14 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     return tweaked_ecs_path, pr_path
 
 
-def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
+def det_easyconfig_paths(orig_paths):
     """
     Determine paths to easyconfig files.
     @param orig_paths: list of original easyconfig paths
-    @param from_pr: pull request number to fetch easyconfigs from
-    @param easyconfigs_pkg_paths: paths to installed easyconfigs package
+    @return: list of paths to easyconfig files
     """
-    if easyconfigs_pkg_paths is None:
-        easyconfigs_pkg_paths = []
+    from_pr = build_option('from_pr')
+    robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
@@ -266,8 +265,8 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
 
-    if ec_files and easyconfigs_pkg_paths:
-        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+    if ec_files and robot_path:
+        # look for easyconfigs with relative paths in robot search path,
         # unless they were found at the given relative paths
 
         # determine which easyconfigs files need to be found, if any
@@ -277,8 +276,8 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
                 ecs_to_find.append((idx, ec_file))
         _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
 
-        # find missing easyconfigs by walking paths with installed easyconfig files
-        for path in easyconfigs_pkg_paths:
+        # find missing easyconfigs by walking paths in robot search path
+        for path in robot_path:
             _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
             for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
                 for idx, orig_path in ecs_to_find[:]:
@@ -300,8 +299,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
             if not ecs_to_find:
                 break
 
-    # indicate that specified paths do not contain generated easyconfig files
-    return [(ec_file, False) for ec_file in ec_files]
+    return ec_files
 
 
 def parse_easyconfigs(paths):
