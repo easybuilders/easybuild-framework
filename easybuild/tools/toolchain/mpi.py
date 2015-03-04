@@ -197,7 +197,7 @@ class Mpi(Toolchain):
                 self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s" % mpd_tmpdir)
 
             # temporary location for mpdboot and nodes files
-            tmpdir = tempfile.mkdtemp(prefix='eb-mpi_cmd_for-')
+            tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
