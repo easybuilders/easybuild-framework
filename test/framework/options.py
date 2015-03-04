@@ -882,7 +882,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % test_ecs_path,
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -890,13 +890,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (ecstmpdir, 'toy/0.0'),
-                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (test_ecs_path, 'toy/0.0'),  # not included in PR
+                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR
                 (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
                 (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
                 (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
                 (tmpdir, 'gompi/2015a'),
-                ('.*', 'GCC/4.6.3'),
+                (test_ecs_path, 'GCC/4.6.3'),  # not included in PR
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
