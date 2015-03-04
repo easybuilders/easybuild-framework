@@ -848,7 +848,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6}', 'files_pr1239')
             regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError, err:
@@ -1009,17 +1009,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, do_build=True)
 
-        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
+        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'eb-')
         found = re.search(tmpdir_msg, outtxt, re.M)
         self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
 
         for var in ['TMPDIR', 'TEMP', 'TMP']:
-            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'easybuild-')))
-        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'easybuild-')))
+            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'eb-')))
+        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'eb-')))
         tempfile_tmpdir = tempfile.mkdtemp()
-        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
         fd, tempfile_tmpfile = tempfile.mkstemp()
-        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
 
         # cleanup
         os.close(fd)
@@ -1303,7 +1303,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/easybuild-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
