@@ -692,18 +692,6 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def fetch_parameter_from_easyconfig_file(path, param):
-    """
-    Fetch parameter specification from given easyconfig file.
-    DEPRECATED: use fetch_parameters_from_easyconfig from easybuild.framework.easyconfigs.parser instead
-    """
-    old = 'fetch_parameter_from_easyconfig_file'
-    new = 'fetch_parameters_from_easyconfig'
-    _log.deprecated("%s is replaced by %s from easybuild.framework.easyconfig.parser" % (old, new), '3.0')
-    ectxt = read_file(path)
-    return fetch_parameters_from_easyconfig(ectxt, [param])[0]
-
-
 def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
     """
     Get class for a particular easyblock (or use default)
