@@ -1,5 +1,5 @@
-# #
-# Copyright 2013-2015 Ghent University
+##
+# Copyright 2015-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,46 +21,39 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
-Unit tests for easyconfig/licenses.py
+Unit tests for general aspects of the EasyBuild framework
 
-@author: Stijn De Weirdt (Ghent University)
+@author: Kenneth hoste (Ghent University)
 """
+import os
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
-from easybuild.framework.easyconfig.licenses import License, VeryRestrictive, what_licenses
+import vsc
+
+import easybuild.framework
 
 
-class LicenseTest(EnhancedTestCase):
-    """Test the license"""
+class GeneralTest(EnhancedTestCase):
+    """Test for general aspects of EasyBuild framework."""
 
-    def test_common_ones(self):
-        """Check if a number of common licenses can be found"""
-        lics = what_licenses()
-        commonlicenses = ['VeryRestrictive', 'GPLv2', 'GPLv3']
-        for lic in commonlicenses:
-            self.assertTrue(lic in lics)
+    def test_vsc_location(self):
+        """Make sure location of imported vsc module is not the framework itself."""
+        # cfr. https://github.com/hpcugent/easybuild-framework/pull/1160
+        # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
+        framework_loc = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__))))
+        # vsc.__file__ provides location to <prefix>/vsc/__init__.py
+        vsc_loc = os.path.dirname(os.path.dirname(os.path.abspath(vsc.__file__)))
+        # make sure vsc is being imported from outside of framework
+        msg = "vsc-base is not provided by EasyBuild framework itself, found location: %s" % vsc_loc
+        self.assertFalse(os.path.samefile(framework_loc, vsc_loc), msg)
 
-    def test_default_license(self):
-        """Verify that the default License class is very restrictive"""
-        self.assertFalse(License.DISTRIBUTE_SOURCE)
-        self.assertTrue(License.GROUP_SOURCE)
-        self.assertTrue(License.GROUP_BINARY)
-
-    def test_veryrestrictive_license(self):
-        """Verify that the very restrictive class is very restrictive"""
-        self.assertFalse(VeryRestrictive.DISTRIBUTE_SOURCE)
-        self.assertTrue(VeryRestrictive.GROUP_SOURCE)
-        self.assertTrue(VeryRestrictive.GROUP_BINARY)
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(LicenseTest)
-
+    return TestLoader().loadTestsFromTestCase(GeneralTest)
 
 if __name__ == '__main__':
-    # logToScreen(enable=True)
-    # setLogLevelDebug()
     main()

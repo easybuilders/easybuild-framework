@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -117,6 +117,11 @@ class EnhancedTestCase(_EnhancedTestCase):
         os.environ['EASYBUILD_DEPRECATED'] = '10000000'
 
         init_config()
+
+        # remove any entries in Python search path that seem to provide easyblocks
+        for path in sys.path[:]:
+            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
+                sys.path.remove(path)
 
         # add test easyblocks to Python search path and (re)import and reload easybuild modules
         import easybuild

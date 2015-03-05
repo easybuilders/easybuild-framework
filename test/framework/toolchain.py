@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,17 +48,6 @@ easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.
 
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
-
-    def setUp(self):
-        """Set up everything for a unit test."""
-        super(ToolchainTest, self).setUp()
-
-        # start with a clean slate
-        modules.modules_tool().purge()
-
-        # make sure path with modules for testing is added to MODULEPATH
-        self.orig_modpath = os.environ.get('MODULEPATH', '')
-        os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
 
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
@@ -553,17 +542,6 @@ class ToolchainTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(tmpdir)
         write_file(imkl_module_path, imkl_module_txt)
-
-    def tearDown(self):
-        """Cleanup."""
-        # purge any loaded modules before restoring $MODULEPATH
-        modules.modules_tool().purge()
-
-        super(ToolchainTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = self.orig_modpath
-        # reinitialize modules tool after touching $MODULEPATH
-        modules.modules_tool()
 
 def suite():
     """ return all the tests"""

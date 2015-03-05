@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -848,7 +848,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6}', 'files_pr1239')
             regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError, err:
@@ -882,7 +882,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % test_ecs_path,
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -890,13 +890,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         try:
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (ecstmpdir, 'toy/0.0'),
-                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (test_ecs_path, 'toy/0.0'),  # not included in PR
+                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR
                 (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
                 (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
                 (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
                 (tmpdir, 'gompi/2015a'),
-                ('.*', 'GCC/4.6.3'),
+                (test_ecs_path, 'GCC/4.6.3'),  # not included in PR
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -1009,17 +1009,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, do_build=True)
 
-        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
+        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'eb-')
         found = re.search(tmpdir_msg, outtxt, re.M)
         self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
 
         for var in ['TMPDIR', 'TEMP', 'TMP']:
-            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'easybuild-')))
-        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'easybuild-')))
+            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'eb-')))
+        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'eb-')))
         tempfile_tmpdir = tempfile.mkdtemp()
-        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
         fd, tempfile_tmpfile = tempfile.mkstemp()
-        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
 
         # cleanup
         os.close(fd)
@@ -1303,7 +1303,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/easybuild-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
@@ -1429,7 +1429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
-        del os.environ['EASYBUILD_ROBOT_PATHS']
+        os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
 
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
@@ -1463,6 +1463,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        del os.environ['EASYBUILD_ROBOT_PATHS']
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)
         self.eb_main(args, raise_error=True)
