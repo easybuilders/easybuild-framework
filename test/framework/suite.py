@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,14 +32,23 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 """
 import glob
 import os
-import shutil
 import sys
 import tempfile
 import unittest
 from vsc.utils import fancylogger
 
+# initialize EasyBuild logging, so we disable it
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import set_tmpdir
+
+# set plain text key ring to be used, so a GitHub token stored in it can be obtained without having to provide a password
+try:
+    import keyring
+    keyring.set_keyring(keyring.backends.file.PlaintextKeyring())
+except ImportError:
+    pass
+
 # disable all logging to significantly speed up tests
-import easybuild.tools.build_log  # initialize EasyBuild logging, so we disable it
 fancylogger.disableDefaultHandlers()
 fancylogger.setLogLevelError()
 
@@ -54,6 +63,7 @@ import test.framework.ebconfigobj as ebco
 import test.framework.easyconfigversion as ev
 import test.framework.filetools as f
 import test.framework.format_convert as f_c
+import test.framework.general as gen
 import test.framework.github as g
 import test.framework.license as l
 import test.framework.module_generator as mg
@@ -74,18 +84,11 @@ import test.framework.variables as v
 
 
 # make sure temporary files can be created/used
-fd, fn = tempfile.mkstemp()
-os.close(fd)
-os.remove(fn)
-testdir = tempfile.mkdtemp()
-for test_fn in [fn, os.path.join(testdir, 'test')]:
-    try:
-        open(fn, 'w').write('test')
-    except IOError, err:
-        sys.stderr.write("ERROR: Can't write to temporary file %s, set $TMPDIR to a writeable directory (%s)" % (fn, err))
-        sys.exit(1)
-os.remove(fn)
-shutil.rmtree(testdir)
+try:
+    set_tmpdir(raise_error=True)
+except EasyBuildError, err:
+    sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
+    sys.exit(1)
 
 # initialize logger for all the unit tests
 fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
@@ -96,7 +99,7 @@ log = fancylogger.getLogger()
 
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
-tests = [o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw]
+tests = [gen, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, l, f_c, sc, tw, p]
 
 SUITE = unittest.TestSuite([x.suite() for x in tests])
 

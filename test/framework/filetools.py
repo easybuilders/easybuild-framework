@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +33,8 @@ import os
 import shutil
 import stat
 import tempfile
-from test.framework.utilities import EnhancedTestCase, find_full_path
+import urllib2
+from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -50,17 +51,6 @@ class FileToolsTest(EnhancedTestCase):
         ('DL_POLY_Classic', 'EB_DL_underscore_POLY_underscore_Classic'),
         ('0_foo+0x0x#-$__', 'EB_0_underscore_foo_plus_0x0x_hash__minus__dollar__underscore__underscore_'),
     ]
-
-    def setUp(self):
-        """Set up testcase."""
-        super(FileToolsTest, self).setUp()
-        self.legacySetUp()
-
-    def legacySetUp(self):
-        self.log.deprecated("legacySetUp", "2.0")
-        cfg_path = os.path.join('easybuild', 'easybuild_config.py')
-        cfg_full_path = find_full_path(cfg_path)
-        self.assertTrue(cfg_full_path)
 
     def test_extract_cmd(self):
         """Test various extract commands."""
@@ -192,10 +182,24 @@ class FileToolsTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works")
 
         # non-existing files result in None return value
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+
+        # install broken proxy handler for opening local files
+        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+
+        # downloading over a broken proxy results in None return value (failed download)
+        # this tests whether proxies are taken into account by download_file
+        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+
+        # restore a working file handler, and retest download of local file
+        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
 
     def test_mkdir(self):
         """Test mkdir function."""
@@ -244,6 +248,26 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
 
+        shutil.rmtree(tmpdir)
+
+    def test_path_matches(self):
+        # set up temporary directories
+        tmpdir = tempfile.mkdtemp()
+        path1 = os.path.join(tmpdir, 'path1')
+        ft.mkdir(path1)
+        path2 = os.path.join(tmpdir, 'path2') 
+        ft.mkdir(path1)
+        symlink = os.path.join(tmpdir, 'symlink')
+        os.symlink(path1, symlink)
+        missing = os.path.join(tmpdir, 'missing')
+
+        self.assertFalse(ft.path_matches(missing, [path1, path2]))
+        self.assertFalse(ft.path_matches(path1, [missing]))
+        self.assertFalse(ft.path_matches(path1, [missing, path2]))
+        self.assertFalse(ft.path_matches(path2, [missing, symlink]))
+        self.assertTrue(ft.path_matches(path1, [missing, symlink]))
+
+        # cleanup
         shutil.rmtree(tmpdir)
 
     def test_read_write_file(self):

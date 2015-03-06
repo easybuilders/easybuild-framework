@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +33,7 @@ from distutils.version import LooseVersion
 
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.tools.modules import get_software_root, get_software_version
-from easybuild.tools.utilities import all, any
+
 
 class IntelFFTW(Fftw):
     """FFTW wrapper functionality of Intel MKL"""
