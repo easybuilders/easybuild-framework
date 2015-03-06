@@ -3,6 +3,11 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v1.16.2 (March 6th 2015)
+------------------------
+
+(no changes compared to v1.16.1, simple version bump to stay in sync with easybuild-easyblocks)
+
 v1.16.1 (December 19th 2014)
 ----------------------------
 
