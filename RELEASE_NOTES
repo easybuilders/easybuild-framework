@@ -59,6 +59,11 @@ feature + bugfix release
     - sort all lists obtained via glob.glob, since they are in arbitrary order (#1187)
     - stop modifying $MODULEPATH directly in setUp/tearDown of toolchain tests (#1191)
 
+v1.16.2 (March 6th 2015)
+------------------------
+
+(no changes compared to v1.16.1, simple version bump to stay in sync with easybuild-easyblocks)
+
 v1.16.1 (December 19th 2014)
 ----------------------------
 
