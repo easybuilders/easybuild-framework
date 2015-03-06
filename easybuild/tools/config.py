@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -446,10 +446,10 @@ def set_tmpdir(tmpdir=None, raise_error=False):
         if tmpdir is not None:
             if not os.path.exists(tmpdir):
                 os.makedirs(tmpdir)
-            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-', dir=tmpdir)
+            current_tmpdir = tempfile.mkdtemp(prefix='eb-', dir=tmpdir)
         else:
             # use tempfile default parent dir
-            current_tmpdir = tempfile.mkdtemp(prefix='easybuild-')
+            current_tmpdir = tempfile.mkdtemp(prefix='eb-')
     except OSError, err:
         _log.error("Failed to create temporary directory (tmpdir: %s): %s" % (tmpdir, err))
 

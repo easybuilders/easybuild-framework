@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -257,13 +257,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
             mytmpdir = set_tmpdir(tmpdir=tmpdir)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
-                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'easybuild-')))
+                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
                 self.assertEqual(os.environ[var], mytmpdir)
-            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
             tempfile_tmpdir = tempfile.mkdtemp()
-            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
             fd, tempfile_tmpfile = tempfile.mkstemp()
-            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'easybuild-')))
+            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
 
             # tmp_logdir follows tmpdir
             self.assertEqual(get_build_log_path(), mytmpdir)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,8 @@ import easybuild.tools.build_log
 from easybuild.framework.easyconfig.format.format import Dependency
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(__file__), 'easyconfigs')
@@ -145,6 +147,28 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # restore
         easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
+
+    def test_raw(self):
+        """Test passing of raw contents to EasyConfigParser."""
+        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'GCC-4.6.3.eb')
+        ec_txt1 = read_file(ec_file1)
+        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'gzip-1.5-goolf-1.4.10.eb')
+        ec_txt2 = read_file(ec_file2)
+
+        ecparser = EasyConfigParser(ec_file1)
+        self.assertEqual(ecparser.rawcontent, ec_txt1)
+
+        ecparser = EasyConfigParser(rawcontent=ec_txt2)
+        self.assertEqual(ecparser.rawcontent, ec_txt2)
+
+        # rawcontent supersedes passed filepath
+        ecparser = EasyConfigParser(ec_file1, rawcontent=ec_txt2)
+        self.assertEqual(ecparser.rawcontent, ec_txt2)
+        ec = ecparser.get_config_dict()
+        self.assertEqual(ec['name'], 'gzip')
+        self.assertEqual(ec['toolchain']['name'], 'goolf')
+
+        self.assertErrorRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
 
 def suite():
     """ returns all the testcases in this module """
