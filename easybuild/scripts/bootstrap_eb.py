@@ -369,6 +369,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
         # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
         pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
         os.environ['PYTHONPATH'] = os.pathsep.join([distribute_egg_dir] + pythonpaths)
+        sys.path.insert(0, distribute_egg_dir)
 
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
