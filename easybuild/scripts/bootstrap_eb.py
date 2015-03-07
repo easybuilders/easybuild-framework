@@ -58,6 +58,9 @@ EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', '
 # set print_debug to True for detailed progress info
 print_debug = os.environ.get('EASYBUILD_BOOTSTRAP_DEBUG', False)
 
+# don't add user site directory to sys.path (equivalent to python -s)
+os.environ['PYTHONNOUSERSITE'] = '1'
+
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
 
