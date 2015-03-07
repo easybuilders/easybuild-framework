@@ -46,6 +46,7 @@ import glob
 import os
 import re
 import shutil
+import site
 import sys
 import tempfile
 from distutils.version import LooseVersion
@@ -58,8 +59,9 @@ EASYBUILD_PACKAGES = [VSC_BASE, 'easybuild-framework', 'easybuild-easyblocks', '
 # set print_debug to True for detailed progress info
 print_debug = os.environ.get('EASYBUILD_BOOTSTRAP_DEBUG', False)
 
-# don't add user site directory to sys.path (equivalent to python -s)
+# don't add user site directory to sys.path (equivalent to python -s), see https://www.python.org/dev/peps/pep-0370/
 os.environ['PYTHONNOUSERSITE'] = '1'
+site.ENABLE_USER_SITE = False
 
 # clean PYTHONPATH to avoid finding readily installed stuff
 os.environ['PYTHONPATH'] = ''
