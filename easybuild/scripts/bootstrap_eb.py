@@ -450,7 +450,7 @@ def main():
         # exclude path if it's potentially an EasyBuild package
         if 'easybuild' in path or os.path.exists(os.path.join(path, 'easybuild')):
             include_path = False
-        if 'vsc_base' in path or os.path.exists(os.path.join(path, 'vsc', 'utils')):
+        if '/vsc_' in path or os.path.exists(os.path.join(path, 'vsc')):
             include_path = False
         # exclude path if it contain an easy-install.pth file
         if os.path.exists(os.path.join(path, 'easy-install.pth')):
