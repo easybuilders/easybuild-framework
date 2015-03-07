@@ -457,7 +457,7 @@ def main():
         elif '/vsc_' in path or os.path.exists(os.path.join(path, 'vsc')):
             include_path = False
         # exclude path if it provides 'distribute' package
-        elif 'distribute' in path or os.path.exists(os.path.join(path, 'distribute')):
+        elif 'distutils' in path or os.path.exists(os.path.join(path, 'distutils')):
             include_path = False
         # exclude path if it contain an easy-install.pth file
         elif os.path.exists(os.path.join(path, 'easy-install.pth')):
