@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -75,7 +75,6 @@ def build_easyconfig_constants_dict():
 
 def build_easyconfig_variables_dict():
     """Make a dictionary with all variables that can be used"""
-    _log.deprecated("Magic 'global' easyconfigs variables like shared_lib_ext should no longer be used", '2.0')
     vars_dict = {
         "shared_lib_ext": get_shared_lib_ext(),
     }
@@ -178,6 +177,11 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
         self.log.debug("pyheader initial local_vars %s" % local_vars)
         self.log.debug("pyheader text being exec'ed: %s" % pyheader)
 
+        # check for use of deprecated magic easyconfigs variables
+        for magic_var in build_easyconfig_variables_dict():
+            if re.search(magic_var, pyheader, re.M):
+                _log.nosupport("Magic 'global' easyconfigs variable %s should no longer be used" % magic_var, '2.0')
+
         try:
             exec(pyheader, global_vars, local_vars)
         except SyntaxError, err:
@@ -222,26 +226,27 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
     def _validate_pyheader(self):
         """
         Basic validation of pyheader localvars.
-        This takes variable names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY;
-        blacklisted variables are not allowed, mandatory variables are
-        mandatory unless blacklisted
+        This takes parameter names from the PYHEADER_BLACKLIST and PYHEADER_MANDATORY;
+        blacklisted parameters are not allowed, mandatory parameters are mandatory unless blacklisted
         """
         if self.pyheader_localvars is None:
             self.log.error("self.pyheader_localvars must be initialized")
         if self.PYHEADER_BLACKLIST is None or self.PYHEADER_MANDATORY is None:
             self.log.error('Both PYHEADER_BLACKLIST and PYHEADER_MANDATORY must be set')
 
-        for variable in self.PYHEADER_BLACKLIST:
-            if variable in self.pyheader_localvars:
+        for param in self.PYHEADER_BLACKLIST:
+            if param in self.pyheader_localvars:
                 # TODO add to easyconfig unittest (similar to mandatory)
-                self.log.error('blacklisted variable %s not allowed in pyheader' % variable)
+                self.log.error('blacklisted param %s not allowed in pyheader' % param)
 
-        for variable in self.PYHEADER_MANDATORY:
-            if variable in self.PYHEADER_BLACKLIST:
+        missing = []
+        for param in self.PYHEADER_MANDATORY:
+            if param in self.PYHEADER_BLACKLIST:
                 continue
-            if not variable in self.pyheader_localvars:
-                # message format in sync with easyconfig mandatory unittest!
-                self.log.error('mandatory variable %s not provided in pyheader' % variable)
+            if not param in self.pyheader_localvars:
+                missing.append(param)
+        if missing:
+            self.log.error('mandatory parameters not provided in pyheader: %s' % ', '.join(missing))
 
     def parse_section_block(self, section):
         """Parse the section block by trying to convert it into a ConfigObj instance"""

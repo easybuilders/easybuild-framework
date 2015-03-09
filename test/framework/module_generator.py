@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -171,8 +171,15 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
-        tcl_load_msg = '\nif [ module-info mode load ] {\n        puts stderr     "test"\n}\n'
-        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test'))
+        tcl_load_msg = '\n'.join([
+            '',
+            "if [ module-info mode load ] {",
+            "        puts stderr     \"test \\$test \\$test",
+            "test \\$foo \\$bar\"",
+            "}",
+            '',
+        ])
+        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
 
     def test_tcl_footer(self):
         """Test including a Tcl footer."""
@@ -252,7 +259,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        self.assertErrorRegex(KeyError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
+        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, os.path.join(ecs_dir, 'gzip-1.5-goolf-1.4.10.eb'))
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -371,6 +378,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_hierarchical_mns(self):
         """Test hierarchical module naming scheme."""
 
+        moduleclasses = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
         ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
@@ -378,6 +386,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'robot_path': [ecs_dir],
             'valid_stops': all_stops,
             'validate': False,
+            'valid_module_classes': moduleclasses,
         }
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, init_modpaths):
@@ -392,15 +401,54 @@ class ModuleGeneratorTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
         init_config(build_options=build_options)
 
-        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions)
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions, init_modpaths)
+        iccver = '2013.5.192-GCC-4.8.3'
+        impi_ec = 'impi-4.1.3.049-iccifort-2013.5.192-GCC-4.8.3.eb'
+        imkl_ec = 'imkl-11.1.2.144-iimpi-5.5.3-GCC-4.8.3.eb'
         test_ecs = {
             'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core', ['Compiler/GCC/4.7.2'], ['Core']),
             'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2', ['MPI/GCC/4.7.2/OpenMPI/1.6.4'], ['Core']),
             'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4', [], ['Core']),
             'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core', [], ['Core']),
+            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core', ['Compiler/intel/%s' % iccver], ['Core']),
+            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core', ['Compiler/intel/2013.3.163'], ['Core']),
+            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2', ['Compiler/GCC-CUDA/4.8.2-5.5.22'], ['Core']),
+            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s' % iccver, ['MPI/intel/%s/impi/4.1.3.049' % iccver], ['Core']),
+            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049' % iccver, [], ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
+
+        # impi with dummy toolchain, which doesn't make sense in a hierarchical context
+        ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
+        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
+        init_config(build_options=build_options)
+
+        # format: easyconfig_file: (short_mod_name, mod_subdir, modpath_extensions)
+        test_ecs = {
+            'GCC-4.7.2.eb': ('GCC/4.7.2', 'Core/compiler',
+                             ['Compiler/GCC/4.7.2/%s' % c for c in moduleclasses]),
+            'OpenMPI-1.6.4-GCC-4.7.2.eb': ('OpenMPI/1.6.4', 'Compiler/GCC/4.7.2/mpi',
+                             ['MPI/GCC/4.7.2/OpenMPI/1.6.4/%s' % c for c in moduleclasses]),
+            'gzip-1.5-goolf-1.4.10.eb': ('gzip/1.5', 'MPI/GCC/4.7.2/OpenMPI/1.6.4/base',
+                             []),
+            'goolf-1.4.10.eb': ('goolf/1.4.10', 'Core/toolchain',
+                             []),
+            'icc-2013.5.192-GCC-4.8.3.eb': ('icc/%s' % iccver, 'Core/compiler',
+                             ['Compiler/intel/%s/%s' % (iccver, c) for c in moduleclasses]),
+            'ifort-2013.3.163.eb': ('ifort/2013.3.163', 'Core/compiler',
+                             ['Compiler/intel/2013.3.163/%s' % c for c in moduleclasses]),
+            'CUDA-5.5.22-GCC-4.8.2.eb': ('CUDA/5.5.22', 'Compiler/GCC/4.8.2/system',
+                             ['Compiler/GCC-CUDA/4.8.2-5.5.22/%s' % c for c in moduleclasses]),
+            impi_ec: ('impi/4.1.3.049', 'Compiler/intel/%s/mpi' % iccver,
+                             ['MPI/intel/%s/impi/4.1.3.049/%s' % (iccver, c) for c in moduleclasses]),
+            imkl_ec: ('imkl/11.1.2.144', 'MPI/intel/%s/impi/4.1.3.049/numlib' % iccver,
+                             []),
+        }
+        for ecfile, mns_vals in test_ecs.items():
+            test_ec(ecfile, *mns_vals, init_modpaths = ['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
@@ -418,6 +466,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
+
 
 def suite():
     """ returns all the testcases in this module """

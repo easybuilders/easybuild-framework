@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,19 +29,31 @@ Unit tests for robot (dependency resolution).
 """
 
 import os
+import re
+import shutil
+import tempfile
 from copy import deepcopy
 from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader
 from unittest import main as unittestmain
 
 import easybuild.framework.easyconfig.tools as ectools
-from easybuild.framework.easyconfig.tools import resolve_dependencies, skip_available
+import easybuild.tools.robot as robot
+from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools import config, modules
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.github import fetch_github_token
+from easybuild.tools.robot import resolve_dependencies
 from test.framework.utilities import find_full_path
 
+
+# test account, for which a token is available
+GITHUB_TEST_ACCOUNT = 'easybuild_test'
+
 ORIG_MODULES_TOOL = modules.modules_tool
-ORIG_MAIN_MODULES_TOOL = ectools.modules_tool
+ORIG_ECTOOLS_MODULES_TOOL = ectools.modules_tool
+ORIG_ROBOT_MODULES_TOOL = robot.modules_tool
 ORIG_MODULE_FUNCTION = os.environ.get('module', None)
 
 
@@ -60,8 +72,8 @@ class MockModule(modules.ModulesTool):
         return self.avail_modules
 
     def show(self, modname):
-        """Dummy implementation of show, which includes full path to (existing) module files."""
-        if modname in self.avail_modules:
+        """Dummy implementation of show, which includes full path to (available or hidden) module files."""
+        if modname in self.avail_modules or os.path.basename(modname).startswith('.'):
             txt =  '  %s:' % os.path.join('/tmp', modname)
         else:
             txt = 'Module %s not found' % modname
@@ -76,19 +88,22 @@ class RobotTest(EnhancedTestCase):
     """ Testcase for the robot dependency resolution """
 
     def setUp(self):
-        """Set up everything for a unit test."""
+        """Set up test."""
         super(RobotTest, self).setUp()
+        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
+
+    def xtest_resolve_dependencies(self):
+        """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
 
         # replace Modules class with something we have control over
         config.modules_tool = mock_module
         ectools.modules_tool = mock_module
+        robot.modules_tool = mock_module
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
-        self.base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
-        self.assertTrue(self.base_easyconfig_dir)
+        base_easyconfig_dir = find_full_path(os.path.join("test", "framework", "easyconfigs"))
+        self.assertTrue(base_easyconfig_dir)
 
-    def test_resolve_dependencies(self):
-        """ Test with some basic testcases (also check if he can find dependencies inside the given directory """
         easyconfig = {
             'spec': '_',
             'full_mod_name': 'name/version',
@@ -120,10 +135,11 @@ class RobotTest(EnhancedTestCase):
                 'versionsuffix': '',
                 'toolchain': {'name': 'dummy', 'version': 'dummy'},
                 'dummy': True,
+                'hidden': False,
             }],
             'parsed': True,
         }
-        build_options.update({'robot_path': self.base_easyconfig_dir})
+        build_options.update({'robot': True, 'robot_path': base_easyconfig_dir})
         init_config(build_options=build_options)
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
         # dependency should be found, order should be correct
@@ -131,7 +147,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
 
-        # hidden dependencies are found too
+        # hidden dependencies are found too, but only retained if they're not available (or forced to be retained
         hidden_dep = {
             'name': 'toy',
             'version': '0.0',
@@ -143,11 +159,20 @@ class RobotTest(EnhancedTestCase):
         easyconfig_moredeps = deepcopy(easyconfig_dep)
         easyconfig_moredeps['dependencies'].append(hidden_dep)
         easyconfig_moredeps['hiddendependencies'] = [hidden_dep]
+
+        # toy/.0.0-deps is available and thus should be omitted
         res = resolve_dependencies([deepcopy(easyconfig_moredeps)])
+        self.assertEqual(len(res), 2)
+        full_mod_names = [ec['full_mod_name'] for ec in res]
+        self.assertFalse('toy/.0.0-deps' in full_mod_names)
+
+        res = resolve_dependencies([deepcopy(easyconfig_moredeps)], retain_all_deps=True)
         self.assertEqual(len(res), 4)  # hidden dep toy/.0.0-deps (+1) depends on (fake) ictce/4.1.13 (+1)
         self.assertEqual('gzip/1.4', res[0]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[-1]['full_mod_name'])
-        self.assertTrue('toy/.0.0-deps' in [ec['full_mod_name'] for ec in res])
+        full_mod_names = [ec['full_mod_name'] for ec in res]
+        self.assertTrue('toy/.0.0-deps' in full_mod_names)
+        self.assertTrue('ictce/4.1.13' in full_mod_names)
 
         # here we have included a dependency in the easyconfig list
         easyconfig['full_mod_name'] = 'gzip/1.4'
@@ -171,9 +196,10 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
-        build_options.update({'robot_path': self.base_easyconfig_dir})
+        build_options.update({'robot_path': base_easyconfig_dir})
         init_config(build_options=build_options)
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
 
@@ -197,6 +223,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies(ecs)
@@ -225,7 +252,7 @@ class RobotTest(EnhancedTestCase):
         # build that are listed but already have a module available are not retained without force
         build_options.update({'force': False})
         init_config(build_options=build_options)
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 2)
         self.assertEqual('goolf/1.4.10', res[0]['full_mod_name'])
@@ -235,7 +262,7 @@ class RobotTest(EnhancedTestCase):
         build_options.update({'retain_all_deps': True})
         init_config(build_options=build_options)
         ecs = [deepcopy(easyconfig_dep)]
-        newecs = skip_available(ecs, testing=True)  # skip available builds since force is not enabled
+        newecs = skip_available(ecs)  # skip available builds since force is not enabled
         res = resolve_dependencies(newecs)
         self.assertEqual(len(res), 9)
         self.assertEqual('GCC/4.7.2', res[0]['full_mod_name'])
@@ -259,6 +286,7 @@ class RobotTest(EnhancedTestCase):
             'versionsuffix': '',
             'toolchain': {'name': 'dummy', 'version': 'dummy'},
             'dummy': True,
+            'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
         res = resolve_dependencies([deepcopy(easyconfig_dep)])
@@ -271,17 +299,111 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual('goolf/1.4.10', res[2]['full_mod_name'])
         self.assertEqual('foo/1.2.3', res[3]['full_mod_name'])
 
-    def tearDown(self):
-        """ reset the Modules back to its original """
-        super(RobotTest, self).tearDown()
-
         config.modules_tool = ORIG_MODULES_TOOL
-        ectools.modules_tool = ORIG_MAIN_MODULES_TOOL
+        ectools.modules_tool = ORIG_ECTOOLS_MODULES_TOOL
+        robot.modules_tool = ORIG_ROBOT_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is not None:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         else:
             if 'module' in os.environ:
                 del os.environ['module']
+
+    def test_det_easyconfig_paths(self):
+        """Test det_easyconfig_paths function (without --from-pr)."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        test_ec = 'toy-0.0-deps.eb'
+        shutil.copy2(os.path.join(test_ecs_path, test_ec), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'ictce-4.1.13.eb'), self.test_prefix)
+        self.assertFalse(os.path.exists(test_ec))
+
+        args = [
+            os.path.join(test_ecs_path, 'toy-0.0.eb'),
+            test_ec,  # relative path, should be resolved via robot search path
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            #'--from-pr=1239',
+            '--dry-run',
+            '--debug',
+            '--robot',
+            '--robot-paths=%s' % self.test_prefix,  # override $EASYBUILD_ROBOT_PATHS
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+            '--tmpdir=%s' % self.test_prefix,
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+
+        modules = [
+            (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
+            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
+        ]
+        for path_prefix, module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
+    def test_det_easyconfig_paths_from_pr(self):
+        """Test det_easyconfig_paths function, with --from-pr enabled as well."""
+        if self.github_token is None:
+            print "Skipping test_from_pr, no GitHub token available?"
+            return
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+
+        test_ec = 'toy-0.0-deps.eb'
+        shutil.copy2(os.path.join(test_ecs_path, test_ec), self.test_prefix)
+        shutil.copy2(os.path.join(test_ecs_path, 'ictce-4.1.13.eb'), self.test_prefix)
+        self.assertFalse(os.path.exists(test_ec))
+
+        gompi_2015a_txt = '\n'.join([
+            "easyblock = 'Toolchain'",
+            "name = 'gompi'",
+            "version = '2015a'",
+            "versionsuffix = '-test'",
+            "homepage = 'foo'",
+            "description = 'bar'",
+            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+        ])
+        write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
+        # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)
+        write_file(os.path.join(self.test_prefix, 'gompi-2015a.eb'), gompi_2015a_txt)
+
+        args = [
+            os.path.join(test_ecs_path, 'toy-0.0.eb'),
+            test_ec,  # relative path, should be resolved via robot search path
+            # PR for foss/2015a, see https://github.com/hpcugent/easybuild-easyconfigs/pull/1239/files
+            '--from-pr=1239',
+            'FFTW-3.3.4-gompi-2015a.eb',
+            'gompi-2015a-test.eb',  # relative path, available in robot search path
+            '--dry-run',
+            '--robot',
+            '--robot=%s' % self.test_prefix,
+            '--unittest-file=%s' % self.logfile,
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
+            '--tmpdir=%s' % self.test_prefix,
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
+
+        from_pr_prefix = os.path.join(self.test_prefix, '.*', 'files_pr1239')
+        modules = [
+            (test_ecs_path, 'toy/0.0'),  # specified easyconfigs, available at given location
+            (self.test_prefix, 'ictce/4.1.13'),  # dependency, found in robot search path
+            (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
+            (self.test_prefix, 'gompi/2015a-test'),  # specified easyconfig, found in robot search path
+            (from_pr_prefix, 'FFTW/3.3.4-gompi-2015a'),  # part of PR easyconfigs
+            (from_pr_prefix, 'gompi/2015a'),  # part of PR easyconfigs
+            (test_ecs_path, 'GCC/4.9.2'),  # dependency for PR easyconfigs, found in robot search path
+        ]
+        for path_prefix, module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
 
 def suite():

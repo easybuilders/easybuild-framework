@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,7 +30,6 @@ Utility module for working with github
 """
 import base64
 import os
-import re
 import socket
 import tempfile
 import urllib
@@ -56,6 +55,7 @@ except ImportError, err:
     _log.warning("Failed to import from 'vsc.utils.rest' Python module: %s" % err)
     HAVE_GITHUB_API = False
 
+from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, mkdir
 
 
@@ -193,6 +193,11 @@ class GithubError(Exception):
 def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     """Fetch patched easyconfig files for a particular PR."""
 
+    if github_user is None:
+        github_user = build_option('github_user')
+    if path is None:
+        path = build_option('pr_path')
+
     def download(url, path=None):
         """Download file from specified URL to specified path."""
         if path is not None:
@@ -246,7 +251,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     diff_txt = download(pr_data['diff_url'])
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True)
-    _log.debug("List of patches files: %s" % patched_files)
+    _log.debug("List of patched files: %s" % patched_files)
 
     # obtain last commit
     # get all commits, increase to (max of) 100 per page

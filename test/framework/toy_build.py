@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,17 +56,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         fd, self.dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
-
-        # adjust PYTHONPATH such that test easyblocks are found
-        import easybuild
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        if not eb_blocks_path in sys.path:
-            sys.path.append(eb_blocks_path)
-            easybuild = reload(easybuild)
-
-        import easybuild.easyblocks
-        reload(easybuild.easyblocks)
-        reload(easybuild.tools.module_naming_scheme)
 
         # clear log
         write_file(self.logfile, '')
@@ -191,11 +180,11 @@ class ToyBuildTest(EnhancedTestCase):
                               verify=False, fails=True, verbose=False, raise_error=True)
 
         # make sure log file is retained, also for failed build
-        log_path_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*.log')
+        log_path_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*.log')
         self.assertTrue(len(glob.glob(log_path_pattern)) == 1, "Log file found at %s" % log_path_pattern)
 
         # make sure individual test report is retained, also for failed build
-        test_report_fp_pattern = os.path.join(tmpdir, 'easybuild-*', 'easybuild-toy-0.0*test_report.md')
+        test_report_fp_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*test_report.md')
         self.assertTrue(len(glob.glob(test_report_fp_pattern)) == 1, "Test report %s found" % test_report_fp_pattern)
 
         # test dumping full test report (doesn't raise an exception)
@@ -412,6 +401,9 @@ class ToyBuildTest(EnhancedTestCase):
             ('030', None, curr_grp, 0740, 0640, 0740),  # no write for group, with specified group
             ('077', None, None, 0700, 0600, 0700),  # no access for other/group
         ]:
+            # empty the install directory, to ensure any created directories adher to the permissions
+            shutil.rmtree(self.test_installpath)
+
             if cfg_group is None and ec_group is None:
                 allargs = [toy_ec_file]
             elif ec_group is not None:
@@ -460,9 +452,6 @@ class ToyBuildTest(EnhancedTestCase):
                 if group is not None:
                     path_gid = os.stat(fullpath).st_gid
                     self.assertEqual(path_gid, grp.getgrnam(group).gr_gid)
-
-            # cleanup for next iteration
-            shutil.rmtree(self.test_installpath)
 
         # restore original umask
         os.umask(orig_umask)
@@ -519,18 +508,19 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_hierarchical(self):
         """Test toy build under example hierarchical module naming scheme."""
 
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         self.setup_hierarchical_modules()
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
         args = [
-            os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'),
+            os.path.join(test_easyconfigs, 'toy-0.0.eb'),
             '--sourcepath=%s' % self.test_sourcepath,
             '--buildpath=%s' % self.test_buildpath,
             '--installpath=%s' % self.test_installpath,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
-            '--robot=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+            '--robot=%s' % test_easyconfigs,
             '--module-naming-scheme=HierarchicalMNS',
         ]
 
@@ -625,13 +615,15 @@ class ToyBuildTest(EnhancedTestCase):
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
-        self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        self.assertTrue(re.search(r"^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
-        args = ['gompi-1.4.10.eb'] + args[1:]
+        args[0] = os.path.join(test_easyconfigs, 'gompi-1.4.10.eb')
         modules_tool().purge()
-        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+        self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
+        gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+        self.assertTrue(os.path.exists(gompi_module_path))
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-dummy toolchain."""

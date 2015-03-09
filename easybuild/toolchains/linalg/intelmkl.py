@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,6 +33,11 @@ from distutils.version import LooseVersion
 
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
+from easybuild.toolchains.mpi.intelmpi import TC_CONSTANT_INTELMPI
+from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH
+from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
+from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
+from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -123,10 +128,14 @@ class IntelMKL(LinAlg):
 
     def _set_blacs_variables(self):
         mpimap = {
-            "OpenMPI": '_openmpi',
-            "IntelMPI": '_intelmpi',
-            "MVAPICH2": '_intelmpi',
-            "MPICH2":'',
+            TC_CONSTANT_OPENMPI: '_openmpi',
+            TC_CONSTANT_INTELMPI: '_intelmpi',
+            TC_CONSTANT_MVAPICH2: '_intelmpi',
+            # use intelmpi MKL blacs library for both MPICH v2 and v3
+            # cfr. https://software.intel.com/en-us/articles/intel-mkl-link-line-advisor
+            # note: MKL link advisor uses 'MPICH' for MPICH v1
+            TC_CONSTANT_MPICH2: '_intelmpi',
+            TC_CONSTANT_MPICH: '_intelmpi',
         }
         try:
             self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})

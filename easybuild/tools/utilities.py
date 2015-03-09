@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,8 +32,6 @@ import os
 import string
 import sys
 from vsc.utils import fancylogger
-from vsc.utils.missing import any as _any
-from vsc.utils.missing import all as _all
 import easybuild.tools.environment as env
 
 _log = fancylogger.getLogger('tools.utilities')
@@ -45,26 +43,9 @@ ASCII_CHARS = string.maketrans('', '')
 UNWANTED_CHARS = ASCII_CHARS.translate(ASCII_CHARS, string.digits + string.ascii_letters + "_")
 
 
-def any(ls):
-    """Reimplementation of 'any' function, which is not available in Python 2.4 yet."""
-    _log.deprecated("own definition of any", "2.0")
-    return _any(ls)
-
-
-def all(ls):
-    """Reimplementation of 'all' function, which is not available in Python 2.4 yet."""
-    _log.deprecated("own definition of all", "2.0")
-    return _all(ls)
-
-
 def read_environment(env_vars, strict=False):
-    """
-    Read variables from the environment
-        @param: env_vars: a dict with key a name, value a environment variable name
-        @param: strict, boolean, if True enforces that all specified environment variables are found
-    """
-    _log.deprecated("moved read_environment to tools.environment", "2.0")
-    return env.read_environment(env_vars, strict)
+    """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
+    _log.nosupport("read_environment has been moved to easybuild.tools.environment", '2.0')
 
 
 def flatten(lst):
@@ -113,7 +94,7 @@ def import_available_modules(namespace):
     """
     modules = []
     for path in sys.path:
-        for module in glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py'])):
+        for module in sorted(glob.glob(os.path.sep.join([path] + namespace.split('.') + ['*.py']))):
             if not module.endswith('__init__.py'):
                 mod_name = module.split(os.path.sep)[-1].split('.')[0]
                 modpath = '.'.join([namespace, mod_name])

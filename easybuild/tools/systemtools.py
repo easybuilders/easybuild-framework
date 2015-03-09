@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2014 Ghent University
+# Copyright 2011-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,11 +36,7 @@ import re
 import sys
 from socket import gethostname
 from vsc.utils import fancylogger
-try:
-    # this import fails with Python 2.4 because it requires the ctypes module (only in Python 2.5+)
-    from vsc.utils.affinity import sched_getaffinity
-except ImportError:
-    pass
+from vsc.utils.affinity import sched_getaffinity
 
 from easybuild.tools.filetools import read_file, which
 from easybuild.tools.run import run_cmd
@@ -51,12 +47,25 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 # constants
 AMD = 'AMD'
 ARM = 'ARM'
+IBM = 'IBM'
 INTEL = 'Intel'
+POWER = 'POWER'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
 
 UNKNOWN = 'UNKNOWN'
+
+MAX_FREQ_FP = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
+PROC_CPUINFO_FP = '/proc/cpuinfo'
+
+CPU_FAMILIES = [ARM, AMD, INTEL, POWER]
+VENDORS = {
+    'ARM': ARM,
+    'AuthenticAMD': AMD,
+    'GenuineIntel': INTEL,
+    'IBM': IBM,
+}
 
 
 class SystemToolsException(Exception):
@@ -67,146 +76,127 @@ def get_avail_core_count():
     """
     Returns the number of available CPUs, according to cgroups and taskssets limits
     """
-    # tiny inner function to help figure out number of available cores in a cpuset
-    def count_bits(n):
-        """Count the number of set bits for a given integer."""
-        bit_cnt = 0
-        while n > 0:
-            n &= n - 1
-            bit_cnt += 1
-        return bit_cnt
-
+    core_cnt = None
     os_type = get_os_type()
+
     if os_type == LINUX:
-        try:
-            # the preferred approach is via sched_getaffinity (yields a long, so cast it down to int)
-            num_cores = int(sum(sched_getaffinity().cpus))
-            return num_cores
-        except NameError:
-            pass
-
-        # in case sched_getaffinity isn't available, fall back to relying on /proc/cpuinfo
-
-        # determine total number of cores via /proc/cpuinfo
-        try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            # sometimes this is uppercase
-            max_num_cores = txt.lower().count('processor\t:')
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining total core count: %s" % err)
-
-        # determine cpuset we're in (if any)
-        mypid = os.getpid()
-        try:
-            f = open("/proc/%s/status" % mypid, 'r')
-            txt = f.read()
-            f.close()
-            cpuset = re.search("^Cpus_allowed:\s*([0-9,a-f]+)", txt, re.M | re.I)
-        except IOError:
-            cpuset = None
-
-        if cpuset is not None:
-            # use cpuset mask to determine actual number of available cores
-            mask_as_int = long(cpuset.group(1).replace(',', ''), 16)
-            num_cores_in_cpuset = count_bits((2**max_num_cores - 1) & mask_as_int)
-            _log.info("In cpuset with %s CPUs" % num_cores_in_cpuset)
-            return num_cores_in_cpuset
-        else:
-            _log.debug("No list of allowed CPUs found, not in a cpuset.")
-            return max_num_cores
+        # simple use available sched_getaffinity() function (yields a long, so cast it down to int)
+        core_cnt = int(sum(sched_getaffinity().cpus))
     else:
-        # BSD
+        # BSD-type systems
+        out, _ = run_cmd('sysctl -n hw.ncpu')
         try:
-            out, _ = run_cmd('sysctl -n hw.ncpu')
-            num_cores = int(out)
-            if num_cores > 0:
-                return num_cores
+            if int(out) > 0:
+                core_cnt = int(out)
         except ValueError:
             pass
 
-    raise SystemToolsException('Can not determine number of cores on this system')
+    if core_cnt is None:
+        raise SystemToolsException('Can not determine number of cores on this system')
+    else:
+        return core_cnt
 
 
 def get_core_count():
-    """
-    Try to detect the number of virtual or physical CPUs on this system
-    (DEPRECATED, use get_avail_core_count instead)
-    """
-    _log.deprecated("get_core_count() is deprecated, use get_avail_core_count() instead", '2.0')
-    return get_avail_core_count()
+    """NO LONGER SUPPORTED: use get_avail_core_count() instead"""
+    _log.nosupport("get_core_count() is replaced by get_avail_core_count()", '2.0')
 
 
 def get_cpu_vendor():
-    """Try to detect the cpu identifier
-
-    will return INTEL, ARM or AMD constant
     """
-    regexp = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
-    VENDORS = {
-        'GenuineIntel': INTEL,
-        'AuthenticAMD': AMD,
-    }
+    Try to detect the CPU vendor
+
+    @return: a value from the VENDORS dict
+    """
+    vendor = None
     os_type = get_os_type()
 
-    if os_type == LINUX:
-        try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            arch = UNKNOWN
-            # vendor_id might not be in the /proc/cpuinfo, so this might fail
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if arch in VENDORS:
-                return VENDORS[arch]
+    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+        txt = read_file(PROC_CPUINFO_FP)
+        arch = UNKNOWN
 
-            # some embeded linux on arm behaves differently (e.g. raspbian)
-            regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*", re.M)
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if ARM in arch:
-                return ARM
-        except IOError, err:
-            raise SystemToolsException("An error occured while determining CPU vendor since: %s" % err)
+        vendor_regex = re.compile(r"(vendor_id.*?)?\s*:\s*(?P<vendor>(?(1)\S+|(?:IBM|ARM)))")
+        res = vendor_regex.search(txt)
+        if res:
+            arch = res.group('vendor')
+        if arch in VENDORS:
+            vendor = VENDORS[arch]
+            tup = (vendor, vendor_regex.pattern, PROC_CPUINFO_FP)
+            _log.debug("Determined CPU vendor on Linux as being '%s' via regex '%s' in %s" % tup)
 
     elif os_type == DARWIN:
-        out, exitcode = run_cmd("sysctl -n machdep.cpu.vendor")
+        cmd = "sysctl -n machdep.cpu.vendor"
+        out, ec = run_cmd(cmd)
         out = out.strip()
-        if not exitcode and out and out in VENDORS:
-            return VENDORS[out]
+        if ec == 0 and out in VENDORS:
+            vendor = VENDORS[out]
+            _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
+
+    if vendor is None:
+        vendor = UNKNOWN
+        _log.warning("Could not determine CPU vendor on %s, returning %s" % (os_type, vendor))
+
+    return vendor
+
+
+def get_cpu_family():
+    """
+    Determine CPU family.
+    @return: a value from the CPU_FAMILIES list
+    """
+    family = None
+    vendor = get_cpu_vendor()
+    if vendor in CPU_FAMILIES:
+        family = vendor
+        _log.debug("Using vendor as CPU family: %s" % family)
 
     else:
-        # BSD
-        out, exitcode = run_cmd("sysctl -n hw.model")
-        out = out.strip()
-        if not exitcode and out:
-            return out.split(' ')[0]
+        # POWER family needs to be determined indirectly via 'cpu' in /proc/cpuinfo
+        if os.path.exists(PROC_CPUINFO_FP):
+            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            power_regex = re.compile(r"^cpu\s+:\s*POWER.*", re.M)
+            if power_regex.search(cpuinfo_txt):
+                family = POWER
+                tup = (power_regex.pattern, PROC_CPUINFO_FP, family)
+                _log.debug("Determined CPU family using regex '%s' in %s: %s" % tup)
 
-    return UNKNOWN
+    if family is None:
+        family = UNKNOWN
+        _log.warning("Failed to determine CPU family, returning %s" % family)
+
+    return family
 
 
 def get_cpu_model():
     """
-    returns cpu model
-    f.ex Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
+    Determine CPU model, e.g., Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
+    model = None
     os_type = get_os_type()
-    if os_type == LINUX:
-        regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
-        try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            if txt is not None:
-                return regexp.search(txt).groupdict()['modelname'].strip()
-        except IOError, err:
-            raise SystemToolsException("An error occured when determining CPU model: %s" % err)
+
+    if os_type == LINUX and os.path.exists(PROC_CPUINFO_FP):
+        # we need 'model name' on Linux/x86, but 'model' is there first with different info
+        # 'model name' is not there for Linux/POWER, but 'model' has the right info
+        model_regex = re.compile(r"^model(?:\s+name)?\s+:\s*(?P<model>.*[A-Za-z].+)\s*$", re.M)
+        txt = read_file(PROC_CPUINFO_FP)
+        res = model_regex.search(txt)
+        if res is not None:
+            model = res.group('model').strip()
+            tup = (model_regex.pattern, PROC_CPUINFO_FP, model)
+            _log.debug("Determined CPU model on Linux using regex '%s' in %s: %s" % tup)
 
     elif os_type == DARWIN:
-        out, exitcode = run_cmd("sysctl -n machdep.cpu.brand_string")
-        out = out.strip()
-        if not exitcode:
-            return out
+        cmd = "sysctl -n machdep.cpu.brand_string"
+        out, ec = run_cmd(cmd)
+        if ec == 0:
+            model = out.strip()
+            _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
 
-    return UNKNOWN
+    if model is None:
+        model = UNKNOWN
+        _log.warning("Failed to determine CPU model, returning %s" % model)
+
+    return model
 
 
 def get_cpu_speed():
@@ -214,61 +204,48 @@ def get_cpu_speed():
     Returns the (maximum) cpu speed in MHz, as a float value.
     In case of throttling, the highest cpu speed is returns.
     """
+    cpu_freq = None
     os_type = get_os_type()
+
     if os_type == LINUX:
-        try:
-            # Linux with cpu scaling
-            max_freq_fp = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
-            try:
-                f = open(max_freq_fp, 'r')
-                cpu_freq = float(f.read())/1000
-                f.close()
-                return cpu_freq
-            except IOError, err:
-                _log.warning("Failed to read %s to determine max. CPU clock frequency with CPU scaling: %s" % (max_freq_fp, err))
+        # Linux with cpu scaling
+        if os.path.exists(MAX_FREQ_FP):
+            _log.debug("Trying to determine CPU frequency on Linux via %s" % MAX_FREQ_FP)
+            txt = read_file(MAX_FREQ_FP)
+            cpu_freq = float(txt)/1000
 
-            # Linux without cpu scaling
-            cpuinfo_fp = '/proc/cpuinfo'
-            try:
-                cpu_freq = None
-                f = open(cpuinfo_fp, 'r')
-                for line in f:
-                    cpu_freq = re.match("^cpu MHz\s*:\s*([0-9.]+)", line)
-                    if cpu_freq is not None:
-                        break
-                f.close()
-                if cpu_freq is None:
-                    raise SystemToolsException("Failed to determine CPU frequency from %s" % cpuinfo_fp)
-                else:
-                    return float(cpu_freq.group(1))
-            except IOError, err:
-                _log.warning("Failed to read %s to determine CPU clock frequency: %s" % (cpuinfo_fp, err))
-
-        except (IOError, OSError), err:
-            raise SystemToolsException("Determining CPU speed failed, exception occured: %s" % err)
+        # Linux without cpu scaling
+        elif os.path.exists(PROC_CPUINFO_FP):
+            _log.debug("Trying to determine CPU frequency on Linux via %s" % PROC_CPUINFO_FP)
+            cpuinfo_txt = read_file(PROC_CPUINFO_FP)
+            # 'cpu MHz' on Linux/x86 (& more), 'clock' on Linux/POWER
+            cpu_freq_regex = re.compile(r"^(?:cpu MHz|clock)\s*:\s*(?P<cpu_freq>\d+(?:\.\d+)?)", re.M)
+            res = cpu_freq_regex.search(cpuinfo_txt)
+            if res:
+                cpu_freq = float(res.group('cpu_freq'))
+                _log.debug("Found CPU frequency using regex '%s': %s" % (cpu_freq_regex.pattern, cpu_freq))
+            else:
+                raise SystemToolsException("Failed to determine CPU frequency from %s" % PROC_CPUINFO_FP)
+        else:
+            _log.debug("%s not found to determine max. CPU clock frequency without CPU scaling: %s" % PROC_CPUINFO_FP)
 
     elif os_type == DARWIN:
-        # OS X
-        out, ec = run_cmd("sysctl -n hw.cpufrequency_max")
-        # returns clock frequency in cycles/sec, but we want MHz
-        mhz = float(out.strip())/(1000**2)
+        cmd = "sysctl -n hw.cpufrequency_max"
+        _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
+        out, ec = run_cmd(cmd)
         if ec == 0:
-            return mhz
+            # returns clock frequency in cycles/sec, but we want MHz
+            cpu_freq = float(out.strip())/(1000**2)
 
-    raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
+    else:
+        raise SystemToolsException("Could not determine CPU clock frequency (OS: %s)." % os_type)
+
+    return cpu_freq
 
 
 def get_kernel_name():
-    """Try to determine kernel name
-
-    e.g., 'Linux', 'Darwin', ...
-    """
-    _log.deprecated("get_kernel_name() (replaced by get_os_type())", "2.0")
-    try:
-        kernel_name = os.uname()[0]
-        return kernel_name
-    except OSError, err:
-        raise SystemToolsException("Failed to determine kernel name: %s" % err)
+    """NO LONGER SUPPORTED: use get_os_type() instead"""
+    _log.nosupport("get_kernel_name() is replaced by get_os_type()", '2.0')
 
 
 def get_os_type():
@@ -326,15 +303,9 @@ def get_os_name():
     Determine system name, e.g., 'redhat' (generic), 'centos', 'debian', 'fedora', 'suse', 'ubuntu',
     'red hat enterprise linux server', 'SL' (Scientific Linux), 'opensuse', ...
     """
-    try:
-        # platform.linux_distribution is more useful, but only available since Python 2.6
-        # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
-        os_name = platform.linux_distribution()[0].strip().lower()
-    except AttributeError:
-        # platform.dist can be used as a fallback
-        # CentOS, RHEL, Rocks and Scientific Linux may all appear as 'redhat' (especially if Python version is pre v2.6)
-        os_name = platform.dist()[0].strip().lower()
-        _log.deprecated("platform.dist as fallback for platform.linux_distribution", "2.0")
+    # platform.linux_distribution is more useful, but only available since Python 2.6
+    # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
+    os_name = platform.linux_distribution()[0].strip().lower()
 
     os_name_map = {
         'red hat enterprise linux server': 'RHEL',
@@ -391,27 +362,24 @@ def check_os_dependency(dep):
     # - uses rpm -q and dpkg -s --> can be run as non-root!!
     # - fallback on which
     # - should be extended to files later?
-    cmd = None
-    if get_os_name() in ['debian', 'ubuntu']:
-        if which('dpkg'):
-            cmd = "dpkg -s %s" % dep
-    else:
-        # OK for get_os_name() == redhat, fedora, RHEL, SL, centos
-        if which('rpm'):
-            cmd = "rpm -q %s" % dep
-
     found = None
-    if cmd is not None:
+    cmd = None
+    if which('rpm'):
+        cmd = "rpm -q %s" % dep
         found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
-    if found is None:
+    if not found and which('dpkg'):
+        cmd = "dpkg -s %s" % dep
+        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+
+    if cmd is None:
         # fallback for when os-dependency is a binary/library
         found = which(dep)
 
-    # try locate if it's available
-    if found is None and which('locate'):
-        cmd = 'locate --regexp "/%s$"' % dep
-        found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
+        # try locate if it's available
+        if not found and which('locate'):
+            cmd = 'locate --regexp "/%s$"' % dep
+            found = run_cmd(cmd, simple=True, log_all=False, log_ok=False)
 
     return found
 
@@ -446,7 +414,7 @@ def get_glibc_version():
             return glibc_version
         else:
             tup = (glibc_ver_str, glibc_ver_regex.pattern)
-            _log.error("Failed to determine version from '%s' using pattern '%s'." % tup)
+            _log.error("Failed to determine glibc version from '%s' using pattern '%s'." % tup)
     else:
         # no glibc on OS X standard
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
@@ -464,7 +432,6 @@ def get_system_info():
         'gcc_version': get_tool_version('gcc', version_option='-v'),
         'hostname': gethostname(),
         'glibc_version': get_glibc_version(),
-        'kernel_name': get_kernel_name(),
         'os_name': get_os_name(),
         'os_type': get_os_type(),
         'os_version': get_os_version(),

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -126,12 +126,13 @@ for root, subfolders, files in walk(options.path):
             log.info("found valid easyconfig %s" % ec)
             if not ec.name in names:
                 log.info("found new software package %s" % ec)
+                ec.easyblock = None
                 # check if an easyblock exists
-                module = get_easyblock_class(None, name=ec.name).__module__.split('.')[-1]
-                if module != "configuremake":
-                    ec.easyblock = module
-                else:
-                    ec.easyblock = None
+                ebclass = get_easyblock_class(None, name=ec.name, default_fallback=False)
+                if ebclass is not None:
+                    module = ebclass.__module__.split('.')[-1]
+                    if module != "configuremake":
+                        ec.easyblock = module
                 configs.append(ec)
                 names.append(ec.name)
         except Exception, err:
