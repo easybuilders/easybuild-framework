@@ -367,11 +367,15 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
 
     info("\n\n+++ STAGE 2: installing EasyBuild in %s with EasyBuild from stage 1...\n\n" % install_path)
 
-    if distribute_egg_dir is not None:
-        # make sure we still have distribute in PYTHONPATH, so we have control over which 'setup' is used
-        pythonpaths = [x for x in os.environ.get('PYTHONPATH', '').split(os.pathsep) if len(x) > 0]
-        os.environ['PYTHONPATH'] = os.pathsep.join([distribute_egg_dir] + pythonpaths)
-    debug("stage 2 $PYTHONPATH: %s" % os.environ)
+    # inject path to distribute installed in stage 1 into $PYTHONPATH via preinstallopts
+    # other approaches are not reliable, since EasyBuildMeta easyblock unsets $PYTHONPATH
+    if distribute_egg_dir is None:
+        preinstallopts = ''
+    else:
+        preinstallopts = 'PYTHONPATH=%s:$PYTHONPATH' % distribute_egg_dir
+    templates.update({
+        'preinstallopts': preinstallopts,
+    })
 
     # create easyconfig file
     ebfile = os.path.join(tmpdir, 'EasyBuild-%s.eb' % templates['version'])
@@ -379,6 +383,7 @@ def stage2(tmpdir, templates, install_path, distribute_egg_dir, sourcepath):
     templates.update({
         'source_urls': '\n'.join(["'%s/%s/%s'," % (PYPI_SOURCE_URL, pkg[0], pkg) for pkg in EASYBUILD_PACKAGES]),
         'sources': "%(vsc-base)s%(easybuild-framework)s%(easybuild-easyblocks)s%(easybuild-easyconfigs)s" % templates,
+        'pythonpath': distribute_egg_dir,
     })
     f.write(EASYBUILD_EASYCONFIG_TEMPLATE % templates)
     f.close()
@@ -527,6 +532,8 @@ sources = [%(sources)s]
 # EasyBuild is a (set of) Python packages, so it depends on Python
 # usually, we want to use the system Python, so no actual Python dependency is listed
 allow_system_deps = [('Python', SYS_PYTHON_VERSION)]
+
+preinstallopts = '%(preinstallopts)s'
 """
 
 # distribute_setup.py script (https://pypi.python.org/pypi/distribute)
