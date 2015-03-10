@@ -458,12 +458,10 @@ def main():
     sys.path = []
     for path in orig_sys_path:
         include_path = True
-        # exclude path if it's potentially an EasyBuild package
-        if 'easybuild' in path or os.path.exists(os.path.join(path, 'easybuild')):
+        # exclude path if it's potentially an EasyBuild/VSC package, providing the 'easybuild'/'vsc' namespace, resp.
+        if any([os.path.exists(os.path.join(path, pkg, '__init__.py')) for pkg in ['easybuild', 'vsc']]):
             include_path = False
-        if '/vsc_' in path or os.path.exists(os.path.join(path, 'vsc')):
-            include_path = False
-        # exclude path if it contain an easy-install.pth file
+        # exclude any path that contains an easy-install.pth file
         if os.path.exists(os.path.join(path, 'easy-install.pth')):
             include_path = False
 
