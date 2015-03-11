@@ -333,19 +333,6 @@ class ModuleGeneratorLua(ModuleGenerator):
             "",
             ]
 
-        #@todo check if this is really needed, imho Lmod doesnt need this at all.
-        if self.app.cfg['moduleloadnoconflict']:
-            lines.extend([
-             'if ( not isloaded("%(name)s/%(version)s")) then',
-             '  load("%(name)s/%(version)s")',
-             'end',
-             ])
-
-        elif conflict:
-            # conflicts are not needed in lua module files, as Lmod's one name
-            # rule and automatic swapping.
-            pass
-
         txt = '\n'.join(lines) % {
             'name': self.app.name,
             'version': self.app.version,
