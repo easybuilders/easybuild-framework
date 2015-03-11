@@ -398,10 +398,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate module use statements for given list of module paths.
         @param paths: list of module path extensions to generate use statements for
         """
-        use_statements = []
-        for path in paths:
-            use_statements.append('use("%s")' % path)
-        return '\n'.join(use_statements)
+        return '\n'.join(['use("%s")' % p for p in paths] + [''])
 
     def set_environment(self, key, value):
         """
