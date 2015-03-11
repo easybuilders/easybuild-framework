@@ -366,8 +366,9 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
             dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
 
+        hits = sorted(hits)
+
         if hits:
-            hits = sorted(hits)
             common_prefix = det_common_path_prefix(hits)
             if short and common_prefix is not None and len(common_prefix) > len(var) * 2:
                 var_lines.append("%s=%s" % (var, common_prefix))
