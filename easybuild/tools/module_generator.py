@@ -396,6 +396,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     def use(self, paths):
         """
         Generate module use statements for given list of module paths.
+        @param paths: list of module path extensions to generate use statements for
         """
         use_statements = []
         for path in paths:
