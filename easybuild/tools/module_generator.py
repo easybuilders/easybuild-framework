@@ -439,10 +439,7 @@ def avail_module_generators():
     """
     Return all known module syntaxes.
     """
-    class_dict = {}
-    for klass in get_subclasses(ModuleGenerator):
-        class_dict.update({klass.SYNTAX: klass})
-    return class_dict
+    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
 
 
 def module_generator(app, fake=False):
