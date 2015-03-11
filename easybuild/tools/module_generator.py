@@ -55,7 +55,7 @@ class ModuleGenerator(object):
     SYNTAX = None
 
     # chars we want to escape in the generated modulefiles
-    CHARS_TO_ESCAPE = ["$"]
+    CHARS_TO_ESCAPE = None
     MODULE_FILE_EXTENSION = None
 
     def __init__(self, application, fake=False):
@@ -131,6 +131,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
     SYNTAX = 'Tcl'
+    CHARS_TO_ESCAPE = ["$"]
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
@@ -292,6 +293,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     MODULE_FILE_EXTENSION = '.lua'
     SYNTAX = 'Lua'
+    CHARS_TO_ESCAPE = ["%"]
 
     LOAD_REGEX = r'^\s*load\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
