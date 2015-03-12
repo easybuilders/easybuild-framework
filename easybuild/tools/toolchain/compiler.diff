@@ -1,0 +1,31 @@
+diff -ru easybuild-framework/easybuild/tools/toolchain/compiler.py easybuild-framework.ppc64/easybuild/tools/toolchain/compiler.py
+--- easybuild-framework/easybuild/tools/toolchain/compiler.py	2015-01-31 12:18:07.152211000 -0600
++++ easybuild-framework.ppc64/easybuild/tools/toolchain/compiler.py	2015-02-08 13:58:05.070010616 -0600
+@@ -157,7 +157,7 @@
+                 getattr(self, 'COMPILER_%sUNIQUE_OPTS' % infix, None),
+                 getattr(self, 'COMPILER_%sUNIQUE_OPTION_MAP' % infix, None),
+             )
+-            #print "added options for prefix %s" % prefix
++            #print "added options for prefix %s" % prefix  # JKP
+ 
+         # redefine optarch
+         self._get_optimal_architecture()
+@@ -258,15 +258,18 @@
+         self.variables.join('F90FLAGS', 'OPTFLAGS', 'PRECFLAGS')
+ 
+     def _get_optimal_architecture(self):
++
+         """ Get options for the current architecture """
+         if self.arch is None:
+             self.arch = systemtools.get_cpu_vendor()
++        #print "self.arch is "+str(self.arch)  # JKP
+ 
+         optarch = None
+         if build_option('optarch') is not None:
+             optarch = build_option('optarch')
+         elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
+             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
++        print "optarch is "+str(optarch)  # JKP
+ 
+         if optarch is not None:
+             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))

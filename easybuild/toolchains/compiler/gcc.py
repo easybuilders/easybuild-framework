@@ -65,8 +65,10 @@ class Gcc(Compiler):
                                   }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                                            systemtools.INTEL : 'march=native',
-                                            systemtools.AMD : 'march=native'
+                                            systemtools.INTEL : 'march=native',  # is this needed?
+                                            systemtools.AMD : 'march=native',  # is this needed?
+                                            systemtools.ARM : 'march=native',  # is this needed?
+                                            systemtools.PPC : 'mcpu=native',   # no support for march=native on PPC
                                            }
 
     COMPILER_CC = 'gcc'

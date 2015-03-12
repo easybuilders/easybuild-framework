@@ -51,6 +51,8 @@ def det_toolchain_element_details(tc, elem):
     """
     Determine details of a particular toolchain element, for a given Toolchain instance.
     """
+
+    print("Entering det_toolchain_element_details()")
     # check for cached version first
     tc_dict = tc.as_dict()
     key = (tc_dict['name'], tc_dict['version'] + tc_dict['versionsuffix'], elem)
@@ -71,6 +73,7 @@ def det_toolchain_element_details(tc, elem):
         if tc_dep['name'] == elem:
             tc_elem_details = tc_dep
             _log.debug("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
+            print("Found details for toolchain element %s: %s" % (elem, tc_elem_details))
             break
     if tc_elem_details is None:
         # for compiler-only toolchains, toolchain and compilers are one-and-the-same
