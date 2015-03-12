@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -132,6 +132,13 @@ class HierarchicalMNS(ModuleNamingScheme):
                 subdir = os.path.join(MPI, tc_comp_name, tc_comp_ver, tc_mpi['name'], tc_mpi_fullver)
 
         return subdir
+
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        # symlinks are not very useful in the context of a hierarchical MNS
+        return []
 
     def det_modpath_extensions(self, ec):
         """

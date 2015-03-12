@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -473,18 +473,24 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
         file_url = "http://hpcugent.github.io/easybuild/index.html"
         fn = os.path.basename(file_url)
+        res = None
         try:
             res = eb.obtain_file(file_url)
+        except EasyBuildError, err:
+            # if this fails, it should be because there's no online access
+            download_fail_regex = re.compile('socket error')
+            self.assertTrue(download_fail_regex.search(str(err)))
+
+        # result may be None during offline testing
+        if res is not None:
             loc = os.path.join(tmpdir, 't', 'toy', fn)
             self.assertEqual(res, loc)
             self.assertTrue(os.path.exists(loc), "%s file is found at %s" % (fn, loc))
             txt = open(loc, 'r').read()
             eb_regex = re.compile("EasyBuild: building software with ease")
             self.assertTrue(eb_regex.search(txt))
-        except EasyBuildError, err:
-            # if this fails, it should be because there's no online access
-            download_fail_regex = re.compile('socket error')
-            self.assertTrue(download_fail_regex.search(str(err)))
+        else:
+            print "ignoring failure to download %s in test_obtain_file, testing offline?" % file_url
 
         shutil.rmtree(tmpdir)
 
