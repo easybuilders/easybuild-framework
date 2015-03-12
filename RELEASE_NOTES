@@ -3,6 +3,67 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at http://easybuild.readthedocs.org/en/latest/Release_notes.html.
 
+v2.0.0 (March 6th 2015)
+-----------------------
+
+feature + bugfix release
+- requires vsc-base v2.0.3 or more recent
+    - avoid deprecation warnings w.r.t. use of 'message' attribute (hpcugent/vsc-base#155)
+    - fix typo in log message rendering --ignoreconfigfiles unusable (hpcugent/vsc-base#158)
+- removed functionality that was deprecated for EasyBuild version 2.0 (#1143)
+    - see http://easybuild.readthedocs.org/en/latest/Removed-functionality.html
+    - the fix_broken_easyconfigs.py script can be used to update easyconfig files suffering from this (#1151, #1206, #1207)
+    - for more information about this script, see http://easybuild.readthedocs.org/en/latest/Useful-scripts.html#fix-broken-easyconfigs-py
+- stop including a crippled copy of vsc-base, include vsc-base as a proper dependency instead (#1160, #1194)
+    - vsc-base is automatically installed as a dependency for easybuild-framework, if a Python installation tool is used
+    - see http://easybuild.readthedocs.org/en/latest/Installation.html#required-python-packages
+- various other enhancements, including:
+    - add support for Linux/POWER systems (#1044)
+    - major cleanup in tools/systemtools.py + significantly enhanced tests (#1044)
+    - add support for 'eb -a rst', list available easyconfig parameters in ReST format (#1131)
+    - add support for specifying one or more easyconfigs in combination with --from-pr (#1132)
+        - see http://easybuild.readthedocs.org/en/latest/Integration_with_GitHub.html#using-easyconfigs-from-pull-requests-via-from-pr
+    - define __contains__ in EasyConfig class (#1155)
+    - restore support for downloading over a proxy (#1158)
+        - i.e., use urllib2 rather than urllib
+        - this involved sacrificing the download progress report (which was only visible in the log file)
+    - let mpi_family return None if MPI is not supported by a toolchain (#1164)
+    - include support for specifying system-level configuration files for EasyBuild via $XDG_CONFIG_DIRS (#1166)
+        - see http://easybuild.readthedocs.org/en/latest/Configuration.html#default-configuration-files
+    - make unit tests more robust (#1167, #1196)
+        - see http://easybuild.readthedocs.org/en/latest/Unit-tests.html
+    - add hierarchical module naming scheme categorizing modules by 'moduleclass' (#1176)
+    - enhance bootstrap script to allow bootstrapping using supplied tarballs (#1184)
+        - see http://easybuild.readthedocs.org/en/latest/Installation.html#advanced-bootstrapping-options
+    - disable updating of Lmod user cache by default, add configuration option --update-modules-tool-cache (#1185)
+        - for now, only the Lmod user cache can be updated using --update-modules-tool-cache
+    - use available which() function, rather than running 'which' via run_cmd (#1192)
+    - fix install-EasyBuild-develop.sh script w.r.t. vsc-base dependency (#1193)
+    - also consider robot search path when looking for specified easyconfigs (#1201)
+        - see http://easybuild.readthedocs.org/en/latest/Using_the_EasyBuild_command_line.html#specifying-easyconfigs
+- various bug fixes, including:
+    - stop triggering deprecated/no longer support functionality in unit tests (#1126)
+    - fix from_pr test by including dummy easyblocks for HPL and ScaLAPACK (#1133)
+    - escape use of '%' in string with command line options with --job (#1135)
+    - fix handling specified patch level 0 (+ enhance tests for fetch_patches method) (#1139)
+    - fix formatting issues in generated easyconfig file obtained via --try-X (#1144)
+    - use log.error in tools/toolchain/toolchain.py where applicable (#1145)
+    - stop hardcoding /tmp in mpi_cmd_for function (#1146, #1200)
+    - correctly determine variable name for $EBEXTLIST when generating module file (#1156)
+    - do not ignore exit code of failing postinstall commands (#1157)
+    - fix rare case in which used easyconfig and copied easyconfig are the same (#1159)
+    - always filter hidden deps from list of dependencies (#1161)
+    - fix implementation of path_matches function in tools/filetools.py (#1163)
+    - make sure plain text keyring is used by unit tests (#1165)
+    - suppress creation of module symlinks for HierarchicalMNS (#1173)
+    - sort all lists obtained via glob.glob, since they are in arbitrary order (#1187)
+    - stop modifying $MODULEPATH directly in setUp/tearDown of toolchain tests (#1191)
+
+v1.16.2 (March 6th 2015)
+------------------------
+
+(no changes compared to v1.16.1, simple version bump to stay in sync with easybuild-easyblocks)
+
 v1.16.1 (December 19th 2014)
 ----------------------------
 

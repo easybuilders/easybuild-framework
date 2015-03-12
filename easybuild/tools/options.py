@@ -1,5 +1,5 @@
-# #
-# Copyright 2009-2014 Ghent University
+##
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 Command line options for eb
 
@@ -33,6 +33,7 @@ Command line options for eb
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import glob
 import os
 import re
 import sys
@@ -67,8 +68,12 @@ from vsc.utils import fancylogger
 from vsc.utils.generaloption import GeneralOption
 
 
+CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
+
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
-DEFAULT_CONFIGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
+XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc').split(os.pathsep)
+DEFAULT_SYS_CFGFILES = [f for d in XDG_CONFIG_DIRS for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
 
 class EasyBuildOptions(GeneralOption):
@@ -76,7 +81,7 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = [DEFAULT_CONFIGFILE]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE]
 
     ALLOPTSMANDATORY = False  # allow more than one argument
 
@@ -140,11 +145,11 @@ class EasyBuildOptions(GeneralOption):
                  )
 
         opts = OrderedDict({
-            'amend':(("Specify additional search and build parameters (can be used multiple times); "
-                      "for example: versionprefix=foo or patches=one.patch,two.patch)"),
+            'amend': (("Specify additional search and build parameters (can be used multiple times); "
+                       "for example: versionprefix=foo or patches=one.patch,two.patch)"),
                       None, 'append', None, {'metavar': 'VAR=VALUE[,VALUE]'}),
             'software': ("Search and build software with given name and version",
-                              None, 'extend', None, {'metavar': 'NAME,VERSION'}),
+                         None, 'extend', None, {'metavar': 'NAME,VERSION'}),
             'software-name': ("Search and build software with given name",
                               None, 'store', None, {'metavar': 'NAME'}),
             'software-version': ("Search and build software with given version",
@@ -181,10 +186,10 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download_timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
-            'experimental': ("Allow experimental code (with behaviour that can be changed or removed at any given time).",
+            'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
                              None, 'store_true', False),
             'group': ("Group to be used for software installations (only verified, not set)", None, 'store', None),
             'hidden': ("Install 'hidden' module file(s) by prefixing their name with '.'", None, 'store_true', False),
@@ -194,15 +199,17 @@ class EasyBuildOptions(GeneralOption):
                             str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
+            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
+                        None, 'store', None),
             'pretend': (("Does the build/installation in a test directory located in $HOME/easybuildinstall"),
-                         None, 'store_true', False, 'p'),
+                        None, 'store_true', False, 'p'),
             'set-gid-bit': ("Set group ID bit on newly created directories", None, 'store_true', False),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
             'skip-test-cases': ("Skip running test cases", None, 'store_true', False, 't'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
-            'optarch': ("Set architecture optimization, overriding native architecture optimizations",
-                        None, 'store', None),
+            'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
+                                          None, 'store_true', False),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
@@ -218,11 +225,12 @@ class EasyBuildOptions(GeneralOption):
             'avail-modules-tools': ("Show all supported module tools",
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
-                                    None, "store_true", False,),
+                                   None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'ignore-dirs': ("Directory names to ignore when searching for files/dirs",
                             'strlist', 'store', ['.git', '.svn']),
-            'installpath': ("Install path for software and modules", None, 'store', mk_full_default_path('installpath')),
+            'installpath': ("Install path for software and modules",
+                            None, 'store', mk_full_default_path('installpath')),
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
@@ -232,14 +240,14 @@ class EasyBuildOptions(GeneralOption):
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "
                                "(For more info on the default classes, use --show-default-moduleclasses)"),
-                               None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
+                              None, 'extend', [x[0] for x in DEFAULT_MODULECLASSES]),
             'modules-footer': ("Path to file containing footer to be added to all generated module files",
                                None, 'store_or_None', None, {'metavar': "PATH"}),
             'modules-tool': ("Modules tool to use",
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
-                        None, 'store', None),
+                       None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
                                         None, 'store_true', False),
             'repository': ("Repository type, using repositorypath",
@@ -247,18 +255,20 @@ class EasyBuildOptions(GeneralOption):
             'repositorypath': (("Repository path, used by repository "
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
-                                'strlist', 'store',
-                                [mk_full_default_path('repositorypath')]),
+                               'strlist', 'store',
+                               [mk_full_default_path('repositorypath')]),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
-            'subdir-software': ("Installpath subdir for software", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
+            'subdir-software': ("Installpath subdir for software",
+                                None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
             'suffix-modules-path': ("Suffix for module files install path", None, 'store', GENERAL_CLASS),
             # this one is sort of an exception, it's something jobscripts can set,
             # has no real meaning for regular eb usage
-            'testoutput': ("Path to where a job should place the output (to be set within jobscript)", None, 'store', None),
+            'testoutput': ("Path to where a job should place the output (to be set within jobscript)",
+                           None, 'store', None),
             'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
         })
@@ -279,10 +289,10 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'avail-easyconfig-params': (("Show all easyconfig parameters (include "
                                          "easyblock-specific ones by using -e)"),
-                                         'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
+                                        'choice', 'store_or_None', FORMAT_TXT, [FORMAT_RST, FORMAT_TXT], 'a'),
             'avail-easyconfig-templates': (("Show all template names and template constants "
                                             "that can be used in easyconfigs"),
-                                            None, 'store_true', False),
+                                           None, 'store_true', False),
             'dep-graph': ("Create dependency graph",
                           None, "store", None, {'metavar': 'depgraph.<ext>'}),
             'list-easyblocks': ("Show list of available easyblocks",
@@ -313,7 +323,7 @@ class EasyBuildOptions(GeneralOption):
                                    None, 'store', None, {'metavar': 'DIR'}),
             'sequential': ("Specify this option if you want to prevent parallel build",
                            None, 'store_true', False),
-            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', None),
+            'upload-test-report': ("Upload full test report as a gist on GitHub", None, 'store_true', False),
             'test-report-env-filter': ("Regex used to filter out variables in environment dump of test report",
                                        None, 'regex', None),
         })
@@ -390,7 +400,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_easyconfig_constants, self.options.avail_easyconfig_licenses,
                 self.options.avail_repositories, self.options.show_default_moduleclasses,
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
-               ]):
+                ]):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
 
@@ -417,7 +427,7 @@ class EasyBuildOptions(GeneralOption):
     def _postprocess_config(self):
         """Postprocessing of configuration options"""
         if self.options.prefix is not None:
-            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath into account
+            # prefix applies to all paths, and repository has to be reinitialised to take new repositorypath in account
             # in the legacy-style configuration, repository is initialised in configuration file itself
             for dest in ['installpath', 'buildpath', 'sourcepath', 'repository', 'repositorypath']:
                 if not self.options._action_taken.get(dest, False):
@@ -549,10 +559,9 @@ class EasyBuildOptions(GeneralOption):
             """Add a new class, and all of its subclasses."""
             children = cls.__subclasses__()
             classes.update({cls.__name__: {
-                                           'module': cls.__module__,
-                                           'children': [x.__name__ for x in children]
-                                           }
-                            })
+                'module': cls.__module__,
+                'children': [x.__name__ for x in children]
+            }})
             for child in children:
                 add_class(classes, child)
 
@@ -640,7 +649,8 @@ def parse_options(args=None):
     description = ("Builds software based on easyconfig (or parse a directory).\n"
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
-    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix='EASYBUILD', go_args=args)
+    eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
+                             go_args=args)
     return eb_go
 
 
@@ -652,6 +662,7 @@ def process_software_build_specs(options):
 
     try_to_generate = False
     build_specs = {}
+    logger = fancylogger.getLogger()
 
     # regular options: don't try to generate easyconfig, and search
     opts_map = {
@@ -688,7 +699,7 @@ def process_software_build_specs(options):
         tryval = getattr(options, 'try_%s' % opt)
         if val or tryval:
             if val and tryval:
-                self.log.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
+                logger.warning("Ignoring --try-%(opt)s, only using --%(opt)s specification" % {'opt': opt})
             elif tryval:
                 try_to_generate = True
             val = val or tryval  # --try-X value is overridden by --X
@@ -714,8 +725,8 @@ def process_software_build_specs(options):
         if options.amend:
             amends += options.amend
             if options.try_amend:
-                self.log.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
-        if options.try_amend:
+                logger.warning("Ignoring options passed via --try-amend, only using those passed via --amend.")
+        elif options.try_amend:
             amends += options.try_amend
             try_to_generate = True
 

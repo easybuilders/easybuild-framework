@@ -10,11 +10,11 @@ set -e
 # Print script help
 print_usage()
 {
-    echo "Usage: $0 github_username install_directory"
+    echo "Usage: $0 <github_username> <install_dir>"
     echo
-    echo "    github_username:     username on GitHub for which the easybuild repositories should be cloned"
+    echo "    github_username:     username on GitHub for which the EasyBuild repositories should be cloned"
     echo
-    echo "    install_directory:   directory were all the EasyBuild files will be installed"
+    echo "    install_dir:         directory were all the EasyBuild files will be installed"
     echo
 }
 
@@ -25,17 +25,17 @@ github_clone_branch()
     BRANCH="$2"
 
     cd "${INSTALL_DIR}"
-    echo "=== Cloning ${REPO} ..."
-    git clone git@github.com:${GITHUB_USERNAME}/${REPO}.git
+    echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
+    git clone --branch master git@github.com:${GITHUB_USERNAME}/${REPO}.git
 
-    echo "=== Add and fetch HPC UGent GitHub repository"
+    echo "=== Adding and fetching HPC-UGent GitHub repository @ hpcugent/{$REPO} ..."
     cd "${REPO}"
     git remote add "github_hpcugent" "git@github.com:hpcugent/${REPO}.git"
     git fetch github_hpcugent
     
     # If branch is not 'master', track and checkout it
     if [ "$BRANCH" != "master" ] ; then
-        echo "=== Checking out the '${BRANCH}' branch"
+        echo "=== Checking out the '${BRANCH}' branch ..."
         git branch --track "${BRANCH}" "github_hpcugent/${BRANCH}"
         git checkout "${BRANCH}"
     fi
@@ -69,6 +69,7 @@ conflict    EasyBuild
 
 prepend-path    PATH            "\$root/easybuild-framework"
 
+prepend-path    PYTHONPATH      "\$root/vsc-base/lib"
 prepend-path    PYTHONPATH      "\$root/easybuild-framework"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyblocks"
 prepend-path    PYTHONPATH      "\$root/easybuild-easyconfigs"
@@ -107,6 +108,9 @@ mkdir -p "${INSTALL_DIR}"
 cd "${INSTALL_DIR}"
 INSTALL_DIR="${PWD}" # get the full path
 
+# Clone repository for vsc-base dependency with 'master' branch
+github_clone_branch "vsc-base"   "master"
+
 # Clone code repositories with the 'develop' branch
 github_clone_branch "easybuild-framework"   "develop"
 github_clone_branch "easybuild-easyblocks"  "develop"
@@ -119,11 +123,14 @@ github_clone_branch "easybuild" "master"
 github_clone_branch "easybuild-wiki" "master"
 
 # Create the module file
-EB_DEVEL_MODULE="${INSTALL_DIR}/module-EasyBuild-develop"
+EB_DEVEL_MODULE_NAME="EasyBuild-develop"
+EB_DEVEL_MODULE="${INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
 print_devel_module > "${EB_DEVEL_MODULE}"
 echo 
-echo "=== Run 'module load ${EB_DEVEL_MODULE}' to use your development version of EasyBuild."
-echo "=== (you can add a symlink in your MODULEPATH to make this module appear together with the others)"
+echo "=== Run 'module use ${INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."
+echo "=== (you can append ${INSTALL_DIR} to your MODULEPATH to make this module always available for loading)"
+echo
+echo "=== To update each repository, run 'git pull origin' in each subdirectory of ${INSTALL_DIR}"
 echo
 
 exit 0
