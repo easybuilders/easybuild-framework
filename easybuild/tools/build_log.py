@@ -53,12 +53,29 @@ EXPERIMENTAL = False
 DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
 
 
+# 1st argument (a LoggedException instance) is ignored
+def log_error_no_raise(_, logger, msg):
+    """Utility function to log an error with raising an exception."""
+    if hasattr(logger, 'raiseError'):
+        orig_raise_error = logger.raiseError
+        logger.raiseError = False
+
+    logger.error(msg)
+
+    if hasattr(logger, 'raiseError'):
+        logger.raiseError = orig_raise_error
+
+
 class EasyBuildError(LoggedException):
     """
     EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
     """
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
+    # make sure EasyBuildError isn't being raised again to avoid infinite recursion
+    LOGGING_METHOD = log_error_no_raise
+
+    def __init__(self, msg, *args):
+        msg = msg % args
+        LoggedException.__init__(self, msg)
         self.msg = msg
 
     def __str__(self):
@@ -95,7 +112,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
             self.warning(msg, *args, **kwargs)
         else:
             msg = 'Experimental functionality. Behaviour might change/be removed later (use --experimental option to enable). ' + msg
-            raise EasyBuildError(msg % args)
+            raise EasyBuildError(msg, *args)
 
     def deprecated(self, msg, max_ver):
         """Print deprecation warning or raise an EasyBuildError, depending on max version allowed."""
@@ -104,16 +121,16 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def nosupport(self, msg, ver):
         """Print error message for no longer supported behaviour, and raise an EasyBuildError."""
-        msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information" % (ver, msg, DEPRECATED_DOC_URL)
-        raise EasyBuildError(msg)
+        nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
+        raise EasyBuildError(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
         new_msg = "EasyBuild crashed with an error %s: %s" % (self.caller_info(), msg)
         fancylogger.FancyLogger.error(self, new_msg, *args, **kwargs)
         if self.raiseError:
-            self.deprecated("Automatically raising EasybuildError in error() logging method", '3.0')
-            raise EasyBuildError(new_msg)
+            self.deprecated("Use 'raise EasyBuildError' rather than error() logging method that raises", '3.0')
+            raise EasyBuildError(new_msg, *args)
 
     def exception(self, msg, *args):
         """Print exception message and raise EasyBuildError."""
@@ -124,8 +141,8 @@ class EasyBuildLog(fancylogger.FancyLogger):
         fancylogger.FancyLogger.exception(self, new_msg, *args)
         self.raiseError = True
 
-        self.deprecated("Automatically raising EasybuildError in exception() logging method", '3.0')
-        raise EasyBuildError(new_msg)
+        self.deprecated("Use 'raise EasyBuildError' rather than exception() logging method that raises", '3.0')
+        raise EasyBuildError(new_msg, *args)
 
 
 # set format for logger
