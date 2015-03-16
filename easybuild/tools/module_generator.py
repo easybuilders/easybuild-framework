@@ -230,15 +230,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        # make sure only relative paths are passed
-        for i in xrange(len(paths)):
-            if os.path.isabs(paths[i]) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
-            elif not os.path.isabs(paths[i]):
+        relpaths=[]
+        for i, path in enumerate(paths):
+            if os.path.isabs(path) and not allow_abs:
+                print "Absolute path %s passed to prepend_paths which only expects relative paths." % path
+            elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                paths[i] = "$root/%s" % paths[i]
+                relpaths.append("$root/%s" % path)
 
-        statements = [template % (key, p) for p in paths]
+
+        statements = [template % (key, p) for p in relpaths]
         return ''.join(statements)
 
 
@@ -382,15 +383,15 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        # make sure only relative paths are passed
-        for i in xrange(len(paths)):
-            if os.path.isabs(paths[i]) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
-            elif not os.path.isabs(paths[i]):
+        relpaths=[]
+        for i, path in enumerate(paths):
+            if os.path.isabs(path) and not allow_abs:
+                print "Absolute path %s passed to prepend_paths which only expects relative paths." % path
+            elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                paths[i] = ' pathJoin(pkg.root,"%s")' % paths[i]
+                relpaths.append(' pathJoin(pkg.root,"%s")' % path)
 
-        statements = [template % (quote_str(key), p) for p in paths]
+        statements = [template % (quote_str(key), p) for p in relpaths]
         return ''.join(statements)
 
     def use(self, paths):
