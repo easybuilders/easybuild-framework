@@ -277,7 +277,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Append whatever Tcl code you want to your modulefile
         """
-        # nothing to do here, but this should fail in the context of generating Lua modules
         return tcltxt
 
     def set_alias(self, key, value):
@@ -423,11 +422,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         pass
 
     def add_tcl_footer(self, tcltxt):
+        raise NotImplementedError
+
+    def add_lua_footer(self,luatxt):
         """
-        Append whatever Tcl code you want to your modulefile
+        Append whatever Lua code you want to your modulefile
         """
-        #@todo to pass or not to pass? this should fail in the context of generating Lua modules
-        pass
+        return luatxt
 
     def set_alias(self, key, value):
         """
