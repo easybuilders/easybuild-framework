@@ -230,16 +230,17 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        relpaths=[]
+        newpaths=[]
         for i, path in enumerate(paths):
             if os.path.isabs(path) and not allow_abs:
-                print "Absolute path %s passed to prepend_paths which only expects relative paths." % path
+                self.log.info("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+                newpaths.append("%s" %path)
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                relpaths.append("$root/%s" % path)
+                newpaths.append("$root/%s" % path)
 
 
-        statements = [template % (key, p) for p in relpaths]
+        statements = [template % (key, p) for p in newpaths]
         return ''.join(statements)
 
 
@@ -382,15 +383,16 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        relpaths=[]
+        newpaths=[]
         for i, path in enumerate(paths):
             if os.path.isabs(path) and not allow_abs:
-                print "Absolute path %s passed to prepend_paths which only expects relative paths." % path
+                self.log.info("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+                newpaths.append(' "%s"' % path)
             elif not os.path.isabs(path):
-                # prepend $root (= installdir) for relative paths
-                relpaths.append(' pathJoin(pkg.root,"%s")' % path)
+                # use pathJoin(pkg.root, path) for relative paths
+                newpaths.append(' pathJoin(pkg.root,"%s")' % path)
 
-        statements = [template % (quote_str(key), p) for p in relpaths]
+        statements = [template % (quote_str(key), p) for p in newpaths]
         return ''.join(statements)
 
     def use(self, paths):
