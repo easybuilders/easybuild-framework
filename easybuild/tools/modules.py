@@ -59,9 +59,10 @@ ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
 DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
-# keep track of original LD_LIBRARY_PATH, because we can change it by loading modules and break modulecmd
+# keep track of original $LD_LIBRARY_PATH/$LD_PRELOAD, because it can change by loading modules and break module command
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
-LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH', '')
+LD_ENV_VAR_KEYS = ['LD_LIBRARY_PATH', 'LD_PRELOAD']
+ORIG_ENVIRON = dict([(key, os.getenv(key, '')) for key in LD_ENV_VAR_KEYS])
 
 output_matchers = {
     # matches whitespace and module-listing headers
@@ -451,9 +452,9 @@ class ModulesTool(object):
         modpath_re = re.compile('^\s*(?P<modpath>[^/\n]*/[^ ]+):$', re.M)
         return self.get_value_from_modulefile(mod_name, modpath_re)
 
-    def set_ld_library_path(self, ld_library_paths):
-        """Set $LD_LIBRARY_PATH to the given list of paths."""
-        os.environ['LD_LIBRARY_PATH'] = ':'.join(ld_library_paths)
+    def set_path_env_var(self, key, paths):
+        """Set path environment variable to the given list of paths."""
+        os.environ[key] = os.pathsep.join(paths)
 
     def run_module(self, *args, **kwargs):
         """
@@ -478,12 +479,11 @@ class ModulesTool(object):
 
         self.log.debug('Current MODULEPATH: %s' % os.environ.get('MODULEPATH', ''))
 
-        # change our LD_LIBRARY_PATH here
+        # change to original $LD_LIBRARY_PATH and $LD_PRELOAD before running module command
         environ = os.environ.copy()
-        environ['LD_LIBRARY_PATH'] = LD_LIBRARY_PATH
-        cur_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
-        new_ld_library_path = environ['LD_LIBRARY_PATH']
-        self.log.debug("Adjusted LD_LIBRARY_PATH from '%s' to '%s'" % (cur_ld_library_path, new_ld_library_path))
+        for key in LD_ENV_VAR_KEYS:
+            environ[key] = ORIG_ENVIRON[key]
+            self.log.debug("Adjusted %s from '%s' to '%s'" % (key, os.environ.get(key, ''), environ[key]))
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
         cmdlist = [self.cmd, 'python']
@@ -504,11 +504,12 @@ class ModulesTool(object):
         if kwargs.get('return_output', False):
             return stdout + stderr
         else:
-            # the module command was run with an outdated LD_LIBRARY_PATH, which will be adjusted on loading a module
+            # the module command was run with an outdated $LD_LIBRARY_PATH and $LD_PRELOAD,
+            # which will be adjusted on loading a module;
             # this needs to be taken into account when updating the environment via produced output, see below
 
-            # keep track of current LD_LIBRARY_PATH, so we can correct the adjusted LD_LIBRARY_PATH below
-            prev_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')[::-1]
+            # keep track of current $LD_LIBRARY_PATH/$LD_PRELOAD, so we can correct the adjusted values below
+            prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
 
             # Change the environment
             try:
@@ -520,14 +521,14 @@ class ModulesTool(object):
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
                 raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
 
-            # correct LD_LIBRARY_PATH as yielded by the adjustments made
+            # correct $LD_LIBRARY_PATH and $LD_PRELOAD as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
-            curr_ld_library_path = os.environ.get('LD_LIBRARY_PATH', '').split(':')
-            new_ld_library_path = [x for x in nub(prev_ld_library_path + curr_ld_library_path[::-1]) if len(x)][::-1]
+            for key in LD_ENV_VAR_KEYS:
+                curr_ld_val = os.environ.get(key, '').split(os.pathsep)
+                new_ld_val = [x for x in nub(prev_ld_values[key] + curr_ld_val[::-1]) if len(x)][::-1]
 
-            self.log.debug("Correcting paths in LD_LIBRARY_PATH from %s to %s" %
-                           (curr_ld_library_path, new_ld_library_path))
-            self.set_ld_library_path(new_ld_library_path)
+                self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
+                self.set_path_env_var(key, new_ld_val)
 
             # Process stderr
             result = []
@@ -732,11 +733,11 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     REQ_VERSION = None
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
-    def set_ld_library_path(self, ld_library_paths):
-        """Set $LD_LIBRARY_PATH to the given list of paths."""
-        super(EnvironmentModulesTcl, self).set_ld_library_path(ld_library_paths)
+    def set_path_env_var(self, key, paths):
+        """Set $LD_X environment variable to the given list of paths."""
+        super(EnvironmentModulesTcl, self).set_path_env_var(paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
-        os.environ['LD_LIBRARY_PATH_modshare'] = ':1:'.join(ld_library_paths)
+        os.environ['%s_modshare' % key] = ':1:'.join(paths)
 
     def run_module(self, *args, **kwargs):
         """
