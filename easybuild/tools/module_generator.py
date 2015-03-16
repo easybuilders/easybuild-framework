@@ -227,7 +227,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         template = "prepend-path\t%s\t\t%s\n"
 
         if isinstance(paths, basestring):
-            self.log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
         # make sure only relative paths are passed
