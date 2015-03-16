@@ -230,17 +230,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        newpaths=[]
+
         for i, path in enumerate(paths):
             if os.path.isabs(path) and not allow_abs:
-                self.log.info("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
-                newpaths.append("%s" %path)
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                newpaths.append("$root/%s" % path)
+                paths[i]="$root/%s" % path
 
 
-        statements = [template % (key, p) for p in newpaths]
+        statements = [template % (key, p) for p in paths]
         return ''.join(statements)
 
 
@@ -383,16 +382,14 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        newpaths=[]
         for i, path in enumerate(paths):
             if os.path.isabs(path) and not allow_abs:
-                self.log.info("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
-                newpaths.append(' "%s"' % path)
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
             elif not os.path.isabs(path):
                 # use pathJoin(pkg.root, path) for relative paths
-                newpaths.append(' pathJoin(pkg.root,"%s")' % path)
+                paths[i]=' pathJoin(pkg.root,"%s")' % path
 
-        statements = [template % (quote_str(key), p) for p in newpaths]
+        statements = [template % (quote_str(key), p) for p in paths]
         return ''.join(statements)
 
     def use(self, paths):
