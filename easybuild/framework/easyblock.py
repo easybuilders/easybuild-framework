@@ -1305,7 +1305,8 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
         """
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
-        self.toolchain.prepare(self.cfg['onlytcmod'])
+        self.modules_tool.load(self.cfg['system_modules']) 
+	self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
     def configure_step(self):
