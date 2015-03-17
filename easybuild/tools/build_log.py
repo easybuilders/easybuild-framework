@@ -126,7 +126,6 @@ class EasyBuildLog(fancylogger.FancyLogger):
             self.deprecated("Use 'raise EasyBuildError' rather than error() logging method that raises", '3.0')
             raise EasyBuildError(ebmsg, *args)
 
-    # note: self is deliberatly ignored
     def _error_no_raise(self, msg):
         """Utility function to log an error with raising an exception."""
         # make sure raising of error is disabled
