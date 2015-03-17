@@ -33,7 +33,7 @@ from easybuild.tools.run import run_cmd
 
 def package_fpm(easyblock, modfile_path ):
     rpmname = "HPCBIOS.20150211-%s-%s" % (easyblock.name, easyblock.version)
-    workdir = "/tmp"
+    workdir = tempfile.mkdtemp()
     os.chdir(workdir)
 
     pkgtemplate = "HPCBIOS.20150211-%(name)s-%(version)s"
