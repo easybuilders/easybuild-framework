@@ -34,7 +34,10 @@ from easybuild.tools.run import run_cmd
 def package_fpm(easyblock, modfile_path ):
     rpmname = "HPCBIOS.20150211-%s-%s" % (easyblock.name, easyblock.version)
     workdir = tempfile.mkdtemp()
-    os.chdir(workdir)
+    try:
+        os.chdir(workdir)
+    except OSError, err:
+        _log.error("Failed to chdir into workdir: %s : %s" % (workdir, err))
 
     pkgtemplate = "HPCBIOS.20150211-%(name)s-%(version)s"
 
@@ -42,11 +45,7 @@ def package_fpm(easyblock, modfile_path ):
         'name' : easyblock.name,
         'version' : easyblock.version,
     }
-
-    if easyblock.toolchain.name == "dummy":
-        dependencies = []
-    else:
-        dependencies = [ "=".join([ easyblock.toolchain.name, easyblock.toolchain.version ]) ]
+    dependencies = []
     dependencies.extend([ "=".join([ dep['name'], dep['version'] ]) for dep in easyblock.cfg.dependencies() ])
     depstring = '--depends ' + ' --depends '.join(dependencies)
     cmdlist=[
@@ -62,4 +61,4 @@ def package_fpm(easyblock, modfile_path ):
         easyblock.installdir,
     ])
 
-    (out, _) = run_cmd(cmdlist, log_all=True, simple=False)
+    (out, _) = run_cmd(cmdlist, log_all=True, simple=True)

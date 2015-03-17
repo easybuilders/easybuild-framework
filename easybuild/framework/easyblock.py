@@ -56,7 +56,7 @@ from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, get_m
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP
-from easybuild.framework.package import package_fpm
+from easybuild.tools.packaging import package_fpm
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
@@ -1794,7 +1794,6 @@ class EasyBlock(object):
             ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
             ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
             ('module', 'creating module', [lambda x: x.make_module_step()], False),
-            # ('package', 'packaging', [lambda x: x.package_step()], True),
         ]
 
         # full list of steps, included iterated steps
