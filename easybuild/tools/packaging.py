@@ -26,6 +26,9 @@
 """
 A place for packaging functions
 
+@author: Marc Litherland
+@author: Gianluca Santarossa 
+@author: Robert Schmidt (Ottawa Hospital Research Institute)
 """
 
 import os
