@@ -213,7 +213,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         cfgtxt = '\n'.join([
             '[config]',
             'buildpath = %s' % testpath1,
-            'robot-paths = /tmp/foo:%(DEFAULT_ROBOT_PATHS)s',
+            'sourcepath = %(DEFAULT_REPOSITORYPATH)s',
+            'repositorypath = %(DEFAULT_REPOSITORYPATH)s,somesubdir',
+            'robot-paths=/tmp/foo:%(sourcepath)s:%(DEFAULT_ROBOT_PATHS)s',
         ])
         write_file(config_file, cfgtxt)
 
@@ -224,11 +226,17 @@ class EasyBuildConfigTest(EnhancedTestCase):
         ]
         options = init_config(args=args)
 
-        self.assertEqual(install_path(), os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'software'))  # default
+        topdir = os.path.join(os.getenv('HOME'), '.local', 'easybuild')
+        self.assertEqual(install_path(), os.path.join(topdir, 'software'))  # default
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
-        self.assertTrue('/tmp/foo' in options.robot_paths)
-        self.assertTrue(os.path.join(tmpdir, 'easybuild', 'easyconfigs') in options.robot_paths)
+        self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
+        robot_paths = [
+            '/tmp/foo',
+            os.path.join(os.getenv('HOME'), '.local', 'easybuild', 'ebfiles_repo'),
+            os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
+        ]
+        self.assertEqual(options.robot_paths[:3], robot_paths)
 
         testpath3 = os.path.join(self.tmpdir, 'testTHREE')
         os.environ['EASYBUILD_SOURCEPATH'] = testpath2
