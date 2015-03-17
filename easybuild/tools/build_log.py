@@ -69,7 +69,6 @@ class EasyBuildError(LoggedException):
 
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
-        print '__str__'
         return repr(self.msg)
 
 
