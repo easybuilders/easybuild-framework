@@ -333,10 +333,13 @@ class Toolchain(object):
         if not self._toolchain_exists():
             self.log.error("No module found for toolchain: %s" % self.mod_short_name)
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        
+	if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
-            else:
+		#@todo I keep this is as, but want dummy to do the same as a regular toolchain. Need to think this through.
+        	self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+	    else:
                 self.log.info('prepare: toolchain dummy mode and loading dependencies')
                 self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
             return
