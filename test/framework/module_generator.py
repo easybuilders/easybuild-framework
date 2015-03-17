@@ -34,14 +34,14 @@ import shutil
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, init_config
-from unittest import TestLoader, main
+from unittest import TestLoader, TestSuite, TextTestRunner, main
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 from vsc.utils.missing import get_subclasses
 
 import easybuild.tools.module_generator
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -50,10 +50,12 @@ from test.framework.utilities import find_full_path, init_config
 
 
 class ModuleGeneratorTest(EnhancedTestCase):
-    """ testcase for ModuleGenerator """
+    """Tests for module_generator module."""
+
+    MODULE_GENERATOR_CLASS = None
 
     def setUp(self):
-        """ initialize ModuleGenerator with test Application """
+        """Test setup."""
         super(ModuleGeneratorTest, self).setUp()
         # find .eb file
         eb_path = os.path.join(os.path.join(os.path.dirname(__file__), 'easyconfigs'), 'gzip-1.4.eb')
@@ -62,13 +64,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         ec = EasyConfig(eb_full_path)
         self.eb = EasyBlock(ec)
-        self.modgen = ModuleGenerator(self.eb)
+        self.modgen = self.MODULE_GENERATOR_CLASS(self.eb)
         self.modgen.app.installdir = tempfile.mkdtemp(prefix='easybuild-modgen-test-')
         
         self.orig_module_naming_scheme = config.get_module_naming_scheme()
 
     def tearDown(self):
-        """cleanup"""
+        """Test cleanup."""
         super(ModuleGeneratorTest, self).tearDown()
         os.remove(self.eb.logfile)
         shutil.rmtree(self.modgen.app.installdir)
@@ -183,8 +185,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_tcl_footer(self):
         """Test including a Tcl footer."""
-        tcltxt = 'puts stderr "foo"'
-        self.assertEqual(tcltxt, self.modgen.add_tcl_footer(tcltxt))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            tcltxt = 'puts stderr "foo"'
+            self.assertEqual(tcltxt, self.modgen.add_tcl_footer(tcltxt))
+        else:
+            pass
 
     def test_module_naming_scheme(self):
         """Test using default module naming scheme."""
@@ -467,13 +472,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
+class TclModuleGeneratorTest(ModuleGeneratorTest):
+    """Test for module_generator module for Tcl syntax."""
+    MODULE_GENERATOR_CLASS = ModuleGeneratorTcl
+
+
+class LuaModuleGeneratorTest(ModuleGeneratorTest):
+    """Test for module_generator module for Tcl syntax."""
+    MODULE_GENERATOR_CLASS = ModuleGeneratorLua
+
 
 def suite():
     """ returns all the testcases in this module """
-    return TestLoader().loadTestsFromTestCase(ModuleGeneratorTest)
+    suite = TestSuite()
+    suite.addTests(TestLoader().loadTestsFromTestCase(TclModuleGeneratorTest))
+    suite.addTests(TestLoader().loadTestsFromTestCase(LuaModuleGeneratorTest))
+    return suite
 
 
 if __name__ == '__main__':
     #logToScreen(enable=True)
     #setLogLevelDebug()
-    main()
+    TextTestRunner().run(suite())
