@@ -1309,7 +1309,6 @@ class EasyBlock(object):
         self.modules_tool.load(self.cfg['system_modules']) 
         self.guess_start_dir()
 
-
     def configure_step(self):
         """Configure build  (abstract method)."""
         raise NotImplementedError
