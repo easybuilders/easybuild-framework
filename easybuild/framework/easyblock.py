@@ -67,7 +67,7 @@ from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import ModuleGenerator
+from easybuild.tools.module_generator import module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -132,7 +132,7 @@ class EasyBlock(object):
         # modules interface with default MODULEPATH
         self.modules_tool = modules_tool()
         # module generator
-        self.module_generator = ModuleGenerator(self, fake=True)
+        self.module_generator = module_generator(self, fake=True)
 
         # modules footer
         self.modules_footer = None
@@ -745,15 +745,14 @@ class EasyBlock(object):
         # load fake module
         fake_mod_data = self.load_fake_module(purge=True)
 
-        mod_gen = ModuleGenerator(self)
-        header = "#%Module\n"
+        header = self.module_generator.module_header()
 
         env_txt = ""
         for (key, val) in env.get_changes().items():
             # check if non-empty string
             # TODO: add unset for empty vars?
             if val.strip():
-                env_txt += mod_gen.set_environment(key, val)
+                env_txt += self.module_generator.set_environment(key, val)
 
         load_txt = ""
         # capture all the EBDEVEL vars
@@ -765,7 +764,7 @@ class EasyBlock(object):
                     path = os.environ[key]
                     if os.path.isfile(path):
                         mod_name = path.rsplit(os.path.sep, 1)[-1]
-                        load_txt += mod_gen.load_module(mod_name)
+                        load_txt += self.module_generator.load_module(mod_name)
             elif key.startswith('SOFTDEVEL'):
                 self.log.nosupport("Environment variable SOFTDEVEL* being relied on", '2.0')
 
@@ -846,9 +845,16 @@ class EasyBlock(object):
 
         # EBROOT + EBVERSION + EBDEVEL
         environment_name = convert_name(self.name, upper=True)
-        txt += self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+        
+        if self.module_generator.SYNTAX == 'Lua':
+            txt += self.module_generator.self_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, self.installdir)
+            devel_path = os.path.join(self.installdir, log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        elif self.module_generator.SYNTAX == 'Tcl':
+            txt += self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + environment_name, "$root")
+            devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        else: 
+            raise NotImplementedError
         txt += self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + environment_name, self.version)
-        devel_path = os.path.join("$root", log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
         txt += self.module_generator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + environment_name, devel_path)
 
         txt += "\n"
@@ -890,7 +896,7 @@ class EasyBlock(object):
         """
         Insert a footer section in the modulefile, primarily meant for contextual information
         """
-        txt = '\n# Built with EasyBuild version %s\n' % VERBOSE_VERSION
+        txt = '\n' + self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)
 
         # add extra stuff for extensions (if any)
         if self.cfg['exts_list']:
@@ -1305,8 +1311,8 @@ class EasyBlock(object):
         Pre-configure step. Set's up the builddir just before starting configure
         """
         self.cfg['unwanted_env_vars'] = env.unset_env_vars(self.cfg['unwanted_env_vars'])
-        self.toolchain.prepare(self.cfg['onlytcmod'])
-        self.modules_tool.load(self.cfg['system_modules']) 
+        self.modules_tool.load(self.cfg['system_modules'])
+	self.toolchain.prepare(self.cfg['onlytcmod'])
         self.guess_start_dir()
 
     def configure_step(self):
@@ -1639,7 +1645,9 @@ class EasyBlock(object):
         Generate a module file.
         """
         self.module_generator.set_fake(fake)
-        modpath = self.module_generator.prepare()
+
+        mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
+        modpath = self.module_generator.prepare(mod_symlink_paths)
 
         txt = ''
         txt += self.make_module_description()
