@@ -27,8 +27,8 @@
 """
 
 
-from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperGNU
+from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperIntel
 
-class cpeg(CrayPEWrapperGNU):
-    """Compiler toolchain with Cray cc,CC,ftn,LibSci,MPT,SHMEM."""
-    NAME = 'cpeg'
+class CrayIntel(CrayPEWrapperIntel):
+    """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
+    NAME = 'CrayIntel'

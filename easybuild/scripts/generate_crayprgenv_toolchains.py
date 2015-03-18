@@ -95,15 +95,15 @@ if len(prgenvmods) == 0:
 
 print prgenvmods
 
-craymod_to_tc = {'PrgEnv-cray': 'cpec',
-                 'PrgEnv-intel': 'cpei',
-                 'PrgEnv-gnu': 'cpeg',
-                 'PrgEnv-pgi': 'cpep', }
+craymod_to_tc = {'PrgEnv-cray': 'CrayCCE',
+                 'PrgEnv-intel': 'CrayIntel',
+                 'PrgEnv-gnu': 'CrayGNU',
+                 'PrgEnv-pgi': 'CrayPGI', }
 
-tc_to_craymod = {'cpec': 'PrgEnv-cray',
-                 'cpei': 'PrgEnv-intel',
-                 'cpeg': 'PrgEnv-gnu',
-                 'cpep': 'PrgEnv-pgi', }
+tc_to_craymod = {'CrayCCE': 'PrgEnv-cray',
+                 'CrayIntel': 'PrgEnv-intel',
+                 'CrayGCC': 'PrgEnv-gnu',
+                 'CrayPGI': 'PrgEnv-pgi', }
 
 
 def modToTC(m):
