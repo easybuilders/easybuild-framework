@@ -53,7 +53,9 @@ TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
 class CrayPEWrapper(Compiler):
     """Base CrayPE compiler class"""
 
-    COMPILER_MODULE_NAME = None
+    # no toolchain components, so no modules to list here (empty toolchain definition w.r.t. components)
+    # the PrgEnv and craype are loaded, but are not considered actual toolchain components
+    COMPILER_MODULE_NAME = []
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
@@ -137,7 +139,6 @@ class CrayPEWrapper(Compiler):
 # Gcc's base is Compiler
 class CrayPEWrapperGNU(CrayPEWrapper):
     """Base Cray Programming Environment GNU compiler class"""
-    COMPILER_MODULE_NAME = ['PrgEnv-gnu']
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
     def _set_compiler_vars(self):
@@ -165,8 +166,6 @@ class CrayPEWrapperGNU(CrayPEWrapper):
 class CrayPEWrapperIntel(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
 
-    COMPILER_MODULE_NAME = ['PrgEnv-intel']
-
     def _set_compiler_flags(self):
         if self.options.option("usewrappedcompiler"):
             COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
@@ -190,7 +189,6 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 
 class CrayPEWrapperCray(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
-    COMPILER_MODULE_NAME = ['PrgEnv-cray']
 
     def _set_compiler_vars(self):
         super(CrayPEWrapperCray, self)._set_compiler_vars()
