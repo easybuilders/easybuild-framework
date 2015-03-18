@@ -52,6 +52,7 @@ _log = fancylogger.getLogger('systemtools', fname=False)
 AMD = 'AMD'
 ARM = 'ARM'
 INTEL = 'Intel'
+PPC = 'PPC'
 
 LINUX = 'Linux'
 DARWIN = 'Darwin'
@@ -139,33 +140,33 @@ def get_core_count():
 def get_cpu_vendor():
     """Try to detect the cpu identifier
 
-    will return INTEL, ARM or AMD constant
+    will return INTEL, ARM, PPC or AMD constant
     """
-    regexp = re.compile(r"^vendor_id\s+:\s*(?P<vendorid>\S+)\s*$", re.M)
     VENDORS = {
         'GenuineIntel': INTEL,
         'AuthenticAMD': AMD,
+        'ARM': ARM,
+        'ppc64': PPC,
+        'ppc64le': PPC,
     }
     os_type = get_os_type()
 
     if os_type == LINUX:
+        VENDORSTRINGS = [
+            'vendor id', 'vendor_id', 'processor', 'architecture'
+        ]
         try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            arch = UNKNOWN
-            # vendor_id might not be in the /proc/cpuinfo, so this might fail
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if arch in VENDORS:
-                return VENDORS[arch]
-
-            # some embeded linux on arm behaves differently (e.g. raspbian)
-            regexp = re.compile(r"^Processor\s+:\s*(?P<vendorid>ARM\S+)\s*", re.M)
-            res = regexp.search(txt)
-            if res:
-                arch = res.groupdict().get('vendorid', UNKNOWN)
-            if ARM in arch:
-                return ARM
+            txt, exitcode = run_cmd("lscpu")
+            if exitcode or not txt:
+                txt = read_file('/proc/cpuinfo', log_error=False)
+            regexp = re.compile(r":\s*")
+            cpulines = txt.split("\n")
+            for line in cpulines:
+                kvpair = regexp.split(line)
+                if len(kvpair) > 1:
+                    if kvpair[0].lower() in VENDORSTRINGS:
+                        if kvpair[1] in VENDORS:
+                            return VENDORS[kvpair[1]]
         except IOError, err:
             raise SystemToolsException("An error occured while determining CPU vendor since: %s" % err)
 
@@ -190,13 +191,25 @@ def get_cpu_model():
     returns cpu model
     f.ex Intel(R) Core(TM) i5-2540M CPU @ 2.60GHz
     """
+    model = UNKNOWN
     os_type = get_os_type()
     if os_type == LINUX:
-        regexp = re.compile(r"^model name\s+:\s*(?P<modelname>.+)\s*$", re.M)
         try:
-            txt = read_file('/proc/cpuinfo', log_error=False)
-            if txt is not None:
-                return regexp.search(txt).groupdict()['modelname'].strip()
+            txt, exitcode = run_cmd("lscpu")
+            if exitcode or not txt:
+                txt = read_file('/proc/cpuinfo', log_error=False)
+            regexp = re.compile(r":\s*")
+            cpulines = txt.split("\n")
+            for line in cpulines:
+                kvpair = regexp.split(line)
+                if len(kvpair) > 1:
+                    # Best result is to find model name field, return immediately
+                    if kvpair[0].lower() == "model name":
+                        return kvpair[1]
+                    # On arches without a model name field, model might be useful
+                    if kvpair[0].lower() == "model":
+                        model = kvpair[1]
+
         except IOError, err:
             raise SystemToolsException("An error occured when determining CPU model: %s" % err)
 
@@ -206,7 +219,7 @@ def get_cpu_model():
         if not exitcode:
             return out
 
-    return UNKNOWN
+    return model
 
 
 def get_cpu_speed():
