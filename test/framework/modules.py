@@ -38,7 +38,10 @@ from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 from easybuild.framework.easyblock import EasyBlock
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.modules import get_software_root, get_software_version, get_software_libdir, modules_tool
 
 
@@ -319,6 +322,31 @@ class ModulesTest(EnhancedTestCase):
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
 
+    def test_system_modules(self):
+        """Test use of system modules."""
+        ectxt = read_file(os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb'))
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0-system-modules.eb')
+
+        # just specify some of the test modules we ship, doesn't matter where they come from
+        ectxt += "\nsystem_modules = ['GCC/4.6.4', 'ifort/2011.13.367']"
+        ectxt += "\nstart_dir = '%s'" % self.test_prefix  # require to be able to call prepare_step() method
+        write_file(toy_ec, ectxt)
+
+        opts = init_config(args=["--system-modules=CUDA/5.0.35-1,toy/0.0"])
+        self.assertEqual(opts.system_modules, ['CUDA/5.0.35-1', 'toy/0.0'])
+
+        build_options = {
+            'system_modules': opts.system_modules,
+            'valid_module_classes': config.module_classes(),
+        }
+        init_config(build_options=build_options)
+
+        ec = EasyConfig(toy_ec)
+        eb = EasyBlock(ec)
+
+        eb.prepare_step()
+        expected_modules = ['CUDA/5.0.35-1', 'toy/0.0', 'GCC/4.6.4', 'ifort/2011.13.367']
+        self.assertEqual(expected_modules, [x['mod_name'] for x in eb.modules_tool.list()])
 
 def suite():
     """ returns all the testcases in this module """
