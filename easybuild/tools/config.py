@@ -98,6 +98,7 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
+        'update_modules_tool_cache',
     ],
     False: [
         'allow_modules_tool_mismatch',

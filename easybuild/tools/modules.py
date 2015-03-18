@@ -45,14 +45,17 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 from vsc.utils.patterns import Singleton
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
+from easybuild.tools.filetools import convert_name, copy_file, mkdir, read_file, path_matches, which, write_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
+
+# relative to user's home directory
+LMOD_USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
 # software root/version environment variable name prefixes
 ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
@@ -138,6 +141,11 @@ class ModulesTool(object):
     USER_CACHE_DIR = None
 
     __metaclass__ = Singleton
+
+    @staticmethod
+    def is_lmod():
+        """Return whether this instance provides an interface to Lmod."""
+        return False
 
     def __init__(self, mod_paths=None, testing=False):
         """
@@ -468,6 +476,10 @@ class ModulesTool(object):
             # run these in terse mode for easier machine reading
             args.insert(*self.TERSE_OPTION)
 
+        # -D enables verbose debug logging to stderr
+        if self.is_lmod() and 'debug' in kwargs and kwargs['debug']:
+            args.insert(0, '-D')
+
         module_path_key = None
         if 'mod_paths' in kwargs:
             module_path_key = 'mod_paths'
@@ -796,14 +808,44 @@ class Lmod(ModulesTool):
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
     USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
+    @staticmethod
+    def is_lmod():
+        """Return whether this instance provides an interface to Lmod."""
+        return True
+
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
+
         # $LMOD_QUIET needs to be set to avoid EasyBuild tripping over fiddly bits in output
         os.environ['LMOD_QUIET'] = '1'
-        # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
+
+        # make sure Lmod ignores the spider cache by defining $LMOD_IGNORE_CACHE
+        # this must be set early, before initializing rest of this Lmod class instance
         os.environ['LMOD_IGNORE_CACHE'] = '1'
 
         super(Lmod, self).__init__(*args, **kwargs)
+
+        self.lua_binpath, self.lua_ver = None, None
+        self.init_lua()
+
+    def init_lua(self):
+        """Initialize Lua-related class variables."""
+
+        # determine path to lua/luac via Lmod config
+        lmod_config = self.run_module('--config', return_output=True)
+        lua_binpath_regex = re.compile(r"^Path to Lua\s*(.*)$", re.M)
+        res = lua_binpath_regex.search(lmod_config)
+        if res:
+            self.lua_binpath = res.group(1)
+            self.log.debug("Found Lua (bin)path: %s" % self.lua_binpath)
+        else:
+            self.log.error("Failed to determine Lua path from Lmod config")
+
+        # determine Lua version
+        lua_bin = os.path.join(self.lua_binpath, 'lua')
+        lua_ver_cmd = 'print((_VERSION:gsub("Lua ","")))'
+        (out, _) = run_cmd("%s -e '%s'" % (lua_bin, lua_ver_cmd), simple=False)
+        self.lua_ver = out.strip()
 
     def check_module_function(self, *args, **kwargs):
         """Check whether selected module tool matches 'module' function definition."""
@@ -835,33 +877,75 @@ class Lmod(ModulesTool):
         return correct_real_mods
 
     def update(self):
-        """Update after new modules were added."""
-        if build_option('update_modules_tool_cache'):
+        """Update Lmod cache after new modules were added."""
+        cache_dir = None
+        cache_timestamp = None
+        cache_specs = build_option('update_modules_tool_cache')
+        if cache_specs:
+            if isinstance(cache_specs, bool):
+                cache_specs = LMOD_USER_CACHE_DIR
+            cache_specs = cache_specs.split(',')
+            cache_dir = cache_specs[0]
+            if len(cache_specs) > 1:
+                cache_timestamp = cache_specs[1]
+
+        if cache_dir is not None:
+            # type of cache to build (possible choices: moduleT, dbT, reverseMapT)
+            # just building moduleT is sufficient for speedy 'avail'
+            cache_type = 'moduleT'
+
+            if cache_timestamp is not None:
+                if os.path.exists(cache_timestamp):
+                    os.remove(cache_timestamp)
+                write_file(cache_timestamp, '', append=True)
+
+            cache_fp = os.path.join(cache_dir, '%s.lua' % cache_type)
+            print_msg("updating Lmod cache %s..." % cache_fp, log=self.log)
+
+            # run spider to create cache contents
             spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            cmd = [spider_cmd, '-o', cache_type, os.environ['MODULEPATH']]
             self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
+            # we can't use run_cmd, since we need to separate stdout from stderr
             proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-            (stdout, stderr) = proc.communicate()
+            (cache_txt, stderr) = proc.communicate()
 
             if stderr:
                 self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents
-                return stdout
+                return cache_txt
             else:
+                compiled_cache_fp = os.path.join(cache_dir, '%s.luac_%s' % (cache_type, self.lua_ver))
+                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+
+                # back existing cache file by copying them <cache>T.old.<ext>
+                # Lmod also considers this filename for the cache in case <cache>T.<ext> isn't found
+                if os.path.exists(cache_fp):
+                    copy_file(cache_fp, os.path.join(cache_dir, '%s.old.lua' % cache_type))
+                if os.path.exists(compiled_cache_fp):
+                    copy_file(compiled_cache_fp, os.path.join(cache_dir, '%s.old.luac_%s' % (cache_type, self.lua_ver)))
+
+                # make update as atomic as possible: write cache file under temporary name, and then rename
+                new_cache_fp = '%s.new' % cache_fp
+                write_file(new_cache_fp, cache_txt)
                 try:
-                    cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
-                    self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
-                    cache_dir = os.path.dirname(cache_fp)
-                    if not os.path.exists(cache_dir):
-                        mkdir(cache_dir, parents=True)
-                    cache_file = open(cache_fp, 'w')
-                    cache_file.write(stdout)
-                    cache_file.close()
-                except (IOError, OSError), err:
-                    self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_fp, err))
+                    os.rename(new_cache_fp, cache_fp)
+                except OSError, err:
+                    self.log.error("Failed to rename Lmod cache %s to %s: %s" % (new_cache_fp, cache_fp, err))
+
+                # compile cache if luac is available
+                luac = os.path.join(self.lua_binpath, 'luac')
+                new_compiled_cache_fp = '%s.new' % compiled_cache_fp
+                if os.path.exists(luac):
+                    run_cmd("%s -o %s.new %s" % (luac, compiled_cache_fp, cache_fp))
+                    try:
+                        os.rename(new_compiled_cache_fp, compiled_cache_fp)
+                    except OSError, err:
+                        tup = (new_compiled_cache_fp, compiled_cache_fp, err)
+                        self.log.error("Failed to rename Lmod cache %s to %s: %s" % tup)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'
@@ -976,15 +1060,20 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, testing=False):
+def modules_tool(mod_paths=None, testing=False, name=None, return_class=False):
     """
     Return interface to modules tool (environment modules (C, Tcl), or Lmod)
     """
+    if name is None:
+        name = get_modules_tool()
+
     # get_modules_tool might return none (e.g. if config was not initialized yet)
-    modules_tool = get_modules_tool()
-    if modules_tool is not None:
-        modules_tool_class = avail_modules_tools().get(modules_tool)
-        return modules_tool_class(mod_paths=mod_paths, testing=testing)
+    if name is not None:
+        modules_tool_class = avail_modules_tools().get(name)
+        if return_class:
+            return modules_tool_class
+        else:
+            return modules_tool_class(mod_paths=mod_paths, testing=testing)
     else:
         return None
 

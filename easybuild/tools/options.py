@@ -58,6 +58,7 @@ from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, fetch_github_t
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_naming_scheme import GENERAL_CLASS
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes
+from easybuild.tools.modules import LMOD_USER_CACHE_DIR, modules_tool
 from easybuild.tools.ordereddict import OrderedDict
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.repository.repository import avail_repositories
@@ -209,7 +210,7 @@ class EasyBuildOptions(GeneralOption):
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
             'update-modules-tool-cache': ("Update modules tool cache file(s) after generating module file",
-                                          None, 'store_true', False),
+                                          None, 'store_or_None', True, {'metavar': 'DIR[,FILE]'}),
         })
 
         self.log.debug("override_options: descr %s opts %s" % (descr, opts))
