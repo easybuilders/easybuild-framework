@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,9 @@
 # is used (esp CUSTOM) in some easyblocks
 from easybuild.framework.easyconfig.default import ALL_CATEGORIES
 globals().update(ALL_CATEGORIES)
+
+# subdirectory (of 'easybuild' dir) in which easyconfig files are located in a package
+EASYCONFIGS_PKG_SUBDIR = 'easyconfigs'
 
 # is used in some tools
 from easybuild.framework.easyconfig.easyconfig import EasyConfig

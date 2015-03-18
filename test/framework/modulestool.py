@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2014 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -68,13 +68,6 @@ class ModulesToolTest(EnhancedTestCase):
         """Testcase setup."""
         super(ModulesToolTest, self).setUp()
 
-        # keep track of original $MODULEPATH, so we can restore it
-        self.orig_modulepaths = os.environ.get('MODULEPATH', '').split(os.pathsep)
-
-        # purge with original $MODULEPATH before running each test
-        # purging fails if module path for one of the loaded modules is no longer in $MODULEPATH
-        modules_tool().purge()
-
         # keep track of original 'module' function definition so we can restore it
         self.orig_module = os.environ.get('module', None)
 
@@ -83,7 +76,7 @@ class ModulesToolTest(EnhancedTestCase):
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
 
         # ue empty mod_path list, otherwise the install_path is called
-        mmt = MockModulesTool(mod_paths=[])
+        mmt = MockModulesTool(mod_paths=[], testing=True)
 
         # the version of the MMT is the commandline option
         self.assertEqual(mmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
@@ -98,7 +91,7 @@ class ModulesToolTest(EnhancedTestCase):
         os.environ['module'] = "() { %s $*\n}" % BrokenMockModulesTool.COMMAND
 
         try:
-            bmmt = BrokenMockModulesTool(mod_paths=[])
+            bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
             # should never get here
             self.assertTrue(False, 'BrokenMockModulesTool should fail')
         except EasyBuildError, err:
@@ -106,7 +99,8 @@ class ModulesToolTest(EnhancedTestCase):
 
         os.environ[BrokenMockModulesTool.COMMAND_ENVIRONMENT] = MockModulesTool.COMMAND
         os.environ['module'] = "() { /bin/echo $*\n}"
-        bmmt = BrokenMockModulesTool(mod_paths=[])
+        BrokenMockModulesTool._instances.pop(BrokenMockModulesTool, None)
+        bmmt = BrokenMockModulesTool(mod_paths=[], testing=True)
         cmd_abspath = which(MockModulesTool.COMMAND)
 
         self.assertEqual(bmmt.version, StrictVersion(MockModulesTool.VERSION_OPTION))
@@ -118,8 +112,9 @@ class ModulesToolTest(EnhancedTestCase):
     def test_module_mismatch(self):
         """Test whether mismatch detection between modules tool and 'module' function works."""
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
-        os.environ['module'] = "() {  eval `/Users/kehoste/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
-        self.assertErrorRegex(EasyBuildError, ".*pattern .* not found in defined 'module' function", MockModulesTool)
+        os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
+        error_regex = ".*pattern .* not found in defined 'module' function"
+        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -129,7 +124,7 @@ class ModulesToolTest(EnhancedTestCase):
 
         fancylogger.logToFile(self.logfile)
 
-        mt = MockModulesTool()
+        mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
@@ -138,17 +133,19 @@ class ModulesToolTest(EnhancedTestCase):
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
-        mt = MockModulesTool()
+        MockModulesTool._instances.pop(MockModulesTool)
+        mt = MockModulesTool(testing=True)
         self.assertTrue(isinstance(mt.loaded_modules(), list))  # dummy usage
 
         # a warning should be logged if the 'module' function is undefined
         del os.environ['module']
-        mt = MockModulesTool()
+        MockModulesTool._instances.pop(MockModulesTool)
+        mt = MockModulesTool(testing=True)
         f = open(self.logfile, 'r')
         logtxt = f.read()
         f.close()
         warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
-        self.assertTrue(warn_regex.search(logtxt))
+        self.assertTrue(warn_regex.search(logtxt), "Pattern %s found in %s" % (warn_regex.pattern, logtxt))
 
         fancylogger.logToFile(self.logfile, enable=False)
 
@@ -159,6 +156,7 @@ class ModulesToolTest(EnhancedTestCase):
         if lmod_abspath is not None:
             build_options = {
                 'allow_modules_tool_mismatch': True,
+                'update_modules_tool_cache': True,
             }
             init_config(build_options=build_options)
 
@@ -177,8 +175,7 @@ class ModulesToolTest(EnhancedTestCase):
 
             # initialize Lmod modules tool, pass full path to 'lmod' via $LMOD_CMD
             os.environ['LMOD_CMD'] = lmod_abspath
-            lmod = Lmod()
-            lmod.testing = True
+            lmod = Lmod(testing=True)
 
             # obtain list of availabe modules, should be non-empty
             self.assertTrue(lmod.available(), "List of available modules obtained using Lmod is non-empty")
@@ -189,10 +186,6 @@ class ModulesToolTest(EnhancedTestCase):
     def tearDown(self):
         """Testcase cleanup."""
         super(ModulesToolTest, self).tearDown()
-
-        os.environ['MODULEPATH'] = os.pathsep.join(self.orig_modulepaths)
-        # reinitialize a modules tool, to trigger 'module use' on module paths
-        modules_tool()
 
         # restore 'module' function
         if self.orig_module is not None:

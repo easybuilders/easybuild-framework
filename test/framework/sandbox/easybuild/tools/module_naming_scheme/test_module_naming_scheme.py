@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,8 @@ from easybuild.tools.module_naming_scheme import ModuleNamingScheme
 class TestModuleNamingScheme(ModuleNamingScheme):
     """Class implementing a simple module naming scheme for testing purposes."""
 
+    REQUIRED_KEYS = ['name', 'version', 'toolchain']
+
     def det_full_module_name(self, ec):
         """
         Determine full module name from given easyconfig, according to a simple testing module naming scheme.
@@ -53,3 +55,15 @@ class TestModuleNamingScheme(ModuleNamingScheme):
         else:
             mod_name = os.path.join(ec['name'], ec['version'])
         return mod_name
+
+    def det_module_symlink_paths(self, ec):
+        """
+        Determine list of paths in which symlinks to module files must be created.
+        """
+        return [ec['moduleclass'].upper(), ec['name'].lower()[0]]
+
+    def is_short_modname_for(self, modname, name):
+        """
+        Determine whether the specified (short) module name is a module for software with the specified name.
+        """
+        return modname.find('%s' % name)!= -1

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,4 +31,11 @@ from easybuild.framework.easyblock import EasyBlock
 
 class Toolchain(EasyBlock):
     """Dummy support for toolchains."""
-    pass
+    def configure_step(self):
+        pass
+    def build_step(self):
+        pass
+    def install_step(self):
+        pass
+    def sanity_check_step(self):
+        pass

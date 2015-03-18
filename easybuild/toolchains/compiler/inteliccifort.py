@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,7 +56,7 @@ class IntelIccIfort(Compiler):
     COMPILER_UNIQUE_OPTION_MAP = {
         'i8': 'i8',
         'r8': 'r8',
-        'optarch': 'xHOST',
+        'optarch': 'xHost',
         'openmp': 'openmp',  # both -openmp/-fopenmp are valid for enabling OpenMP
         'strict': ['fp-speculation=strict', 'fp-model strict'],
         'precise': ['fp-model precise'],
@@ -69,8 +69,8 @@ class IntelIccIfort(Compiler):
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        systemtools.INTEL : 'xHOST',
-        systemtools.AMD : 'msse3',
+        systemtools.INTEL : 'xHost',
+        systemtools.AMD : 'xHost',
     }
 
     COMPILER_CC = 'icc'

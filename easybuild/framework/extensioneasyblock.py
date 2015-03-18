@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -58,8 +58,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             extra_vars = {}
 
         if not isinstance(extra_vars, dict):
-            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
-            extra_vars = dict(extra_vars)
+            _log.nosupport("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
 
         extra_vars.update({
             'options': [{}, "Dictionary with extension options.", CUSTOM],

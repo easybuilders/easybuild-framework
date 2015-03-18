@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,7 +31,7 @@ Easyconfig module that provides functionality for tweaking existing eaysconfig (
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 import copy
 import glob
@@ -42,11 +42,10 @@ from distutils.version import LooseVersion
 from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
-from easybuild.tools.build_log import print_error, print_msg, print_warning
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
-from easybuild.framework.easyconfig.tools import resolve_dependencies
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.robot import resolve_dependencies
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
@@ -69,13 +68,28 @@ def ec_filename_for(path):
     return fn
 
 
-def tweak(easyconfigs, build_specs):
+def tweak(easyconfigs, build_specs, targetdir=None):
     """Tweak list of easyconfigs according to provided build specifications."""
 
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
     toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
     if len(toolchains) > 1:
         _log.error("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s" % toolchains)
+
+    if 'name' in build_specs or 'version' in build_specs:
+        # no recursion if software name/version build specification are included
+        # in that case, do not construct full dependency graph
+        orig_ecs = easyconfigs
+        _log.debug("Software name/version found, so not applying build specifications recursively: %s" % build_specs)
+    else:
+        # build specifications should be applied to the whole dependency graph
+        # obtain full dependency graph for specified easyconfigs
+        # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
+        _log.debug("Applying build specifications recursively (no software name/version found): %s" % build_specs)
+        orig_ecs = resolve_dependencies(easyconfigs, retain_all_deps=True)
+
+    # keep track of originally listed easyconfigs (via their path)
+    listed_ec_paths = [ec['spec'] for ec in easyconfigs]
 
     # obtain full dependency graph for specified easyconfigs
     # easyconfigs will be ordered 'top-to-bottom': toolchain dependencies and toolchain first
@@ -91,16 +105,19 @@ def tweak(easyconfigs, build_specs):
             orig_ecs = orig_ecs[1:]
 
     # generate tweaked easyconfigs, and continue with those instead
-    easyconfigs = []
+    tweaked_easyconfigs = []
     for orig_ec in orig_ecs:
-        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs)
-        new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
-        easyconfigs.extend(new_ecs)
+        new_ec_file = tweak_one(orig_ec['spec'], None, build_specs, targetdir=targetdir)
+        # only return tweaked easyconfigs for easyconfigs which were listed originally
+        # easyconfig files for dependencies are also generated but not included, and will be resolved via --robot
+        if orig_ec['spec'] in listed_ec_paths:
+            new_ecs = process_easyconfig(new_ec_file, build_specs=build_specs)
+            tweaked_easyconfigs.extend(new_ecs)
 
-    return easyconfigs
+    return tweaked_easyconfigs
 
 
-def tweak_one(src_fn, target_fn, tweaks):
+def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     """
     Tweak an easyconfig file with the given list of tweaks, using replacement via regular expressions.
     Note: this will only work 'well-written' easyconfig files, i.e. ones that e.g. set the version
@@ -149,7 +166,7 @@ def tweak_one(src_fn, target_fn, tweaks):
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -158,53 +175,53 @@ def tweak_one(src_fn, target_fn, tweaks):
                 # - input starting with comma (empty head list element) => append
                 # - no empty head/tail list element => overwrite
                 if val[0] == '':
-                    newval = "%s + %s" % (res.group(1), fval)
+                    newval = "%s + %s" % (res.group('val'), fval)
                     _log.debug("Appending %s to %s" % (fval, key))
                 elif val[-1] == '':
-                    newval = "%s + %s" % (fval, res.group(1))
+                    newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
                     newval = "%s" % fval
                     _log.debug("Overwriting %s with %s" % (key, fval))
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
-                additions.append("%s = %s # added by EasyBuild" % (key, val))
+                additions.append("%s = %s" % (key, val))
 
             tweaks.pop(key)
 
     # add parameters or replace existing ones
     for (key, val) in tweaks.items():
 
-        regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+        regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
             diff = True
             try:
-                _log.debug("eval(%s): %s" % (res.group(1), eval(res.group(1))))
-                diff = not eval(res.group(1)) == val
+                _log.debug("eval(%s): %s" % (res.group('val'), eval(res.group('val'))))
+                diff = eval(res.group('val')) != val
             except (NameError, SyntaxError):
                 # if eval fails, just fall back to string comparison
-                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % (res.group(1), val))
-                diff = not res.group(1) == val
+                tup = (res.group('val'), val)
+                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % tup)
+                diff = res.group('val') != val
 
             if diff:
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
                 _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
             additions.append("%s = %s" % (key, quote_str(val)))
 
     if additions:
-        _log.info("Adding additional parameters to tweaked easyconfig file: %s")
-        ectxt += "\n\n# added by EasyBuild as dictated by command line options\n"
-        ectxt += '\n'.join(additions) + '\n'
+        _log.info("Adding additional parameters to tweaked easyconfig file: %s" % additions)
+        ectxt = '\n'.join([ectxt] + additions)
 
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
     # come up with suiting file name for tweaked easyconfig file if none was specified
-    if not target_fn:
+    if target_fn is None:
         fn = None
         try:
             # obtain temporary filename
@@ -222,7 +239,9 @@ def tweak_one(src_fn, target_fn, tweaks):
         except OSError, err:
             _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
 
-        target_fn = os.path.join(tempfile.gettempdir(), fn)
+        if targetdir is None:
+            targetdir = tempfile.gettempdir()
+        target_fn = os.path.join(targetdir, fn)
         _log.debug("Generated file name for tweaked easyconfig file: %s" % target_fn)
 
     # write out tweaked easyconfig file
@@ -235,11 +254,14 @@ def tweak_one(src_fn, target_fn, tweaks):
 def pick_version(req_ver, avail_vers):
     """Pick version based on an optionally desired version and available versions.
 
-    If a desired version is specifed, the most recent version that is less recent
-    than the desired version will be picked; else, the most recent version will be picked.
+    If a desired version is specifed, the most recent version that is less recent than or equal to
+    the desired version will be picked; else, the most recent version will be picked.
 
-    This function returns both the version to be used, which is equal to the desired version
+    This function returns both the version to be used, which is equal to the required version
     if it was specified, and the version picked that matches that closest.
+
+    @param req_ver: required version
+    @param avail_vers: list of available versions
     """
 
     if not avail_vers:
@@ -248,26 +270,44 @@ def pick_version(req_ver, avail_vers):
     selected_ver = None
     if req_ver:
         # if a desired version is specified,
-        # retain the most recent version that's less recent than the desired version
-
+        # retain the most recent version that's less recent or equal than the desired version
         ver = req_ver
 
         if len(avail_vers) == 1:
             selected_ver = avail_vers[0]
         else:
-            retained_vers = [v for v in avail_vers if v < LooseVersion(ver)]
+            retained_vers = [v for v in avail_vers if v <= LooseVersion(ver)]
             if retained_vers:
                 selected_ver = retained_vers[-1]
             else:
                 # if no versions are available that are less recent, take the least recent version
                 selected_ver = sorted([LooseVersion(v) for v in avail_vers])[0]
-
     else:
         # if no desired version is specified, just use last version
         ver = avail_vers[-1]
         selected_ver = ver
 
     return (ver, selected_ver)
+
+
+def find_matching_easyconfigs(name, installver, paths):
+    """
+    Find easyconfigs that match specified name/installversion in specified list of paths.
+
+    @param name: software name
+    @param installver: software install version (which includes version, toolchain, versionprefix/suffix, ...)
+    @param paths: list of paths to search easyconfigs in
+    """
+    ec_files = []
+    for path in paths:
+        patterns = create_paths(path, name, installver)
+        for pattern in patterns:
+            more_ec_files = filter(os.path.isfile, sorted(glob.glob(pattern)))
+            _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
+            ec_files.extend(more_ec_files)
+
+    # only retain unique easyconfig paths
+    return nub(ec_files)
 
 
 def select_or_generate_ec(fp, paths, specs):
@@ -299,7 +339,6 @@ def select_or_generate_ec(fp, paths, specs):
     handled_params = ['name']
 
     # find ALL available easyconfig files for specified software
-    ec_files = []
     cfg = {
         'version': '*',
         'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
@@ -307,10 +346,8 @@ def select_or_generate_ec(fp, paths, specs):
         'versionsuffix': '*',
     }
     installver = det_full_ec_version(cfg)
-    for path in paths:
-        patterns = create_paths(path, name, installver)
-        for pattern in patterns:
-            ec_files.extend(glob.glob(pattern))
+    ec_files = find_matching_easyconfigs(name, installver, paths)
+    _log.debug("Unique ec_files: %s" % ec_files)
 
     # we need at least one config file to start from
     if len(ec_files) == 0:
@@ -326,10 +363,6 @@ def select_or_generate_ec(fp, paths, specs):
 
         if len(ec_files) == 0:
             _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
-
-    # only retain unique easyconfig files
-    ec_files = nub(ec_files)
-    _log.debug("Unique ec_files: %s" % ec_files)
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
@@ -491,7 +524,7 @@ def select_or_generate_ec(fp, paths, specs):
         for (key, val) in specs.items():
             if key in selected_ec._config:
                 # values must be equal to have a full match
-                if not selected_ec[key] == val:
+                if selected_ec[key] != val:
                     match = False
             else:
                 # if we encounter a key that is not set in the selected easyconfig, we don't have a full match
@@ -505,7 +538,7 @@ def select_or_generate_ec(fp, paths, specs):
         # GENERATE
 
         # if no file path was specified, generate a file name
-        if not fp:
+        if fp is None:
             cfg = {
                 'version': ver,
                 'toolchain': {'name': tcname, 'version': tcver},
@@ -523,7 +556,7 @@ def select_or_generate_ec(fp, paths, specs):
         return (True, fp)
 
 
-def obtain_ec_for(specs, paths, fp):
+def obtain_ec_for(specs, paths, fp=None):
     """
     Obtain an easyconfig file to the given specifications.
 
@@ -543,31 +576,6 @@ def obtain_ec_for(specs, paths, fp):
     if not paths:
         _log.error("No paths to look for easyconfig files, specify a path with --robot.")
 
-    # create glob patterns based on supplied info
-
-    # figure out the install version
-    cfg = {
-        'version': specs.get('version', '*'),
-        'toolchain': {
-            'name': specs.get('toolchain_name', '*'),
-            'version': specs.get('toolchain_version', '*'),
-        },
-        'versionprefix': specs.get('versionprefix', '*'),
-        'versionsuffix': specs.get('versionsuffix', '*'),
-    }
-    installver = det_full_ec_version(cfg)
-
-    # find easyconfigs that match a pattern
-    easyconfig_files = []
-    for path in paths:
-        patterns = create_paths(path, specs['name'], installver)
-        for pattern in patterns:
-            easyconfig_files.extend(glob.glob(pattern))
-
-    cnt = len(easyconfig_files)
-
-    _log.debug("List of obtained easyconfig files (%d): %s" % (cnt, easyconfig_files))
-
     # select best easyconfig, or try to generate one that fits the requirements
     res = select_or_generate_ec(fp, paths, specs)
 
@@ -575,26 +583,3 @@ def obtain_ec_for(specs, paths, fp):
         return res
     else:
         _log.error("No easyconfig found for requested software, and also failed to generate one.")
-
-
-def obtain_path(specs, paths, try_to_generate=False, exit_on_error=True, silent=False):
-    """Obtain a path for an easyconfig that matches the given specifications."""
-
-    # if no easyconfig files/paths were provided, but we did get a software name,
-    # we can try and find a suitable easyconfig ourselves, or generate one if we can
-    (generated, fn) = obtain_ec_for(specs, paths, None)
-    if not generated:
-        return (fn, generated)
-    else:
-        # if an easyconfig was generated, make sure we're allowed to use it
-        if try_to_generate:
-            print_msg("Generated an easyconfig file %s, going to use it now..." % fn, silent=silent)
-            return (fn, generated)
-        else:
-            try:
-                os.remove(fn)
-            except OSError, err:
-                print_warning("Failed to remove generated easyconfig file %s: %s" % (fn, err))
-            print_error(("Unable to find an easyconfig for the given specifications: %s; "
-                         "to make EasyBuild try to generate a matching easyconfig, "
-                         "use the --try-X options ") % specs, log=_log, exit_on_error=exit_on_error)
