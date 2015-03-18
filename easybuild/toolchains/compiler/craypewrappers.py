@@ -107,8 +107,7 @@ class CrayPEWrapper(Compiler):
         """Load craype module specified via 'optarch' build option."""
         optarch = build_option('optarch')
         if optarch is None:
-            # FIXME: try and guess which craype module to load? is there a way to do so?
-            raise NotImplementedError
+            self.log.error("Don't know which 'craype' module to load, 'optarch' build option is unspecified.")
         else:
             self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
