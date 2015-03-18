@@ -108,7 +108,7 @@ class CrayPEWrapper(Compiler):
             # FIXME: try and guess which craype module to load? is there a way to do so?
             raise NotImplementedError
         else:
-            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % optarch])
+            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
