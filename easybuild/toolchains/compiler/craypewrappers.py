@@ -82,6 +82,20 @@ class CrayPEWrapper(Compiler):
     COMPILER_OPT_FLAGS = []  # or those
     COMPILER_PREC_FLAGS = []  # and those for sure not !
 
+    # name suffix for PrgEnv module that matches this toolchain
+    # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
+    PRGENV_MODULE_NAME_TEMPLATE = 'PrgEnv-%(suffix)s/%(version)s'
+    PRGENV_MODULE_NAME_SUFFIX = None
+
+    def _pre_preprare(self):
+        """Load PrgEnv module."""
+        prgenv_mod_name = self.PRGENV_MODULE_NAME_TEMPLATE % {
+            'suffix': self.PRGENV_MODULE_NAME_SUFFIX,
+            'version': self.version,
+        }
+        self.log.info("Loading PrgEnv module '%s' for Cray toolchain %s" % (prgenv_mod_name, self.mod_short_name))
+        self.modules_tool.load([prgenv_mod_name])
+
     def _get_optimal_architecture(self):
         """On a Cray system we assume that the optimal architecture is controlled
            by loading a craype module that instructs the compiler to generate backend code

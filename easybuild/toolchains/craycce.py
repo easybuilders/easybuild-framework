@@ -32,3 +32,4 @@ from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperCray
 class CrayCCE(CrayPEWrapperCray):
     """Compiler toolchain for Cray Programming Environment for Cray Compiling Environment (CCE) (PrgEnv-cray)."""
     NAME = 'CrayCCE'
+    PRGENV_MODULE_NAME_SUFFIX = 'cray'
