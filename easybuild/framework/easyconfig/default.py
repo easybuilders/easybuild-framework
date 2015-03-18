@@ -108,7 +108,7 @@ DEFAULT_CONFIG = {
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
                    "non-zero exit status to fail"), BUILD],
-    'unpack_options': [None, "Extra options for unpacking source", BUILD],
+    'unpack_options': ['', "Extra options for unpacking source", BUILD],
     'unwanted_env_vars': [[], "List of environment variables that shouldn't be set during build", BUILD],
     'versionprefix': ['', ('Additional prefix for software version '
                            '(placed before version and toolchain name)'), BUILD],
