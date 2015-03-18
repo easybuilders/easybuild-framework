@@ -419,7 +419,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
 
-        # impi with dummy toolchain, which doesn't make sense in a hierarchical context
+        # impi with system toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
@@ -450,7 +450,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals, init_modpaths = ['Core/%s' % c for c in moduleclasses])
 
-        # impi with dummy toolchain, which doesn't make sense in a hierarchical context
+        # impi with system toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'impi-4.1.3.049.eb'))
         self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 

@@ -259,7 +259,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--force',
             '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
             '--software-version=0.0',
-            '--toolchain=dummy,dummy',
+            '--toolchain=system,',
             '--experimental',
         ]
         outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
@@ -328,7 +328,7 @@ class ToyBuildTest(EnhancedTestCase):
                 '--force',
                 '--robot=%s' % os.pathsep.join([self.test_buildpath, os.path.dirname(__file__)]),
                 '--software-version=%s' % version,
-                '--toolchain=dummy,dummy',
+                '--toolchain=system,',
                 '--experimental',
             ]
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True)
@@ -588,7 +588,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module path with dummy/dummy build
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
 
@@ -603,7 +603,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test module path with dummy/dummy build, pretend to be a compiler by setting moduleclass
         extra_args = [
-            '--try-toolchain=dummy,dummy',
+            '--try-toolchain=system,',
             '--try-amend=moduleclass=compiler',
         ]
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
