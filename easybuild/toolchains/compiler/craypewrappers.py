@@ -55,7 +55,7 @@ class CrayPEWrapper(Compiler):
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
-	    'dynamic': (True, """Generate dynamically linked executables and libraries."""),
+        'dynamic': (True, """Generate dynamically linked executables and libraries."""),
         'mpich-mt': (False, """Directs the driver to link in an alternate version of the Cray-MPICH library which
                                  provides fine-grained multi-threading support to applications that perform
                                  MPI operations within threaded regions."""),
@@ -63,9 +63,9 @@ class CrayPEWrapper(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-	    'pic': 'shared',
+        'pic': 'shared',
         'shared': 'dynamic',
-	    'static': 'static',
+        'static': 'static',
         'verbose': 'craype-verbose',
         'mpich-mt': 'craympich-mt',
     }
