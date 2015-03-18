@@ -7,7 +7,7 @@ versionsuffix = '-GCC-4.8.3'
 homepage = 'http://software.intel.com/en-us/intel-cluster-toolkit-compiler/'
 description = """Intel C, C++ and Fortran compilers"""
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 dependencies = [
     ('icc', version, versionsuffix),

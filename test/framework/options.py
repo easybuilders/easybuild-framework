@@ -423,7 +423,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(re.search(info_msg, outtxt), "Info message with list of known compiler toolchains")
         # toolchain elements should be in alphabetical order
         tcs = {
-            'dummy': [],
+            'system': [],
             'goalf': ['ATLAS', 'BLACS', 'FFTW', 'GCC', 'OpenMPI', 'ScaLAPACK'],
             'ictce': ['icc', 'ifort', 'imkl', 'impi'],
         }
@@ -1033,7 +1033,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            'toolchain = {"name":'system', 'version': ''}',
             'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')

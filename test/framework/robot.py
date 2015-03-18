@@ -124,7 +124,7 @@ class RobotTest(EnhancedTestCase):
                 'name': 'foo',
                 'version': '1.2.3',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
+                'toolchain': {'name': 'system', 'version': ''},
             },
             'spec': '_',
             'short_mod_name': 'foo/1.2.3',
@@ -133,8 +133,8 @@ class RobotTest(EnhancedTestCase):
                 'name': 'gzip',
                 'version': '1.4',
                 'versionsuffix': '',
-                'toolchain': {'name': 'dummy', 'version': 'dummy'},
-                'dummy': True,
+                'toolchain': {'name': 'system', 'version': ''},
+                'system': True,
                 'hidden': False,
             }],
             'parsed': True,
@@ -152,8 +152,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'toy',
             'version': '0.0',
             'versionsuffix': '-deps',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': ''},
+            'system': True,
             'hidden': True,
         }
         easyconfig_moredeps = deepcopy(easyconfig_dep)
@@ -195,7 +195,7 @@ class RobotTest(EnhancedTestCase):
             'version': '1.4',
             'versionsuffix': '',
             'toolchain': {'name': 'GCC', 'version': '4.6.3'},
-            'dummy': True,
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -221,8 +221,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'goolf',
             'version': '1.4.10',
             'versionsuffix': '',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': ''},
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -284,8 +284,8 @@ class RobotTest(EnhancedTestCase):
             'name': 'goolf',
             'version': '1.4.10',
             'versionsuffix': '',
-            'toolchain': {'name': 'dummy', 'version': 'dummy'},
-            'dummy': True,
+            'toolchain': {'name': 'system', 'version': ''},
+            'system': True,
             'hidden': False,
         }]
         ecs = [deepcopy(easyconfig_dep)]
@@ -368,7 +368,7 @@ class RobotTest(EnhancedTestCase):
             "versionsuffix = '-test'",
             "homepage = 'foo'",
             "description = 'bar'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': ''}",
         ])
         write_file(os.path.join(self.test_prefix, 'gompi-2015a-test.eb'), gompi_2015a_txt)
         # put gompi-2015a.eb easyconfig in place that shouldn't be considered (paths via --from-pr have precedence)

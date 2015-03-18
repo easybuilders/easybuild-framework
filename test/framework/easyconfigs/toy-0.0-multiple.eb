@@ -6,7 +6,7 @@ versionsuffix = '-multiple'
 homepage = 'http://hpcugent.github.com/easybuild'
 description = "Toy C program."
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 sources = [SOURCE_TAR_GZ]
 patches = ['toy-0.0_typo.patch']

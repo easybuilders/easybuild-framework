@@ -95,7 +95,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            "toolchain = {'name': 'system', 'version': ''}",
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -154,7 +154,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            "toolchain = {'name': 'system', 'version': ''}",
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -174,7 +174,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":"dummy", "version": "dummy"}',
+            "toolchain = {'name':'system', 'version': ''}",
         ])
         self.writeEC()
         eb = EasyBlock(EasyConfig(self.eb_file))
@@ -210,7 +210,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            "toolchain = {'name': 'system', 'version': ''}",
             'exts_list = ["ext1"]',
         ])
         self.writeEC()
@@ -245,7 +245,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name": "dummy", "version": "dummy"}',
+            "toolchain = {'name': 'system', 'version': ''}",
             'exts_list = ["ext1", "ext2"]',
             'exts_filter = ("if [ %(ext_name)s == \'ext2\' ]; then exit 0; else exit 1; fi", "")',
             'exts_defaultclass = "DummyExtension"',
@@ -281,7 +281,7 @@ class EasyBlockTest(EnhancedTestCase):
             'version = "%s"' % version,
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': ''}",
             "dependencies = %s" % str(alldeps),
             "hiddendependencies = %s" % str(hiddendeps),
             "builddependencies = [('OpenMPI', '1.6.4-GCC-4.6.4')]",
@@ -332,7 +332,7 @@ class EasyBlockTest(EnhancedTestCase):
             "version = '3.14'",
             "homepage = 'http://example.com'",
             "description = 'test easyconfig'",
-            "toolchain = {'name': 'dummy', 'version': 'dummy'}",
+            "toolchain = {'name': 'system', 'version': ''}",
         ])
         self.writeEC()
         stdoutorig = sys.stdout

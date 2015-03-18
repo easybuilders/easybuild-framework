@@ -20,7 +20,7 @@ moduleclass = toolchain
 
 [SUPPORTED]
 versions = 1.4.10
-toolchains = dummy == dummy
+toolchains = system == system
 
 [DEPENDENCIES]
 GCC = 4.7.2

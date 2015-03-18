@@ -4,7 +4,7 @@ version = '0.0'
 homepage = 'http://hpcugent.github.com/easybuild'
 description = "Toy C program."
 
-toolchain = {'name': 'dummy', 'version': 'dummy'}
+toolchain = {'name': 'system', 'version': 'system'}
 
 sources = [SOURCE_TAR_GZ]
 checksums = [[
