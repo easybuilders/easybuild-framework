@@ -44,7 +44,7 @@ import easybuild.framework.easyconfig as easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths
-from easybuild.framework.easyconfig.easyconfig import fetch_parameter_from_easyconfig_file, get_easyblock_class
+from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak_one
 from easybuild.tools.build_log import EasyBuildError
@@ -873,11 +873,6 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(easyblock, correct_easyblock)
 
         self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], "Toy C program.")
-
-        # also check deprecated function fetch_parameter_from_easyconfig_file
-        os.environ['EASYBUILD_DEPRECATED'] = '2.0'
-        init_config()
-        self.assertEqual(fetch_parameter_from_easyconfig_file(toy_ec_file, 'description'), "Toy C program.")
 
     def test_get_easyblock_class(self):
         """Test get_easyblock_class function."""

@@ -32,21 +32,18 @@ import re
 import sys
 import tempfile
 from vsc.utils import fancylogger
-from vsc.utils.generaloption import simple_option
+from vsc.utils.generaloption import SimpleOption
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import init_build_options
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
 from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, fetch_parameters_from_easyconfig
 from easybuild.tools.filetools import find_easyconfigs, read_file, write_file
 
-from test.framework.utilities import init_config
 
-
-options = {
-    'backup': ("Backup up easyconfigs before modifying them", None, 'store_true', True, 'b'),
-}
-go = simple_option(options)
-log = go.log
+class FixBrokenEasyconfigsOption(SimpleOption):
+    """Custom option parser for this script."""
+    ALLOPTSMANDATORY = False
 
 
 def fix_broken_easyconfig(ectxt, easyblock_class):
@@ -112,8 +109,14 @@ def process_easyconfig_file(ec_file):
 
 # MAIN
 
-def main():
-    """Main script functionality."""
+try:
+    init_build_options()
+
+    options = {
+        'backup': ("Backup up easyconfigs before modifying them", None, 'store_true', True, 'b'),
+    }
+    go = FixBrokenEasyconfigsOption(options)
+    log = go.log
 
     fancylogger.logToScreen(enable=True, stdout=True)
     log.setLevel('INFO')
@@ -122,8 +125,6 @@ def main():
         import easybuild.easyblocks.generic.configuremake
     except ImportError, err:
         log.error("easyblocks are not available in Python search path: %s" % err)
-
-    init_config(args=['--quiet'])
 
     for path in go.args:
         if not os.path.exists(path):
@@ -137,9 +138,5 @@ def main():
     for ec_file in ec_files:
         process_easyconfig_file(ec_file)
 
-
-if __name__ == '__main__':
-    try:
-        main()
-    except EasyBuildError, err:
-        sys.exit(1)
+except EasyBuildError, err:
+    sys.exit(1)
