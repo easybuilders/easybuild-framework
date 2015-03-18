@@ -36,9 +36,11 @@ linker and compiler directives to use the Cray libraries for their MPI (and netw
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 
 
-@author: Petar Forai
+@author: Petar Forai (IMP/IMBA, Austria)
+@author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
@@ -82,10 +84,13 @@ class CrayPEWrapper(Compiler):
     COMPILER_OPT_FLAGS = []  # or those
     COMPILER_PREC_FLAGS = []  # and those for sure not !
 
-    # name suffix for PrgEnv module that matches this toolchain
+    # template and name suffix for PrgEnv module that matches this toolchain
     # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
     PRGENV_MODULE_NAME_TEMPLATE = 'PrgEnv-%(suffix)s/%(version)s'
     PRGENV_MODULE_NAME_SUFFIX = None
+
+    # template for craype module (determines code generator backend of Cray compiler wrappers)
+    CRAYPE_MODULE_NAME_TEMPLATE = 'craype-%(optarch)s'
 
     def _pre_preprare(self):
         """Load PrgEnv module."""
@@ -96,11 +101,14 @@ class CrayPEWrapper(Compiler):
         self.log.info("Loading PrgEnv module '%s' for Cray toolchain %s" % (prgenv_mod_name, self.mod_short_name))
         self.modules_tool.load([prgenv_mod_name])
 
-    def _get_optimal_architecture(self):
-        """On a Cray system we assume that the optimal architecture is controlled
-           by loading a craype module that instructs the compiler to generate backend code
-           for that particular target"""
-        pass
+    def _set_optimal_architecture(self):
+        """Load craype module specified via 'optarch' build option."""
+        optarch = build_option('optarch')
+        if optarch is None:
+            # FIXME: try and guess which craype module to load? is there a way to do so?
+            raise NotImplementedError
+        else:
+            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % optarch])
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
