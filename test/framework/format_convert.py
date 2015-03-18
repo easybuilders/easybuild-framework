@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2014 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,6 +60,12 @@ class ConvertTest(EnhancedTestCase):
         # retest with space separated separator
         res = ListOfStrings(txt.replace(ListOfStrings.SEPARATOR_LIST, ListOfStrings.SEPARATOR_LIST + ' '))
         self.assertEqual(res, dest)
+
+        # empty string yields a list with an empty string
+        self.assertEqual(ListOfStrings(''), [''])
+
+        # empty entries are retained
+        self.assertEqual(ListOfStrings('a,,b'), ['a', '', 'b'])
 
     def test_dictofstrings(self):
         """Test dict of strings"""

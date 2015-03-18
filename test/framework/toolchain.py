@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,27 +32,29 @@ import os
 import re
 import shutil
 import tempfile
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.modules as modules
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
+
+from easybuild.tools import systemtools as st
+import easybuild.tools.toolchain.compiler
+easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
 
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
 
-    def setUp(self):
-        """Set up everything for a unit test."""
-        super(ToolchainTest, self).setUp()
-
-        # start with a clean slate
-        modules.modules_tool().purge()
-
-        # make sure path with modules for testing is added to MODULEPATH
-        self.orig_modpath = os.environ.get('MODULEPATH', '')
-        os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
+    def get_toolchain(self, name, version=None):
+        """Get a toolchain object instance to test with."""
+        tc_class, _ = search_toolchain(name)
+        self.assertEqual(tc_class.NAME, name)
+        tc = tc_class(version=version, mns=ActiveMNS())
+        return tc
 
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
@@ -69,15 +71,11 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_goalf_toolchain(self):
         """Test for goalf toolchain."""
-        name = "goalf"
-        tc, _ = search_toolchain(name)
-        self.assertEqual(tc.NAME, name)
-        self.tc = tc(version="1.1.0-no-OFED")
+        self.get_toolchain("goalf", version="1.1.0-no-OFED")
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         cc = tc.get_variable('CC')
@@ -108,8 +106,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_mpi_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -142,8 +139,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_seq_compilers(self):
         """Test get_variable function to obtain compiler variables."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'usempi': True})
         tc.prepare()
 
@@ -158,8 +154,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_get_variable_libs_list(self):
         """Test get_variable function to obtain list of libraries."""
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         ldflags = tc.get_variable('LDFLAGS', typ=list)
@@ -172,8 +167,7 @@ class ToolchainTest(EnhancedTestCase):
         Check that elements of variables are passed by value, not by reference,
         which is required to ensure correctness.
         """
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
 
         pass_by_value = True
@@ -195,10 +189,9 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether optimization flags are being set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check default optimization flag (e.g. -O2)
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({})
         tc.prepare()
         for var in flag_vars:
@@ -207,7 +200,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # check other optimization flags
         for opt in ['noopt', 'lowopt', 'opt']:
-            tc = tc_class(version="1.1.0-no-OFED")
+            tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
             for enable in [True, False]:
                 tc.set_options({opt: enable})
                 tc.prepare()
@@ -217,32 +210,34 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
                     else:
                         self.assertTrue(tc.COMPILER_SHARED_OPTION_MAP[opt] in flags)
+                modules.modules_tool().purge()
 
     def test_optimization_flags_combos(self):
         """Test whether combining optimization levels works as expected."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check combining of optimization flags (doesn't make much sense)
         # lowest optimization should always be picked
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['lowopt']
             self.assertTrue(flag in flags)
+        modules.modules_tool().purge()
 
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt': True, 'lowopt':True})
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
             flag = '-%s' % tc.COMPILER_SHARED_OPTION_MAP['noopt']
             self.assertTrue(flag in flags)
+        modules.modules_tool().purge()
 
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.set_options({'noopt':True, 'lowopt': True, 'opt':True})
         tc.prepare()
         for var in flag_vars:
@@ -254,12 +249,11 @@ class ToolchainTest(EnhancedTestCase):
         """Test whether shared compiler flags are set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (shared options)
         for opt in ['pic', 'verbose', 'debug', 'static', 'shared']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 # we need to make sure we check for flags, not letter (e.g. 'v' vs '-v')
@@ -270,37 +264,65 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
 
     def test_misc_flags_unique(self):
         """Test whether unique compiler flags are set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (unique options)
         for opt in ['unroll', 'optarch', 'openmp']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if opt == 'optarch':
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                else:
+                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
+
+    def test_override_optarch(self):
+        """Test whether overriding the optarch flag works."""
+        flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
+        for optarch_var in ['march=lovelylovelysandybridge', None]:
+            build_options = {'optarch': optarch_var}
+            init_config(build_options=build_options)
+            for enable in [True, False]:
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+                tc.set_options({'optarch': enable})
+                tc.prepare()
+                flag = None
+                if optarch_var is not None:
+                    flag = '-%s' % optarch_var
+                else:
+                    # default optarch flag
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+
+                for var in flag_vars:
+                    flags = tc.get_variable(var)
+                    if enable:
+                        self.assertTrue(flag in flags, "optarch: True means %s in %s" % (flag, flags))
+                    else:
+                        self.assertFalse(flag in flags, "optarch: False means no %s in %s" % (flag, flags))
+                modules.modules_tool().purge()
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
 
         flag_vars = ['FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # setting option should result in corresponding flag to be set (Fortran unique options)
         for opt in ['i8', 'r8']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
@@ -310,15 +332,15 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(flag in flags, "%s: True means %s in %s" % (opt, flag, flags))
                     else:
                         self.assertTrue(flag not in flags, "%s: False means no %s in %s" % (opt, flag, flags))
+                modules.modules_tool().purge()
 
     def test_precision_flags(self):
         """Test whether precision flags are being set correctly."""
 
         flag_vars = ['CFLAGS', 'CXXFLAGS', 'FFLAGS', 'F90FLAGS']
-        tc_class, _ = search_toolchain("goalf")
 
         # check default precision flag
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
         for var in flag_vars:
             flags = tc.get_variable(var)
@@ -328,7 +350,7 @@ class ToolchainTest(EnhancedTestCase):
         # check other precision flags
         for opt in ['strict', 'precise', 'loose', 'veryloose']:
             for enable in [True, False]:
-                tc = tc_class(version="1.1.0-no-OFED")
+                tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
                 val = ' '.join(['-%s' % f for f in tc.COMPILER_UNIQUE_OPTION_MAP[opt]])
@@ -338,13 +360,11 @@ class ToolchainTest(EnhancedTestCase):
                         self.assertTrue(val in flags)
                     else:
                         self.assertTrue(val not in flags)
+                modules.modules_tool().purge()
 
     def test_cgoolf_toolchain(self):
         """Test for cgoolf toolchain."""
-        name = "cgoolf"
-        tc_class, _ = search_toolchain(name)
-        self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version="1.1.6")
+        tc = self.get_toolchain("cgoolf", version="1.1.6")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'clang')
@@ -354,24 +374,43 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_comp_family(self):
         """Test determining compiler family."""
-
-        tc_class, _ = search_toolchain("goalf")
-        tc = tc_class(version="1.1.0-no-OFED")
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
         tc.prepare()
-
         self.assertEqual(tc.comp_family(), "GCC")
+
+    def test_mpi_family(self):
+        """Test determining MPI family."""
+        # check subtoolchain w/o MPI
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), None)
+        modules.modules_tool().purge()
+
+        # check full toolchain including MPI
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "OpenMPI")
+        modules.modules_tool().purge()
+
+        # check another one
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "IntelMPI")
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        write_file(imkl_module_path, imkl_module_txt)
 
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
-
-        tc_class, _ = search_toolchain("goolfc")
-        tc = tc_class(version="1.3.12")
+        tc = self.get_toolchain("goolfc", version="1.3.12")
         opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
         tc.set_options(opts)
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -march=native"',
+            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -391,8 +430,8 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def test_ictce_toolchain(self):
-        """Test for ictce toolchain."""
+    def setup_sandbox_for_intel_fftw(self):
+        """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # rewrite $root in imkl module so we can put required lib*.a files in place
         tmpdir = tempfile.mkdtemp()
@@ -409,20 +448,24 @@ class ToolchainTest(EnhancedTestCase):
         for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
             os.makedirs(os.path.join(tmpdir, subdir))
             for fftlib in fftw_libs:
-                open(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'w').write('foo')
+                write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
 
-        name = "ictce"
-        tc_class, _ = search_toolchain(name)
-        self.assertEqual(tc_class.NAME, name)
-        tc = tc_class(version="4.1.13")
+        return tmpdir, imkl_module_path, imkl_module_txt
+
+    def test_ictce_toolchain(self):
+        """Test for ictce toolchain."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+
+        tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
 
         self.assertEqual(tc.get_variable('CC'), 'icc')
         self.assertEqual(tc.get_variable('CXX'), 'icpc')
         self.assertEqual(tc.get_variable('F77'), 'ifort')
         self.assertEqual(tc.get_variable('F90'), 'ifort')
+        modules.modules_tool().purge()
 
-        tc = tc_class(version="4.1.13")
+        tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True}
         tc.set_options(opts)
         tc.prepare()
@@ -435,8 +478,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('MPICXX'), 'mpicxx')
         self.assertEqual(tc.get_variable('MPIF77'), 'mpif77')
         self.assertEqual(tc.get_variable('MPIF90'), 'mpif90')
+        modules.modules_tool().purge()
 
-        tc = tc_class(version="4.1.13")
+        tc = self.get_toolchain("ictce", version="4.1.13")
         opts = {'usempi': True, 'openmp': True}
         tc.set_options(opts)
         tc.prepare()
@@ -456,18 +500,48 @@ class ToolchainTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        open(imkl_module_path, 'w').write(imkl_module_txt)
+        write_file(imkl_module_path, imkl_module_txt)
 
-    def tearDown(self):
-        """Cleanup."""
-        # purge any loaded modules before restoring $MODULEPATH
+    def test_toolchain_verification(self):
+        """Test verification of toolchain definition."""
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.prepare()
         modules.modules_tool().purge()
 
-        super(ToolchainTest, self).tearDown()
+        # toolchain modules missing a toolchain element should fail verification
+        error_msg = "List of toolchain dependency modules and toolchain definition do not match"
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenFFTW")
+        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        modules.modules_tool().purge()
 
-        os.environ['MODULEPATH'] = self.orig_modpath
-        # reinitialize modules tool after touching $MODULEPATH
-        modules.modules_tool()
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED-brokenBLACS")
+        self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+        modules.modules_tool().purge()
+
+        # missing optional toolchain elements are fine
+        tc = self.get_toolchain('goolfc', version='1.3.12')
+        opts = {'cuda_gencode': ['arch=compute_35,code=sm_35', 'arch=compute_10,code=compute_10']}
+        tc.set_options(opts)
+        tc.prepare()
+
+    def test_nosuchtoolchain(self):
+        """Test preparing for a toolchain for which no module is available."""
+        tc = self.get_toolchain('intel', version='1970.01')
+        self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
+
+    def test_mpi_cmd_for(self):
+        """Test mpi_cmd_for function."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+
+        mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
+        self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        write_file(imkl_module_path, imkl_module_txt)
 
 def suite():
     """ return all the tests"""

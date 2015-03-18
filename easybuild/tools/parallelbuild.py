@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,10 +34,11 @@ Support for PBS is provided via the PbsJob class. If you want you could create o
 """
 import math
 import os
+import subprocess
 
 import easybuild.tools.config as config
 from easybuild.framework.easyblock import get_easyblock_instance
-from easybuild.framework.easyconfig.tools import det_full_module_name
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_repository, get_repositorypath
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -49,7 +50,7 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, prepare_first=True):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
@@ -75,13 +76,14 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
 
     def tokey(dep):
         """Determine key for specified dependency."""
-        return det_full_module_name(dep)
+        return ActiveMNS().det_full_module_name(dep)
 
     for ec in easyconfigs:
-        # This is very important, otherwise we might have race conditions
+        # this is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec)
+        if prepare_first:
+            prepare_easyconfig(ec)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -118,21 +120,48 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     return jobs
 
 
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
+    """
+    Submit jobs.
+    @param ordered_ecs: list of easyconfigs, in the order they should be processed
+    @param cmd_line_opts: list of command line options (in 'longopt=value' form)
+    """
+    curdir = os.getcwd()
+
+    # the options to ignore (help options can't reach here)
+    ignore_opts = ['robot', 'job']
+
+    # generate_cmd_line returns the options in form --longopt=value
+    opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
+
+    # compose string with command line options, properly quoted and with '%' characters escaped
+    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
+
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, opts_str)
+    _log.info("Command template for jobs: %s" % command)
+    job_info_lines = []
+    if testing:
+        _log.debug("Skipping actual submission of jobs since testing mode is enabled")
+    else:
+        jobs = build_easyconfigs_in_parallel(command, ordered_ecs)
+        job_info_lines = ["List of submitted jobs:"]
+        job_info_lines.extend(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in jobs])
+        job_info_lines.append("(%d jobs submitted)" % len(jobs))
+        return '\n'.join(job_info_lines)
+
+
 def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     """
     Creates a job, to build a *single* easyconfig
     @param build_command: format string for command, full path to an easyconfig file will be substituted in it
     @param easyconfig: easyconfig as processed by process_easyconfig
-    @param output_dir: optional output path; $EASYBUILDTESTOUTPUT will be set inside the job with this variable
+    @param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
     @param conn: open connection to PBS server
     @param ppn: ppn setting to use (# 'processors' (cores) per node to use)
     returns the job
     """
     if output_dir is None:
         output_dir = 'easybuild-build'
-
-    # create command based on build_command template
-    command = build_command % {'spec': easyconfig['spec']}
 
     # capture PYTHONPATH, MODULEPATH and all variables starting with EASYBUILD
     easybuild_vars = {}
@@ -152,8 +181,11 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
     ec_tuple = (easyconfig['ec']['name'], det_full_ec_version(easyconfig['ec']))
     name = '-'.join(ec_tuple)
 
-    var = config.OLDSTYLE_ENVIRONMENT_VARIABLES['test_output_path']
-    easybuild_vars[var] = os.path.join(os.path.abspath(output_dir), name)
+    # create command based on build_command template
+    command = build_command % {
+        'spec': easyconfig['spec'],
+        'output_dir': os.path.join(os.path.abspath(output_dir), name),
+    }
 
     # just use latest build stats
     repo = init_repository(get_repository(), get_repositorypath())
@@ -164,7 +196,7 @@ def create_job(build_command, easyconfig, output_dir=None, conn=None, ppn=None):
         resources['hours'] = int(math.ceil(previous_time * 2 / 60))
 
     job = PbsJob(command, name, easybuild_vars, resources=resources, conn=conn, ppn=ppn)
-    job.module = det_full_module_name(easyconfig['ec'])
+    job.module = easyconfig['ec'].full_mod_name
 
     return job
 

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,17 +32,16 @@ Set of file tools.
 @author: Jens Timmerman (Ghent University)
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
-import errno
 import os
 import re
 import shutil
 import stat
 import time
-import urllib
+import urllib2
 import zlib
 from vsc.utils import fancylogger
-from vsc.utils.missing import all
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import print_msg  # import build_log must stay, to activate use of EasyBuildLog
@@ -153,13 +152,16 @@ def read_file(path, log_error=True):
             return None
 
 
-def write_file(path, txt):
+def write_file(path, txt, append=False):
     """Write given contents to file at given path (overwrites current file contents!)."""
     f = None
     # note: we can't use try-except-finally, because Python 2.4 doesn't support it as a single block
     try:
         mkdir(os.path.dirname(path), parents=True)
-        f = open(path, 'w')
+        if append:
+            f = open(path, 'a')
+        else:
+            f = open(path, 'w')
         f.write(txt)
         f.close()
     except IOError, err:
@@ -167,6 +169,15 @@ def write_file(path, txt):
         if f is not None:
             f.close()
         _log.error("Failed to write to %s: %s" % (path, err))
+
+
+def remove_file(path):
+    """Remove file at specified path."""
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError, err:
+          _log.error("Failed to remove %s: %s", path, err)
 
 
 def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
@@ -242,37 +253,54 @@ def det_common_path_prefix(paths):
 def download_file(filename, url, path):
     """Download a file from the given URL, to the specified path."""
 
-    _log.debug("Downloading %s from %s to %s" % (filename, url, path))
+    _log.debug("Trying to download %s from %s to %s", filename, url, path)
+
+    timeout = build_option('download_timeout')
+    if timeout is None:
+        # default to 10sec timeout if none was specified
+        # default system timeout (used is nothing is specified) may be infinite (?)
+        timeout = 10
+    _log.debug("Using timeout of %s seconds for initiating download" % timeout)
 
     # make sure directory exists
     basedir = os.path.dirname(path)
     mkdir(basedir, parents=True)
 
+    # try downloading, three times max.
     downloaded = False
+    max_attempts = 3
     attempt_cnt = 0
-
-    # try downloading three times max.
-    while not downloaded and attempt_cnt < 3:
-
-        (_, httpmsg) = urllib.urlretrieve(url, path)
-
-        if httpmsg.type == "text/html" and not filename.endswith('.html'):
-            _log.warning("HTML file downloaded but not expecting it, so assuming invalid download.")
-            _log.debug("removing downloaded file %s from %s" % (filename, path))
-            try:
-                os.remove(path)
-            except OSError, err:
-                _log.error("Failed to remove downloaded file:" % err)
-        else:
-            _log.info("Downloading file %s from url %s: done" % (filename, url))
+    while not downloaded and attempt_cnt < max_attempts:
+        try:
+            # urllib2 does the right thing for http proxy setups, urllib does not!
+            url_fd = urllib2.urlopen(url, timeout=timeout)
+            _log.debug('response code for given url %s: %s' % (url, url_fd.getcode()))
+            write_file(path, url_fd.read())
+            _log.info("Downloaded file %s from url %s to %s" % (filename, url, path))
             downloaded = True
-            return path
+            url_fd.close()
+        except urllib2.HTTPError as err:
+            if 400 <= err.code <= 499:
+                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, err.code))
+                break
+            else:
+                _log.warning("HTTPError occured while trying to download %s to %s: %s" % (url, path, err))
+                attempt_cnt += 1
+        except IOError as err:
+            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            attempt_cnt += 1
+        except Exception, err:
+            _log.error("Unexpected error occurred when trying to download %s to %s: %s" % (url, path, err))
 
-        attempt_cnt += 1
-        _log.warning("Downloading failed at attempt %s, retrying..." % attempt_cnt)
+        if not downloaded and attempt_cnt < max_attempts:
+            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
 
-    # failed to download after multiple attempts
-    return None
+    if downloaded:
+        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        return path
+    else:
+        _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        return None
 
 
 def find_easyconfigs(path, ignore_dirs=None):
@@ -337,6 +365,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
             dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+        hits = sorted(hits)
 
         if hits:
             common_prefix = det_common_path_prefix(hits)
@@ -466,54 +496,63 @@ def find_base_dir():
     return new_dir
 
 
-def extract_cmd(fn, overwrite=False):
+def extract_cmd(filepath, overwrite=False):
     """
     Determines the file type of file fn, returns extract cmd
     - based on file suffix
     - better to use Python magic?
     """
-    ff = [x.lower() for x in fn.split('.')]
-    ftype = None
+    filename = os.path.basename(filepath)
+    exts = [x.lower() for x in filename.split('.')]
+    target = '.'.join(exts[:-1])
+    cmd_tmpl = None
 
     # gzipped or gzipped tarball
-    if ff[-1] in ['gz']:
-        ftype = 'gunzip %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xzf %s'
-    if ff[-1] in ['tgz', 'gtgz']:
-        ftype = 'tar xzf %s'
+    if exts[-1] in ['gz']:
+        if exts[-2] in ['tar']:
+            # unzip .tar.gz in one go
+            cmd_tmpl = "tar xzf %(filepath)s"
+        else:
+            cmd_tmpl = "gunzip -c %(filepath)s > %(target)s"
+
+    elif exts[-1] in ['tgz', 'gtgz']:
+        cmd_tmpl = "tar xzf %(filepath)s"
 
     # bzipped or bzipped tarball
-    if ff[-1] in ['bz2']:
-        ftype = 'bunzip2 %s'
-        if ff[-2] in ['tar']:
-            ftype = 'tar xjf %s'
-    if ff[-1] in ['tbz', 'tbz2', 'tb2']:
-        ftype = 'tar xjf %s'
+    elif exts[-1] in ['bz2']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = 'tar xjf %(filepath)s'
+        else:
+            cmd_tmpl = "bunzip2 %(filepath)s"
+
+    elif exts[-1] in ['tbz', 'tbz2', 'tb2']:
+        cmd_tmpl = "tar xjf %(filepath)s"
 
     # xzipped or xzipped tarball
-    if ff[-1] in ['xz']:
-        ftype = 'unxz %s'
-        if ff[-2] in ['tar']:
-            ftype = 'unxz %s --stdout | tar x'
-    if ff[-1] in ['txz']:
-        ftype = 'unxz %s --stdout | tar x'
+    elif exts[-1] in ['xz']:
+        if exts[-2] in ['tar']:
+            cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
+        else:
+            cmd_tmpl = "unxz %(filepath)s"
+
+    elif exts[-1] in ['txz']:
+        cmd_tmpl = "unxz %(filepath)s --stdout | tar x"
 
     # tarball
-    if ff[-1] in ['tar']:
-        ftype = 'tar xf %s'
+    elif exts[-1] in ['tar']:
+        cmd_tmpl = "tar xf %(filepath)s"
 
     # zip file
-    if ff[-1] in ['zip']:
+    elif exts[-1] in ['zip']:
         if overwrite:
-            ftype = 'unzip -qq -o %s'
+            cmd_tmpl = "unzip -qq -o %(filepath)s"
         else:
-            ftype = 'unzip -qq %s'
+            cmd_tmpl = "unzip -qq %(filepath)s"
 
-    if not ftype:
-        _log.error('Unknown file type from file %s (%s)' % (fn, ff))
+    if cmd_tmpl is None:
+        _log.error('Unknown file type for file %s (%s)' % (filepath, exts))
 
-    return ftype % fn
+    return cmd_tmpl % {'filepath': filepath, 'target': target}
 
 
 def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
@@ -536,7 +575,11 @@ def det_patched_files(path=None, txt=None, omit_ab_prefix=False):
         patched_file = match.group('file')
         if not omit_ab_prefix and match.group('ab_prefix') is not None:
             patched_file = match.group('ab_prefix') + patched_file
-        patched_files.append(patched_file)
+
+        if patched_file in ['/dev/null']:
+            _log.debug("Ignoring patched file %s" % patched_file)
+        else:
+            patched_files.append(patched_file)
 
     return patched_files
 
@@ -635,11 +678,8 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None):
 
 
 def modify_env(old, new):
-    """
-    Compares 2 os.environ dumps. Adapts final environment.
-    """
-    _log.deprecated("moved modify_env to tools.environment", "2.0")
-    return env.modify_env(old, new)
+    """NO LONGER SUPPORTED: use modify_env from easybuild.tools.environment instead"""
+    _log.nosupport("moved modify_env to easybuild.tools.environment", "2.0")
 
 
 def convert_name(name, upper=False):
@@ -807,6 +847,16 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
         _log.debug("Not creating existing path %s" % path)
 
 
+def path_matches(path, paths):
+    """Check whether given path matches any of the provided paths."""
+    if not os.path.exists(path):
+        return False
+    for somepath in paths:
+        if os.path.exists(somepath) and os.path.samefile(path, somepath):
+            return True
+    return False
+
+
 def rmtree2(path, n=3):
     """Wrapper around shutil.rmtree to make it more robust when used on NFS mounted file systems."""
 
@@ -961,16 +1011,33 @@ def decode_class_name(name):
 
 
 def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True, log_output=False, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd"""
-    return run.run_cmd(cmd, log_ok=log_ok, log_all=log_all, simple=simple,
-                       inp=inp, regexp=regexp, log_output=log_output, path=path)
+    """NO LONGER SUPPORTED: use run_cmd from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 
 def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, regexp=True, std_qa=None, path=None):
-    """Legacy wrapper/placeholder for run.run_cmd_qa"""
-    return run.run_cmd_qa(cmd, qa, no_qa=no_qa, log_ok=log_ok, log_all=log_all,
-                          simple=simple, regexp=regexp, std_qa=std_qa, path=path)
+    """NO LONGER SUPPORTED: use run_cmd_qa from easybuild.tools.run instead"""
+    _log.nosupport("run_cmd_qa was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
 
 def parse_log_for_error(txt, regExp=None, stdout=True, msg=None):
-    """Legacy wrapper/placeholder for run.parse_log_for_error"""
-    return run.parse_log_for_error(txt, regExp=regExp, stdout=stdout, msg=msg)
+    """NO LONGER SUPPORTED: use parse_log_for_error from easybuild.tools.run instead"""
+    _log.nosupport("parse_log_for_error was moved from easybuild.tools.filetools to easybuild.tools.run", '2.0')
+
+
+def det_size(path):
+    """
+    Determine total size of given filepath (in bytes).
+    """
+    installsize = 0
+    try:
+
+        # walk install dir to determine total size
+        for (dirpath, _, filenames) in os.walk(path):
+            for filename in filenames:
+                fullpath = os.path.join(dirpath, filename)
+                if os.path.exists(fullpath):
+                    installsize += os.path.getsize(fullpath)
+    except OSError, err:
+        _log.warn("Could not determine install size: %s" % err)
+
+    return installsize

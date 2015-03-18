@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,7 +28,7 @@ Easyconfig templates module that provides templating that can
 be used within an Easyconfig file.
 
 @author: Stijn De Weirdt (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 from vsc.utils import fancylogger

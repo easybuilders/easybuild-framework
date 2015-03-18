@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,8 +28,8 @@ Toolchain mpi module. Contains all MPI related classes
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-
 import os
+import tempfile
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -167,15 +167,20 @@ class Mpi(Toolchain):
         """Construct an MPI command for the given command and number of ranks."""
 
         # parameter values for mpirun command
-        params = {'nr_ranks':nr_ranks, 'cmd':cmd}
+        params = {
+            'nr_ranks': nr_ranks,
+            'cmd': cmd,
+        }
 
         # different known mpirun commands
+        mpirun_n_cmd = "mpirun -n %(nr_ranks)d %(cmd)s"
         mpi_cmds = {
-            toolchain.OPENMPI: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.OPENMPI: mpirun_n_cmd,  # @UndefinedVariable
             toolchain.QLOGICMPI: "mpirun -H localhost -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
             toolchain.INTELMPI: "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.MVAPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
-            toolchain.MPICH2: "mpirun -n %(nr_ranks)d %(cmd)s",  # @UndefinedVariable
+            toolchain.MVAPICH2: mpirun_n_cmd,  # @UndefinedVariable
+            toolchain.MPICH: mpirun_n_cmd,  # @UndefinedVariable
+            toolchain.MPICH2: mpirun_n_cmd,  # @UndefinedVariable
         }
 
         mpi_family = self.mpi_family()
@@ -184,7 +189,15 @@ class Mpi(Toolchain):
         if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
             # set temporary dir for mdp
-            env.setvar('I_MPI_MPD_TMPDIR', "/tmp")
+            # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
+            # exact limit is unknown, but ~20 characters seems to be OK
+            env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
+            mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
+            if len(mpd_tmpdir) > 20:
+                self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s" % mpd_tmpdir)
+
+            # temporary location for mpdboot and nodes files
+            tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
@@ -194,7 +207,7 @@ class Mpi(Toolchain):
             env.setvar('I_MPI_PROCESS_MANAGER', 'mpd')
 
             # create mpdboot file
-            fn = "/tmp/mpdboot"
+            fn = os.path.join(tmpdir, 'mpdboot')
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
@@ -202,10 +215,10 @@ class Mpi(Toolchain):
             except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'mpdbf':"--file=%s" % fn})
+            params.update({'mpdbf': "--file=%s" % fn})
 
             # create nodes file
-            fn = "/tmp/nodes"
+            fn = os.path.join(tmpdir, 'nodes')
             try:
                 if os.path.exists(fn):
                     os.remove(fn)
@@ -213,7 +226,7 @@ class Mpi(Toolchain):
             except OSError, err:
                 self.log.error("Failed to create file %s: %s" % (fn, err))
 
-            params.update({'nodesfile':"-machinefile %s" % fn})
+            params.update({'nodesfile': "-machinefile %s" % fn})
 
         if mpi_family in mpi_cmds.keys():
             return mpi_cmds[mpi_family] % params

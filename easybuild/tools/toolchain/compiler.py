@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,7 @@ Toolchain compiler module, provides abstract class for compilers.
 import os
 
 from easybuild.tools import systemtools
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -259,11 +260,15 @@ class Compiler(Toolchain):
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
-            self.arch = systemtools.get_cpu_vendor()
+            self.arch = systemtools.get_cpu_family()
 
-        if self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION is not None and \
-                self.arch in self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION:
+        optarch = None
+        if build_option('optarch') is not None:
+            optarch = build_option('optarch')
+        elif self.arch in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
             optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[self.arch]
+
+        if optarch is not None:
             self.log.info("_get_optimal_architecture: using %s as optarch for %s." % (optarch, self.arch))
             self.options.options_map['optarch'] = optarch
 

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -26,7 +26,7 @@
 EasyBuild support for gompic compiler toolchain (includes GCC and OpenMPI and CUDA).
 
 @author: Kenneth Hoste (Ghent University)
-@author: Fotis Georgatos (University of Luxembourg)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
 """
 
 from easybuild.toolchains.gcccuda import GccCUDA

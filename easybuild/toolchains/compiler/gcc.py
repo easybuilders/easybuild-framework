@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,31 +43,30 @@ class Gcc(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_GCC
     COMPILER_UNIQUE_OPTS = {
-                            'loop': (False, "Automatic loop parallellisation"),
-                            'f2c': (False, "Generate code compatible with f2c and f77"),
-                            'lto':(False, "Enable Link Time Optimization"),
-                            }
+        'loop': (False, "Automatic loop parallellisation"),
+        'f2c': (False, "Generate code compatible with f2c and f77"),
+        'lto':(False, "Enable Link Time Optimization"),
+    }
     COMPILER_UNIQUE_OPTION_MAP = {
-                                  'i8': 'fdefault-integer-8',
-                                  'r8': 'fdefault-real-8',
-                                  'unroll': 'funroll-loops',
-                                  'f2c': 'ff2c',
-                                  'loop': ['ftree-switch-conversion', 'floop-interchange',
-                                            'floop-strip-mine', 'floop-block'],
-                                  'lto':'flto',
-                                  'optarch':'march=native',
-                                  'openmp':'fopenmp',
-                                  'strict': ['mieee-fp', 'mno-recip'],
-                                  'precise':['mno-recip'],
-                                  'defaultprec':[],
-                                  'loose': ['mrecip', 'mno-ieee-fp'],
-                                  'veryloose': ['mrecip=all', 'mno-ieee-fp'],
-                                  }
+        'i8': 'fdefault-integer-8',
+        'r8': 'fdefault-real-8',
+        'unroll': 'funroll-loops',
+        'f2c': 'ff2c',
+        'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
+        'lto': 'flto',
+        'openmp': 'fopenmp',
+        'strict': ['mieee-fp', 'mno-recip'],
+        'precise':['mno-recip'],
+        'defaultprec':[],
+        'loose': ['mrecip', 'mno-ieee-fp'],
+        'veryloose': ['mrecip=all', 'mno-ieee-fp'],
+    }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                                            systemtools.INTEL : 'march=native',
-                                            systemtools.AMD : 'march=native'
-                                           }
+        systemtools.AMD : 'march=native',
+        systemtools.INTEL : 'march=native',
+        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'

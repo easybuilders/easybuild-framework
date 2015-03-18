@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -376,18 +376,17 @@ def parse_cmd_output(cmd, stdouterr, ec, simple, log_all, log_ok, regexp):
     if not regexp:
         use_regexp = False
 
+    _log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
+
     if ec and (log_all or log_ok):
         # We don't want to error if the user doesn't care
         if check_ec:
             _log.error('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
         else:
             _log.warn('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-
-    if not ec:
+    elif not ec:
         if log_all:
             _log.info('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
-        else:
-            _log.debug('cmd "%s" exited with exitcode %s and output:\n%s' % (cmd, ec, stdouterr))
 
     # parse the stdout/stderr for errors when strictness dictates this or when regexp is passed in
     if use_regexp or regexp:
