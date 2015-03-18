@@ -36,9 +36,11 @@ linker and compiler directives to use the Cray libraries for their MPI (and netw
 Cray's LibSci (BLAS/LAPACK et al), FFT library, etc.
 
 
-@author: Petar Forai
+@author: Petar Forai (IMP/IMBA, Austria)
+@author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
@@ -51,7 +53,9 @@ TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
 class CrayPEWrapper(Compiler):
     """Base CrayPE compiler class"""
 
-    COMPILER_MODULE_NAME = None
+    # no toolchain components, so no modules to list here (empty toolchain definition w.r.t. components)
+    # the PrgEnv and craype are loaded, but are not considered actual toolchain components
+    COMPILER_MODULE_NAME = []
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
@@ -82,11 +86,31 @@ class CrayPEWrapper(Compiler):
     COMPILER_OPT_FLAGS = []  # or those
     COMPILER_PREC_FLAGS = []  # and those for sure not !
 
-    def _get_optimal_architecture(self):
-        """On a Cray system we assume that the optimal architecture is controlled
-           by loading a craype module that instructs the compiler to generate backend code
-           for that particular target"""
-        pass
+    # template and name suffix for PrgEnv module that matches this toolchain
+    # e.g. 'gnu' => 'PrgEnv-gnu/<version>'
+    PRGENV_MODULE_NAME_TEMPLATE = 'PrgEnv-%(suffix)s/%(version)s'
+    PRGENV_MODULE_NAME_SUFFIX = None
+
+    # template for craype module (determines code generator backend of Cray compiler wrappers)
+    CRAYPE_MODULE_NAME_TEMPLATE = 'craype-%(optarch)s'
+
+    def _pre_preprare(self):
+        """Load PrgEnv module."""
+        prgenv_mod_name = self.PRGENV_MODULE_NAME_TEMPLATE % {
+            'suffix': self.PRGENV_MODULE_NAME_SUFFIX,
+            'version': self.version,
+        }
+        self.log.info("Loading PrgEnv module '%s' for Cray toolchain %s" % (prgenv_mod_name, self.mod_short_name))
+        self.modules_tool.load([prgenv_mod_name])
+
+    def _set_optimal_architecture(self):
+        """Load craype module specified via 'optarch' build option."""
+        optarch = build_option('optarch')
+        if optarch is None:
+            # FIXME: try and guess which craype module to load? is there a way to do so?
+            raise NotImplementedError
+        else:
+            self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
@@ -115,7 +139,6 @@ class CrayPEWrapper(Compiler):
 # Gcc's base is Compiler
 class CrayPEWrapperGNU(CrayPEWrapper):
     """Base Cray Programming Environment GNU compiler class"""
-    COMPILER_MODULE_NAME = ['PrgEnv-gnu']
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
     def _set_compiler_vars(self):
@@ -143,8 +166,6 @@ class CrayPEWrapperGNU(CrayPEWrapper):
 class CrayPEWrapperIntel(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
 
-    COMPILER_MODULE_NAME = ['PrgEnv-intel']
-
     def _set_compiler_flags(self):
         if self.options.option("usewrappedcompiler"):
             COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
@@ -168,7 +189,6 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 
 class CrayPEWrapperCray(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
-    COMPILER_MODULE_NAME = ['PrgEnv-cray']
 
     def _set_compiler_vars(self):
         super(CrayPEWrapperCray, self)._set_compiler_vars()
