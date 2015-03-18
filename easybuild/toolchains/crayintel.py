@@ -32,4 +32,3 @@ from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperIntel
 class CrayIntel(CrayPEWrapperIntel):
     """Compiler toolchain for Cray Programming Environment for Intel compilers (PrgEnv-intel)."""
     NAME = 'CrayIntel'
-    PRGENV_MODULE_NAME_SUFFIX = 'intel'
