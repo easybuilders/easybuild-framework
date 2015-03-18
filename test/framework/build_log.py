@@ -36,6 +36,7 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import read_file, write_file
 
 
 def raise_easybuilderror(msg, *args, **kwargs):
@@ -51,11 +52,6 @@ class BuildLogTest(EnhancedTestCase):
         fd, tmplog = tempfile.mkstemp()
         os.close(fd)
 
-        # auto-logging on raised EasyBuildError relies on deprecated functionality being used
-        # this should be removed for testing EasyBuild v3.x
-        os.environ['EASYBUILD_DEPRECATED'] = '2.1'
-        init_config()
-
         # set log format, for each regex searching
         setLogFormat("%(name)s :: %(message)s")
 
@@ -64,10 +60,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
         logToFile(tmplog, enable=False)
 
-        # replace log_re for EasyBuild v3.x
-        #log_re = re.compile("^%s :: EasyBuild crashed .*: BOOM$" % getRootLoggerName(), re.M)
-        root = getRootLoggerName()
-        log_re = re.compile("^%(root)s :: .*\n%(root)s :: EasyBuild crashed .*: BOOM$" % {'root': root}, re.M)
+        log_re = re.compile("^%s :: EasyBuild crashed .*: BOOM$" % getRootLoggerName(), re.M)
         logtxt = open(tmplog, 'r').read()
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
@@ -78,7 +71,63 @@ class BuildLogTest(EnhancedTestCase):
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""
+        fd, tmplog = tempfile.mkstemp()
+        os.close(fd)
+
+        # set log format, for each regex searching
+        setLogFormat("%(name)s [%(levelname)s] :: %(message)s")
+
+        # test basic log methods
+        logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
+        log.setLevelName('DEBUG')
+        log.debug("123 debug")
+        log.info("foobar info")
+        log.warn("justawarning")
+        log.raiseError = False
+        log.error("kaput")
+        log.raiseError = True
+        try:
+            log.exception("oops")
+        except EasyBuildError:
+            pass
+        logToFile(tmplog, enable=False)
+        logtxt = read_file(tmplog)
+
+        expected_logtxt = '\n'.join([
+            r"runpy.test_easybuildlog \[DEBUG\] :: 123 debug",
+            r"runpy.test_easybuildlog \[INFO\] :: foobar info",
+            r"runpy.test_easybuildlog \[WARNING\] :: justawarning",
+            r"runpy.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
+            r"runpy.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
+            '',
+        ])
+        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
+        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+
+        # wipe log so we can reuse it
+        write_file(tmplog, '')
+
+        # test formatting log messages by providing extra arguments
+        logToFile(tmplog, enable=True)
+        log.warn("%s", "bleh"),
+        log.info("%s+%s = %d", '4', '2', 42)
+        args = ['this', 'is', 'just', 'a', 'test']
+        log.debug("%s %s %s %s %s", *args)
+        log.raiseError = False
+        log.error("foo %s baz", 'baz')
+        log.raiseError = True
+        logToFile(tmplog, enable=False)
+        logtxt = read_file(tmplog)
+        expected_logtxt = '\n'.join([
+            r"runpy.test_easybuildlog \[WARNING\] :: bleh",
+            r"runpy.test_easybuildlog \[INFO\] :: 4\+2 = 42",
+            r"runpy.test_easybuildlog \[DEBUG\] :: this is just a test",
+            r"runpy.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
+            '',
+        ])
+        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
+        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
         # test deprecated behaviour: raise EasyBuildError on log.error and log.exception
         os.environ['EASYBUILD_DEPRECATED'] = '2.1'
