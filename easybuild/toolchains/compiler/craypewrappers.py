@@ -141,6 +141,8 @@ class CrayPEWrapperGNU(CrayPEWrapper):
     """Base Cray Programming Environment GNU compiler class"""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
+    PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
+
     def _set_compiler_vars(self):
         if self.options.option('usewrappedcompiler'):
             self.COMPILER_UNIQUE_OPTS = Gcc.COMPILER_UNIQUE_OPTS
@@ -166,6 +168,8 @@ class CrayPEWrapperGNU(CrayPEWrapper):
 class CrayPEWrapperIntel(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
 
+    PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
+
     def _set_compiler_flags(self):
         if self.options.option("usewrappedcompiler"):
             COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
@@ -189,6 +193,8 @@ class CrayPEWrapperIntel(CrayPEWrapper):
 
 class CrayPEWrapperCray(CrayPEWrapper):
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
+
+    PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
 
     def _set_compiler_vars(self):
         super(CrayPEWrapperCray, self)._set_compiler_vars()
