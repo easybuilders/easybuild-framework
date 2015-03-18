@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2014-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,7 +27,7 @@ Support for the Cray Programming Environment Wrappers (aka cc, CC, ftn).
 The Cray compiler wrappers are actually way more than just a compiler drivers.
 
 The basic concept is that the compiler driver knows how to invoke the true underlying
-compiler with the compiler's specific options tuned to cray systems.
+compiler with the compiler's specific options tuned to Cray systems.
 
 That means that certain defaults are set that are specific to Cray's computers.
 
@@ -45,13 +45,12 @@ from easybuild.tools.toolchain.compiler import Compiler
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.compiler.inteliccifort import IntelIccIfort
 
-import easybuild.tools.systemtools as systemtools
 
 TC_CONSTANT_CRAYPEWRAPPER = "CRAYPEWRAPPER"
 
 
 class CrayPEWrapper(Compiler):
-    """Base CrayPE compiler class"""
+    """Generic support for using Cray compiler wrappers"""
 
     # no toolchain components, so no modules to list here (empty toolchain definition w.r.t. components)
     # the PrgEnv and craype are loaded, but are not considered actual toolchain components
@@ -59,10 +58,11 @@ class CrayPEWrapper(Compiler):
     COMPILER_FAMILY = TC_CONSTANT_CRAYPEWRAPPER
 
     COMPILER_UNIQUE_OPTS = {
-        'dynamic': (True, """Generate dynamically linked executables and libraries."""),
-        'mpich-mt': (False, """Directs the driver to link in an alternate version of the Cray-MPICH library which
-                                 provides fine-grained multi-threading support to applications that perform
-                                 MPI operations within threaded regions."""),
+        # FIXME: (kehoste) how is this different from the existing 'shared' toolchain option? just map 'shared' to '-dynamic'? (already done)
+        'dynamic': (True, "Generate dynamically linked executables and libraries."),
+        'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
+                             provides fine-grained multi-threading support to applications that perform \
+                             MPI operations within threaded regions."),
         'usewrappedcompiler': (False, "Use the embedded compiler instead of the wrapper"),
     }
 
@@ -74,14 +74,13 @@ class CrayPEWrapper(Compiler):
         'mpich-mt': 'craympich-mt',
     }
 
-    #COMPILER_PREC_FLAGS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
-
     COMPILER_CC = 'cc'
     COMPILER_CXX = 'CC'
 
     COMPILER_F77 = 'ftn'
     COMPILER_F90 = 'ftn'
 
+    # FIXME (kehoste) hmmmm, really? then how do you control optimisation, precision when using the Cray wrappers?
     COMPILER_FLAGS = []  # we dont have this for the wrappers
     COMPILER_OPT_FLAGS = []  # or those
     COMPILER_PREC_FLAGS = []  # and those for sure not !
@@ -111,6 +110,8 @@ class CrayPEWrapper(Compiler):
         else:
             self.modules_tool.load([self.CRAYPE_MODULE_NAME_TEMPLATE % {'optarch': optarch}])
 
+    # FIXME: (kehoste) is it really needed to customise this?
+    # this looks like a workaround for setting the COMPILER_*_FLAGS lists empty?
     def _set_compiler_flags(self):
         """Collect the flags set, and add them as variables too"""
 
@@ -137,63 +138,45 @@ class CrayPEWrapper(Compiler):
 
 # Gcc's base is Compiler
 class CrayPEWrapperGNU(CrayPEWrapper):
-    """Base Cray Programming Environment GNU compiler class"""
+    """Support for using the Cray GNU compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_GNU'
 
     PRGENV_MODULE_NAME_SUFFIX = 'gnu'  # PrgEnv-gnu
 
     def _set_compiler_vars(self):
+        """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
         if self.options.option('usewrappedcompiler'):
-            self.COMPILER_UNIQUE_OPTS = Gcc.COMPILER_UNIQUE_OPTS
-            self.COMPILER_UNIQUE_OPTION_MAP = Gcc.COMPILER_UNIQUE_OPTION_MAP
+            self.log.info("Using underlying compiler, as specified by the %s class" % Gcc)
 
-            self.COMPILER_CC = Gcc.COMPILER_CC
-            self.COMPILER_CXX = Gcc.COMPILER_CXX
-            self.COMPILER_C_UNIQUE_FLAGS = []
-
-            self.COMPILER_F77 = Gcc.COMPILER_F77
-            self.COMPILER_F90 = Gcc.COMPILER_F90
-            self.COMPILER_F_UNIQUE_FLAGS = Gcc.COMPILER_F_UNIQUE_FLAGS
-
-        else:
-            pass
+            comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
+                          'F77', 'F90', 'F_UNIQUE_FLAGS']
+            for attr_name in ['COMPILER_%s' % a for a in comp_attrs]:
+                setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
 
         super(CrayPEWrapperGNU,self)._set_compiler_vars()
 
 
-
-
-
 class CrayPEWrapperIntel(CrayPEWrapper):
+    """Support for using the Cray Intel compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_INTEL'
 
     PRGENV_MODULE_NAME_SUFFIX = 'intel'  # PrgEnv-intel
 
     def _set_compiler_flags(self):
+        """Set compiler variables, either for the compiler wrapper, or the underlying compiler."""
         if self.options.option("usewrappedcompiler"):
-            COMPILER_UNIQUE_OPTS = IntelIccIfort.COMPILER_UNIQUE_OPTS
-            COMPILER_UNIQUE_OPTION_MAP = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP
+            self.log.info("Using underlying compiler, as specified by the %s class" % IntelIccIfort)
 
-            COMPILER_CC = IntelIccIfort.COMPILER_CC
+            comp_attrs = ['UNIQUE_OPTS', 'UNIQUE_OPTION_MAP', 'CC', 'CXX', 'C_UNIQUE_FLAGS',
+                          'F77', 'F90', 'F_UNIQUE_FLAGS']
+            for attr_name in ['COMPILER_%s' % a for a in comp_attrs] + ['LINKER_TOGGLE_STATIC_DYNAMIC']:
+                setattr(self, attr_name, getattr(IntelIccIfort, attr_name))
 
-            COMPILER_CXX = IntelIccIfort.COMPILER_CXX
-            COMPILER_C_UNIQUE_FLAGS = IntelIccIfort.COMPILER_C_UNIQUE_FLAGS
-
-            COMPILER_F77 = IntelIccIfort.COMPILER_F77
-            COMPILER_F90 = IntelIccIfort.COMPILER_F90
-            COMPILER_F_UNIQUE_FLAGS = IntelIccIfort.COMPILER_F_UNIQUE_FLAGS
-
-            LINKER_TOGGLE_STATIC_DYNAMIC = IntelIccIfort.LINKER_TOGGLE_STATIC_DYNAMIC
-
-            super(CrayPEWrapperIntel, self).set_compiler_flags()
-        else:
-            super(CrayPEWrapper, self)._set_compiler_flags()
+        super(CrayPEWrapperIntel, self).set_compiler_flags()
 
 
 class CrayPEWrapperCray(CrayPEWrapper):
+    """Support for using the Cray CCE compiler wrappers."""
     TC_CONSTANT_CRAYPEWRAPPER = TC_CONSTANT_CRAYPEWRAPPER + '_CRAY'
 
     PRGENV_MODULE_NAME_SUFFIX = 'cray'  # PrgEnv-cray
-
-    def _set_compiler_vars(self):
-        super(CrayPEWrapperCray, self)._set_compiler_vars()
