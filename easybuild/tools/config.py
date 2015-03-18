@@ -102,6 +102,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'allow_modules_tool_mismatch',
         'debug',
+        'dump_toolchain_env',
         'experimental',
         'force',
         'hidden',
