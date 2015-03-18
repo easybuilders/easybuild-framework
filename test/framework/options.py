@@ -1033,7 +1033,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'version = "3.14"',
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
-            'toolchain = {"name":'system', 'version': ''}',
+            "toolchain = {'name': 'system', 'version': ''}",
             'osdependencies = ["nosuchosdependency", ("nosuchdep_option1", "nosuchdep_option2")]',
         ])
         fd, eb_file = tempfile.mkstemp(prefix='easyconfig_test_file_', suffix='.eb')
