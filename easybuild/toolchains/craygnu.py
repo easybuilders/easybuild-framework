@@ -32,3 +32,4 @@ from easybuild.toolchains.compiler.craypewrappers import CrayPEWrapperGNU
 class CrayGNU(CrayPEWrapperGNU):
     """Compiler toolchain for Cray Programming Environment for GCC compilers (PrgEnv-gnu)."""
     NAME = 'CrayGNU'
+    PRGENV_MODULE = 'PrgEnv-gnu/%(version)s'
