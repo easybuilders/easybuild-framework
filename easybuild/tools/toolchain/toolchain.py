@@ -228,7 +228,7 @@ class Toolchain(object):
         """
         Verify if there exists a toolchain by this name and version
         """
-        # short-circuit to returning module name for this (non-dummy) toolchain
+        # short-circuit to returning module name for this (non-system) toolchain
         if self.name == SYSTEM_TOOLCHAIN_NAME:
             self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % SYSTEM_TOOLCHAIN_NAME)
             return True

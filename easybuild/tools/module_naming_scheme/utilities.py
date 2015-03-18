@@ -48,7 +48,7 @@ _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
 def det_full_ec_version(ec):
     """
     Determine exact install version, based on supplied easyconfig.
-    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for dummy toolchains)
+    e.g. 1.2.3-goalf-1.1.0-no-OFED or 1.2.3 (for system toolchains)
     """
 
     ecver = None

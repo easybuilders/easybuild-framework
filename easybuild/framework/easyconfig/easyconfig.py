@@ -570,7 +570,7 @@ class EasyConfig(object):
         tc = copy.deepcopy(self['toolchain'])
         tc_spec = dependency['toolchain']
         if tc_spec is not None:
-            # (true) boolean value simply indicates that a dummy toolchain is used
+            # (true) boolean value simply indicates that a system toolchain is used
             if isinstance(tc_spec, bool) and tc_spec:
                 tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
             # two-element list/tuple value indicates custom toolchain specification

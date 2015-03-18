@@ -89,7 +89,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         Determine toolchain compiler tag, for given list of compilers.
         """
         if tc_comps is None:
-            # no compiler in toolchain, dummy toolchain
+            # no compiler in toolchain, system toolchain
             res = None
         elif len(tc_comps) == 1:
             res = (tc_comps[0]['name'], tc_comps[0]['version'])
@@ -118,7 +118,7 @@ class HierarchicalMNS(ModuleNamingScheme):
         tc_comp_info = self.det_toolchain_compilers_name_version(tc_comps)
         # determine prefix based on type of toolchain used
         if tc_comp_info is None:
-            # no compiler in toolchain, dummy toolchain => Core module
+            # no compiler in toolchain, system toolchain => Core module
             subdir = CORE
         else:
             tc_comp_name, tc_comp_ver = tc_comp_info
@@ -168,7 +168,7 @@ class HierarchicalMNS(ModuleNamingScheme):
                             # 'icc' key should be provided since it's the only one used in the template
                             comp_versions.update({'icc': self.det_full_version(ec)})
                         if tc_comp_info is not None:
-                            # also provide toolchain version for non-dummy toolchains
+                            # also provide toolchain version for non-system toolchains
                             comp_versions.update({tc_comp_info[0]: tc_comp_info[1]})
 
                         comp_name_ver = [comp_name, comp_ver_tmpl % comp_versions]
