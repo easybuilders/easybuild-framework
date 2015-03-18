@@ -1642,8 +1642,8 @@ class EasyBlock(object):
 
         txt = ''
         txt += self.make_module_description()
-        txt += self.make_module_extend_modpath()
         txt += self.make_module_dep()
+        txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
         txt += self.make_module_extra()
         txt += self.make_module_footer()
