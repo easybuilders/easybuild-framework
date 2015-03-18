@@ -52,7 +52,7 @@ from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_s
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
 from easybuild.tools.systemtools import check_os_dependency
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION, SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
@@ -405,7 +405,7 @@ class EasyConfig(object):
     def dependencies(self):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
-        dependency = {'name': '', 'version': '', 'dummy': (False|True), 'versionsuffix': '', 'toolchain': ''}
+        dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         """
         deps = self['dependencies'] + self['builddependencies'] + self['hiddendependencies']
 
@@ -527,7 +527,7 @@ class EasyConfig(object):
         of these attributes, 'name' and 'version' are mandatory
 
         output dict contains these attributes:
-        ['name', 'version', 'versionsuffix', 'dummy', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden']
+        ['name', 'version', 'versionsuffix', 'system', 'toolchain', 'short_mod_name', 'full_mod_name', 'hidden']
 
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         """
@@ -536,7 +536,7 @@ class EasyConfig(object):
 
         attr = ['name', 'version', 'versionsuffix', 'toolchain']
         dependency = {
-            'dummy': False,
+            SYSTEM_TOOLCHAIN_NAME: False,
             'full_mod_name': None,  # full module name
             'short_mod_name': None,  # short module name
             'name': '',  # software name
@@ -547,9 +547,9 @@ class EasyConfig(object):
         }
         if isinstance(dep, dict):
             dependency.update(dep)
-            # make sure 'dummy' key is handled appropriately
-            if 'dummy' in dep and not 'toolchain' in dep:
-                dependency['toolchain'] = dep['dummy']
+            # make sure 'system' key is handled appropriately
+            if SYSTEM_TOOLCHAIN_NAME in dep and not 'toolchain' in dep:
+                dependency['toolchain'] = dep[SYSTEM_TOOLCHAIN_NAME]
         elif isinstance(dep, Dependency):
             dependency['name'] = dep.name()
             dependency['version'] = dep.version()
@@ -572,7 +572,7 @@ class EasyConfig(object):
         if tc_spec is not None:
             # (true) boolean value simply indicates that a dummy toolchain is used
             if isinstance(tc_spec, bool) and tc_spec:
-                tc = {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION}
+                tc = {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''}
             # two-element list/tuple value indicates custom toolchain specification
             elif isinstance(tc_spec, (list, tuple,)):
                 if len(tc_spec) == 2:
@@ -589,8 +589,10 @@ class EasyConfig(object):
 
         dependency['toolchain'] = tc
 
-        # make sure 'dummy' value is set correctly
-        dependency['dummy'] = dependency['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME
+        # make sure 'system' value is set correctly
+        dependency[SYSTEM_TOOLCHAIN_NAME] = tc['name'] in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]
+        if tc['name'] == DUMMY_TOOLCHAIN_NAME:
+            self.log.deprecated("Use of dummy toolchain", '3.0')
 
         # validations
         if not dependency['name']:
@@ -930,7 +932,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(dep)
 
             # add toolchain as dependency too
-            if ec.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+            if ec.toolchain.name not in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]:
                 dep = ec.toolchain.as_dict()
                 _log.debug("Adding toolchain %s as dependency for app %s." % (dep, name))
                 easyconfig['dependencies'].append(dep)

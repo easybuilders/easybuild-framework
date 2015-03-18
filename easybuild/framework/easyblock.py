@@ -72,7 +72,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.systemtools import det_parallelism, use_group
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -791,7 +791,7 @@ class EasyBlock(object):
         mns = ActiveMNS()
 
         # include load statements for toolchain, either directly or for toolchain dependencies
-        if self.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+        if self.toolchain.name not in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]:
             if mns.expand_toolchain_load():
                 mod_names = self.toolchain.toolchain_dep_mods
                 deps.extend(mod_names)

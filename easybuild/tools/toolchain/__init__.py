@@ -51,7 +51,10 @@ which contains toolchain related modules.
 @author: Kenneth Hoste (Ghent University)
 """
 
-# name/version for dummy toolchain
+# name/version for dummy toolchain (DEPRECATED!)
 # if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
 DUMMY_TOOLCHAIN_NAME = 'dummy'
 DUMMY_TOOLCHAIN_VERSION = 'dummy'
+
+# name for system toolchain (version is not used to determine semantics)
+SYSTEM_TOOLCHAIN_NAME = 'system'

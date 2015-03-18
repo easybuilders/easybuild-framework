@@ -46,7 +46,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, 
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.utilities import quote_str
 
 
@@ -99,8 +99,8 @@ def tweak(easyconfigs, build_specs, targetdir=None):
     toolchain = orig_ecs[-1]['ec']['toolchain']
     _log.debug("Filtering using toolchain %s" % toolchain)
 
-    # filter easyconfigs unless a dummy toolchain is used: drop toolchain and toolchain dependencies
-    if toolchain['name'] != DUMMY_TOOLCHAIN_NAME:
+    # filter easyconfigs unless a system toolchain is used: drop toolchain and toolchain dependencies
+    if toolchain['name'] not in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]:
         while orig_ecs[0]['ec']['toolchain'] != toolchain:
             orig_ecs = orig_ecs[1:]
 
@@ -341,7 +341,7 @@ def select_or_generate_ec(fp, paths, specs):
     # find ALL available easyconfig files for specified software
     cfg = {
         'version': '*',
-        'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': '*'},
+        'toolchain': {'name': SYSTEM_TOOLCHAIN_NAME, 'version': '*'},
         'versionprefix': '*',
         'versionsuffix': '*',
     }

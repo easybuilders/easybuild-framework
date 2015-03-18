@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for dummy compiler.
+Support for system compiler.
 
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -31,16 +31,17 @@ Support for dummy compiler.
 from easybuild.tools.toolchain.compiler import Compiler
 
 
-TC_CONSTANT_DUMMY = "DUMMY"
+TC_CONSTANT_SYSTEM = "SYSTEM"
 
 
-class DummyCompiler(Compiler):
-    """Dummy compiler : try not to even use system gcc"""
+class SystemCompiler(Compiler):
+    """Use system compilers."""
     COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_DUMMY
+    COMPILER_FAMILY = TC_CONSTANT_SYSTEM
 
-    COMPILER_CC = '%sCC' % TC_CONSTANT_DUMMY
-    COMPILER_CXX = '%sCXX' % TC_CONSTANT_DUMMY
+    # deliberately not picking particular compilers
+    COMPILER_CC = '%sCC' % TC_CONSTANT_SYSTEM
+    COMPILER_CXX = '%sCXX' % TC_CONSTANT_SYSTEM
 
-    COMPILER_F77 = '%sF77' % TC_CONSTANT_DUMMY
-    COMPILER_F90 = '%sF90' % TC_CONSTANT_DUMMY
+    COMPILER_F77 = '%sF77' % TC_CONSTANT_SYSTEM
+    COMPILER_F90 = '%sF90' % TC_CONSTANT_SYSTEM

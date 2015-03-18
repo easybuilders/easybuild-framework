@@ -31,7 +31,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, robot_find_easyconfig
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME
 
 
 _log = fancylogger.getLogger('module_naming_scheme.toolchain', fname=False)
@@ -90,8 +90,11 @@ def det_toolchain_compilers(ec):
     @param ec: a parsed EasyConfig file (an AttributeError will occur if a simple dict is passed)
     """
     tc_elems = ec.toolchain.definition()
-    if ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
-        # dummy toolchain has no compiler
+    if ec.toolchain.name == SYSTEM_TOOLCHAIN_NAME:
+        # system toolchain has no compiler
+        tc_comps = None
+    elif ec.toolchain.name == DUMMY_TOOLCHAIN_NAME:
+        _log.deprecated("Use of dummy toolchain", '3.0')
         tc_comps = None
     elif not TOOLCHAIN_COMPILER in tc_elems:
         # every toolchain should have at least a compiler

@@ -38,7 +38,7 @@ from vsc.utils import fancylogger
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
 from easybuild.tools.modules import get_software_root, get_software_version, modules_tool
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION, SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 
@@ -97,7 +97,7 @@ class Toolchain(object):
         self.mod_full_name = None
         self.mod_short_name = None
         self.init_modpaths = None
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if self.name not in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]:
             # sometimes no module naming scheme class instance can/will be provided, e.g. with --list-toolchains
             if self.mns is not None:
                 tc_dict = self.as_dict()
@@ -211,9 +211,9 @@ class Toolchain(object):
         return {
             'name': name,
             'version': version,
-            'toolchain': {'name': DUMMY_TOOLCHAIN_NAME, 'version': DUMMY_TOOLCHAIN_VERSION},
+            'toolchain': {'name': SYSTEM_TOOLCHAIN_NAME, 'version': ''},
             'versionsuffix': '',
-            'dummy': True,
+            SYSTEM_TOOLCHAIN_NAME: True,
             'parsed': True,  # pretend this is a parsed easyconfig file, as may be required by det_short_module_name
             'hidden': False,
         }
@@ -229,7 +229,11 @@ class Toolchain(object):
         Verify if there exists a toolchain by this name and version
         """
         # short-circuit to returning module name for this (non-dummy) toolchain
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        if self.name == SYSTEM_TOOLCHAIN_NAME:
+            self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % SYSTEM_TOOLCHAIN_NAME)
+            return True
+        elif self.name == DUMMY_TOOLCHAIN_NAME:
+            self.log.deprecated("Use of dummy toolchain", '3.0')
             self.log.debug("_toolchain_exists: %s toolchain always exists, returning True" % DUMMY_TOOLCHAIN_NAME)
             return True
         else:
@@ -253,14 +257,11 @@ class Toolchain(object):
         """ Generate a version string for a dependency on a module using this toolchain """
         # Add toolchain to version string
         toolchain = ''
-        if self.name != DUMMY_TOOLCHAIN_NAME:
+        if self.name not in [SYSTEM_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_NAME]:
             toolchain = '-%s-%s' % (self.name, self.version)
-        elif self.version != DUMMY_TOOLCHAIN_VERSION:
-            toolchain = '%s' % (self.version)
 
-        # Check if dependency is independent of toolchain
-        # TODO: assuming dummy here, what about version?
-        if DUMMY_TOOLCHAIN_NAME in dependency and dependency[DUMMY_TOOLCHAIN_NAME]:
+        # check if dependency is independent of toolchain
+        if SYSTEM_TOOLCHAIN_NAME in dependency and dependency[SYSTEM_TOOLCHAIN_NAME]:
             toolchain = ''
 
         suffix = dependency.get('versionsuffix', '')
@@ -333,7 +334,13 @@ class Toolchain(object):
         if not self._toolchain_exists():
             self.log.error("No module found for toolchain: %s" % self.mod_short_name)
 
-        if self.name == DUMMY_TOOLCHAIN_NAME:
+        if self.name == SYSTEM_TOOLCHAIN_NAME:
+            self.log.info('prepare: system toolchain, loading dependencies')
+            self.modules_tool.load([dep['short_mod_name'] for dep in self.dependencies])
+            return
+
+        elif self.name == DUMMY_TOOLCHAIN_NAME:
+            self.log.deprecated("Use of dummy toolchain", '3.0')
             if self.version == DUMMY_TOOLCHAIN_VERSION:
                 self.log.info('prepare: toolchain dummy mode, dummy version; not loading dependencies')
             else:

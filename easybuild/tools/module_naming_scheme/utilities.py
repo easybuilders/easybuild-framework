@@ -39,7 +39,7 @@ from vsc.utils.missing import get_subclasses
 
 from easybuild.tools import module_naming_scheme
 from easybuild.tools.module_naming_scheme import ModuleNamingScheme
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.utilities import import_available_modules
 
 _log = fancylogger.getLogger('module_naming_scheme.utilities', fname=False)
@@ -54,7 +54,10 @@ def det_full_ec_version(ec):
     ecver = None
 
     # determine main install version based on toolchain
-    if ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+    if ec['toolchain']['name'] == SYSTEM_TOOLCHAIN_NAME:
+        ecver = ec['version']
+    elif ec['toolchain']['name'] == DUMMY_TOOLCHAIN_NAME:
+        _log.deprecated("Use of dummy toolchain", '3.0')
         ecver = ec['version']
     else:
         ecver = "%s-%s-%s" % (ec['version'], ec['toolchain']['name'], ec['toolchain']['version'])
