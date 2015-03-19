@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,7 +34,6 @@ Creating a new toolchain should be as simple as possible.
 import os
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import all, any
 
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
@@ -82,13 +81,13 @@ class Toolchain(object):
         if name is None:
             name = self.NAME
         if name is None:
-            self.log.raiseException("init: no name provided")
+            self.log.error("Toolchain init: no name provided")
         self.name = name
 
         if version is None:
             version = self.VERSION
         if version is None:
-            self.log.raiseException("init: no version provided")
+            self.log.error("Toolchain init: no version provided")
         self.version = version
 
         self.vars = None
@@ -129,7 +128,7 @@ class Toolchain(object):
         elif typ == list:
             return self.variables[name].flatten()
         else:
-            self.log.raiseException("get_variables: Don't know how to create value of type %s." % typ)
+            self.log.error("get_variable: Don't know how to create value of type %s." % typ)
 
     def set_variables(self):
         """Do nothing? Everything should have been set by others
@@ -188,7 +187,7 @@ class Toolchain(object):
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
-            self.log.raiseException("get_software_root software root for %s was not found in environment" % (name))
+            self.log.error("get_software_root software root for %s was not found in environment" % name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment" % (root, name))
         return root
@@ -197,11 +196,9 @@ class Toolchain(object):
         """Try to get the software root for name"""
         version = get_software_version(name)
         if version is None:
-            self.log.raiseException("get_software_version software version for %s was not found in environment" %
-                                    (name))
+            self.log.error("get_software_version software version for %s was not found in environment" % name)
         else:
-            self.log.debug("get_software_version software version %s for %s was found in environment" %
-                           (version, name))
+            self.log.debug("get_software_version software version %s for %s was found in environment" % (version, name))
 
         return version
 
@@ -249,8 +246,8 @@ class Toolchain(object):
                 self.options[opt] = options[opt]
             else:
                 # used to be warning, but this is a severe error imho
-                self.log.raiseException("set_options: undefined toolchain option %s specified (possible names %s)" %
-                                        (opt, ",".join(self.options.keys())))
+                known_opts = ','.join(self.options.keys())
+                self.log.error("Undefined toolchain option %s specified (known options: %s)" % (opt, known_opts))
 
     def get_dependency_version(self, dependency):
         """ Generate a version string for a dependency on a module using this toolchain """
@@ -281,8 +278,8 @@ class Toolchain(object):
                 self.log.debug("get_dependency_version: version not in dependency return %s" % version)
                 return
             else:
-                self.log.raiseException('get_dependency_version: No toolchain version for dependency '\
-                                        'name %s (suffix %s) found' % (dependency['name'], toolchain_suffix))
+                tup = (dependency['name'], toolchain_suffix)
+                self.log.error("No toolchain version for dependency name %s (suffix %s) found" % tup)
 
     def add_dependencies(self, dependencies):
         """ Verify if the given dependencies exist and add them """
@@ -331,10 +328,10 @@ class Toolchain(object):
         (If string: comma separated list of variables that will be ignored).
         """
         if self.modules_tool is None:
-            self.log.raiseException("No modules tool defined.")
+            self.log.error("No modules tool defined in Toolchain instance.")
 
         if not self._toolchain_exists():
-            self.log.raiseException("No module found for toolchain name '%s' (%s)" % (self.name, self.version))
+            self.log.error("No module found for toolchain: %s" % self.mod_short_name)
 
         if self.name == DUMMY_TOOLCHAIN_NAME:
             if self.version == DUMMY_TOOLCHAIN_VERSION:
@@ -429,7 +426,7 @@ class Toolchain(object):
         donotsetlist = []
         if isinstance(donotset, str):
             # TODO : more legacy code that should be using proper type
-            self.log.raiseException("_setenv_variables: using commas-separated list. should be deprecated.")
+            self.log.error("_setenv_variables: using commas-separated list. should be deprecated.")
             donotsetlist = donotset.split(',')
         elif isinstance(donotset, list):
             donotsetlist = donotset
@@ -457,39 +454,7 @@ class Toolchain(object):
         raise NotImplementedError
 
     def mpi_family(self):
-        """ Return type of MPI library used in this toolchain (abstract method)."""
-        raise NotImplementedError
-
-    # legacy functions TODO remove AFTER migration
-    # should search'n'replaced
-    def get_type(self, name, type_map):
-        """Determine type of toolchain based on toolchain dependencies."""
-        self.log.raiseException("get_type: legacy code. should not be needed anymore.")
-
-    def _set_variables(self, dontset=None):
-        """ Sets the environment variables """
-        self.log.raiseException("_set_variables: legacy code. use _setenv_variables.")
-
-    def _addDependencyVariables(self, names=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.vars based on the dependencies
-        names should be a list of strings containing the name of the dependency"""
-        self.log.raiseException("_addDependencyVaraibles: legacy code. use _add_dependency_variables.")
-
-    def _setVariables(self, dontset=None):
-        """ Sets the environment variables """
-        self.log.raiseException("_setVariables: legacy code. use _set_variables.")
-
-    def _toolkitExists(self, name=None, version=None):
+        """ Return type of MPI library used in this toolchain or 'None' if MPI is not
+            supported.
         """
-        Verify if there exists a toolkit by this name and version
-        """
-        self.log.raiseException("_toolkitExists: legacy code. replace use _toolchain_exists.")
-
-    def get_openmp_flag(self):
-        """Get compiler flag for OpenMP support."""
-        self.log.raiseException("get_openmp_flag: legacy code. use options.get_flag('openmp').")
-
-    @property
-    def opts(self):
-        """Get value for specified option."""
-        self.log.raiseException("opts[x]: legacy code. use options[x].")
+        return None

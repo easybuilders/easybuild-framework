@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -260,7 +260,7 @@ class Compiler(Toolchain):
     def _get_optimal_architecture(self):
         """ Get options for the current architecture """
         if self.arch is None:
-            self.arch = systemtools.get_cpu_vendor()
+            self.arch = systemtools.get_cpu_family()
 
         optarch = None
         if build_option('optarch') is not None:

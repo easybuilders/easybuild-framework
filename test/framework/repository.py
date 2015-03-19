@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -28,11 +28,13 @@ Unit tests for repository.py.
 @author: Toon Willems (Ghent University)
 """
 import os
+import re
 import shutil
 import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
@@ -75,10 +77,14 @@ class RepositoryTest(EnhancedTestCase):
 
         # URL
         repo = GitRepository(test_repo_url)
-        repo.init()
-        self.assertEqual(os.path.basename(repo.wc), 'testrepository')
-        self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
-        shutil.rmtree(repo.wc)
+        try:
+            repo.init()
+            self.assertEqual(os.path.basename(repo.wc), 'testrepository')
+            self.assertTrue(os.path.exists(os.path.join(repo.wc, 'README.md')))
+            shutil.rmtree(repo.wc)
+        except EasyBuildError, err:
+            print "ignoring failed subtest in test_gitrepo, testing offline?"
+            self.assertTrue(re.search("pull in working copy .* went wrong", str(err)))
 
         # filepath
         tmpdir = tempfile.mkdtemp()

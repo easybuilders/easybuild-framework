@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,7 @@ from easybuild.tools.modules import get_software_root, get_software_version, get
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 50
+TEST_MODULES_COUNT = 58
 
 
 class ModulesTest(EnhancedTestCase):
@@ -122,18 +122,13 @@ class ModulesTest(EnhancedTestCase):
                      'Compiler/GCC/4.7.2/OpenMPI/1.6.4', 'toy/.0.0-deps']
         self.assertEqual(self.testmods.exist(mod_names), [True, False, False, False, True, True, True])
 
-        # test deprecated functionality
-        self.assertTrue(self.testmods.exists('OpenMPI/1.6.4-GCC-4.6.4'))
-        self.assertFalse(self.testmods.exists('foo/1.2.3'))
-        # exists should not return True for incomplete module names
-        self.assertFalse(self.testmods.exists('GCC'))
-
     def test_load(self):
         """ test if we load one module it is in the loaded_modules """
         self.init_testmods()
         ms = self.testmods.available()
         # exclude modules not on the top level of a hierarchy
-        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/'))]
+        ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
+                                    m.startswith('CategorizedHMNS'))]
 
         for m in ms:
             self.testmods.load([m])
@@ -253,6 +248,11 @@ class ModulesTest(EnhancedTestCase):
         path = modtool.path_to_top_of_module_tree([], 'toy/0.0', '', [])
         self.assertEqual(path, [])
 
+    def test_path_to_top_of_module_tree_hierarchical_mns(self):
+        """Test function to determine path to top of the module tree for a hierarchical module naming scheme."""
+
+        modtool = modules_tool()
+
         ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
@@ -279,6 +279,42 @@ class ModulesTest(EnhancedTestCase):
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
         self.assertEqual(path, ['GCC/4.7.2'])
         full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4')
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
+        self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])
+
+    def test_path_to_top_of_module_tree_categorized_hmns(self):
+        """
+        Test function to determine path to top of the module tree for a categorized hierarchical module naming
+        scheme.
+        """
+
+        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        all_stops = [x[0] for x in EasyBlock.get_steps()]
+        build_options = {
+            'check_osdeps': False,
+            'robot_path': [ecs_dir],
+            'valid_stops': all_stops,
+            'validate': False,
+        }
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
+        init_config(build_options=build_options)
+        self.setup_categorized_hmns_modules()
+        modtool = modules_tool()
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        init_modpaths = [os.path.join(mod_prefix, 'Core', 'compiler'), os.path.join(mod_prefix, 'Core', 'toolchain')]
+
+        deps = ['GCC/4.7.2', 'OpenMPI/1.6.4', 'FFTW/3.3.3', 'OpenBLAS/0.2.6-LAPACK-3.4.2',
+                'ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'goolf/1.4.10', os.path.join(mod_prefix, 'Core', 'toolchain'), deps)
+        self.assertEqual(path, [])
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'GCC/4.7.2', os.path.join(mod_prefix, 'Core', 'compiler'), [])
+        self.assertEqual(path, [])
+        full_mod_subdir = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'mpi')
+        deps = ['GCC/4.7.2', 'hwloc/1.6.2']
+        path = modtool.path_to_top_of_module_tree(init_modpaths, 'OpenMPI/1.6.4', full_mod_subdir, deps)
+        self.assertEqual(path, ['GCC/4.7.2'])
+        full_mod_subdir = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'numlib')
         deps = ['GCC/4.7.2', 'OpenMPI/1.6.4']
         path = modtool.path_to_top_of_module_tree(init_modpaths, 'FFTW/3.3.3', full_mod_subdir, deps)
         self.assertEqual(path, ['OpenMPI/1.6.4', 'GCC/4.7.2'])

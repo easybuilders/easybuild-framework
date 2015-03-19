@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,6 @@ import copy
 import os
 import sys
 import traceback
-from vsc.utils.missing import any
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
@@ -227,8 +226,11 @@ def main(testing_data=(None, None, None)):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
-    if not paths:
+    paths = det_easyconfig_paths(orig_paths)
+    if paths:
+        # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
+        paths = [(p, False) for p in paths]
+    else:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)
