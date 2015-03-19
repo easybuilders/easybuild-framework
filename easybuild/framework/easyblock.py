@@ -1808,7 +1808,8 @@ class EasyBlock(object):
         ## CHANGE TRUE TO build_option, and 
         ## ADD build-pkg to all the configuration dicts
         ## # if build_option('build-pkg'):
-        if True:
+        packaging_tool = build_option('package_with')
+        if packaging_tool is not None:
             steps.append(('package', 'packaging', [lambda x: x.package_step()], True))
         else:
             self.log.debug('Skipping package step')

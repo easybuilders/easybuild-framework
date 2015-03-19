@@ -32,6 +32,7 @@ A place for packaging functions
 """
 
 import os
+import tempfile
 from easybuild.tools.run import run_cmd
 
 def package_fpm(easyblock, modfile_path ):

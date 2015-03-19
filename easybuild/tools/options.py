@@ -268,6 +268,7 @@ class EasyBuildOptions(GeneralOption):
                            None, 'store', None),
             'tmp-logdir': ("Log directory where temporary log files are stored", None, 'store', None),
             'tmpdir': ('Directory to use for temporary storage', None, 'store', None),
+            'package-with': ("Define the packaging system to be used", None, 'store', None),
         })
 
         self.log.debug("config_options: descr %s opts %s" % (descr, opts))
