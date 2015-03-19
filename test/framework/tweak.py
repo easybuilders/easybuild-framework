@@ -99,6 +99,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.2.eb')
 
         # generate non-existing easyconfig
+        os.chdir(self.test_prefix)
         specs = {
             'name': 'GCC',
             'version': '5.4.3',

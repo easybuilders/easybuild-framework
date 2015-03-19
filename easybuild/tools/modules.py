@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -134,6 +134,8 @@ class ModulesTool(object):
     REQ_VERSION = None
     # the regexp, should have a "version" group (multiline search)
     VERSION_REGEXP = None
+    # modules tool user cache directory
+    USER_CACHE_DIR = None
 
     __metaclass__ = Singleton
 
@@ -792,6 +794,7 @@ class Lmod(ModulesTool):
     # we need at least Lmod v5.6.3 (and it can't be a release candidate)
     REQ_VERSION = '5.6.3'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
+    USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache')
 
     def __init__(self, *args, **kwargs):
         """Constructor, set lmod-specific class variable values."""
@@ -833,31 +836,32 @@ class Lmod(ModulesTool):
 
     def update(self):
         """Update after new modules were added."""
-        spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
-        cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
-        self.log.debug("Running command '%s'..." % ' '.join(cmd))
+        if build_option('update_modules_tool_cache'):
+            spider_cmd = os.path.join(os.path.dirname(self.cmd), 'spider')
+            cmd = [spider_cmd, '-o', 'moduleT', os.environ['MODULEPATH']]
+            self.log.debug("Running command '%s'..." % ' '.join(cmd))
 
-        proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
-        (stdout, stderr) = proc.communicate()
+            proc = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE, env=os.environ)
+            (stdout, stderr) = proc.communicate()
 
-        if stderr:
-            self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+            if stderr:
+                self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
 
-        if self.testing:
-            # don't actually update local cache when testing, just return the cache contents
-            return stdout
-        else:
-            try:
-                cache_filefn = os.path.join(os.path.expanduser('~'), '.lmod.d', '.cache', 'moduleT.lua')
-                self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_filefn, ' '.join(cmd)))
-                cache_dir = os.path.dirname(cache_filefn)
-                if not os.path.exists(cache_dir):
-                    mkdir(cache_dir, parents=True)
-                cache_file = open(cache_filefn, 'w')
-                cache_file.write(stdout)
-                cache_file.close()
-            except (IOError, OSError), err:
-                self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_filefn, err))
+            if self.testing:
+                # don't actually update local cache when testing, just return the cache contents
+                return stdout
+            else:
+                try:
+                    cache_fp = os.path.join(self.USER_CACHE_DIR, 'moduleT.lua')
+                    self.log.debug("Updating Lmod spider cache %s with output from '%s'" % (cache_fp, ' '.join(cmd)))
+                    cache_dir = os.path.dirname(cache_fp)
+                    if not os.path.exists(cache_dir):
+                        mkdir(cache_dir, parents=True)
+                    cache_file = open(cache_fp, 'w')
+                    cache_file.write(stdout)
+                    cache_file.close()
+                except (IOError, OSError), err:
+                    self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_fp, err))
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'

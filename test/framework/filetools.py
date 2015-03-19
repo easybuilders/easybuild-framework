@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -248,6 +248,26 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
 
+        shutil.rmtree(tmpdir)
+
+    def test_path_matches(self):
+        # set up temporary directories
+        tmpdir = tempfile.mkdtemp()
+        path1 = os.path.join(tmpdir, 'path1')
+        ft.mkdir(path1)
+        path2 = os.path.join(tmpdir, 'path2') 
+        ft.mkdir(path1)
+        symlink = os.path.join(tmpdir, 'symlink')
+        os.symlink(path1, symlink)
+        missing = os.path.join(tmpdir, 'missing')
+
+        self.assertFalse(ft.path_matches(missing, [path1, path2]))
+        self.assertFalse(ft.path_matches(path1, [missing]))
+        self.assertFalse(ft.path_matches(path1, [missing, path2]))
+        self.assertFalse(ft.path_matches(path2, [missing, symlink]))
+        self.assertTrue(ft.path_matches(path1, [missing, symlink]))
+
+        # cleanup
         shutil.rmtree(tmpdir)
 
     def test_read_write_file(self):

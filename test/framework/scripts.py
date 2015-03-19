@@ -34,6 +34,8 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase
 from unittest import TestLoader, main
 
+from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.run import run_cmd
 
 
@@ -44,9 +46,10 @@ class ScriptsTest(EnhancedTestCase):
         """Test for generate_software_list.py script."""
 
         # adjust $PYTHONPATH such that test easyblocks are found by the script
-        eb_blocks_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'sandbox'))
-        pythonpath = os.environ.get('PYTHONPATH', '.')
-        os.environ['PYTHONPATH'] = "%s:%s" % (pythonpath, eb_blocks_path)
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        eb_blocks_path = os.path.join(test_dir, 'sandbox')
+        pythonpath = os.environ.get('PYTHONPATH', os.path.dirname(test_dir))
+        os.environ['PYTHONPATH'] = os.pathsep.join([pythonpath, eb_blocks_path])
 
         testdir = os.path.dirname(__file__)
         topdir = os.path.dirname(os.path.dirname(testdir))
@@ -90,6 +93,110 @@ class ScriptsTest(EnhancedTestCase):
         shutil.rmtree(tmpdir)
         os.environ['PYTHONPATH'] = pythonpath
 
+    def test_fix_broken_easyconfig(self):
+        """Test fix_broken_easyconfigs.py script."""
+        testdir = os.path.dirname(__file__)
+        topdir = os.path.dirname(os.path.dirname(testdir))
+        script = os.path.join(topdir, 'easybuild', 'scripts', 'fix_broken_easyconfigs.py')
+        test_easyblocks = os.path.join(testdir, 'sandbox')
+
+        broken_ec_txt_tmpl = '\n'.join([
+            "# licenseheader",
+            "%sname = '%s'",
+            "version = '1.2.3'",
+            '',
+            "description = 'foo'",
+            "homepage = 'http://example.com'",
+            '',
+            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
+            '',
+            "premakeopts = 'FOO=libfoo.%%s' %% shared_lib_ext",
+            "makeopts = 'CC=gcc'",
+            '',
+            "license = 'foo.lic'",
+        ])
+        fixed_ec_txt_tmpl = '\n'.join([
+            "# licenseheader",
+            "%sname = '%s'",
+            "version = '1.2.3'",
+            '',
+            "description = 'foo'",
+            "homepage = 'http://example.com'",
+            '',
+            "toolchain = {'name': 'bar', 'version': '3.2.1'}",
+            '',
+            "prebuildopts = 'FOO=libfoo.%%s' %% SHLIB_EXT",
+            "buildopts = 'CC=gcc'",
+            '',
+            "license_file = 'foo.lic'",
+        ])
+        broken_ec_tmpl = os.path.join(self.test_prefix, '%s.eb')
+        script_cmd_tmpl = "PYTHONPATH=%s:$PYTHONPATH:%s %s %%s" % (topdir, test_easyblocks, script)
+
+        # don't change it if it isn't broken
+        broken_ec = broken_ec_tmpl % 'notbroken'
+        script_cmd = script_cmd_tmpl % broken_ec
+        fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'ConfigureMake'\n\n", 'foo')
+
+        write_file(broken_ec, fixed_ec_txt)
+        # (dummy) ConfigureMake easyblock is available in test sandbox
+        script_cmd = script_cmd_tmpl % broken_ec
+        new_ec_txt = read_file(broken_ec)
+        self.assertEqual(new_ec_txt, fixed_ec_txt)
+        self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
+        self.assertFalse(os.path.exists('%s.bk' % broken_ec))  # no backup created if nothing was fixed
+
+        broken_ec = broken_ec_tmpl % 'nosuchsoftware'
+        script_cmd = script_cmd_tmpl % broken_ec
+        broken_ec_txt = broken_ec_txt_tmpl % ('', 'nosuchsoftware')
+        fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'ConfigureMake'\n\n", 'nosuchsoftware')
+
+        # broken easyconfig is fixed in place, original file is backed up
+        write_file(broken_ec, broken_ec_txt)
+        run_cmd(script_cmd)
+        new_ec_txt = read_file(broken_ec)
+        self.assertEqual(new_ec_txt, fixed_ec_txt)
+        self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
+        self.assertEqual(read_file('%s.bk' % broken_ec), broken_ec_txt)
+        self.assertFalse(os.path.exists('%s.bk1' % broken_ec))
+
+        # broken easyconfig is fixed in place, original file is backed up, existing backup is not overwritten
+        write_file(broken_ec, broken_ec_txt)
+        write_file('%s.bk' % broken_ec, 'thisshouldnot\nbechanged')
+        run_cmd(script_cmd)
+        new_ec_txt = read_file(broken_ec)
+        self.assertEqual(new_ec_txt, fixed_ec_txt)
+        self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
+        self.assertEqual(read_file('%s.bk' % broken_ec), 'thisshouldnot\nbechanged')
+        self.assertEqual(read_file('%s.bk1' % broken_ec), broken_ec_txt)
+
+        # if easyblock is specified, that part is left untouched
+        broken_ec = broken_ec_tmpl % 'footoy'
+        script_cmd = script_cmd_tmpl % broken_ec
+        broken_ec_txt = broken_ec_txt_tmpl % ("easyblock = 'EB_toy'\n\n", 'foo')
+        fixed_ec_txt = fixed_ec_txt_tmpl % ("easyblock = 'EB_toy'\n\n", 'foo')
+
+        write_file(broken_ec, broken_ec_txt)
+        run_cmd(script_cmd)
+        new_ec_txt = read_file(broken_ec)
+        self.assertEqual(new_ec_txt, fixed_ec_txt)
+        self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
+        self.assertEqual(read_file('%s.bk' % broken_ec), broken_ec_txt)
+
+        # for existing easyblocks, "easyblock = 'ConfigureMake'" should *not* be added
+        # EB_toy easyblock is available in test sandbox
+        test_easyblocks = os.path.join(testdir, 'sandbox')
+        broken_ec = broken_ec_tmpl % 'toy'
+        # path to test easyblocks must be *appended* to PYTHONPATH (due to flattening in easybuild-easyblocks repo)
+        script_cmd = script_cmd_tmpl % broken_ec
+        broken_ec_txt = broken_ec_txt_tmpl % ('', 'toy')
+        fixed_ec_txt = fixed_ec_txt_tmpl % ('', 'toy')
+        write_file(broken_ec, broken_ec_txt)
+        run_cmd(script_cmd)
+        new_ec_txt = read_file(broken_ec)
+        self.assertEqual(new_ec_txt, fixed_ec_txt)
+        self.assertTrue(EasyConfig(None, rawtxt=new_ec_txt))
+        self.assertEqual(read_file('%s.bk' % broken_ec), broken_ec_txt)
 
 def suite():
     """ returns all the testcases in this module """
