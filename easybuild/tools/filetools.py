@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -365,6 +365,8 @@ def search_file(paths, query, short=False, ignore_dirs=None, silent=False):
             # replace list elements using [:], so os.walk doesn't process deleted directories
             # see http://stackoverflow.com/questions/13454164/os-walk-without-hidden-folders
             dirnames[:] = [d for d in dirnames if not d in ignore_dirs]
+
+        hits = sorted(hits)
 
         if hits:
             common_prefix = det_common_path_prefix(hits)
@@ -847,7 +849,12 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
 
 def path_matches(path, paths):
     """Check whether given path matches any of the provided paths."""
-    return any([os.path.samefile(path, p) for p in paths])
+    if not os.path.exists(path):
+        return False
+    for somepath in paths:
+        if os.path.exists(somepath) and os.path.samefile(path, somepath):
+            return True
+    return False
 
 
 def rmtree2(path, n=3):

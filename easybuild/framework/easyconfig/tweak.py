@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -302,7 +302,7 @@ def find_matching_easyconfigs(name, installver, paths):
     for path in paths:
         patterns = create_paths(path, name, installver)
         for pattern in patterns:
-            more_ec_files = filter(os.path.isfile, glob.glob(pattern))
+            more_ec_files = filter(os.path.isfile, sorted(glob.glob(pattern)))
             _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
             ec_files.extend(more_ec_files)
 

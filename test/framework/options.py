@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,15 +44,26 @@ from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.github import fetch_github_token
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.version import VERSION
 from vsc.utils import fancylogger
 
+
+# test account, for which a token is available
+GITHUB_TEST_ACCOUNT = 'easybuild_test'
+
+
 class CommandLineOptionsTest(EnhancedTestCase):
     """Testcases for command line options."""
 
     logfile = None
+
+    def setUp(self):
+        """Set up test."""
+        super(CommandLineOptionsTest, self).setUp()
+        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
     def test_help_short(self, txt=None):
         """Test short help message."""
@@ -436,7 +447,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         name_items = {
             'modules-tools': ['EnvironmentModulesC', 'Lmod'],
-            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS'],
+            'module-naming-schemes': ['EasyBuildMNS', 'HierarchicalMNS', 'CategorizedHMNS'],
         }
         for (name, items) in name_items.items():
             args = [
@@ -622,6 +633,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_dry_run_short(self):
         """Test dry run (short format)."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        del os.environ['EASYBUILD_ROBOT_PATHS']
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -749,8 +763,53 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    def test_dry_run_categorized(self):
+        """Test dry run using a categorized hierarchical module naming scheme."""
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        self.setup_categorized_hmns_modules()
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+        args = [
+            os.path.join(test_ecs, 'gzip-1.5-goolf-1.4.10.eb'),
+            os.path.join(test_ecs, 'OpenMPI-1.6.4-GCC-4.7.2.eb'),
+            '--dry-run',
+            '--unittest-file=%s' % self.logfile,
+            '--module-naming-scheme=CategorizedHMNS',
+            '--ignore-osdeps',
+            '--force',
+            '--debug',
+            '--robot-paths=%s' % os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs'),
+        ]
+        outtxt = self.eb_main(args, logfile=dummylogfn, verbose=True, raise_error=True)
+
+        ecs_mods = [
+            # easyconfig, module subdir, (short) module name, mark
+            ("GCC-4.7.2.eb", "Core/compiler", "GCC/4.7.2", 'x'),  # already present but not listed, so 'x'
+            ("hwloc-1.6.2-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/system", "hwloc/1.6.2", 'x'),
+            ("OpenMPI-1.6.4-GCC-4.7.2.eb", "Compiler/GCC/4.7.2/mpi", "OpenMPI/1.6.4", 'F'),  # already present and listed, so 'F'
+            ("gompi-1.4.10.eb", "Core/toolchain", "gompi/1.4.10", 'x'),
+            ("OpenBLAS-0.2.6-gompi-1.4.10-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
+             "OpenBLAS/0.2.6-LAPACK-3.4.2", 'x'),
+            ("FFTW-3.3.3-gompi-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib", "FFTW/3.3.3", 'x'),
+            ("ScaLAPACK-2.0.2-gompi-1.4.10-OpenBLAS-0.2.6-LAPACK-3.4.2.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/numlib",
+             "ScaLAPACK/2.0.2-OpenBLAS-0.2.6-LAPACK-3.4.2", 'x'),
+            ("goolf-1.4.10.eb", "Core/toolchain", "goolf/1.4.10", 'x'),
+            ("gzip-1.5-goolf-1.4.10.eb", "MPI/GCC/4.7.2/OpenMPI/1.6.4/base", "gzip/1.5", ' '),  # listed but not there: ' '
+        ]
+        for ec, mod_subdir, mod_name, mark in ecs_mods:
+            regex = re.compile("^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertTrue(regex.search(outtxt), "Found match for pattern %s in '%s'" % (regex.pattern, outtxt))
+
+        if os.path.exists(dummylogfn):
+            os.remove(dummylogfn)
+
     def test_from_pr(self):
         """Test fetching easyconfigs from a PR."""
+        if self.github_token is None:
+            print "Skipping test_from_pr, no GitHub token available?"
+            return
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -762,7 +821,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
@@ -789,7 +848,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
-            pr_tmpdir = os.path.join(tmpdir, 'easybuild-\S{6}', 'files_pr1239')
+            pr_tmpdir = os.path.join(tmpdir, 'eb-\S{6}', 'files_pr1239')
             regex = re.compile("Prepended list of robot search paths with %s:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError, err:
@@ -798,6 +857,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
+        if self.github_token is None:
+            print "Skipping test_from_pr, no GitHub token available?"
+            return
+
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -819,21 +882,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=1239',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
+            '--robot=%s' % test_ecs_path,
             '--unittest-file=%s' % self.logfile,
-            '--github-user=easybuild_test',  # a GitHub token should be available for this user
+            '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
         ]
         try:
             outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (ecstmpdir, 'toy/0.0'),
-                ('.*', 'GCC/4.9.2'),  # not included in PR
+                (test_ecs_path, 'toy/0.0'),  # not included in PR
+                (test_ecs_path, 'GCC/4.9.2'),  # not included in PR
                 (tmpdir, 'hwloc/1.10.0-GCC-4.9.2'),
                 (tmpdir, 'numactl/2.0.10-GCC-4.9.2'),
                 (tmpdir, 'OpenMPI/1.8.4-GCC-4.9.2'),
                 (tmpdir, 'gompi/2015a'),
-                ('.*', 'GCC/4.6.3'),
+                (test_ecs_path, 'GCC/4.6.3'),  # not included in PR
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -946,17 +1009,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, do_build=True)
 
-        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'easybuild-')
+        tmpdir_msg = r"Using %s\S+ as temporary directory" % os.path.join(tmpdir, 'eb-')
         found = re.search(tmpdir_msg, outtxt, re.M)
         self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
 
         for var in ['TMPDIR', 'TEMP', 'TMP']:
-            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'easybuild-')))
-        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'easybuild-')))
+            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'eb-')))
+        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'eb-')))
         tempfile_tmpdir = tempfile.mkdtemp()
-        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
         fd, tempfile_tmpfile = tempfile.mkstemp()
-        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'easybuild-')))
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
 
         # cleanup
         os.close(fd)
@@ -1164,10 +1227,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ([], 'toy/0.0'),
             (['--try-software=foo,1.2.3', '--try-toolchain=gompi,1.4.10'], 'foo/1.2.3-gompi-1.4.10'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
+            # --try-toolchain is overridden by --toolchain
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             (['--try-software-name=foo', '--try-software-version=1.2.3'], 'foo/1.2.3'),
             (['--try-toolchain-name=gompi', '--try-toolchain-version=1.4.10'], 'toy/0.0-gompi-1.4.10'),
             (['--try-software-version=1.2.3', '--try-toolchain=gompi,1.4.10'], 'toy/1.2.3-gompi-1.4.10'),
             (['--try-amend=versionsuffix=-test'], 'toy/0.0-test'),
+            # --try-amend is overridden by --amend
+            (['--amend=versionsuffix=', '--try-amend=versionsuffix=-test'], 'toy/0.0'),
+            (['--try-toolchain=gompi,1.3.12', '--toolchain=dummy,dummy'], 'toy/0.0'),
             # tweak existing list-typed value (patches)
             (['--try-amend=versionsuffix=-test2', '--try-amend=patches=1.patch,2.patch'], 'toy/0.0-test2'),
             # append to existing list-typed value (patches)
@@ -1235,7 +1303,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     mod = ec_name.replace('-', '/')
                 else:
                     mod = '%s-gompi-1.4.10' % ec_name.replace('-', '/')
-                mod_regex = re.compile("^ \* \[ \] \S+/easybuild-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
+                mod_regex = re.compile("^ \* \[ \] \S+/eb-\S+/%s \(module: .*%s\)$" % (ec, mod), re.M)
                 #mod_regex = re.compile("%s \(module: .*%s\)$" % (ec, mod), re.M)
                 self.assertTrue(mod_regex.search(outtxt), "Pattern %s found in %s" % (mod_regex.pattern, outtxt))
 
@@ -1360,6 +1428,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
+        # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
+        os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
+
         test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         eb_file = os.path.join(test_ecs_path, 'gzip-1.4-GCC-4.6.3.eb')  # includes 'toy/.0.0-deps' as a dependency
 
@@ -1392,6 +1463,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         shutil.copytree(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
+        del os.environ['EASYBUILD_ROBOT_PATHS']
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)
         self.eb_main(args, raise_error=True)
@@ -1408,8 +1480,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
-        for ec in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
-            ec_regex = re.compile('^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ec), re.M)
+        for ecfile in ['GCC-4.6.3.eb', 'ictce-4.1.13.eb', 'toy-0.0-deps.eb', 'gzip-1.4-GCC-4.6.3.eb']:
+            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
 

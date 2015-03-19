@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -188,10 +188,16 @@ class Mpi(Toolchain):
         # Intel MPI mpirun needs more work
         if mpi_family == toolchain.INTELMPI:  # @UndefinedVariable
 
-            tmpdir = tempfile.mkdtemp(prefix='eb-mpi_cmd_for-')
-
             # set temporary dir for mdp
-            env.setvar('I_MPI_MPD_TMPDIR', tmpdir)
+            # note: this needs to be kept *short*, to avoid mpirun failing with "socket.error: AF_UNIX path too long"
+            # exact limit is unknown, but ~20 characters seems to be OK
+            env.setvar('I_MPI_MPD_TMPDIR', tempfile.gettempdir())
+            mpd_tmpdir = os.environ['I_MPI_MPD_TMPDIR']
+            if len(mpd_tmpdir) > 20:
+                self.log.warning("$I_MPI_MPD_TMPDIR should be (very) short to avoid problems: %s" % mpd_tmpdir)
+
+            # temporary location for mpdboot and nodes files
+            tmpdir = tempfile.mkdtemp(prefix='mpi_cmd_for-')
 
             # set PBS_ENVIRONMENT, so that --file option for mpdboot isn't stripped away
             env.setvar('PBS_ENVIRONMENT', "PBS_BATCH_MPI")
