@@ -91,6 +91,7 @@ BUILD_OPTIONS_CMDLINE = {
         'modules_footer',
         'only_blocks',
         'optarch',
+        'package_tool',
         'regtest_output_dir',
         'skip',
         'stop',
@@ -98,7 +99,6 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
-        'package_with',
     ],
     False: [
         'allow_modules_tool_mismatch',
