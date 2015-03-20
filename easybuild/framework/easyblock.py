@@ -1448,7 +1448,12 @@ class EasyBlock(object):
 
         path_to_module_file = os.path.join(install_path('mod'), build_option('suffix_modules_path'), self.full_mod_name)
 
-        package_fpm(self, path_to_module_file)
+        packaging_tool = build_option('package_tool')
+        if packaging_tool is not None:
+            package_fpm(self, path_to_module_file)
+        else:
+            _log.debug('Skipping package step')
+
 
     def post_install_step(self):
         """
@@ -1794,6 +1799,7 @@ class EasyBlock(object):
             ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
             ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
             ('module', 'creating module', [lambda x: x.make_module_step()], False),
+            ('package', 'packaging', [lambda x: x.package_step()], True),
         ]
 
         # full list of steps, included iterated steps
@@ -1804,15 +1810,6 @@ class EasyBlock(object):
                 lambda x: x.load_module(),
                 lambda x: x.test_cases_step(),
             ], False))
-
-        ## CHANGE TRUE TO build_option, and 
-        ## ADD build-pkg to all the configuration dicts
-        ## # if build_option('build-pkg'):
-        packaging_tool = build_option('package_tool')
-        if packaging_tool is not None:
-            steps.append(('package', 'packaging', [lambda x: x.package_step()], True))
-        else:
-            _log.debug('Skipping package step')
 
         return steps
 
