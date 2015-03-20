@@ -1450,9 +1450,11 @@ class EasyBlock(object):
 
         packaging_tool = build_option('package_tool')
         if packaging_tool is not None:
-            package_fpm(self, path_to_module_file)
+            package_dir = package_fpm(self, path_to_module_file)
         else:
             _log.debug('Skipping package step')
+
+        shutil.copytree(package_dir, os.path.join(self.installdir, "package"))
 
 
     def post_install_step(self):
@@ -1930,7 +1932,7 @@ def build_and_install_one(ecdict, orig_environ):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        success = True
+        success = True 
         succ = "successfully"
         summary = "COMPLETED"
 

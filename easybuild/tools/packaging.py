@@ -27,17 +27,25 @@
 A place for packaging functions
 
 @author: Marc Litherland
-@author: Gianluca Santarossa 
+@author: Gianluca Santarossa (Novartis)
 @author: Robert Schmidt (Ottawa Hospital Research Institute)
+@author: Fotis Georgatos (Uni.Lu, NTUA)
+@author: Kenneth Hoste (Ghent University)
 """
 
 import os
 import tempfile
+from vsc.utils import fancylogger
+
 from easybuild.tools.run import run_cmd
 
+_log = fancylogger.getLogger('tools.packaging')
+
 def package_fpm(easyblock, modfile_path ):
-    rpmname = "HPCBIOS.20150211-%s-%s" % (easyblock.name, easyblock.version)
+    
     workdir = tempfile.mkdtemp()
+    _log.info("Will be writing RPM to %s" % workdir)
+
     try:
         os.chdir(workdir)
     except OSError, err:
@@ -64,5 +72,11 @@ def package_fpm(easyblock, modfile_path ):
     cmdlist.extend([
         easyblock.installdir,
     ])
+    cmdstr = " ".join(cmdlist)
+    _log.debug("The flattened cmdlist looks like" + cmdstr)
+    out = run_cmd(cmdstr, log_all=True, simple=True)
+   
+    _log.info("wrote rpm to %s" % (workdir) )
 
-    (out, _) = run_cmd(cmdlist, log_all=True, simple=True)
+    return workdir
+
