@@ -69,5 +69,5 @@ class ToolchainMNS(HierarchicalMNS):
         Determine whether load statements for a toolchain should be expanded to load statements for its dependencies.
         This is useful when toolchains are not exposed to users.
         """
-	# In our case we have to load the toolchains because they are explicitly exposed when extending the module path
-        return False
+	# In our case we still have to load the toolchains because they are explicitly exposed when extending the module path
+        return True
