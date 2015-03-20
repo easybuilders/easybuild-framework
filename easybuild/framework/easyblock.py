@@ -60,7 +60,7 @@ from easybuild.tools.packaging import package_fpm
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg
 from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths
+from easybuild.tools.config import install_path, log_path, read_only_installdir, source_paths, package_path
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
@@ -1447,14 +1447,19 @@ class EasyBlock(object):
         """Prepare package software (e.g. into an RPM) with fpm."""
 
         path_to_module_file = os.path.join(install_path('mod'), build_option('suffix_modules_path'), self.full_mod_name)
+        packagedir_dest = os.path.abspath(package_path())
 
         packaging_tool = build_option('package_tool')
         if packaging_tool is not None:
-            package_dir = package_fpm(self, path_to_module_file)
+            packagedir_src = package_fpm(self, path_to_module_file)
+   
+            if not os.path.exists(packagedir_dest):
+                mkdir(packagedir_dest)
+        
+            for file in glob.glob(os.path.join(packagedir_src, "*.rpm")):
+                shutil.copy(file, packagedir_dest)
         else:
             _log.debug('Skipping package step')
-
-        shutil.copytree(package_dir, os.path.join(self.installdir, "package"))
 
 
     def post_install_step(self):

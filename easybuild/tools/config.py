@@ -58,6 +58,7 @@ DEFAULT_MODULES_TOOL = 'EnvironmentModulesC'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
     'installpath': '',
+    'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
     'subdir_modules': 'modules',
@@ -65,7 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
-
+DEFAULT_PACKAGE_TEMPLATE = "easybuild-%(name)s-%(version)s"
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -182,6 +183,8 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'prefix',
         'buildpath',
         'installpath',
+        'packagepath',
+        'package_template',
         'sourcepath',
         'repository',
         'repositorypath',
@@ -340,6 +343,17 @@ def get_repositorypath():
     """
     return ConfigurationVariables()['repositorypath']
 
+def package_path():
+    """
+    Return the path where built packages are copied to
+    """
+    return ConfigurationVariables()['packagepath']
+
+def package_template():
+    """
+    Returns the package template
+    """
+    return ConfigurationVariables()['package_template']
 
 def get_modules_tool():
     """

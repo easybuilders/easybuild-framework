@@ -38,6 +38,7 @@ import tempfile
 from vsc.utils import fancylogger
 
 from easybuild.tools.run import run_cmd
+from easybuild.tools.config import install_path, package_template
 
 _log = fancylogger.getLogger('tools.packaging')
 
@@ -51,26 +52,29 @@ def package_fpm(easyblock, modfile_path ):
     except OSError, err:
         _log.error("Failed to chdir into workdir: %s : %s" % (workdir, err))
 
-    pkgtemplate = "HPCBIOS.20150211-%(name)s-%(version)s"
+    pkgtemplate = package_template()
+    #"HPCBIOS.20150211-%(name)s-%(version)s"
 
     pkgname=pkgtemplate % {
         'name' : easyblock.name,
         'version' : easyblock.version,
     }
-    dependencies = []
-    dependencies.extend([ "=".join([ dep['name'], dep['version'] ]) for dep in easyblock.cfg.dependencies() ])
-    depstring = '--depends ' + ' --depends '.join(dependencies)
+
+    depstring = ""    
+    for dep in easyblock.cfg.dependencies():
+        depstring += " --depends %s=%s" % ( dep['name'], dep['version'])
+
     cmdlist=[
         'fpm',
         '--workdir', workdir,
         '--name', pkgname,
         '-t', 'rpm', # target
         '-s', 'dir', # source
-        '-C', easyblock.installdir,
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([
         easyblock.installdir,
+        modfile_path
     ])
     cmdstr = " ".join(cmdlist)
     _log.debug("The flattened cmdlist looks like" + cmdstr)
