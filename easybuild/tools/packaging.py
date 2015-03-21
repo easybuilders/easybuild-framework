@@ -68,6 +68,7 @@ def package_fpm(easyblock, modfile_path ):
         'fpm',
         '--workdir', workdir,
         '--name', pkgname,
+        '--provides', pkgname,
         '-t', 'rpm', # target
         '-s', 'dir', # source
     ]
