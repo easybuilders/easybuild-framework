@@ -1802,11 +1802,11 @@ class EasyBlock(object):
         # part 3: post-iteration part
         steps_part3 = [
             ('extensions', 'taking care of extensions', [lambda x: x.extensions_step()], False),
-            ('package', 'packaging', [lambda x: x.package_step()], True),
             ('postproc', 'postprocessing', [lambda x: x.post_install_step()], True),
             ('sanitycheck', 'sanity checking', [lambda x: x.sanity_check_step()], False),
             ('cleanup', 'cleaning up', [lambda x: x.cleanup_step()], False),
             ('module', 'creating module', [lambda x: x.make_module_step()], False),
+            ('package', 'packaging', [lambda x: x.package_step()], True),
         ]
 
         # full list of steps, included iterated steps
@@ -1937,7 +1937,7 @@ def build_and_install_one(ecdict, orig_environ):
             except EasyBuildError, err:
                 _log.warn("Unable to commit easyconfig to repository: %s", err)
 
-        success = True 
+        success = True
         succ = "successfully"
         summary = "COMPLETED"
 

@@ -35,10 +35,12 @@ A place for packaging functions
 
 import os
 import tempfile
+import pprint
+
 from vsc.utils import fancylogger
 
 from easybuild.tools.run import run_cmd
-from easybuild.tools.config import install_path, package_template
+from easybuild.tools.config import install_path, package_prefix
 
 _log = fancylogger.getLogger('tools.packaging')
 
@@ -52,25 +54,27 @@ def package_fpm(easyblock, modfile_path ):
     except OSError, err:
         _log.error("Failed to chdir into workdir: %s : %s" % (workdir, err))
 
-    pkgtemplate = package_template()
+    pkgprefix   = package_prefix()
+    pkgtemplate = "%(prefix)s-%(name)s"
     #"HPCBIOS.20150211-%(name)s-%(version)s"
 
     pkgname=pkgtemplate % {
+        'prefix' : pkgprefix,
         'name' : easyblock.name,
-        'version' : easyblock.version,
     }
-
+    _log.debug("The dependencies to be added to the package are: " + pprint.pformat(easyblock.cfg.dependencies()))
     depstring = ""    
     for dep in easyblock.cfg.dependencies():
-        depstring += " --depends %s=%s" % ( dep['name'], dep['version'])
+        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], dep['version'])
 
     cmdlist=[
         'fpm',
         '--workdir', workdir,
         '--name', pkgname,
-        '--provides', pkgname,
+        '--provides', "%s-%s" %(pkgprefix,easyblock.name),
         '-t', 'rpm', # target
         '-s', 'dir', # source
+        '--version', easyblock.version,
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([

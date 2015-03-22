@@ -66,7 +66,7 @@ DEFAULT_PATH_SUBDIRS = {
 }
 DEFAULT_PREFIX = os.path.join(os.path.expanduser('~'), ".local", "easybuild")
 DEFAULT_REPOSITORY = 'FileRepository'
-DEFAULT_PACKAGE_TEMPLATE = "easybuild-%(name)s-%(version)s"
+DEFAULT_PACKAGE_PREFIX = "easybuild"
 
 # utility function for obtaining default paths
 def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
@@ -184,7 +184,7 @@ class ConfigurationVariables(FrozenDictKnownKeys):
         'buildpath',
         'installpath',
         'packagepath',
-        'package_template',
+        'package_prefix',
         'sourcepath',
         'repository',
         'repositorypath',
@@ -349,11 +349,11 @@ def package_path():
     """
     return ConfigurationVariables()['packagepath']
 
-def package_template():
+def package_prefix():
     """
     Returns the package template
     """
-    return ConfigurationVariables()['package_template']
+    return ConfigurationVariables()['package_prefix']
 
 def get_modules_tool():
     """

@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_PACKAGE_TEMPLATE
+from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY, DEFAULT_PACKAGE_PREFIX
 from easybuild.tools.config import get_pretend_installpath
 from easybuild.tools.config import mk_full_default_path
 from easybuild.tools.docs import FORMAT_RST, FORMAT_TXT, avail_easyconfig_params
@@ -245,8 +245,8 @@ class EasyBuildOptions(GeneralOption):
                              'choice', 'store', DEFAULT_MODULES_TOOL, sorted(avail_modules_tools().keys())),
             'package-tool': ("Packaging tool to use",
                              None, 'store_or_None', None),
-            'package-template': ("A template string to name the package",
-                             None, 'store', DEFAULT_PACKAGE_TEMPLATE),
+            'package-prefix': ("A template string to name the package",
+                             None, 'store', DEFAULT_PACKAGE_PREFIX),
             'packagepath': ("The destination path for the packages built by package-tool",
                              None, 'store', mk_full_default_path('packagepath')),
             'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
