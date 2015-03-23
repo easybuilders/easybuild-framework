@@ -47,7 +47,7 @@ from vsc.utils.patterns import Singleton
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_modules_tool, install_path
-from easybuild.tools.environment import restore_env
+from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
@@ -59,10 +59,9 @@ ROOT_ENV_VAR_NAME_PREFIX = "EBROOT"
 VERSION_ENV_VAR_NAME_PREFIX = "EBVERSION"
 DEVEL_ENV_VAR_NAME_PREFIX = "EBDEVEL"
 
-# keep track of original $LD_LIBRARY_PATH/$LD_PRELOAD, because it can change by loading modules and break module command
+# environment variables to reset/restore when running a module command (to avoid breaking it)
 # see e.g., https://bugzilla.redhat.com/show_bug.cgi?id=719785
 LD_ENV_VAR_KEYS = ['LD_LIBRARY_PATH', 'LD_PRELOAD']
-ORIG_ENVIRON = dict([(key, os.getenv(key, '')) for key in LD_ENV_VAR_KEYS])
 
 output_matchers = {
     # matches whitespace and module-listing headers
@@ -375,14 +374,14 @@ class ModulesTool(object):
         """NO LONGER SUPPORTED: use exist method instead"""
         self.log.nosupport("exists(<mod_name>) is not supported anymore, use exist([<mod_name>]) instead", '2.0')
 
-    def load(self, modules, mod_paths=None, purge=False, orig_env=None):
+    def load(self, modules, mod_paths=None, purge=False, init_env=None):
         """
         Load all requested modules.
 
         @param modules: list of modules to load
         @param mod_paths: list of module paths to activate before loading
         @param purge: whether or not a 'module purge' should be run before loading
-        @param orig_env: original environment to restore after running 'module purge'
+        @param init_env: original environment to restore after running 'module purge'
         """
         if mod_paths is None:
             mod_paths = []
@@ -390,9 +389,9 @@ class ModulesTool(object):
         # purge all loaded modules if desired
         if purge:
             self.purge()
-            # restore original environment if provided
-            if orig_env is not None:
-                restore_env(orig_env)
+            # restore initial environment if provided
+            if init_env is not None:
+                restore_env(init_env)
 
         # make sure $MODULEPATH is set correctly after purging
         self.check_module_path()
@@ -482,7 +481,7 @@ class ModulesTool(object):
         # change to original $LD_LIBRARY_PATH and $LD_PRELOAD before running module command
         environ = os.environ.copy()
         for key in LD_ENV_VAR_KEYS:
-            environ[key] = ORIG_ENVIRON[key]
+            environ[key] = ORIG_OS_ENVIRON.get(key, '')
             self.log.debug("Adjusted %s from '%s' to '%s'" % (key, os.environ.get(key, ''), environ[key]))
 
         # prefix if a particular shell is specified, using shell argument to Popen doesn't work (no output produced (?))
@@ -601,7 +600,7 @@ class ModulesTool(object):
         self.log.debug("Determining $MODULEPATH extensions for modules %s" % mod_names)
 
         # copy environment so we can restore it
-        orig_env = os.environ.copy()
+        env = os.environ.copy()
 
         modpath_exts = {}
         for mod_name in mod_names:
@@ -617,8 +616,8 @@ class ModulesTool(object):
                 # this is required to obtain the list of $MODULEPATH extensions they make (via 'module show')
                 self.load([mod_name])
 
-        # restore original environment (modules may have been loaded above)
-        restore_env(orig_env)
+        # restore environment (modules may have been loaded above)
+        restore_env(env)
 
         return modpath_exts
 
@@ -654,7 +653,7 @@ class ModulesTool(object):
         @param modpath_exts: list of module path extensions for each of the dependency modules
         """
         # copy environment so we can restore it
-        orig_env = os.environ.copy()
+        env = os.environ.copy()
 
         if path_matches(full_mod_subdir, top_paths):
             self.log.debug("Top of module tree reached with %s (module subdir: %s)" % (mod_name, full_mod_subdir))
@@ -688,7 +687,7 @@ class ModulesTool(object):
                 self.load([dep])
 
         # restore original environment (modules may have been loaded above)
-        restore_env(orig_env)
+        restore_env(env)
 
         path = mods_to_top[:]
         if mods_to_top:

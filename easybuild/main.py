@@ -100,13 +100,13 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
     # obtain a copy of the starting environment so each build can start afresh
     # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
     # e.g. via easyconfig.handle_allowed_system_deps
-    orig_environ = copy.deepcopy(os.environ)
+    init_env = copy.deepcopy(os.environ)
 
     res = []
     for ec in ecs:
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, orig_environ)
+            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err)
