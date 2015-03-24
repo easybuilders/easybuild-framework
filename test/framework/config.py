@@ -54,6 +54,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Prepare for running a config test."""
+        reload(eboptions)
         super(EasyBuildConfigTest, self).setUp()
         self.tmpdir = tempfile.mkdtemp()
 
@@ -397,8 +398,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
             os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
             os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
-            # default config file in home dir is last (even if the file is not there)
-            os.path.join(os.path.expanduser('~'), '.config', 'easybuild', 'config.cfg'),
         ]
         reload(eboptions)
         eb_go = eboptions.parse_options(args=[])
@@ -410,7 +409,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
             os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
             os.path.join(dir1, 'easybuild.d', 'foo.cfg'),
             os.path.join(dir3, 'easybuild.d', 'foobarbaz.cfg'),
-            os.path.join(self.test_prefix, 'nosuchdir', 'easybuild', 'config.cfg'),
         ]
         reload(eboptions)
         eb_go = eboptions.parse_options(args=[])
@@ -427,6 +425,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
             del os.environ['XDG_CONFIG_DIRS']
         else:
             os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
+        reload(eboptions)
 
 def suite():
     return TestLoader().loadTestsFromTestCase(EasyBuildConfigTest)
