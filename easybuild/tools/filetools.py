@@ -909,11 +909,18 @@ def move_logs(src_logfile, target_logfile):
 def cleanup(logfile, tempdir, testing):
     """Cleanup the specified log file and the tmp directory"""
     if not testing and logfile is not None:
-        os.remove(logfile)
-        print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+        try:
+            for log in glob.glob('%s*' % logfile):
+                os.remove(log)
+        except OSError, err:
+            _log.error("Failed to remove log file(s) %s*: %s" % (logfile, err))
+        print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
 
     if not testing and tempdir is not None:
-        shutil.rmtree(tempdir, ignore_errors=True)
+        try:
+            shutil.rmtree(tempdir, ignore_errors=True)
+        except OSError, err:
+            _log.error("Failed to remove temporary directory %s: %s" % (tempdir, err))
         print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
