@@ -34,6 +34,7 @@ Set of file tools.
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
+import glob
 import os
 import re
 import shutil
@@ -873,6 +874,36 @@ def rmtree2(path, n=3):
         _log.error("Failed to remove path %s with shutil.rmtree, even after %d attempts." % (path, n))
     else:
         _log.info("Path %s successfully removed." % path)
+
+
+def move_logs(from_path, target_path):
+    """Move log file(s)."""
+    mkdir(os.path.dirname(target_path), parents=True)
+    from_path_len = len(from_path)
+    try:
+
+        # there may be multiple log files, due to log rotation
+        app_logs = glob.glob('%s*' % from_path)
+        for app_log in app_logs:
+            # retain possible suffix
+            new_log_path = target_path + app_log[from_path_len:]
+
+            # retain old logs
+            if os.path.exists(new_log_path):
+                i = 0
+                oldlog_backup = "%s_%d" % (new_log_path, i)
+                while os.path.exists(oldlog_backup):
+                    i += 1
+                    oldlog_backup = "%s_%d" % (new_log_path, i)
+                shutil.move(new_log_path, oldlog_backup)
+                _log.info("Moved existing log file %s to %s" % (new_log_path, oldlog_backup))
+
+            # move log to target path
+            shutil.move(app_log, new_log_path)
+            _log.info("Moved log file %s to %s" % (from_path, new_log_path))
+
+    except (IOError, OSError), err:
+        _log.error("Failed to move log file(s) %s* to new log file %s*: %s" % (from_path, target_path, err))
 
 
 def cleanup(logfile, tempdir, testing):
