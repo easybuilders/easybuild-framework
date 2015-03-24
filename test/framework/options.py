@@ -1484,6 +1484,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
+    def test_missing_cfgfile(self):
+        """Test behaviour when non-existing config file is specified."""
+        args = ['--configfiles=/no/such/cfgfile.foo']
+        error_regex = "parseconfigfiles: configfile .* not found"
+        self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
+
 
 def suite():
     """ returns all the testcases in this module """
