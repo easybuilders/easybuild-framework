@@ -876,17 +876,17 @@ def rmtree2(path, n=3):
         _log.info("Path %s successfully removed." % path)
 
 
-def move_logs(from_path, target_path):
+def move_logs(src_logfile, target_logfile):
     """Move log file(s)."""
-    mkdir(os.path.dirname(target_path), parents=True)
-    from_path_len = len(from_path)
+    mkdir(os.path.dirname(target_logfile), parents=True)
+    src_logfile_len = len(src_logfile)
     try:
 
         # there may be multiple log files, due to log rotation
-        app_logs = glob.glob('%s*' % from_path)
+        app_logs = glob.glob('%s*' % src_logfile)
         for app_log in app_logs:
             # retain possible suffix
-            new_log_path = target_path + app_log[from_path_len:]
+            new_log_path = target_logfile + app_log[src_logfile_len:]
 
             # retain old logs
             if os.path.exists(new_log_path):
@@ -900,10 +900,10 @@ def move_logs(from_path, target_path):
 
             # move log to target path
             shutil.move(app_log, new_log_path)
-            _log.info("Moved log file %s to %s" % (from_path, new_log_path))
+            _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
     except (IOError, OSError), err:
-        _log.error("Failed to move log file(s) %s* to new log file %s*: %s" % (from_path, target_path, err))
+        _log.error("Failed to move log file(s) %s* to new log file %s*: %s" % (src_logfile, target_logfile, err))
 
 
 def cleanup(logfile, tempdir, testing):
