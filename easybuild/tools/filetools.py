@@ -34,6 +34,7 @@ Set of file tools.
 @author: Ward Poelmans (Ghent University)
 @author: Fotis Georgatos (Uni.Lu, NTUA)
 """
+import glob
 import os
 import re
 import shutil
@@ -875,14 +876,51 @@ def rmtree2(path, n=3):
         _log.info("Path %s successfully removed." % path)
 
 
+def move_logs(src_logfile, target_logfile):
+    """Move log file(s)."""
+    mkdir(os.path.dirname(target_logfile), parents=True)
+    src_logfile_len = len(src_logfile)
+    try:
+
+        # there may be multiple log files, due to log rotation
+        app_logs = glob.glob('%s*' % src_logfile)
+        for app_log in app_logs:
+            # retain possible suffix
+            new_log_path = target_logfile + app_log[src_logfile_len:]
+
+            # retain old logs
+            if os.path.exists(new_log_path):
+                i = 0
+                oldlog_backup = "%s_%d" % (new_log_path, i)
+                while os.path.exists(oldlog_backup):
+                    i += 1
+                    oldlog_backup = "%s_%d" % (new_log_path, i)
+                shutil.move(new_log_path, oldlog_backup)
+                _log.info("Moved existing log file %s to %s" % (new_log_path, oldlog_backup))
+
+            # move log to target path
+            shutil.move(app_log, new_log_path)
+            _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
+
+    except (IOError, OSError), err:
+        _log.error("Failed to move log file(s) %s* to new log file %s*: %s" % (src_logfile, target_logfile, err))
+
+
 def cleanup(logfile, tempdir, testing):
     """Cleanup the specified log file and the tmp directory"""
     if not testing and logfile is not None:
-        os.remove(logfile)
-        print_msg('temporary log file %s has been removed.' % (logfile), log=None, silent=testing)
+        try:
+            for log in glob.glob('%s*' % logfile):
+                os.remove(log)
+        except OSError, err:
+            _log.error("Failed to remove log file(s) %s*: %s" % (logfile, err))
+        print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
 
     if not testing and tempdir is not None:
-        shutil.rmtree(tempdir, ignore_errors=True)
+        try:
+            shutil.rmtree(tempdir, ignore_errors=True)
+        except OSError, err:
+            _log.error("Failed to remove temporary directory %s: %s" % (tempdir, err))
         print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 

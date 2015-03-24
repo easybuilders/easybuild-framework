@@ -308,6 +308,34 @@ class FileToolsTest(EnhancedTestCase):
         ]:
             self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
 
+    def test_move_logs(self):
+        """Test move_logs function."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'foobar')
+        ft.write_file(fp + '.1', 'moarfoobar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'foo.log'))
+
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log')), 'foobar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log.1')), 'moarfoobar')
+
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log'), 'bar')
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log_1'), 'barbar')
+
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'moarbar')
+        ft.write_file(fp + '.1', 'evenmoarbar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
+
+        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1', 'foo.log', 'foo.log.1']
+        self.assertEqual(sorted(os.listdir(self.test_prefix)), logs)
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+
+
 def suite():
     """ returns all the testcases in this module """
     return TestLoader().loadTestsFromTestCase(FileToolsTest)
