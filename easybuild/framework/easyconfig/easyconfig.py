@@ -411,9 +411,9 @@ class EasyConfig(object):
 
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
+        self.log.debug("Dependencies BEFORE filtering: %s" % deps)
         filter_deps = build_option('filter_deps')
         if filter_deps:
-            self.log.debug("Dependencies BEFORE filtering: %s" % deps)
             filtered_deps = []
             for dep in deps:
                 if dep['name'] not in filter_deps:
