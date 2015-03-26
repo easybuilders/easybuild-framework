@@ -250,8 +250,8 @@ class EasyConfig(object):
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
-            raise EasyBuildError("You may have some typos in your easyconfig file: %s" %
-                            ', '.join(["%s -> %s" % typo for typo in typos]))
+            raise EasyBuildError("You may have some typos in your easyconfig file: %s",
+                                 ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
@@ -304,8 +304,8 @@ class EasyConfig(object):
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
-            raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
-                           (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
+            raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
+                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -321,8 +321,8 @@ class EasyConfig(object):
             if 'software_license' in self.mandatory:
                 raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
         elif not isinstance(lic, License):
-            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.' %
-                           (lic, lic.__class__.__name__))
+            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
+                                 lic, lic.__class__.__name__)
         elif not lic.name in EASYCONFIG_LICENSES_DICT:
             raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
 
@@ -586,11 +586,9 @@ class EasyConfig(object):
                 if 'name' in tc_spec and 'version' in tc_spec:
                     tc = copy.deepcopy(tc_spec)
                 else:
-                    raise EasyBuildError("Found toolchain spec as dict with required 'name'/'version' keys: %s",
-                                         tc_spec)
+                    raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
             else:
-                raise EasyBuildError("Unsupported type for toolchain spec encountered: %s => %s",
-                                     tc_spec, type(tc_spec))
+                raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
 
         dependency['toolchain'] = tc
 
@@ -896,8 +894,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError, err:
-            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
-            raise EasyBuildError(msg)
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
         name = ec['name']
 

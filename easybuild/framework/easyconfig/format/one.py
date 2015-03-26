@@ -124,8 +124,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             block_contents = pieces.pop(0)
 
             if block_name in [b['name'] for b in blocks]:
-                msg = "Found block %s twice in %s." % (block_name, spec)
-                raise EasyBuildError(msg)
+                raise EasyBuildError("Found block %s twice in %s.", block_name, spec)
 
             block = {'name': block_name, 'contents': block_contents}
 

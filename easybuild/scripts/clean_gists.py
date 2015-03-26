@@ -77,7 +77,7 @@ def main():
 
     if status != HTTP_STATUS_OK:
         raise EasyBuildError("Failed to get a lists of gists for user %s: error code %s, message = %s",
-                  username, status, gists)
+                             username, status, gists)
     else:
         log.info("Found %s gists", len(gists))
 
@@ -104,7 +104,7 @@ def main():
                     status, pr = gh.repos[GITHUB_EB_MAIN][GITHUB_EASYCONFIGS_REPO].pulls[pr_num].get()
                     if status != HTTP_STATUS_OK:
                         raise EasyBuildError("Failed to get pull-request #%s: error code %s, message = %s",
-                                  pr_num, status, pr)
+                                             pr_num, status, pr)
                     pr_cache[pr_num] = pr["state"]
 
                 if pr_cache[pr_num] == "closed":
@@ -120,7 +120,7 @@ def main():
 
             if status != HTTP_DELETE_OK:
                 raise EasyBuildError("Unable to remove gist (id=%s): error code %s, message = %s",
-                          gist["id"], status, del_gist)
+                                     gist["id"], status, del_gist)
             else:
                 log.info("Delete gist with id=%s", gist["id"])
                 num_deleted += 1

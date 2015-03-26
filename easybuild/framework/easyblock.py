@@ -423,7 +423,7 @@ class EasyBlock(object):
                             exts_sources.append(ext_src)
 
                         else:
-                            raise EasyBuildError("Source for extension %s not found.")
+                            raise EasyBuildError("Source for extension %s not found.", ext)
 
             elif isinstance(ext, basestring):
                 exts_sources.append({'name': ext})
@@ -655,8 +655,7 @@ class EasyBlock(object):
             # self.builddir should be already set by gen_builddir()
             if not self.builddir:
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
-            self.log.debug("Creating the build directory %s (cleanup: %s)",
-                           self.builddir, self.cfg['cleanupoldbuild'])
+            self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['cleanupoldbuild'])
         else:
             self.log.info("Changing build dir to %s" % self.installdir)
             self.builddir = self.installdir
@@ -1432,9 +1431,8 @@ class EasyBlock(object):
                     self.log.debug("Installing extension %s with default class %s (from %s)",
                                    ext['name'], default_class, default_class_modpath)
                 except (ImportError, NameError), err:
-                    msg = "Also failed to use default class %s from %s for extension %s: %s, giving up" % \
-                        (default_class, default_class_modpath, ext['name'], err)
-                    raise EasyBuildError(msg)
+                    raise EasyBuildError("Also failed to use default class %s from %s for extension %s: %s, giving up",
+                                         default_class, default_class_modpath, ext['name'], err)
             else:
                 self.log.debug("Installing extension %s with class %s (from %s)" % (ext['name'], class_name, mod_path))
 
@@ -1524,8 +1522,8 @@ class EasyBlock(object):
         lenvals = [len(x) for x in paths.values()]
         req_keys = sorted(path_keys_and_check.keys())
         if not ks == req_keys or sum(valnottypes) > 0 or sum(lenvals) == 0:
-            raise EasyBuildError("Incorrect format for sanity_check_paths (should have %s keys, "
-                           "values should be lists (at least one non-empty))." % '/'.join(req_keys))
+            raise EasyBuildError("Incorrect format for sanity_check_paths (should (only) have %s keys, "
+                                 "values should be lists (at least one non-empty)).", ','.join(req_keys))
 
         for key, check_fn in path_keys_and_check.items():
             for xs in paths[key]:

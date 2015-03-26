@@ -69,7 +69,7 @@ def build_easyconfig_constants_dict():
                 const_dict[cst_key] = cst_val
 
     if len(err) > 0:
-        raise EasyBuildError("EasyConfig constants sanity check failed: %s", "\n".join(err))
+        raise EasyBuildError("EasyConfig constants sanity check failed: %s", '\n'.join(err))
     else:
         return const_dict
 

@@ -153,8 +153,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         # make sure this stops, we really don't want to get stuck in an infinite loop
         loopcnt += 1
         if loopcnt > maxloopcnt:
-            msg = "Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)"
-            raise EasyBuildError(msg, maxloopcnt, unprocessed, irresolvable)
+            raise EasyBuildError("Maximum loop cnt %s reached, so quitting (unprocessed: %s, irresolvable: %s)",
+                                 maxloopcnt, unprocessed, irresolvable)
 
         # first try resolving dependencies without using external dependencies
         last_processed_count = -1
@@ -205,8 +205,8 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
                         mods = [spec['ec'].full_mod_name for spec in processed_ecs]
                         dep_mod_name = ActiveMNS().det_full_module_name(cand_dep)
                         if not dep_mod_name in mods:
-                            msg = "easyconfig file %s does not contain module %s (mods: %s)"
-                            raise EasyBuildError(msg, path, dep_mod_name, mods)
+                            raise EasyBuildError("easyconfig file %s does not contain module %s (mods: %s)",
+                                                 path, dep_mod_name, mods)
 
                         for ec in processed_ecs:
                             if not ec in unprocessed + additional:
@@ -229,9 +229,9 @@ def resolve_dependencies(unprocessed, build_specs=None, retain_all_deps=False):
         irresolvable_mods_eb = [EasyBuildMNS().det_full_module_name(dep) for dep in irresolvable]
         _log.warning("Irresolvable dependencies (EasyBuild module names): %s" % ', '.join(irresolvable_mods_eb))
         irresolvable_mods = [ActiveMNS().det_full_module_name(dep) for dep in irresolvable]
-        raise EasyBuildError('Irresolvable dependencies encountered: %s', ', '.join(irresolvable_mods))
+        raise EasyBuildError("Irresolvable dependencies encountered: %s", ', '.join(irresolvable_mods))
 
-    _log.info("Dependency resolution complete, building as follows:\n%s" % ordered_ecs)
+    _log.info("Dependency resolution complete, building as follows: %s" % ordered_ecs)
     return ordered_ecs
 
 

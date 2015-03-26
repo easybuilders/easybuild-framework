@@ -71,7 +71,7 @@ class Acml(LinAlg):
                 self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
         except:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
-                                 " with compiler family %s", self.COMPILER_FAMILY)
+                                 "with compiler family %s", self.COMPILER_FAMILY)
 
         # version before 5.x still featured the acml_mv library
         ver = self.get_software_version(self.BLAS_MODULE_NAME)[0]

@@ -491,8 +491,8 @@ class ModulesTool(object):
         cmdlist = [self.cmd, 'python']
         if self.COMMAND_SHELL is not None:
             if not isinstance(self.COMMAND_SHELL, (list, tuple)):
-                msg = 'COMMAND_SHELL needs to be list or tuple, now %s (value %s)'
-                raise EasyBuildError(msg, type(self.COMMAND_SHELL), self.COMMAND_SHELL)
+                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
+                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
             cmdlist = self.COMMAND_SHELL + cmdlist
 
         full_cmd = ' '.join(cmdlist + args)

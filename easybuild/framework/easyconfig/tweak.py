@@ -393,8 +393,8 @@ def select_or_generate_ec(fp, paths, specs):
         if EASYCONFIG_TEMPLATE in tcnames:
             _log.info("No easyconfig file for specified toolchain, but template is available.")
         else:
-            raise EasyBuildError("No easyconfig file for %s with toolchain %s, " \
-                      "and no template available." % (name, specs['toolchain_name']))
+            raise EasyBuildError("No easyconfig file for %s with toolchain %s, and no template available.",
+                                 name, specs['toolchain_name'])
 
     tcname = specs.pop('toolchain_name', None)
     handled_params.append('toolchain_name')
@@ -500,9 +500,7 @@ def select_or_generate_ec(fp, paths, specs):
             filter_ecs = True
         else:
             # otherwise, we fail, because we don't know how to pick between different fixes
-            raise EasyBuildError("No %s specified, and can't pick from available %ses %s" % (param,
-                                                                                  param,
-                                                                                  vals))
+            raise EasyBuildError("No %s specified, and can't pick from available ones: %s", param, vals)
 
         if filter_ecs:
             _log.debug("Filtering easyconfigs based on %s '%s'..." % (param, selected_val))

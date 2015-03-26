@@ -44,7 +44,7 @@ import zlib
 from vsc.utils import fancylogger
 
 import easybuild.tools.environment as env
-from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to activate use of EasyBuildLog
+from easybuild.tools.build_log import EasyBuildError, print_msg  # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.config import build_option
 from easybuild.tools import run
 

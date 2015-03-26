@@ -243,14 +243,13 @@ class EBConfigObj(object):
                     new_value = []
                     for dep_name, dep_val in value.items():
                         if isinstance(dep_val, Section):
-                            raise EasyBuildError("Unsupported nested section '%s' found in dependencies section",
-                                                 dep_name)
+                            raise EasyBuildError("Unsupported nested section '%s' in dependencies section", dep_name)
                         else:
                             # FIXME: parse the dependency specification for version, toolchain, suffix, etc.
                             dep = Dependency(dep_val, name=dep_name)
                             if dep.name() is None or dep.version() is None:
-                                tmpl = "Failed to find name/version in parsed dependency: %s (dict: %s)"
-                                raise EasyBuildError(tmpl, dep, dict(dep))
+                                raise EasyBuildError("Failed to find name/version in parsed dependency: %s (dict: %s)",
+                                                     dep, dict(dep))
                             new_value.append(dep)
 
                     tmpl = 'Converted dependency section %s to %s, passed it to parent section (or default)'

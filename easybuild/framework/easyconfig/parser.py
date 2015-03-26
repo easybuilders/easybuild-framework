@@ -149,8 +149,8 @@ class EasyConfigParser(object):
         elif not found_classes:
             raise EasyBuildError('No format classes found matching version %s', self.format_version)
         else:
-            msg = 'More than one format class found matching version %s in %s' % (self.format_version, found_classes)
-            raise EasyBuildError(msg)
+            raise EasyBuildError("More than one format class found matching version %s in %s",
+                                 self.format_version, found_classes)
 
     def _set_formatter(self):
         """Obtain instance of the formatter"""
@@ -172,7 +172,7 @@ class EasyConfigParser(object):
         try:
             self.set_fn[0](*self.set_fn[1])
         except IOError, err:
-            raise EasyBuildError('Failed to process content with %s: %s', self.set_fn, err)
+            raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
 
     def set_specifications(self, specs):
         """Set specifications."""

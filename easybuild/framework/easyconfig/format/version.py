@@ -81,7 +81,7 @@ class VersionOperator(object):
         """
         Initialise VersionOperator instance.
         @param versop_str: intialise with version operator string
-        raise EasyBuildError in case of parse error
+        @param error_on_parse_failure: raise EasyBuildError in case of parse error
         """
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -312,8 +312,8 @@ class VersionOperator(object):
         versop_msg = "this versop %s and versop_other %s" % (self, versop_other)
 
         if not isinstance(versop_other, self.__class__):
-            raise EasyBuildError('overlap/conflict check needs instance of self %s (got type %s)' %
-                           (self.__class__.__name__, type(versop_other)))
+            raise EasyBuildError("overlap/conflict check needs instance of self %s (got type %s)",
+                                 self.__class__.__name__, type(versop_other))
 
         if self == versop_other:
             self.log.debug("%s are equal. Return overlap True, conflict False." % versop_msg)
@@ -425,7 +425,7 @@ class VersionOperator(object):
             Suffix are not considered.
         """
         if len(self.ORDERED_OPERATORS) != len(self.OPERATOR_MAP):
-            raise EasyBuildError('Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)')
+            raise EasyBuildError("Inconsistency between ORDERED_OPERATORS and OPERATORS (lists are not of same length)")
 
         # ensure this function is only used for non-conflicting version operators
         _, conflict = self.test_overlap_and_conflict(versop_other)
@@ -632,9 +632,9 @@ class OrderedVersionOperators(object):
             gt_test = [versop_new > versop for versop in self.versops]
             if None in gt_test:
                 # conflict
-                msg = 'add: conflict(s) between versop_new %s and existing versions %s'
                 conflict_versops = [(idx, self.versops[idx]) for idx, gt_val in enumerate(gt_test) if gt_val is None]
-                raise EasyBuildError(msg, versop_new, conflict_versops)
+                raise EasyBuildError("add: conflict(s) between versop_new %s and existing versions %s",
+                                     versop_new, conflict_versops)
             else:
                 if True in gt_test:
                     # determine first element for which comparison is True
@@ -665,11 +665,11 @@ class OrderedVersionOperators(object):
     def get_data(self, versop):
         """Return the data for versop from datamap"""
         if not isinstance(versop, VersionOperator):
-            raise EasyBuildError(("get_data: argument must be a VersionOperator instance: %s; type %s"),
+            raise EasyBuildError("get_data: argument must be a VersionOperator instance: %s; type %s",
                                   versop, type(versop))
 
         versop_str = str(versop)
         if versop_str in self.datamap:
             return self.datamap[versop_str]
         else:
-            raise EasyBuildError('No data in datamap for versop %s', versop)
+            raise EasyBuildError("No data in datamap for versop %s", versop)
