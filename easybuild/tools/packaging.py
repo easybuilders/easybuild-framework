@@ -70,10 +70,7 @@ def package_fpm(easyblock, modfile_path ):
 
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
-        short_mod_name = easyblock.toolchain.det_short_module_name()
-        _log.debug("The toolchain short module name is: %s" % short_mod_name)
         toolchain_dict = easyblock.toolchain.as_dict()
-        toolchain_dict["short_mod_name"] = short_mod_name
         deps.extend([toolchain_dict])
 
     deps.extend(easyblock.cfg.dependencies())
@@ -81,8 +78,9 @@ def package_fpm(easyblock, modfile_path ):
     _log.debug("The dependencies to be added to the package are: " + pprint.pformat([easyblock.toolchain.as_dict()]+easyblock.cfg.dependencies()))
     depstring = ""    
     for dep in deps:
-        short_mod_name = dep['short_mod_name'].partition('/')
-        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], short_mod_name[2])
+        full_dep_version = det_full_ec_version(dep)
+        #by default will only build iteration 1 packages, do we need to enhance this?
+        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], full_dep_version)
 
     cmdlist=[
         'fpm',
