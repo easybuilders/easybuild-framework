@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -53,38 +53,38 @@ class Clang(Compiler):
         'loop-vectorize': ['fvectorize'],
         'basic-block-vectorize': ['fslp-vectorize'],
         'optarch':'march=native',
-
-    # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
-    # optimizations.
-    # 
-    # -fassociative-math: allow re-association of operands in series of floating-point operations, violates the
-    # ISO C and C++ language standard by possibly changing computation result.
-    # -freciprocal-math: allow optimizations to use the reciprocal of an argument rather than perform division.
-    # -fsigned-zeros: do not allow optimizations to treat the sign of a zero argument or result as insignificant.
-    # -fhonor-infinities: disallow optimizations to assume that arguments and results are not +/- Infs.
-    # -fhonor-nans: disallow optimizations to assume that arguments and results are not +/- NaNs.
-    # -ffinite-math-only: allow optimizations for floating-point arithmetic that assume that arguments and results
-    # are not NaNs or +-Infs (equivalent to -fno-honor-nans -fno-honor-infinities)
-    # -funsafe-math-optimizations: allow unsafe math optimizations (implies -fassociative-math, -fno-signed-zeros,
-    # -freciprocal-math).
-    # -ffast-math: an umbrella flag that enables all optimizations listed above, provides preprocessor macro
-    # __FAST_MATH__.
-    #
-    # Using -fno-fast-math is equivalent to disabling all individual optimizations, see
-    # http://llvm.org/viewvc/llvm-project/cfe/trunk/lib/Driver/Tools.cpp?view=markup (lines 2100 and following)
-    #
-    # 'strict', 'precise' and 'defaultprec' are all ISO C++ and IEEE complaint, but we explicitly specify details
-    # flags for strict and precise for robustness against future changes.
-    'strict': ['fno-fast-math'],
-    'precise': ['fno-unsafe-math-optimizations'],
-    'defaultprec': [],
-    'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
-    'veryloose': ['ffast-math'],
+        # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
+        # optimizations.
+        # 
+        # -fassociative-math: allow re-association of operands in series of floating-point operations, violates the
+        # ISO C and C++ language standard by possibly changing computation result.
+        # -freciprocal-math: allow optimizations to use the reciprocal of an argument rather than perform division.
+        # -fsigned-zeros: do not allow optimizations to treat the sign of a zero argument or result as insignificant.
+        # -fhonor-infinities: disallow optimizations to assume that arguments and results are not +/- Infs.
+        # -fhonor-nans: disallow optimizations to assume that arguments and results are not +/- NaNs.
+        # -ffinite-math-only: allow optimizations for floating-point arithmetic that assume that arguments and results
+        # are not NaNs or +-Infs (equivalent to -fno-honor-nans -fno-honor-infinities)
+        # -funsafe-math-optimizations: allow unsafe math optimizations (implies -fassociative-math, -fno-signed-zeros,
+        # -freciprocal-math).
+        # -ffast-math: an umbrella flag that enables all optimizations listed above, provides preprocessor macro
+        # __FAST_MATH__.
+        #
+        # Using -fno-fast-math is equivalent to disabling all individual optimizations, see
+        # http://llvm.org/viewvc/llvm-project/cfe/trunk/lib/Driver/Tools.cpp?view=markup (lines 2100 and following)
+        #
+        # 'strict', 'precise' and 'defaultprec' are all ISO C++ and IEEE complaint, but we explicitly specify details
+        # flags for strict and precise for robustness against future changes.
+        'strict': ['fno-fast-math'],
+        'precise': ['fno-unsafe-math-optimizations'],
+        'defaultprec': [],
+        'loose': ['ffast-math', 'fno-unsafe-math-optimizations'],
+        'veryloose': ['ffast-math'],
     }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         systemtools.INTEL : 'march=native',
-        systemtools.AMD : 'march=native'
+        systemtools.AMD : 'march=native',
+        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
     }
 
     COMPILER_CC = 'clang'

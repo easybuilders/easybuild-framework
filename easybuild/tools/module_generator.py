@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,7 +55,7 @@ class ModuleGenerator(object):
     SYNTAX = None
 
     # chars we want to escape in the generated modulefiles
-    CHARS_TO_ESCAPE = ["$"]
+    CHARS_TO_ESCAPE = None
     MODULE_FILE_EXTENSION = None
 
     def __init__(self, application, fake=False):
@@ -131,6 +131,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
     SYNTAX = 'Tcl'
+    CHARS_TO_ESCAPE = ["$"]
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
@@ -226,16 +227,17 @@ class ModuleGeneratorTcl(ModuleGenerator):
         template = "prepend-path\t%s\t\t%s\n"
 
         if isinstance(paths, basestring):
-            self.log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        # make sure only relative paths are passed
-        for i in xrange(len(paths)):
-            if os.path.isabs(paths[i]) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
-            elif not os.path.isabs(paths[i]):
+
+        for i, path in enumerate(paths):
+            if os.path.isabs(path) and not allow_abs:
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+            elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                paths[i] = "$root/%s" % paths[i]
+                paths[i]="$root/%s" % path
+
 
         statements = [template % (key, p) for p in paths]
         return ''.join(statements)
@@ -275,7 +277,6 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Append whatever Tcl code you want to your modulefile
         """
-        # nothing to do here, but this should fail in the context of generating Lua modules
         return tcltxt
 
     def set_alias(self, key, value):
@@ -292,6 +293,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     """
     MODULE_FILE_EXTENSION = '.lua'
     SYNTAX = 'Lua'
+    CHARS_TO_ESCAPE = ["%"]
 
     LOAD_REGEX = r'^\s*load\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
@@ -330,19 +332,6 @@ class ModuleGeneratorLua(ModuleGenerator):
             'pkg.root="%(installdir)s"',
             "",
             ]
-
-        #@todo check if this is really needed, imho Lmod doesnt need this at all.
-        if self.app.cfg['moduleloadnoconflict']:
-            lines.extend([
-             'if ( not isloaded("%(name)s/%(version)s")) then',
-             '  load("%(name)s/%(version)s")',
-             'end',
-             ])
-
-        elif conflict:
-            # conflicts are not needed in lua module files, as Lmod's one name
-            # rule and automatic swapping.
-            pass
 
         txt = '\n'.join(lines) % {
             'name': self.app.name,
@@ -390,16 +379,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         template = 'prepend_path(%s,%s)\n'
 
         if isinstance(paths, basestring):
-            self.log.info("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-        # make sure only relative paths are passed
-        for i in xrange(len(paths)):
-            if os.path.isabs(paths[i]) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
-            elif not os.path.isabs(paths[i]):
-                # prepend $root (= installdir) for relative paths
-                paths[i] = ' pathJoin(pkg.root,"%s")' % paths[i]
+        for i, path in enumerate(paths):
+            if os.path.isabs(path) and not allow_abs:
+                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+            elif not os.path.isabs(path):
+                # use pathJoin(pkg.root, path) for relative paths
+                paths[i]=' pathJoin(pkg.root,"%s")' % path
 
         statements = [template % (quote_str(key), p) for p in paths]
         return ''.join(statements)
@@ -407,11 +395,9 @@ class ModuleGeneratorLua(ModuleGenerator):
     def use(self, paths):
         """
         Generate module use statements for given list of module paths.
+        @param paths: list of module path extensions to generate use statements for
         """
-        use_statements = []
-        for path in paths:
-            use_statements.append('use("%s")' % path)
-        return '\n'.join(use_statements)
+        return '\n'.join(['use("%s")' % p for p in paths] + [''])
 
     def set_environment(self, key, value):
         """
@@ -435,11 +421,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         pass
 
     def add_tcl_footer(self, tcltxt):
+        raise NotImplementedError
+
+    def add_lua_footer(self,luatxt):
         """
-        Append whatever Tcl code you want to your modulefile
+        Append whatever Lua code you want to your modulefile
         """
-        #@todo to pass or not to pass? this should fail in the context of generating Lua modules
-        pass
+        return luatxt
 
     def set_alias(self, key, value):
         """
@@ -452,10 +440,7 @@ def avail_module_generators():
     """
     Return all known module syntaxes.
     """
-    class_dict = {}
-    for klass in get_subclasses(ModuleGenerator):
-        class_dict.update({klass.SYNTAX: klass})
-    return class_dict
+    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
 
 
 def module_generator(app, fake=False):
