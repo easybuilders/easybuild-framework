@@ -34,7 +34,7 @@ import shutil
 import stat
 import tempfile
 import urllib2
-from test.framework.utilities import EnhancedTestCase
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -200,6 +200,18 @@ class FileToolsTest(EnhancedTestCase):
         urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
         res = ft.download_file(fn, source_url, target_location)
         self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
+
+        # make sure specified timeout is parsed correctly (as a float, not a string)
+        opts = init_config(args=['--download-timeout=5.3'])
+        init_config(build_options={'download_timeout': opts.download_timeout})
+        target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
+        url = 'https://jenkins1.ugent.be/robots.txt'
+        try:
+            urllib2.urlopen(url)
+            res = ft.download_file(fn, url, target_location)
+            self.assertEqual(res, target_location, "download with specified timeout works")
+        except urllib2.URLError:
+            print "Skipping timeout test in test_download_file (working offline)"
 
     def test_mkdir(self):
         """Test mkdir function."""
