@@ -39,6 +39,7 @@ from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools import config
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname
@@ -95,7 +96,8 @@ class ModuleGenerator(object):
                     os.remove(class_mod_file)
                 os.symlink(self.filename, class_mod_file)
         except OSError, err:
-            _log.error("Failed to create symlinks from %s to %s: %s" % (self.class_mod_files, self.filename, err))
+            raise EasyBuildError("Failed to create symlinks from %s to %s: %s",
+                                 self.class_mod_files, self.filename, err)
 
     def get_description(self, conflict=True):
         """
@@ -186,7 +188,8 @@ class ModuleGenerator(object):
         # make sure only relative paths are passed
         for i in xrange(len(paths)):
             if os.path.isabs(paths[i]) and not allow_abs:
-                _log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % paths[i])
+                raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
+                                     paths[i])
             elif not os.path.isabs(paths[i]):
                 # prepend $root (= installdir) for relative paths
                 paths[i] = "$root/%s" % paths[i]
