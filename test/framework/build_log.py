@@ -35,7 +35,7 @@ from unittest import TestLoader
 from unittest import main as unittestmain
 from vsc.utils.fancylogger import getLogger, getRootLoggerName, logToFile, setLogFormat
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import LOGGING_FORMAT, EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -46,6 +46,11 @@ def raise_easybuilderror(msg, *args, **kwargs):
 
 class BuildLogTest(EnhancedTestCase):
     """Tests for EasyBuild log infrastructure."""
+
+    def tearDown(self):
+        """Cleanup after test."""
+        # restore default logging format
+        setLogFormat(LOGGING_FORMAT)
 
     def test_easybuilderror(self):
         """Tests for EasyBuildError."""
