@@ -355,7 +355,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         else:
             load_statement = [
                 'if ( not isloaded("%(mod_name)s")) then',
-                '  %s' % LOAD_TEMPLATE,
+                '    %s' % LOAD_TEMPLATE,
                 'end',
             ]
         return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
@@ -366,8 +366,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join([
             "",
-            "if (isloaded(%(mod_name)s)) then",
-            "    unload(%(mod_name)s)",
+            'if (isloaded("%(mod_name)s")) then,
+            '    unload(%(mod_name)s)',
             "end",
             "",
         ]) % {'mod_name': mod_name}
@@ -434,7 +434,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias(%s,"%s")\n' % (key, quote_str(value))
+        return 'setalias("%s","%s")\n' % (key, quote_str(value))
 
 def avail_module_generators():
     """
