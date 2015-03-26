@@ -255,7 +255,7 @@ def download_file(filename, url, path):
 
     _log.debug("Trying to download %s from %s to %s", filename, url, path)
 
-    timeout = float(build_option('download_timeout'))
+    timeout = build_option('download_timeout')
     if timeout is None:
         # default to 10sec timeout if none was specified
         # default system timeout (used is nothing is specified) may be infinite (?)

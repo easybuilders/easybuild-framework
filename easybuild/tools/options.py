@@ -186,7 +186,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
