@@ -366,7 +366,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join([
             "",
-            'if (isloaded("%(mod_name)s")) then,
+            'if (isloaded("%(mod_name)s")) then',
             '    unload(%(mod_name)s)',
             "end",
             "",
@@ -434,7 +434,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias("%s","%s")\n' % (key, quote_str(value))
+        return 'setalias("%s,"%s")\n' % (key, quote_str(value))
 
 def avail_module_generators():
     """
