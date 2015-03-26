@@ -101,9 +101,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = [
                 "local pkg = {}",
-                "help = [["
-                "%s"
-                "]]" %s gzip_txt,
+                'help = [["%s""]]' %s gzip_txt,
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,
@@ -198,7 +196,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = ''.join([
                 'prepend-path("key", pathJoin(pkg.root,"path1"))',
-                'prepend-path("key", pathJoin(pkg.root,"path2"))',
+                prepend-path("key", pathJoin(pkg.root,"path2"))',
             ])
             self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
