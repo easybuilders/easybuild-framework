@@ -41,6 +41,8 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.run import run_cmd
 from easybuild.tools.config import install_path, package_prefix
+from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
+from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 _log = fancylogger.getLogger('tools.packaging')
 
@@ -56,16 +58,31 @@ def package_fpm(easyblock, modfile_path ):
 
     pkgprefix   = package_prefix()
     pkgtemplate = "%(prefix)s-%(name)s"
+    full_ec_version = det_full_ec_version(easyblock.cfg)
     #"HPCBIOS.20150211-%(name)s-%(version)s"
 
     pkgname=pkgtemplate % {
         'prefix' : pkgprefix,
         'name' : easyblock.name,
     }
-    _log.debug("The dependencies to be added to the package are: " + pprint.pformat(easyblock.cfg.dependencies()))
+    
+    # a lot of this logic should probably be put elsewhere, but make_module_dep is the only place I've seen that uses it
+
+    deps = []
+    if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
+        short_mod_name = easyblock.toolchain.det_short_module_name()
+        _log.debug("The toolchain short module name is: %s" % short_mod_name)
+        toolchain_dict = easyblock.toolchain.as_dict()
+        toolchain_dict["short_mod_name"] = short_mod_name
+        deps.extend([toolchain_dict])
+
+    deps.extend(easyblock.cfg.dependencies())
+ 
+    _log.debug("The dependencies to be added to the package are: " + pprint.pformat([easyblock.toolchain.as_dict()]+easyblock.cfg.dependencies()))
     depstring = ""    
-    for dep in easyblock.cfg.dependencies():
-        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], dep['version'])
+    for dep in deps:
+        short_mod_name = dep['short_mod_name'].partition('/')
+        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], short_mod_name[2])
 
     cmdlist=[
         'fpm',
@@ -74,7 +91,7 @@ def package_fpm(easyblock, modfile_path ):
         '--provides', "%s-%s" %(pkgprefix,easyblock.name),
         '-t', 'rpm', # target
         '-s', 'dir', # source
-        '--version', easyblock.version,
+        '--version', full_ec_version,
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([
