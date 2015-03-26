@@ -88,11 +88,13 @@ class EasyBuildOptions(GeneralOption):
     def __init__(self, *args, **kwargs):
         """Constructor."""
 
+        self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
 
         # set up constants to seed into config files parser, by section
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
+                'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0], "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
             }
@@ -186,7 +188,7 @@ class EasyBuildOptions(GeneralOption):
             'cleanup-builddir': ("Cleanup build dir after successful installation.", None, 'store_true', True),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
                            None, 'store', None),
-            'download-timeout': ("Timeout for initiating downloads (in seconds)", None, 'store', None),
+            'download-timeout': ("Timeout for initiating downloads (in seconds)", float, 'store', None),
             'easyblock': ("easyblock to use for processing the spec file or dumping the options",
                           None, 'store', None, 'e', {'metavar': 'CLASS'}),
             'experimental': ("Allow experimental code (with behaviour that can be changed/removed at any given time).",
@@ -255,8 +257,7 @@ class EasyBuildOptions(GeneralOption):
             'repositorypath': (("Repository path, used by repository "
                                 "(is passed as list of arguments to create the repository instance). "
                                 "For more info, use --avail-repositories."),
-                               'strlist', 'store',
-                               [mk_full_default_path('repositorypath')]),
+                               'strlist', 'store', self.default_repositorypath),
             'show-default-moduleclasses': ("Show default module classes with description",
                                            None, 'store_true', False),
             'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
@@ -434,7 +435,9 @@ class EasyBuildOptions(GeneralOption):
                     if dest == 'repository':
                         setattr(self.options, dest, DEFAULT_REPOSITORY)
                     elif dest == 'repositorypath':
-                        setattr(self.options, dest, [mk_full_default_path(dest, prefix=self.options.prefix)])
+                        repositorypath = [mk_full_default_path(dest, prefix=self.options.prefix)]
+                        setattr(self.options, dest, repositorypath)
+                        self.go_cfg_constants[self.DEFAULTSECT]['DEFAULT_REPOSITORYPATH'] = repositorypath
                     else:
                         setattr(self.options, dest, mk_full_default_path(dest, prefix=self.options.prefix))
                     # LEGACY this line is here for oldstyle config reasons
@@ -602,7 +605,7 @@ class EasyBuildOptions(GeneralOption):
 
     def avail_repositories(self):
         """Show list of known repository types."""
-        repopath_defaults = mk_full_default_path('repositorypath')
+        repopath_defaults = self.default_repositorypath
         all_repos = avail_repositories(check_useable=False)
         usable_repos = avail_repositories(check_useable=True).keys()
 

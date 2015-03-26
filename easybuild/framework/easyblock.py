@@ -63,7 +63,7 @@ from easybuild.tools.config import install_path, log_path, read_only_installdir,
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import DEFAULT_CHECKSUM
 from easybuild.tools.filetools import adjust_permissions, apply_patch, convert_name, download_file, encode_class_name
-from easybuild.tools.filetools import extract_file, mkdir, read_file, rmtree2
+from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file, rmtree2
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -1650,8 +1650,8 @@ class EasyBlock(object):
 
         txt = ''
         txt += self.make_module_description()
-        txt += self.make_module_extend_modpath()
         txt += self.make_module_dep()
+        txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
         txt += self.make_module_extra()
         txt += self.make_module_footer()
@@ -1936,14 +1936,9 @@ def build_and_install_one(ecdict, orig_environ):
 
         # cleanup logs
         app.close_log()
-        try:
-            mkdir(new_log_dir, parents=True)
-            log_fn = os.path.basename(get_log_filename(app.name, app.version))
-            application_log = os.path.join(new_log_dir, log_fn)
-            shutil.move(app.logfile, application_log)
-            _log.debug("Moved log file %s to %s" % (app.logfile, application_log))
-        except (IOError, OSError), err:
-            print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, application_log, err))
+        log_fn = os.path.basename(get_log_filename(app.name, app.version))
+        application_log = os.path.join(new_log_dir, log_fn)
+        move_logs(app.logfile, application_log)
 
         try:
             newspec = os.path.join(new_log_dir, "%s-%s.eb" % (app.name, det_full_ec_version(app.cfg)))
@@ -2075,21 +2070,7 @@ def build_easyconfigs(easyconfigs, output_dir, test_results):
 
             # close log and move it
             app.close_log()
-            try:
-                # retain old logs
-                if os.path.exists(applog):
-                    i = 0
-                    old_applog = "%s.%d" % (applog, i)
-                    while os.path.exists(old_applog):
-                        i += 1
-                        old_applog = "%s.%d" % (applog, i)
-                    shutil.move(applog, old_applog)
-                    _log.info("Moved existing log file %s to %s" % (applog, old_applog))
-
-                shutil.move(app.logfile, applog)
-                _log.info("Log file moved to %s" % applog)
-            except IOError, err:
-                print_error("Failed to move log file %s to new log file %s: %s" % (app.logfile, applog, err))
+            move_logs(app.logfile, applog)
 
             if app not in build_stopped:
                 # gather build stats
