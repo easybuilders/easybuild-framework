@@ -77,111 +77,141 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_descr(self):
         """Test generation of module description (which includes '#%Module' header)."""
-        gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
-        gzip_txt += "- Homepage: http://www.gzip.org/"
-        expected = '\n'.join([
-            "#%Module",
-            "",
-            "proc ModulesHelp { } {",
-            "    puts stderr {   %s" % gzip_txt,
-            "    }",
-            "}",
-            "",
-            "module-whatis {Description: %s}" % gzip_txt,
-            "",
-            "set root    %s" % self.modgen.app.installdir,
-            "",
-            "conflict gzip",
-            "",
-        ]) 
+        
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            gzip_txt = "gzip (GNU zip) is a popular data compression program as a replacement for compress "
+            gzip_txt += "- Homepage: http://www.gzip.org/"
+            expected = '\n'.join([
+                "#%Module",
+                "",
+                "proc ModulesHelp { } {",
+                "    puts stderr {   %s" % gzip_txt,
+                "    }",
+                "}",
+                "",
+                "module-whatis {Description: %s}" % gzip_txt,
+                "",
+                "set root    %s" % self.modgen.app.installdir,
+                "",
+                "conflict gzip",
+                "",
+            ])
 
-        desc = self.modgen.get_description()
-        self.assertEqual(desc, expected)
+            desc = self.modgen.get_description()
+            self.assertEqual(desc, expected)
+        else:
+            pass
 
     def test_load(self):
         """Test load part in generated module file."""
-        expected = [
-            "",
-            "if { ![is-loaded mod_name] } {",
-            "    module load mod_name",
-            "}",
-            "",
-        ]
-        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
 
-        # with recursive unloading: no if is-loaded guard
-        init_config(build_options={'recursive_mod_unload': True})
-        expected = [
-            "",
-            "module load mod_name",
-            "",
-        ]
-        self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = [
+                "",
+                "if { ![is-loaded mod_name] } {",
+                "    module load mod_name",
+                "}",
+                "",
+            ]
+            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+
+            # with recursive unloading: no if is-loaded guard
+            init_config(build_options={'recursive_mod_unload': True})
+            expected = [
+                "",
+                "module load mod_name",
+                "",
+            ]
+            self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
+        else:
+            pass
 
     def test_unload(self):
         """Test unload part in generated module file."""
-        expected = '\n'.join([
-            "",
-            "if { [is-loaded mod_name] } {",
-            "    module unload mod_name",
-            "}",
-            "",
-        ])
-        self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                "",
+                "if { [is-loaded mod_name] } {",
+                "    module unload mod_name",
+                "}",
+                "",
+            ])
+            self.assertEqual(expected, self.modgen.unload_module("mod_name"))
+        else:
+            pass
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
-        expected = ''.join([
-            "prepend-path\tkey\t\t$root/path1\n",
-            "prepend-path\tkey\t\t$root/path2\n",
-        ])
-        self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-        expected = "prepend-path\tbar\t\t$root/foo\n"
-        self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = ''.join([
+                "prepend-path\tkey\t\t$root/path1\n",
+                "prepend-path\tkey\t\t$root/path2\n",
+            ])
+            self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-        self.assertEqual("prepend-path\tkey\t\t/abs/path\n", self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+            expected = "prepend-path\tbar\t\t$root/foo\n"
+            self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
-                                              "which only expects relative paths." % self.modgen.app.installdir,
-                              self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+            self.assertEqual("prepend-path\tkey\t\t/abs/path\n", self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+
+            self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
+                                                  "which only expects relative paths." % self.modgen.app.installdir,
+                                  self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+        else:
+            pass
 
     def test_use(self):
         """Test generating module use statements."""
-        expected = '\n'.join([
-            "module use /some/path",
-            "module use /foo/bar/baz",
-        ])
-        self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            expected = '\n'.join([
+                "module use /some/path",
+                "module use /foo/bar/baz",
+            ])
+            self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
+        else:
+            pass
+
 
     def test_env(self):
         """Test setting of environment variables."""
         # test set_environment
-        self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
-        self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
-        self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
-        self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
+            self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
+            self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
+            self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
+        else:
+            pass
     
     def test_alias(self):
         """Test setting of alias in modulefiles."""
-        # test set_alias
-        self.assertEqual('set-alias\tkey\t\t"value"\n', self.modgen.set_alias("key", "value"))
-        self.assertEqual("set-alias\tkey\t\t'va\"lue'\n", self.modgen.set_alias("key", 'va"lue'))
-        self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
-        self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            # test set_alias
+            self.assertEqual('set-alias\tkey\t\t"value"\n', self.modgen.set_alias("key", "value"))
+            self.assertEqual("set-alias\tkey\t\t'va\"lue'\n", self.modgen.set_alias("key", 'va"lue'))
+            self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
+            self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
+        else:
+            pass
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
-        tcl_load_msg = '\n'.join([
-            '',
-            "if [ module-info mode load ] {",
-            "        puts stderr     \"test \\$test \\$test",
-            "test \\$foo \\$bar\"",
-            "}",
-            '',
-        ])
-        self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            tcl_load_msg = '\n'.join([
+                '',
+                "if [ module-info mode load ] {",
+                "        puts stderr     \"test \\$test \\$test",
+                "test \\$foo \\$bar\"",
+                "}",
+                '',
+            ])
+            self.assertEqual(tcl_load_msg, self.modgen.msg_on_load('test $test \\$test\ntest $foo \\$bar'))
+        else:
+            lua_load_msg = """ """
+
 
     def test_tcl_footer(self):
         """Test including a Tcl footer."""
