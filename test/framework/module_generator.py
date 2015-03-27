@@ -105,7 +105,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,
-                "whatis([[Homepage: http://www.gzip.org/])",
+                "whatis([[Homepage: http://www.gzip.org/]])",
                 "",
                 "",
                 'pkg.root="%s"' %self.modgen.app.installdir,
