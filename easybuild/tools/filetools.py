@@ -905,7 +905,8 @@ def move_logs(src_logfile, target_logfile):
             _log.info("Moved log file %s to %s" % (src_logfile, new_log_path))
 
     except (IOError, OSError), err:
-        _log.error("Failed to move log file(s) %s* to new log file %s*: %s" % (src_logfile, target_logfile, err))
+        raise EasyBuildError("Failed to move log file(s) %s* to new log file %s*: %s" ,
+                             src_logfile, target_logfile, err)
 
 
 def cleanup(logfile, tempdir, testing):
@@ -915,14 +916,14 @@ def cleanup(logfile, tempdir, testing):
             for log in glob.glob('%s*' % logfile):
                 os.remove(log)
         except OSError, err:
-            _log.error("Failed to remove log file(s) %s*: %s" % (logfile, err))
+            raise EasyBuildError("Failed to remove log file(s) %s*: %s", logfile, err)
         print_msg('temporary log file(s) %s* have been removed.' % (logfile), log=None, silent=testing)
 
     if not testing and tempdir is not None:
         try:
             shutil.rmtree(tempdir, ignore_errors=True)
         except OSError, err:
-            _log.error("Failed to remove temporary directory %s: %s" % (tempdir, err))
+            raise EasyBuildError("Failed to remove temporary directory %s: %s", tempdir, err)
         print_msg('temporary directory %s has been removed.' % (tempdir), log=None, silent=testing)
 
 
