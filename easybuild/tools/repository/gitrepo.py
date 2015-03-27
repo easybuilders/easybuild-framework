@@ -139,7 +139,7 @@ class GitRepository(FileRepository):
         Commit working copy to git repository
         """
         self.log.debug("committing in git: %s" % msg)
-        completemsg = "%s \nEasyBuild-commit from %s (time: %s, user: %s) " % (socket.gethostname(),
+        completemsg = "%s EasyBuild-commit from %s (time: %s, user: %s) " % (socket.gethostname(),
                                                                               time.strftime("%Y-%m-%d_%H-%M-%S"),
                                                                               getpass.getuser())
         self.log.debug("git status: %s" % self.client.status())
