@@ -373,18 +373,21 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate prepend-path statements for the given list of paths
         """
-        template = 'prepend_path(%s,%s)\n'
+        template = "prepend_path(%s, %s)\n"
 
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
         for i, path in enumerate(paths):
-            if os.path.isabs(path) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
-            elif not os.path.isabs(path):
+            if os.path.isabs(path):
+                if allow_abs:
+                    paths[i] = quote_str(path)
+                else:
+                    self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+            else:
                 # use pathJoin(pkg.root, path) for relative paths
-                paths[i]=' pathJoin(pkg.root,"%s")' % path
+                paths[i] = 'pathJoin(pkg.root, "%s")' % path
 
         statements = [template % (quote_str(key), p) for p in paths]
         return ''.join(statements)
