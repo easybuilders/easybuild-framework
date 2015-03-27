@@ -319,14 +319,11 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         lines = [
             "local pkg = {}",
-            "help = [["
-            "%(description)s"
-            "]]",
+            "help = [[%(description)s]]",
             "whatis([[Name: %(name)s]])",
             "whatis([[Version: %(version)s]])",
             "whatis([[Description: %(description)s]])",
-            "whatis([[Homepage: %(homepage)s]])"
-            "whatis([[License: N/A ]])",
+            "whatis([[Homepage: %(homepage)s]])",
             "",
             "",
             'pkg.root="%(installdir)s"',
@@ -351,11 +348,11 @@ class ModuleGeneratorLua(ModuleGenerator):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = [LOAD_TEMPLATE]
+            load_statement = [self.LOAD_TEMPLATE]
         else:
             load_statement = [
                 'if ( not isloaded("%(mod_name)s")) then',
-                '    %s' % LOAD_TEMPLATE,
+                '    %s' % self.LOAD_TEMPLATE,
                 'end',
             ]
         return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
@@ -366,15 +363,15 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join([
             "",
-            'if (isloaded("%(mod_name)s")) then',
-            '    unload(%(mod_name)s)',
+            'if (isloaded("%(mod_name)s") then',
+            '    unload("%(mod_name)s")',
             "end",
             "",
         ]) % {'mod_name': mod_name}
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
-        Generate prepend-path statements for the given list of paths.
+        Generate prepend-path statements for the given list of paths
         """
         template = 'prepend_path(%s,%s)\n'
 
@@ -434,7 +431,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias("%s,"%s")\n' % (key, quote_str(value))
+        return 'setalias("%s",%s)\n' % (key, quote_str(value))
 
 def avail_module_generators():
     """

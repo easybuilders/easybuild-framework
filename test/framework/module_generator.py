@@ -99,19 +99,18 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
 
         else:
-            expected = [
+            expected = '\n'.join([
                 "local pkg = {}",
-                'help = [[%s]] %s gzip_txt,
+                'help = [[%s]]' % gzip_txt,
                 "whatis([[Name: gzip]])" ,
                 "whatis([[Version: 1.4]])" ,
                 "whatis([[Description: %s]])" % gzip_txt,
                 "whatis([[Homepage: http://www.gzip.org/])",
-                "whatis([[License: N/A ]])",
                 "",
                 "",
-                'pkg.root="%(installdir)s"',
+                'pkg.root="%s"' %self.modgen.app.installdir,
                 "",
-            ]
+            ])
 
         desc = self.modgen.get_description()
         self.assertEqual(desc, expected)
@@ -139,9 +138,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('\n'.join(expected), self.modgen.load_module("mod_name"))
         else:
             expected = '\n'.join([
-                'if ( not isloaded(mod_name)) then',
-                '  load("mod_name")',
+                '',
+                'if ( not isloaded("mod_name")) then',
+                '    load("mod_name")',
                 'end',
+                '',
             ])
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
@@ -149,7 +150,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             expected = '\n'.join([
                 "",
                 'load("mod_name")',
-                "",])
+                "",
+            ])
             self.assertEqual(expected,self.modgen.load_module("mod_name"))
 
     def test_unload(self):
@@ -167,8 +169,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = '\n'.join([
             "",
-            'if (isloaded("mod_name") then,
-            '    unload("mod_name")",
+            'if (isloaded("mod_name") then',
+            '    unload("mod_name")',
             "end",
             "",
             ])
@@ -194,16 +196,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                                   "which only expects relative paths." % self.modgen.app.installdir,
                                   self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
         else:
-            expected = ''.join([
-                'prepend-path("key", pathJoin(pkg.root,"path1"))',
-                prepend-path("key", pathJoin(pkg.root,"path2"))',
+            expected = '\n'.join([
+                'prepend_path("key", pathJoin(pkg.root,"path1"))',
+                'prepend_path("key", pathJoin(pkg.root,"path2"))',
+                '',
             ])
             self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-            expected = 'prepend-path("bar", pathJoin(pkg.root,"foo")\n'
+            expected = 'prepend_path("bar", pathJoin(pkg.root,"foo"))\n'
             self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
-            self.assertEqual('prepend-path("key", "/abs/path")', self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+            self.assertEqual('prepend_path("key", "/abs/path")', self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
 
             self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
                                                   "which only expects relative paths." % self.modgen.app.installdir,
@@ -220,7 +223,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             expected = '\n'.join([
                 'use("/some/path")',
-                'use("/foo/bar/baz"),
+                'use("/foo/bar/baz")',
+                '',
             ])
             self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
 
@@ -228,13 +232,13 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_env(self):
         """Test setting of environment variables."""
         # test set_environment
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl():
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
             self.assertEqual("setenv\tkey\t\t'va\"lue'\n", self.modgen.set_environment("key", 'va"lue'))
             self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
             self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
         else:
-            self.assertEqual('setenv("key","value")\n', self.modgen.set_environment("key", "value"))
+            self.assertEqual('setenv("key", "value")\n', self.modgen.set_environment("key","value"))
 
     
     def test_alias(self):
@@ -246,7 +250,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual('set-alias\tkey\t\t"va\'lue"\n', self.modgen.set_alias("key", "va'lue"))
             self.assertEqual('set-alias\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_alias("key", """va"l'ue"""))
         else:
-            self.assertEqual('set-alias("key","value"\n, self.modgen.set_alias("key", "value"))
+            self.assertEqual('setalias("key","value")\n', self.modgen.set_alias("key", "value"))
 
     def test_load_msg(self):
         """Test including a load message in the module file."""
