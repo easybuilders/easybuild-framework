@@ -191,14 +191,14 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False):
     mkdir(dest, parents=True)
 
     # use absolute pathnames from now on
-    absDest = os.path.abspath(dest)
+    abs_dest = os.path.abspath(dest)
 
     # change working directory
     try:
-        _log.debug("Unpacking %s in directory %s." % (fn, absDest))
-        os.chdir(absDest)
+        _log.debug("Unpacking %s in directory %s.", fn, abs_dest)
+        os.chdir(abs_dest)
     except OSError, err:
-        raise EasyBuildError("Can't change to directory %s: %s", absDest, err)
+        raise EasyBuildError("Can't change to directory %s: %s", abs_dest, err)
 
     if not cmd:
         cmd = extract_cmd(fn, overwrite=overwrite)
