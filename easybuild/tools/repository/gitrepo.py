@@ -45,6 +45,7 @@ from vsc.utils import fancylogger
 
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
+from easybuild.tools.version import VERSION
 
 _log = fancylogger.getLogger('gitrepo', fname=False)
 
@@ -139,10 +140,9 @@ class GitRepository(FileRepository):
         Commit working copy to git repository
         """
         self.log.debug("committing in git: %s" % msg)
-        completemsg = "EasyBuild-commit from %s (time: %s, user: %s) \n%s" % (socket.gethostname(),
-                                                                              time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                              getpass.getuser(),
-                                                                              msg)
+        completemsg = "%s EasyBuild-commit from %s (time: %s, user: %s). Easybuild v%s" % (msg, socket.gethostname(),
+                                                                                           time.strftime("%Y-%m-%d_%H-%M-%S"),
+                                                                                           getpass.getuser(), str(VERSION))
         self.log.debug("git status: %s" % self.client.status())
         try:
             self.client.commit('-am "%s"' % completemsg)
