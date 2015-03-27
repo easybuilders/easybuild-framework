@@ -47,6 +47,9 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 _log = fancylogger.getLogger('tools.packaging')
 
 def package_fpm(easyblock, modfile_path ):
+    '''
+    This function will build a package using fpm and return the directory where the packages are
+    '''
     
     workdir = tempfile.mkdtemp()
     _log.info("Will be writing RPM to %s" % workdir)
