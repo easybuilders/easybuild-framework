@@ -197,16 +197,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                   self.modgen.prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
         else:
             expected = '\n'.join([
-                'prepend_path("key", pathJoin(pkg.root,"path1"))',
-                'prepend_path("key", pathJoin(pkg.root,"path2"))',
+                'prepend_path("key", pathJoin(pkg.root, "path1"))',
+                'prepend_path("key", pathJoin(pkg.root, "path2"))',
                 '',
             ])
             self.assertEqual(expected, self.modgen.prepend_paths("key", ["path1", "path2"]))
 
-            expected = 'prepend_path("bar", pathJoin(pkg.root,"foo"))\n'
+            expected = 'prepend_path("bar", pathJoin(pkg.root, "foo"))\n'
             self.assertEqual(expected, self.modgen.prepend_paths("bar", "foo"))
 
-            self.assertEqual('prepend_path("key", "/abs/path")', self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
+            expected = 'prepend_path("key", "/abs/path")\n'
+            self.assertEqual(expected, self.modgen.prepend_paths("key", ["/abs/path"], allow_abs=True))
 
             self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to prepend_paths " \
                                                   "which only expects relative paths." % self.modgen.app.installdir,
