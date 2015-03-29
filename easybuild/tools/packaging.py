@@ -40,13 +40,13 @@ import pprint
 from vsc.utils import fancylogger
 
 from easybuild.tools.run import run_cmd
-from easybuild.tools.config import install_path, package_prefix
+from easybuild.tools.config import install_path, package_template
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME
 
 _log = fancylogger.getLogger('tools.packaging')
 
-def package_fpm(easyblock, modfile_path ):
+def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     '''
     This function will build a package using fpm and return the directory where the packages are
     '''
@@ -59,18 +59,21 @@ def package_fpm(easyblock, modfile_path ):
     except OSError, err:
         _log.error("Failed to chdir into workdir: %s : %s" % (workdir, err))
 
-    pkgprefix   = package_prefix()
-    pkgtemplate = "%(prefix)s-%(name)s"
+    # default package_template is "eb-%(toolchain)s-%(name)s"
+    pkgtemplate = package_template()
     full_ec_version = det_full_ec_version(easyblock.cfg)
-    #"HPCBIOS.20150211-%(name)s-%(version)s"
+    _log.debug("I got a package template that looks like: %s " % pkgtemplate )
 
-    pkgname=pkgtemplate % {
-        'prefix' : pkgprefix,
+    if easyblock.toolchain.name == DUMMY_TOOLCHAIN_NAME:
+        toolchain_name = easyblock.version
+    else:
+        toolchain_name = "%s-%s" % (easyblock.toolchain.name, easyblock.toolchain.version)
+
+    pkgname = pkgtemplate % {
+        'toolchain' : toolchain_name,
         'name' : easyblock.name,
     }
     
-    # a lot of this logic should probably be put elsewhere, but make_module_dep is the only place I've seen that uses it
-
     deps = []
     if easyblock.toolchain.name != DUMMY_TOOLCHAIN_NAME:
         toolchain_dict = easyblock.toolchain.as_dict()
@@ -83,14 +86,20 @@ def package_fpm(easyblock, modfile_path ):
     for dep in deps:
         full_dep_version = det_full_ec_version(dep)
         #by default will only build iteration 1 packages, do we need to enhance this?
-        depstring += " --depends '%s-%s = %s-1'" % ( pkgprefix , dep['name'], full_dep_version)
+        _log.debug("The dep added looks like %s " % dep)
+        dep_pkgname = pkgtemplate % {
+            'name': dep['name'],
+            'toolchain': "%s-%s" % (dep['toolchain']['name'], dep['toolchain']['version']),
+
+        }
+        depstring += " --depends '%s = %s-1'" % ( dep_pkgname,  full_dep_version)
 
     cmdlist=[
         'fpm',
         '--workdir', workdir,
         '--name', pkgname,
-        '--provides', "%s-%s" %(pkgprefix,easyblock.name),
-        '-t', 'rpm', # target
+        '--provides', pkgname,
+        '-t', package_type, # target
         '-s', 'dir', # source
         '--version', full_ec_version,
     ]

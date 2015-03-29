@@ -1450,13 +1450,15 @@ class EasyBlock(object):
         packagedir_dest = os.path.abspath(package_path())
 
         packaging_tool = build_option('package_tool')
-        if packaging_tool is not None:
-            packagedir_src = package_fpm(self, path_to_module_file)
+        if packaging_tool == "fpm":
+            packaging_type = build_option('package_type') if build_option('package_type') else "rpm"
+             
+            packagedir_src = package_fpm(self, path_to_module_file, package_type=packaging_type)
    
             if not os.path.exists(packagedir_dest):
                 mkdir(packagedir_dest)
         
-            for file in glob.glob(os.path.join(packagedir_src, "*.rpm")):
+            for file in glob.glob(os.path.join(packagedir_src, "*.%s" % packaging_type)):
                 shutil.copy(file, packagedir_dest)
         else:
             _log.debug('Skipping package step')
