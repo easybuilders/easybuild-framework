@@ -413,7 +413,7 @@ class EasyBuildOptions(GeneralOption):
                 raise EasyBuildError("Required support for using GitHub API is not available (see warnings).")
 
         if self.options.module_syntax == ModuleGeneratorLua.SYNTAX and self.options.modules_tool != Lmod.__name__:
-            self.log.error("Generating Lua module files requires Lmod as modules tool.")
+            raise EasyBuildError("Generating Lua module files requires Lmod as modules tool.")
 
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
