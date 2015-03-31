@@ -68,7 +68,7 @@ class EasyBuildError(LoggedException):
         # current frame: this constructor, one frame above: location where this EasyBuildError was created/raised
         frameinfo = inspect.getouterframes(inspect.currentframe())[1]
 
-        # determine short location of Python module where error was raised from (starting with 'easybuild/')
+        # determine short location of Python module where error was raised from (starting with 'easybuild/' or 'vsc/')
         path_parts = frameinfo[1].split(os.path.sep)
         relpath = path_parts.pop()
         while not (relpath.startswith('easybuild/') or relpath.startswith('vsc/')) and path_parts:
