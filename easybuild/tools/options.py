@@ -49,6 +49,7 @@ from easybuild.framework.easyconfig.templates import template_documentation
 from easybuild.framework.easyconfig.tools import get_paths_for
 from easybuild.framework.extension import Extension
 from easybuild.tools import build_log, config, run  # @UnusedImport make sure config is always initialized!
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import DEFAULT_LOGFILE_FORMAT, DEFAULT_MNS, DEFAULT_MODULES_TOOL, DEFAULT_MODULECLASSES
 from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, DEFAULT_PREFIX, DEFAULT_REPOSITORY
 from easybuild.tools.config import get_pretend_installpath
@@ -372,7 +373,8 @@ class EasyBuildOptions(GeneralOption):
                 error_cnt += 1
 
         if error_cnt > 0:
-            self.log.error("Found %s problems validating the options, treating warnings above as fatal." % error_cnt)
+            raise EasyBuildError("Found %s problems validating the options, treating warnings above as fatal.",
+                                 error_cnt)
 
     def postprocess(self):
         """Do some postprocessing, in particular print stuff"""
@@ -404,17 +406,17 @@ class EasyBuildOptions(GeneralOption):
         # fail early if required dependencies for functionality requiring using GitHub API are not available:
         if self.options.from_pr or self.options.upload_test_report:
             if not HAVE_GITHUB_API:
-                self.log.error("Required support for using GitHub API is not available (see warnings).")
+                raise EasyBuildError("Required support for using GitHub API is not available (see warnings).")
 
         # make sure a GitHub token is available when it's required
         if self.options.upload_test_report:
             if not HAVE_KEYRING:
-                self.log.error("Python 'keyring' module required for obtaining GitHub token is not available.")
+                raise EasyBuildError("Python 'keyring' module required for obtaining GitHub token is not available.")
             if self.options.github_user is None:
-                self.log.error("No GitHub user name provided, required for fetching GitHub token.")
+                raise EasyBuildError("No GitHub user name provided, required for fetching GitHub token.")
             token = fetch_github_token(self.options.github_user)
             if token is None:
-                self.log.error("Failed to obtain required GitHub token for user '%s'" % self.options.github_user)
+                raise EasyBuildError("Failed to obtain required GitHub token for user '%s'", self.options.github_user)
 
         self._postprocess_config()
 

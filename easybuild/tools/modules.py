@@ -163,7 +163,7 @@ class ModulesTool(object):
             self.cmd = os.environ[self.COMMAND_ENVIRONMENT]
 
         if self.cmd is None:
-            self.log.error('No command set.')
+            raise EasyBuildError("No command set.")
         else:
             self.log.debug('Using command %s' % self.cmd)
 
@@ -188,7 +188,7 @@ class ModulesTool(object):
     def set_and_check_version(self):
         """Get the module version, and check any requirements"""
         if self.VERSION_REGEXP is None:
-            self.log.error('No VERSION_REGEXP defined')
+            raise EasyBuildError("No VERSION_REGEXP defined")
 
         try:
             txt = self.run_module(self.VERSION_OPTION, return_output=True)
@@ -207,16 +207,17 @@ class ModulesTool(object):
 
                 self.log.info("Converted actual version to '%s'" % self.version)
             else:
-                self.log.error("Failed to determine version from option '%s' output: %s" % (self.VERSION_OPTION, txt))
+                raise EasyBuildError("Failed to determine version from option '%s' output: %s",
+                                     self.VERSION_OPTION, txt)
         except (OSError), err:
-            self.log.error("Failed to check version: %s" % err)
+            raise EasyBuildError("Failed to check version: %s", err)
 
         if self.REQ_VERSION is None:
-            self.log.debug('No version requirement defined.')
+            self.log.debug("No version requirement defined.")
         else:
             if StrictVersion(self.version) < StrictVersion(self.REQ_VERSION):
-                msg = "EasyBuild requires v%s >= v%s (no rc), found v%s"
-                self.log.error(msg % (self.__class__.__name__, self.REQ_VERSION, self.version))
+                raise EasyBuildError("EasyBuild requires v%s >= v%s (no rc), found v%s",
+                                     self.__class__.__name__, self.REQ_VERSION, self.version)
             else:
                 self.log.debug('Version %s matches requirement %s' % (self.version, self.REQ_VERSION))
 
@@ -228,7 +229,7 @@ class ModulesTool(object):
             self.log.info("Full path for module command is %s, so using it" % self.cmd)
         else:
             mod_tool = self.__class__.__name__
-            self.log.error("%s modules tool can not be used, '%s' command is not available." % (mod_tool, self.cmd))
+            raise EasyBuildError("%s modules tool can not be used, '%s' command is not available.", mod_tool, self.cmd)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -259,7 +260,7 @@ class ModulesTool(object):
                 else:
                     msg += "Or alternatively, use --allow-modules-tool-mismatch to stop treating this as an error. "
                     msg += "Obtained definition of 'module' function: %s" % out
-                    self.log.error(msg)
+                    raise EasyBuildError(msg)
         else:
             # module function may not be defined (weird, but fine)
             self.log.warning("No 'module' function defined, can't check if it matches %s." % mod_details)
@@ -440,9 +441,10 @@ class ModulesTool(object):
             if res:
                 return res.group(1)
             else:
-                self.log.error("Failed to determine value from 'show' (pattern: '%s') in %s" % (regex.pattern, modinfo))
+                raise EasyBuildError("Failed to determine value from 'show' (pattern: '%s') in %s",
+                                     regex.pattern, modinfo)
         else:
-            raise EasyBuildError("Can't get value from a non-existing module %s" % mod_name)
+            raise EasyBuildError("Can't get value from a non-existing module %s", mod_name)
 
     def modulefile_path(self, mod_name):
         """Get the path of the module file for the specified module."""
@@ -489,8 +491,8 @@ class ModulesTool(object):
         cmdlist = [self.cmd, 'python']
         if self.COMMAND_SHELL is not None:
             if not isinstance(self.COMMAND_SHELL, (list, tuple)):
-                msg = 'COMMAND_SHELL needs to be list or tuple, now %s (value %s)'
-                self.log.error(msg % (type(self.COMMAND_SHELL), self.COMMAND_SHELL))
+                raise EasyBuildError("COMMAND_SHELL needs to be list or tuple, now %s (value %s)",
+                                     type(self.COMMAND_SHELL), self.COMMAND_SHELL)
             cmdlist = self.COMMAND_SHELL + cmdlist
 
         full_cmd = ' '.join(cmdlist + args)
@@ -518,7 +520,7 @@ class ModulesTool(object):
                 exec stdout
             except Exception, err:
                 out = "stdout: %s, stderr: %s" % (stdout, stderr)
-                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)" % (err, out))
+                raise EasyBuildError("Changing environment as dictated by module failed: %s (%s)", err, out)
 
             # correct LD_LIBRARY_PATH as yielded by the adjustments made
             # make sure we get the order right (reverse lists with [::-1])
@@ -537,7 +539,6 @@ class ModulesTool(object):
 
                 error = output_matchers['error'].search(line)
                 if error:
-                    self.log.error(line)
                     raise EasyBuildError(line)
 
                 modules = output_matchers['available'].finditer(line)
@@ -678,8 +679,8 @@ class ModulesTool(object):
                 full_mod_subdirs.append(dep_full_mod_subdir)
 
                 mods_to_top.append(dep)
-                tup = (dep, dep_full_mod_subdir, full_modpath_exts)
-                self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)" % tup)
+                self.log.debug("Found module to top of module tree: %s (subdir: %s, modpath extensions %s)",
+                               dep, dep_full_mod_subdir, full_modpath_exts)
 
             if full_modpath_exts:
                 # load module for this dependency, since it may extend $MODULEPATH to make dependencies available
@@ -845,7 +846,7 @@ class Lmod(ModulesTool):
             (stdout, stderr) = proc.communicate()
 
             if stderr:
-                self.log.error("An error occured when running '%s': %s" % (' '.join(cmd), stderr))
+                raise EasyBuildError("An error occured when running '%s': %s", ' '.join(cmd), stderr)
 
             if self.testing:
                 # don't actually update local cache when testing, just return the cache contents
@@ -861,7 +862,7 @@ class Lmod(ModulesTool):
                     cache_file.write(stdout)
                     cache_file.close()
                 except (IOError, OSError), err:
-                    self.log.error("Failed to update Lmod spider cache %s: %s" % (cache_fp, err))
+                    raise EasyBuildError("Failed to update Lmod spider cache %s: %s", cache_fp, err)
 
     def prepend_module_path(self, path):
         # Lmod pushes a path to the front on 'module use'
@@ -923,7 +924,8 @@ def get_software_libdir(name, only_one=True, fs=None):
             if len(res) == 1:
                 res = res[0]
             else:
-                _log.error("Multiple library subdirectories found for %s in %s: %s" % (name, root, ', '.join(res)))
+                raise EasyBuildError("Multiple library subdirectories found for %s in %s: %s",
+                                     name, root, ', '.join(res))
         return res
     else:
         # return None if software package root could not be determined
