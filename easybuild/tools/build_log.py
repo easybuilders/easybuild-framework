@@ -31,6 +31,7 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
+import inspect
 import os
 import sys
 import tempfile
@@ -63,7 +64,19 @@ class EasyBuildError(LoggedException):
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
-        msg = msg % args
+        # figure out where error was raised from
+        # current frame: this constructor, one frame above: location where this EasyBuildError was created/raised
+        frameinfo = inspect.getouterframes(inspect.currentframe())[1]
+
+        # determine short location of Python module where error was raised from (starting with 'easybuild/')
+        path_parts = frameinfo[1].split(os.path.sep)
+        relpath = path_parts.pop()
+        while not (relpath.startswith('easybuild/') or relpath.startswith('vsc/')) and path_parts:
+            relpath = os.path.join(path_parts.pop() or os.path.sep, relpath)
+
+        # include location info at the end of the message
+        # for example: "Nope, giving up (at easybuild/tools/somemodule.py:123 in some_function)"
+        msg = "%s (at %s:%s in %s)" % (msg % args, relpath, frameinfo[2], frameinfo[3])
         LoggedException.__init__(self, msg)
         self.msg = msg
 
@@ -133,7 +146,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         orig_raise_error = self.raiseError
         self.raiseError = False
 
-        self.error(msg)
+        fancylogger.FancyLogger.error(self, msg)
 
         # reinstate previous raiseError setting
         self.raiseError = orig_raise_error
