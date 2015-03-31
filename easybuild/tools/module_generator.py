@@ -386,7 +386,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                 if allow_abs:
                     paths[i] = quote_str(path)
                 else:
-                    self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+                    raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
+                                         path)
             else:
                 # use pathJoin(pkg.root, path) for relative paths
                 paths[i] = 'pathJoin(pkg.root, "%s")' % path
@@ -453,8 +454,8 @@ def module_generator(app, fake=False):
     available_mod_gens = avail_module_generators()
 
     if module_syntax not in available_mod_gens:
-        tup = (module_syntax, available_mod_gens)
-        _log.error("No module generator available for specified syntax '%s' (available: %s)" % tup)
+        raise EasyBuildError("No module generator available for specified syntax '%s' (available: %s)",
+                             module_syntax, available_mod_gens)
 
     module_generator_class = available_mod_gens[module_syntax]
     return module_generator_class(app, fake=fake)
