@@ -43,6 +43,7 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import rmtree2
 from easybuild.tools.repository.filerepo import FileRepository
 
@@ -87,7 +88,7 @@ class GitRepository(FileRepository):
         try:
             git.GitCommandError
         except NameError, err:
-            self.log.exception("It seems like GitPython is not available: %s" % err)
+            raise EasyBuildError("It seems like GitPython is not available: %s", err)
 
         self.wc = tempfile.mkdtemp(prefix='git-wc-')
 
@@ -105,7 +106,7 @@ class GitRepository(FileRepository):
             self.log.debug("rep name is %s" % reponame)
         except git.GitCommandError, err:
             # it might already have existed
-            self.log.warning("Git local repo initialization failed, it might already exist: %s" % err)
+            self.log.warning("Git local repo initialization failed, it might already exist: %s", err)
 
         # local repo should now exist, let's connect to it again
         try:
@@ -113,14 +114,14 @@ class GitRepository(FileRepository):
             self.log.debug("connectiong to git repo in %s" % self.wc)
             self.client = git.Git(self.wc)
         except (git.GitCommandError, OSError), err:
-            self.log.error("Could not create a local git repo in wc %s: %s" % (self.wc, err))
+            raise EasyBuildError("Could not create a local git repo in wc %s: %s", self.wc, err)
 
         # try to get the remote data in the local repo
         try:
             res = self.client.pull()
             self.log.debug("pulled succesfully to %s in %s" % (res, self.wc))
         except (git.GitCommandError, OSError), err:
-            self.log.exception("pull in working copy %s went wrong: %s" % (self.wc, err))
+            raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
     def add_easyconfig(self, cfg, name, version, stats, append):
         """
@@ -166,4 +167,4 @@ class GitRepository(FileRepository):
             self.wc = os.path.dirname(self.wc)
             rmtree2(self.wc)
         except IOError, err:
-            self.log.exception("Can't remove working copy %s: %s" % (self.wc, err))
+            raise EasyBuildError("Can't remove working copy %s: %s", self.wc, err)

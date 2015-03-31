@@ -35,6 +35,8 @@ Easyconfig module that contains the default EasyConfig configuration parameters.
 """
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('easyconfig.default', fname=False)
 
@@ -180,7 +182,7 @@ def sorted_categories():
 def get_easyconfig_parameter_default(param):
     """Get default value for given easyconfig parameter."""
     if param not in DEFAULT_CONFIG:
-        _log.error("Unkown easyconfig parameter: %s (known: %s)" % (param, sorted(DEFAULT_CONFIG.keys())))
+        raise EasyBuildError("Unkown easyconfig parameter: %s (known: %s)", param, sorted(DEFAULT_CONFIG.keys()))
     else:
         _log.debug("Returning default value for easyconfig parameter %s: %s" % (param, DEFAULT_CONFIG[param][0]))
         return DEFAULT_CONFIG[param][0]
