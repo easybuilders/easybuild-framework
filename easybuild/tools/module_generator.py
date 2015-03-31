@@ -39,6 +39,7 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import mkdir, read_file
 from easybuild.tools.modules import modules_tool
@@ -98,7 +99,8 @@ class ModuleGenerator(object):
                     os.remove(class_mod_file)
                 os.symlink(self.filename, class_mod_file)
         except OSError, err:
-            self.log.error("Failed to create symlinks from %s to %s: %s" % (self.class_mod_files, self.filename, err))
+            raise EasyBuildError("Failed to create symlinks from %s to %s: %s",
+                                 self.class_mod_files, self.filename, err)
 
     def is_fake(self):
         """Return whether this ModuleGeneratorTcl instance generates fake modules or not."""
@@ -230,10 +232,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
             paths = [paths]
 
-
         for i, path in enumerate(paths):
             if os.path.isabs(path) and not allow_abs:
-                self.log.error("Absolute path %s passed to prepend_paths which only expects relative paths." % path)
+                raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
+                                     path)
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
                 paths[i]="$root/%s" % path
