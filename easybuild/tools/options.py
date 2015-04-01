@@ -195,6 +195,9 @@ class EasyBuildOptions(GeneralOption):
             'filter-deps': ("Comma separated list of dependencies that you DON'T want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             str, 'extend', None),
+            'hide-deps': ("Comma separated list of dependencies that you want automatically hidden, "
+                            "(e.g. --hide-deps=zlib,ncurses)",
+                            str, 'extend', None),
             'oldstyleconfig':   ("Look for and use the oldstyle configuration file.",
                                  None, 'store_true', True),
             'optarch': ("Set architecture optimization, overriding native architecture optimizations",
