@@ -67,7 +67,7 @@ from easybuild.tools.filetools import extract_file, mkdir, move_logs, read_file,
 from easybuild.tools.filetools import write_file, compute_checksum, verify_checksum
 from easybuild.tools.run import run_cmd
 from easybuild.tools.jenkins import write_to_xml
-from easybuild.tools.module_generator import module_generator
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NAME_PREFIX, DEVEL_ENV_VAR_NAME_PREFIX
 from easybuild.tools.modules import get_software_root, modules_tool
@@ -871,8 +871,10 @@ class EasyBlock(object):
             txt += self.module_generator.prepend_paths(key, value)
         if self.cfg['modloadmsg']:
             txt += self.module_generator.msg_on_load(self.cfg['modloadmsg'])
-        if self.cfg['modtclfooter']:
+        if self.cfg['modtclfooter'] and isinstance(self.module_generator, ModuleGeneratorTcl):
             txt += self.module_generator.add_tcl_footer(self.cfg['modtclfooter'])
+        if self.cfg['modluafooter'] and isinstance(self.module_generator, ModuleGeneratorLua):
+            txt += self.module_generator.add_lua_footer(self.cfg['modluafooter'])
         for (key, value) in self.cfg['modaliases'].items():
             txt += self.module_generator.set_alias(key, value)
 
