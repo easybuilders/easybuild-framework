@@ -281,6 +281,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         return tcltxt
 
+    def add_lua_footer(self, luatxt):
+        """
+        Appending Tcl code in Lua files doesn't make sense."""
+        raise EasyBuildError("Appending Lua footer to module file in Tcl syntax doesn't work: %s", luatxt)
+
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
@@ -400,7 +405,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         Generate module use statements for given list of module paths.
         @param paths: list of module path extensions to generate use statements for
         """
-        return '\n'.join(['use("%s")' % p for p in paths] + [''])
+        return '\n'.join(['prepend_path("MODULEPATH", "%s")' % p for p in paths] + [''])
 
     def set_environment(self, key, value):
         """
@@ -421,12 +426,21 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Add a message that should be printed when loading the module.
         """
-        pass
+        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
+        return '\n'.join([
+            "",
+            'if (mode() == "load") then',
+            '    io.stderr:write("%s\n")' % msg,
+            "end",
+            "",
+        ])
 
     def add_tcl_footer(self, tcltxt):
-        raise NotImplementedError
+        """
+        Appending Tcl code in Lua files doesn't make sense."""
+        raise EasyBuildError("Appending Tcl footer to module file in Lua syntax doesn't work: %s", tcltxt)
 
-    def add_lua_footer(self,luatxt):
+    def add_lua_footer(self, luatxt):
         """
         Append whatever Lua code you want to your modulefile
         """
