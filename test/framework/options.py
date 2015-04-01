@@ -42,6 +42,7 @@ import easybuild.tools.build_log
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import get_module_syntax
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
@@ -932,15 +933,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test specifying a module footer."""
 
         # create file containing modules footer
-        module_footer_txt = '\n'.join([
-            "# test footer",
-            "setenv SITE_SPECIFIC_ENV_VAR foobar",
-        ])
+        if get_module_syntax() == 'Tcl':
+            module_footer_txt = '\n'.join([
+                "# test footer",
+                "setenv SITE_SPECIFIC_ENV_VAR foobar",
+            ])
+        elif get_module_syntax() == 'Lua':
+            module_footer_txt = '\n'.join([
+                "-- test footer",
+                'setenv("SITE_SPECIFIC_ENV_VAR", "foobar")',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         fd, modules_footer = tempfile.mkstemp(prefix='modules-footer-')
         os.close(fd)
-        f = open(modules_footer, 'w')
-        f.write(module_footer_txt)
-        f.close()
+        write_file(modules_footer, module_footer_txt)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
         eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
@@ -958,8 +966,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
-        footer_regex = re.compile(r'%s$' % module_footer_txt, re.M)
+        footer_regex = re.compile(r'%s$' % module_footer_txt.replace('(', '\\(').replace(')', '\\)'), re.M)
         msg = "modules footer '%s' is present in '%s'" % (module_footer_txt, toy_module_txt)
         self.assertTrue(footer_regex.search(toy_module_txt), msg)
 
@@ -985,6 +995,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, do_build=True, verbose=True)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
         is_loaded_regex = re.compile(r"if { !\[is-loaded gompi/1.3.12\] }", re.M)
         self.assertFalse(is_loaded_regex.search(toy_module_txt), "Recursive unloading is used: %s" % toy_module_txt)
@@ -1169,6 +1181,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
         ]
         self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
@@ -1180,6 +1193,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
             '--allow-modules-tool-mismatch',
         ]
         self.eb_main(args, do_build=True)
@@ -1192,6 +1206,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             ec_file,
             '--modules-tool=MockModulesTool',
+            '--module-syntax=Tcl',  # Lua would require Lmod
             '--debug',
         ]
         self.eb_main(args, do_build=True)

@@ -43,6 +43,7 @@ from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import modules_tool
 
@@ -79,10 +80,14 @@ class ToyBuildTest(EnhancedTestCase):
         # if the module exists, it should be fine
         toy_module = os.path.join(installpath, 'modules', 'all', 'toy', full_version)
         msg = "module for toy build toy/%s found (path %s)" % (full_version, toy_module)
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), msg)
 
         # module file is symlinked according to moduleclass
         toy_module_symlink = os.path.join(installpath, 'modules', 'tools', 'toy', full_version)
+        if get_module_syntax() == 'Lua':
+            toy_module_symlink += '.lua'
         self.assertTrue(os.path.islink(toy_module_symlink))
         self.assertTrue(os.path.exists(toy_module_symlink))
 
@@ -207,7 +212,8 @@ class ToyBuildTest(EnhancedTestCase):
             "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz']}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
-            "modtclfooter = 'puts stderr \"oh hai!\"'",
+            "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
+            "modluafooter = 'io.stderr:write(\"oh hai!\")'"  # ignored when module syntax is Tcl
         ])
         write_file(ec_file, ec_extra, append=True)
 
@@ -222,13 +228,25 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.eb_main(args, do_build=True, verbose=True, raise_error=True)
         self.check_toy(self.test_installpath, outtxt, versionsuffix='-tweaked')
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
 
-        self.assertTrue(re.search('setenv\s*FOO\s*"bar"', toy_module_txt))
-        self.assertTrue(re.search('prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
-        self.assertTrue(re.search('prepend-path\s*SOMEPATH\s*\$root/baz', toy_module_txt))
-        self.assertTrue(re.search('module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0', toy_module_txt))
-        self.assertTrue(re.search('puts stderr "oh hai!"', toy_module_txt))
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r'setenv\s*FOO\s*"bar"', toy_module_txt))
+            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
+            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/baz', toy_module_txt))
+            self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0', toy_module_txt))
+            self.assertTrue(re.search(r'puts stderr "oh hai!"', toy_module_txt))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'setenv\("FOO", "bar"\)', toy_module_txt))
+            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "foo/bar"\)\)', toy_module_txt))
+            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "baz"\)\)', toy_module_txt))
+            self.assertTrue(re.search(r'if \(mode\(\) == "load"\) then\n\s*io.stderr:write\(".*I AM toy v0.0\n"\)',
+                                      toy_module_txt))
+            self.assertTrue(re.search(r'io.stderr:write\("oh hai!"\)', toy_module_txt))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
     def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
@@ -442,8 +460,12 @@ class ToyBuildTest(EnhancedTestCase):
                     (('modules', ), dir_perms),
                     (('modules', 'all'), dir_perms),
                     (('modules', 'all', 'toy'), dir_perms),
-                    (('modules', 'all', 'toy', '0.0'), fil_perms),
                 ])
+                if get_module_syntax() == 'Tcl':
+                    paths_perms.append((('modules', 'all', 'toy', '0.0'), fil_perms))
+                elif get_module_syntax() == 'Lua':
+                    paths_perms.append((('modules', 'all', 'toy', '0.0.lua'), fil_perms))
+
             for path, correct_perms in paths_perms:
                 fullpath = glob.glob(os.path.join(self.test_installpath, *path))[0]
                 perms = os.stat(fullpath).st_mode & 0777
@@ -532,16 +554,25 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure module file is installed in correct path
         toy_module_path = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'OpenMPI', '1.6.4', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module_path += '.lua'
         self.assertTrue(os.path.exists(toy_module_path))
 
         # check that toolchain load is expanded to loads for toolchain dependencies,
         # except for the ones that extend $MODULEPATH to make the toy module available
+        if get_module_syntax() == 'Tcl':
+            load_regex_template = "load %s"
+        elif get_module_syntax() == 'Lua':
+            load_regex_template = r'load\("%s/.*"\)'
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         modtxt = read_file(toy_module_path)
         for dep in ['goolf', 'GCC', 'OpenMPI']:
-            load_regex = re.compile("load %s" % dep)
+            load_regex = re.compile(load_regex_template % dep)
             self.assertFalse(load_regex.search(modtxt), "Pattern '%s' not found in %s" % (load_regex.pattern, modtxt))
         for dep in ['OpenBLAS', 'FFTW', 'ScaLAPACK']:
-            load_regex = re.compile("load %s" % dep)
+            load_regex = re.compile(load_regex_template % dep)
             self.assertTrue(load_regex.search(modtxt), "Pattern '%s' found in %s" % (load_regex.pattern, modtxt))
 
         os.remove(toy_module_path)
@@ -554,6 +585,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure module file is installed in correct path
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module_path += '.lua'
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
@@ -570,12 +603,21 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure module file is installed in correct path
         toy_module_path = os.path.join(mod_prefix, 'Compiler', 'GCC', '4.7.2', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module_path += '.lua'
         self.assertTrue(os.path.exists(toy_module_path))
 
         # 'module use' statements to extend $MODULEPATH are present
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
-        self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        elif get_module_syntax() == 'Lua':
+            fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
+            regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
+            self.assertTrue(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # ... unless they shouldn't be
@@ -583,7 +625,14 @@ class ToyBuildTest(EnhancedTestCase):
         self.eb_main(args + extra_args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'MPI', 'GCC', '4.7.2', 'toy', '0.0')
-        self.assertFalse(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        if get_module_syntax() == 'Tcl':
+            self.assertFalse(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        elif get_module_syntax() == 'Lua':
+            fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
+            regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
+            self.assertFalse(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # test module path with dummy/dummy build
@@ -594,6 +643,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure module file is installed in correct path
         toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module_path += '.lua'
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
@@ -610,12 +661,21 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure module file is installed in correct path
         toy_module_path = os.path.join(mod_prefix, 'Core', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module_path += '.lua'
         self.assertTrue(os.path.exists(toy_module_path))
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
         modpath_extension = os.path.join(mod_prefix, 'Compiler', 'toy', '0.0')
-        self.assertTrue(re.search(r"^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search("^module\s*use\s*%s" % modpath_extension, modtxt, re.M))
+        elif get_module_syntax() == 'Lua':
+            fullmodpath_extension = os.path.join(self.test_installpath, modpath_extension)
+            regex = re.compile(r'^prepend_path\("MODULEPATH", "%s"\)' % fullmodpath_extension, re.M)
+            self.assertTrue(regex.search(modtxt), "Pattern '%s' found in %s" % (regex.pattern, modtxt))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
         os.remove(toy_module_path)
 
         # building a toolchain module should also work
@@ -623,6 +683,8 @@ class ToyBuildTest(EnhancedTestCase):
         modules_tool().purge()
         self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=False)
         gompi_module_path = os.path.join(mod_prefix, 'Core', 'gompi', '1.4.10')
+        if get_module_syntax() == 'Lua':
+            gompi_module_path += '.lua'
         self.assertTrue(os.path.exists(gompi_module_path))
 
     def test_toy_advanced(self):
@@ -638,6 +700,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.test_toy_build(ec_file=ec_file, extra_args=['--hidden'], verify=False)
         # module file is hidden
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '.0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
         self.assertTrue(os.path.exists(toy_module), 'Found hidden module %s' % toy_module)
         # installed software is not hidden
         toybin = os.path.join(self.test_installpath, 'software', 'toy', '0.0', 'bin', 'toy')
@@ -667,11 +731,15 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         self.eb_main(args, do_build=True, verbose=True)
         mod_file_prefix = os.path.join(self.test_installpath, 'modules')
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'foobarbaz', 'toy', '0.0')))
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0')))
-        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0')))
-        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
-        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0')))
+        mod_file_suffix = ''
+        if get_module_syntax() == 'Lua':
+            mod_file_suffix += '.lua'
+
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'foobarbaz', 'toy', '0.0' + mod_file_suffix)))
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0' + mod_file_suffix)))
+        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 'TOOLS', 'toy', '0.0' + mod_file_suffix)))
+        self.assertTrue(os.path.exists(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
+        self.assertTrue(os.path.islink(os.path.join(mod_file_prefix, 't', 'toy', '0.0' + mod_file_suffix)))
 
     def test_toy_archived_easyconfig(self):
         """Test archived easyconfig for a succesful build."""

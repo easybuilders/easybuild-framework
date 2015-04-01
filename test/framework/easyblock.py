@@ -43,6 +43,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import config
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import get_module_syntax
 from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.modules import modules_tool
 
@@ -192,11 +193,20 @@ class EasyBlockTest(EnhancedTestCase):
 
         guess = eb.make_module_req()
 
-        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
-        self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
-        self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
-        self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
-        self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+            self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+            self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+            self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search('^prepend_path\("CLASSPATH", pathJoin\(pkg.root, "bla.jar"\)\)$', guess, re.M))
+            self.assertTrue(re.search('^prepend_path\("CLASSPATH", pathJoin\(pkg.root, "foo.jar"\)\)$', guess, re.M))
+            self.assertTrue(re.search('^prepend_path\("MANPATH", pathJoin\(pkg.root, "share/man"\)\)$', guess, re.M))
+            self.assertTrue(re.search('^prepend_path\("PATH", pathJoin\(pkg.root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search('^prepend_path\("CPATH", .*\)$', guess, re.M))
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
         # cleanup
         eb.close_log()
@@ -300,29 +310,63 @@ class EasyBlockTest(EnhancedTestCase):
         eb.check_readiness_step()
 
         modpath = os.path.join(eb.make_module_step(), name, version)
+        if get_module_syntax() == 'Lua':
+            modpath += '.lua'
         self.assertTrue(os.path.exists(modpath), "%s exists" % modpath)
 
         # verify contents of module
-        f = open(modpath, 'r')
-        txt = f.read()
-        f.close()
-        self.assertTrue(re.search("^#%Module", txt.split('\n')[0]))
-        self.assertTrue(re.search("^conflict\s+%s$" % name, txt, re.M))
-        self.assertTrue(re.search("^set\s+root\s+%s$" % eb.installdir, txt, re.M))
-        ebroot_regex = re.compile('^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper(), re.M)
-        self.assertTrue(ebroot_regex.search(txt), "%s in %s" % (ebroot_regex.pattern, txt))
-        self.assertTrue(re.search('^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
+        txt = read_file(modpath)
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^#%Module", txt.split('\n')[0]))
+            self.assertTrue(re.search(r"^conflict\s+%s$" % name, txt, re.M))
+
+            self.assertTrue(re.search(r"^set\s+root\s+%s$" % eb.installdir, txt, re.M))
+            ebroot_regex = re.compile(r'^setenv\s+EBROOT%s\s+".root"\s*$' % name.upper(), re.M)
+            self.assertTrue(ebroot_regex.search(txt), "%s in %s" % (ebroot_regex.pattern, txt))
+            self.assertTrue(re.search(r'^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
+
+        elif get_module_syntax() == 'Lua':
+            ebroot_regex = re.compile(r'^setenv\("EBROOT%s", ".*%s.*"\)$' % (name.upper(), eb.installdir), re.M)
+            self.assertTrue(ebroot_regex.search(txt), "%s in %s" % (ebroot_regex.pattern, txt))
+            self.assertTrue(re.search(r'^setenv\("EBVERSION%s", "%s"\)$' % (name.upper(), version), txt, re.M))
+
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
         for (key, val) in modextravars.items():
-            regex = re.compile('^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^setenv\s+%s\s+"%s"$' % (key, val), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^setenv\("%s", "%s"\)$' % (key, val), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+
         for (key, val) in modextrapaths.items():
-            regex = re.compile('^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^prepend_path\("%s", pathJoin\(pkg.root, "%s"\)\)$' % (key, val), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+
         for (name, ver) in deps:
-            regex = re.compile('^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+
         for (name, ver) in hiddendeps:
-            regex = re.compile('^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+            if get_module_syntax() == 'Tcl':
+                regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+            elif get_module_syntax() == 'Lua':
+                regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
+            else:
+                self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
     def test_gen_dirs(self):
@@ -546,6 +590,9 @@ class EasyBlockTest(EnhancedTestCase):
 
         impi_modfile_path = os.path.join('Compiler', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049')
         imkl_modfile_path = os.path.join('MPI', 'intel', '2013.5.192-GCC-4.8.3', 'impi', '4.1.3.049', 'imkl', '11.1.2.144')
+        if get_module_syntax() == 'Lua':
+            impi_modfile_path += '.lua'
+            imkl_modfile_path += '.lua'
 
         # example: for imkl on top of iimpi toolchain with HierarchicalMNS, no module load statements should be included
         # not for the toolchain or any of the toolchain components,
