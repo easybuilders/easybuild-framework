@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,6 @@ import copy
 import os
 import sys
 import traceback
-from vsc.utils.missing import any
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
@@ -89,9 +88,9 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
                 _log.warning("Failed to remove generated easyconfig file %s: %s" % (ec_file, err))
 
             # don't use a generated easyconfig unless generation was requested (using a --try-X option)
-            _log.error(("Unable to find an easyconfig for the given specifications: %s; "
-                        "to make EasyBuild try to generate a matching easyconfig, "
-                        "use the --try-X options ") % build_specs)
+            raise EasyBuildError("Unable to find an easyconfig for the given specifications: %s; "
+                                 "to make EasyBuild try to generate a matching easyconfig, "
+                                 "use the --try-X options ", build_specs)
 
     return [(ec_file, generated)]
 
@@ -133,9 +132,9 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         if not ec_res['success'] and exit_on_failure:
             if 'traceback' in ec_res:
-                _log.error(ec_res['traceback'])
+                raise EasyBuildError(ec_res['traceback'])
             else:
-                _log.error(test_msg)
+                raise EasyBuildError(test_msg)
 
         res.append((ec, ec_res))
 
@@ -173,7 +172,8 @@ def main(testing_data=(None, None, None)):
 
     # disallow running EasyBuild as root
     if os.getuid() == 0:
-        _log.error("You seem to be running EasyBuild with root privileges which is not wise, so let's end this here.")
+        raise EasyBuildError("You seem to be running EasyBuild with root privileges which is not wise, "
+                             "so let's end this here.")
 
     # log startup info
     eb_cmd_line = eb_go.generate_cmd_line() + eb_go.args
@@ -227,8 +227,11 @@ def main(testing_data=(None, None, None)):
         _log.warning("Failed to determine install path for easybuild-easyconfigs package.")
 
     # determine paths to easyconfigs
-    paths = det_easyconfig_paths(orig_paths, options.from_pr, easyconfigs_pkg_paths)
-    if not paths:
+    paths = det_easyconfig_paths(orig_paths)
+    if paths:
+        # transform paths into tuples, use 'False' to indicate the corresponding easyconfig files were not generated
+        paths = [(p, False) for p in paths]
+    else:
         if 'name' in build_specs:
             # try to obtain or generate an easyconfig file via build specifications if a software name is provided
             paths = find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=testing)

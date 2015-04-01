@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,9 +29,12 @@ e.g., in compiling or linking
 @author: Stijn De Weirdt (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
-from vsc.utils import fancylogger
 import copy
 import os
+from vsc.utils import fancylogger
+
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('variables', fname=False)
 
@@ -62,20 +65,20 @@ def join_map_class(map_classes):
     """Join all class_maps into single class_map"""
     res = {}
     for map_class in map_classes:
-        for k, v in map_class.items():
-            if isinstance(k, (str,)):
-                var_name = k
-                if isinstance(v, (tuple, list)):
+        for key, val in map_class.items():
+            if isinstance(key, (str,)):
+                var_name = key
+                if isinstance(val, (tuple, list)):
                     # second element is documentation
-                    klass = v[0]
+                    klass = val[0]
                 res[var_name] = klass
-            elif type(k) in (type,):
+            elif type(key) in (type,):
                 # k is the class, v a list of tuples (name,doc)
-                klass = k
+                klass = key
                 default = res.setdefault(klass, [])
-                default.extend([tpl[0] for tpl in v])
+                default.extend([tpl[0] for tpl in val])
             else:
-                _log.raiseException("join_map_class: impossible to join key %s value %s" % (k, v))
+                raise EasyBuildError("join_map_class: impossible to join key %s value %s", key, val)
 
     return res
 
@@ -304,7 +307,7 @@ class ListOfLists(list):
         res = []
         if value is None:
             # TODO ? append_empty ?
-            self.log.raiseException("extend_el with None value unimplemented")
+            raise EasyBuildError("extend_el with None value unimplemented")
         else:
             for el in value:
                 if not self._str_ok(el):
@@ -484,7 +487,7 @@ class Variables(dict):
                 for el in self.get(other):
                     self.nappend(name, el)
             else:
-                self.log.raiseException("join: name %s; other %s not found in self." % (name, other))
+                raise EasyBuildError("join: name %s; other %s not found in self.", name, other)
 
     def append(self, name, value):
         """Append value to element name (alias for nappend)"""

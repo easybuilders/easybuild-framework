@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2014 Ghent University
+# Copyright 2011-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,8 @@ import re
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 class ModuleNamingScheme(object):
     """Abstract class for a module naming scheme implementation."""
@@ -50,7 +52,8 @@ class ModuleNamingScheme(object):
         if self.REQUIRED_KEYS is not None:
             return set(keys).issuperset(set(self.REQUIRED_KEYS))
         else:
-            self.log.error("Constant REQUIRED_KEYS is not defined, should specify required easyconfig parameters.")
+            raise EasyBuildError("Constant REQUIRED_KEYS is not defined, "
+                                 "should specify required easyconfig parameters.")
 
     def requires_toolchain_details(self):
         """
@@ -134,7 +137,7 @@ class ModuleNamingScheme(object):
         modname_regex = re.compile('^%s/\S+$' % re.escape(name))
         res = bool(modname_regex.match(short_modname))
 
-        tup = (short_modname, name, modname_regex.pattern, res)
-        self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s" % tup)
+        self.log.debug("Checking whether '%s' is a module name for software with name '%s' via regex %s: %s",
+                       short_modname, name, modname_regex.pattern, res)
 
         return res

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,6 +43,7 @@ from vsc.utils import fancylogger
 from vsc.utils.missing import nub
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, create_paths, process_easyconfig
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.robot import resolve_dependencies
@@ -74,7 +75,8 @@ def tweak(easyconfigs, build_specs, targetdir=None):
     # make sure easyconfigs all feature the same toolchain (otherwise we *will* run into trouble)
     toolchains = nub(['%(name)s/%(version)s' % ec['ec']['toolchain'] for ec in easyconfigs])
     if len(toolchains) > 1:
-        _log.error("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s" % toolchains)
+        raise EasyBuildError("Multiple toolchains featured in easyconfigs, --try-X not supported in that case: %s",
+                             toolchains)
 
     if 'name' in build_specs or 'version' in build_specs:
         # no recursion if software name/version build specification are included
@@ -143,7 +145,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
         tc_regexp = re.compile(r"^\s*toolchain\s*=\s*(.*)$", re.M)
         res = tc_regexp.search(ectxt)
         if not res:
-            _log.error("No toolchain found in easyconfig file %s?" % src_fn)
+            raise EasyBuildError("No toolchain found in easyconfig file %s?", src_fn)
 
         toolchain = eval(res.group(1))
         for key in ['name', 'version']:
@@ -166,7 +168,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
     for (key, val) in tweaks.items():
 
         if isinstance(val, list):
-            regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+            regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
             res = regexp.search(ectxt)
             if res:
                 fval = [x for x in val if x != '']  # filter out empty strings
@@ -175,48 +177,48 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
                 # - input starting with comma (empty head list element) => append
                 # - no empty head/tail list element => overwrite
                 if val[0] == '':
-                    newval = "%s + %s" % (res.group(1), fval)
+                    newval = "%s + %s" % (res.group('val'), fval)
                     _log.debug("Appending %s to %s" % (fval, key))
                 elif val[-1] == '':
-                    newval = "%s + %s" % (fval, res.group(1))
+                    newval = "%s + %s" % (fval, res.group('val'))
                     _log.debug("Prepending %s to %s" % (fval, key))
                 else:
                     newval = "%s" % fval
                     _log.debug("Overwriting %s with %s" % (key, fval))
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, newval, res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), newval), ectxt)
                 _log.info("Tweaked %s list to '%s'" % (key, newval))
             else:
-                additions.append("%s = %s # added by EasyBuild" % (key, val))
+                additions.append("%s = %s" % (key, val))
 
             tweaks.pop(key)
 
     # add parameters or replace existing ones
     for (key, val) in tweaks.items():
 
-        regexp = re.compile(r"^\s*%s\s*=\s*(.*)$" % key, re.M)
+        regexp = re.compile(r"^(?P<key>\s*%s)\s*=\s*(?P<val>.*)$" % key, re.M)
         _log.debug("Regexp pattern for replacing '%s': %s" % (key, regexp.pattern))
         res = regexp.search(ectxt)
         if res:
             # only tweak if the value is different
             diff = True
             try:
-                _log.debug("eval(%s): %s" % (res.group(1), eval(res.group(1))))
-                diff = not eval(res.group(1)) == val
+                _log.debug("eval(%s): %s" % (res.group('val'), eval(res.group('val'))))
+                diff = eval(res.group('val')) != val
             except (NameError, SyntaxError):
                 # if eval fails, just fall back to string comparison
-                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"..." % (res.group(1), val))
-                diff = not res.group(1) == val
+                _log.debug("eval failed for \"%s\", falling back to string comparison against \"%s\"...",
+                           res.group('val'), val)
+                diff = res.group('val') != val
 
             if diff:
-                ectxt = regexp.sub("%s = %s # tweaked by EasyBuild (was: %s)" % (key, quote_str(val), res.group(1)), ectxt)
+                ectxt = regexp.sub("%s = %s" % (res.group('key'), quote_str(val)), ectxt)
                 _log.info("Tweaked '%s' to '%s'" % (key, quote_str(val)))
         else:
             additions.append("%s = %s" % (key, quote_str(val)))
 
     if additions:
-        _log.info("Adding additional parameters to tweaked easyconfig file: %s")
-        ectxt += "\n\n# added by EasyBuild as dictated by command line options\n"
-        ectxt += '\n'.join(additions) + '\n'
+        _log.info("Adding additional parameters to tweaked easyconfig file: %s" % additions)
+        ectxt = '\n'.join([ectxt] + additions)
 
     _log.debug("Contents of tweaked easyconfig file:\n%s" % ectxt)
 
@@ -237,7 +239,7 @@ def tweak_one(src_fn, target_fn, tweaks, targetdir=None):
             # get rid of temporary file
             os.remove(tmpfn)
         except OSError, err:
-            _log.error("Failed to determine suiting filename for tweaked easyconfig file: %s" % err)
+            raise EasyBuildError("Failed to determine suiting filename for tweaked easyconfig file: %s", err)
 
         if targetdir is None:
             targetdir = tempfile.gettempdir()
@@ -265,7 +267,7 @@ def pick_version(req_ver, avail_vers):
     """
 
     if not avail_vers:
-        _log.error("Empty list of available versions passed.")
+        raise EasyBuildError("Empty list of available versions passed.")
 
     selected_ver = None
     if req_ver:
@@ -302,7 +304,7 @@ def find_matching_easyconfigs(name, installver, paths):
     for path in paths:
         patterns = create_paths(path, name, installver)
         for pattern in patterns:
-            more_ec_files = filter(os.path.isfile, glob.glob(pattern))
+            more_ec_files = filter(os.path.isfile, sorted(glob.glob(pattern)))
             _log.debug("Including files that match glob pattern '%s': %s" % (pattern, more_ec_files))
             ec_files.extend(more_ec_files)
 
@@ -334,7 +336,7 @@ def select_or_generate_ec(fp, paths, specs):
 
     # ensure that at least name is specified
     if not specs.get('name'):
-        _log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
+        raise EasyBuildError("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
     name = specs['name']
     handled_params = ['name']
 
@@ -362,7 +364,8 @@ def select_or_generate_ec(fp, paths, specs):
                 _log.debug("No template found at %s." % templ_file)
 
         if len(ec_files) == 0:
-            _log.error("No easyconfig files found for software %s, and no templates available. I'm all out of ideas." % name)
+            raise EasyBuildError("No easyconfig files found for software %s, and no templates available. "
+                                 "I'm all out of ideas.", name)
 
     ecs_and_files = [(EasyConfig(f, validate=False), f) for f in ec_files]
 
@@ -390,8 +393,8 @@ def select_or_generate_ec(fp, paths, specs):
         if EASYCONFIG_TEMPLATE in tcnames:
             _log.info("No easyconfig file for specified toolchain, but template is available.")
         else:
-            _log.error("No easyconfig file for %s with toolchain %s, " \
-                      "and no template available." % (name, specs['toolchain_name']))
+            raise EasyBuildError("No easyconfig file for %s with toolchain %s, and no template available.",
+                                 name, specs['toolchain_name'])
 
     tcname = specs.pop('toolchain_name', None)
     handled_params.append('toolchain_name')
@@ -414,7 +417,7 @@ def select_or_generate_ec(fp, paths, specs):
             else:
                 # if multiple toolchains are available, and none is specified, we quit
                 # we can't just pick one, how would we prefer one over the other?
-                _log.error("No toolchain name specified, and more than one available: %s." % tcnames)
+                raise EasyBuildError("No toolchain name specified, and more than one available: %s.", tcnames)
 
     _log.debug("Filtering easyconfigs based on toolchain name '%s'..." % selected_tcname)
     ecs_and_files = [x for x in ecs_and_files if x[0]['toolchain']['name'] == selected_tcname]
@@ -497,9 +500,7 @@ def select_or_generate_ec(fp, paths, specs):
             filter_ecs = True
         else:
             # otherwise, we fail, because we don't know how to pick between different fixes
-            _log.error("No %s specified, and can't pick from available %ses %s" % (param,
-                                                                                  param,
-                                                                                  vals))
+            raise EasyBuildError("No %s specified, and can't pick from available ones: %s", param, vals)
 
         if filter_ecs:
             _log.debug("Filtering easyconfigs based on %s '%s'..." % (param, selected_val))
@@ -515,7 +516,7 @@ def select_or_generate_ec(fp, paths, specs):
     cnt = len(ecs_and_files)
     if not cnt == 1:
         fs = [x[1] for x in ecs_and_files]
-        _log.error("Failed to select a single easyconfig from available ones, %s left: %s" % (cnt, fs))
+        raise EasyBuildError("Failed to select a single easyconfig from available ones, %s left: %s", cnt, fs)
     else:
         (selected_ec, selected_ec_file) = ecs_and_files[0]
 
@@ -524,7 +525,7 @@ def select_or_generate_ec(fp, paths, specs):
         for (key, val) in specs.items():
             if key in selected_ec._config:
                 # values must be equal to have a full match
-                if not selected_ec[key] == val:
+                if selected_ec[key] != val:
                     match = False
             else:
                 # if we encounter a key that is not set in the selected easyconfig, we don't have a full match
@@ -570,11 +571,11 @@ def obtain_ec_for(specs, paths, fp=None):
 
     # ensure that at least name is specified
     if not specs.get('name'):
-        _log.error("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
+        raise EasyBuildError("Supplied 'specs' dictionary doesn't even contain a name of a software package?")
 
     # collect paths to search in
     if not paths:
-        _log.error("No paths to look for easyconfig files, specify a path with --robot.")
+        raise EasyBuildError("No paths to look for easyconfig files, specify a path with --robot.")
 
     # select best easyconfig, or try to generate one that fits the requirements
     res = select_or_generate_ec(fp, paths, specs)
@@ -582,4 +583,4 @@ def obtain_ec_for(specs, paths, fp=None):
     if res:
         return res
     else:
-        _log.error("No easyconfig found for requested software, and also failed to generate one.")
+        raise EasyBuildError("No easyconfig found for requested software, and also failed to generate one.")

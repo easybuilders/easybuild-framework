@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ Generic support for dealing with repositories
 from vsc.utils import fancylogger
 from vsc.utils.missing import get_subclasses
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.utilities import import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)
@@ -126,7 +127,7 @@ def avail_repositories(check_useable=True):
     class_dict = dict([(x.__name__, x) for x in get_subclasses(Repository) if x.USABLE or not check_useable])
 
     if not 'FileRepository' in class_dict:
-        _log.error('avail_repositories: FileRepository missing from list of repositories')
+        raise EasyBuildError("avail_repositories: FileRepository missing from list of repositories")
 
     return class_dict
 
@@ -144,13 +145,13 @@ def init_repository(repository, repository_path):
             elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
                 inited_repo = repo(*repository_path)
             else:
-                _log.error('repository_path should be a string or list/tuple of maximum 2 elements (current: %s, type %s)' %
-                           (repository_path, type(repository_path)))
+                raise EasyBuildError("repository_path should be a string or list/tuple of maximum 2 elements "
+                                     "(current: %s, type %s)", repository_path, type(repository_path))
         except Exception, err:
-            _log.error('Failed to create a repository instance for %s (class %s) with args %s (msg: %s)' %
-                       (repository, repo.__name__, repository_path, err))
+            raise EasyBuildError("Failed to create a repository instance for %s (class %s) with args %s (msg: %s)",
+                                 repository, repo.__name__, repository_path, err)
     else:
-        _log.error('Unknown typo of repository spec: %s (type %s)' % (repo, type(repo)))
+        raise EasyBuildError("Unknown typo of repository spec: %s (type %s)", repo, type(repo))
 
     inited_repo.init()
     return inited_repo

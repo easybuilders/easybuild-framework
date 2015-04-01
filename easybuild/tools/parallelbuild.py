@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -50,7 +50,7 @@ from vsc.utils import fancylogger
 _log = fancylogger.getLogger('parallelbuild', fname=False)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None, prepare_first=True):
     """
     easyconfigs is a list of easyconfigs which can be built (e.g. they have no unresolved dependencies)
     this function will build them in parallel by submitting jobs
@@ -68,7 +68,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
     # create a single connection, and reuse it
     conn = connect_to_server()
     if conn is None:
-        _log.error("connect_to_server returned %s, can't submit jobs." % (conn))
+        raise EasyBuildError("connect_to_server returned %s, can't submit jobs.", conn)
 
     # determine ppn once, and pass is to each job being created
     # this avoids having to figure out ppn over and over again, every time creating a temp connection to the server
@@ -79,10 +79,11 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir=None):
         return ActiveMNS().det_full_module_name(dep)
 
     for ec in easyconfigs:
-        # This is very important, otherwise we might have race conditions
+        # this is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        prepare_easyconfig(ec)
+        if prepare_first:
+            prepare_easyconfig(ec)
 
         # the new job will only depend on already submitted jobs
         _log.info("creating job for ec: %s" % str(ec))
@@ -133,9 +134,10 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False):
     # generate_cmd_line returns the options in form --longopt=value
     opts = [x for x in cmd_line_opts if not x.split('=')[0] in ['--%s' % y for y in ignore_opts]]
 
-    quoted_opts = subprocess.list2cmdline(opts)
+    # compose string with command line options, properly quoted and with '%' characters escaped
+    opts_str = subprocess.list2cmdline(opts).replace('%', '%%')
 
-    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, quoted_opts)
+    command = "unset TMPDIR && cd %s && eb %%(spec)s %s --testoutput=%%(output_dir)s" % (curdir, opts_str)
     _log.info("Command template for jobs: %s" % command)
     job_info_lines = []
     if testing:
@@ -212,4 +214,4 @@ def prepare_easyconfig(ec):
         easyblock_instance.close_log()
         os.remove(easyblock_instance.logfile)
     except (OSError, EasyBuildError), err:
-        _log.error("An error occured while preparing %s: %s" % (ec, err))
+        raise EasyBuildError("An error occured while preparing %s: %s", ec, err)

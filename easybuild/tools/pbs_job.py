@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,6 +35,8 @@ import tempfile
 import time
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('pbs_job', fname=False)
 
@@ -52,15 +54,13 @@ try:
     KNOWN_HOLD_TYPES = [pbs.USER_HOLD, pbs.OTHER_HOLD, pbs.SYSTEM_HOLD]
 except ImportError:
     _log.debug("Failed to import pbs from pbs_python. Silently ignoring, is only a real issue with --job")
-    pbs_import_failed = ("PBSQuery or pbs modules not available. "
-                         "Please make sure pbs_python is installed and usable.")
+    pbs_import_failed = "PBSQuery or pbs modules not available. Please make sure pbs_python is installed and usable."
 
 
 def connect_to_server(pbs_server=None):
     """Connect to PBS server and return connection."""
     if pbs_import_failed:
-        _log.error(pbs_import_failed)
-        return None
+        raise EasyBuildError(pbs_import_failed)
 
     if not pbs_server:
         pbs_server = pbs.pbs_default()
@@ -70,8 +70,7 @@ def connect_to_server(pbs_server=None):
 def disconnect_from_server(conn):
     """Disconnect a given connection."""
     if pbs_import_failed:
-        _log.error(pbs_import_failed)
-        return None
+        raise EasyBuildError(pbs_import_failed)
 
     pbs.pbs_disconnect(conn)
 
@@ -116,7 +115,7 @@ class PbsJob(object):
         self.name = name
 
         if pbs_import_failed:
-            self.log.error(pbs_import_failed)
+            raise EasyBuildError(pbs_import_failed)
 
         try:
             self.pbs_server = pbs.pbs_default()
@@ -126,7 +125,7 @@ class PbsJob(object):
             else:
                 self.pbsconn = pbs.pbs_connect(self.pbs_server)
         except Exception, err:
-            self.log.error("Failed to connect to the default pbs server: %s" % err)
+            raise EasyBuildError("Failed to connect to the default pbs server: %s", err)
 
         # setup the resources requested
 
@@ -242,7 +241,7 @@ class PbsJob(object):
         jobid = pbs.pbs_submit(self.pbsconn, pbs_attributes, scriptfn, self.queue, NULL)
         is_error, errormsg = pbs.error()
         if is_error or jobid is None:
-            self.log.error("Failed to submit job script %s (job id: %s, error %s)" % (scriptfn, jobid, errormsg))
+            raise EasyBuildError("Failed to submit job script %s (job id: %s, error %s)", scriptfn, jobid, errormsg)
         else:
             self.log.debug("Succesful job submission returned jobid %s" % jobid)
             self.jobid = jobid
@@ -257,13 +256,13 @@ class PbsJob(object):
         # only set hold if it wasn't set before
         if hold_type not in self.holds:
             if hold_type not in KNOWN_HOLD_TYPES:
-                self.log.error("set_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
+                raise EasyBuildError("set_hold: unknown hold type: %s (supported: %s)", hold_type, KNOWN_HOLD_TYPES)
             # set hold, check for errors, and keep track of this hold
             ec = pbs.pbs_holdjob(self.pbsconn, self.jobid, hold_type, NULL)
             is_error, errormsg = pbs.error()
             if is_error or ec:
-                tup = (hold_type, self.jobid, is_error, ec, errormsg)
-                self.log.error("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+                raise EasyBuildError("Failed to set hold of type %s on job %s (is_error: %s, exit code: %s, msg: %s)",
+                                     hold_type, self.jobid, is_error, ec, errormsg)
             else:
                 self.holds.append(hold_type)
         else:
@@ -278,14 +277,14 @@ class PbsJob(object):
         # only release hold if it was set
         if hold_type in self.holds:
             if hold_type not in KNOWN_HOLD_TYPES:
-                self.log.error("release_hold: unknown hold type: %s (supported: %s)" % (hold_type, KNOWN_HOLD_TYPES))
+                raise EasyBuildError("release_hold: unknown hold type: %s (supported: %s)", hold_type, KNOWN_HOLD_TYPES)
             # release hold, check for errors, remove from list of holds
             ec = pbs.pbs_rlsjob(self.pbsconn, self.jobid, hold_type, NULL)
             self.log.debug("Released hold of type %s for job %s" % (hold_type, self.jobid))
             is_error, errormsg = pbs.error()
             if is_error or ec:
-                tup = (hold_type, self.jobid, is_error, ec, errormsg)
-                self.log.error("Failed to release hold type %s on job %s (is_error: %s, exit code: %s, msg: %s)" % tup)
+                raise EasyBuildError("Failed to release hold type %s on job %s (is_error: %s, exit code: %s, msg: %s)",
+                                     hold_type, self.jobid, is_error, ec, errormsg)
             else:
                 self.holds.remove(hold_type)
         else:
@@ -371,7 +370,7 @@ class PbsJob(object):
         elif len(jobs) == 1:
             self.log.debug("Request for jobid %s returned one result %s" % (self.jobid, jobs))
         else:
-            self.log.error("Request for jobid %s returned more then one result %s" % (self.jobid, jobs))
+            raise EasyBuildError("Request for jobid %s returned more then one result %s", self.jobid, jobs)
 
         # only expect to have a list with one element
         j = jobs[0]
@@ -386,7 +385,7 @@ class PbsJob(object):
         """Remove the job with id jobid"""
         result = pbs.pbs_deljob(self.pbsconn, self.jobid, '')  # use empty string, not NULL
         if result:
-            self.log.error("Failed to delete job %s: error %s" % (self.jobid, result))
+            raise EasyBuildError("Failed to delete job %s: error %s", self.jobid, result)
         else:
             self.log.debug("Succesfully deleted job %s" % self.jobid)
 

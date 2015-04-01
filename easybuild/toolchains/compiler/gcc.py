@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,7 @@ Support for GCC (GNU Compiler Collection) as toolchain compiler.
 """
 
 import easybuild.tools.systemtools as systemtools
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -43,33 +44,30 @@ class Gcc(Compiler):
 
     COMPILER_FAMILY = TC_CONSTANT_GCC
     COMPILER_UNIQUE_OPTS = {
-                            'loop': (False, "Automatic loop parallellisation"),
-                            'f2c': (False, "Generate code compatible with f2c and f77"),
-                            'lto':(False, "Enable Link Time Optimization"),
-                            }
+        'loop': (False, "Automatic loop parallellisation"),
+        'f2c': (False, "Generate code compatible with f2c and f77"),
+        'lto':(False, "Enable Link Time Optimization"),
+    }
     COMPILER_UNIQUE_OPTION_MAP = {
-                                  'i8': 'fdefault-integer-8',
-                                  'r8': 'fdefault-real-8',
-                                  'unroll': 'funroll-loops',
-                                  'f2c': 'ff2c',
-                                  'loop': ['ftree-switch-conversion', 'floop-interchange',
-                                            'floop-strip-mine', 'floop-block'],
-                                  'lto':'flto',
-                                  'optarch':'march=native',
-                                  'openmp':'fopenmp',
-                                  'strict': ['mieee-fp', 'mno-recip'],
-                                  'precise':['mno-recip'],
-                                  'defaultprec':[],
-                                  'loose': ['mrecip', 'mno-ieee-fp'],
-                                  'veryloose': ['mrecip=all', 'mno-ieee-fp'],
-                                  }
+        'i8': 'fdefault-integer-8',
+        'r8': 'fdefault-real-8',
+        'unroll': 'funroll-loops',
+        'f2c': 'ff2c',
+        'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
+        'lto': 'flto',
+        'openmp': 'fopenmp',
+        'strict': ['mieee-fp', 'mno-recip'],
+        'precise':['mno-recip'],
+        'defaultprec':[],
+        'loose': ['mrecip', 'mno-ieee-fp'],
+        'veryloose': ['mrecip=all', 'mno-ieee-fp'],
+    }
 
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-                                            systemtools.INTEL : 'march=native',  # is this needed?
-                                            systemtools.AMD : 'march=native',  # is this needed?
-                                            systemtools.ARM : 'march=native',  # is this needed?
-                                            systemtools.PPC : 'mcpu=native',   # no support for march=native on PPC
-                                           }
+        systemtools.AMD : 'march=native',
+        systemtools.INTEL : 'march=native',
+        systemtools.POWER: 'mcpu=native',  # no support for march=native on POWER
+    }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
@@ -86,8 +84,7 @@ class Gcc(Compiler):
         super(Gcc, self)._set_compiler_vars()
 
         if self.options.get('32bit', None):
-            self.log.raiseException("_set_compiler_vars: 32bit set, but no support yet for " \
-                                    "32bit GCC in EasyBuild")
+            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit GCC in EasyBuild")
 
         # to get rid of lots of problems with libgfortranbegin
         # or remove the system gcc-gfortran

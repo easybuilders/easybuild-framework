@@ -52,7 +52,7 @@ class TweakTest(EnhancedTestCase):
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
 
         ecs = find_matching_easyconfigs('GCC', '*', [test_easyconfigs_path])
-        gccvers = ['4.6.3', '4.6.4', '4.7.2', '4.8.2', '4.8.3']
+        gccvers = ['4.6.3', '4.6.4', '4.7.2', '4.8.2', '4.8.3', '4.9.2']
         self.assertEqual(len(ecs), len(gccvers))
         ecs_basename = [os.path.basename(ec) for ec in ecs]
         for gccver in gccvers:
@@ -96,9 +96,10 @@ class TweakTest(EnhancedTestCase):
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
-        self.assertEqual(os.path.basename(ec_file), 'GCC-4.8.3.eb')
+        self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.2.eb')
 
         # generate non-existing easyconfig
+        os.chdir(self.test_prefix)
         specs = {
             'name': 'GCC',
             'version': '5.4.3',

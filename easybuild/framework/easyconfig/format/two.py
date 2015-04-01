@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ import re
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.format import EBConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion, ToolchainVersionOperator, VersionOperator
+from easybuild.tools.build_log import EasyBuildError
 
 
 class FormatTwoZero(EasyConfigFormatConfigObj):
@@ -89,10 +90,10 @@ class FormatTwoZero(EasyConfigFormatConfigObj):
             maintainers.append(res['name'])
 
         if self.AUTHOR_REQUIRED and not authors:
-            self.log.error("No author in docstring (regex: '%s')" % self.AUTHOR_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError("No author in docstring (regex: '%s')", self.AUTHOR_DOCSTRING_REGEX.pattern)
 
         if self.MAINTAINER_REQUIRED and not maintainers:
-            self.log.error("No maintainer in docstring (regex: '%s')" % self.MAINTAINER_DOCSTRING_REGEX.pattern)
+            raise EasyBuildError("No maintainer in docstring (regex: '%s')", self.MAINTAINER_DOCSTRING_REGEX.pattern)
 
     def get_config_dict(self):
         """Return the best matching easyconfig dict"""

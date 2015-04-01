@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,8 @@ import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 _log = fancylogger.getLogger('environment', fname=False)
 
@@ -53,7 +55,7 @@ def write_changes(filename):
     except IOError, err:
         if script is not None:
             script.close()
-        _log.error("Failed to write to %s: %s" % (filename, err))
+        raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
 
 
@@ -120,7 +122,7 @@ def read_environment(env_vars, strict=False):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
-            _log.error(msg)
+            raise EasyBuildError(msg)
         else:
             _log.debug(msg)
 
