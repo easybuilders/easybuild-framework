@@ -242,7 +242,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'setenv\("FOO", "bar"\)', toy_module_txt))
             self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "foo/bar"\)\)', toy_module_txt))
             self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "baz"\)\)', toy_module_txt))
-            self.assertTrue(re.search(r'if \(mode\(\) == "load"\) then\n\s*io.stderr:write\(".*I AM toy v0.0"\)',
+            self.assertTrue(re.search(r'if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)',
                                       toy_module_txt))
             self.assertTrue(re.search(r'io.stderr:write\("oh hai!"\)', toy_module_txt))
         else:

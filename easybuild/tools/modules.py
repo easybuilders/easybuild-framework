@@ -174,8 +174,6 @@ class ModulesTool(object):
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
 
-        self.det_load_regex = None
-
     def buildstats(self):
         """Return tuple with data to be included in buildstats"""
         return (self.__class__.__name__, self.cmd, self.version)
