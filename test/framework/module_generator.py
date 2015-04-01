@@ -223,8 +223,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
         else:
             expected = '\n'.join([
-                'use("/some/path")',
-                'use("/foo/bar/baz")',
+                'prepend_path("MODULEPATH", "/some/path")',
+                'prepend_path("MODULEPATH", "/foo/bar/baz")',
                 '',
             ])
             self.assertEqual(self.modgen.use(["/some/path", "/foo/bar/baz"]), expected)
