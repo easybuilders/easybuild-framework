@@ -231,8 +231,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                      path)
             elif not os.path.isabs(path):
-                # prepend $root (= installdir) for relative paths
-                paths[i] = os.path.join('$root', path)
+                # prepend $root (= installdir) for (non-empty) relative paths
+                if path:
+                    paths[i] = os.path.join('$root', path)
+                else:
+                    paths[i] = '$root'
 
         statements = [template % (key, p) for p in paths]
         return '\n'.join(statements)
@@ -246,12 +249,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
             use_statements.append("module use %s" % path)
         return '\n'.join(use_statements)
 
-    def set_environment(self, key, value):
+    def set_environment(self, key, value, relpath=False):
         """
         Generate setenv statement for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setenv\t%s\t\t%s' % (key, quote_str(value))
+        if relpath:
+            if value:
+                val = quote_str(os.path.join('$root', value))
+            else:
+                val = '"$root"'
+        else:
+            val = quote_str(value)
+        return 'setenv\t%s\t\t%s' % (key, val)
 
     def msg_on_load(self, msg):
         """
@@ -282,7 +292,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_REGEX = r'^\s*load\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
-    PATH_JOIN_TEMPLATE = 'pathJoin(pkg.root, "%s")'
+    PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
     def __init__(self, *args, **kwargs):
@@ -313,14 +323,13 @@ class ModuleGeneratorLua(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            "local pkg = {}",
             "help = [[%(description)s]]",
             "whatis([[Name: %(name)s]])",
             "whatis([[Version: %(version)s]])",
             "whatis([[Description: %(description)s]])",
             "whatis([[Homepage: %(homepage)s]])",
             '',
-            'pkg.root = "%(installdir)s"',
+            'local root = "%(installdir)s"',
         ]
 
         if self.app.cfg['moduleloadnoconflict']:
@@ -377,8 +386,11 @@ class ModuleGeneratorLua(ModuleGenerator):
                     raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                          path)
             else:
-                # use pathJoin for relative paths
-                paths[i] = self.PATH_JOIN_TEMPLATE % path
+                # use pathJoin for (non-empty) relative paths
+                if path:
+                    paths[i] = self.PATH_JOIN_TEMPLATE % path
+                else:
+                    paths[i] = 'root'
 
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in paths]
         return '\n'.join(statements)
@@ -390,15 +402,18 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         return '\n'.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths] + [''])
 
-    def set_environment(self, key, value):
+    def set_environment(self, key, value, relpath=False):
         """
         Generate a quoted setenv statement for the given key/value pair.
         """
-        # setting of $EBDEVELFOO modulefile path in Tcl case uses string
-        # interpolation available in Tcl, but not in Lua. Ie
-        # setenv("FOO","pkg.root/somevar") where pkg.root and somevar are
-        # variables cant be used.
-        return 'setenv("%s", %s)' % (key, quote_str(value))
+        if relpath:
+            if value:
+                val = self.PATH_JOIN_TEMPLATE % value
+            else:
+                val = 'root'
+        else:
+            val = quote_str(value)
+        return 'setenv("%s", %s)' % (key, val)
 
     def msg_on_load(self, msg):
         """

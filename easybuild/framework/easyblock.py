@@ -849,11 +849,12 @@ class EasyBlock(object):
         # EBROOT + EBVERSION + EBDEVEL
         env_name = convert_name(self.name, upper=True)
 
-        lines.append(self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + env_name, self.installdir))
+        lines.append(self.module_generator.set_environment(ROOT_ENV_VAR_NAME_PREFIX + env_name, '', relpath=True))
         lines.append(self.module_generator.set_environment(VERSION_ENV_VAR_NAME_PREFIX + env_name, self.version))
 
-        devel_path = os.path.join(self.installdir, log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
-        lines.append(self.module_generator.set_environment(DEVEL_ENV_VAR_NAME_PREFIX + env_name, devel_path))
+        devel_path = os.path.join(log_path(), ActiveMNS().det_devel_module_filename(self.cfg))
+        devel_path_envvar = DEVEL_ENV_VAR_NAME_PREFIX + env_name
+        lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))
 
         lines.append('')
         for (key, value) in self.cfg['modextravars'].items():
