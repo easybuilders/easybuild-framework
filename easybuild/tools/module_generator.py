@@ -430,7 +430,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         return '\n'.join([
             "",
             'if (mode() == "load") then',
-            '    io.stderr:write("%s\n")' % msg,
+            '    io.stderr:write("%s")' % msg,
             "end",
             "",
         ])
