@@ -57,7 +57,9 @@ class ModuleGenerator(object):
 
     # chars we want to escape in the generated modulefiles
     CHARS_TO_ESCAPE = None
+
     MODULE_FILE_EXTENSION = None
+    MODULE_HEADER = None
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -67,6 +69,7 @@ class ModuleGenerator(object):
         self.filename = None
         self.class_mod_file = None
         self.module_path = None
+        self.class_mod_files = None
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def prepare(self, mod_symlink_paths):
@@ -74,7 +77,7 @@ class ModuleGenerator(object):
         Creates the absolute filename for the module.
         """
         mod_path_suffix = build_option('suffix_modules_path')
-        full_mod_name = '%s%s' % (self.app.full_mod_name, self.MODULE_FILE_EXTENSION)
+        full_mod_name = self.app.full_mod_name + self.MODULE_FILE_EXTENSION
         # module file goes in general moduleclass category
         self.filename = os.path.join(self.module_path, mod_path_suffix, full_mod_name)
         # make symlink in moduleclass category
@@ -103,12 +106,12 @@ class ModuleGenerator(object):
                                  self.class_mod_files, self.filename, err)
 
     def is_fake(self):
-        """Return whether this ModuleGeneratorTcl instance generates fake modules or not."""
+        """Return whether this ModuleGenerator instance generates fake modules or not."""
         return self.fake
 
     def set_fake(self, fake):
-        """Determine whether this ModuleGeneratorTcl instance should generate fake modules."""
-        self.log.debug("Updating fake for this ModuleGeneratorTcl instance to %s (was %s)" % (fake, self.fake))
+        """Determine whether this ModuleGenerator instance should generate fake modules."""
+        self.log.debug("Updating fake for this ModuleGenerator instance to %s (was %s)" % (fake, self.fake))
         self.fake = fake
         # fake mode: set installpath to temporary dir
         if self.fake:
@@ -118,12 +121,12 @@ class ModuleGenerator(object):
         else:
             self.module_path = install_path('mod')
 
-    def module_header(self):
-        """Return module header string."""
+    def comment(self, str):
+        """Return given string formatted as a comment."""
         raise NotImplementedError
 
-    def comment(self, msg):
-        """Return string containing given message as a comment."""
+    def conditional_statement(self, condition, body, negative=False):
+        """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
 
@@ -131,20 +134,28 @@ class ModuleGeneratorTcl(ModuleGenerator):
     """
     Class for generating Tcl module files.
     """
-    MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
     SYNTAX = 'Tcl'
-    CHARS_TO_ESCAPE = ["$"]
+    MODULE_FILE_EXTENSION = ''  # no suffix for Tcl module files
+    MODULE_HEADER = '#%Module'
+    CHARS_TO_ESCAPE = ['$']
 
     LOAD_REGEX = r"^\s*module\s+load\s+(\S+)"
     LOAD_TEMPLATE = "module load %(mod_name)s"
 
-    def module_header(self):
-        """Return module header string."""
-        return "#%Module\n"
-
     def comment(self, msg):
         """Return string containing given message as a comment."""
-        return "# %s\n" % msg
+        return "# %s" % msg
+
+    def conditional_statement(self, condition, body, negative=False):
+        """Return formatted conditional statement, with given condition and body."""
+        if negative:
+            lines = ["if { ![ %s ] } {" % condition]
+        else:
+            lines = ["if { [ %s ] } {" % condition]
+
+        lines.append('    ' + body)
+        lines.append('}')
+        return '\n'.join(lines)
 
     def get_description(self, conflict=True):
         """
@@ -153,27 +164,20 @@ class ModuleGeneratorTcl(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            "",
+            '',
             "proc ModulesHelp { } {",
-            "    puts stderr {   %(description)s",
+            "    puts stderr { %(description)s",
             "    }",
-            "}",
-            "",
+            '}',
+            '',
             "module-whatis {Description: %(description)s}",
-            "",
-            "set root    %(installdir)s",
-            "",
+            '',
+            "set root %(installdir)s",
         ]
 
         if self.app.cfg['moduleloadnoconflict']:
-            lines.extend([
-                "if { ![is-loaded %(name)s/%(version)s] } {",
-                "    if { [is-loaded %(name)s] } {",
-                "        module unload %(name)s",
-                "    }",
-                "}",
-                "",
-            ])
+            cond_unload = self.conditional_statement("is-loaded %(name)s", "module unload %(name)s")
+            lines.append(self.conditional_statement("is-loaded %(name)s/%(version)s", cond_unload, negative=True))
 
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
@@ -181,10 +185,9 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict GCC' for 'GCC/4.8.3'
             # - 'conflict Core/GCC' for 'Core/GCC/4.8.2'
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
-            lines.append("conflict %s\n" % os.path.dirname(self.app.short_mod_name))
+            lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        txt = self.module_header()
-        txt += '\n'.join(lines) % {
+        txt = self.MODULE_HEADER + '\n'.join([''] + lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
@@ -203,30 +206,21 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # it will get translated to "module unload"
             load_statement = ["module load %(mod_name)s"]
         else:
-            load_statement = [
-                "if { ![is-loaded %(mod_name)s] } {",
-                "    %s" % self.LOAD_TEMPLATE,
-                "}",
-            ]
-        return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
+            load_statement = [self.conditional_statement("is-loaded %(mod_name)s", self.LOAD_TEMPLATE, negative=True)]
+        return '\n'.join([''] + load_statement + ['']) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
         Generate unload statements for module.
         """
-        return '\n'.join([
-            "",
-            "if { [is-loaded %(mod_name)s] } {",
-            "    module unload %(mod_name)s",
-            "}",
-            "",
-        ]) % {'mod_name': mod_name}
+        cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
+        return '\n'.join(['', cond_unload, ''])
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
         Generate prepend-path statements for the given list of paths.
         """
-        template = "prepend-path\t%s\t\t%s\n"
+        template = "prepend-path\t%s\t\t%s"
 
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
@@ -238,12 +232,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
                                      path)
             elif not os.path.isabs(path):
                 # prepend $root (= installdir) for relative paths
-                paths[i]="$root/%s" % path
-
+                paths[i] = os.path.join('$root', path)
 
         statements = [template % (key, p) for p in paths]
-        return ''.join(statements)
-
+        return '\n'.join(statements)
 
     def use(self, paths):
         """
@@ -259,63 +251,59 @@ class ModuleGeneratorTcl(ModuleGenerator):
         Generate setenv statement for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setenv\t%s\t\t%s\n' % (key, quote_str(value))
-    
+        return 'setenv\t%s\t\t%s' % (key, quote_str(value))
+
     def msg_on_load(self, msg):
         """
         Add a message that should be printed when loading the module.
         """
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
         msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
-        return '\n'.join([
-            "",
-            "if [ module-info mode load ] {",
-            '        puts stderr     "%s"' % msg,
-            "}",
-            "",
-        ])
-    
-    def add_tcl_footer(self, tcltxt):
-        """
-        Append whatever Tcl code you want to your modulefile
-        """
-        return tcltxt
-
-    def add_lua_footer(self, luatxt):
-        """
-        Appending Tcl code in Lua files doesn't make sense."""
-        raise EasyBuildError("Appending Lua footer to module file in Tcl syntax doesn't work: %s", luatxt)
+        print_cmd = "puts stderr %s" % quote_str(msg)
+        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd), ''])
 
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
+        return 'set-alias\t%s\t\t%s' % (key, quote_str(value))
 
 
 class ModuleGeneratorLua(ModuleGenerator):
     """
     Class for generating Lua module files.
     """
-    MODULE_FILE_EXTENSION = '.lua'
     SYNTAX = 'Lua'
-    CHARS_TO_ESCAPE = ["%"]
+    MODULE_FILE_EXTENSION = '.lua'
+    MODULE_HEADER = ''  # no header in Lua module files
+    CHARS_TO_ESCAPE = []
 
     LOAD_REGEX = r'^\s*load\("(\S+)"'
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
+
+    PATH_JOIN_TEMPLATE = 'pathJoin(pkg.root, "%s")'
+    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
         super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
 
-    def module_header(self):
-        """Return module header string."""
-        return ''
-
     def comment(self, msg):
         """Return string containing given message as a comment."""
-        return " -- %s\n" % msg
+        return " -- %s" % msg
+
+    def conditional_statement(self, condition, body, negative=False):
+        """Return formatted conditional statement, with given condition and body."""
+        if negative:
+            lines = ["if not %s then" % condition]
+        else:
+            lines = ["if %s then" % condition]
+
+        for line in body.split('\n'):
+            lines.append('    ' + line)
+        lines.append('end')
+        return '\n'.join(lines)
 
     def get_description(self, conflict=True):
         """
@@ -331,13 +319,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             "whatis([[Version: %(version)s]])",
             "whatis([[Description: %(description)s]])",
             "whatis([[Homepage: %(homepage)s]])",
-            "",
-            "",
-            'pkg.root="%(installdir)s"',
-            "",
-            ]
+            '',
+            'pkg.root = "%(installdir)s"',
+        ]
 
-        txt = '\n'.join(lines) % {
+        if self.app.cfg['moduleloadnoconflict']:
+            self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
+
+        elif conflict:
+            # conflict on 'name' part of module name (excluding version part at the end)
+            lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
+
+        txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
@@ -357,33 +350,23 @@ class ModuleGeneratorLua(ModuleGenerator):
             # it will get translated to "module unload"
             load_statement = [self.LOAD_TEMPLATE]
         else:
-            load_statement = [
-                'if ( not isloaded("%(mod_name)s")) then',
-                '    %s' % self.LOAD_TEMPLATE,
-                'end',
-            ]
-        return '\n'.join([""] + load_statement + [""]) % {'mod_name': mod_name}
+            load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', self.LOAD_TEMPLATE, negative=True)]
+
+        return '\n'.join([''] + load_statement + ['']) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
         Generate unload statements for module.
         """
-        return '\n'.join([
-            "",
-            'if (isloaded("%(mod_name)s") then',
-            '    unload("%(mod_name)s")',
-            "end",
-            "",
-        ]) % {'mod_name': mod_name}
+        cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
+        return '\n'.join(['', cond_unload, ''])
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
         Generate prepend-path statements for the given list of paths
         """
-        template = "prepend_path(%s, %s)\n"
-
         if isinstance(paths, basestring):
-            self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
+            self.log.debug("Wrapping %s into a list before using it to prepend path %s", paths, key)
             paths = [paths]
 
         for i, path in enumerate(paths):
@@ -394,18 +377,18 @@ class ModuleGeneratorLua(ModuleGenerator):
                     raise EasyBuildError("Absolute path %s passed to prepend_paths which only expects relative paths.",
                                          path)
             else:
-                # use pathJoin(pkg.root, path) for relative paths
-                paths[i] = 'pathJoin(pkg.root, "%s")' % path
+                # use pathJoin for relative paths
+                paths[i] = self.PATH_JOIN_TEMPLATE % path
 
-        statements = [template % (quote_str(key), p) for p in paths]
-        return ''.join(statements)
+        statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in paths]
+        return '\n'.join(statements)
 
     def use(self, paths):
         """
         Generate module use statements for given list of module paths.
         @param paths: list of module path extensions to generate use statements for
         """
-        return '\n'.join(['prepend_path("MODULEPATH", "%s")' % p for p in paths] + [''])
+        return '\n'.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths] + [''])
 
     def set_environment(self, key, value):
         """
@@ -414,44 +397,22 @@ class ModuleGeneratorLua(ModuleGenerator):
         # setting of $EBDEVELFOO modulefile path in Tcl case uses string
         # interpolation available in Tcl, but not in Lua. Ie
         # setenv("FOO","pkg.root/somevar") where pkg.root and somevar are
-        # variables cant be used. 
-        return 'setenv("%s", %s)\n' % (key, quote_str(value))
-
-    def set_environment_unquoted(self, key, unquotedvalue):
-        """ Generate an unquoted setenv statement for the given key/value pair.
-        """
-        return 'setenv("%s",%s)\n' % (key, unquotedvalue)
+        # variables cant be used.
+        return 'setenv("%s", %s)' % (key, quote_str(value))
 
     def msg_on_load(self, msg):
         """
         Add a message that should be printed when loading the module.
         """
-        msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
-        return '\n'.join([
-            "",
-            'if (mode() == "load") then',
-            '    io.stderr:write("%s")' % msg,
-            "end",
-            "",
-        ])
-
-    def add_tcl_footer(self, tcltxt):
-        """
-        Appending Tcl code in Lua files doesn't make sense."""
-        raise EasyBuildError("Appending Tcl footer to module file in Lua syntax doesn't work: %s", tcltxt)
-
-    def add_lua_footer(self, luatxt):
-        """
-        Append whatever Lua code you want to your modulefile
-        """
-        return luatxt
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg), ''])
 
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias("%s",%s)\n' % (key, quote_str(value))
+        return 'setalias("%s", %s)' % (key, quote_str(value))
+
 
 def avail_module_generators():
     """
@@ -479,7 +440,7 @@ def module_load_regex(modfilepath):
     """
     Return the correct (compiled) regex to extract dependencies, depending on the module file type (Lua vs Tcl)
     """
-    if modfilepath.endswith('.lua'):
+    if modfilepath.endswith(ModuleGeneratorLua.MODULE_FILE_EXTENSION):
         regex = ModuleGeneratorLua.LOAD_REGEX
     else:
         regex = ModuleGeneratorTcl.LOAD_REGEX
