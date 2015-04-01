@@ -194,17 +194,17 @@ class EasyBlockTest(EnhancedTestCase):
         guess = eb.make_module_req()
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
-            self.assertTrue(re.search("^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
-            self.assertTrue(re.search("^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
-            self.assertTrue(re.search("^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
-            self.assertFalse(re.search("^prepend-path\s+CPATH\s+.*$", guess, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/bla.jar$", guess, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+CLASSPATH\s+\$root/foo.jar$", guess, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+MANPATH\s+\$root/share/man$", guess, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+\$root/bin$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+CPATH\s+.*$", guess, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search('^prepend_path\("CLASSPATH", pathJoin\(pkg.root, "bla.jar"\)\)$', guess, re.M))
-            self.assertTrue(re.search('^prepend_path\("CLASSPATH", pathJoin\(pkg.root, "foo.jar"\)\)$', guess, re.M))
-            self.assertTrue(re.search('^prepend_path\("MANPATH", pathJoin\(pkg.root, "share/man"\)\)$', guess, re.M))
-            self.assertTrue(re.search('^prepend_path\("PATH", pathJoin\(pkg.root, "bin"\)\)$', guess, re.M))
-            self.assertFalse(re.search('^prepend_path\("CPATH", .*\)$', guess, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
+            self.assertFalse(re.search(r'^prepend_path\("CPATH", .*\)$', guess, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
@@ -321,12 +321,12 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^conflict\s+%s$" % name, txt, re.M))
 
             self.assertTrue(re.search(r"^set\s+root\s+%s$" % eb.installdir, txt, re.M))
-            ebroot_regex = re.compile(r'^setenv\s+EBROOT%s\s+"%s"\s*$' % (name.upper(), eb.installdir), re.M)
+            ebroot_regex = re.compile(r'^setenv\s+EBROOT%s\s+"\$root"\s*$' % name.upper(), re.M)
             self.assertTrue(ebroot_regex.search(txt), "%s in %s" % (ebroot_regex.pattern, txt))
             self.assertTrue(re.search(r'^setenv\s+EBVERSION%s\s+"%s"$' % (name.upper(), version), txt, re.M))
 
         elif get_module_syntax() == 'Lua':
-            ebroot_regex = re.compile(r'^setenv\("EBROOT%s", ".*%s.*"\)$' % (name.upper(), eb.installdir), re.M)
+            ebroot_regex = re.compile(r'^setenv\("EBROOT%s", root\)$' % name.upper(), re.M)
             self.assertTrue(ebroot_regex.search(txt), "%s in %s" % (ebroot_regex.pattern, txt))
             self.assertTrue(re.search(r'^setenv\("EBVERSION%s", "%s"\)$' % (name.upper(), version), txt, re.M))
 
@@ -346,7 +346,7 @@ class EasyBlockTest(EnhancedTestCase):
             if get_module_syntax() == 'Tcl':
                 regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^prepend_path\("%s", pathJoin\(pkg.root, "%s"\)\)$' % (key, val), re.M)
+                regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
             else:
                 self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))

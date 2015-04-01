@@ -209,7 +209,7 @@ class ToyBuildTest(EnhancedTestCase):
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
-            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz']}",
+            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  'THANKS FOR LOADING ME, I AM %(name)s v%(version)s'",
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -236,12 +236,14 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'setenv\s*FOO\s*"bar"', toy_module_txt))
             self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
             self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/baz', toy_module_txt))
+            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root', toy_module_txt))
             self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0', toy_module_txt))
             self.assertTrue(re.search(r'puts stderr "oh hai!"', toy_module_txt))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'setenv\("FOO", "bar"\)', toy_module_txt))
-            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "foo/bar"\)\)', toy_module_txt))
-            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(pkg.root, "baz"\)\)', toy_module_txt))
+            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)', toy_module_txt))
+            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)', toy_module_txt))
+            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", root\)', toy_module_txt))
             self.assertTrue(re.search(r'if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)',
                                       toy_module_txt))
             self.assertTrue(re.search(r'io.stderr:write\("oh hai!"\)', toy_module_txt))
