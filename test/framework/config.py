@@ -38,13 +38,13 @@ from unittest import main as unittestmain
 from vsc.utils.fancylogger import setLogLevelDebug, logToScreen
 
 import easybuild.tools.options as eboptions
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_path, source_paths, install_path, get_repositorypath
 from easybuild.tools.config import set_tmpdir, BuildOptions, ConfigurationVariables
-from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options, build_option
+from easybuild.tools.config import get_build_log_path, DEFAULT_PATH_SUBDIRS, init_build_options
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.repository.filerepo import FileRepository
-from easybuild.tools.repository.repository import init_repository
+from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
 
 
 class EasyBuildConfigTest(EnhancedTestCase):
@@ -170,11 +170,19 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def test_error_env_var_typo(self):
         """Test error reporting on use of known $EASYBUILD-prefixed env vars."""
-        os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
-
+        # all is well
         init_config()
 
+        os.environ['EASYBUILD_FOO'] = 'foo'
+        os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
+
+        error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
+        error += "but do not match valid option\(s\): "
+        error += ','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
+        self.assertErrorRegex(EasyBuildError, error, init_config)
+
         del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
+        del os.environ['EASYBUILD_FOO']
 
     def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
