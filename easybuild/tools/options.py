@@ -648,7 +648,7 @@ def parse_options(args=None):
                    "Provide one or more easyconfigs or directories, use -H or --help more information.")
 
     eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                             go_args=args)
+                             go_args=args, error_env_options=True)
     return eb_go
 
 

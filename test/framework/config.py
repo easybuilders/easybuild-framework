@@ -168,6 +168,14 @@ class EasyBuildConfigTest(EnhancedTestCase):
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
 
+    def test_error_env_var_typo(self):
+        """Test error reporting on use of known $EASYBUILD-prefixed env vars."""
+        os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'] = 'whatever'
+
+        init_config()
+
+        del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
+
     def test_generaloption_config_file(self):
         """Test use of new-style configuration file."""
         self.purge_environment()
