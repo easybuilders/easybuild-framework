@@ -80,7 +80,9 @@ class EasyBuildOptions(GeneralOption):
     VERSION = this_is_easybuild()
 
     DEFAULT_LOGLEVEL = 'INFO'
-    DEFAULT_CONFIGFILES = [p for p in DEFAULT_SYS_CFGFILES + [DEFAULT_USER_CFGFILE] if os.path.exists(p)]
+    DEFAULT_CONFIGFILES = DEFAULT_SYS_CFGFILES[:]
+    if os.path.exists(DEFAULT_USER_CFGFILE):
+        DEFAULT_CONFIGFILES.append(DEFAULT_USER_CFGFILE)
 
     ALLOPTSMANDATORY = False  # allow more than one argument
     CONFIGFILES_RAISE_MISSING = True  # don't allow non-existing config files to be specified
