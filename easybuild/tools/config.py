@@ -84,6 +84,7 @@ BUILD_OPTIONS_CMDLINE = {
         'dump_test_report',
         'easyblock',
         'filter_deps',
+        'hide_deps',
         'from_pr',
         'github_user',
         'group',
