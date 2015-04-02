@@ -139,24 +139,24 @@ class GitRepository(FileRepository):
         """
         Commit working copy to git repository
         """
-        self.log.debug("committing in git: %s" % msg)
-        completemsg = "%s EasyBuild-commit from %s (time: %s, user: %s). Easybuild v%s" % (msg, socket.gethostname(),
-                                                                                           time.strftime("%Y-%m-%d_%H-%M-%S"),
-                                                                                           getpass.getuser(), str(VERSION))
+        host = socket.gethostname()
+        timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        user = getpass.getuser()
+        completemsg = "%s with EasyBuild v%s @ %s (time: %s, user: %s)" % (msg, VERSION, host, timestamp, user)
+        self.log.debug("committing in git with message: %s" % msg)
+
         self.log.debug("git status: %s" % self.client.status())
         try:
-            self.client.commit('-am "%s"' % completemsg)
-            self.log.debug("succesfull commit")
+            self.client.commit('-am %s' % completemsg)
+            self.log.debug("succesfull commit: %s", self.client.log('HEAD^!'))
         except GitCommandError, err:
-            self.log.warning("Commit from working copy %s (msg: %s) failed, empty commit?\n%s" % (self.wc, msg, err))
+            self.log.warning("Commit from working copy %s failed, empty commit? (msg: %s): %s", self.wc, msg, err)
         try:
             info = self.client.push()
-            self.log.debug("push info: %s " % info)
+            self.log.debug("push info: %s ", info)
         except GitCommandError, err:
-            self.log.warning("Push from working copy %s to remote %s (msg: %s) failed: %s" % (self.wc,
-                                                                                              self.repo,
-                                                                                              msg,
-                                                                                              err))
+            self.log.warning("Push from working copy %s to remote %s failed (msg: %s): %s",
+                             self.wc, self.repo, msg, err)
 
     def cleanup(self):
         """
