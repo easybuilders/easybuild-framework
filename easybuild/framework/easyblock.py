@@ -748,13 +748,8 @@ class EasyBlock(object):
         fake_mod_data = self.load_fake_module(purge=True)
 
         header = self.module_generator.MODULE_HEADER
-
-        env_lines = []
-        for (key, val) in env.get_changes().items():
-            # check if non-empty string
-            # TODO: add unset for empty vars?
-            if val.strip():
-                env_lines.append(self.module_generator.set_environment(key, val))
+        if header:
+            header += '\n'
 
         load_lines = []
         # capture all the EBDEVEL vars
@@ -770,6 +765,13 @@ class EasyBlock(object):
             elif key.startswith('SOFTDEVEL'):
                 self.log.nosupport("Environment variable SOFTDEVEL* being relied on", '2.0')
 
+        env_lines = []
+        for (key, val) in env.get_changes().items():
+            # check if non-empty string
+            # TODO: add unset for empty vars?
+            if val.strip():
+                env_lines.append(self.module_generator.set_environment(key, val))
+
         if create_in_builddir:
             output_dir = self.builddir
         else:
@@ -779,7 +781,7 @@ class EasyBlock(object):
         filename = os.path.join(output_dir, ActiveMNS().det_devel_module_filename(self.cfg))
         self.log.debug("Writing devel module to %s" % filename)
 
-        txt = '\n'.join([header] + load_lines + env_lines)
+        txt = ''.join([header] + load_lines + env_lines)
         write_file(filename, txt)
 
         # cleanup: unload fake module, remove fake module dir
@@ -856,7 +858,7 @@ class EasyBlock(object):
         devel_path_envvar = DEVEL_ENV_VAR_NAME_PREFIX + env_name
         lines.append(self.module_generator.set_environment(devel_path_envvar, devel_path, relpath=True))
 
-        lines.append('')
+        lines.append('\n')
         for (key, value) in self.cfg['modextravars'].items():
             lines.append(self.module_generator.set_environment(key, value))
 
@@ -874,7 +876,7 @@ class EasyBlock(object):
         if self.cfg['modtclfooter']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
                 self.log.debug("Including Tcl footer in module: %s", self.cfg['modtclfooter'])
-                lines.append(self.cfg['modtclfooter'])
+                lines.extend([self.cfg['modtclfooter'], '\n'])
             else:
                 self.log.warning("Not including footer in Tcl syntax in non-Tcl module file: %s",
                                  self.cfg['modtclfooter'])
@@ -882,7 +884,7 @@ class EasyBlock(object):
         if self.cfg['modluafooter']:
             if isinstance(self.module_generator, ModuleGeneratorLua):
                 self.log.debug("Including Lua footer in module: %s", self.cfg['modluafooter'])
-                lines.append(self.cfg['modluafooter'])
+                lines.extend([self.cfg['modluafooter'], '\n'])
             else:
                 self.log.warning("Not including footer in Lua syntax in non-Lua module file: %s",
                                  self.cfg['modluafooter'])
@@ -890,8 +892,7 @@ class EasyBlock(object):
         for (key, value) in self.cfg['modaliases'].items():
             lines.append(self.module_generator.set_alias(key, value))
 
-        lines.append('')
-        txt = '\n'.join(lines)
+        txt = ''.join(lines)
         self.log.debug("make_module_extra added this: %s", txt)
 
         return txt
@@ -909,7 +910,7 @@ class EasyBlock(object):
             env_var_name = convert_name(self.name, upper=True)
             lines.append(self.module_generator.set_environment('EBEXTSLIST%s' % env_var_name, exts_list))
 
-        return '\n'.join(lines)
+        return ''.join(lines)
 
     def make_module_footer(self):
         """
@@ -926,7 +927,7 @@ class EasyBlock(object):
             self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
             footer.append(self.modules_footer)
 
-        return '\n'.join(footer)
+        return ''.join(footer)
 
     def make_module_extend_modpath(self):
         """
@@ -960,7 +961,7 @@ class EasyBlock(object):
             except OSError, err:
                 raise EasyBuildError("Failed to change to %s: %s", self.installdir, err)
 
-            lines.append('')
+            lines.append('\n')
             for key in sorted(requirements):
                 for path in requirements[key]:
                     paths = sorted(glob.glob(path))
@@ -971,7 +972,7 @@ class EasyBlock(object):
             except OSError, err:
                 raise EasyBuildError("Failed to change back to %s: %s", self.orig_workdir, err)
 
-        return '\n'.join(lines)
+        return ''.join(lines)
 
     def make_module_req_guess(self):
         """
@@ -1671,8 +1672,7 @@ class EasyBlock(object):
         mod_symlink_paths = ActiveMNS().det_module_symlink_paths(self.cfg)
         modpath = self.module_generator.prepare(mod_symlink_paths)
 
-        txt = ''
-        txt += self.make_module_description()
+        txt = self.make_module_description()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()
@@ -1681,7 +1681,7 @@ class EasyBlock(object):
 
         write_file(self.module_generator.filename, txt)
 
-        self.log.info("Module file %s written" % self.module_generator.filename)
+        self.log.info("Module file %s written: %s", self.module_generator.filename, txt)
 
          # only update after generating final module file
         if not fake:

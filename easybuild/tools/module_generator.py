@@ -144,7 +144,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
-        return "# %s" % msg
+        return "# %s\n" % msg
 
     def conditional_statement(self, condition, body, negative=False):
         """Return formatted conditional statement, with given condition and body."""
@@ -154,7 +154,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             lines = ["if { [ %s ] } {" % condition]
 
         lines.append('    ' + body)
-        lines.append('}')
+        lines.extend(['}', ''])
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
@@ -164,7 +164,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         description = "%s - Homepage: %s" % (self.app.cfg['description'], self.app.cfg['homepage'])
 
         lines = [
-            '',
+            self.MODULE_HEADER.replace('%', '%%'),
             "proc ModulesHelp { } {",
             "    puts stderr { %(description)s",
             "    }",
@@ -177,7 +177,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         if self.app.cfg['moduleloadnoconflict']:
             cond_unload = self.conditional_statement("is-loaded %(name)s", "module unload %(name)s")
-            lines.append(self.conditional_statement("is-loaded %(name)s/%(version)s", cond_unload, negative=True))
+            lines.extend(['', self.conditional_statement("is-loaded %(name)s/%(version)s", cond_unload, negative=True)])
 
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
@@ -187,7 +187,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        txt = self.MODULE_HEADER + '\n'.join([''] + lines + ['']) % {
+        txt = '\n'.join(lines + ['']) % {
             'name': self.app.name,
             'version': self.app.version,
             'description': description,
@@ -204,23 +204,23 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = ["module load %(mod_name)s"]
+            load_statement = [self.LOAD_TEMPLATE, '']
         else:
             load_statement = [self.conditional_statement("is-loaded %(mod_name)s", self.LOAD_TEMPLATE, negative=True)]
-        return '\n'.join([''] + load_statement + ['']) % {'mod_name': mod_name}
+        return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
         Generate unload statements for module.
         """
         cond_unload = self.conditional_statement("is-loaded %(mod)s", "module unload %(mod)s") % {'mod': mod_name}
-        return '\n'.join(['', cond_unload, ''])
+        return '\n'.join(['', cond_unload])
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
         Generate prepend-path statements for the given list of paths.
         """
-        template = "prepend-path\t%s\t\t%s"
+        template = "prepend-path\t%s\t\t%s\n"
 
         if isinstance(paths, basestring):
             self.log.debug("Wrapping %s into a list before using it to prepend path %s" % (paths, key))
@@ -238,7 +238,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
                     paths[i] = '$root'
 
         statements = [template % (key, p) for p in paths]
-        return '\n'.join(statements)
+        return ''.join(statements)
 
     def use(self, paths):
         """
@@ -246,8 +246,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         use_statements = []
         for path in paths:
-            use_statements.append("module use %s" % path)
-        return '\n'.join(use_statements)
+            use_statements.append("module use %s\n" % path)
+        return ''.join(use_statements)
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -261,7 +261,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
                 val = '"$root"'
         else:
             val = quote_str(value)
-        return 'setenv\t%s\t\t%s' % (key, val)
+        return 'setenv\t%s\t\t%s\n' % (key, val)
 
     def msg_on_load(self, msg):
         """
@@ -270,14 +270,14 @@ class ModuleGeneratorTcl(ModuleGenerator):
         # escape any (non-escaped) characters with special meaning by prefixing them with a backslash
         msg = re.sub(r'((?<!\\)[%s])'% ''.join(self.CHARS_TO_ESCAPE), r'\\\1', msg)
         print_cmd = "puts stderr %s" % quote_str(msg)
-        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd), ''])
+        return '\n'.join(['', self.conditional_statement("module-info mode load", print_cmd)])
 
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'set-alias\t%s\t\t%s' % (key, quote_str(value))
+        return 'set-alias\t%s\t\t%s\n' % (key, quote_str(value))
 
 
 class ModuleGeneratorLua(ModuleGenerator):
@@ -293,7 +293,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE = 'load("%(mod_name)s")'
 
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
-    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)'
+    PREPEND_PATH_TEMPLATE = 'prepend_path("%s", %s)\n'
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -301,7 +301,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
-        return " -- %s" % msg
+        return "-- %s\n" % msg
 
     def conditional_statement(self, condition, body, negative=False):
         """Return formatted conditional statement, with given condition and body."""
@@ -312,7 +312,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         for line in body.split('\n'):
             lines.append('    ' + line)
-        lines.append('end')
+        lines.extend(['end', ''])
         return '\n'.join(lines)
 
     def get_description(self, conflict=True):
@@ -357,18 +357,18 @@ class ModuleGeneratorLua(ModuleGenerator):
             # not wrapping the 'module load' with an is-loaded guard ensures recursive unloading;
             # when "module unload" is called on the module in which the depedency "module load" is present,
             # it will get translated to "module unload"
-            load_statement = [self.LOAD_TEMPLATE]
+            load_statement = [self.LOAD_TEMPLATE, '']
         else:
             load_statement = [self.conditional_statement('isloaded("%(mod_name)s")', self.LOAD_TEMPLATE, negative=True)]
 
-        return '\n'.join([''] + load_statement + ['']) % {'mod_name': mod_name}
+        return '\n'.join([''] + load_statement) % {'mod_name': mod_name}
 
     def unload_module(self, mod_name):
         """
         Generate unload statements for module.
         """
         cond_unload = self.conditional_statement('isloaded("%(mod)s")', 'unload("%(mod)s")') % {'mod': mod_name}
-        return '\n'.join(['', cond_unload, ''])
+        return '\n'.join(['', cond_unload])
 
     def prepend_paths(self, key, paths, allow_abs=False):
         """
@@ -393,14 +393,14 @@ class ModuleGeneratorLua(ModuleGenerator):
                     paths[i] = 'root'
 
         statements = [self.PREPEND_PATH_TEMPLATE % (key, p) for p in paths]
-        return '\n'.join(statements)
+        return ''.join(statements)
 
     def use(self, paths):
         """
         Generate module use statements for given list of module paths.
         @param paths: list of module path extensions to generate use statements for
         """
-        return '\n'.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths] + [''])
+        return ''.join([self.PREPEND_PATH_TEMPLATE % ('MODULEPATH', quote_str(p)) for p in paths])
 
     def set_environment(self, key, value, relpath=False):
         """
@@ -413,20 +413,20 @@ class ModuleGeneratorLua(ModuleGenerator):
                 val = 'root'
         else:
             val = quote_str(value)
-        return 'setenv("%s", %s)' % (key, val)
+        return 'setenv("%s", %s)\n' % (key, val)
 
     def msg_on_load(self, msg):
         """
         Add a message that should be printed when loading the module.
         """
-        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg), ''])
+        return '\n'.join(['', self.conditional_statement('mode() == "load"', 'io.stderr:write("%s")' % msg)])
 
     def set_alias(self, key, value):
         """
         Generate set-alias statement in modulefile for the given key/value pair.
         """
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        return 'setalias("%s", %s)' % (key, quote_str(value))
+        return 'setalias("%s", %s)\n' % (key, quote_str(value))
 
 
 def avail_module_generators():

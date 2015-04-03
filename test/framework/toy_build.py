@@ -233,20 +233,20 @@ class ToyBuildTest(EnhancedTestCase):
         toy_module_txt = read_file(toy_module)
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.search(r'setenv\s*FOO\s*"bar"', toy_module_txt))
-            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/foo/bar', toy_module_txt))
-            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root/baz', toy_module_txt))
-            self.assertTrue(re.search(r'prepend-path\s*SOMEPATH\s*\$root', toy_module_txt))
-            self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0', toy_module_txt))
-            self.assertTrue(re.search(r'puts stderr "oh hai!"', toy_module_txt))
+            self.assertTrue(re.search(r'^setenv\s*FOO\s*"bar"$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/foo/bar$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root/baz$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend-path\s*SOMEPATH\s*\$root$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'module-info mode load.*\n\s*puts stderr\s*.*I AM toy v0.0"$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'setenv\("FOO", "bar"\)', toy_module_txt))
-            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)', toy_module_txt))
-            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)', toy_module_txt))
-            self.assertTrue(re.search(r'prepend_path\("SOMEPATH", root\)', toy_module_txt))
-            self.assertTrue(re.search(r'if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)',
-                                      toy_module_txt))
-            self.assertTrue(re.search(r'io.stderr:write\("oh hai!"\)', toy_module_txt))
+            self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("SOMEPATH", root\)$', toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^if mode\(\) == "load" then\n\s*io.stderr:write\(".*I AM toy v0.0"\)$',
+                                      toy_module_txt, re.M))
+            self.assertTrue(re.search(r'^io.stderr:write\("oh hai!"\)$', toy_module_txt, re.M))
         else:
             self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
 
@@ -757,6 +757,84 @@ class ToyBuildTest(EnhancedTestCase):
         ec = EasyConfig(archived_ec)
         self.assertEqual(ec.name, 'toy')
         self.assertEqual(ec.version, '0.0')
+
+    def test_toy_module_fulltxt(self):
+        """Strict text comparison of generated module file."""
+        self.test_toy_tweaked()
+
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-tweaked')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        toy_mod_txt = read_file(toy_module)
+
+        if get_module_syntax() == 'Lua':
+            mod_txt_regex_pattern = '\n'.join([
+                r'help = \[\[Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]',
+                r'whatis\(\[\[Name: toy\]\]\)',
+                r'whatis\(\[\[Version: 0.0\]\]\)',
+                r'whatis\(\[\[Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'whatis\(\[\[Homepage: http://hpcugent.github.com/easybuild\]\]\)',
+                r'',
+                r'local root = "%s/software/toy/0.0-tweaked"' % self.test_installpath,
+                r'',
+                r'conflict\("toy"\)',
+                r'',
+                r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
+                r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
+                r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
+                r'setenv\("EBROOTTOY", root\)',
+                r'setenv\("EBVERSIONTOY", "0.0"\)',
+                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
+                r'',
+                r'setenv\("FOO", "bar"\)',
+                r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
+                r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
+                r'prepend_path\("SOMEPATH", root\)',
+                r'',
+                r'if mode\(\) == "load" then',
+                r'    io.stderr:write\("THANKS FOR LOADING ME, I AM toy v0.0"\)',
+                r'end',
+                r'io.stderr:write\("oh hai\!"\)',
+                r'-- Built with EasyBuild version .*$',
+            ])
+        elif get_module_syntax() == 'Tcl':
+            mod_txt_regex_pattern = '\n'.join([
+                r'^#%Module',
+                r'proc ModulesHelp { } {',
+                r'    puts stderr { Toy C program. - Homepage: http://hpcugent.github.com/easybuild',
+                r'    }',
+                r'}',
+                r'',
+                r'module-whatis {Description: Toy C program. - Homepage: http://hpcugent.github.com/easybuild}',
+                r'',
+                r'set root %s/software/toy/0.0-tweaked' % self.test_installpath,
+                r'',
+                r'conflict toy',
+                r'',
+                r'prepend-path	LD_LIBRARY_PATH		\$root/lib',
+                r'prepend-path	LIBRARY_PATH		\$root/lib',
+                r'prepend-path	PATH		\$root/bin',
+                r'setenv	EBROOTTOY		"\$root"',
+                r'setenv	EBVERSIONTOY		"0.0"',
+                r'setenv	EBDEVELTOY		"\$root/easybuild/toy-0.0-tweaked-easybuild-devel"',
+                r'',
+                r'setenv	FOO		"bar"',
+                r'prepend-path	SOMEPATH		\$root/foo/bar',
+                r'prepend-path	SOMEPATH		\$root/baz',
+                r'prepend-path	SOMEPATH		\$root',
+                r'',
+                r'if { \[ module-info mode load \] } {',
+                r'    puts stderr "THANKS FOR LOADING ME, I AM toy v0.0"',
+                r'}',
+                r'puts stderr "oh hai\!"',
+                r'# Built with EasyBuild version .*$',
+            ])
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        mod_txt_regex = re.compile(mod_txt_regex_pattern)
+        msg = "Pattern '%s' matches with: %s" % (mod_txt_regex.pattern, toy_mod_txt)
+        self.assertTrue(mod_txt_regex.match(toy_mod_txt), msg)
 
 def suite():
     """ return all the tests in this file """
