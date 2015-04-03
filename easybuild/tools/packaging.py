@@ -64,13 +64,11 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
     full_ec_version = det_full_ec_version(easyblock.cfg)
     _log.debug("I got a package template that looks like: %s " % pkgtemplate )
 
-    if easyblock.toolchain.name == DUMMY_TOOLCHAIN_NAME:
-        toolchain_name = easyblock.version
-    else:
-        toolchain_name = "%s-%s" % (easyblock.toolchain.name, easyblock.toolchain.version)
+    toolchain_name = "%s-%s" % (easyblock.toolchain.name, easyblock.toolchain.version)
 
     pkgname = pkgtemplate % {
         'toolchain' : toolchain_name,
+        'version': '-'.join([x for x in [easyblock.cfg.get('versionprefix', ''), easyblock.cfg['version'], easyblock.cfg['versionsuffix']] if x]),
         'name' : easyblock.name,
     }
     
@@ -89,10 +87,10 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
         _log.debug("The dep added looks like %s " % dep)
         dep_pkgname = pkgtemplate % {
             'name': dep['name'],
+            'version': '-'.join([x for x in [dep.get('versionprefix',''), dep['version'], dep['versionsuffix']] if x]),
             'toolchain': "%s-%s" % (dep['toolchain']['name'], dep['toolchain']['version']),
-
         }
-        depstring += " --depends '%s = %s-1'" % ( dep_pkgname,  full_dep_version)
+        depstring += " --depends '%s'" % ( dep_pkgname)
 
     cmdlist=[
         'fpm',
@@ -101,7 +99,7 @@ def package_fpm(easyblock, modfile_path, package_type="rpm" ):
         '--provides', pkgname,
         '-t', package_type, # target
         '-s', 'dir', # source
-        '--version', full_ec_version,
+        '--version', "eb",
     ]
     cmdlist.extend([ depstring ])
     cmdlist.extend([
