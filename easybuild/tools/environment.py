@@ -28,11 +28,16 @@ Utility module for modifying os.environ
 @author: Toon Willems (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
+import copy
 import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
 
 from easybuild.tools.build_log import EasyBuildError
+
+
+# take copy of original environemt, so we can restore (parts of) it later
+ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
 
 _log = fancylogger.getLogger('environment', fname=False)
@@ -72,6 +77,7 @@ def get_changes():
     Return tracked changes made in environment.
     """
     return _changes
+
 
 def setvar(key, value):
     """
