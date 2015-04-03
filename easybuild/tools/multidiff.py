@@ -34,6 +34,7 @@ import math
 import os
 from vsc.utils import fancylogger
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import det_terminal_size
 
@@ -92,7 +93,7 @@ class MultiDiff(object):
         # register (diff_line, meta, squigly_line) tuple for specified line number and determined key
         key = diff_line[0]
         if not key in [MINUS, PLUS]:
-            _log.error("diff line starts with unexpected character: %s" % diff_line)
+            raise EasyBuildError("diff line starts with unexpected character: %s", diff_line)
         line_key_tuples = self.diff_info.setdefault(line_no, {}).setdefault(key, [])
         line_key_tuples.append((diff_line, meta, squigly_line))
 
