@@ -129,6 +129,39 @@ class ModuleGenerator(object):
         """Return formatted conditional statement, with given condition and body."""
         raise NotImplementedError
 
+    def get_description(self, conflict=True):
+        """Generate a description."""
+        raise NotImplementedError
+
+    def load_module(self, mod_name):
+        """Generate load statements for module."""
+        raise NotImplementedError
+
+    def unload_module(self, mod_name):
+        """Generate unload statements for module."""
+        raise NotImplementedError
+
+    def prepend_paths(self, key, paths, allow_abs=False):
+        """Generate prepend-path statements for the given list of paths."""
+        raise NotImplementedError
+
+    def use(self, paths):
+        """Generate module use statements for given list of module paths."""
+        raise NotImplementedError
+
+    def set_environment(self, key, value, relpath=False):
+        """Generate setenv statement for the given key/value pair."""
+        raise NotImplementedError
+
+    def msg_on_load(self, msg):
+        """Add a message that should be printed when loading the module."""
+        raise NotImplementedError
+
+    def set_alias(self, key, value):
+        """Generate set-alias statement in modulefile for the given key/value pair."""
+        raise NotImplementedError
+
+
 
 class ModuleGeneratorTcl(ModuleGenerator):
     """
