@@ -1536,6 +1536,88 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
+    def test_module_features(self):
+        """Test use of --module-family and --module-properties."""
+        # use toy-0.0.eb easyconfig file that comes with the tests
+        eb_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'toy-0.0.eb')
+
+        # put lmodrc file in place (properties must be known)
+        lmodrc = os.path.join(self.test_prefix, 'lmodrc.lua')
+        lmodrc_txt = '\n'.join([
+            '# -*- lua -*-',
+            'propT = {',
+            '  state = {',
+            '    validT = { experimental = 1, testing = 1, obsolete = 1 },',
+            '    displayT = {',
+            '      experimental  = { short = "(E)", long = "(E)", color = "blue",  doc = "Experimental", },',
+            '      testing       = { short = "(T)", long = "(T)", color = "green", doc = "Testing", },',
+            '      obsolete      = { short = "(O)", long = "(O)", color = "red",   doc = "Obsolete", },',
+            '    },',
+            '  },',
+            '  lmod = {',
+            '    validT = { sticky = 1 },',
+            '    displayT = {',
+            '      sticky = { short = "(S)", long = "(S)", color = "red", ' +
+                'doc = "Module is Sticky, requires --force to unload or purge",  },',
+            '    },',
+            '  },',
+            '  arch = {',
+            '    validT = { mic = 1, offload = 1, gpu = 1, },',
+            '    displayT = {',
+            '      ["mic:offload"] = { short = "(*)",  long = "(m,o)", color = "blue", ' +
+                'doc = "built for host, native MIC and offload to the MIC",  },',
+            '      ["mic"]         = { short = "(m)",  long = "(m)",   color = "blue", ' +
+                'doc = "built for host and native MIC", },',
+            '      ["offload"]     = { short = "(o)",  long = "(o)",   color = "blue", ' +
+                'doc = "built for offload to the MIC only",},',
+            '      ["gpu"]         = { short = "(g)",  long = "(g)",   color = "red" , doc = "built for GPU",},',
+            '      ["gpu:mic"]     = { short = "(gm)", long = "(g,m)", color = "red" , ' +
+                'doc = "built natively for MIC and GPU",},',
+            '    },',
+            '  },',
+            '}',
+        ])
+        write_file(lmodrc, lmodrc_txt)
+        os.environ['LMODRC'] = lmodrc
+
+        # check log message with --skip for existing module
+        args = [
+            eb_file,
+            '--sourcepath=%s' % self.test_sourcepath,
+            '--buildpath=%s' % self.test_buildpath,
+            '--installpath=%s' % self.test_installpath,
+            '--debug',
+            '--force',
+            '--module-family=test',
+            '--module-properties=state:testing,arch:mic:offload',
+        ]
+        os.environ['EASYBUILD_MODULE_PROPERTIES'] = 'lmod:sticky'
+        self.eb_main(args, do_build=True)
+
+        modfp = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+
+        prop_specs = [('lmod', 'sticky'), ('state', 'testing'), ('arch', 'mic:offload')]
+        if get_module_syntax() == 'Tcl':
+            props = ''.join(['[ ]*add-property "%s" "%s"\n' % prop for prop in prop_specs])
+            mod_regexes = [
+                re.compile('^if.*tcl2lua.*\n[ ]*family "test"', re.M),
+                re.compile('^if.*tcl2lua.*\n' + props + '}', re.M),
+            ]
+        elif get_module_syntax() == 'Lua':
+            modfp += '.lua'
+
+            props = ''.join([r'add_property\("%s", "%s"\)\n' % prop for prop in prop_specs])
+            mod_regexes = [
+                re.compile(r'^family\("test"\)', re.M),
+                re.compile('^' + props, re.M),
+            ]
+        else:
+            self.assertTrue(False, "Unknown module syntax: %s" % get_module_syntax())
+
+        modtxt = read_file(modfp)
+        for mod_regex in mod_regexes:
+            self.assertTrue(mod_regex.search(modtxt), "Pattern '%s' found in %s" % (mod_regex.pattern, modtxt))
+
 
 def suite():
     """ returns all the testcases in this module """
