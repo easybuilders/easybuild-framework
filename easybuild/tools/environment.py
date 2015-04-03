@@ -33,6 +33,8 @@ import os
 from vsc.utils import fancylogger
 from vsc.utils.missing import shell_quote
 
+from easybuild.tools.build_log import EasyBuildError
+
 
 # take copy of original environemt, so we can restore (parts of) it later
 ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
@@ -58,7 +60,7 @@ def write_changes(filename):
     except IOError, err:
         if script is not None:
             script.close()
-        _log.error("Failed to write to %s: %s" % (filename, err))
+        raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()
 
 
@@ -126,7 +128,7 @@ def read_environment(env_vars, strict=False):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if not k in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
-            _log.error(msg)
+            raise EasyBuildError(msg)
         else:
             _log.debug(msg)
 
