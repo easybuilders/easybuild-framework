@@ -1,4 +1,4 @@
-# #
+##
 # Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
@@ -21,7 +21,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
-# #
+##
 """
 This python module implements the environment modules functionality:
  - loading modules
@@ -38,7 +38,6 @@ This python module implements the environment modules functionality:
 import os
 import re
 import subprocess
-import sys
 from distutils.version import StrictVersion
 from subprocess import PIPE
 from vsc.utils import fancylogger
@@ -51,7 +50,6 @@ from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import convert_name, mkdir, read_file, path_matches, which
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_cmd
-from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERSION
 from vsc.utils.missing import nub
 
 # software root/version environment variable name prefixes
@@ -568,30 +566,6 @@ class ModulesTool(object):
         self.log.debug("modulefile path %s: %s" % (mod_name, modfilepath))
 
         return read_file(modfilepath)
-
-    def dependencies_for(self, mod_name, depth=sys.maxint):
-        """
-        Obtain a list of dependencies for the given module, determined recursively, up to a specified depth (optionally)
-        @param depth: recursion depth (default is sys.maxint, which should be equivalent to infinite recursion depth)
-        """
-        modtxt = self.read_module_file(mod_name)
-        loadregex = re.compile(r"^\s*module\s+load\s+(\S+)", re.M)
-        mods = loadregex.findall(modtxt)
-
-        if depth > 0:
-            # recursively determine dependencies for these dependency modules, until depth is non-positive
-            moddeps = [self.dependencies_for(mod, depth=depth - 1) for mod in mods]
-        else:
-            # ignore any deeper dependencies
-            moddeps = []
-
-        # add dependencies of dependency modules only if they're not there yet
-        for moddepdeps in moddeps:
-            for dep in moddepdeps:
-                if not dep in mods:
-                    mods.append(dep)
-
-        return mods
 
     def modpath_extensions_for(self, mod_names):
         """
