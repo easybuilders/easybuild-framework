@@ -710,7 +710,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def set_path_env_var(self, key, paths):
         """Set environment variable with given name to the given list of paths."""
-        super(EnvironmentModulesTcl, self).set_path_env_var(paths)
+        super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
         # for Tcl environment modules, we need to make sure the _modshare env var is kept in sync
         os.environ['%s_modshare' % key] = ':1:'.join(paths)
 
