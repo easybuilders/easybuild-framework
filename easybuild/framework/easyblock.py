@@ -188,15 +188,26 @@ class EasyBlock(object):
             self.log.warning("Group spec '%s' is overriding config group '%s'." % (self.cfg['group'], group_name))
             group_name = self.cfg['group']
 
+        # group
         self.group = None
         if group_name is not None:
             self.group = use_group(group_name)
+
+        # module features
+        self.module_family = build_option('module_family')
+        self.module_properties = []
+        for prop_spec in build_option('module_properties'):
+            prop_spec_parts = prop_spec.split(':')
+            prop_key = prop_spec_parts[0]
+            prop_val = ':'.join(prop_spec_parts[1:])
+            self.module_properties.append((prop_key, prop_val))
+        self.log.debug("List of properties (key, value): %s", self.module_properties)
 
         # generate build/install directories
         self.gen_builddir()
         self.gen_installdir()
 
-        self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+        self.log.info("Init completed for application name %s version %s", self.name, self.version)
 
     # INIT/CLOSE LOG
     def _init_log(self):
@@ -838,6 +849,14 @@ class EasyBlock(object):
         Create the module description.
         """
         return self.module_generator.get_description()
+
+    def make_module_features(self):
+        """Create features section of module file (module family, properties, ...)."""
+        txt = self.module_generator.family(self.module_family)
+        txt += self.module_generator.properties(self.module_properties)
+
+        self.log.debug("Module features section: %s", txt)
+        return txt
 
     def make_module_extra(self):
         """
@@ -1669,6 +1688,7 @@ class EasyBlock(object):
         modpath = self.module_generator.prepare(mod_symlink_paths)
 
         txt = self.make_module_description()
+        txt += self.make_module_features()
         txt += self.make_module_dep()
         txt += self.make_module_extend_modpath()
         txt += self.make_module_req()

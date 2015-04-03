@@ -239,8 +239,10 @@ class EasyBuildOptions(GeneralOption):
             # purposely take a copy for the default logfile format
             'logfile-format': ("Directory name and format of the log file",
                                'strtuple', 'store', DEFAULT_LOGFILE_FORMAT[:], {'metavar': 'DIR,FORMAT'}),
+            'module-family': ("Include family statement in generated module file", 'str', 'store', None),
             'module-naming-scheme': ("Module naming scheme",
                                      'choice', 'store', DEFAULT_MNS, sorted(avail_module_naming_schemes().keys())),
+            'module-properties': ("Include property statements in generated module file", 'strlist', 'extend', None),
             'module-syntax': ("Syntax to be used for module files", 'choice', 'store', DEFAULT_MODULE_SYNTAX,
                               sorted(avail_module_generators().keys())),
             'moduleclasses': (("Extend supported module classes "

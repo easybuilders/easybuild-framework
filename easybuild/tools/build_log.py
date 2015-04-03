@@ -63,7 +63,8 @@ class EasyBuildError(LoggedException):
 
     def __init__(self, msg, *args):
         """Constructor: initialise EasyBuildError instance."""
-        msg = msg % args
+        if args:
+            msg = msg % args
         LoggedException.__init__(self, msg)
         self.msg = msg
 
