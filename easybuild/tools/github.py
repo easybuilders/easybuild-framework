@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ import tempfile
 from vsc.utils import fancylogger
 from vsc.utils.patterns import Singleton
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file, mkdir, read_file, write_file
 
@@ -140,7 +141,7 @@ class Githubfs(object):
             return listing[1]
         else:
             self.log.warning("error: %s" % str(listing))
-            self.log.exception("Invalid response from github (I/O error)")
+            raise EasyBuildError("Invalid response from github (I/O error)")
 
     def walk(self, top=None, topdown=True):
         """
@@ -223,8 +224,8 @@ def fetch_latest_commit_sha(repo, account, branch='master'):
     """
     status, data = github_api_get_request(lambda x: x.repos[account][repo].branches)
     if not status == HTTP_STATUS_OK:
-        tup = (branch, account, repo, status, data)
-        _log.error("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)" % tup)
+        raise EasyBuildError("Failed to get latest commit sha for branch %s from %s/%s (status: %d %s)",
+                             branch, account, repo, status, data)
 
     res = None
     for entry in data:
@@ -232,7 +233,7 @@ def fetch_latest_commit_sha(repo, account, branch='master'):
             res = entry['commit']['sha']
 
     if res is None:
-        _log.error('No branch with name %s found in repo %s/%s (%s)' % (branch, account, repo, data))
+        raise EasyBuildError("No branch with name %s found in repo %s/%s (%s)", branch, account, repo, data)
 
     return res
 
@@ -277,7 +278,7 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch='master', account=GITHUB_
     extracted_path = os.path.join(extract_file(target_path, path), extracted_dir_name)
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
-        _log.error("%s should exist and contain the repo %s at branch %s" % (extracted_path, repo, branch))
+        raise EasyBuildError("%s should exist and contain the repo %s at branch %s", extracted_path, repo, branch)
 
     write_file(latest_sha_path, latest_commit_sha)
 
@@ -303,14 +304,14 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
 
     status, pr_data = github_api_get_request(pr_url, github_user)
     if not status == HTTP_STATUS_OK:
-        tup = (pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
-        _log.error("Failed to get data for PR #%d from %s/%s (status: %d %s)" % tup)
+        raise EasyBuildError("Failed to get data for PR #%d from %s/%s (status: %d %s)",
+                             pr, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO, status, pr_data)
 
     # 'clean' on successful (or missing) test, 'unstable' on failed tests
     stable = pr_data['mergeable_state'] == GITHUB_MERGEABLE_STATE_CLEAN
     if not stable:
-        tup = (pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
-        _log.warning("Mergeable state for PR #%d is not '%s': %s." % tup)
+        _log.warning("Mergeable state for PR #%d is not '%s': %s.",
+                     pr, GITHUB_MERGEABLE_STATE_CLEAN, pr_data['mergeable_state'])
 
     for key, val in sorted(pr_data.items()):
         _log.debug("\n%s:\n\n%s\n" % (key, val))
@@ -328,8 +329,9 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     # obtain last commit
     # get all commits, increase to (max of) 100 per page
     if pr_data['commits'] > GITHUB_MAX_PER_PAGE:
-        _log.error("PR #%s contains more than %s commits, can't obtain last commit" % (pr, GITHUB_MAX_PER_PAGE))
-    status, commits_data = github_api_get_request(lambda g: pr_url(g).commits, github_user, per_page=GITHUB_MAX_PER_PAGE)
+        raise EasyBuildError("PR #%s contains more than %s commits, can't obtain last commit", pr, GITHUB_MAX_PER_PAGE)
+    status, commits_data = github_api_get_request(lambda g: pr_url(g).commits, github_user,
+                                                  per_page=GITHUB_MAX_PER_PAGE)
     last_commit = commits_data[-1]
     _log.debug("Commits: %s, last commit: %s" % (commits_data, last_commit['sha']))
 
@@ -344,7 +346,7 @@ def fetch_easyconfigs_from_pr(pr, path=None, github_user=None):
     all_files = [os.path.basename(x) for x in patched_files]
     tmp_files = os.listdir(path)
     if not sorted(tmp_files) == sorted(all_files):
-        _log.error("Not all patched files were downloaded to %s: %s vs %s" % (path, tmp_files, all_files))
+        raise EasyBuildError("Not all patched files were downloaded to %s: %s vs %s", path, tmp_files, all_files)
 
     ec_files = [os.path.join(path, fn) for fn in tmp_files]
 
@@ -370,7 +372,7 @@ def create_gist(txt, fn, descr=None, github_user=None):
     status, data = g.gists.post(body=body)
 
     if not status == HTTP_STATUS_CREATED:
-        _log.error("Failed to create gist; status %s, data: %s" % (status, data))
+        raise EasyBuildError("Failed to create gist; status %s, data: %s", status, data)
 
     return data['html_url']
 
@@ -381,7 +383,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
         try:
             issue = int(issue)
         except ValueError, err:
-            _log.error("Failed to parse specified pull request number '%s' as an int: %s; " % (issue, err))
+            raise EasyBuildError("Failed to parse specified pull request number '%s' as an int: %s; ", issue, err)
     github_token = fetch_github_token(github_user)
 
     g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
@@ -389,7 +391,7 @@ def post_comment_in_issue(issue, txt, repo=GITHUB_EASYCONFIGS_REPO, github_user=
 
     status, data = pr_url.comments.post(body={'body': txt})
     if not status == HTTP_STATUS_CREATED:
-        _log.error("Failed to create comment in PR %s#%d; status %s, data: %s" % (repo, issue, status, data))
+        raise EasyBuildError("Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data)
 
 
 class GithubToken(object):

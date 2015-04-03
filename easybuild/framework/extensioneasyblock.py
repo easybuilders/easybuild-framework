@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -31,6 +31,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import apply_patch, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars
 
@@ -58,8 +59,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             extra_vars = {}
 
         if not isinstance(extra_vars, dict):
-            _log.deprecated("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
-            extra_vars = dict(extra_vars)
+            _log.nosupport("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
 
         extra_vars.update({
             'options': [{}, "Dictionary with extension options.", CUSTOM],
@@ -98,7 +98,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         if self.patches:
             for patchfile in self.patches:
                 if not apply_patch(patchfile, self.ext_dir):
-                    self.log.error("Applying patch %s failed" % patchfile)
+                    raise EasyBuildError("Applying patch %s failed", patchfile)
 
     def sanity_check_step(self, exts_filter=None, custom_paths=None, custom_commands=None):
         """
@@ -129,7 +129,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             if self.is_extension:
                 self.log.warning(msg)
             else:
-                self.log.error(msg)
+                raise EasyBuildError(msg)
             return False
         else:
             self.log.info("Sanity check for %s successful!" % self.name)

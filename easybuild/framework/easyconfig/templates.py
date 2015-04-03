@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ be used within an Easyconfig file.
 from vsc.utils import fancylogger
 from distutils.version import LooseVersion
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
@@ -175,7 +176,7 @@ def template_constant_dict(config, ignore=None, skip_lower=True):
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
         else:
-            _log.error("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG" % name)
+            raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
     # step 2: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:

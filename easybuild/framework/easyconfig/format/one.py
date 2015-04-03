@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,7 @@ from vsc.utils import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, get_format_version
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import EasyConfigFormatConfigObj
 from easybuild.framework.easyconfig.format.version import EasyVersion
-from easybuild.tools.build_log import print_msg
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.filetools import write_file
 
 
@@ -71,14 +71,14 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         spec_tc_version = spec_tc.get('version', None)
         cfg = self.pyheader_localvars
         if spec_version is not None and not spec_version == cfg['version']:
-            self.log.error('Requested version %s not available, only %s' % (spec_version, cfg['version']))
+            raise EasyBuildError('Requested version %s not available, only %s', spec_version, cfg['version'])
 
         tc_name = cfg['toolchain']['name']
         tc_version = cfg['toolchain']['version']
         if spec_tc_name is not None and not spec_tc_name == tc_name:
-            self.log.error('Requested toolchain name %s not available, only %s' % (spec_tc_name, tc_name))
+            raise EasyBuildError('Requested toolchain name %s not available, only %s', spec_tc_name, tc_name)
         if spec_tc_version is not None and not spec_tc_version == tc_version:
-            self.log.error('Requested toolchain version %s not available, only %s' % (spec_tc_version, tc_version))
+            raise EasyBuildError('Requested toolchain version %s not available, only %s', spec_tc_version, tc_version)
 
         return cfg
 
@@ -102,7 +102,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
     try:
         txt = open(spec).read()
     except IOError, err:
-        _log.error("Failed to read file %s: %s" % (spec, err))
+        raise EasyBuildError("Failed to read file %s: %s", spec, err)
 
     # split into blocks using regex
     pieces = reg_block.split(txt)
@@ -124,8 +124,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             block_contents = pieces.pop(0)
 
             if block_name in [b['name'] for b in blocks]:
-                msg = "Found block %s twice in %s." % (block_name, spec)
-                _log.error(msg)
+                raise EasyBuildError("Found block %s twice in %s.", block_name, spec)
 
             block = {'name': block_name, 'contents': block_contents}
 
@@ -157,7 +156,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
             if 'dependencies' in block:
                 for dep in block['dependencies']:
                     if not dep in [b['name'] for b in blocks]:
-                        _log.error("Block %s depends on %s, but block was not found." % (name, dep))
+                        raise EasyBuildError("Block %s depends on %s, but block was not found.", name, dep)
 
                     dep = [b for b in blocks if b['name'] == dep][0]
                     txt += "\n# Dependency block %s" % (dep['name'])

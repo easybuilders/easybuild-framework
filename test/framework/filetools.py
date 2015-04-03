@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,7 +33,8 @@ import os
 import shutil
 import stat
 import tempfile
-from test.framework.utilities import EnhancedTestCase, find_full_path
+import urllib2
+from test.framework.utilities import EnhancedTestCase, init_config
 from unittest import TestLoader, main
 
 import easybuild.tools.filetools as ft
@@ -181,10 +182,36 @@ class FileToolsTest(EnhancedTestCase):
         test_dir = os.path.abspath(os.path.dirname(__file__))
         source_url = 'file://%s/sandbox/sources/toy/%s' % (test_dir, fn)
         res = ft.download_file(fn, source_url, target_location)
-        self.assertEqual(res, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works")
 
         # non-existing files result in None return value
         self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
+
+        # install broken proxy handler for opening local files
+        # this should make urllib2.urlopen use this broken proxy for downloading from a file:// URL
+        proxy_handler = urllib2.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
+        urllib2.install_opener(urllib2.build_opener(proxy_handler))
+
+        # downloading over a broken proxy results in None return value (failed download)
+        # this tests whether proxies are taken into account by download_file
+        self.assertEqual(ft.download_file(fn, source_url, target_location), None, "download over broken proxy fails")
+
+        # restore a working file handler, and retest download of local file
+        urllib2.install_opener(urllib2.build_opener(urllib2.FileHandler()))
+        res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works after removing broken proxy")
+
+        # make sure specified timeout is parsed correctly (as a float, not a string)
+        opts = init_config(args=['--download-timeout=5.3'])
+        init_config(build_options={'download_timeout': opts.download_timeout})
+        target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
+        url = 'https://jenkins1.ugent.be/robots.txt'
+        try:
+            urllib2.urlopen(url)
+            res = ft.download_file(fn, url, target_location)
+            self.assertEqual(res, target_location, "download with specified timeout works")
+        except urllib2.URLError:
+            print "Skipping timeout test in test_download_file (working offline)"
 
     def test_mkdir(self):
         """Test mkdir function."""
@@ -235,6 +262,26 @@ class FileToolsTest(EnhancedTestCase):
 
         shutil.rmtree(tmpdir)
 
+    def test_path_matches(self):
+        # set up temporary directories
+        tmpdir = tempfile.mkdtemp()
+        path1 = os.path.join(tmpdir, 'path1')
+        ft.mkdir(path1)
+        path2 = os.path.join(tmpdir, 'path2') 
+        ft.mkdir(path1)
+        symlink = os.path.join(tmpdir, 'symlink')
+        os.symlink(path1, symlink)
+        missing = os.path.join(tmpdir, 'missing')
+
+        self.assertFalse(ft.path_matches(missing, [path1, path2]))
+        self.assertFalse(ft.path_matches(path1, [missing]))
+        self.assertFalse(ft.path_matches(path1, [missing, path2]))
+        self.assertFalse(ft.path_matches(path2, [missing, symlink]))
+        self.assertTrue(ft.path_matches(path1, [missing, symlink]))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+
     def test_read_write_file(self):
         """Test reading/writing files."""
         tmpdir = tempfile.mkdtemp()
@@ -272,6 +319,34 @@ class FileToolsTest(EnhancedTestCase):
             ('b/toy-0.0/toy.source', 2),
         ]:
             self.assertEqual(ft.guess_patch_level([patched_file], self.test_buildpath), correct_patch_level)
+
+    def test_move_logs(self):
+        """Test move_logs function."""
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'foobar')
+        ft.write_file(fp + '.1', 'moarfoobar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'foo.log'))
+
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log')), 'foobar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'foo.log.1')), 'moarfoobar')
+
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log'), 'bar')
+        ft.write_file(os.path.join(self.test_prefix, 'bar.log_1'), 'barbar')
+
+        fh, fp = tempfile.mkstemp()
+        os.close(fh)
+        ft.write_file(fp, 'moarbar')
+        ft.write_file(fp + '.1', 'evenmoarbar')
+        ft.move_logs(fp, os.path.join(self.test_prefix, 'bar.log'))
+
+        logs = ['bar.log', 'bar.log.1', 'bar.log_0', 'bar.log_1', 'foo.log', 'foo.log.1']
+        self.assertEqual(sorted(os.listdir(self.test_prefix)), logs)
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_0')), 'bar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log_1')), 'barbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log')), 'moarbar')
+        self.assertEqual(ft.read_file(os.path.join(self.test_prefix, 'bar.log.1')), 'evenmoarbar')
+
 
 def suite():
     """ returns all the testcases in this module """

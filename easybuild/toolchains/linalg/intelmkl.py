@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH
 from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
 from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 
@@ -84,8 +85,8 @@ class IntelMKL(LinAlg):
                 "interface": interfacemap[self.COMPILER_FAMILY],
             })
         except:
-            self.log.raiseException(("_set_blas_variables: interface unsupported combination"
-                                     " with MPI family %s") % self.COMPILER_FAMILY)
+            raise EasyBuildError("_set_blas_variables: interface unsupported combination with MPI family %s",
+                                 self.COMPILER_FAMILY)
 
         interfacemap_mt = {
             TC_CONSTANT_INTELCOMP: 'intel',
@@ -94,8 +95,8 @@ class IntelMKL(LinAlg):
         try:
             self.BLAS_LIB_MAP.update({"interface_mt":interfacemap_mt[self.COMPILER_FAMILY]})
         except:
-            self.log.raiseException(("_set_blas_variables: interface_mt unsupported combination "
-                                     "with compiler family %s") % self.COMPILER_FAMILY)
+            raise EasyBuildError("_set_blas_variables: interface_mt unsupported combination with compiler family %s",
+                                 self.COMPILER_FAMILY)
 
 
         if self.options.get('32bit', None):
@@ -117,8 +118,8 @@ class IntelMKL(LinAlg):
             self.BLAS_INCLUDE_DIR = ['include']
         else:
             if self.options.get('32bit', None):
-                self.log.raiseException(("_set_blas_variables: 32-bit libraries not supported yet "
-                                        "for IMKL v%s (> v10.3)") % found_version)
+                raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
+                                     found_version)
             else:
                 self.BLAS_LIB_DIR = ['mkl/lib/intel64', 'compiler/lib/intel64' ]
 
@@ -140,8 +141,8 @@ class IntelMKL(LinAlg):
         try:
             self.BLACS_LIB_MAP.update({'mpi': mpimap[self.MPI_FAMILY]})
         except:
-            self.log.raiseException(("_set_blacs_variables: mpi unsupported combination with"
-                                     " MPI family %s") % self.MPI_FAMILY)
+            raise EasyBuildError("_set_blacs_variables: mpi unsupported combination with MPI family %s",
+                                 self.MPI_FAMILY)
 
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
@@ -166,4 +167,3 @@ class IntelMKL(LinAlg):
         self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
         super(IntelMKL, self)._set_scalapack_variables()
-

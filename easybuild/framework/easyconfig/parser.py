@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2014 Ghent University
+# Copyright 2013-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,14 +30,47 @@ The parser is format version aware
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
+import re
 from vsc.utils import fancylogger
 
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
 
+# deprecated easyconfig parameters, and their replacements
+DEPRECATED_PARAMETERS = {
+    # <old_param>: (<new_param>, <deprecation_version>),
+}
+
+# replaced easyconfig parameters, and their replacements
+REPLACED_PARAMETERS = {
+    'license': 'license_file',
+    'makeopts': 'buildopts',
+    'premakeopts': 'prebuildopts',
+}
+
+
 _log = fancylogger.getLogger('easyconfig.parser', fname=False)
+
+
+def fetch_parameters_from_easyconfig(rawtxt, params):
+    """
+    Fetch (initial) parameter definition from the given easyconfig file contents.
+    @param rawtxt: contents of the easyconfig file
+    @param params: list of parameter names to fetch values for
+    """
+    param_values = []
+    for param in params:
+        regex = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
+        res = regex.search(rawtxt)
+        if res:
+            param_values.append(res.group('param').strip("'\""))
+        else:
+            param_values.append(None)
+    _log.debug("Obtained parameters value for %s: %s" % (params, param_values))
+    return param_values
 
 
 class EasyConfigParser(object):
@@ -45,7 +78,7 @@ class EasyConfigParser(object):
         Can contain references to multiple version and toolchain/toolchain versions
     """
 
-    def __init__(self, filename=None, format_version=None):
+    def __init__(self, filename=None, format_version=None, rawcontent=None):
         """Initialise the EasyConfigParser class"""
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -57,9 +90,14 @@ class EasyConfigParser(object):
         self.format_version = format_version
         self._formatter = None
 
-        if filename is not None:
+        if rawcontent is not None:
+            self.rawcontent = rawcontent
+            self._set_formatter()
+        elif filename is not None:
             self._check_filename(filename)
             self.process()
+        else:
+            raise EasyBuildError("Neither filename nor rawcontent provided to EasyConfigParser")
 
     def process(self, filename=None):
         """Create an instance"""
@@ -75,9 +113,9 @@ class EasyConfigParser(object):
         self.log.debug("Process filename %s with get function %s, set function %s" % (fn, self.get_fn, self.set_fn))
 
         if self.get_fn is None:
-            self.log.error('Failed to determine get function for filename %s' % fn)
+            raise EasyBuildError('Failed to determine get function for filename %s', fn)
         if self.set_fn is None:
-            self.log.error('Failed to determine set function for filename %s' % fn)
+            raise EasyBuildError('Failed to determine set function for filename %s', fn)
 
     def _read(self, filename=None):
         """Read the easyconfig, dump content in self.rawcontent"""
@@ -87,11 +125,11 @@ class EasyConfigParser(object):
         try:
             self.rawcontent = self.get_fn[0](*self.get_fn[1])
         except IOError, err:
-            self.log.error('Failed to obtain content with %s: %s' % (self.get_fn, err))
+            raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
         if not isinstance(self.rawcontent, basestring):
             msg = 'rawcontent is not basestring: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
-            self.log.error("Unexpected result for raw content: %s" % msg)
+            raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
     def _det_format_version(self):
         """Extract the format version from the raw content"""
@@ -109,10 +147,10 @@ class EasyConfigParser(object):
         if len(found_classes) == 1:
             return found_classes[0]
         elif not found_classes:
-            self.log.error('No format classes found matching version %s' % self.format_version)
+            raise EasyBuildError('No format classes found matching version %s', self.format_version)
         else:
-            msg = 'More than one format class found matching version %s in %s' % (self.format_version, found_classes)
-            self.log.error(msg)
+            raise EasyBuildError("More than one format class found matching version %s in %s",
+                                 self.format_version, found_classes)
 
     def _set_formatter(self):
         """Obtain instance of the formatter"""
@@ -134,7 +172,7 @@ class EasyConfigParser(object):
         try:
             self.set_fn[0](*self.set_fn[1])
         except IOError, err:
-            self.log.error('Failed to process content with %s: %s' % (self.set_fn, err))
+            raise EasyBuildError("Failed to process content with %s: %s", self.set_fn, err)
 
     def set_specifications(self, specs):
         """Set specifications."""

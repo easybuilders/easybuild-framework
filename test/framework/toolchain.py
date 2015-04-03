@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,22 +38,16 @@ from unittest import TestLoader, main
 import easybuild.tools.modules as modules
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.filetools import write_file
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import find_full_path
 
+from easybuild.tools import systemtools as st
+import easybuild.tools.toolchain.compiler
+easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
+
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
-
-    def setUp(self):
-        """Set up everything for a unit test."""
-        super(ToolchainTest, self).setUp()
-
-        # start with a clean slate
-        modules.modules_tool().purge()
-
-        # make sure path with modules for testing is added to MODULEPATH
-        self.orig_modpath = os.environ.get('MODULEPATH', '')
-        os.environ['MODULEPATH'] = find_full_path(os.path.join('test', 'framework', 'modules'))
 
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
@@ -283,7 +277,10 @@ class ToolchainTest(EnhancedTestCase):
                 tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
                 tc.set_options({opt: enable})
                 tc.prepare()
-                flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
+                if opt == 'optarch':
+                    flag = '-%s' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
+                else:
+                    flag = '-%s' % tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -306,7 +303,8 @@ class ToolchainTest(EnhancedTestCase):
                 if optarch_var is not None:
                     flag = '-%s' % optarch_var
                 else:
-                    flag = '-march=native'
+                    # default optarch flag
+                    flag = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch]
 
                 for var in flag_vars:
                     flags = tc.get_variable(var)
@@ -380,6 +378,30 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
         self.assertEqual(tc.comp_family(), "GCC")
 
+    def test_mpi_family(self):
+        """Test determining MPI family."""
+        # check subtoolchain w/o MPI
+        tc = self.get_toolchain("GCC", version="4.7.2")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), None)
+        modules.modules_tool().purge()
+
+        # check full toolchain including MPI
+        tc = self.get_toolchain("goalf", version="1.1.0-no-OFED")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "OpenMPI")
+        modules.modules_tool().purge()
+
+        # check another one
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
+        tc = self.get_toolchain("ictce", version="4.1.13")
+        tc.prepare()
+        self.assertEqual(tc.mpi_family(), "IntelMPI")
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        write_file(imkl_module_path, imkl_module_txt)
+
     def test_goolfc(self):
         """Test whether goolfc is handled properly."""
         tc = self.get_toolchain("goolfc", version="1.3.12")
@@ -388,7 +410,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.prepare()
 
         nvcc_flags = r' '.join([
-            r'-Xcompiler="-O2 -march=native"',
+            r'-Xcompiler="-O2 -%s"' % tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[tc.arch],
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
             r'-Xlinker=".* -lm -lrt -lcudart -lpthread"',
             r' '.join(["-gencode %s" % x for x in opts['cuda_gencode']]),
@@ -408,8 +430,8 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertTrue("-lrt -lcudart" in tc.get_variable('LIBS'))
 
-    def test_ictce_toolchain(self):
-        """Test for ictce toolchain."""
+    def setup_sandbox_for_intel_fftw(self):
+        """Set up sandbox for Intel FFTW"""
         # hack to make Intel FFTW lib check pass
         # rewrite $root in imkl module so we can put required lib*.a files in place
         tmpdir = tempfile.mkdtemp()
@@ -426,7 +448,13 @@ class ToolchainTest(EnhancedTestCase):
         for subdir in ['mkl/lib/intel64', 'compiler/lib/intel64']:
             os.makedirs(os.path.join(tmpdir, subdir))
             for fftlib in fftw_libs:
-                open(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'w').write('foo')
+                write_file(os.path.join(tmpdir, subdir, 'lib%s.a' % fftlib), 'foo')
+
+        return tmpdir, imkl_module_path, imkl_module_txt
+
+    def test_ictce_toolchain(self):
+        """Test for ictce toolchain."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
 
         tc = self.get_toolchain("ictce", version="4.1.13")
         tc.prepare()
@@ -472,7 +500,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
-        open(imkl_module_path, 'w').write(imkl_module_txt)
+        write_file(imkl_module_path, imkl_module_txt)
 
     def test_toolchain_verification(self):
         """Test verification of toolchain definition."""
@@ -496,16 +524,24 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options(opts)
         tc.prepare()
 
-    def tearDown(self):
-        """Cleanup."""
-        # purge any loaded modules before restoring $MODULEPATH
-        modules.modules_tool().purge()
+    def test_nosuchtoolchain(self):
+        """Test preparing for a toolchain for which no module is available."""
+        tc = self.get_toolchain('intel', version='1970.01')
+        self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
 
-        super(ToolchainTest, self).tearDown()
+    def test_mpi_cmd_for(self):
+        """Test mpi_cmd_for function."""
+        tmpdir, imkl_module_path, imkl_module_txt = self.setup_sandbox_for_intel_fftw()
 
-        os.environ['MODULEPATH'] = self.orig_modpath
-        # reinitialize modules tool after touching $MODULEPATH
-        modules.modules_tool()
+        tc = self.get_toolchain('ictce', version='4.1.13')
+        tc.prepare()
+
+        mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
+        self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
+
+        # cleanup
+        shutil.rmtree(tmpdir)
+        write_file(imkl_module_path, imkl_module_txt)
 
 def suite():
     """ return all the tests"""

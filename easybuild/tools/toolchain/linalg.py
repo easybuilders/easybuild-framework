@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Toolchain linalg module. Contains all (scalable) linear algebra related classes
 @author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 
@@ -95,7 +96,7 @@ class LinAlg(Toolchain):
     def _set_blas_variables(self):
         """Set BLAS related variables"""
         if self.BLAS_LIB is None:
-            self.log.raiseException("_set_blas_variables: BLAS_LIB not set")
+            raise EasyBuildError("_set_blas_variables: BLAS_LIB not set")
 
         self.BLAS_LIB = self.variables.nappend('LIBBLAS', [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB])
         self.variables.add_begin_end_linkerflags(self.BLAS_LIB,
@@ -143,7 +144,7 @@ class LinAlg(Toolchain):
             self.variables.join('LAPACK_INC_DIR', 'BLAS_INC_DIR')
         else:
             if self.LAPACK_LIB is None:
-                self.log.raiseException("_set_lapack_variables: LAPACK_LIB not set")
+                raise EasyBuildError("_set_lapack_variables: LAPACK_LIB not set")
             self.LAPACK_LIB = self.variables.nappend('LIBLAPACK_ONLY', self.LAPACK_LIB)
             self.variables.add_begin_end_linkerflags(self.LAPACK_LIB,
                                                      toggle_startstopgroup=self.LAPACK_LIB_GROUP,
@@ -222,7 +223,7 @@ class LinAlg(Toolchain):
         """Set ScaLAPACK related variables"""
 
         if self.SCALAPACK_LIB is None:
-            self.log.raiseException("_set_blas_variables: SCALAPACK_LIB not set")
+            raise EasyBuildError("_set_blas_variables: SCALAPACK_LIB not set")
 
         lib_map = {}
         if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
@@ -268,7 +269,7 @@ class LinAlg(Toolchain):
             if getattr(self, 'LIB_MULTITHREAD', None) is not None:
                 self.variables.nappend('LIBSCALAPACK_MT', self.LIB_MULTITHREAD)
         else:
-            self.log.raiseException("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
+            raise EasyBuildError("_set_scalapack_variables: LIBSCALAPACK without SCALAPACK_REQUIRES not implemented")
 
 
         self.variables.join('SCALAPACK_STATIC_LIBS', 'LIBSCALAPACK')
@@ -279,4 +280,3 @@ class LinAlg(Toolchain):
 
         self._add_dependency_variables(self.SCALAPACK_MODULE_NAME,
                                        ld=self.SCALAPACK_LIB_DIR, cpp=self.SCALAPACK_INCLUDE_DIR)
-

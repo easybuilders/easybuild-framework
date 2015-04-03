@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,7 +48,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, create_paths, process_easyconfig
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, write_file
+from easybuild.tools.filetools import find_easyconfigs, which, write_file
 from easybuild.tools.github import fetch_easyconfigs_from_pr, download_repo
 from easybuild.tools.modules import modules_tool
 from easybuild.tools.multidiff import multidiff
@@ -80,7 +80,9 @@ try:
     sys.path.append('/usr/lib64/graphviz/python/')
     import gv
 except ImportError, err:
-    graph_errors.append("Failed to import graphviz: try yum install graphviz-python, or apt-get install python-pygraphviz")
+    graph_errors.append("Failed to import graphviz: try yum install graphviz-python,"
+                        "or apt-get install python-pygraphviz,"
+                        "or brew install graphviz --with-bindings")
 
 
 _log = fancylogger.getLogger('easyconfig.tools', fname=False)
@@ -183,9 +185,8 @@ def dep_graph(*args, **kwargs):
     try:
         _dep_graph(*args, **kwargs)
     except NameError, err:
-        errors = "\n".join(graph_errors)
-        msg = "An optional Python packages required to generate dependency graphs is missing: %s" % errors
-        _log.error("%s\nerr: %s" % (msg, err))
+        raise EasyBuildError("An optional Python packages required to generate dependency graphs is missing: %s, %s",
+                             '\n'.join(graph_errors), err)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -205,12 +206,12 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     path_list.extend(sys.path)
 
     # figure out installation prefix, e.g. distutils install path for easyconfigs
-    (out, ec) = run_cmd("which eb", simple=False, log_all=False, log_ok=False)
-    if ec:
-        _log.warning("eb not found (%s), failed to determine installation prefix" % out)
+    eb_path = which('eb')
+    if eb_path is None:
+        _log.warning("'eb' not found in $PATH, failed to determine installation prefix")
     else:
         # eb should reside in <install_prefix>/bin/eb
-        install_prefix = os.path.dirname(os.path.dirname(out))
+        install_prefix = os.path.dirname(os.path.dirname(eb_path))
         path_list.append(install_prefix)
         _log.debug("Also considering installation prefix %s..." % install_prefix)
 
@@ -243,15 +244,14 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_pr=False):
     return tweaked_ecs_path, pr_path
 
 
-def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
+def det_easyconfig_paths(orig_paths):
     """
     Determine paths to easyconfig files.
     @param orig_paths: list of original easyconfig paths
-    @param from_pr: pull request number to fetch easyconfigs from
-    @param easyconfigs_pkg_paths: paths to installed easyconfigs package
+    @return: list of paths to easyconfig files
     """
-    if easyconfigs_pkg_paths is None:
-        easyconfigs_pkg_paths = []
+    from_pr = build_option('from_pr')
+    robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
@@ -269,8 +269,8 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
             # if no easyconfigs are specified, use all the ones touched in the PR
             ec_files = [path for path in pr_files if path.endswith('.eb')]
 
-    if ec_files and easyconfigs_pkg_paths:
-        # look for easyconfigs with relative paths in easybuild-easyconfigs package,
+    if ec_files and robot_path:
+        # look for easyconfigs with relative paths in robot search path,
         # unless they were found at the given relative paths
 
         # determine which easyconfigs files need to be found, if any
@@ -280,8 +280,8 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
                 ecs_to_find.append((idx, ec_file))
         _log.debug("List of easyconfig files to find: %s" % ecs_to_find)
 
-        # find missing easyconfigs by walking paths with installed easyconfig files
-        for path in easyconfigs_pkg_paths:
+        # find missing easyconfigs by walking paths in robot search path
+        for path in robot_path:
             _log.debug("Looking for missing easyconfig files (%d left) in %s..." % (len(ecs_to_find), path))
             for (subpath, dirnames, filenames) in os.walk(path, topdown=True):
                 for idx, orig_path in ecs_to_find[:]:
@@ -303,8 +303,7 @@ def det_easyconfig_paths(orig_paths, from_pr=None, easyconfigs_pkg_paths=None):
             if not ecs_to_find:
                 break
 
-    # indicate that specified paths do not contain generated easyconfig files
-    return [(ec_file, False) for ec_file in ec_files]
+    return ec_files
 
 
 def parse_easyconfigs(paths, validate=True):
@@ -319,7 +318,7 @@ def parse_easyconfigs(paths, validate=True):
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            _log.error("Can't find path %s" % path)
+            raise EasyBuildError("Can't find path %s", path)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -330,7 +329,7 @@ def parse_easyconfigs(paths, validate=True):
                 ecs = process_easyconfig(ec_file, **kwargs)
                 easyconfigs.extend(ecs)
         except IOError, err:
-            _log.error("Processing easyconfigs in path %s failed: %s" % (path, err))
+            raise EasyBuildError("Processing easyconfigs in path %s failed: %s", path, err)
 
     return easyconfigs, generated_ecs
 
@@ -340,7 +339,7 @@ def stats_to_str(stats):
     Pretty print build statistics to string.
     """
     if not isinstance(stats, (OrderedDict, dict)):
-        _log.error("Can only pretty print build stats in dictionary form, not of type %s" % type(stats))
+        raise EasyBuildError("Can only pretty print build stats in dictionary form, not of type %s", type(stats))
 
     txt = "{\n"
     pref = "    "

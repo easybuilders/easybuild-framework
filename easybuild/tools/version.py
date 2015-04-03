@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,7 @@ from socket import gethostname
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
 # 1.1-rc1 would indicate a post-release, i.e., and update of 1.1, so beware!
-VERSION = LooseVersion("2.0.0dev")
+VERSION = LooseVersion("2.1.0dev")
 UNKNOWN = "UNKNOWN"
 
 def get_git_revision():

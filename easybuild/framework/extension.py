@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,7 @@ The Extension class should serve as a base class for all extensions.
 import copy
 import os
 
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_path
 from easybuild.tools.run import run_cmd
 
@@ -54,7 +55,7 @@ class Extension(object):
         self.ext = copy.deepcopy(ext)
 
         if not 'name' in self.ext:
-            self.log.error("'name' is missing in supplied class instance 'ext'.")
+            raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
 
         self.src = self.ext.get('src', None)
         self.patches = self.ext.get('patches', None)
@@ -111,7 +112,7 @@ class Extension(object):
         try:
             os.chdir(build_path())
         except OSError, err:
-            self.log.error("Failed to change directory: %s" % err)
+            raise EasyBuildError("Failed to change directory: %s", err)
 
         # disabling templating is required here to support legacy string templates like name/version
         self.cfg.enable_templating = False

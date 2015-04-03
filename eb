@@ -39,9 +39,9 @@
 # @author: Pieter De Baets (Ghent University)
 # @author: Jens Timmerman (Ghent University)
 
-# Python 2.4 or more recent 2.x required
+# Python 2.6 or more recent 2.x required
 REQ_MAJ_PYVER=2
-REQ_MIN_PYVER=4
+REQ_MIN_PYVER=6
 REQ_PYVER=${REQ_MAJ_PYVER}.${REQ_MIN_PYVER}
 
 # make sure Python version being used is compatible
@@ -58,15 +58,6 @@ if [ $pyver_min -lt $REQ_MIN_PYVER ]
 then
     echo "ERROR: EasyBuild requires Python v${REQ_PYVER} or a more recent v${REQ_MAJ_PYVER}.x, found v${pyver}." 1>&2
     exit 2
-fi
-
-# support for Python versions older than v2.6 is deprecated
-OK_MIN_PYVER=6
-if [ $pyver_min -lt $OK_MIN_PYVER ]
-then
-    OK_PYVER=${REQ_MAJ_PYVER}.${OK_MIN_PYVER}
-    echo -n "WARNING: Running EasyBuild with a Python version prior to v${OK_PYVER} is deprecated, " 1>&2
-    echo "found Python v$pyver which will no longer be supported in EasyBuild v2.0." 1>&2
 fi
 
 

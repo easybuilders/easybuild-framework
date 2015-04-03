@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2014 Ghent University
+# Copyright 2009-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,13 +40,12 @@ import difflib
 import os
 import re
 from vsc.utils import fancylogger
-from vsc.utils.missing import any, get_class_for, nub
+from vsc.utils.missing import get_class_for, nub
 from vsc.utils.patterns import Singleton
 
 import easybuild.tools.environment as env
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_naming_scheme
-from easybuild.tools.deprecated.eb_2_0 import ExtraOptionsDeprecatedReturnValue
 from easybuild.tools.filetools import decode_class_name, encode_class_name, read_file
 from easybuild.tools.module_naming_scheme import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
@@ -57,11 +56,12 @@ from easybuild.tools.toolchain import DUMMY_TOOLCHAIN_NAME, DUMMY_TOOLCHAIN_VERS
 from easybuild.tools.toolchain.utilities import get_toolchain
 from easybuild.tools.utilities import remove_unwanted_chars
 from easybuild.framework.easyconfig import MANDATORY
-from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, ALL_CATEGORIES, get_easyconfig_parameter_default
+from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.one import retrieve_blocks_in_spec
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT, License
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
+from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
 from easybuild.framework.easyconfig.templates import template_constant_dict
 
 
@@ -73,51 +73,21 @@ MANDATORY_PARAMS = ['name', 'version', 'homepage', 'description', 'toolchain']
 # set of configure/build/install options that can be provided as lists for an iterated build
 ITERATE_OPTIONS = ['preconfigopts', 'configopts', 'prebuildopts', 'buildopts', 'preinstallopts', 'installopts']
 
-# map of deprecated easyconfig parameters, and their replacements
-DEPRECATED_OPTIONS = {
-    'license': ('software_license', '2.0'),
-    'makeopts': ('buildopts', '2.0'),
-    'premakeopts': ('prebuildopts', '2.0'),
-}
-
-DEFAULT_EASYBLOCK = 'ConfigureMake'
-
 _easyconfig_files_cache = {}
 _easyconfigs_cache = {}
 
 
-def handle_deprecated_easyconfig_parameter(ec_method):
-    """Decorator to handle deprecated easyconfig parameters."""
+def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
+    """Decorator to handle deprecated/replaced easyconfig parameters."""
     def new_ec_method(self, key, *args, **kwargs):
-        """Map deprecated easyconfig parameters to the new correct parameter."""
-        # map name of deprecated easyconfig parameter to new name
-        if key in DEPRECATED_OPTIONS:
+        """Check whether any replace easyconfig parameters are still used"""
+        # map deprecated parameters to their replacements, issue deprecation warning(/error)
+        if key in DEPRECATED_PARAMETERS:
             depr_key = key
-            key, ver = DEPRECATED_OPTIONS[depr_key]
+            key, ver = DEPRECATED_PARAMETERS[depr_key]
             _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), ver)
-
-        # make sure that value for software_license has correct type, convert if needed
-        if key == 'software_license':
-            # key 'license' will already be mapped to 'software_license' above
-            lic = self._config['software_license'][0]
-            if lic is not None and not isinstance(lic, License):
-                self.log.deprecated('Type for software_license must to be instance of License (sub)class', '2.0')
-                lic_type = type(lic)
-
-                class LicenseLegacy(License, lic_type):
-                    """A special License class to deal with legacy license parameters"""
-                    DESCRICPTION = ("Internal-only, legacy closed license class to deprecate license parameter."
-                                    " (DO NOT USE).")
-                    HIDDEN = False
-
-                    def __init__(self, *args):
-                        if len(args) > 0:
-                            lic_type.__init__(self, args[0])
-                        License.__init__(self)
-                lic = LicenseLegacy(lic)
-                EASYCONFIG_LICENSES_DICT[lic.name] = lic
-                self._config['software_license'] = lic
-
+        if key in REPLACED_PARAMETERS:
+            _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
         return ec_method(self, key, *args, **kwargs)
 
     return new_ec_method
@@ -128,56 +98,56 @@ class EasyConfig(object):
     Class which handles loading, reading, validation of easyconfigs
     """
 
-    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None):
+    def __init__(self, path, extra_options=None, build_specs=None, validate=True, hidden=None, rawtxt=None):
         """
         initialize an easyconfig.
-        @param path: path to easyconfig file to be parsed
+        @param path: path to easyconfig file to be parsed (ignored if rawtxt is specified)
         @param extra_options: dictionary with extra variables that can be set for this specific instance
         @param build_specs: dictionary of build specifications (see EasyConfig class, default: {})
         @param validate: indicates whether validation should be performed (note: combined with 'validate' build option)
         @param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
+        @param rawtxt: raw contents of easyconfig file
         """
         self.template_values = None
         self.enable_templating = True  # a boolean to control templating
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-        if not os.path.isfile(path):
-            self.log.error("EasyConfig __init__ expected a valid path")
+        if path is not None and not os.path.isfile(path):
+            raise EasyBuildError("EasyConfig __init__ expected a valid path")
+
+        # read easyconfig file contents (or use provided rawtxt), so it can be passed down to avoid multiple re-reads
+        self.path = None
+        if rawtxt is None:
+            self.path = path
+            self.rawtxt = read_file(path)
+            self.log.debug("Raw contents from supplied easyconfig file %s: %s" % (path, self.rawtxt))
+        else:
+            self.rawtxt = rawtxt
+            self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
 
         # use legacy module classes as default
         self.valid_module_classes = build_option('valid_module_classes')
         if self.valid_module_classes is not None:
             self.log.info("Obtained list of valid module classes: %s" % self.valid_module_classes)
 
-        # replace the category name with the category
-        self._config = {}
-        for k, [def_val, descr, cat] in copy.deepcopy(DEFAULT_CONFIG).items():
-            self._config[k] = [def_val, descr, ALL_CATEGORIES[cat]]
+        self._config = copy.deepcopy(DEFAULT_CONFIG)
 
+        # obtain name and easyblock specifications from raw easyconfig contents
+        self.software_name, self.easyblock = fetch_parameters_from_easyconfig(self.rawtxt, ['name', 'easyblock'])
+
+        # determine line of extra easyconfig parameters
         if extra_options is None:
-            name = fetch_parameter_from_easyconfig_file(path, 'name')
-            easyblock = fetch_parameter_from_easyconfig_file(path, 'easyblock')
-            app_class = get_easyblock_class(easyblock, name=name)
-            self.extra_options = app_class.extra_options()
+            easyblock_class = get_easyblock_class(self.easyblock, name=self.software_name)
+            self.extra_options = easyblock_class.extra_options()
         else:
             self.extra_options = extra_options
 
         if not isinstance(self.extra_options, dict):
-            if isinstance(self.extra_options, (list, tuple, ExtraOptionsDeprecatedReturnValue)):
-                typ = type(self.extra_options)
-                if not isinstance(self.extra_options, ExtraOptionsDeprecatedReturnValue):
-                    self.log.deprecated("extra_options return value should be of type 'dict', found '%s'" % typ, '2.0')
-                tup = (self.extra_options, type(self.extra_options))
-                self.log.debug("Converting extra_options value '%s' of type '%s' to a dict" % tup)
-                self.extra_options = dict(self.extra_options)
-            else:
-                tup = (type(self.extra_options), self.extra_options)
-                self.log.error("extra_options parameter passed is of incorrect type: %s ('%s')" % tup)
+            tup = (type(self.extra_options), self.extra_options)
+            self.log.nosupport("extra_options return value should be of type 'dict', found '%s': %s" % tup, '2.0')
 
         self._config.update(self.extra_options)
-
-        self.path = path
 
         self.mandatory = MANDATORY_PARAMS[:]
 
@@ -210,6 +180,9 @@ class EasyConfig(object):
         if self.validation:
             self.validate(check_osdeps=build_option('check_osdeps'))
 
+        # filter hidden dependencies from list of dependencies
+        self.filter_hidden_deps()
+
         # keep track of whether the generated module file should be hidden
         if hidden is None:
             hidden = build_option('hidden')
@@ -226,7 +199,7 @@ class EasyConfig(object):
         Return a copy of this EasyConfig instance.
         """
         # create a new EasyConfig instance
-        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden)
+        ec = EasyConfig(self.path, validate=self.validation, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
 
@@ -242,7 +215,7 @@ class EasyConfig(object):
         elif isinstance(prev_value, list):
             self[key] = prev_value + value
         else:
-            self.log.error("Can't update configuration value for %s, because it's not a string or list." % key)
+            raise EasyBuildError("Can't update configuration value for %s, because it's not a string or list.", key)
 
     def parse(self):
         """
@@ -255,42 +228,45 @@ class EasyConfig(object):
             # build a new dictionary with only the expected keys, to pass as named arguments to get_config_dict()
             arg_specs = self.build_specs
         else:
-            self.log.error("Specifications should be specified using a dictionary, got %s" % type(self.build_specs))
+            raise EasyBuildError("Specifications should be specified using a dictionary, got %s",
+                                 type(self.build_specs))
         self.log.debug("Obtained specs dict %s" % arg_specs)
 
-        parser = EasyConfigParser(self.path)
+        self.log.info("Parsing easyconfig file %s with rawcontent: %s" % (self.path, self.rawtxt))
+        parser = EasyConfigParser(filename=self.path, rawcontent=self.rawtxt)
         parser.set_specifications(arg_specs)
         local_vars = parser.get_config_dict()
         self.log.debug("Parsed easyconfig as a dictionary: %s" % local_vars)
 
-        # validate mandatory keys
-        # TODO: remove this code. this is now (also) checked in the format (see validate_pyheader)
-        missing_keys = [key for key in self.mandatory if key not in local_vars]
-        if missing_keys:
-            self.log.error("mandatory variables %s not provided in %s" % (missing_keys, self.path))
+        # make sure all mandatory parameters are defined
+        # this includes both generic mandatory parameters and software-specific parameters defined via extra_options
+        missing_mandatory_keys = [key for key in self.mandatory if key not in local_vars]
+        if missing_mandatory_keys:
+            raise EasyBuildError("mandatory parameters not provided in %s: %s", self.path, missing_mandatory_keys)
 
         # provide suggestions for typos
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
-                          for key in local_vars if key not in self._config]
+                          for key in local_vars if key not in self]
 
         typos = [(key, guesses[0]) for (key, guesses) in possible_typos if len(guesses) == 1]
         if typos:
-            self.log.error("You may have some typos in your easyconfig file: %s" %
-                            ', '.join(["%s -> %s" % typo for typo in typos]))
+            raise EasyBuildError("You may have some typos in your easyconfig file: %s",
+                                 ', '.join(["%s -> %s" % typo for typo in typos]))
 
         # we need toolchain to be set when we call _parse_dependency
         for key in ['toolchain'] + local_vars.keys():
             # validations are skipped, just set in the config
             # do not store variables we don't need
-            if key in self._config.keys() + DEPRECATED_OPTIONS.keys():
+            if key in self._config.keys():
                 if key in ['builddependencies', 'dependencies']:
                     self[key] = [self._parse_dependency(dep) for dep in local_vars[key]]
                 elif key in ['hiddendependencies']:
                     self[key] = [self._parse_dependency(dep, hidden=True) for dep in local_vars[key]]
                 else:
                     self[key] = local_vars[key]
-                tup = (key, self[key], type(self[key]))
-                self.log.info("setting config option %s: value %s (type: %s)" % tup)
+                self.log.info("setting config option %s: value %s (type: %s)", key, self[key], type(self[key]))
+            elif key in REPLACED_PARAMETERS:
+                _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
 
             else:
                 self.log.debug("Ignoring unknown config option %s (value: %s)" % (key, local_vars[key]))
@@ -304,16 +280,19 @@ class EasyConfig(object):
     def handle_allowed_system_deps(self):
         """Handle allowed system dependencies."""
         for (name, version) in self['allow_system_deps']:
-            env.setvar(get_software_root_env_var_name(name), name)  # root is set to name, not an actual path
-            env.setvar(get_software_version_env_var_name(name), version)  # version is expected to be something that makes sense
+            # root is set to name, not an actual path
+            env.setvar(get_software_root_env_var_name(name), name)
+            # version is expected to be something that makes sense
+            env.setvar(get_software_version_env_var_name(name), version)
 
     def validate(self, check_osdeps=True):
         """
-        Validate this EasyConfig
-        - check certain variables
-        TODO: move more into here
+        Validate this easyonfig
+        - ensure certain easyconfig parameters are set to a known value (see self.validations)
+        - check OS dependencies
+        - check license
         """
-        self.log.info("Validating easy block")
+        self.log.info("Validating easyconfig")
         for attr in self.validations:
             self._validate(attr, self.validations[attr])
 
@@ -325,8 +304,8 @@ class EasyConfig(object):
 
         self.log.info("Checking skipsteps")
         if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
-            self.log.error('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)' %
-                           (type(self._config['skipsteps'][0]), self._config['skipsteps'][0]))
+            raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
+                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -334,21 +313,18 @@ class EasyConfig(object):
         self.log.info("Checking licenses")
         self.validate_license()
 
-        self.log.info("Checking whether list of hidden dependencies is a subset of list of dependencies")
-        self.validate_hiddendeps()
-
     def validate_license(self):
         """Validate the license"""
         lic = self._config['software_license'][0]
         if lic is None:
             # when mandatory, remove this possibility
             if 'software_license' in self.mandatory:
-                self.log.error("License is mandatory, but 'software_license' is undefined")
+                raise EasyBuildError("License is mandatory, but 'software_license' is undefined")
         elif not isinstance(lic, License):
-            self.log.error('License %s has to be a License subclass instance, found classname %s.' %
-                           (lic, lic.__class__.__name__))
+            raise EasyBuildError('License %s has to be a License subclass instance, found classname %s.',
+                                 lic, lic.__class__.__name__)
         elif not lic.name in EASYCONFIG_LICENSES_DICT:
-            self.log.error('Invalid license %s (classname: %s).' % (lic.name, lic.__class__.__name__))
+            raise EasyBuildError('Invalid license %s (classname: %s).', lic.name, lic.__class__.__name__)
 
         # TODO, when GROUP_SOURCE and/or GROUP_BINARY is True
         #  check the owner of source / binary (must match 'group' parameter from easyconfig)
@@ -366,13 +342,14 @@ class EasyConfig(object):
             if isinstance(dep, basestring):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
-                self.log.error("Non-tuple value type for OS dependency specification: %s (type %s)" % (dep, type(dep)))
+                raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
+                                     dep, type(dep))
 
             if not any([check_os_dependency(cand_dep) for cand_dep in dep]):
                 not_found.append(dep)
 
         if not_found:
-            self.log.error("One or more OS dependencies were not found: %s" % not_found)
+            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found)
         else:
             self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
@@ -391,7 +368,7 @@ class EasyConfig(object):
 
             # anticipate changes in available easyconfig parameters (e.g. makeopts -> buildopts?)
             if self.get(opt, None) is None:
-                self.log.error("%s not available in self.cfg (anymore)?!" % opt)
+                raise EasyBuildError("%s not available in self.cfg (anymore)?!", opt)
 
             # keep track of list, supply first element as first option to handle
             if isinstance(self[opt], (list, tuple)):
@@ -400,14 +377,13 @@ class EasyConfig(object):
         # make sure that options that specify lists have the same length
         list_opt_lengths = [length for (opt, length) in opt_counts if length > 1]
         if len(nub(list_opt_lengths)) > 1:
-            self.log.error("Build option lists for iterated build should have same length: %s" % opt_counts)
+            raise EasyBuildError("Build option lists for iterated build should have same length: %s", opt_counts)
 
         return True
 
-    def validate_hiddendeps(self):
+    def filter_hidden_deps(self):
         """
-        Validate that list of hidden dependencies is a subset of the list of dependencies.
-        The list of dependencies is adjusted to only include non-hidden dependencies.
+        Filter hidden dependencies from list of dependencies.
         """
         dep_mod_names = [dep['full_mod_name'] for dep in self['dependencies']]
 
@@ -422,11 +398,12 @@ class EasyConfig(object):
                 # hidden dependencies must also be included in list of dependencies;
                 # this is done to try and make easyconfigs portable w.r.t. site-specific policies with minimal effort,
                 # i.e. by simply removing the 'hiddendependencies' specification
+                self.log.warning("Hidden dependency %s not in list of dependencies" % visible_mod_name)
                 faulty_deps.append(visible_mod_name)
 
         if faulty_deps:
-            tup = (faulty_deps, dep_mod_names)
-            self.log.error("Hidden dependencies with visible module names %s not in list of dependencies: %s" % tup)
+            raise EasyBuildError("Hidden dependencies with visible module names %s not in list of dependencies: %s",
+                                 faulty_deps, dep_mod_names)
 
     def dependencies(self):
         """
@@ -541,7 +518,7 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            self.log.error("%s provided '%s' is not valid: %s" % (attr, self[attr], values))
+            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
 
     # private method
     def _parse_dependency(self, dep, hidden=False):
@@ -590,7 +567,11 @@ class EasyConfig(object):
             dep = list(dep)
             dependency.update(dict(zip(attr, dep)))
         else:
-            self.log.error('Dependency %s of unsupported type: %s.' % (dep, type(dep)))
+            raise EasyBuildError('Dependency %s of unsupported type: %s.', dep, type(dep))
+
+        # check whether this dependency should be hidden according to --hide-deps
+        if build_option('hide_deps'):
+            dependency['hidden'] |= dependency['name'] in build_option('hide_deps')
 
         # dependency inherits toolchain, unless it's specified to have a custom toolchain
         tc = copy.deepcopy(self['toolchain'])
@@ -604,14 +585,14 @@ class EasyConfig(object):
                 if len(tc_spec) == 2:
                     tc = {'name': tc_spec[0], 'version': tc_spec[1]}
                 else:
-                    self.log.error("List/tuple value for toolchain should have two elements (%s)" % str(tc_spec))
+                    raise EasyBuildError("List/tuple value for toolchain should have two elements (%s)", str(tc_spec))
             elif isinstance(tc_spec, dict):
                 if 'name' in tc_spec and 'version' in tc_spec:
                     tc = copy.deepcopy(tc_spec)
                 else:
-                    self.log.error("Found toolchain spec as dict with required 'name'/'version' keys: %s" % tc_spec)
+                    raise EasyBuildError("Found toolchain spec as dict with wrong keys (no name/version): %s", tc_spec)
             else:
-                self.log.error("Unsupported type for toolchain spec encountered: %s => %s" % (tc_spec, type(tc_spec)))
+                raise EasyBuildError("Unsupported type for toolchain spec encountered: %s (%s)", tc_spec, type(tc_spec))
 
         dependency['toolchain'] = tc
 
@@ -620,10 +601,10 @@ class EasyConfig(object):
 
         # validations
         if not dependency['name']:
-            self.log.error("Dependency specified without name: %s" % dependency)
+            raise EasyBuildError("Dependency specified without name: %s", dependency)
 
         if not dependency['version']:
-            self.log.error("Dependency specified without version: %s" % dependency)
+            raise EasyBuildError("Dependency specified without version: %s", dependency)
 
         dependency['short_mod_name'] = ActiveMNS().det_short_module_name(dependency)
         dependency['full_mod_name'] = ActiveMNS().det_full_module_name(dependency)
@@ -657,33 +638,43 @@ class EasyConfig(object):
             if v is None:
                 del self.template_values[k]
 
-    @handle_deprecated_easyconfig_parameter
+    @handle_deprecated_or_replaced_easyconfig_parameters
+    def __contains__(self, key):
+        """Check whether easyconfig parameter is defined"""
+        return key in self._config
+
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
-        """
-        will return the value without the help text
-        """
-        value = self._config[key][0]
+        """Return value of specified easyconfig parameter (without help text, etc.)"""
+        value = None
+        if key in self._config:
+            value = self._config[key][0]
+        else:
+            raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
+
         if self.enable_templating:
             if self.template_values is None or len(self.template_values) == 0:
                 self.generate_template_values()
-            return resolve_template(value, self.template_values)
-        else:
-            return value
+            value = resolve_template(value, self.template_values)
 
-    @handle_deprecated_easyconfig_parameter
+        return value
+
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def __setitem__(self, key, value):
-        """
-        sets the value of key in config.
-        help text is untouched
-        """
-        self._config[key][0] = value
+        """Set value of specified easyconfig parameter (help text & co is left untouched)"""
+        if key in self._config:
+            self._config[key][0] = value
+        else:
+            raise EasyBuildError("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'",
+                                 key, value)
 
+    @handle_deprecated_or_replaced_easyconfig_parameters
     def get(self, key, default=None):
         """
         Gets the value of a key in the config, with 'default' as fallback.
         """
-        if key in self._config:
-            return self.__getitem__(key)
+        if key in self:
+            return self[key]
         else:
             return default
 
@@ -705,27 +696,7 @@ class EasyConfig(object):
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
     old_fn = 'framework.easyconfig.easyconfig.det_installversion'
-    _log.deprecated('Use module_generator.det_full_ec_version instead of %s' % old_fn, '2.0')
-    cfg = {
-        'version': version,
-        'toolchain': {'name': toolchain_name, 'version': toolchain_version},
-        'versionprefix': prefix,
-        'versionsuffix': suffix,
-    }
-    return det_full_ec_version(cfg)
-
-
-def fetch_parameter_from_easyconfig_file(path, param):
-    """Fetch parameter specification from given easyconfig file."""
-    # check whether easyblock is specified in easyconfig file
-    # note: we can't rely on value for 'easyblock' in parsed easyconfig, it may be the default value
-    reg = re.compile(r"^\s*%s\s*=\s*(?P<param>\S.*?)\s*$" % param, re.M)
-    txt = read_file(path)
-    res = reg.search(txt)
-    if res:
-        return res.group('param').strip("'\"")
-    else:
-        return None
+    _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
 def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_failed_import=True):
@@ -741,8 +712,8 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
             # figure out if full path was specified or not
             if es:
                 modulepath = '.'.join(es)
-                tup = (class_name, modulepath)
-                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)" % tup)
+                _log.info("Assuming that full easyblock module path was specified (class: %s, modulepath: %s)",
+                          class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
                 # if we only get the class name, most likely we're dealing with a generic easyblock
@@ -777,8 +748,7 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                 modulepath_bis = get_module_path(name, decode=False)
                 _log.debug("Module path determined based on software name: %s" % modulepath_bis)
                 if modulepath_bis != modulepath:
-                    _log.deprecated("Determine module path based on software name", "2.0")
-                    modulepath = modulepath_bis
+                    _log.nosupport("Determining module path based on software name", '2.0')
 
             # try and find easyblock
             try:
@@ -786,36 +756,31 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
                 cls = get_class_for(modulepath, class_name)
                 _log.info("Successfully obtained %s class instance from %s" % (class_name, modulepath))
             except ImportError, err:
-
                 # when an ImportError occurs, make sure that it's caused by not finding the easyblock module,
                 # and not because of a broken import statement in the easyblock module
                 error_re = re.compile(r"No module named %s" % modulepath.replace("easybuild.easyblocks.", ''))
                 _log.debug("error regexp: %s" % error_re.pattern)
                 if error_re.match(str(err)):
                     if default_fallback:
-                        # no easyblock could be found, so fall back to default class.
-                        def_class = DEFAULT_EASYBLOCK
-                        def_mod_path = get_module_path(def_class, generic=True)
-
-                        _log.warning("Failed to import easyblock for %s, falling back to default class %s: error: %s" % \
-                                    (class_name, (def_mod_path, def_class), err))
-
-                        depr_msg = "Fallback to default easyblock %s (from %s)" % (def_class, def_mod_path)
-                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % def_class
-                        _log.deprecated(depr_msg, '2.0')
-                        cls = get_class_for(def_mod_path, def_class)
+                        # no easyblock could be found, so fall back to ConfigureMake (NO LONGER SUPPORTED)
+                        legacy_fallback_easyblock = 'ConfigureMake'
+                        def_mod_path = get_module_path(legacy_fallback_easyblock, generic=True)
+                        depr_msg = "Fallback to default easyblock %s (from %s)" % (legacy_fallback_easyblock, def_mod_path)
+                        depr_msg += "; use \"easyblock = '%s'\" in easyconfig file?" % legacy_fallback_easyblock
+                        _log.nosupport(depr_msg, '2.0')
                 else:
                     if error_on_failed_import:
-                        _log.error("Failed to import easyblock for %s because of module issue: %s" % (class_name, err))
+                        raise EasyBuildError("Failed to import easyblock for %s because of module issue: %s",
+                                             class_name, err)
                     else:
                         _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
-            tup = (cls.__name__, easyblock, name)
-            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')" % tup)
+            _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
+                      cls.__name__, easyblock, name)
         else:
-            tup = (easyblock, name, default_fallback)
-            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s" % tup)
+            _log.debug("No class found for easyblock '%s' (software name '%s', default fallback: %s",
+                       easyblock, name, default_fallback)
 
         return cls
 
@@ -823,7 +788,7 @@ def get_easyblock_class(easyblock, name=None, default_fallback=True, error_on_fa
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception, err:
-        _log.error("Failed to obtain class for %s easyblock (not available?): %s" % (easyblock, err))
+        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
 
 
 def get_module_path(name, generic=False, decode=True):
@@ -933,8 +898,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError, err:
-            msg = "Failed to process easyconfig %s:\n%s" % (spec, err.msg)
-            _log.exception(msg)
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
 
         name = ec['name']
 
@@ -946,7 +910,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         if not parse_only:
             # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
             easyconfig.update({
-                'spec': spec,
+                'spec': ec.path,
                 'short_mod_name': ec.short_mod_name,
                 'full_mod_name': ec.full_mod_name,
                 'dependencies': [],
@@ -1013,7 +977,7 @@ def robot_find_easyconfig(name, version):
         return _easyconfig_files_cache[key]
     paths = build_option('robot_path')
     if not paths:
-        _log.error("No robot path specified, which is required when looking for easyconfigs (use --robot)")
+        raise EasyBuildError("No robot path specified, which is required when looking for easyconfigs (use --robot)")
     if not isinstance(paths, (list, tuple)):
         paths = [paths]
     # candidate easyconfig paths
@@ -1045,7 +1009,8 @@ class ActiveMNS(object):
         if sel_mns in avail_mnss:
             self.mns = avail_mnss[sel_mns]()
         else:
-            self.log.error("Selected module naming scheme %s could not be found in %s" % (sel_mns, avail_mnss.keys()))
+            raise EasyBuildError("Selected module naming scheme %s could not be found in %s",
+                                 sel_mns, avail_mnss.keys())
 
     def requires_full_easyconfig(self, keys):
         """Check whether specified list of easyconfig parameters is sufficient for active module naming scheme."""
@@ -1066,8 +1031,8 @@ class ActiveMNS(object):
                     self.log.debug("Full list of parsed easyconfigs: %s" % parsed_ec)
                 ec = parsed_ec[0]['ec']
             else:
-                tup = (ec['name'], det_full_ec_version(ec), ec)
-                self.log.error("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s" % tup)
+                raise EasyBuildError("Failed to find easyconfig file '%s-%s.eb' when determining module name for: %s",
+                                     ec['name'], det_full_ec_version(ec), ec)
 
         return ec
 
@@ -1090,7 +1055,7 @@ class ActiveMNS(object):
         mod_name = mns_method(self.check_ec_type(ec))
 
         if not is_valid_module_name(mod_name):
-            self.log.error("%s is not a valid module name" % str(mod_name))
+            raise EasyBuildError("%s is not a valid module name", str(mod_name))
 
         # check whether module name should be hidden or not
         # ec may be either a dict or an EasyConfig instance, 'force_visible' argument overrules
@@ -1119,8 +1084,8 @@ class ActiveMNS(object):
 
         # sanity check: obtained module name should pass the 'is_short_modname_for' check
         if not self.is_short_modname_for(mod_name, ec['name']):
-            tup = (mod_name, ec['name'])
-            self.log.error("is_short_modname_for('%s', '%s') for active module naming scheme returns False" % tup)
+            raise EasyBuildError("is_short_modname_for('%s', '%s') for active module naming scheme returns False",
+                                 mod_name, ec['name'])
 
         return mod_name
 

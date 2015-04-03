@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2012-2014 Ghent University
+# Copyright 2012-2015 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -33,10 +33,10 @@ correctly by easybuild.
 from datetime import date
 from optparse import OptionParser
 
-import easybuild.tools.build_log  # ensure use of EasyBuildLog
 import easybuild.tools.config as config
 import easybuild.tools.options as eboptions
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import Githubfs
 from vsc.utils import fancylogger
 
@@ -136,7 +136,7 @@ for root, subfolders, files in walk(options.path):
                 configs.append(ec)
                 names.append(ec.name)
         except Exception, err:
-            log.error("faulty easyconfig %s: %s" % (ec_file, err))
+            raise EasyBuildError("faulty easyconfig %s: %s", ec_file, err)
 
 log.info("Found easyconfigs: %s" % [x.name for x in configs])
 # sort by name
