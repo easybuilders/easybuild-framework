@@ -197,6 +197,7 @@ class EasyBlock(object):
         self.module_family = build_option('module_family')
         self.module_properties = None
         if build_option('module_properties') is not None:
+            self.module_properties = []
             for prop_spec in build_option('module_properties'):
                 prop_spec_parts = prop_spec.split(':')
                 prop_key = prop_spec_parts[0]

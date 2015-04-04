@@ -1592,7 +1592,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--module-properties=state:testing,arch:mic:offload',
         ]
         os.environ['EASYBUILD_MODULE_PROPERTIES'] = 'lmod:sticky'
-        self.eb_main(args, do_build=True)
+        self.eb_main(args, do_build=True, raise_error=True)
 
         modfp = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
 
