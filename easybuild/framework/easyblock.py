@@ -195,12 +195,13 @@ class EasyBlock(object):
 
         # module features
         self.module_family = build_option('module_family')
-        self.module_properties = []
-        for prop_spec in build_option('module_properties'):
-            prop_spec_parts = prop_spec.split(':')
-            prop_key = prop_spec_parts[0]
-            prop_val = ':'.join(prop_spec_parts[1:])
-            self.module_properties.append((prop_key, prop_val))
+        self.module_properties = None
+        if build_option('module_properties') is not None:
+            for prop_spec in build_option('module_properties'):
+                prop_spec_parts = prop_spec.split(':')
+                prop_key = prop_spec_parts[0]
+                prop_val = ':'.join(prop_spec_parts[1:])
+                self.module_properties.append((prop_key, prop_val))
         self.log.debug("List of properties (key, value): %s", self.module_properties)
 
         # generate build/install directories
@@ -852,8 +853,13 @@ class EasyBlock(object):
 
     def make_module_features(self):
         """Create features section of module file (module family, properties, ...)."""
-        txt = self.module_generator.family(self.module_family)
-        txt += self.module_generator.properties(self.module_properties)
+        txt = ''
+
+        if self.module_family is not None:
+            txt = self.module_generator.family(self.module_family)
+
+        if self.module_properties is not None:
+            txt += self.module_generator.properties(self.module_properties)
 
         self.log.debug("Module features section: %s", txt)
         return txt
