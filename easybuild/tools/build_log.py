@@ -31,7 +31,6 @@ EasyBuild logger and log utilities, including our own EasybuildError class.
 @author: Pieter De Baets (Ghent University)
 @author: Jens Timmerman (Ghent University)
 """
-import inspect
 import os
 import sys
 import tempfile
